@@ -46,3 +46,4 @@
 {"seq":46,"at":"2026-10-25T04:22:04.053396Z","actor":"claude-xtask","kind":"TaskOpened","task":"task-81d8887cd83e7c1d","text":"meta-lints: path-form excludes; git-aware walk without following symlinks; skip target dirs at any depth"}
 {"seq":47,"at":"2026-10-25T04:22:04.135661Z","actor":"claude-xtask","kind":"TaskOpened","task":"task-f72510ff56e7b432","text":"meta-lints: same-named enums in different crates collide (sum_types keyed by name)"}
 {"seq":48,"at":"2026-10-25T04:22:04.221899Z","actor":"claude-xtask","kind":"TaskOpened","task":"task-b794f08a11959913","text":"meta-lints: detect binaries at root src/main.rs and src/bin/*"}
+{"seq":49,"at":"2026-10-25T04:22:04.311396Z","actor":"claude-xtask","kind":"TaskOpened","task":"task-92a7c59cd9c3ed9d","text":"meta-ci: an empty step list must fail; print total time on failure"}
