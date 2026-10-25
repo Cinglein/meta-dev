@@ -114,3 +114,4 @@
 {"at":"2026-10-25T07:39:28.177982Z","actor":"claude-cratemaxx-lints","kind":"TaskDone","task":"task-41bfd815f713f919"}
 {"at":"2026-10-25T23:06:43.965321Z","actor":"claude-lead","kind":"TaskOpened","task":"task-816bb7f2039dc478","text":"Adopt chess tooling, part 1: replace meta-lints/meta-ci/xtask lint+ci with chess's tooling/task core, tooling/lints/* crates, policy file and xtask tasks (lint, clippy, test, ci), project-agnostic"}
 {"at":"2026-10-25T23:06:45.539175Z","actor":"claude-lead","kind":"TaskOpened","task":"task-05c40ac3c9872af8","text":"Adopt chess tooling, part 2: affected-test selection (tooling/affected) and test-time/memory budgets (tooling/test_time)"}
+{"at":"2026-10-25T23:06:47.052952Z","actor":"claude-lead","kind":"TaskOpened","task":"task-71d7268b9889c774","text":"Adopt chess tooling, part 3: mutation testing (tooling/mutation, mutant_costs, mutants workflow), stacked-PR guard"}
