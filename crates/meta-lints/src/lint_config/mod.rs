@@ -22,8 +22,6 @@ pub struct LintConfig {
 }
 
 impl LintConfig {
-    const ALWAYS_EXCLUDED: &str = "target";
-
     pub fn baseline(&self) -> &Path {
         &self.baseline
     }
@@ -33,7 +31,7 @@ impl LintConfig {
     }
 
     pub fn excludes(&self, directory: &OsStr) -> bool {
-        directory == Self::ALWAYS_EXCLUDED || self.exclude.iter().any(|excluded| excluded == directory)
+        self.exclude.iter().any(|excluded| excluded == directory)
     }
 
     pub fn region(&self, path: &str) -> Region {

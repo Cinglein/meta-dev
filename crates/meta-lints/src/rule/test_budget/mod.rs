@@ -33,6 +33,7 @@ impl TestBudget {
     const MAX_INTEGER_LITERAL: Amount = Amount::new(64);
     const MAX_TESTS_PER_HUNDRED_FILES: Amount = Amount::new(40);
     const MAX_TEST_LINE_PERCENT: Amount = Amount::new(18);
+    const INTEGRATION_TESTS: &str = "tests";
 
     pub fn report(files: &[SourceFile]) -> Report {
         let support: Vec<PathBuf> = files.iter().flat_map(SupportModules::paths).collect();
@@ -41,17 +42,16 @@ impl TestBudget {
 
     fn measure(file: &SourceFile, support: &[PathBuf]) -> Self {
         let lines = Amount::new(file.text().lines().count());
-        let scanned = TestScan::budget(file.path(), file.syntax());
-        Self {
-            files: Amount::ONE,
-            lines,
-            test_lines: if support.iter().any(|path| path == Path::new(file.path())) {
-                lines
-            } else {
-                scanned.test_lines
-            },
-            ..scanned
+        if Self::is_test_file(Path::new(file.path()), support) {
+            Self { files: Amount::ONE, lines, test_lines: lines, ..TestScan::whole_file(file) }
+        } else {
+            Self { files: Amount::ONE, lines, ..TestScan::budget(file.path(), file.syntax()) }
         }
+    }
+
+    fn is_test_file(path: &Path, support: &[PathBuf]) -> bool {
+        support.iter().any(|module| module == path)
+            || path.parent().and_then(Path::file_name).is_some_and(|directory| directory == Self::INTEGRATION_TESTS)
     }
 
     fn summarise(self) -> Report {
@@ -95,7 +95,25 @@ impl Sum for TestBudget {
 
 #[cfg(test)]
 mod tests {
-    use super::TestScan;
+    use super::{TestBudget, TestScan};
+    use crate::source_file::SourceFile;
+
+    const FOUR_TESTS: &str = "#[test] fn a() {} #[test] fn b() {} #[test] fn c() {} #[test] fn d() {}";
+    const ANY_TEST: &str =
+        "#[cfg(any(test))] mod checks { #[test] fn a() {} #[test] fn b() {} #[test] fn c() {} #[test] fn d() {} }";
+    const PATHS: [&str; 2] = ["crates/a/tests/flow.rs", "crates/a/src/lib.rs"];
+    const OVER: &str = "4 tests, at most 3 allowed";
+
+    #[test]
+    fn counts_integration_tests_and_cfg_any_test_modules() {
+        let files: Vec<SourceFile> = PATHS
+            .iter()
+            .zip([FOUR_TESTS, ANY_TEST])
+            .map(|(path, text)| SourceFile::parse((*path).to_owned(), text.to_owned()).expect("valid rust"))
+            .collect();
+        let report = TestBudget::report(&files).to_string();
+        assert_eq!(report.matches(OVER).count(), PATHS.len());
+    }
 
     const SOURCE: &str = "
 #[cfg(test)]

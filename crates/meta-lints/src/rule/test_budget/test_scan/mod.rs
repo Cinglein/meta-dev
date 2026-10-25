@@ -23,13 +23,18 @@ impl<'scan> TestScan<'scan> {
     pub(super) fn budget(path: &'scan str, file: &syn::File) -> TestBudget {
         let mut scan = TestScan { path, budget: TestBudget::default() };
         scan.visit_file(file);
-        let over = (scan.budget.tests > TestBudget::MAX_TESTS_PER_FILE).then(|| {
-            Violation::new(
-                Site::File(path.to_owned()),
-                TestsOver::new(scan.budget.tests, TestBudget::MAX_TESTS_PER_FILE),
-            )
+        Self::limited(path, scan.budget)
+    }
+
+    pub(super) fn whole_file(file: &'scan SourceFile) -> TestBudget {
+        Self::limited(file.path(), TestModule::file_budget(file.path(), file.syntax()))
+    }
+
+    fn limited(path: &str, budget: TestBudget) -> TestBudget {
+        let over = (budget.tests > TestBudget::MAX_TESTS_PER_FILE).then(|| {
+            Violation::new(Site::File(path.to_owned()), TestsOver::new(budget.tests, TestBudget::MAX_TESTS_PER_FILE))
         });
-        scan.budget + TestBudget { violations: over.into_iter().collect(), ..TestBudget::default() }
+        budget + TestBudget { violations: over.into_iter().collect(), ..TestBudget::default() }
     }
 }
 

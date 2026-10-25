@@ -65,7 +65,7 @@ impl Fixture {
     fn git(directory: &Path, args: &[&str]) {
         let status =
             Command::new("git").args(["-c", "core.hooksPath=/dev/null"]).args(args).current_dir(directory).status();
-        assert!(status.expect("run git").success());
+        status.expect("run git").success().then_some(()).expect("git succeeds");
     }
 }
 

@@ -2,6 +2,9 @@ use std::fmt;
 use std::fs;
 use std::path::Path;
 
+use syn::Token;
+use syn::punctuated::Punctuated;
+
 use crate::failure::Failure;
 use crate::region::Region;
 use crate::site::Site;
@@ -59,8 +62,19 @@ impl SourceFile {
 
     pub fn is_test_item(attributes: &[syn::Attribute]) -> bool {
         attributes.iter().any(|attribute| {
-            attribute.path().is_ident("cfg") && attribute.parse_args::<syn::Ident>().is_ok_and(|ident| ident == "test")
+            attribute.path().is_ident("cfg")
+                && attribute.parse_args::<syn::Meta>().is_ok_and(|meta| Self::names_test(&meta))
         })
+    }
+
+    fn names_test(meta: &syn::Meta) -> bool {
+        match meta {
+            syn::Meta::Path(path) => path.is_ident("test"),
+            syn::Meta::List(list) if list.path.is_ident("any") => list
+                .parse_args_with(Punctuated::<syn::Meta, Token![,]>::parse_terminated)
+                .is_ok_and(|metas| metas.iter().any(Self::names_test)),
+            _ => false,
+        }
     }
 }
 

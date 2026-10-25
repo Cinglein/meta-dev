@@ -40,6 +40,12 @@ impl<'scan> TestModule<'scan> {
         scan.budget
     }
 
+    pub(super) fn file_budget(path: &'scan str, file: &syn::File) -> TestBudget {
+        let mut scan = TestModule { path, scope: Scope::OutsideTest, budget: TestBudget::default() };
+        scan.visit_file(file);
+        scan.budget
+    }
+
     fn test_budget(&self, function: &ItemFn) -> TestBudget {
         let name = &function.sig.ident;
         let site = Site::spanned(self.path, name.span());

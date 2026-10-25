@@ -22,6 +22,8 @@ pub struct Workspace {
 }
 
 impl Workspace {
+    const TARGET: &str = "target";
+
     pub fn new(root: PathBuf, config: LintConfig) -> Workspace {
         Workspace { root, config }
     }
@@ -90,7 +92,7 @@ impl Workspace {
         let path = entry.path();
         if !path.is_dir() {
             Ok(path.extension().is_some_and(|extension| extension == "rs").then_some(path).into_iter().collect())
-        } else if self.config.excludes(&entry.file_name()) {
+        } else if path == self.root.join(Self::TARGET) || self.config.excludes(&entry.file_name()) {
             Ok(Vec::new())
         } else {
             self.rust_files_under(&path)
