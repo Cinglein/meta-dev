@@ -151,3 +151,20 @@ Source: Basho postmortem (the Basho project's private repo, part 3).
     Authority is narrowed automatically when these overspend their budgets.
   - Always owner-reviewed: changes to rules, budgets, enforcement config and authority itself (CODEOWNERS).
 - Until then the owner-merges rule stays.
+
+## Goal: automate the owner's triage/priority/wall-time role (owner, 2026-10-25)
+- Today the owner does it: flagging slow CI, noticing a PR like Basho #72 blocking everything, spotting perf problems in the app AND in devx (builds, tests, simulators, agent waits).
+- GOAL: the repo automates most of this. A STEWARD role, run on a schedule and on events, reads the log and:
+  - flags budget overruns and trends before they breach: CI/check wall time, build time, queue/lease wait, agent idle time, flakiness;
+  - detects blocking work:
+    - PR age;
+    - review rounds;
+    - number of tasks/PRs waiting on it;
+    - critical-path length;
+    - a PR growing in scope (#72's pattern);
+  - tracks devx perf like app perf: profiles, history, headroom (optimisation ledger);
+  - proposes priorities from severity × evidence gap × what is blocked;
+  - files concerns/tasks itself (with trails).
+- The steward escalates to the owner only for decisions: budget or authority changes, priority conflicts, waivers beyond budget.
+- Dogfooded: the steward's own false alarms and misses are budgeted, and calibrated against what the owner would have flagged.
+- Depends on stage 1 (runs, timings, budgets). Its first version belongs there.
