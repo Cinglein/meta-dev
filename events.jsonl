@@ -1,0 +1,1 @@
+{"at":"2026-10-25T05:13:03.536709Z","actor":"seed","kind":"ConcernIdentified","concern":"concern-a3a2bf7e8c4dda58","text":"CI and test speed was a huge blocker; the suite was huge, bloated and unoptimized","source":"docs/basho-postmortem.md §3.1","tags":["acceptance-candidate"]}
