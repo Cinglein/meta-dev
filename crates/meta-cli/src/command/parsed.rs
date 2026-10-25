@@ -3,7 +3,7 @@ mod word;
 
 use std::fmt;
 
-use meta_schema::{Actor, Id, Tag, Target, Task, Text};
+use meta_schema::{Actor, Entry, Id, Tag, Target, Task, Text};
 use meta_state::{Kind, Scope};
 
 use crate::command::ci::{Commit, SessionId};
@@ -100,6 +100,15 @@ impl Parsed {
             )),
             _ => Err(CliFailure::usage("expected a session id and a commit")),
         }
+    }
+
+    pub fn entry_and_text<Built>(&self, build: impl FnOnce(Entry, Text) -> Built) -> Result<Built, CliFailure> {
+        let (entry, text) = self.words.split_first().ok_or_else(|| CliFailure::usage("expected an id and text"))?;
+        let joined: Vec<String> = text.iter().map(ToString::to_string).collect();
+        Ok(build(
+            entry.to_string().parse().map_err(CliFailure::invalid)?,
+            joined.join(" ").parse().map_err(CliFailure::invalid)?,
+        ))
     }
 
     pub fn kind(&self) -> Result<Option<Kind>, CliFailure> {

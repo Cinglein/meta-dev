@@ -6,7 +6,7 @@ mod parsed;
 mod project;
 
 use meta_log::{LogFailure, LogStore};
-use meta_schema::{Actor, Claim, Event, NewConcern, NewIssue, NewTask, Record, TaskRef};
+use meta_schema::{Actor, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, Record, TaskRef};
 use meta_state::{Kind, Listing, Scope, State, Summary};
 
 use ci::{Commit, SessionId, Watcher};
@@ -54,6 +54,12 @@ impl TryFrom<Vec<String>> for Command {
             "release" => Ok(Self::Write(Event::TaskReleased(task()?))),
             "done" => Ok(Self::Write(Event::TaskDone(task()?))),
             "reopen" => Ok(Self::Write(Event::TaskReopened(task()?))),
+            "retire" => parsed
+                .allowing(&[])?
+                .entry_and_text(|entry, reason| Self::Write(Event::EntryRetired(EntryNote::new(entry, reason)))),
+            "correct" => parsed
+                .allowing(&[])?
+                .entry_and_text(|entry, text| Self::Write(Event::EntryCorrected(EntryNote::new(entry, text)))),
             "list" => Ok(Self::List(parsed.kind()?, parsed.allowing(&[OptionName::All])?.scope())),
             "hook" => Ok(Self::Hook(parsed.allowing(&[])?.text()?.to_string().parse()?)),
             "ci-watch" => parsed.allowing(&[])?.session_and_commit(Self::WatchCi),
