@@ -116,3 +116,4 @@
 {"at":"2026-10-25T23:06:45.539175Z","actor":"claude-lead","kind":"TaskOpened","task":"task-05c40ac3c9872af8","text":"Adopt chess tooling, part 2: affected-test selection (tooling/affected) and test-time/memory budgets (tooling/test_time)"}
 {"at":"2026-10-25T23:06:47.052952Z","actor":"claude-lead","kind":"TaskOpened","task":"task-71d7268b9889c774","text":"Adopt chess tooling, part 3: mutation testing (tooling/mutation, mutant_costs, mutants workflow), stacked-PR guard"}
 {"at":"2026-10-25T23:06:48.576823Z","actor":"claude-lead","kind":"TaskOpened","task":"task-51119fbbaa4bb24f","text":"Port meta-development's own tooling onto the chess base: crate-graph lint, enforcement-surface flagging, baseline ratchet vs merge base"}
+{"at":"2026-10-25T23:06:50.121572Z","actor":"claude-lead","kind":"TaskOpened","task":"task-d3fa995600f58f8f","text":"Superset check: run chess's tooling and meta-development's on the chess repo; findings must match before chess switches"}
