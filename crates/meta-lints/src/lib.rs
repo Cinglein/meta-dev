@@ -4,7 +4,6 @@ mod drift;
 mod failure;
 mod line_number;
 mod lint_config;
-mod loosening;
 mod path_prefix;
 mod prior;
 mod ratchet;

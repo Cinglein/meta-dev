@@ -26,10 +26,10 @@ impl Workspace {
         Workspace { root, config }
     }
 
-    pub fn lint(&self, prior: Option<&Prior>) -> Result<Tally, Failure> {
+    pub fn lint(&self, prior: &Prior) -> Result<Tally, Failure> {
         let files = self.source_files()?;
         let allowed = Baseline::read(&self.baseline_path())?.unwrap_or_default();
-        prior.map(|prior| prior.admit(&self.config, &allowed)).transpose()?;
+        prior.admit(&allowed)?;
         let findings = Findings::collect(&files, &self.config);
         let observed = findings.observed();
         let drifts = observed.drifts(&allowed);

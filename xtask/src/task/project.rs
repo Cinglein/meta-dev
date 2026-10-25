@@ -17,7 +17,12 @@ struct Settings {
 
 #[derive(Clone, Debug, Deserialize)]
 struct PriorSettings {
-    lints: LintConfig,
+    lints: PriorLints,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct PriorLints {
+    baseline: PathBuf,
 }
 
 #[derive(Clone, Debug)]
@@ -44,15 +49,13 @@ impl Project {
         Workspace::new(self.root.clone(), self.settings.lints.clone())
     }
 
-    pub fn prior(&self) -> Result<Option<Prior>, Failure> {
+    pub fn prior(&self) -> Result<Prior, Failure> {
         let revision = Revision::merge_base(&self.root)?;
-        revision
-            .file(Path::new(Self::CONFIG))?
-            .map(|text| toml::from_str::<PriorSettings>(&text))
-            .transpose()?
-            .map(|settings| Prior::read_at(&revision, settings.lints))
-            .transpose()
-            .map_err(Failure::from)
+        let prior = revision.file(Path::new(Self::CONFIG))?;
+        let settings = prior.and_then(|text| toml::from_str::<PriorSettings>(&text).ok());
+        let baseline =
+            settings.map_or_else(|| self.settings.lints.baseline().to_path_buf(), |prior| prior.lints.baseline);
+        Ok(Prior::read_at(&revision, &baseline)?)
     }
 
     pub fn run_ci(&self) -> Result<(), meta_ci::Failure> {

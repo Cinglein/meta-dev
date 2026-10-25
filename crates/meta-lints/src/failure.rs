@@ -2,7 +2,7 @@ use std::io;
 
 use thiserror::Error;
 
-use crate::loosening::Loosening;
+use crate::drift::Drift;
 use crate::ratchet::Ratchet;
 use crate::site::Site;
 
@@ -18,8 +18,8 @@ pub enum Failure {
     Serialize(toml::ser::Error),
     #[error("{0}")]
     Ratchet(Box<Ratchet>),
-    #[error("{}", .0.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n"))]
-    Loosened(Vec<Loosening>),
+    #[error("baseline raised above the merge base:\n{}", .0.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n"))]
+    Raised(Vec<Drift>),
     #[error("no rust files to lint")]
     NoFiles,
     #[error("git: {0}")]

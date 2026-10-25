@@ -20,7 +20,7 @@ impl Task {
     pub fn run(self) -> Result<(), Failure> {
         let project = Project::locate()?;
         match self {
-            Task::Lint => Ok(project.lints().lint(project.prior()?.as_ref()).map(|tally| print!("{tally}"))?),
+            Task::Lint => Ok(project.lints().lint(&project.prior()?).map(|tally| print!("{tally}"))?),
             Task::Baseline => Ok(project.lints().shrink_baseline().map(|tally| print!("{tally}"))?),
             Task::Ci => Ok(project.run_ci()?),
             Task::Usage => Err(Failure::Usage(Self::USAGE)),

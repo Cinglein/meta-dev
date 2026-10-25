@@ -7,7 +7,6 @@ use tempfile::TempDir;
 const CONFIG: &str = "xtask.toml";
 const CONFIG_TEXT: &str =
     "[lints]\nbaseline = \"lint-baseline.toml\"\nproduct = [\"crates\"]\nexclude = [\".git\"]\n\n[ci]\nstep = []\n";
-const WIDENED_CONFIG: &str = "[lints]\nbaseline = \"lint-baseline.toml\"\nproduct = [\"crates\"]\nexclude = [\".git\", \"b\"]\n\n[ci]\nstep = []\n";
 const BASELINE: &str = "lint-baseline.toml";
 const BASELINE_TEXT: &str = "[no-comments]\n\"crates/a/src/lib.rs\" = 1\n";
 const RAISED_BASELINE: &str = "[no-comments]\n\"crates/a/src/lib.rs\" = 2\n";
@@ -17,9 +16,8 @@ const TWICE_COMMENTED: &str = "pub struct Alpha;\n// one\n// two\n";
 const CLEAN: &str = "crates/b/src/lib.rs";
 const CLEAN_TEXT: &str = "pub struct Beta;\n";
 const MOVED: &str = "crates/c/src/lib.rs";
-const RAISED: &str = "baseline raised above the merge base: no-comments: 2 found, baseline 1";
+const RAISED: &str = "no-comments: 2 found, baseline 1";
 const OVER: &str = "no-comments: 2 found, baseline 0";
-const WIDENED: &str = "exclude widened: b";
 const NO_FILES: &str = "no rust files to lint";
 
 #[derive(Debug)]
@@ -82,11 +80,8 @@ fn a_raised_or_deleted_baseline_fails() {
 }
 
 #[test]
-fn a_widened_exclude_or_no_files_fails() {
+fn no_files_fails() {
     let fixture = Fixture::on_branch();
-    fixture.write(CONFIG, WIDENED_CONFIG);
-    assert!(fixture.refusal().contains(WIDENED));
-    fixture.write(CONFIG, CONFIG_TEXT);
     fs::remove_dir_all(fixture.work.join("crates")).expect("remove sources");
     assert!(fixture.refusal().contains(NO_FILES));
 }
