@@ -10,7 +10,7 @@ use crate::failure::Failure;
 use crate::lint_config::LintConfig;
 use crate::prior::Prior;
 use crate::ratchet::Ratchet;
-use crate::rule::Findings;
+use crate::rule::{CrateGraph, Findings, GraphReport};
 use crate::site::Site;
 use crate::source_file::SourceFile;
 use tally::Tally;
@@ -55,6 +55,10 @@ impl Workspace {
         } else {
             Err(Failure::Ratchet(Box::new(Ratchet::new(grown, findings, observed, allowed.unwrap_or_default()))))
         }
+    }
+
+    pub fn crate_graphs(&self) -> Result<GraphReport, Failure> {
+        Ok(CrateGraph::graph_report(&self.source_files()?))
     }
 
     pub fn root(&self) -> &Path {

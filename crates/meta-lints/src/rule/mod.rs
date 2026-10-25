@@ -1,5 +1,6 @@
 mod binary_files;
 mod const_shape;
+mod crate_graph;
 mod distinct_signatures;
 mod enum_predicates;
 mod expression_flow;
@@ -22,9 +23,11 @@ mod public_surface;
 mod report;
 mod state_graph;
 mod test_budget;
+mod test_files;
 mod type_shape;
 mod vec_out_params;
 
+pub use crate_graph::{CrateGraph, GraphLimits, GraphReport};
 pub use findings::Findings;
 pub use ownership::OwnershipRule;
 
@@ -60,6 +63,7 @@ use crate::source_file::SourceFile;
 #[strum(serialize_all = "kebab-case")]
 pub enum Rule {
     ConstShape,
+    CrateGraph,
     DistinctSignatures,
     EnumPredicates,
     ExpressionFlow,
@@ -87,6 +91,7 @@ impl Rule {
     pub fn report(self, files: &[SourceFile], config: &LintConfig) -> Report {
         match self {
             Rule::ConstShape => ConstShape::report(files),
+            Rule::CrateGraph => CrateGraph::report(files, config.crate_graph()),
             Rule::DistinctSignatures => DistinctSignatures::report(files),
             Rule::EnumPredicates => EnumPredicates::report(files),
             Rule::ExpressionFlow => ExpressionFlow::report(files),
