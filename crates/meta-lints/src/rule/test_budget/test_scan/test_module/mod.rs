@@ -20,8 +20,8 @@ use super::super::TestBudget;
 use super::super::amount::Amount;
 use super::super::measurement::Measurement;
 use crate::rule::name::Name;
-use crate::rule::violation::Violation;
 use crate::site::Site;
+use crate::violation::Violation;
 
 pub(super) struct TestModule<'scan> {
     path: &'scan str,

@@ -24,7 +24,6 @@ mod state_graph;
 mod test_budget;
 mod type_shape;
 mod vec_out_params;
-mod violation;
 
 pub use findings::Findings;
 pub use ownership::OwnershipRule;

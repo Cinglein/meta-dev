@@ -17,9 +17,9 @@ use super::impl_context::ImplContext;
 use super::type_name::TypeName;
 use crate::count::Count;
 use crate::rule::name::Name;
-use crate::rule::violation::Violation;
 use crate::site::Site;
 use crate::source_file::SourceFile;
+use crate::violation::Violation;
 
 pub struct EdgeScan<'scan> {
     declarations: &'scan Declarations,

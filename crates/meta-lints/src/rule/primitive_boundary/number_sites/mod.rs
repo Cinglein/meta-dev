@@ -13,9 +13,9 @@ use unnamed_size::UnnamedSize;
 
 use crate::region::Region;
 use crate::rule::name::Name;
-use crate::rule::violation::Violation;
 use crate::site::Site;
 use crate::source_file::SourceFile;
+use crate::violation::Violation;
 
 pub struct NumberSites {
     path: String,

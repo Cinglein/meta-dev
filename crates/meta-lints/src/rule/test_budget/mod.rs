@@ -3,9 +3,8 @@ use std::ops::Add;
 use std::path::{Path, PathBuf};
 
 use crate::rule::report::Report;
-use crate::rule::violation::Violation;
-use crate::site::Site;
 use crate::source_file::SourceFile;
+use crate::violation::Violation;
 
 mod amount;
 mod measurement;
@@ -69,8 +68,7 @@ impl TestBudget {
             Measurement::new("test lines", self.test_lines, self.lines.percent(Self::MAX_TEST_LINE_PERCENT)),
         ]
         .into_iter()
-        .filter(Measurement::exceeded)
-        .map(|measurement| Violation::new(Site::Workspace, measurement));
+        .filter_map(Measurement::violation);
         Report::new("test budget exceeded", self.violations.into_iter().chain(global).collect())
     }
 }

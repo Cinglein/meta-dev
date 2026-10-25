@@ -12,6 +12,7 @@ mod region;
 mod rule;
 mod site;
 mod source_file;
+mod violation;
 mod workspace;
 
 pub use failure::Failure;

@@ -5,9 +5,9 @@ use syn::spanned::Spanned;
 use syn::visit::Visit;
 use syn::{ItemStruct, Visibility};
 
-use crate::rule::violation::Violation;
 use crate::site::Site;
 use crate::source_file::SourceFile;
+use crate::violation::Violation;
 
 pub struct FieldVisibility<'scan> {
     path: &'scan str,

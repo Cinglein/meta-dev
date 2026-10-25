@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::rule::violation::Violation;
+use crate::violation::Violation;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Report {

@@ -5,9 +5,9 @@ use serde::Deserialize;
 use stray::Stray;
 
 use crate::line_number::LineNumber;
-use crate::rule::violation::Violation;
 use crate::site::Site;
 use crate::source_file::SourceFile;
+use crate::violation::Violation;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]

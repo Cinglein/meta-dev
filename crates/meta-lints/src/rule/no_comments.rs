@@ -2,9 +2,9 @@ use rustc_lexer::{FrontmatterAllowed, TokenKind, tokenize};
 
 use crate::line_number::LineNumber;
 use crate::rule::report::Report;
-use crate::rule::violation::Violation;
 use crate::site::Site;
 use crate::source_file::SourceFile;
+use crate::violation::Violation;
 
 pub struct NoComments;
 

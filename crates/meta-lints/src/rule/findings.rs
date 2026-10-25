@@ -6,8 +6,8 @@ use crate::baseline::Baseline;
 use crate::lint_config::LintConfig;
 use crate::rule::Rule;
 use crate::rule::report::Report;
-use crate::rule::violation::Violation;
 use crate::source_file::SourceFile;
+use crate::violation::Violation;
 
 #[derive(Clone, Debug)]
 pub struct Findings(BTreeMap<&'static str, Report>);
@@ -20,12 +20,7 @@ impl Findings {
     pub fn observed(&self) -> Baseline {
         self.0
             .iter()
-            .map(|(rule, report)| {
-                (
-                    (*rule).to_owned(),
-                    Baseline::counted(report.violations().iter().map(|violation| violation.site().file())),
-                )
-            })
+            .map(|(rule, report)| ((*rule).to_owned(), Baseline::counted(report.violations().iter())))
             .collect()
     }
 

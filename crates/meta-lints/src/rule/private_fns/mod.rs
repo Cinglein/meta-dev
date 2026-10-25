@@ -12,9 +12,9 @@ use syn::{ImplItem, ItemImpl, Visibility};
 
 use crate::rule::name::Name;
 use crate::rule::report::Report;
-use crate::rule::violation::Violation;
 use crate::site::Site;
 use crate::source_file::SourceFile;
+use crate::violation::Violation;
 
 pub struct PrivateFns;
 

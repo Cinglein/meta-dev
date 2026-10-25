@@ -9,6 +9,7 @@ use crate::count::Count;
 use crate::drift::Drift;
 use crate::failure::Failure;
 use crate::site::Site;
+use crate::violation::Violation;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -32,9 +33,13 @@ impl Baseline {
         fs::write(path, text).map_err(|error| Failure::Io { site: Site::of_path(path), error })
     }
 
-    pub fn counted<'name>(files: impl Iterator<Item = &'name str>) -> BTreeMap<String, Count> {
-        files.fold(BTreeMap::new(), |mut counts, file| {
-            counts.entry(file.to_owned()).and_modify(|count| *count = *count + Count::ONE).or_insert(Count::ONE);
+    pub fn counted<'found>(violations: impl Iterator<Item = &'found Violation>) -> BTreeMap<String, Count> {
+        violations.fold(BTreeMap::new(), |mut counts, violation| {
+            let weight = violation.weight();
+            counts
+                .entry(violation.site().file().to_owned())
+                .and_modify(|count| *count = *count + weight)
+                .or_insert(weight);
             counts
         })
     }

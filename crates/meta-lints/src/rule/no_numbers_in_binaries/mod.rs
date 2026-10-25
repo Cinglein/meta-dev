@@ -4,9 +4,9 @@ use syn::{ItemMod, LitFloat, LitInt};
 use crate::line_number::LineNumber;
 use crate::rule::binary_files::BinaryFiles;
 use crate::rule::report::Report;
-use crate::rule::violation::Violation;
 use crate::site::Site;
 use crate::source_file::SourceFile;
+use crate::violation::Violation;
 
 pub struct NoNumbersInBinaries;
 

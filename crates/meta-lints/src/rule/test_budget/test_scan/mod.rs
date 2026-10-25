@@ -10,9 +10,9 @@ use syn::ItemMod;
 use syn::visit::Visit;
 
 use super::TestBudget;
-use crate::rule::violation::Violation;
 use crate::site::Site;
 use crate::source_file::SourceFile;
+use crate::violation::Violation;
 
 pub(super) struct TestScan<'scan> {
     path: &'scan str,

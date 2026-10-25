@@ -12,9 +12,9 @@ use use_edge::UseEdges;
 
 use crate::count::Count;
 use crate::rule::name::Name;
-use crate::rule::violation::Violation;
 use crate::site::Site;
 use crate::source_file::SourceFile;
+use crate::violation::Violation;
 
 pub struct ModuleTree {
     modules: Vec<ModulePath>,
