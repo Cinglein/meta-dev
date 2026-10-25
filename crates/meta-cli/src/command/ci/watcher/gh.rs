@@ -1,3 +1,5 @@
+mod conclusion;
+mod database_id;
 mod gh_jobs;
 mod gh_run;
 mod observation;
@@ -65,7 +67,7 @@ impl Gh {
     }
 
     fn jobs(&self, run: &GhRun) -> Option<GhJobs> {
-        let view = [Self::RUN, Self::VIEW].map(OsString::from).into_iter().chain([run.run_id()]);
+        let view = [Self::RUN, Self::VIEW].map(OsString::from).into_iter().chain([run.database_id().argument()]);
         self.json(view.chain([Self::JSON, Self::JOB_FIELDS].map(OsString::from)))
     }
 

@@ -23,6 +23,6 @@ impl GhJobs {
     }
 
     pub fn failed_job_ids(&self) -> Vec<OsString> {
-        self.jobs.iter().filter_map(GhJob::failure).map(GhJob::job_id).collect()
+        self.jobs.iter().filter_map(GhJob::failure).map(|job| job.database_id().argument()).collect()
     }
 }

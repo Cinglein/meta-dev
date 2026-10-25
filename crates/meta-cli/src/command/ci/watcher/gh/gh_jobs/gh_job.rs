@@ -1,33 +1,34 @@
 mod gh_step;
+mod job_name;
 
-use std::ffi::OsString;
 use std::fmt;
 
 use serde::Deserialize;
 
+use crate::command::ci::watcher::gh::conclusion::Conclusion;
+use crate::command::ci::watcher::gh::database_id::DatabaseId;
 use crate::command::output::Listed;
 use gh_step::GhStep;
+use job_name::JobName;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct GhJob {
     #[serde(default, rename = "databaseId")]
-    database_id: serde_json::Value,
-    name: serde_json::Value,
+    database_id: DatabaseId,
+    name: JobName,
     #[serde(default)]
-    conclusion: serde_json::Value,
+    conclusion: Option<Conclusion>,
     #[serde(default)]
     steps: Vec<GhStep>,
 }
 
 impl GhJob {
-    const FAILING: &'static [&'static str] = &["failure", "timed_out", "cancelled", "startup_failure"];
-
     pub fn failure(&self) -> Option<&Self> {
-        Self::FAILING.iter().find(|failing| self.conclusion == **failing).map(|_| self)
+        self.conclusion.and_then(Conclusion::failing).map(|_| self)
     }
 
-    pub fn job_id(&self) -> OsString {
-        OsString::from(self.database_id.to_string())
+    pub fn database_id(&self) -> DatabaseId {
+        self.database_id
     }
 
     pub fn failed_steps(&self) -> Vec<Listed> {
@@ -39,6 +40,6 @@ impl GhJob {
 
 impl fmt::Display for GhJob {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{}", self.name.as_str().unwrap_or_default())
+        write!(formatter, "{}", self.name)
     }
 }
