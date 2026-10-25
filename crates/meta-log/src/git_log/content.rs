@@ -15,6 +15,13 @@ impl Content {
         serde_json::to_string(record).map(|line| Self(format!("{}{line}\n", self.0)))
     }
 
+    pub fn terminated(self) -> Self {
+        match self.0.as_str() {
+            "" => self,
+            text => Self(format!("{text}\n")),
+        }
+    }
+
     pub fn snapshot(&self) -> Snapshot {
         self.0.lines().enumerate().fold(Snapshot::default(), |snapshot, (index, line)| {
             match serde_json::from_str(line) {

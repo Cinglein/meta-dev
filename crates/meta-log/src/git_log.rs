@@ -46,7 +46,7 @@ impl GitLog {
     fn content(&self, tip: Option<&Sha>) -> Result<Content, LogFailure> {
         tip.map(|commit| self.git.command(["cat-file", "blob"]).arg(format!("{commit}:{}", Self::FILE)).content())
             .transpose()
-            .map(|content| content.map(|text| Content::from(format!("{text}\n"))).unwrap_or_default())
+            .map(|content| content.map(Content::terminated).unwrap_or_default())
     }
 
     fn commit(&self, tip: Option<&Sha>, content: Content, record: &Record) -> Result<Sha, LogFailure> {
