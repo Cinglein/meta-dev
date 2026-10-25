@@ -5,10 +5,11 @@ use std::process::Command;
 
 use meta_log::GitLog;
 
+use crate::command::ci::Commit;
 use crate::command::cli_failure::CliFailure;
 use crate::command::output::Listed;
-pub use config::BranchName;
 use config::Config;
+pub use config::{BranchName, ProgramName};
 
 #[derive(Debug)]
 pub struct Project {
@@ -42,11 +43,15 @@ impl Project {
         self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote))
     }
 
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
     pub fn config(&self) -> &Config {
         &self.config
     }
 
-    pub fn push_current_branch(&self) -> Option<Listed> {
+    pub fn push_current_branch(&self) -> Option<Result<Commit, Listed>> {
         let remote = self.config.remote().ok()?.to_string();
         let current = Command::new("git").arg("-C").arg(&self.root).args(["branch", "--show-current"]).output().ok()?;
         let branch: BranchName = String::from_utf8_lossy(&current.stdout).trim().parse().ok()?;
@@ -58,10 +63,14 @@ impl Project {
             .args(["push", "--quiet", "-u", &remote, &unprotected.to_string()])
             .output()
             .ok()?;
+        let head = Command::new("git").arg("-C").arg(&self.root).args(["rev-parse", "HEAD"]).output().ok()?;
         Some(if pushed.status.success() {
-            Listed::new(format!("pushed {unprotected} to {remote}"))
+            String::from_utf8_lossy(&head.stdout).parse().map_err(|never| match never {})
         } else {
-            Listed::new(format!("push of {unprotected} failed: {}", String::from_utf8_lossy(&pushed.stderr).trim()))
+            Err(Listed::new(format!(
+                "push of {unprotected} failed: {}",
+                String::from_utf8_lossy(&pushed.stderr).trim()
+            )))
         })
     }
 }

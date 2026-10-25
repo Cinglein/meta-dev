@@ -6,6 +6,7 @@ use std::fmt;
 use meta_schema::{Actor, Id, Tag, Target, Task, Text};
 use meta_state::{Kind, Scope};
 
+use crate::command::ci::{Commit, SessionId};
 use crate::command::cli_failure::CliFailure;
 pub use option_name::OptionName;
 use word::Word;
@@ -85,6 +86,19 @@ impl Parsed {
         match self.words.as_slice() {
             [word] => word.to_string().parse().map_err(CliFailure::invalid),
             _ => Err(CliFailure::usage("expected one task id")),
+        }
+    }
+
+    pub fn session_and_commit<Built>(
+        &self,
+        build: impl FnOnce(SessionId, Commit) -> Built,
+    ) -> Result<Built, CliFailure> {
+        match self.words.as_slice() {
+            [session, commit] => Ok(build(
+                session.to_string().parse().map_err(CliFailure::invalid)?,
+                commit.to_string().parse().map_err(CliFailure::invalid)?,
+            )),
+            _ => Err(CliFailure::usage("expected a session id and a commit")),
         }
     }
 
