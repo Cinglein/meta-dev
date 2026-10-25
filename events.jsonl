@@ -110,3 +110,4 @@
 {"at":"2026-10-25T07:24:41.308267Z","actor":"claude-cratemaxx-cli","kind":"TaskClaimed","task":"task-011267299aa707a1"}
 {"at":"2026-10-25T07:30:28.756824Z","actor":"claude-cratemaxx-cli","kind":"TaskDone","task":"task-011267299aa707a1"}
 {"at":"2026-10-25T07:31:28.416177Z","actor":"claude-cratemaxx-cli","kind":"TaskDone","task":"task-cab97d10c7c3da67"}
+{"at":"2026-10-25T07:31:51.007188Z","actor":"claude-lead","kind":"TaskOpened","task":"task-5f66d200720d5ffa","text":"crate-graph: name-only matching creates false edges (std::process::Command::new counted as use of a local Command); resolve paths so external names don't match local items, instead of renaming code to dodge the tool"}
