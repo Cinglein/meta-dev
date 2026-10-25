@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+
+meta="${META_BIN:-meta}"
+export META_ACTOR=reseed
+
+"$meta" issue -- 'Lead committed in a local worktree while the stage-0 builder was editing the same working tree; every agent needs its own worktree, enforced'
+"$meta" open -- 'Server-side enforcement (GitHub Pro branch protection or public repo): deferred by owner 2026-10-25; until then the local git pre-push guard is the only check'
+"$meta" issue -- 'Second review of PR #1: runaway pre-push recursion via chained hooksPath; cross-clone double claims; offline events reorder history; migration resurrected and deleted events; owner: rewrite hooks to simplest viable'
+"$meta" issue -- 'PR ordering: xtask (#2) was stacked on sprawling stage-0 (#1) and had to wait (same pattern as Basho #72). Rule: PRs branch off main unless a truly sequential atomic set; agents accept and fix merge conflicts'
+"$meta" open -- 'meta-lints: every threshold and the State trait name from xtask.toml; per-rule disable and tune'
+"$meta" open -- 'meta-lints: path-form excludes; git-aware walk without following symlinks; skip target dirs at any depth'
+"$meta" open -- 'meta-lints: same-named enums in different crates collide (sum_types keyed by name)'
+"$meta" open -- 'meta-lints: detect binaries at root src/main.rs and src/bin/*'
+"$meta" open -- 'meta-ci: an empty step list must fail; print total time on failure'
+"$meta" open -- 'meta-lints: rules print to stdout; return measurements instead'
+"$meta" open -- 'meta-lints: ownership tokens match raw substrings; match tokens'
+"$meta" open -- 'meta-lints complexity: merge Count and Amount; drop rules that duplicate configurable clippy lints; code inside macros is not linted'
+"$meta" open -- 'meta-lints test budget: workspace limits scale with file and line counts, so padding raises them and deleting dead code can block existing tests; use absolute or per-crate limits'
+"$meta" issue -- 'Lint ratchet known bypasses, for task-a93bd0fbb4a2501f: narrow product/boundary/exclude/ownership in xtask.toml; edit meta-lints or its limits; drop the lint ci step; skip ci or merge without it; move origin/HEAD or skip the fetch; unparsable prior xtask.toml falls back to the current baseline path; trade violations between files of one lint; hide code under cfg(test) or in macros; add a Display/FromStr impl or a newtype to exempt a file'
+"$meta" open -- 'xtask ci: record the changed enforcement-surface list as a meta log event (PR #3 only prints it; needs meta-cli on main; follows task-bd78f9708b5a7cb2)'
+"$meta" open -- 'Surfaces: list untracked files too (git ls-files --others --exclude-standard)'
+"$meta" open -- 'Surfaces: cover per-crate lint settings (crate Cargo.toml [lints] workspace = true), rust-toolchain.toml, .clippy.toml, .rustfmt.toml, per-crate clippy.toml'
+"$meta" open -- 'Surfaces and prior config: paths wrong when xtask.toml is not at the git top level (use --relative); warn on surface entries matching nothing'
+"$meta" open -- 'Surfaces cleanup: drop unused PartialEq/Eq on Changed and Commit::hash duplicate of Display; meta-ci println! panics on broken pipe'
+"$meta" open -- 'Port the updated chess-repo xtask lints into meta-development again once the owner says the chess crate is done (newtype primitives in signatures/fields, one struct per file, xtask dogfooding itself)'
+"$meta" open -- 'Sweep of main @406d3fb for chess-repo lint patterns (heuristic regex; test mods excluded): 68 pub/pub(crate) fn signatures with primitive types (String/str/bool/ints/floats; bool predicate returns included; enum variant fields like meta-ci Failure::Step(String) not counted), 0 pub fields; 13 files with >1 struct/enum (33 types). Per file '\''sigs/types'\'' (types=0 means <=1; ml=crates/meta-lints/src, mc=crates/meta-ci/src): mc:ci_config/timing.rs 1/0;ml:baseline.rs 4/0;ml:count.rs 1/0;ml:drift.rs 4/0;ml:line_number.rs 1/0;ml:lint_config/mod.rs 2/0;ml:path_prefix.rs 1/2;ml:prior/revision/commit.rs 1/2;ml:rule/binary_files/mod.rs 1/0;ml:rule/binary_files/module_location.rs 3/0;ml:rule/const_shape/mod.rs 0/2;ml:rule/distinct_signatures.rs 0/3;ml:rule/expression_flow.rs 0/4;ml:rule/findings.rs 2/0;ml:rule/fn_shape/arity.rs 1/0;ml:rule/fn_shape/depth.rs 1/0;ml:rule/fn_shape/mod.rs 0/2;ml:rule/literal_names/mod.rs 0/2;ml:rule/manual_iteration.rs 0/3;ml:rule/module_nesting/module_tree/module_path.rs 8/0;ml:rule/module_nesting/module_tree/reexport_limit.rs 1/0;ml:rule/name.rs 1/0;ml:rule/named_lifetimes/mod.rs 0/2;ml:rule/no_forwarders/workspace_types.rs 1/0;ml:rule/no_numbers_in_binaries/mod.rs 0/2;ml:rule/no_parameter_bags/name_uses.rs 2/0;ml:rule/ownership/ownership_rule/stray.rs 1/0;ml:rule/primitive_boundary/test_files.rs 1/0;ml:rule/private_fns/mod.rs 0/2;ml:rule/private_fns/private_fn_limit.rs 2/0;ml:rule/public_surface/export.rs 1/0;ml:rule/public_surface/foreign_references.rs 2/0;ml:rule/report.rs 2/0;ml:rule/state_graph/declarations.rs 2/0;ml:rule/state_graph/edge_scan/edge_limit.rs 1/0;ml:rule/state_graph/field_visibility/public_field.rs 1/0;ml:rule/state_graph/function_shape/mod.rs 3/0;ml:rule/state_graph/impl_context/mod.rs 3/0;ml:rule/test_budget/amount.rs 1/0;ml:rule/test_budget/measurement.rs 2/0;ml:rule/test_budget/test_scan/mod.rs 1/0;ml:rule/test_budget/test_scan/test_module/mod.rs 2/0;ml:rule/test_budget/test_scan/test_module/test_counts/mod.rs 1/0;ml:rule/type_shape.rs 0/3;ml:site.rs 2/0;ml:source_file.rs 4/0;xtask/src/task/project.rs 0/4;'

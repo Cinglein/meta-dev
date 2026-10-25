@@ -1,6 +1,6 @@
 mod revision;
 
-pub use revision::Revision;
+pub use revision::{ChangedPath, Revision};
 
 use std::path::Path;
 

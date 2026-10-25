@@ -18,6 +18,12 @@ impl PathPrefix {
     }
 }
 
+impl AsRef<Path> for PathPrefix {
+    fn as_ref(&self) -> &Path {
+        &self.0
+    }
+}
+
 impl TryFrom<PathBuf> for PathPrefix {
     type Error = AbsolutePrefix;
 

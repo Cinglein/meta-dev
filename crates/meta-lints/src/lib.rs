@@ -16,5 +16,6 @@ mod workspace;
 
 pub use failure::Failure;
 pub use lint_config::LintConfig;
-pub use prior::{Prior, Revision};
+pub use path_prefix::PathPrefix;
+pub use prior::{ChangedPath, Prior, Revision};
 pub use workspace::Workspace;
