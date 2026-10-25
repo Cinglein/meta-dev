@@ -1,0 +1,24 @@
+[lints]
+baseline = "self/lint-baseline.toml"
+product = ["crates"]
+exclude = [".git"]
+
+[[ci.step]]
+name = "fmt"
+program = "cargo"
+args = ["fmt", "--all", "--check"]
+
+[[ci.step]]
+name = "clippy"
+program = "cargo"
+args = ["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"]
+
+[[ci.step]]
+name = "test"
+program = "cargo"
+args = ["test", "--workspace"]
+
+[[ci.step]]
+name = "lint"
+program = "cargo"
+args = ["xtask", "lint"]
