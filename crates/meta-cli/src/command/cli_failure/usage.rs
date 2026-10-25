@@ -13,7 +13,8 @@ impl fmt::Display for Usage {
              \x20 claim <task-id> [--from <actor>]\n\
              \x20 release|done|reopen <task-id>\n\
              \x20 list [tasks|issues|concerns] [--all]\n\
-             \x20 hook session-start|pre-tool-use|post-tool-use   (Claude Code hook JSON on stdin)\n\
+             \x20 hook session-start|pre-tool-use|post-tool-use|stop   (Claude Code hook JSON on stdin)\n\
+             \x20 ci-wait | ci-log   (this session's CI: wait for failure or completion | failed step output)\n\
              actor: $META_ACTOR, else $USER",
         )
     }

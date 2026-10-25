@@ -64,6 +64,10 @@ impl SessionDir {
         })
     }
 
+    pub fn tracked(&self) -> Option<Commit> {
+        self.state().map(|state| state.commit().clone())
+    }
+
     pub fn status(&self) -> Option<CiStatus> {
         self.state().map(|state| state.status())
     }
