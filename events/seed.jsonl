@@ -36,3 +36,4 @@
 {"at":"2026-10-25T03:30:58.402602Z","kind":"ConcernIdentified","concern":"concern-c9db8b2d338df233","text":"Ownership of work was unclear","source":"docs/basho-postmortem.md §3.2","tags":["acceptance-candidate"]}
 {"at":"2026-10-25T03:30:58.498950Z","kind":"ConcernIdentified","concern":"concern-e70535499ba72bb5","text":"Work died with the session or the laptop","source":"docs/basho-postmortem.md §3.2","tags":["acceptance-candidate"]}
 {"at":"2026-10-25T03:30:58.589753Z","kind":"ConcernIdentified","concern":"concern-88e34df482a5a6cf","text":"Exists plus green CI was taken to mean correct","source":"docs/basho-postmortem.md §3.3 2","tags":["acceptance-candidate"]}
+{"at":"2026-10-25T03:30:58.677513Z","kind":"ConcernIdentified","concern":"concern-21383c490f5942d6","text":"How data was verified (simulator, user, online sources) was tribal knowledge, not typed","source":"docs/basho-postmortem.md §3.3 2","tags":["acceptance-candidate"]}
