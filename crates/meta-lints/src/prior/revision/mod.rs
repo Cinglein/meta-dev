@@ -1,4 +1,7 @@
+mod changed_path;
 mod commit;
+
+pub use changed_path::ChangedPath;
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -28,14 +31,14 @@ impl Revision {
         Ok(output.status.success().then(|| String::from_utf8_lossy(&output.stdout).into_owned()))
     }
 
-    pub fn changed_paths(&self) -> Result<Vec<String>, Failure> {
+    pub fn changed_paths(&self) -> Result<Vec<ChangedPath>, Failure> {
         let output = Self::command(&self.root)
             .args(["diff", "--name-only", "--no-renames", "-z"])
             .arg(&self.commit)
             .output()
             .map_err(Failure::Git)?;
         let paths = String::from_utf8_lossy(&output.stdout);
-        let paths = paths.split('\0').filter(|path| !path.is_empty()).map(str::to_owned).collect();
+        let paths = paths.split('\0').filter(|path| !path.is_empty()).map(ChangedPath::from).collect();
         output
             .status
             .success()

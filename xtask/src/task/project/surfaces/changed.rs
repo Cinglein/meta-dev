@@ -2,36 +2,18 @@ use std::env;
 use std::fmt;
 use std::fs::OpenOptions;
 use std::io::{self, Write};
-use std::path::{Path, PathBuf};
 
-use meta_lints::Revision;
-use serde::Deserialize;
+use meta_lints::ChangedPath;
 
-#[derive(Clone, Debug, Default, Deserialize)]
-#[serde(transparent)]
-pub struct Surfaces(Vec<PathBuf>);
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Changed(Vec<String>);
-
-impl Surfaces {
-    pub fn union(&self, prior: Surfaces) -> Surfaces {
-        Surfaces(self.0.iter().cloned().chain(prior.0).collect())
-    }
-
-    pub fn changed(&self, revision: &Revision) -> Result<Changed, meta_lints::Failure> {
-        let paths = revision.changed_paths()?;
-        Ok(Changed(
-            paths
-                .into_iter()
-                .filter(|path| self.0.iter().any(|surface| Path::new(path).starts_with(surface)))
-                .collect(),
-        ))
-    }
-}
+#[derive(Clone, Debug)]
+pub struct Changed(Vec<ChangedPath>);
 
 impl Changed {
     const SUMMARY: &str = "GITHUB_STEP_SUMMARY";
+
+    pub fn new(paths: Vec<ChangedPath>) -> Changed {
+        Changed(paths)
+    }
 
     pub fn announce(&self) -> io::Result<()> {
         if self.0.is_empty() {
