@@ -9,7 +9,7 @@ use crate::command::ci::Commit;
 use crate::command::cli_failure::CliFailure;
 use crate::command::output::Listed;
 use config::Config;
-pub use config::{BranchName, ProgramName};
+pub use config::{BranchName, LineCount, ProgramName};
 
 #[derive(Debug)]
 pub struct Project {

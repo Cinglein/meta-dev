@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 use crate::command::cli_failure::CliFailure;
 pub use branch_name::BranchName;
-pub use ci_settings::{CiSettings, ProgramName};
+pub use ci_settings::{CiSettings, LineCount, ProgramName};
 use remote_name::RemoteName;
 
 #[derive(Debug, Default, Deserialize)]
@@ -15,8 +15,8 @@ pub struct Config {
     remote: Option<RemoteName>,
     #[serde(default)]
     protected: Vec<BranchName>,
-    #[serde(default = "CiSettings::embedded")]
-    ci: CiSettings,
+    #[serde(default)]
+    ci: toml::Table,
 }
 
 impl Config {
@@ -24,8 +24,10 @@ impl Config {
         self.remote.as_ref().ok_or_else(|| CliFailure::config("meta.toml: `remote` is required"))
     }
 
-    pub fn ci_settings(&self) -> &CiSettings {
-        &self.ci
+    pub fn ci_settings(&self) -> CiSettings {
+        let mut merged: toml::Table = toml::from_str(CiSettings::DEFAULTS).unwrap_or_default();
+        merged.extend(self.ci.clone());
+        toml::Value::Table(merged).try_into().unwrap_or_default()
     }
 
     pub fn protects(&self, branch: &BranchName) -> Option<&BranchName> {

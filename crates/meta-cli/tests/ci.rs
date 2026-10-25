@@ -19,10 +19,24 @@ case "$1 $2" in
   elif [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
   else echo "[{\"databaseId\":7,\"status\":\"completed\",\"conclusion\":\"$FAKE_GH_SCENARIO\"}]"; fi ;;
 "run view")
-  if [ "$FAKE_GH_SCENARIO" = failure ]; then echo '{"jobs":[{"name":"lint","conclusion":"failure"},{"name":"test","conclusion":""}]}'
-  else echo '{"jobs":[{"name":"test","conclusion":"success"}]}'; fi ;;
+  if [ "$3" = --job ]; then cat "$FAKE_GH_DIR/bin/failed.log"
+  elif [ "$FAKE_GH_SCENARIO" = failure ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[{"name":"Checkout","conclusion":"success"},{"name":"cargo xtask ci","conclusion":"failure"}]},{"databaseId":12,"name":"docs","conclusion":""}]}'
+  else echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"success"}]}'; fi ;;
 esac
 "#;
+const FAILED_LOG: &str = "ci\tcargo xtask ci\t2026-10-25T06:40:01.0000000Z    Compiling meta-cli v0.0.0 (/home/runner/work/meta-development/crates/meta-cli)
+ci\tcargo xtask ci\t2026-10-25T06:40:09.0000000Z running 3 tests
+ci\tcargo xtask ci\t2026-10-25T06:40:09.1000000Z test claims_are_taken_over ... ok
+ci\tcargo xtask ci\t2026-10-25T06:40:09.2000000Z test done_addresses_targets ... FAILED
+ci\tcargo xtask ci\t2026-10-25T06:40:09.3000000Z
+ci\tcargo xtask ci\t2026-10-25T06:40:09.3000000Z ---- done_addresses_targets stdout ----
+ci\tcargo xtask ci\t2026-10-25T06:40:09.3000000Z thread 'done_addresses_targets' panicked at crates/meta-state/src/state/tests.rs:42:5:
+ci\tcargo xtask ci\t2026-10-25T06:40:09.3000000Z assertion `left == right` failed
+ci\tcargo xtask ci\t2026-10-25T06:40:09.3000000Z   left: None
+ci\tcargo xtask ci\t2026-10-25T06:40:09.3000000Z  right: Some(task-0123456789abcdef)
+ci\tcargo xtask ci\t2026-10-25T06:40:09.4000000Z test result: FAILED. 2 passed; 1 failed; 0 ignored
+ci\tcargo xtask ci\t2026-10-25T06:40:09.5000000Z ##[error]Process completed with exit code 101.
+";
 const SHELL: &str = "/bin/sh";
 const SESSION: &str = "ABCDEF12-34";
 const FAILURE: &str = "failure";
@@ -32,8 +46,14 @@ const COMMIT: &str = "git commit -m change";
 const PRE: &str = "pre-tool-use";
 const STOP: &str = "stop";
 const BLOCK: &str = "\"decision\":\"block\"";
-const JOB_FAILED: &str = "lint failed after";
-const RUN_FAILED: &str = "failed after";
+const JOB_FAILED: &str = "ci failed after";
+const CI_LOG_HINT: &str = "run `meta ci-log`";
+const STEP_LISTED: &str = "s: ci / cargo xtask ci; run `meta ci-log`";
+const PANIC_BLOCK: &str =
+    "panicked at crates/meta-state/src/state/tests.rs:42:5:\nassertion `left == right` failed\n  left: None";
+const COMPILING: &str = "Compiling";
+const CI_WAIT: &str = "ci-wait";
+const CI_LOG: &str = "ci-log";
 const PASSED: &str = "passed after";
 const TIMED_OUT: &str = "timed-out after";
 const COMPLETIONS: [&str; 3] = [": passed after", ": failed after", ": timed-out after"];
@@ -67,6 +87,7 @@ impl Repo {
         std::fs::write(clone.path().join("meta.toml"), CONFIG).unwrap();
         std::fs::create_dir(clone.path().join("bin")).unwrap();
         std::fs::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
+        std::fs::write(clone.path().join("bin/failed.log"), FAILED_LOG).unwrap();
         std::fs::set_permissions(clone.path().join("bin/gh"), std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
         Git::run(clone.path(), &["switch", "-q", "-c", "feature"]);
         Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"]);
@@ -93,11 +114,17 @@ impl Repo {
         String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
     }
 
-    fn ci_wait(&self) -> Waited {
+    fn session_command(&self, command: &str) -> Waited {
         let output = Command::new(META)
-            .arg("ci-wait")
+            .arg(command)
             .current_dir(self.clone.path())
             .env("META_SESSION", SESSION)
+            .env(
+                "PATH",
+                format!("{}:{}", self.clone.path().join("bin").display(), std::env::var("PATH").unwrap_or_default()),
+            )
+            .env("FAKE_GH_DIR", self.clone.path())
+            .env("FAKE_GH_SCENARIO", self.scenario)
             .output()
             .unwrap();
         Waited(format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)))
@@ -125,16 +152,18 @@ impl fmt::Display for Repo {
 fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
     let repo = Repo::new(FAILURE);
     repo.hook("post-tool-use", COMMIT);
-    assert!(repo.ci_wait().0.contains(JOB_FAILED) && repo.hook(STOP, COMMIT).contains(BLOCK));
-    assert!(repo.settled().contains(RUN_FAILED) && repo.hook(PRE, COMMIT).contains(RUN_FAILED));
-    assert!(!repo.hook(PRE, COMMIT).contains(RUN_FAILED));
+    assert!(repo.session_command(CI_WAIT).0.contains(JOB_FAILED) && repo.hook(STOP, COMMIT).contains(BLOCK));
+    assert!(repo.settled().contains(STEP_LISTED) && repo.hook(PRE, COMMIT).contains(CI_LOG_HINT));
+    assert!(
+        repo.session_command(CI_LOG).0.contains(PANIC_BLOCK) && !repo.session_command(CI_LOG).0.contains(COMPILING)
+    );
 }
 
 #[test]
 fn a_passing_run_reports_only_completion_and_lets_the_agent_stop() {
     let repo = Repo::new(SUCCESS);
     repo.hook("post-tool-use", COMMIT);
-    assert!(repo.ci_wait().0.contains(PASSED) && !repo.hook(STOP, COMMIT).contains(BLOCK));
+    assert!(repo.session_command(CI_WAIT).0.contains(PASSED) && !repo.hook(STOP, COMMIT).contains(BLOCK));
     assert_eq!(repo.settled().lines().filter(|line| line.contains(PASSED)).count(), repo.settled().lines().count());
 }
 

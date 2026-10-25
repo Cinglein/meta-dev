@@ -50,8 +50,8 @@ impl Watcher {
             watcher.gh.observe(&watcher.commit)
         })
         .take(interval.polls_within(settings.timeout()))
-        .try_fold(None, |reported, observed| watcher.step(reported, &observed));
-        finished.break_value().map_or_else(|| watcher.conclude(CiStatus::TimedOut), |status| watcher.conclude(status))
+        .try_fold(None, |reported, observed| watcher.step(reported, observed));
+        watcher.conclude(finished.break_value())
     }
 
     pub fn wait(project: &Project, session: &SessionId) -> Result<Output, CliFailure> {
@@ -76,19 +76,34 @@ impl Watcher {
         )
     }
 
-    fn step(&self, reported: Option<Listed>, observed: &Observation) -> ControlFlow<CiStatus, Option<Listed>> {
-        let first_failure = observed.failed_job().filter(|_| reported.is_none());
-        first_failure
-            .iter()
-            .for_each(|job| self.note(format!("{job} failed after {}", self.elapsed()), CiStatus::Failed));
-        observed.finished().map_or_else(
-            || ControlFlow::Continue(reported.or_else(|| first_failure.map(Listed::new))),
-            ControlFlow::Break,
-        )
+    pub fn failure_log(project: &Project, session: &SessionId) -> Result<Output, CliFailure> {
+        let dir = SessionDir::for_session(project, session).ok_or_else(|| CliFailure::config("no git directory"))?;
+        let commit = dir.tracked().ok_or_else(|| CliFailure::config("no CI tracked for this session"))?;
+        let settings = project.config().ci_settings();
+        let raw = Gh::new(settings.program().clone(), project.root().to_path_buf()).failed_logs(&commit);
+        Ok(Output::Listed(Listed::new(format!("{}\n", raw.excerpt(settings.log_lines(), settings.log_context())))))
     }
 
-    fn conclude(&self, status: CiStatus) -> Result<Output, CliFailure> {
-        self.note(format!("{status} after {}", self.elapsed()), status);
+    fn step(&self, reported: Option<Listed>, observed: Observation) -> ControlFlow<Observation, Option<Listed>> {
+        let first_failure = observed.failed_job().filter(|_| reported.is_none());
+        first_failure.iter().for_each(|job| {
+            self.note(format!("{job} failed after {}; run `meta ci-log`", self.elapsed()), CiStatus::Failed);
+        });
+        let carried = reported.or_else(|| first_failure.map(Listed::new));
+        match observed.finished() {
+            Some(_) => ControlFlow::Break(observed),
+            None => ControlFlow::Continue(carried),
+        }
+    }
+
+    fn conclude(&self, last: Option<Observation>) -> Result<Output, CliFailure> {
+        let status = last.as_ref().and_then(Observation::finished).unwrap_or(CiStatus::TimedOut);
+        let steps: Vec<String> =
+            last.iter().flat_map(|observed| observed.failed_steps()).map(ToString::to_string).collect();
+        let failed = Some(steps.join(", "))
+            .filter(|joined| !joined.is_empty())
+            .map(|joined| format!(": {joined}; run `meta ci-log`"));
+        self.note(format!("{status} after {}{}", self.elapsed(), failed.unwrap_or_default()), status);
         Ok(Output::Listed(Listed::new(status)))
     }
 

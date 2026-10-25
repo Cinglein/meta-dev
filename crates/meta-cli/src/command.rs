@@ -23,6 +23,7 @@ pub enum Command {
     Hook(HookEvent),
     WatchCi(SessionId, Commit),
     WaitCi(SessionId),
+    CiLog(SessionId),
 }
 
 impl TryFrom<Vec<String>> for Command {
@@ -57,15 +58,8 @@ impl TryFrom<Vec<String>> for Command {
             "list" => Ok(Self::List(parsed.kind()?, parsed.allowing(&[OptionName::All])?.scope())),
             "hook" => Ok(Self::Hook(parsed.allowing(&[])?.text()?.to_string().parse()?)),
             "ci-watch" => parsed.allowing(&[])?.session_and_commit(Self::WatchCi),
-            "ci-wait" => std::env::var(SessionId::VARIABLE)
-                .map_err(|_| {
-                    CliFailure::config(format!(
-                        "{} is not set; run inside a Claude session with the plugin",
-                        SessionId::VARIABLE
-                    ))
-                })
-                .and_then(|session| session.parse().map_err(CliFailure::invalid))
-                .map(Self::WaitCi),
+            "ci-wait" => Self::session().map(Self::WaitCi),
+            "ci-log" => Self::session().map(Self::CiLog),
             other => Err(CliFailure::usage(format!("unknown command `{other}`"))),
         }
     }
@@ -85,6 +79,7 @@ impl Command {
             Self::Hook(event) => event.respond(),
             Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
             Self::WaitCi(session) => Watcher::wait(project, &session),
+            Self::CiLog(session) => Watcher::failure_log(project, &session),
             Self::Write(event) => {
                 let actor = Self::actor()?;
                 let record = log.append(&mut |snapshot| {
@@ -104,6 +99,17 @@ impl Command {
                 Ok(Output::Listed(listed))
             }
         }
+    }
+
+    fn session() -> Result<SessionId, CliFailure> {
+        std::env::var(SessionId::VARIABLE)
+            .map_err(|_| {
+                CliFailure::config(format!(
+                    "{} is not set; run inside a Claude session with the plugin",
+                    SessionId::VARIABLE
+                ))
+            })
+            .and_then(|session| session.parse().map_err(CliFailure::invalid))
     }
 
     fn actor() -> Result<Actor, CliFailure> {
