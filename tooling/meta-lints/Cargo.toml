@@ -9,7 +9,6 @@ license.workspace = true
 [dependencies]
 proc-macro2.workspace = true
 quote.workspace = true
-rustc_lexer.workspace = true
 serde.workspace = true
 strum.workspace = true
 syn.workspace = true
@@ -18,3 +17,6 @@ toml = { workspace = true, features = ["display"] }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

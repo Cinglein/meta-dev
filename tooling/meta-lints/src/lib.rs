@@ -1,6 +1,8 @@
 mod baseline;
 mod drift;
 mod failure;
+#[cfg(test)]
+mod fixture;
 mod lint_config;
 mod path_prefix;
 mod prior;

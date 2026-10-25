@@ -362,10 +362,10 @@ version = "0.0.0"
 dependencies = [
  "proc-macro2",
  "quote",
- "ra-ap-rustc_lexer",
  "serde",
  "strum",
  "syn 2.0.119",
+ "tempfile",
  "thiserror",
  "toml 0.8.23",
 ]

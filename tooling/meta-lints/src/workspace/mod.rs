@@ -99,3 +99,66 @@ impl Workspace {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use crate::failure::Failure;
+    use crate::fixture::Fixture;
+
+    const CONFIG: &str = "xtask.toml";
+    const CONFIG_TEXT: &str = "surfaces = []\n[lints]\nbaseline = \"lint-baseline.toml\"\nexclude = [\".git\"]\n[lints.crate_graph]\nmax_scc = 1\n";
+    const BASELINE: &str = "lint-baseline.toml";
+    const BASELINE_TEXT: &str = "[crate-graph]\n\"crates/a\" = 1\n";
+    const RAISED_BASELINE: &str = "[crate-graph]\n\"crates/a\" = 2\n";
+    const TANGLED: &str = "crates/a/src/lib.rs";
+    const TANGLED_TEXT: &str = "pub struct Alpha(Box<Beta>);\npub struct Beta(Box<Alpha>);\n";
+    const MORE_TANGLED: &str =
+        "pub struct Alpha(Box<Beta>);\npub struct Beta(Box<Gamma>);\npub struct Gamma(Box<Alpha>);\n";
+    const CLEAN: &str = "crates/b/src/lib.rs";
+    const MOVED: &str = "crates/c/src/lib.rs";
+    const SOURCES: &str = "crates";
+
+    impl Fixture {
+        fn tangled() -> Fixture {
+            let fixture = Fixture::new();
+            fixture
+                .write(CONFIG, CONFIG_TEXT)
+                .write(BASELINE, BASELINE_TEXT)
+                .write(TANGLED, TANGLED_TEXT)
+                .write(CLEAN, "pub struct Delta;\n")
+                .branch();
+            fixture
+        }
+
+        fn ratchet(&self) -> Result<(), Failure> {
+            let project = self.project();
+            project.prior().and_then(|prior| project.lints().lint(&prior)).map(|_| ())
+        }
+    }
+
+    #[test]
+    fn a_raised_baseline_is_refused_and_a_deleted_one_fails_the_ratchet() {
+        let fixture = Fixture::tangled();
+        fixture.write(TANGLED, MORE_TANGLED).write(BASELINE, RAISED_BASELINE);
+        assert!(matches!(fixture.ratchet(), Err(Failure::Raised(_))));
+        fs::remove_file(fixture.path(BASELINE)).unwrap();
+        assert!(matches!(fixture.ratchet(), Err(Failure::Ratchet(_))));
+    }
+
+    #[test]
+    fn no_files_fails() {
+        let fixture = Fixture::tangled();
+        fs::remove_dir_all(fixture.path(SOURCES)).unwrap();
+        assert!(matches!(fixture.ratchet(), Err(Failure::NoFiles)));
+    }
+
+    #[test]
+    fn a_moved_crate_with_the_same_violations_passes() {
+        let fixture = Fixture::tangled();
+        fixture.write(MOVED, TANGLED_TEXT);
+        fs::remove_file(fixture.path(TANGLED)).unwrap();
+        assert!(fixture.ratchet().is_ok());
+    }
+}
