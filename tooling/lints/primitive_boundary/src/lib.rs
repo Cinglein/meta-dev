@@ -2,12 +2,15 @@ mod finding;
 mod number_sites;
 mod text_sites;
 
+use std::path::PathBuf;
+
 use number_sites::NumberSites;
 use text_sites::TextSites;
 
 use task::Policy;
 use task::Report;
 use task::SourceFile;
+use task::SupportModules;
 
 #[derive(Debug)]
 pub struct PrimitiveBoundary;
@@ -15,10 +18,12 @@ pub struct PrimitiveBoundary;
 impl PrimitiveBoundary {
     #[must_use]
     pub fn report(files: &[SourceFile], policy: &Policy) -> Report {
+        let support: Vec<PathBuf> = files.iter().flat_map(SupportModules::paths).collect();
         Report::new(
             "primitives appear only at a type's boundary",
             files
                 .iter()
+                .filter(|file| !support.contains(&file.path().to_owned()))
                 .flat_map(|file| {
                     NumberSites::violations(file, policy)
                         .into_iter()
@@ -75,10 +80,13 @@ impl Room { fn label(&self, text: &str) -> bool { let kept = text.to_string(); t
 impl Room { fn greet(&self) -> String { let fresh = String::new(); let parts = Vec::from(fresh); format!(\"{fresh}\") } fn copy(&self) -> String { String::from(\"room\") } }
 mod inner { fn shout(text: &str) -> String { text.trim().to_owned() } }
 #[cfg(test)] mod tests { fn shout(text: &str) -> String { text.trim().to_owned() } }
+#[cfg(test)] mod support;
 ";
-    const TEXT_FILES: [(&str, &str); 2] = [
+    const SUPPORT: &str = "fn shout(text: &str) -> String { text.trim().to_owned() }";
+    const TEXT_FILES: [(&str, &str); 3] = [
         ("crates/a/src/word.rs", DOOR),
         ("crates/a/src/room.rs", ROOM),
+        ("crates/a/src/room/support.rs", SUPPORT),
     ];
     const TEXT_REPORTED: [&str; 5] = [
         "room.rs:3: to_string handles", "room.rs:3: trim handles", "room.rs:4: format handles",
