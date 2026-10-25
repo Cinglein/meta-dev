@@ -56,3 +56,4 @@
 {"seq":56,"at":"2026-10-25T04:37:42.748891Z","actor":"owner","kind":"TaskClaimed","task":"task-bd78f9708b5a7cb2"}
 {"seq":57,"at":"2026-10-25T04:40:55.710982Z","actor":"owner","kind":"TaskDone","task":"task-bd78f9708b5a7cb2"}
 {"seq":58,"at":"2026-10-25T04:41:02.013975Z","actor":"owner","kind":"TaskOpened","task":"task-cb1b2cb094c58502","text":"xtask ci: record the changed enforcement-surface list as a meta log event (PR #3 only prints it; needs meta-cli on main; follows task-bd78f9708b5a7cb2)"}
+{"seq":59,"at":"2026-10-25T04:44:33.730076Z","actor":"claude-lead","kind":"TaskOpened","task":"task-c2dd2d42c7c6f4ed","text":"Surfaces: list untracked files too (git ls-files --others --exclude-standard)"}
