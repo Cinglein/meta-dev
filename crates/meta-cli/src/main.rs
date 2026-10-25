@@ -1,11 +1,11 @@
-mod command;
+mod request;
 
 use std::process::ExitCode;
 
-use command::Command;
+use request::Request;
 
 fn main() -> ExitCode {
-    match Command::try_from(std::env::args().collect::<Vec<_>>()).and_then(Command::answer) {
+    match Request::try_from(std::env::args().collect::<Vec<_>>()).and_then(Request::answer) {
         Ok(output) => {
             print!("{output}");
             ExitCode::SUCCESS
