@@ -137,3 +137,49 @@ Source: Basho postmortem (the Basho project's private repo, part 3).
   - Tension by design: the vagueness budget pushes to define; the complexity budget pushes to define only what earns its keep.
 
 ## Next: bootstrapping (smallest useful first version, build order)
+
+## Goal: sight-unseen merges (owner, 2026-10-25)
+- Today the owner reviews and merges every PR. That is a bottleneck, worse as implementer agents parallelise.
+- GOAL: the system becomes robust enough that most PRs can be merged sight-unseen.
+- Treated like everything else (ladder + budgets):
+  - Merge authority is earned per risk tier, computed from what the PR touches (severity of affected features/claims; rule or budget changes; schema changes).
+  - A PR auto-merges only if the evidence check passes and its tier is within the currently granted authority.
+  - Authority is widened by track record:
+    - post-merge defect rate;
+    - revert rate;
+    - audit disagreement on sampled auto-merged PRs.
+    Authority is narrowed automatically when these overspend their budgets.
+  - Always owner-reviewed: changes to rules, budgets, enforcement config and authority itself (CODEOWNERS).
+- Until then the owner-merges rule stays.
+
+## Goal: automate the owner's triage/priority/wall-time role (owner, 2026-10-25)
+- Today the owner does it: flagging slow CI, noticing a PR like Basho #72 blocking everything, spotting perf problems in the app AND in devx (builds, tests, simulators, agent waits).
+- GOAL: the repo automates most of this. A STEWARD role, run on a schedule and on events, reads the log and:
+  - flags budget overruns and trends before they breach: CI/check wall time, build time, queue/lease wait, agent idle time, flakiness;
+  - detects blocking work:
+    - PR age;
+    - review rounds;
+    - number of tasks/PRs waiting on it;
+    - critical-path length;
+    - a PR growing in scope (#72's pattern);
+  - tracks devx perf like app perf: profiles, history, headroom (optimisation ledger);
+  - proposes priorities from severity × evidence gap × what is blocked;
+  - files concerns/tasks itself (with trails).
+- The steward escalates to the owner only for decisions: budget or authority changes, priority conflicts, waivers beyond budget.
+- Dogfooded: the steward's own false alarms and misses are budgeted, and calibrated against what the owner would have flagged.
+- Depends on stage 1 (runs, timings, budgets). Its first version belongs there.
+
+## Prose (owner, 2026-10-25)
+Prose is allowed only in three categories, each clearly marked and separated from the rest of the codebase:
+1. Agent context: occasionally relevant to agents. May bloat somewhat; consolidated aggressively from time to time; not meant for humans.
+2. Documentation: legible to humans and agents; the bare minimum; concrete, with examples; always STE100.
+3. Strings attached to structured data: terse (e.g. audit-log entries).
+Every other surface contains no prose. Enforced by lints (meta-lints); counted against the vagueness budget.
+- Classification (owner):
+  - Code comments, including `///` docs: BANNED outright (as in the chess lints; Basho has xtask/src/task/no_comments.rs). Meaning lives in names and types.
+  - Error and help text: category 3.
+  - Commit messages, PR titles and descriptions: category 3 (loosely structured data). Keep them terse.
+  - SPEC.md and the postmortem: agent context (1).
+  - A short STE100 README and usage guide: documentation (2).
+- Location (owner): agent context lives in context/. docs/ is reserved for documentation (2); it does not exist until there is some.
+- Stage 4 moves Basho's lints (incl. no_comments) into meta-lints. meta-development should adopt them as early as possible (dogfooding).
