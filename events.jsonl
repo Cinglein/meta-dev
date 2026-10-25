@@ -46,3 +46,4 @@
 {"at":"2026-10-25T05:14:18.400870Z","actor":"reseed","kind":"TaskOpened","task":"task-fd6658c38eb182f8","text":"meta-lints: rules print to stdout; return measurements instead"}
 {"at":"2026-10-25T05:14:20.007018Z","actor":"reseed","kind":"TaskOpened","task":"task-50f1316e939c8021","text":"meta-lints: ownership tokens match raw substrings; match tokens"}
 {"at":"2026-10-25T05:14:21.614564Z","actor":"reseed","kind":"TaskOpened","task":"task-1d9cc65401668746","text":"meta-lints complexity: merge Count and Amount; drop rules that duplicate configurable clippy lints; code inside macros is not linted"}
+{"at":"2026-10-25T05:14:23.241701Z","actor":"reseed","kind":"TaskOpened","task":"task-d97f9a5a6c6952b8","text":"meta-lints test budget: workspace limits scale with file and line counts, so padding raises them and deleting dead code can block existing tests; use absolute or per-crate limits"}
