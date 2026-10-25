@@ -1,11 +1,14 @@
 mod attempt;
 mod content;
+mod fetched;
 mod git;
 mod outcome;
+mod remote;
 mod sha;
 
 use std::fmt;
 use std::path::PathBuf;
+use std::process::Output;
 
 use meta_schema::Record;
 
@@ -15,43 +18,27 @@ use crate::log_failure::LogFailure;
 use crate::snapshot::Snapshot;
 use attempt::Attempt;
 use content::Content;
+use fetched::Fetched;
 use git::Git;
 use outcome::Outcome;
+use remote::Remote;
 use sha::Sha;
 
 #[derive(Clone, Debug)]
 pub struct GitLog {
     git: Git,
-    remote: Detail,
+    remote: Remote,
 }
 
 impl GitLog {
-    const BRANCH: &'static str = "meta/log";
-    const FILE: &'static str = "events.jsonl";
-
     pub fn new(repo: PathBuf, remote: impl ToString) -> Self {
-        Self { git: Git::new(repo), remote: Detail::from_reason(remote) }
-    }
-
-    fn fetch(&self) -> Result<Option<Sha>, LogFailure> {
-        let refspec = format!("+refs/heads/meta/*:refs/remotes/{}/meta/*", self.remote);
-        let fetched =
-            self.git.command(["fetch", "--quiet", "--prune"]).arg(self.remote.to_string()).arg(refspec).output()?;
-        fetched.status.success().then_some(()).ok_or_else(|| LogFailure::Offline(Detail::from(&fetched)))?;
-        let tracking = format!("refs/remotes/{}/{}^{{commit}}", self.remote, Self::BRANCH);
-        let tip = self.git.command(["rev-parse", "--verify", "--quiet"]).arg(tracking).content().ok();
-        Ok(tip.map(|content| content.to_string().parse().unwrap_or_else(|never| match never {})))
-    }
-
-    fn content(&self, tip: Option<&Sha>) -> Result<Content, LogFailure> {
-        tip.map(|commit| self.git.command(["cat-file", "blob"]).arg(format!("{commit}:{}", Self::FILE)).content())
-            .transpose()
-            .map(|content| content.map(Content::terminated).unwrap_or_default())
+        let git = Git::new(repo);
+        Self { remote: Remote::new(git.clone(), Detail::from_reason(remote)), git }
     }
 
     fn commit(&self, tip: Option<&Sha>, content: Content, record: &Record) -> Result<Sha, LogFailure> {
         let blob = self.git.command(["hash-object", "-w", "--stdin"]).input(content).content()?;
-        let entry = Content::from(format!("100644 blob {blob}\t{}\n", Self::FILE));
+        let entry = Content::from(format!("100644 blob {blob}\t{}\n", Remote::FILE));
         let tree = self.git.command(["mktree"]).input(entry).content()?;
         let actor = record.actor().to_string();
         let email = format!("{actor}@meta.invalid");
@@ -73,23 +60,30 @@ impl GitLog {
     }
 
     fn attempt(&self, decide: &mut dyn FnMut(&Snapshot) -> Result<Record, LogFailure>) -> Result<Outcome, LogFailure> {
-        let tip = self.fetch()?;
-        let content = self.content(tip.as_ref())?;
-        let record = decide(&content.snapshot())?;
-        let commit = self.commit(tip.as_ref(), content.appended(&record)?, &record)?;
-        let target = format!("{commit}:refs/heads/{}", Self::BRANCH);
-        let pushed = self.git.command(["push", "--quiet"]).arg(self.remote.to_string()).arg(target).output()?;
-        match (pushed.status.success(), self.fetch()? == tip) {
+        let before = self.remote.fetch()?;
+        let record = decide(&before.content().snapshot())?;
+        let commit = self.commit(before.tip(), before.content().appended(&record)?, &record)?;
+        let pushed = self.remote.push(&commit)?;
+        pushed
+            .status
+            .success()
+            .then(|| Outcome::Appended(record.clone()))
+            .map_or_else(|| self.after_failed_push(&before, record, &pushed), Ok)
+    }
+
+    fn after_failed_push(&self, before: &Fetched, record: Record, pushed: &Output) -> Result<Outcome, LogFailure> {
+        let now = self.remote.fetch()?;
+        match (now.content().snapshot().records().contains(&record), now.tip() == before.tip()) {
             (true, _) => Ok(Outcome::Appended(record)),
+            (false, true) => Err(LogFailure::Rejected(Detail::from(pushed))),
             (false, false) => Ok(Outcome::Raced),
-            (false, true) => Err(LogFailure::Rejected(Detail::from(&pushed))),
         }
     }
 }
 
 impl LogStore for GitLog {
     fn read(&self) -> Result<Snapshot, LogFailure> {
-        Ok(self.content(self.fetch()?.as_ref())?.snapshot())
+        Ok(self.remote.fetch()?.content().snapshot())
     }
 
     fn append(&self, decide: &mut dyn FnMut(&Snapshot) -> Result<Record, LogFailure>) -> Result<Record, LogFailure> {
@@ -102,7 +96,7 @@ impl LogStore for GitLog {
 
 impl fmt::Display for GitLog {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{} on {}", Self::BRANCH, self.remote)
+        write!(formatter, "{}", self.remote)
     }
 }
 
