@@ -38,6 +38,8 @@ ci\tcargo xtask ci\t2026-10-25T06:40:09.4000000Z test result: FAILED. 2 passed; 
 ci\tcargo xtask ci\t2026-10-25T06:40:09.5000000Z ##[error]Process completed with exit code 101.
 ";
 const SHELL: &str = "/bin/sh";
+const SETTLE_POLL: Duration = Duration::from_millis(50);
+const SETTLE_LENGTH: usize = 60;
 const SESSION: &str = "ABCDEF12-34";
 const FAILURE: &str = "failure";
 const SUCCESS: &str = "success";
@@ -133,10 +135,10 @@ impl Repo {
     fn settled(&self) -> String {
         let events = self.clone.path().join(".git/meta-ci/ABCDEF1234/events");
         std::iter::repeat_with(|| {
-            std::thread::sleep(Duration::from_millis(50));
+            std::thread::sleep(SETTLE_POLL);
             std::fs::read_to_string(&events).unwrap_or_default()
         })
-        .take(60)
+        .take(SETTLE_LENGTH)
         .find(|text| COMPLETIONS.iter().any(|completion| text.contains(completion)))
         .unwrap_or_default()
     }

@@ -11,6 +11,7 @@ pub struct RawId(u64);
 
 impl RawId {
     const HEX_LEN: usize = 16;
+    const RADIX: u32 = 16;
 
     pub fn generate() -> Self {
         static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -28,7 +29,7 @@ impl FromStr for RawId {
             .filter(|hex| {
                 hex.len() == Self::HEX_LEN && hex.bytes().all(|b| b.is_ascii_digit() || b.is_ascii_lowercase())
             })
-            .and_then(|hex| u64::from_str_radix(hex, 16).ok())
+            .and_then(|hex| u64::from_str_radix(hex, Self::RADIX).ok())
             .map(Self)
             .ok_or(IdFailure::Malformed)
     }
