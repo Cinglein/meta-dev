@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::fmt;
 use std::path::Path;
 use std::str::FromStr;
@@ -12,10 +13,6 @@ pub struct Commit(String);
 pub struct NotACommit(String);
 
 impl Commit {
-    pub fn hash(&self) -> &str {
-        &self.0
-    }
-
     pub fn object(&self, path: &Path) -> String {
         format!("{}:{}", self.0, path.display())
     }
@@ -37,5 +34,11 @@ impl FromStr for Commit {
 impl fmt::Display for Commit {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(&self.0)
+    }
+}
+
+impl AsRef<OsStr> for Commit {
+    fn as_ref(&self) -> &OsStr {
+        self.0.as_ref()
     }
 }

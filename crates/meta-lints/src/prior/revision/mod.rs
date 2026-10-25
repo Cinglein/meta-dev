@@ -29,7 +29,11 @@ impl Revision {
     }
 
     pub fn changed_paths(&self) -> Result<Vec<String>, Failure> {
-        let output = Self::git(&self.root, &["diff", "--name-only", "--no-renames", "-z", self.commit.hash()])?;
+        let output = Self::command(&self.root)
+            .args(["diff", "--name-only", "--no-renames", "-z"])
+            .arg(&self.commit)
+            .output()
+            .map_err(Failure::Git)?;
         let paths = String::from_utf8_lossy(&output.stdout);
         let paths = paths.split('\0').filter(|path| !path.is_empty()).map(str::to_owned).collect();
         output
@@ -40,6 +44,12 @@ impl Revision {
     }
 
     fn git(root: &Path, args: &[&str]) -> Result<Output, Failure> {
-        Command::new("git").arg("-C").arg(root).args(args).output().map_err(Failure::Git)
+        Self::command(root).args(args).output().map_err(Failure::Git)
+    }
+
+    fn command(root: &Path) -> Command {
+        let mut command = Command::new("git");
+        command.arg("-C").arg(root);
+        command
     }
 }
