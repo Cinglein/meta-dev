@@ -225,6 +225,7 @@ dependencies = [
 name = "meta-cli"
 version = "0.0.0"
 dependencies = [
+ "meta-gh",
  "meta-listing",
  "meta-log",
  "meta-schema",
@@ -234,6 +235,13 @@ dependencies = [
  "tempfile",
  "thiserror",
  "toml",
+]
+
+[[package]]
+name = "meta-gh"
+version = "0.0.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

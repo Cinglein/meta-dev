@@ -14,6 +14,7 @@ meta-schema.workspace = true
 meta-log.workspace = true
 meta-listing.workspace = true
 meta-state.workspace = true
+meta-gh.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
