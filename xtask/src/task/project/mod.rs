@@ -1,3 +1,5 @@
+mod surfaces;
+
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -7,16 +9,20 @@ use meta_lints::{LintConfig, Prior, Revision, Workspace};
 use serde::Deserialize;
 
 use crate::task::failure::Failure;
+use surfaces::{Changed, Surfaces};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Settings {
+    surfaces: Surfaces,
     lints: LintConfig,
     ci: CiConfig,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 struct PriorSettings {
+    #[serde(default)]
+    surfaces: Surfaces,
     lints: PriorLints,
 }
 
@@ -51,11 +57,21 @@ impl Project {
 
     pub fn prior(&self) -> Result<Prior, Failure> {
         let revision = Revision::merge_base(&self.root)?;
-        let prior = revision.file(Path::new(Self::CONFIG))?;
-        let settings = prior.and_then(|text| toml::from_str::<PriorSettings>(&text).ok());
+        let settings = Self::prior_settings(&revision)?;
         let baseline =
             settings.map_or_else(|| self.settings.lints.baseline().to_path_buf(), |prior| prior.lints.baseline);
         Ok(Prior::read_at(&revision, &baseline)?)
+    }
+
+    pub fn changed_surfaces(&self) -> Result<Changed, Failure> {
+        let revision = Revision::merge_base(&self.root)?;
+        let prior = Self::prior_settings(&revision)?.map(|prior| prior.surfaces).unwrap_or_default();
+        Ok(self.settings.surfaces.union(prior).changed(&revision)?)
+    }
+
+    fn prior_settings(revision: &Revision) -> Result<Option<PriorSettings>, Failure> {
+        let prior = revision.file(Path::new(Self::CONFIG))?;
+        Ok(prior.and_then(|text| toml::from_str::<PriorSettings>(&text).ok()))
     }
 
     pub fn run_ci(&self) -> Result<(), meta_ci::Failure> {

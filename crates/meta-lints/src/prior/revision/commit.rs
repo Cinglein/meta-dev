@@ -12,6 +12,10 @@ pub struct Commit(String);
 pub struct NotACommit(String);
 
 impl Commit {
+    pub fn hash(&self) -> &str {
+        &self.0
+    }
+
     pub fn object(&self, path: &Path) -> String {
         format!("{}:{}", self.0, path.display())
     }

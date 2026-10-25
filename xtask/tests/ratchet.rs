@@ -5,8 +5,7 @@ use std::process::{Command, Output};
 use tempfile::TempDir;
 
 const CONFIG: &str = "xtask.toml";
-const CONFIG_TEXT: &str =
-    "[lints]\nbaseline = \"lint-baseline.toml\"\nproduct = [\"crates\"]\nexclude = [\".git\"]\n\n[ci]\nstep = []\n";
+const CONFIG_TEXT: &str = "surfaces = [\"xtask.toml\", \"lint-baseline.toml\"]\n[lints]\nbaseline = \"lint-baseline.toml\"\nproduct = [\"crates\"]\nexclude = [\".git\"]\n\n[ci]\nstep = []\n";
 const BASELINE: &str = "lint-baseline.toml";
 const BASELINE_TEXT: &str = "[no-comments]\n\"crates/a/src/lib.rs\" = 1\n";
 const RAISED_BASELINE: &str = "[no-comments]\n\"crates/a/src/lib.rs\" = 2\n";

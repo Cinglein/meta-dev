@@ -1,5 +1,6 @@
 mod commit;
 
+use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -25,6 +26,17 @@ impl Revision {
         let object = self.commit.object(path);
         let output = Self::git(&self.root, &["cat-file", "blob", &object])?;
         Ok(output.status.success().then(|| String::from_utf8_lossy(&output.stdout).into_owned()))
+    }
+
+    pub fn changed_paths(&self) -> Result<Vec<String>, Failure> {
+        let output = Self::git(&self.root, &["diff", "--name-only", "--no-renames", "-z", self.commit.hash()])?;
+        let paths = String::from_utf8_lossy(&output.stdout);
+        let paths = paths.split('\0').filter(|path| !path.is_empty()).map(str::to_owned).collect();
+        output
+            .status
+            .success()
+            .then_some(paths)
+            .ok_or_else(|| Failure::Git(io::Error::other(String::from_utf8_lossy(&output.stderr).into_owned())))
     }
 
     fn git(root: &Path, args: &[&str]) -> Result<Output, Failure> {
