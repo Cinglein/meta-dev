@@ -1,9 +1,9 @@
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use meta_ci::CiConfig;
-use meta_lints::{LintConfig, Workspace};
+use meta_lints::{LintConfig, Prior, Revision, Workspace};
 use serde::Deserialize;
 
 use crate::task::failure::Failure;
@@ -13,6 +13,11 @@ use crate::task::failure::Failure;
 struct Settings {
     lints: LintConfig,
     ci: CiConfig,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct PriorSettings {
+    lints: LintConfig,
 }
 
 #[derive(Clone, Debug)]
@@ -37,6 +42,17 @@ impl Project {
 
     pub fn lints(&self) -> Workspace {
         Workspace::new(self.root.clone(), self.settings.lints.clone())
+    }
+
+    pub fn prior(&self) -> Result<Option<Prior>, Failure> {
+        let revision = Revision::merge_base(&self.root)?;
+        revision
+            .file(Path::new(Self::CONFIG))?
+            .map(|text| toml::from_str::<PriorSettings>(&text))
+            .transpose()?
+            .map(|settings| Prior::read_at(&revision, settings.lints))
+            .transpose()
+            .map_err(Failure::from)
     }
 
     pub fn run_ci(&self) -> Result<(), meta_ci::Failure> {

@@ -2,6 +2,7 @@ use std::io;
 
 use thiserror::Error;
 
+use crate::loosening::Loosening;
 use crate::ratchet::Ratchet;
 use crate::site::Site;
 
@@ -17,4 +18,12 @@ pub enum Failure {
     Serialize(toml::ser::Error),
     #[error("{0}")]
     Ratchet(Box<Ratchet>),
+    #[error("{}", .0.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n"))]
+    Loosened(Vec<Loosening>),
+    #[error("no rust files to lint")]
+    NoFiles,
+    #[error("git: {0}")]
+    Git(io::Error),
+    #[error("no merge base with origin/HEAD; run `git fetch origin` and `git remote set-head origin --auto`")]
+    NoDefaultBranch,
 }

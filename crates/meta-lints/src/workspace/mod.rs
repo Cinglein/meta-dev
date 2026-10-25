@@ -8,6 +8,7 @@ use crate::count::Count;
 use crate::drift::Drift;
 use crate::failure::Failure;
 use crate::lint_config::LintConfig;
+use crate::prior::Prior;
 use crate::ratchet::Ratchet;
 use crate::rule::Findings;
 use crate::site::Site;
@@ -25,11 +26,12 @@ impl Workspace {
         Workspace { root, config }
     }
 
-    pub fn lint(&self) -> Result<Tally, Failure> {
+    pub fn lint(&self, prior: Option<&Prior>) -> Result<Tally, Failure> {
         let files = self.source_files()?;
+        let allowed = Baseline::read(&self.baseline_path())?.unwrap_or_default();
+        prior.map(|prior| prior.admit(&self.config, &allowed)).transpose()?;
         let findings = Findings::collect(&files, &self.config);
         let observed = findings.observed();
-        let allowed = Baseline::read(&self.baseline_path())?.unwrap_or_default();
         let drifts = observed.drifts(&allowed);
         if drifts.is_empty() {
             Ok(Tally::new(Count::of_len(files.len()), observed))
@@ -68,7 +70,11 @@ impl Workspace {
     fn source_files(&self) -> Result<Vec<SourceFile>, Failure> {
         let mut files = self.rust_files_under(&self.root)?;
         files.sort();
-        files.iter().map(|file| SourceFile::read(self, file)).collect()
+        files
+            .iter()
+            .map(|file| SourceFile::read(self, file))
+            .collect::<Result<Vec<SourceFile>, Failure>>()
+            .and_then(|files| if files.is_empty() { Err(Failure::NoFiles) } else { Ok(files) })
     }
 
     fn rust_files_under(&self, directory: &Path) -> Result<Vec<PathBuf>, Failure> {

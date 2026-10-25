@@ -16,14 +16,15 @@ pub struct Baseline(BTreeMap<String, BTreeMap<String, Count>>);
 
 impl Baseline {
     pub fn read(path: &Path) -> Result<Option<Baseline>, Failure> {
-        let site = || Site::of_path(path);
         match fs::read_to_string(path) {
-            Ok(text) => toml::from_str(&text)
-                .map(Some)
-                .map_err(|error| Failure::Baseline { site: site(), error: Box::new(error) }),
+            Ok(text) => Self::parse(&text, Site::of_path(path)).map(Some),
             Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
-            Err(error) => Err(Failure::Io { site: site(), error }),
+            Err(error) => Err(Failure::Io { site: Site::of_path(path), error }),
         }
+    }
+
+    pub fn parse(text: &str, site: Site) -> Result<Baseline, Failure> {
+        toml::from_str(text).map_err(|error| Failure::Baseline { site, error: Box::new(error) })
     }
 
     pub fn write(&self, path: &Path) -> Result<(), Failure> {

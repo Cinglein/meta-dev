@@ -4,7 +4,9 @@ mod drift;
 mod failure;
 mod line_number;
 mod lint_config;
+mod loosening;
 mod path_prefix;
+mod prior;
 mod ratchet;
 mod region;
 mod rule;
@@ -14,4 +16,5 @@ mod workspace;
 
 pub use failure::Failure;
 pub use lint_config::LintConfig;
+pub use prior::{Prior, Revision};
 pub use workspace::Workspace;

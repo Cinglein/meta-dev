@@ -19,6 +19,7 @@ rustc_lexer = { package = "ra-ap-rustc_lexer", version = "0.174.0" }
 strum = { version = "0.28.0", features = ["derive"] }
 syn = { version = "2.0.119", features = ["full", "parsing", "visit"] }
 thiserror = "2.0.20"
+tempfile = "3.27.0"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
