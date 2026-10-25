@@ -1,13 +1,12 @@
 mod number_sites;
-mod test_files;
 mod text_sites;
 
 use number_sites::NumberSites;
 use text_sites::TextSites;
 
 use crate::rule::report::Report;
+use crate::rule::test_files::TestFiles;
 use crate::source_file::SourceFile;
-use test_files::TestFiles;
 
 pub struct PrimitiveBoundary;
 

@@ -11,11 +11,12 @@ pub enum Task {
     Lint,
     Baseline,
     Ci,
+    Graph,
     Usage,
 }
 
 impl Task {
-    const USAGE: &str = "usage: cargo xtask <lint|baseline|ci>";
+    const USAGE: &str = "usage: cargo xtask <lint|baseline|ci|graph>";
 
     pub fn run(self) -> Result<(), Failure> {
         let project = Project::locate()?;
@@ -29,6 +30,7 @@ impl Task {
                 }
                 Ok(outcome?)
             }
+            Task::Graph => Ok(project.lints().crate_graphs().map(|report| print!("{report}"))?),
             Task::Usage => Err(Failure::Usage(Self::USAGE)),
         }
     }
@@ -42,6 +44,7 @@ impl FromStr for Task {
             "lint" => Ok(Task::Lint),
             "baseline" => Ok(Task::Baseline),
             "ci" => Ok(Task::Ci),
+            "graph" => Ok(Task::Graph),
             _ => Err(Failure::Usage(Self::USAGE)),
         }
     }

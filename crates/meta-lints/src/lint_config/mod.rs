@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 use crate::path_prefix::PathPrefix;
 use crate::region::Region;
-use crate::rule::OwnershipRule;
+use crate::rule::{GraphLimits, OwnershipRule};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -19,6 +19,8 @@ pub struct LintConfig {
     boundary: Vec<PathPrefix>,
     #[serde(default)]
     ownership: Vec<OwnershipRule>,
+    #[serde(default)]
+    crate_graph: Option<GraphLimits>,
 }
 
 impl LintConfig {
@@ -28,6 +30,10 @@ impl LintConfig {
 
     pub fn ownership(&self) -> &[OwnershipRule] {
         &self.ownership
+    }
+
+    pub fn crate_graph(&self) -> Option<GraphLimits> {
+        self.crate_graph
     }
 
     pub fn excludes(&self, directory: &OsStr) -> bool {
