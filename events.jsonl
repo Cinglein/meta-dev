@@ -44,3 +44,4 @@
 {"at":"2026-10-25T05:14:15.126738Z","actor":"reseed","kind":"TaskOpened","task":"task-c5fc5b96f9039a06","text":"meta-lints: detect binaries at root src/main.rs and src/bin/*"}
 {"at":"2026-10-25T05:14:16.727525Z","actor":"reseed","kind":"TaskOpened","task":"task-d3abeaec3e4f1e89","text":"meta-ci: an empty step list must fail; print total time on failure"}
 {"at":"2026-10-25T05:14:18.400870Z","actor":"reseed","kind":"TaskOpened","task":"task-fd6658c38eb182f8","text":"meta-lints: rules print to stdout; return measurements instead"}
+{"at":"2026-10-25T05:14:20.007018Z","actor":"reseed","kind":"TaskOpened","task":"task-50f1316e939c8021","text":"meta-lints: ownership tokens match raw substrings; match tokens"}
