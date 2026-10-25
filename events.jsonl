@@ -103,3 +103,4 @@
 {"at":"2026-10-25T07:08:42.561525Z","actor":"claude-lead","kind":"TaskOpened","task":"task-9b2393496885308a","text":"Halve the codebase via lints (owner goal, at least 50%). Baseline at main 017aacd, non-test Rust in crates/ + xtask/: 9541 non-blank lines, 223 files, 7 crates; items: 987 fn, 212 struct, 50 enum, 5 trait, 34 type, 212 const, 439 impl, 248 mod; 621 pub items. Headline measure: graph nodes/edges per crate once cargo xtask graph exists. Report the trend at each merge"}
 {"at":"2026-10-25T07:12:51.253552Z","actor":"claude-xtask","kind":"TaskDone","task":"task-d3f50515fd1921fa"}
 {"at":"2026-10-25T07:24:29.131039Z","actor":"claude-cratemaxx-lints","kind":"TaskOpened","task":"task-41bfd815f713f919","text":"cratemaxx meta-lints: split into core + per-lint crates; remove the 83-item SCC; fewer total lines"}
+{"at":"2026-10-25T07:24:32.369022Z","actor":"claude-cratemaxx-lints","kind":"TaskClaimed","task":"task-41bfd815f713f919"}
