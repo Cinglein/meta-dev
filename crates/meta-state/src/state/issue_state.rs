@@ -1,6 +1,6 @@
 use std::fmt;
 
-use meta_schema::{NewIssue, Target};
+use meta_schema::{NewIssue, Target, Text};
 
 use crate::stamp::Stamp;
 
@@ -11,6 +11,10 @@ pub struct IssueState {
 }
 
 impl IssueState {
+    pub fn correct(&mut self, text: Text) {
+        self.issue = self.issue.corrected(text);
+    }
+
     pub fn new(issue: NewIssue, reported: Stamp) -> Self {
         Self { issue, reported }
     }

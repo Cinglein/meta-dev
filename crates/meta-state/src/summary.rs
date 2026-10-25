@@ -19,18 +19,23 @@ impl<'state> Summary<'state> {
 impl fmt::Display for Summary<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let state = self.state;
-        let unfinished: Vec<&TaskState> =
-            state.tasks().iter().filter(|task| task.status().unfinished().is_some()).collect();
+        let retired = state.tasks().iter().filter(|task| state.retirement(task.entry()).is_some()).count();
+        let unfinished: Vec<&TaskState> = state
+            .tasks()
+            .iter()
+            .filter(|task| task.status().unfinished().is_some() && state.retirement(task.entry()).is_none())
+            .collect();
         let claimed = unfinished.iter().filter(|task| task.status().claimant().is_some());
         let open = unfinished.iter().filter(|task| task.status().claimant().is_none());
-        writeln!(formatter, "Tasks: {} unfinished, {} done", unfinished.len(), state.tasks().len() - unfinished.len())?;
+        let done = state.tasks().iter().filter(|task| task.status().done().is_some()).count();
+        writeln!(formatter, "Tasks: {} unfinished, {done} done, {retired} retired", unfinished.len())?;
         claimed.chain(open).try_for_each(|task| writeln!(formatter, "  {task}"))?;
         let issues: Vec<_> =
-            state.issues().iter().filter(|issue| state.addressed_by(issue.target()).is_none()).collect();
+            state.issues().iter().filter(|issue| state.closed(issue.target().entry()).is_none()).collect();
         writeln!(formatter, "Issues: {} open", issues.len())?;
         issues.iter().try_for_each(|issue| writeln!(formatter, "  {issue}"))?;
         let concerns: Vec<_> =
-            state.concerns().iter().filter(|concern| state.addressed_by(concern.target()).is_none()).collect();
+            state.concerns().iter().filter(|concern| state.closed(concern.target().entry()).is_none()).collect();
         let tagged = concerns.iter().filter_map(|concern| concern.tagged(Tag::AcceptanceCandidate)).count();
         writeln!(
             formatter,

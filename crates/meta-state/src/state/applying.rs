@@ -1,10 +1,10 @@
-use meta_schema::{Claim, EventVisitor, NewConcern, NewIssue, NewTask, TaskRef};
+use meta_schema::{Claim, EntryNote, EventVisitor, NewConcern, NewIssue, NewTask, TaskRef};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
-use crate::state::State;
 use crate::state::concern_state::ConcernState;
 use crate::state::issue_state::IssueState;
+use crate::state::{Retired, State};
 use crate::task_state::TaskState;
 
 #[derive(Debug)]
@@ -47,6 +47,14 @@ impl EventVisitor for Applying<'_> {
     fn task_done(self, task: TaskRef) -> Self::Output {
         let task_state = self.state.task_mut(task.task())?;
         task_state.advance(task_state.status().finished(self.stamp))
+    }
+
+    fn entry_retired(self, note: &EntryNote) -> Self::Output {
+        self.state.retire(Retired::new(note.clone(), self.stamp))
+    }
+
+    fn entry_corrected(self, note: &EntryNote) -> Self::Output {
+        self.state.correct(note)
     }
 
     fn task_reopened(self, task: TaskRef) -> Self::Output {

@@ -1,4 +1,4 @@
-use meta_schema::{Actor, Id, Target, Task};
+use meta_schema::{Actor, Entry, Id, Target, Task};
 use thiserror::Error;
 
 #[derive(Clone, Debug, PartialEq, Eq, Error)]
@@ -21,4 +21,8 @@ pub enum Refusal {
     HeldBy(Actor),
     #[error("the task is not claimed; claim it first")]
     Unclaimed,
+    #[error("there is no entry {0}")]
+    UnknownEntry(Entry),
+    #[error("{0} is retired")]
+    Retired(Entry),
 }

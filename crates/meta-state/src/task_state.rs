@@ -2,7 +2,7 @@ mod task_status;
 
 use std::fmt;
 
-use meta_schema::{Id, NewTask, Target, Task};
+use meta_schema::{Entry, Id, NewTask, Target, Task, Text};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
@@ -16,8 +16,16 @@ pub struct TaskState {
 }
 
 impl TaskState {
+    pub fn correct(&mut self, text: Text) {
+        self.task = self.task.corrected(text);
+    }
+
     pub fn new(task: NewTask, opened: Stamp) -> Self {
         Self { task, opened, status: TaskStatus::Open }
+    }
+
+    pub fn entry(&self) -> Entry {
+        Entry::Task(self.task.task())
     }
 
     pub fn new_task(&self) -> &NewTask {

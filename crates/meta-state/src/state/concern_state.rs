@@ -1,6 +1,6 @@
 use std::fmt;
 
-use meta_schema::{NewConcern, Tag, Target};
+use meta_schema::{NewConcern, Tag, Target, Text};
 
 use crate::stamp::Stamp;
 
@@ -11,6 +11,10 @@ pub struct ConcernState {
 }
 
 impl ConcernState {
+    pub fn correct(&mut self, text: Text) {
+        self.concern = self.concern.corrected(text);
+    }
+
     pub fn new(concern: NewConcern, identified: Stamp) -> Self {
         Self { concern, identified }
     }
