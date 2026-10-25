@@ -55,3 +55,4 @@
 {"seq":55,"at":"2026-10-25T04:34:54.727295Z","actor":"claude-lead","kind":"TaskOpened","task":"task-bd78f9708b5a7cb2","text":"Make bypasses obvious, not prevented: flag every change to enforcement surfaces (ci steps and alias, lint code and rules, baseline, hooks, meta.toml protected list) in the PR and as a log event; a bypass becomes a visible, trackable change (an unrecorded waiver made visible)"}
 {"seq":56,"at":"2026-10-25T04:37:42.748891Z","actor":"owner","kind":"TaskClaimed","task":"task-bd78f9708b5a7cb2"}
 {"seq":57,"at":"2026-10-25T04:40:55.710982Z","actor":"owner","kind":"TaskDone","task":"task-bd78f9708b5a7cb2"}
+{"seq":58,"at":"2026-10-25T04:41:02.013975Z","actor":"owner","kind":"TaskOpened","task":"task-cb1b2cb094c58502","text":"xtask ci: record the changed enforcement-surface list as a meta log event (PR #3 only prints it; needs meta-cli on main; follows task-bd78f9708b5a7cb2)"}
