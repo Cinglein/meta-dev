@@ -29,6 +29,10 @@ impl NewConcern {
     pub fn tags(&self) -> &[Tag] {
         &self.tags
     }
+
+    pub fn corrected(&self, text: Text) -> Self {
+        Self { text, ..self.clone() }
+    }
 }
 
 impl fmt::Display for NewConcern {

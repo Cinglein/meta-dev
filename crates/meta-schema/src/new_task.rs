@@ -27,6 +27,10 @@ impl NewTask {
     pub fn addresses(&self) -> &[Target] {
         &self.addresses
     }
+
+    pub fn corrected(&self, text: Text) -> Self {
+        Self { text, ..self.clone() }
+    }
 }
 
 impl fmt::Display for NewTask {
