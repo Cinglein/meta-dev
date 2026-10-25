@@ -15,15 +15,18 @@ impl SessionId {
         PathBuf::from(self.0.chars().filter(char::is_ascii_alphanumeric).collect::<String>())
     }
 
-    pub fn announce(&self) -> Option<Actor> {
-        let actor: Actor =
-            format!("claude-{}", self.file_name().display().to_string().to_ascii_lowercase()).parse().ok()?;
+    pub const VARIABLE: &'static str = "META_SESSION";
+
+    pub fn announce(&self, actor: Option<Actor>) -> Option<Actor> {
+        let actor = actor.or_else(|| {
+            format!("claude-{}", self.file_name().display().to_string().to_ascii_lowercase()).parse().ok()
+        })?;
         std::fs::OpenOptions::new()
             .create(true)
             .append(true)
             .open(std::env::var_os("CLAUDE_ENV_FILE")?)
             .ok()?
-            .write_all(format!("export META_ACTOR={actor}\n").as_bytes())
+            .write_all(format!("export META_ACTOR={actor}\nexport {}={}\n", Self::VARIABLE, self.0).as_bytes())
             .ok()?;
         Some(actor)
     }

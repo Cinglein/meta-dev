@@ -4,7 +4,7 @@ mod gh;
 use std::ops::ControlFlow;
 use std::os::unix::process::CommandExt as _;
 use std::process::{Command, Stdio};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use super::ci_status::CiStatus;
 use super::commit::Commit;
@@ -52,6 +52,28 @@ impl Watcher {
         .take(interval.polls_within(settings.timeout()))
         .try_fold(None, |reported, observed| watcher.step(reported, &observed));
         finished.break_value().map_or_else(|| watcher.conclude(CiStatus::TimedOut), |status| watcher.conclude(status))
+    }
+
+    pub fn wait(project: &Project, session: &SessionId) -> Result<Output, CliFailure> {
+        let dir = SessionDir::for_session(project, session).ok_or_else(|| CliFailure::config("no git directory"))?;
+        let interval = project.config().ci_settings().poll_interval();
+        let settled = std::iter::once(Duration::ZERO)
+            .chain(std::iter::repeat(interval.duration()))
+            .take(interval.polls_within(project.config().ci_settings().timeout()))
+            .find_map(|pause| {
+                std::thread::sleep(pause);
+                dir.status().and_then(CiStatus::finished)
+            });
+        let news = dir.news().map(|news| news.to_string()).unwrap_or_default();
+        settled.map_or_else(
+            || Ok(Output::Listed(Listed::new(format!("{news}\nCI still running; stopped waiting")))),
+            |status| {
+                status.failure().map_or_else(
+                    || Ok(Output::Listed(Listed::new(format!("{news}\n")))),
+                    |_| Err(CliFailure::invalid(&news)),
+                )
+            },
+        )
     }
 
     fn step(&self, reported: Option<Listed>, observed: &Observation) -> ControlFlow<CiStatus, Option<Listed>> {

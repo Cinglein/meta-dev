@@ -36,6 +36,6 @@ impl HookInput {
 
     pub fn announced_actor(&self) -> Option<Actor> {
         let configured = std::env::var("META_ACTOR").ok().and_then(|name| name.parse().ok());
-        configured.or_else(|| self.session_id.as_ref()?.announce())
+        self.session_id.as_ref().map_or(configured.clone(), |session| session.announce(configured.clone()))
     }
 }
