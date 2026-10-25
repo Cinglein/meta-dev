@@ -4,7 +4,7 @@ mod reply;
 use std::fmt;
 use std::str::FromStr;
 
-use meta_state::Scope;
+use meta_listing::Scope;
 
 use crate::command::Command;
 use crate::command::ci::{SessionDir, Watcher};

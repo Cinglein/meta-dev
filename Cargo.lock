@@ -225,6 +225,7 @@ dependencies = [
 name = "meta-cli"
 version = "0.0.0"
 dependencies = [
+ "meta-listing",
  "meta-log",
  "meta-schema",
  "meta-state",
@@ -247,6 +248,15 @@ dependencies = [
  "syn 2.0.119",
  "thiserror",
  "toml",
+]
+
+[[package]]
+name = "meta-listing"
+version = "0.0.0"
+dependencies = [
+ "meta-schema",
+ "meta-state",
+ "strum",
 ]
 
 [[package]]

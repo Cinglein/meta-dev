@@ -3,8 +3,8 @@ mod word;
 
 use std::fmt;
 
+use meta_listing::{Kind, Scope};
 use meta_schema::{Actor, Entry, Id, Tag, Target, Task, Text};
-use meta_state::{Kind, Scope};
 
 use crate::command::ci::{Commit, SessionId};
 use crate::command::cli_failure::CliFailure;
@@ -114,7 +114,9 @@ impl Parsed {
     pub fn kind(&self) -> Result<Option<Kind>, CliFailure> {
         match self.words.as_slice() {
             [] => Ok(None),
-            [word] => word.to_string().parse().map(Some).map_err(CliFailure::usage),
+            [word] => {
+                word.to_string().parse().map(Some).map_err(|_| CliFailure::usage(format!("unknown kind `{word}`")))
+            }
             _ => Err(CliFailure::usage("expected at most one kind")),
         }
     }

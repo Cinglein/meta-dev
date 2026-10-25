@@ -1,8 +1,10 @@
 use meta_schema::{Actor, Claim, Entry, EntryNote, Event, NewTask, Record, Text};
 
-use crate::listing::{Kind, Listing, Scope};
-use crate::state::State;
-use crate::summary::Summary;
+use meta_state::{State, Summary};
+
+use crate::kind::Kind;
+use crate::listing::Listing;
+use crate::scope::Scope;
 
 const OWNER: &str = "owner";
 const ORIGINAL: &str = "wrong id task-3afc044494f2045f";

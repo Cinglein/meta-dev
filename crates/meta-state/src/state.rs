@@ -95,7 +95,7 @@ impl State {
         Ok(())
     }
 
-    pub(crate) fn closed(&self, entry: Entry) -> Option<()> {
+    pub fn closed(&self, entry: Entry) -> Option<()> {
         let addressed = entry
             .concern()
             .map(Target::Concern)
@@ -108,19 +108,19 @@ impl State {
         addressed.map(|_| ()).or(done.map(|_| ())).or(self.retirement(entry).map(|_| ()))
     }
 
-    pub(crate) fn retirement(&self, entry: Entry) -> Option<&Retired> {
+    pub fn retirement(&self, entry: Entry) -> Option<&Retired> {
         self.retired.iter().find(|retired| retired.note().entry() == entry)
     }
 
-    pub(crate) fn concerns(&self) -> &[ConcernState] {
+    pub fn concerns(&self) -> &[ConcernState] {
         &self.concerns
     }
 
-    pub(crate) fn issues(&self) -> &[IssueState] {
+    pub fn issues(&self) -> &[IssueState] {
         &self.issues
     }
 
-    pub(crate) fn tasks(&self) -> &[TaskState] {
+    pub fn tasks(&self) -> &[TaskState] {
         &self.tasks
     }
 

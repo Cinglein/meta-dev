@@ -5,9 +5,10 @@ mod output;
 mod parsed;
 mod project;
 
+use meta_listing::{Kind, Listing, Scope};
 use meta_log::{LogFailure, LogStore};
 use meta_schema::{Actor, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, Record, TaskRef};
-use meta_state::{Kind, Listing, Scope, State, Summary};
+use meta_state::{State, Summary};
 
 use ci::{Commit, SessionId, Watcher};
 use cli_failure::CliFailure;

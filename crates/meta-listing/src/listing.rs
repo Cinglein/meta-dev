@@ -1,29 +1,10 @@
 use std::fmt;
-use std::str::FromStr;
 
 use meta_schema::Entry;
-use thiserror::Error;
+use meta_state::State;
 
-use crate::state::State;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Kind {
-    Tasks,
-    Issues,
-    Concerns,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Scope {
-    Open,
-    All,
-}
-
-#[derive(Debug, Error)]
-pub enum KindFailure {
-    #[error("unknown kind `{0}`: tasks, issues or concerns")]
-    Unknown(String),
-}
+use crate::kind::Kind;
+use crate::scope::Scope;
 
 #[derive(Debug)]
 pub struct Listing<'state> {
@@ -50,27 +31,7 @@ impl<'state> Listing<'state> {
 
     fn row(&self, item: &dyn fmt::Display, entry: Entry) -> Option<String> {
         let marker = self.state.retirement(entry).map(ToString::to_string).unwrap_or_default();
-        self.shown(self.state.closed(entry)).map(|()| format!("{item}{marker}"))
-    }
-
-    fn shown<Item>(&self, addressed: Option<Item>) -> Option<()> {
-        match (self.scope, addressed) {
-            (Scope::All, _) | (Scope::Open, None) => Some(()),
-            (Scope::Open, Some(_)) => None,
-        }
-    }
-}
-
-impl FromStr for Kind {
-    type Err = KindFailure;
-
-    fn from_str(name: &str) -> Result<Self, Self::Err> {
-        match name {
-            "tasks" => Ok(Self::Tasks),
-            "issues" => Ok(Self::Issues),
-            "concerns" => Ok(Self::Concerns),
-            other => Err(KindFailure::Unknown(other.to_owned())),
-        }
+        (self.scope == Scope::All || self.state.closed(entry).is_none()).then(|| format!("{item}{marker}"))
     }
 }
 
@@ -79,3 +40,6 @@ impl fmt::Display for Listing<'_> {
         self.rows().iter().try_for_each(|row| writeln!(formatter, "{row}"))
     }
 }
+
+#[cfg(test)]
+mod tests;
