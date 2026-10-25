@@ -61,7 +61,7 @@ impl Command {
                 let actor = Self::actor()?;
                 let record = log.append(&mut |snapshot| {
                     let record = Record::new(actor.clone(), event.clone());
-                    State::fold(snapshot.records()).vet(&record).map_err(LogFailure::refused)?;
+                    State::fold(snapshot.complete()?).vet(&record).map_err(LogFailure::refused)?;
                     Ok(record)
                 })?;
                 Ok(Output::Written(record))

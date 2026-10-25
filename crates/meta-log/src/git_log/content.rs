@@ -61,9 +61,9 @@ mod tests {
     const FUTURE_AND_GARBAGE: &str = "{\"at\":\"2026-10-25T00:00:00Z\",\"actor\":\"a\",\"kind\":\"Later\"}\nnot json\n";
 
     #[test]
-    fn unknown_and_unreadable_lines_are_skipped_not_fatal() {
+    fn unknown_lines_are_listed_and_block_writes() {
         let snapshot = FUTURE_AND_GARBAGE.parse::<Content>().unwrap().snapshot();
         assert!(snapshot.records().is_empty());
-        assert_eq!(snapshot.skipped().len(), 2);
+        assert!(snapshot.complete().is_err());
     }
 }

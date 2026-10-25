@@ -10,6 +10,8 @@ pub enum LogFailure {
     Refused(Detail),
     #[error("offline: cannot fetch meta/log from {0}; nothing written")]
     Offline(Detail),
+    #[error("meta/log has {0} line(s) this meta cannot read; upgrade meta before writing")]
+    Unreadable(Detail),
     #[error("git: {0}")]
     Git(Detail),
     #[error("meta/log push rejected: {0}")]

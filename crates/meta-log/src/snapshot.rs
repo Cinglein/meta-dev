@@ -2,6 +2,8 @@ use std::fmt;
 
 use meta_schema::Record;
 
+use crate::detail::Detail;
+use crate::log_failure::LogFailure;
 use crate::skipped_line::SkippedLine;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -25,8 +27,11 @@ impl Snapshot {
         &self.records
     }
 
-    pub fn skipped(&self) -> &[SkippedLine] {
-        &self.skipped
+    pub fn complete(&self) -> Result<&[Record], LogFailure> {
+        match self.skipped.as_slice() {
+            [] => Ok(&self.records),
+            unread => Err(LogFailure::Unreadable(Detail::from_reason(unread.len()))),
+        }
     }
 }
 
