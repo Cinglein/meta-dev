@@ -11,6 +11,11 @@ license = "UNLICENSED"
 [workspace.dependencies]
 meta-lints = { path = "crates/meta-lints" }
 meta-ci = { path = "crates/meta-ci" }
+meta-schema = { path = "crates/meta-schema" }
+meta-log = { path = "crates/meta-log" }
+meta-state = { path = "crates/meta-state" }
+chrono = { version = "0.4.44", default-features = false, features = ["std", "clock", "serde"] }
+serde_json = "1.0.149"
 serde = { version = "1.0.228", features = ["derive"] }
 toml = { version = "0.8.23", default-features = false, features = ["parse"] }
 proc-macro2 = { version = "1.0.107", features = ["span-locations"] }
