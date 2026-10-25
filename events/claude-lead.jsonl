@@ -1,0 +1,1 @@
+{"at":"2026-10-25T03:46:42.360499Z","kind":"TaskOpened","task":"task-6e2e8a0d752e4629","text":"Bring Basho's xtask (lints incl. no_comments, ci runner) into meta-development as meta-lints + xtask, project-agnostic; existing violations budgeted as a ratchet baseline"}
