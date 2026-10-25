@@ -95,3 +95,4 @@
 {"at":"2026-10-25T06:40:45.233700Z","actor":"claude-stage0-builder","kind":"TaskClaimed","task":"task-726c95a8e507812d"}
 {"at":"2026-10-25T06:43:27.846703Z","actor":"claude-lead","kind":"TaskOpened","task":"task-f33338afc184bd8f","text":"Lint: ban serde_json::Value (and other untyped dynamic values) in struct fields and signatures; external JSON must be parsed into typed newtypes/enums with an explicit unknown variant"}
 {"at":"2026-10-25T06:46:26.329947Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-793c5955046b5221","text":"Every new event kind blocks all older meta binaries from writing until they rebuild; rolling out a schema change needs a procedure (or automatic rebuild/version check at session start)"}
+{"at":"2026-10-25T06:59:47.145328Z","actor":"claude-stage0-builder","kind":"EntryRetired","entry":"task-d550a9e4c83ff322","text":"owner kept xtask ci stopping at the first failed step (issue-5e21958fe3b4fe9b)"}
