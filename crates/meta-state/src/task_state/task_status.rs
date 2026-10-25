@@ -55,13 +55,6 @@ impl TaskStatus {
         }
     }
 
-    pub fn claimant(&self) -> Option<&Stamp> {
-        match self {
-            Self::Claimed(stamp) => Some(stamp),
-            Self::Open | Self::Done(_) => None,
-        }
-    }
-
     fn held_by(&self, by: &Stamp) -> Result<&Stamp, Refusal> {
         match self {
             Self::Claimed(held) if held.actor() == by.actor() => Ok(held),

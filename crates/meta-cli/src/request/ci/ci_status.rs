@@ -1,7 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use meta_gh::GhRun;
+use meta_gh::{GhRun, Outcome};
 
 use crate::request::output::Listed;
 
@@ -15,9 +15,11 @@ pub enum CiStatus {
 
 impl CiStatus {
     pub fn of_runs(runs: &[GhRun]) -> Option<Self> {
-        runs.first()
-            .filter(|_| runs.iter().all(|run| run.completed().is_some()))
-            .map(|_| runs.iter().find(|run| run.succeeded().is_none()).map_or(Self::Passed, |_| Self::Failed))
+        runs.iter().map(GhRun::outcome).collect::<Option<Vec<Outcome>>>().filter(|outcomes| !outcomes.is_empty()).map(
+            |outcomes| {
+                if outcomes.iter().all(|outcome| *outcome == Outcome::Succeeded) { Self::Passed } else { Self::Failed }
+            },
+        )
     }
 
     pub fn stop_reason(self) -> Option<Listed> {
@@ -36,13 +38,6 @@ impl CiStatus {
         match self {
             Self::Running => None,
             Self::Passed | Self::Failed | Self::TimedOut => Some(self),
-        }
-    }
-
-    pub fn failure(self) -> Option<Self> {
-        match self {
-            Self::Failed => Some(self),
-            Self::Running | Self::Passed | Self::TimedOut => None,
         }
     }
 }

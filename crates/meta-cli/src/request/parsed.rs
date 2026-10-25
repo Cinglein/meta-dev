@@ -7,7 +7,7 @@ use meta_listing::{Kind, Scope};
 use meta_schema::{Actor, Entry, Id, Tag, Target, Task, Text};
 
 use crate::request::ci::{Commit, SessionId};
-use crate::request::cli_failure::CliFailure;
+use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
 pub use option_name::OptionName;
 use word::Word;
 
@@ -51,20 +51,20 @@ impl Parsed {
         self.given.push(name);
         match (name, args) {
             (OptionName::All, rest) => Self { scope: Scope::All, ..self }.take(rest),
-            (_, []) => Err(CliFailure::usage(format!("{name} needs a value"))),
+            (_, []) => Err(CliFailure::raised::<Misuse>(format!("{name} needs a value"))),
             (OptionName::Source, [value, rest @ ..]) => {
-                Self { source: Some(value.parse().map_err(CliFailure::invalid)?), ..self }.take(rest)
+                Self { source: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
             }
             (OptionName::Tag, [value, rest @ ..]) => {
-                let tag = value.parse().map_err(CliFailure::invalid)?;
+                let tag = value.parse().map_err(CliFailure::raised::<Invalid>)?;
                 Self { tags: [self.tags, vec![tag]].concat(), ..self }.take(rest)
             }
             (OptionName::Addresses, [value, rest @ ..]) => {
-                let target = value.parse().map_err(CliFailure::invalid)?;
+                let target = value.parse().map_err(CliFailure::raised::<Invalid>)?;
                 Self { addresses: [self.addresses, vec![target]].concat(), ..self }.take(rest)
             }
             (OptionName::From, [value, rest @ ..]) => {
-                Self { from: Some(value.parse().map_err(CliFailure::invalid)?), ..self }.take(rest)
+                Self { from: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
             }
         }
     }
@@ -73,19 +73,19 @@ impl Parsed {
         self.given
             .iter()
             .find(|name| !allowed.contains(name))
-            .map_or(Ok(()), |name| Err(CliFailure::usage(format!("{name} does not apply here"))))?;
+            .map_or(Ok(()), |name| Err(CliFailure::raised::<Misuse>(format!("{name} does not apply here"))))?;
         Ok(self)
     }
 
     pub fn text(&self) -> Result<Text, CliFailure> {
         let joined: Vec<String> = self.words.iter().map(ToString::to_string).collect();
-        joined.join(" ").parse().map_err(CliFailure::invalid)
+        joined.join(" ").parse().map_err(CliFailure::raised::<Invalid>)
     }
 
     pub fn task(&self) -> Result<Id<Task>, CliFailure> {
         match self.words.as_slice() {
-            [word] => word.to_string().parse().map_err(CliFailure::invalid),
-            _ => Err(CliFailure::usage("expected one task id")),
+            [word] => word.to_string().parse().map_err(CliFailure::raised::<Invalid>),
+            _ => Err(CliFailure::raised::<Misuse>("expected one task id")),
         }
     }
 
@@ -95,29 +95,32 @@ impl Parsed {
     ) -> Result<Built, CliFailure> {
         match self.words.as_slice() {
             [session, commit] => Ok(build(
-                session.to_string().parse().map_err(CliFailure::invalid)?,
-                commit.to_string().parse().map_err(CliFailure::invalid)?,
+                session.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
+                commit.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
             )),
-            _ => Err(CliFailure::usage("expected a session id and a commit")),
+            _ => Err(CliFailure::raised::<Misuse>("expected a session id and a commit")),
         }
     }
 
     pub fn entry_and_text<Built>(&self, build: impl FnOnce(Entry, Text) -> Built) -> Result<Built, CliFailure> {
-        let (entry, text) = self.words.split_first().ok_or_else(|| CliFailure::usage("expected an id and text"))?;
+        let (entry, text) =
+            self.words.split_first().ok_or_else(|| CliFailure::raised::<Misuse>("expected an id and text"))?;
         let joined: Vec<String> = text.iter().map(ToString::to_string).collect();
         Ok(build(
-            entry.to_string().parse().map_err(CliFailure::invalid)?,
-            joined.join(" ").parse().map_err(CliFailure::invalid)?,
+            entry.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
+            joined.join(" ").parse().map_err(CliFailure::raised::<Invalid>)?,
         ))
     }
 
     pub fn kind(&self) -> Result<Option<Kind>, CliFailure> {
         match self.words.as_slice() {
             [] => Ok(None),
-            [word] => {
-                word.to_string().parse().map(Some).map_err(|_| CliFailure::usage(format!("unknown kind `{word}`")))
-            }
-            _ => Err(CliFailure::usage("expected at most one kind")),
+            [word] => word
+                .to_string()
+                .parse()
+                .map(Some)
+                .map_err(|_| CliFailure::raised::<Misuse>(format!("unknown kind `{word}`"))),
+            _ => Err(CliFailure::raised::<Misuse>("expected at most one kind")),
         }
     }
 

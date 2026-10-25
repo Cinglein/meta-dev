@@ -5,6 +5,7 @@ use std::fmt;
 use serde::Deserialize;
 
 use crate::conclusion::Conclusion;
+use crate::outcome::Outcome;
 use step_name::StepName;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -16,7 +17,7 @@ pub struct GhStep {
 
 impl GhStep {
     pub fn failure(&self) -> Option<&Self> {
-        self.conclusion.and_then(Conclusion::failing).map(|_| self)
+        self.conclusion.map(Conclusion::outcome).filter(|outcome| *outcome == Outcome::Failing).map(|_| self)
     }
 }
 

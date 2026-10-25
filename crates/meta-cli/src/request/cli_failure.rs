@@ -1,4 +1,8 @@
+mod failure_kind;
+mod invalid;
 mod message;
+mod misuse;
+mod setup;
 mod usage;
 
 use std::fmt;
@@ -7,8 +11,13 @@ use meta_log::LogFailure;
 use meta_state::Refusal;
 use thiserror::Error;
 
+use failure_kind::FailureKind;
 use message::Message;
 use usage::Usage;
+
+pub use invalid::Invalid;
+pub use misuse::Misuse;
+pub use setup::Setup;
 
 #[derive(Debug, Error)]
 pub enum CliFailure {
@@ -25,15 +34,7 @@ pub enum CliFailure {
 }
 
 impl CliFailure {
-    pub fn usage(message: impl fmt::Display) -> Self {
-        Self::Usage(Message::new(message))
-    }
-
-    pub fn invalid(message: impl fmt::Display) -> Self {
-        Self::Invalid(Message::new(message))
-    }
-
-    pub fn config(message: impl fmt::Display) -> Self {
-        Self::Setup(Message::new(message))
+    pub fn raised<Kind: FailureKind>(message: impl fmt::Display) -> Self {
+        Kind::failure(Message::new(message))
     }
 }

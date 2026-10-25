@@ -8,10 +8,10 @@ use meta_log::{GitLog, LogStore};
 use meta_state::{State, Summary};
 
 use crate::request::ci::Commit;
-use crate::request::cli_failure::CliFailure;
+use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
 use config::Config;
-pub use config::{BranchName, LineCount, ProgramName};
+pub use config::{BranchName, LogWindow, ProgramName};
 
 #[derive(Debug)]
 pub struct Project {
@@ -28,16 +28,17 @@ impl Project {
             .arg(dir)
             .args(["rev-parse", "--show-toplevel"])
             .output()
-            .map_err(CliFailure::config)?;
+            .map_err(CliFailure::raised::<Setup>)?;
         let root = output
             .status
             .success()
             .then(|| PathBuf::from(String::from_utf8_lossy(&output.stdout).trim()))
-            .ok_or_else(|| CliFailure::config("not inside a git repository"))?;
+            .ok_or_else(|| CliFailure::raised::<Setup>("not inside a git repository"))?;
         let path = root.join(Self::CONFIG_FILE);
-        let text =
-            std::fs::read_to_string(&path).map_err(|e| CliFailure::config(format!("{}: {e}", path.display())))?;
-        let config = toml::from_str(&text).map_err(|e| CliFailure::config(format!("{}: {e}", path.display())))?;
+        let text = std::fs::read_to_string(&path)
+            .map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
+        let config =
+            toml::from_str(&text).map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
         Ok(Self { root, config })
     }
 

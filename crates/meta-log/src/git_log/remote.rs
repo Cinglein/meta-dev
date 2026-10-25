@@ -38,7 +38,12 @@ impl Remote {
         let refspec = format!("+refs/heads/meta/*:refs/remotes/{}/meta/*", self.name);
         let fetched =
             self.git.command(["fetch", "--quiet", "--prune"]).arg(self.name.to_string()).arg(refspec).timed_output()?;
-        if fetched.status.success() { self.read_tracking().map(Some) } else { self.after_failed_fetch(&fetched) }
+        if fetched.status.success() {
+            let tip = self.tracking_tip();
+            self.blob_at(tip.as_ref()).map(|content| Some(Fetched::new(tip, content)))
+        } else {
+            self.after_failed_fetch(&fetched)
+        }
     }
 
     fn after_failed_fetch(&self, fetched: &Output) -> Result<Option<Fetched>, LogFailure> {
@@ -46,22 +51,22 @@ impl Remote {
         probe.status.success().then_some(None).ok_or_else(|| LogFailure::Offline(Detail::from(fetched)))
     }
 
-    fn read_tracking(&self) -> Result<Fetched, LogFailure> {
+    fn tracking_tip(&self) -> Option<Sha> {
         let tracking = format!("refs/remotes/{}/{}^{{commit}}", self.name, Self::BRANCH);
-        let tip: Option<Sha> = self
-            .git
+        self.git
             .command(["rev-parse", "--verify", "--quiet"])
             .arg(tracking)
             .content()
             .ok()
-            .map(|content| content.to_string().parse().unwrap_or_else(|never| match never {}));
-        let content = tip
-            .as_ref()
+            .map(|content| content.to_string().parse().unwrap_or_else(|never| match never {}))
+    }
+
+    fn blob_at(&self, tip: Option<&Sha>) -> Result<Content, LogFailure> {
+        Ok(tip
             .map(|commit| self.git.command(["cat-file", "blob"]).arg(format!("{commit}:{}", Self::FILE)).content())
             .transpose()?
             .map(Content::terminated)
-            .unwrap_or_default();
-        Ok(Fetched::new(tip, content))
+            .unwrap_or_default())
     }
 }
 

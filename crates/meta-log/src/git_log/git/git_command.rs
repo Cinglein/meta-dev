@@ -36,17 +36,6 @@ impl GitCommand {
         Self { input: Some(content), ..self }
     }
 
-    pub fn output(mut self) -> Result<Output, LogFailure> {
-        let stdin = self.input.as_ref().map_or_else(Stdio::null, |_| Stdio::piped());
-        let mut child = self.command.stdin(stdin).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
-        self.input
-            .as_ref()
-            .zip(child.stdin.take())
-            .map(|(content, mut pipe)| pipe.write_all(content.to_string().as_bytes()))
-            .transpose()?;
-        Ok(child.wait_with_output()?)
-    }
-
     pub fn timed_output(mut self) -> Result<Output, LogFailure> {
         let mut child = self.command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
         let polls = Self::NETWORK_TIMEOUT.as_millis() / Self::POLL.as_millis();
@@ -65,9 +54,16 @@ impl GitCommand {
         }
     }
 
-    pub fn content(self) -> Result<Content, LogFailure> {
+    pub fn content(mut self) -> Result<Content, LogFailure> {
         let shown = self.to_string();
-        let output = self.output()?;
+        let stdin = self.input.as_ref().map_or_else(Stdio::null, |_| Stdio::piped());
+        let mut child = self.command.stdin(stdin).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
+        self.input
+            .as_ref()
+            .zip(child.stdin.take())
+            .map(|(content, mut pipe)| pipe.write_all(content.to_string().as_bytes()))
+            .transpose()?;
+        let output = child.wait_with_output()?;
         output
             .status
             .success()

@@ -7,11 +7,11 @@ use std::str::FromStr;
 use meta_listing::Scope;
 
 use crate::request::ci::{CiStatus, SessionDir, Watcher};
-use crate::request::cli_failure::CliFailure;
+use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
 use crate::request::output::{Listed, Output};
 use crate::request::project::Project;
 use hook_input::HookInput;
-use reply::{Reply, Verdict};
+use reply::{Blocking, Denial, Reply, Verdict};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HookEvent {
@@ -30,7 +30,7 @@ impl FromStr for HookEvent {
             "pre-tool-use" => Ok(Self::PreToolUse),
             "post-tool-use" => Ok(Self::PostToolUse),
             "stop" => Ok(Self::Stop),
-            other => Err(CliFailure::usage(format!("unknown hook `{other}`"))),
+            other => Err(CliFailure::raised::<Misuse>(format!("unknown hook `{other}`"))),
         }
     }
 }
@@ -48,8 +48,8 @@ impl fmt::Display for HookEvent {
 
 impl HookEvent {
     pub fn respond(self) -> Result<Output, CliFailure> {
-        let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::invalid)?;
-        let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::invalid)?;
+        let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
+        let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
         let reply = Project::discover(&input.cwd()).ok().map(|project| {
             let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
             self.reply(&project, &input, session.as_ref()).with_news(session.and_then(|dir| dir.news()))
@@ -73,7 +73,11 @@ impl HookEvent {
             }
             Self::PreToolUse => Reply::new(
                 self,
-                input.command().and_then(|command| command.refusal(project)).map_or(Verdict::Allow, Verdict::Deny),
+                input
+                    .command()
+                    .and_then(|command| command.refusal(project))
+                    .map(Denial::from)
+                    .map_or(Verdict::Allow, Verdict::Deny),
                 None,
             ),
             Self::PostToolUse => Reply::new(self, Verdict::Allow, Self::after_commit(project, input)),
@@ -82,6 +86,7 @@ impl HookEvent {
                 session
                     .and_then(SessionDir::status)
                     .and_then(CiStatus::stop_reason)
+                    .map(Blocking::from)
                     .map_or(Verdict::Allow, Verdict::Block),
                 None,
             ),

@@ -2,6 +2,8 @@ use std::fmt;
 
 use serde::Deserialize;
 
+use crate::outcome::Outcome;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Conclusion {
@@ -19,25 +21,13 @@ pub enum Conclusion {
 }
 
 impl Conclusion {
-    pub fn failing(self) -> Option<Self> {
+    pub fn outcome(self) -> Outcome {
         match self {
+            Self::Success | Self::Skipped | Self::Neutral => Outcome::Succeeded,
             Self::Failure | Self::Cancelled | Self::TimedOut | Self::StartupFailure | Self::ActionRequired => {
-                Some(self)
+                Outcome::Failing
             }
-            Self::Success | Self::Skipped | Self::Neutral | Self::Stale | Self::Unknown => None,
-        }
-    }
-
-    pub fn succeeded(self) -> Option<Self> {
-        match self {
-            Self::Success | Self::Skipped | Self::Neutral => Some(self),
-            Self::Failure
-            | Self::Cancelled
-            | Self::TimedOut
-            | Self::StartupFailure
-            | Self::ActionRequired
-            | Self::Stale
-            | Self::Unknown => None,
+            Self::Stale | Self::Unknown => Outcome::Undecided,
         }
     }
 }
