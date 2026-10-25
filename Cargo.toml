@@ -1,0 +1,31 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "xtask"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+publish = false
+license = "UNLICENSED"
+
+[workspace.dependencies]
+meta-lints = { path = "crates/meta-lints" }
+meta-ci = { path = "crates/meta-ci" }
+serde = { version = "1.0.228", features = ["derive"] }
+toml = { version = "0.8.23", default-features = false, features = ["parse"] }
+proc-macro2 = { version = "1.0.107", features = ["span-locations"] }
+quote = "1.0.47"
+rustc_lexer = { package = "ra-ap-rustc_lexer", version = "0.174.0" }
+strum = { version = "0.28.0", features = ["derive"] }
+syn = { version = "2.0.119", features = ["full", "parsing", "visit"] }
+thiserror = "2.0.20"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+indexing_slicing = "deny"
