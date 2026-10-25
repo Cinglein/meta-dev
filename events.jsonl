@@ -90,3 +90,4 @@
 {"at":"2026-10-25T06:32:37.486015Z","actor":"claude-stage0-builder","kind":"TaskClaimed","task":"task-262b489488c51c2a"}
 {"at":"2026-10-25T06:32:39.969536Z","actor":"claude-xtask","kind":"TaskClaimed","task":"task-d550a9e4c83ff322"}
 {"at":"2026-10-25T06:33:30.346095Z","actor":"claude-xtask","kind":"TaskReleased","task":"task-d550a9e4c83ff322"}
+{"at":"2026-10-25T06:33:31.953183Z","actor":"claude-xtask","kind":"IssueReported","issue":"issue-5e21958fe3b4fe9b","text":"cargo xtask ci keeps stopping at the first failed step: owner decision 2026-10-25; task-d550a9e4c83ff322 released, not done"}
