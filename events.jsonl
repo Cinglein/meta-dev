@@ -105,3 +105,4 @@
 {"at":"2026-10-25T07:24:29.131039Z","actor":"claude-cratemaxx-lints","kind":"TaskOpened","task":"task-41bfd815f713f919","text":"cratemaxx meta-lints: split into core + per-lint crates; remove the 83-item SCC; fewer total lines"}
 {"at":"2026-10-25T07:24:32.369022Z","actor":"claude-cratemaxx-lints","kind":"TaskClaimed","task":"task-41bfd815f713f919"}
 {"at":"2026-10-25T07:24:34.876555Z","actor":"claude-cratemaxx-cli","kind":"TaskOpened","task":"task-cab97d10c7c3da67","text":"cratemaxx meta-cli: split GitHub JSON types into own crate along graph cut"}
+{"at":"2026-10-25T07:24:36.440554Z","actor":"claude-cratemaxx-cli","kind":"TaskOpened","task":"task-011267299aa707a1","text":"cratemaxx meta-state: split listing/querying into own crate along graph cut"}
