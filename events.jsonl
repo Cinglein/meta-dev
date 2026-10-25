@@ -40,3 +40,4 @@
 {"at":"2026-10-25T05:14:08.403476Z","actor":"reseed","kind":"IssueReported","issue":"issue-74265c878e19f2b9","text":"PR ordering: xtask (#2) was stacked on sprawling stage-0 (#1) and had to wait (same pattern as Basho #72). Rule: PRs branch off main unless a truly sequential atomic set; agents accept and fix merge conflicts"}
 {"at":"2026-10-25T05:14:10.015885Z","actor":"reseed","kind":"TaskOpened","task":"task-ca8e555445ef38d0","text":"meta-lints: every threshold and the State trait name from xtask.toml; per-rule disable and tune"}
 {"at":"2026-10-25T05:14:11.678872Z","actor":"reseed","kind":"TaskOpened","task":"task-f02aba9504a48dc1","text":"meta-lints: path-form excludes; git-aware walk without following symlinks; skip target dirs at any depth"}
+{"at":"2026-10-25T05:14:13.435547Z","actor":"reseed","kind":"TaskOpened","task":"task-b8547ceef56076ba","text":"meta-lints: same-named enums in different crates collide (sum_types keyed by name)"}
