@@ -1,11 +1,9 @@
-mod gh_job;
-
 use std::ffi::OsString;
 
+use meta_gh::GhJob;
 use serde::Deserialize;
 
 use crate::command::output::Listed;
-use gh_job::GhJob;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct GhJobs {
@@ -19,7 +17,7 @@ impl GhJobs {
     }
 
     pub fn failed_steps(&self) -> Vec<Listed> {
-        self.jobs.iter().flat_map(GhJob::failed_steps).collect()
+        self.jobs.iter().flat_map(GhJob::failed_steps).map(Listed::new).collect()
     }
 
     pub fn failed_job_ids(&self) -> Vec<OsString> {

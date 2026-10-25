@@ -1,7 +1,4 @@
-mod conclusion;
-mod database_id;
 mod gh_jobs;
-mod gh_run;
 mod observation;
 mod raw_log;
 
@@ -9,10 +6,11 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::Command;
 
+use crate::command::ci::ci_status::CiStatus;
 use crate::command::ci::commit::Commit;
 use crate::command::project::ProgramName;
 use gh_jobs::GhJobs;
-use gh_run::GhRun;
+use meta_gh::GhRun;
 pub use observation::Observation;
 pub use raw_log::RawLog;
 
@@ -41,7 +39,7 @@ impl Gh {
         let runs = self.runs(commit);
         let jobs: Vec<GhJobs> = runs.iter().filter_map(|run| self.jobs(run)).collect();
         let failed_job = jobs.iter().find_map(GhJobs::first_failure);
-        Observation::new(jobs.iter().flat_map(GhJobs::failed_steps).collect(), failed_job, GhRun::overall(&runs))
+        Observation::new(jobs.iter().flat_map(GhJobs::failed_steps).collect(), failed_job, CiStatus::of_runs(&runs))
     }
 
     pub fn failed_logs(&self, commit: &Commit) -> RawLog {

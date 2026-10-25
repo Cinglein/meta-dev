@@ -1,6 +1,8 @@
 use std::fmt;
 use std::str::FromStr;
 
+use meta_gh::GhRun;
+
 use crate::command::output::Listed;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -12,6 +14,12 @@ pub enum CiStatus {
 }
 
 impl CiStatus {
+    pub fn of_runs(runs: &[GhRun]) -> Option<Self> {
+        runs.first()
+            .filter(|_| runs.iter().all(|run| run.completed().is_some()))
+            .map(|_| runs.iter().find(|run| run.succeeded().is_none()).map_or(Self::Passed, |_| Self::Failed))
+    }
+
     pub fn stop_reason(self) -> Option<Listed> {
         match self {
             Self::Running => Some(Listed::new(

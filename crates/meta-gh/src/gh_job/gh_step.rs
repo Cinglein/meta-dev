@@ -4,7 +4,7 @@ use std::fmt;
 
 use serde::Deserialize;
 
-use crate::command::ci::watcher::gh::conclusion::Conclusion;
+use crate::conclusion::Conclusion;
 use step_name::StepName;
 
 #[derive(Clone, Debug, Deserialize)]
