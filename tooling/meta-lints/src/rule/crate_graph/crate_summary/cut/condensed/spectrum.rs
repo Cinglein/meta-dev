@@ -34,8 +34,9 @@ impl<'graph> Spectrum<'graph> {
         let top = Self::unit(self.degrees.iter().map(|degree| degree.sqrt()).collect());
         let start = iter::successors(Some(Self::SEED), |seed: &f64| Some((seed * Self::STRIDE + Self::OFFSET).fract()))
             .take(self.degrees.len());
-        let vector = (0..Self::ROUNDS)
-            .fold(Self::deflated(start.collect(), &top), |vector, _| Self::deflated(self.lazy_step(&vector), &top));
+        let vector = (0..Self::ROUNDS).fold(Self::deflated(&start.collect::<Vec<f64>>(), &top), |vector, _| {
+            Self::deflated(&self.lazy_step(&vector), &top)
+        });
         vector.iter().zip(&self.degrees).map(|(value, degree)| value / degree.sqrt()).collect()
     }
 
@@ -54,7 +55,7 @@ impl<'graph> Spectrum<'graph> {
             .collect()
     }
 
-    fn deflated(vector: Vec<f64>, top: &[f64]) -> Vec<f64> {
+    fn deflated(vector: &[f64], top: &[f64]) -> Vec<f64> {
         let along: f64 = vector.iter().zip(top).map(|(value, unit)| value * unit).sum();
         Self::unit(vector.iter().zip(top).map(|(value, unit)| value - along * unit).collect())
     }

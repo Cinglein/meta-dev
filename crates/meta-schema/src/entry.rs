@@ -22,6 +22,7 @@ pub enum EntryFailure {
 }
 
 impl Entry {
+    #[must_use]
     pub fn concern(&self) -> Option<Id<Concern>> {
         match self {
             Self::Concern(id) => Some(*id),
@@ -29,6 +30,7 @@ impl Entry {
         }
     }
 
+    #[must_use]
     pub fn issue(&self) -> Option<Id<Issue>> {
         match self {
             Self::Issue(id) => Some(*id),
@@ -36,6 +38,7 @@ impl Entry {
         }
     }
 
+    #[must_use]
     pub fn task(&self) -> Option<Id<Task>> {
         match self {
             Self::Task(id) => Some(*id),

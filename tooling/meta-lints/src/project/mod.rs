@@ -37,6 +37,7 @@ impl Project {
         Ok(Project { root, settings })
     }
 
+    #[must_use]
     pub fn lints(&self) -> Workspace {
         Workspace::new(self.root.clone(), self.settings.lints().clone())
     }

@@ -16,10 +16,12 @@ pub struct GhRun {
 }
 
 impl GhRun {
+    #[must_use]
     pub fn database_id(&self) -> DatabaseId {
         self.database_id
     }
 
+    #[must_use]
     pub fn completed(&self) -> Option<&Self> {
         self.status.completed().map(|_| self)
     }

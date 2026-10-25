@@ -11,6 +11,7 @@ pub struct Summary<'state> {
 }
 
 impl<'state> Summary<'state> {
+    #[must_use]
     pub fn new(state: &'state State) -> Self {
         Self { state }
     }

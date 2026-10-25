@@ -54,15 +54,14 @@ impl GitCommand {
             std::thread::sleep(Self::POLL);
             child.try_wait().transpose()
         });
-        match finished {
-            Some(status) => status.and_then(|_| child.wait_with_output()).map_err(LogFailure::from),
-            None => {
-                child.kill()?;
-                Err(LogFailure::Offline(Detail::from_reason(format!(
-                    "{self} timed out after {:?}",
-                    Self::NETWORK_TIMEOUT
-                ))))
-            }
+        if let Some(status) = finished {
+            status.and_then(|_| child.wait_with_output()).map_err(LogFailure::from)
+        } else {
+            child.kill()?;
+            Err(LogFailure::Offline(Detail::from_reason(&format!(
+                "{self} timed out after {:?}",
+                Self::NETWORK_TIMEOUT
+            ))))
         }
     }
 
@@ -73,7 +72,7 @@ impl GitCommand {
             .status
             .success()
             .then(|| Content::from(String::from_utf8_lossy(&output.stdout).trim_end().to_owned()))
-            .ok_or_else(|| LogFailure::Git(Detail::from_reason(format!("{shown}: {}", Detail::from(&output)))))
+            .ok_or_else(|| LogFailure::Git(Detail::from_reason(&format!("{shown}: {}", Detail::from(&output)))))
     }
 }
 

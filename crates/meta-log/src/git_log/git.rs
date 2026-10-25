@@ -21,9 +21,7 @@ impl Git {
     pub fn command<Word: AsRef<OsStr>>(&self, words: impl IntoIterator<Item = Word>) -> GitCommand {
         let mut command = Command::new("git");
         command.arg("-C").arg(&self.repo).args(words);
-        Self::ISOLATED.iter().for_each(|variable| {
-            command.env_remove(variable);
-        });
+        Self::ISOLATED.iter().fold(&mut command, |command, variable| command.env_remove(variable));
         GitCommand::new(command)
     }
 }

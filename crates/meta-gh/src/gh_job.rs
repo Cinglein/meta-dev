@@ -26,6 +26,7 @@ impl GhJob {
         self.conclusion.and_then(Conclusion::failing).map(|_| self)
     }
 
+    #[must_use]
     pub fn database_id(&self) -> DatabaseId {
         self.database_id
     }

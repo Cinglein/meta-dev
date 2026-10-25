@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn a_cycle_is_one_tangle_and_a_reference_into_it_is_not() {
-        let file = SourceFile::parse(PATH.to_owned(), CYCLE.to_owned()).expect("valid rust");
+        let file = SourceFile::parse(PATH.to_owned(), CYCLE).expect("valid rust");
         let tangles = ItemGraph::of_files(&[&file]).tangles();
         assert_eq!(tangles.iter().take(LONGEST.len()).map(Vec::len).collect::<Vec<_>>(), LONGEST);
     }

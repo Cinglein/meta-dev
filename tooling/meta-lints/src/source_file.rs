@@ -21,12 +21,11 @@ impl SourceFile {
         let site = Site::within(workspace.root(), file);
         let path = site.file().to_owned();
         let text = fs::read_to_string(file).map_err(|error| Failure::Io { site, error })?;
-        Self::parse(path, text)
+        Self::parse(path, &text)
     }
 
-    pub fn parse(path: String, text: String) -> Result<Self, Failure> {
-        let syntax =
-            syn::parse_file(&text).map_err(|error| Failure::Parse { site: Site::File(path.clone()), error })?;
+    pub fn parse(path: String, text: &str) -> Result<Self, Failure> {
+        let syntax = syn::parse_file(text).map_err(|error| Failure::Parse { site: Site::File(path.clone()), error })?;
         Ok(Self { path, syntax })
     }
 

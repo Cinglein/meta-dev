@@ -6,7 +6,7 @@ use std::str::FromStr;
 
 use meta_listing::Scope;
 
-use crate::request::ci::{SessionDir, Watcher};
+use crate::request::ci::{CiStatus, SessionDir, Watcher};
 use crate::request::cli_failure::CliFailure;
 use crate::request::output::{Listed, Output};
 use crate::request::project::Project;
@@ -81,7 +81,7 @@ impl HookEvent {
                 self,
                 session
                     .and_then(SessionDir::status)
-                    .and_then(|status| status.stop_reason())
+                    .and_then(CiStatus::stop_reason)
                     .map_or(Verdict::Allow, Verdict::Block),
                 None,
             ),

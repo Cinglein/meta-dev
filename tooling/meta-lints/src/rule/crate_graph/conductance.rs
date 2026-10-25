@@ -11,7 +11,7 @@ impl Conductance {
         Conductance(if volume > 0.0 { crossing / volume } else { 0.0 })
     }
 
-    pub fn total_cmp(&self, other: &Conductance) -> std::cmp::Ordering {
+    pub fn total_cmp(self, other: Conductance) -> std::cmp::Ordering {
         self.0.total_cmp(&other.0)
     }
 }

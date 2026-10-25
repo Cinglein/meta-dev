@@ -25,7 +25,8 @@ pub enum LogFailure {
 }
 
 impl LogFailure {
+    #[expect(clippy::needless_pass_by_value, reason = "map_err hands the refusal over by value")]
     pub fn refused(reason: impl ToString) -> Self {
-        Self::Refused(Detail::from_reason(reason))
+        Self::Refused(Detail::from_reason(&reason))
     }
 }

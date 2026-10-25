@@ -42,7 +42,7 @@ impl Cut {
             let order = condensed.sweep_order();
             (1..order.len())
                 .map(|prefix| order.iter().take(prefix).copied().collect::<BTreeSet<TangleIndex>>())
-                .min_by(|left, right| condensed.conductance(left).total_cmp(&condensed.conductance(right)))
+                .min_by(|left, right| condensed.conductance(left).total_cmp(condensed.conductance(right)))
         }
     }
 
@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn two_weakly_linked_clusters_split_between_them() {
-        let file = SourceFile::parse(PATH.to_owned(), CLUSTERS.to_owned()).expect("valid rust");
+        let file = SourceFile::parse(PATH.to_owned(), CLUSTERS).expect("valid rust");
         let graph = ItemGraph::of_files(&[&file]);
         let cut = Cut::best(&graph, &graph.tangles()).expect("a cut");
         assert_eq!(cut.smaller_side(), ItemCount::of_len(SIDE_LEN));
@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn a_tight_cluster_has_no_cheap_cut() {
-        let file = SourceFile::parse(PATH.to_owned(), TIGHT.to_owned()).expect("valid rust");
+        let file = SourceFile::parse(PATH.to_owned(), TIGHT).expect("valid rust");
         let graph = ItemGraph::of_files(&[&file]);
         let cut = Cut::best(&graph, &graph.tangles()).expect("a cut");
         assert!(cut.conductance() > Conductance::of_ratio(1.0, 2.0));

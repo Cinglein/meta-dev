@@ -26,7 +26,7 @@ impl Remote {
     pub fn fetch(&self) -> Result<Fetched, LogFailure> {
         Attempt::sequence()
             .find_map(|attempt| attempt.settled(self.fetch_once()))
-            .unwrap_or_else(|| Err(LogFailure::Contended(Detail::from_reason(Attempt::last()))))
+            .unwrap_or_else(|| Err(LogFailure::Contended(Detail::from_reason(&Attempt::last()))))
     }
 
     pub fn push(&self, commit: &Sha) -> Result<Output, LogFailure> {

@@ -13,14 +13,17 @@ pub struct NewIssue {
 }
 
 impl NewIssue {
+    #[must_use]
     pub fn new(text: Text) -> Self {
         Self { issue: Id::generate(), text }
     }
 
+    #[must_use]
     pub fn issue(&self) -> Id<Issue> {
         self.issue
     }
 
+    #[must_use]
     pub fn corrected(&self, text: Text) -> Self {
         Self { text, ..self.clone() }
     }

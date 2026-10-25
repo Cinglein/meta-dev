@@ -16,18 +16,22 @@ pub struct NewTask {
 }
 
 impl NewTask {
+    #[must_use]
     pub fn new(text: Text, addresses: Vec<Target>) -> Self {
         Self { task: Id::generate(), text, addresses }
     }
 
+    #[must_use]
     pub fn task(&self) -> Id<Task> {
         self.task
     }
 
+    #[must_use]
     pub fn addresses(&self) -> &[Target] {
         &self.addresses
     }
 
+    #[must_use]
     pub fn corrected(&self, text: Text) -> Self {
         Self { text, ..self.clone() }
     }

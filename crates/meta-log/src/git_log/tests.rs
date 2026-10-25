@@ -63,7 +63,7 @@ impl Fixture {
     }
 
     fn log(&self, clone: usize) -> GitLog {
-        GitLog::new(self.clones[clone].path().to_owned(), ORIGIN)
+        GitLog::new(self.clones[clone].path().to_owned(), &ORIGIN)
     }
 
     fn record() -> Record {
@@ -98,7 +98,7 @@ fn racing_writers_each_land_right_after_what_they_validated() {
         .map(|clone| (Arc::clone(&fixture), Arc::clone(&seen), clone))
         .map(|(fixture, seen, clone)| std::thread::spawn(move || seen.lock().unwrap().push(fixture.observe(clone))))
         .collect();
-    writers.into_iter().for_each(|writer| writer.join().unwrap());
+    writers.into_iter().try_for_each(std::thread::JoinHandle::join).unwrap();
     let records = fixture.log(FIRST).read().unwrap().records().to_vec();
     assert!(seen.lock().unwrap().iter().all(|seen| records.get(seen.validated) == Some(&seen.record)));
 }

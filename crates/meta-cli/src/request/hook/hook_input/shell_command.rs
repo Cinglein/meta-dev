@@ -21,11 +21,15 @@ impl ShellCommand {
         self.segments()
             .find(|words| words.windows(Self::PR_MERGE.len()).any(|window| window == Self::PR_MERGE))
             .map(|_| Listed::new("gh pr merge is the owner's job"))
-            .or_else(|| self.segments().filter_map(GitCall::parse).find_map(|call| call.push_refusal(project)))
+            .or_else(|| {
+                self.segments()
+                    .filter_map(|segment| GitCall::parse(&segment))
+                    .find_map(|call| call.push_refusal(project))
+            })
     }
 
     pub fn commits(&self) -> Option<&Self> {
-        self.segments().filter_map(GitCall::parse).find_map(|call| call.commit()).map(|()| self)
+        self.segments().filter_map(|segment| GitCall::parse(&segment)).find_map(|call| call.commit()).map(|()| self)
     }
 
     fn segments(&self) -> impl Iterator<Item = Vec<String>> + '_ {

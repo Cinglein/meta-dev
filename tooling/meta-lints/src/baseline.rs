@@ -91,7 +91,7 @@ mod tests {
     fn a_moved_file_keeps_the_totals() {
         let allowed: Baseline = toml::from_str(ALLOWED).expect("valid baseline");
         let moved: Baseline = toml::from_str(MOVED).expect("valid baseline");
-        assert!(moved.drifts(&allowed).is_empty());
+        assert_eq!(moved.drifts(&allowed), []);
     }
 
     #[test]

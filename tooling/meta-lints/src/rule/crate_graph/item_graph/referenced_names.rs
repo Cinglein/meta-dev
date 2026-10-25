@@ -12,7 +12,7 @@ pub struct ReferencedNames(BTreeMap<Name, Vec<Name>>);
 
 impl ReferencedNames {
     pub fn of_items(items: &[Item]) -> ReferencedNames {
-        items.iter().fold(ReferencedNames::default(), |found, item| found.with_item(item))
+        items.iter().fold(ReferencedNames::default(), ReferencedNames::with_item)
     }
 
     pub fn into_map(self) -> BTreeMap<Name, Vec<Name>> {
@@ -37,10 +37,13 @@ impl ReferencedNames {
             }
             _ => BTreeMap::new(),
         };
-        owner.into_iter().for_each(|owner| {
-            self.0.entry(owner).or_default().extend(Self::idents(item.to_token_stream()));
-        });
-        nested.into_iter().for_each(|(owner, names)| self.0.entry(owner).or_default().extend(names));
+        owner.into_iter().map(|owner| (owner, Self::idents(item.to_token_stream()))).chain(nested).fold(
+            &mut self.0,
+            |names, (owner, found)| {
+                names.entry(owner).or_default().extend(found);
+                names
+            },
+        );
         self
     }
 

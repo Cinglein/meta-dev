@@ -51,7 +51,7 @@ impl Watcher {
         })
         .take(interval.polls_within(settings.timeout()))
         .try_fold(None, |reported, observed| watcher.step(reported, observed));
-        watcher.conclude(finished.break_value())
+        Ok(watcher.conclude(finished.break_value().as_ref()))
     }
 
     pub fn wait(project: &Project, session: &SessionId) -> Result<Output, CliFailure> {
@@ -85,29 +85,32 @@ impl Watcher {
     }
 
     fn step(&self, reported: Option<Listed>, observed: Observation) -> ControlFlow<Observation, Option<Listed>> {
-        let first_failure = observed.failed_job().filter(|_| reported.is_none());
-        first_failure.iter().for_each(|job| {
-            self.note(format!("{job} failed after {}; run `meta ci-log`", self.elapsed()), CiStatus::Failed);
+        let carried = reported.or_else(|| {
+            observed
+                .failed_job()
+                .inspect(|job| {
+                    self.note(&format!("{job} failed after {}; run `meta ci-log`", self.elapsed()), CiStatus::Failed);
+                })
+                .map(Listed::new)
         });
-        let carried = reported.or_else(|| first_failure.map(Listed::new));
         match observed.finished() {
             Some(_) => ControlFlow::Break(observed),
             None => ControlFlow::Continue(carried),
         }
     }
 
-    fn conclude(&self, last: Option<Observation>) -> Result<Output, CliFailure> {
-        let status = last.as_ref().and_then(Observation::finished).unwrap_or(CiStatus::TimedOut);
+    fn conclude(&self, last: Option<&Observation>) -> Output {
+        let status = last.and_then(Observation::finished).unwrap_or(CiStatus::TimedOut);
         let steps: Vec<String> =
             last.iter().flat_map(|observed| observed.failed_steps()).map(ToString::to_string).collect();
         let failed = Some(steps.join(", "))
             .filter(|joined| !joined.is_empty())
             .map(|joined| format!(": {joined}; run `meta ci-log`"));
-        self.note(format!("{status} after {}{}", self.elapsed(), failed.unwrap_or_default()), status);
-        Ok(Output::Listed(Listed::new(status)))
+        self.note(&format!("{status} after {}{}", self.elapsed(), failed.unwrap_or_default()), status);
+        Output::Listed(Listed::new(status))
     }
 
-    fn note(&self, line: String, status: CiStatus) {
+    fn note(&self, line: &str, status: CiStatus) {
         self.dir.record(format!("CI {}: {line}", self.commit)).ok();
         self.dir.settle(&self.commit, status).ok();
     }

@@ -30,7 +30,7 @@ impl Snapshot {
     pub fn complete(&self) -> Result<&[Record], LogFailure> {
         match self.skipped.as_slice() {
             [] => Ok(&self.records),
-            unread => Err(LogFailure::Unreadable(Detail::from_reason(unread.len()))),
+            unread => Err(LogFailure::Unreadable(Detail::from_reason(&unread.len()))),
         }
     }
 }
