@@ -21,7 +21,7 @@ exclude = [".git"]
 
 [lints.crate_graph]
 max_scc = 83
-min_conductance = 0.1
+min_conductance = 0.15
 min_side = 3
 
 [[ci.step]]
