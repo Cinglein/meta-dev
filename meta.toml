@@ -1,1 +1,2 @@
 remote = "origin"
+protected = ["main", "meta/log", "meta/log-v0"]
