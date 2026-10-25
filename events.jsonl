@@ -112,3 +112,4 @@
 {"at":"2026-10-25T07:31:28.416177Z","actor":"claude-cratemaxx-cli","kind":"TaskDone","task":"task-cab97d10c7c3da67"}
 {"at":"2026-10-25T07:31:51.007188Z","actor":"claude-lead","kind":"TaskOpened","task":"task-5f66d200720d5ffa","text":"crate-graph: name-only matching creates false edges (std::process::Command::new counted as use of a local Command); resolve paths so external names don't match local items, instead of renaming code to dodge the tool"}
 {"at":"2026-10-25T07:39:28.177982Z","actor":"claude-cratemaxx-lints","kind":"TaskDone","task":"task-41bfd815f713f919"}
+{"at":"2026-10-25T23:06:43.965321Z","actor":"claude-lead","kind":"TaskOpened","task":"task-816bb7f2039dc478","text":"Adopt chess tooling, part 1: replace meta-lints/meta-ci/xtask lint+ci with chess's tooling/task core, tooling/lints/* crates, policy file and xtask tasks (lint, clippy, test, ci), project-agnostic"}
