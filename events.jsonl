@@ -58,3 +58,4 @@
 {"at":"2026-10-25T05:14:42.038239Z","actor":"claude-stage0-builder","kind":"TaskClaimed","task":"task-0a244bf0ba2c20d3"}
 {"at":"2026-10-25T05:30:14.836959Z","actor":"claude-stage0-builder","kind":"TaskOpened","task":"task-1244cc122a9d62a4","text":"meta-log: append rewrites earlier lines (from_utf8_lossy and trim_end on the read blob, git_command.rs content); keep bytes exact"}
 {"at":"2026-10-25T05:30:16.180367Z","actor":"claude-stage0-builder","kind":"TaskOpened","task":"task-3d6e4df9674458f9","text":"meta-log: a missing events.jsonl on a non-empty meta/log, or other files there, read as an empty log; refuse instead (git_log/remote.rs read_tracking)"}
+{"at":"2026-10-25T05:30:17.444784Z","actor":"claude-stage0-builder","kind":"TaskOpened","task":"task-08135484b49e7b32","text":"meta-log: offline message is garbled (\"cannot fetch meta/log from error: ...\"); name the remote and quote git's stderr (log_failure.rs Offline)"}
