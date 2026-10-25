@@ -4,7 +4,7 @@ set -eu
 meta="${META_BIN:-meta}"
 export META_ACTOR=seed
 
-PM="docs/basho-postmortem.md"
+PM="context/basho-postmortem.md"
 
 concern() {
   id=$("$meta" concern "$3" --source "$PM $2" --tag acceptance-candidate | awk '{print $5}')
@@ -39,9 +39,9 @@ concern dev_perf      "§3.3"   "Performance profiles and optimisation effort we
 concern dev_pushrule  "§3.4"   "Push after every commit was a written rule; the overnight fixer pushed only once at the end"
 
 "$meta" concern "The owner reviews and merges every PR, a bottleneck that worsens as agents parallelise; goal: most PRs merged sight-unseen, with merge authority earned per risk tier" \
-  --source "docs/SPEC.md Goal: sight-unseen merges" >/dev/null
+  --source "context/SPEC.md Goal: sight-unseen merges" >/dev/null
 "$meta" concern "The owner does triage, priority and wall-time watching by hand; goal: a steward role reads the log, flags budget trends and blocking work, escalates only decisions" \
-  --source "docs/SPEC.md Goal: automate the owner's triage/priority/wall-time role" >/dev/null
+  --source "context/SPEC.md Goal: automate the owner's triage/priority/wall-time role" >/dev/null
 
 task() {
   "$meta" open "$@" | awk '{print $5}'

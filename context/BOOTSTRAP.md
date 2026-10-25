@@ -18,7 +18,7 @@ Decided (owner, 2026-10-25): Basho onboards as soon as possible, right after sta
 
 ## Basho as the test subject (owner, 2026-10-25)
 - Basho is the test subject that confirms meta-development works as advertised.
-- Acceptance: each problem in docs/basho-postmortem.md becomes a claim of the form "under meta-development, this is caught or prevented", with evidence gathered from Basho's real use. Examples:
+- Acceptance: each problem in context/basho-postmortem.md becomes a claim of the form "under meta-development, this is caught or prevented", with evidence gathered from Basho's real use. Examples:
   - a blocking PR is visible and budgeted;
   - CI wall time over budget fails;
   - a flaky check is recorded and quarantined;

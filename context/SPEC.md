@@ -181,4 +181,5 @@ Every other surface contains no prose. Enforced by lints (meta-lints); counted a
   - Commit messages, PR titles and descriptions: category 3 (loosely structured data). Keep them terse.
   - SPEC.md and the postmortem: agent context (1).
   - A short STE100 README and usage guide: documentation (2).
+- Location (owner): agent context lives in context/. docs/ is reserved for documentation (2); it does not exist until there is some.
 - Stage 4 moves Basho's lints (incl. no_comments) into meta-lints. meta-development should adopt them as early as possible (dogfooding).
