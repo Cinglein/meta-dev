@@ -1,3 +1,19 @@
+surfaces = [
+    "xtask.toml",
+    "xtask",
+    ".cargo",
+    "Cargo.toml",
+    "clippy.toml",
+    "rustfmt.toml",
+    "crates/meta-ci",
+    "crates/meta-lints",
+    "self/lint-baseline.toml",
+    "meta.toml",
+    ".claude",
+    ".github",
+    "plugin",
+]
+
 [lints]
 baseline = "self/lint-baseline.toml"
 product = ["crates"]
