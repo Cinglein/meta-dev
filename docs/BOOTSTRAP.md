@@ -15,3 +15,13 @@ Until stage 0 exists, this file is the tracker; stage 0's first job is to import
 
 Prerequisite (owner): cloud CI (fix GitHub billing or choose another runner) by stage 1.
 Decided (owner, 2026-10-25): Basho onboards as soon as possible, right after stage 0/1.
+
+## Basho as the test subject (owner, 2026-10-25)
+- Basho is the test subject that confirms meta-development works as advertised.
+- Acceptance: each problem in docs/basho-postmortem.md becomes a claim of the form "under meta-development, this is caught or prevented", with evidence gathered from Basho's real use. Examples:
+  - a blocking PR is visible and budgeted;
+  - CI wall time over budget fails;
+  - a flaky check is recorded and quarantined;
+  - a train leg without a platform can't be represented;
+  - an agent can't finish without a tracker update.
+- Isolation still holds (principle 5): Basho adopts meta-development only through its own config. meta-development contains nothing Basho-specific.
