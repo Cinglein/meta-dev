@@ -3,8 +3,9 @@ mod config;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use meta_listing::{Kind, Listing, Scope};
 use meta_log::{GitLog, LogStore};
-use meta_state::{Kind, Listing, Scope, State, Summary};
+use meta_state::{State, Summary};
 
 use crate::request::ci::Commit;
 use crate::request::cli_failure::CliFailure;

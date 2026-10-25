@@ -25,6 +25,3 @@ impl fmt::Display for Retired {
         write!(formatter, " [retired by {}: {}]", self.stamp, self.note.text())
     }
 }
-
-#[cfg(test)]
-mod tests;

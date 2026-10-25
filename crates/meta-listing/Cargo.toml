@@ -1,0 +1,15 @@
+[package]
+name = "meta-listing"
+description = "Lists tasks, issues or concerns from a folded state."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+meta-schema.workspace = true
+meta-state.workspace = true
+strum.workspace = true
+
+[lints]
+workspace = true
