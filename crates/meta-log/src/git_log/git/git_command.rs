@@ -2,6 +2,7 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::io::Write as _;
 use std::process::{Command, Output, Stdio};
+use std::time::Duration;
 
 use crate::detail::Detail;
 use crate::git_log::content::Content;
@@ -14,6 +15,9 @@ pub struct GitCommand {
 }
 
 impl GitCommand {
+    const NETWORK_TIMEOUT: Duration = Duration::from_secs(30);
+    const POLL: Duration = Duration::from_millis(10);
+
     pub fn new(command: Command) -> Self {
         Self { command, input: None }
     }
@@ -41,6 +45,25 @@ impl GitCommand {
             .map(|(content, mut pipe)| pipe.write_all(content.to_string().as_bytes()))
             .transpose()?;
         Ok(child.wait_with_output()?)
+    }
+
+    pub fn timed_output(mut self) -> Result<Output, LogFailure> {
+        let mut child = self.command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
+        let polls = Self::NETWORK_TIMEOUT.as_millis() / Self::POLL.as_millis();
+        let finished = (0..polls).find_map(|_| {
+            std::thread::sleep(Self::POLL);
+            child.try_wait().transpose()
+        });
+        match finished {
+            Some(status) => status.and_then(|_| child.wait_with_output()).map_err(LogFailure::from),
+            None => {
+                child.kill()?;
+                Err(LogFailure::Offline(Detail::from_reason(format!(
+                    "{self} timed out after {:?}",
+                    Self::NETWORK_TIMEOUT
+                ))))
+            }
+        }
     }
 
     pub fn content(self) -> Result<Content, LogFailure> {
