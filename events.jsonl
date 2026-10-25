@@ -83,3 +83,4 @@
 {"at":"2026-10-25T06:16:49.325768Z","actor":"claude-stage0-builder","kind":"TaskClaimed","task":"task-4acc319ff14f4153"}
 {"at":"2026-10-25T06:16:55.391314Z","actor":"claude-stage0-builder","kind":"TaskOpened","task":"task-5f05a3bb927a8d24","text":"Stage 1: record CI results as run events with timings in meta/log (the hook CI watcher only notifies the session)","addresses":["concern-a3a2bf7e8c4dda58"]}
 {"at":"2026-10-25T06:23:30.240707Z","actor":"claude-stage0-builder","kind":"TaskDone","task":"task-4acc319ff14f4153"}
+{"at":"2026-10-25T06:25:19.094850Z","actor":"claude-stage0-builder","kind":"TaskOpened","task":"task-a6df30d4ec08fb4d","text":"Stop hook: owner override when CI is running or failed (for example an owner-set file or env); today Stop blocks until CI passes or the watcher times out"}
