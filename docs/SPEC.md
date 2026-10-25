@@ -168,3 +168,10 @@ Source: Basho postmortem (the Basho project's private repo, part 3).
 - The steward escalates to the owner only for decisions: budget or authority changes, priority conflicts, waivers beyond budget.
 - Dogfooded: the steward's own false alarms and misses are budgeted, and calibrated against what the owner would have flagged.
 - Depends on stage 1 (runs, timings, budgets). Its first version belongs there.
+
+## Prose (owner, 2026-10-25)
+Prose is allowed only in three categories, each clearly marked and separated from the rest of the codebase:
+1. Agent context: occasionally relevant to agents. May bloat somewhat; consolidated aggressively from time to time; not meant for humans.
+2. Documentation: legible to humans and agents; the bare minimum; concrete, with examples; always STE100.
+3. Strings attached to structured data: terse (e.g. audit-log entries).
+Every other surface contains no prose. Enforced by lints (meta-lints); counted against the vagueness budget.
