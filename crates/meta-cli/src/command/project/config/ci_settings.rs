@@ -1,8 +1,10 @@
+mod line_count;
 mod millis;
 mod program_name;
 
 use serde::Deserialize;
 
+pub use line_count::LineCount;
 pub use millis::Millis;
 pub use program_name::ProgramName;
 
@@ -11,13 +13,19 @@ pub struct CiSettings {
     program: ProgramName,
     poll_millis: Millis,
     timeout_millis: Millis,
+    log_lines: LineCount,
+    log_context: LineCount,
 }
 
 impl CiSettings {
-    const DEFAULTS: &'static str = include_str!("ci_settings/ci_defaults.toml");
+    pub const DEFAULTS: &'static str = include_str!("ci_settings/ci_defaults.toml");
 
-    pub fn embedded() -> Self {
-        toml::from_str(Self::DEFAULTS).unwrap_or_default()
+    pub fn log_lines(&self) -> LineCount {
+        self.log_lines
+    }
+
+    pub fn log_context(&self) -> LineCount {
+        self.log_context
     }
 
     pub fn program(&self) -> &ProgramName {
