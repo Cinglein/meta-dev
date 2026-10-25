@@ -82,3 +82,4 @@
 {"at":"2026-10-25T06:15:45.836642Z","actor":"claude-lead","kind":"TaskOpened","task":"task-4acc319ff14f4153","text":"Hooks: CI monitoring. After the auto-push, a background watcher follows the pushed commit's CI run; it reports only the first failure (immediately) and completion (once), never individual successes; hooks inject unseen results into context; the Stop hook blocks finishing while own CI is pending or failed"}
 {"at":"2026-10-25T06:16:49.325768Z","actor":"claude-stage0-builder","kind":"TaskClaimed","task":"task-4acc319ff14f4153"}
 {"at":"2026-10-25T06:16:55.391314Z","actor":"claude-stage0-builder","kind":"TaskOpened","task":"task-5f05a3bb927a8d24","text":"Stage 1: record CI results as run events with timings in meta/log (the hook CI watcher only notifies the session)","addresses":["concern-a3a2bf7e8c4dda58"]}
+{"at":"2026-10-25T06:23:30.240707Z","actor":"claude-stage0-builder","kind":"TaskDone","task":"task-4acc319ff14f4153"}
