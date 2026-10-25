@@ -34,3 +34,4 @@
 {"at":"2026-10-25T03:30:58.212574Z","kind":"ConcernIdentified","concern":"concern-dea572681f3c0316","text":"No single source of truth: status files, a handoff note and the main session's context","source":"docs/basho-postmortem.md §3.2","tags":["acceptance-candidate"]}
 {"at":"2026-10-25T03:30:58.306429Z","kind":"ConcernIdentified","concern":"concern-1e9ecbf820e559d9","text":"Agents collided on simulators, Chrome, search quota and data files","source":"docs/basho-postmortem.md §3.2","tags":["acceptance-candidate"]}
 {"at":"2026-10-25T03:30:58.402602Z","kind":"ConcernIdentified","concern":"concern-c9db8b2d338df233","text":"Ownership of work was unclear","source":"docs/basho-postmortem.md §3.2","tags":["acceptance-candidate"]}
+{"at":"2026-10-25T03:30:58.498950Z","kind":"ConcernIdentified","concern":"concern-e70535499ba72bb5","text":"Work died with the session or the laptop","source":"docs/basho-postmortem.md §3.2","tags":["acceptance-candidate"]}
