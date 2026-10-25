@@ -137,3 +137,17 @@ Source: Basho postmortem (the Basho project's private repo, part 3).
   - Tension by design: the vagueness budget pushes to define; the complexity budget pushes to define only what earns its keep.
 
 ## Next: bootstrapping (smallest useful first version, build order)
+
+## Goal: sight-unseen merges (owner, 2026-10-25)
+- Today the owner reviews and merges every PR. That is a bottleneck, worse as implementer agents parallelise.
+- GOAL: the system becomes robust enough that most PRs can be merged sight-unseen.
+- Treated like everything else (ladder + budgets):
+  - Merge authority is earned per risk tier, computed from what the PR touches (severity of affected features/claims; rule or budget changes; schema changes).
+  - A PR auto-merges only if the evidence check passes and its tier is within the currently granted authority.
+  - Authority is widened by track record:
+    - post-merge defect rate;
+    - revert rate;
+    - audit disagreement on sampled auto-merged PRs.
+    Authority is narrowed automatically when these overspend their budgets.
+  - Always owner-reviewed: changes to rules, budgets, enforcement config and authority itself (CODEOWNERS).
+- Until then the owner-merges rule stays.
