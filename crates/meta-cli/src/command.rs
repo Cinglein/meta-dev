@@ -1,3 +1,4 @@
+mod ci;
 mod cli_failure;
 mod hook;
 mod output;
@@ -8,6 +9,7 @@ use meta_log::{LogFailure, LogStore};
 use meta_schema::{Actor, Claim, Event, NewConcern, NewIssue, NewTask, Record, TaskRef};
 use meta_state::{Kind, Listing, Scope, State, Summary};
 
+use ci::{Commit, SessionId, Watcher};
 use cli_failure::CliFailure;
 use hook::HookEvent;
 use output::{Listed, Output};
@@ -19,6 +21,7 @@ pub enum Command {
     Write(Event),
     List(Option<Kind>, Scope),
     Hook(HookEvent),
+    WatchCi(SessionId, Commit),
 }
 
 impl TryFrom<Vec<String>> for Command {
@@ -52,6 +55,7 @@ impl TryFrom<Vec<String>> for Command {
             "reopen" => Ok(Self::Write(Event::TaskReopened(task()?))),
             "list" => Ok(Self::List(parsed.kind()?, parsed.allowing(&[OptionName::All])?.scope())),
             "hook" => Ok(Self::Hook(parsed.allowing(&[])?.text()?.to_string().parse()?)),
+            "ci-watch" => parsed.allowing(&[])?.session_and_commit(Self::WatchCi),
             other => Err(CliFailure::usage(format!("unknown command `{other}`"))),
         }
     }
@@ -69,6 +73,7 @@ impl Command {
         let log = project.log()?;
         match self {
             Self::Hook(event) => event.respond(),
+            Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
             Self::Write(event) => {
                 let actor = Self::actor()?;
                 let record = log.append(&mut |snapshot| {

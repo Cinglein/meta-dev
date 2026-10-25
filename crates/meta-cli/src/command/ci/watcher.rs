@@ -1,0 +1,87 @@
+mod elapsed;
+mod gh;
+
+use std::ops::ControlFlow;
+use std::os::unix::process::CommandExt as _;
+use std::process::{Command, Stdio};
+use std::time::Instant;
+
+use super::ci_status::CiStatus;
+use super::commit::Commit;
+use super::session_dir::SessionDir;
+use super::session_id::SessionId;
+use crate::command::cli_failure::CliFailure;
+use crate::command::output::{Listed, Output};
+use crate::command::project::Project;
+use elapsed::Elapsed;
+use gh::{Gh, Observation};
+
+#[derive(Debug)]
+pub struct Watcher {
+    dir: SessionDir,
+    commit: Commit,
+    gh: Gh,
+    started: Instant,
+}
+
+impl Watcher {
+    pub fn spawn(project: &Project, session: &SessionId, commit: &Commit) -> Option<()> {
+        SessionDir::for_session(project, session)?.watch(commit).ok()?;
+        Command::new(std::env::current_exe().ok()?)
+            .args(["ci-watch", &session.to_string(), &commit.to_string()])
+            .current_dir(project.root())
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .process_group(i32::default())
+            .spawn()
+            .ok()
+            .map(|_| ())
+    }
+
+    pub fn watch(project: &Project, session: &SessionId, commit: Commit) -> Result<Output, CliFailure> {
+        let dir = SessionDir::for_session(project, session).ok_or_else(|| CliFailure::config("no git directory"))?;
+        let settings = project.config().ci_settings();
+        let gh = Gh::new(settings.program().clone(), project.root().to_path_buf());
+        let watcher = Self { dir, commit, gh, started: Instant::now() };
+        let interval = settings.poll_interval();
+        let finished = std::iter::repeat_with(|| {
+            std::thread::sleep(interval.duration());
+            watcher.gh.observe(&watcher.commit)
+        })
+        .take(interval.polls_within(settings.timeout()))
+        .try_fold(None, |reported, observed| watcher.step(reported, &observed));
+        finished.break_value().map_or_else(|| watcher.conclude(CiStatus::TimedOut), |status| watcher.conclude(status))
+    }
+
+    fn step(&self, reported: Option<Listed>, observed: &Observation) -> ControlFlow<CiStatus, Option<Listed>> {
+        let first_failure = observed.failed_job().filter(|_| reported.is_none());
+        first_failure
+            .iter()
+            .for_each(|job| self.note(format!("{job} failed after {}", self.elapsed()), CiStatus::Failed));
+        observed.finished().map_or_else(
+            || ControlFlow::Continue(reported.or_else(|| first_failure.map(Listed::new))),
+            ControlFlow::Break,
+        )
+    }
+
+    fn conclude(&self, status: CiStatus) -> Result<Output, CliFailure> {
+        self.note(format!("{status} after {}", self.elapsed()), status);
+        Ok(Output::Listed(Listed::new(status)))
+    }
+
+    fn note(&self, line: String, status: CiStatus) {
+        self.dir.record(format!("CI {}: {line}", self.commit)).ok();
+        self.dir.settle(&self.commit, status).ok();
+    }
+
+    fn elapsed(&self) -> Elapsed {
+        Elapsed::new(self.started.elapsed())
+    }
+}
+
+impl std::fmt::Display for Watcher {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "CI watch of {} in {}", self.commit, self.dir)
+    }
+}
