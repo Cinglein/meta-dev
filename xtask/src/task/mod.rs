@@ -22,7 +22,13 @@ impl Task {
         match self {
             Task::Lint => Ok(project.lints().lint(&project.prior()?).map(|tally| print!("{tally}"))?),
             Task::Baseline => Ok(project.lints().shrink_baseline().map(|tally| print!("{tally}"))?),
-            Task::Ci => Ok(project.run_ci()?),
+            Task::Ci => {
+                let outcome = project.run_ci();
+                if let Err(failure) = project.changed_surfaces().and_then(|changed| Ok(changed.announce()?)) {
+                    eprintln!("surfaces: {failure}");
+                }
+                Ok(outcome?)
+            }
             Task::Usage => Err(Failure::Usage(Self::USAGE)),
         }
     }
