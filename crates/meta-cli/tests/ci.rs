@@ -24,6 +24,7 @@ case "$1 $2" in
 esac
 "#;
 const SHELL: &str = "/bin/sh";
+const SESSION: &str = "ABCDEF12-34";
 const FAILURE: &str = "failure";
 const SUCCESS: &str = "success";
 const NONE: &str = "none";
@@ -47,6 +48,8 @@ impl Git {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
     }
 }
+
+struct Waited(String);
 
 struct Repo {
     _origin: tempfile::TempDir,
@@ -90,6 +93,16 @@ impl Repo {
         String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
     }
 
+    fn ci_wait(&self) -> Waited {
+        let output = Command::new(META)
+            .arg("ci-wait")
+            .current_dir(self.clone.path())
+            .env("META_SESSION", SESSION)
+            .output()
+            .unwrap();
+        Waited(format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)))
+    }
+
     fn settled(&self) -> String {
         let events = self.clone.path().join(".git/meta-ci/ABCDEF1234/events");
         std::iter::repeat_with(|| {
@@ -109,21 +122,20 @@ impl fmt::Display for Repo {
 }
 
 #[test]
-fn a_failing_run_reports_the_first_failure_and_completion_once_and_blocks_stop() {
+fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
     let repo = Repo::new(FAILURE);
     repo.hook("post-tool-use", COMMIT);
-    assert!(repo.settled().contains(JOB_FAILED));
-    let first = repo.hook(PRE, COMMIT);
-    assert!(first.contains(JOB_FAILED) && first.contains(RUN_FAILED) && !repo.hook(PRE, COMMIT).contains(RUN_FAILED));
-    assert!(repo.hook(STOP, COMMIT).contains(BLOCK));
+    assert!(repo.ci_wait().0.contains(JOB_FAILED) && repo.hook(STOP, COMMIT).contains(BLOCK));
+    assert!(repo.settled().contains(RUN_FAILED) && repo.hook(PRE, COMMIT).contains(RUN_FAILED));
+    assert!(!repo.hook(PRE, COMMIT).contains(RUN_FAILED));
 }
 
 #[test]
 fn a_passing_run_reports_only_completion_and_lets_the_agent_stop() {
     let repo = Repo::new(SUCCESS);
     repo.hook("post-tool-use", COMMIT);
+    assert!(repo.ci_wait().0.contains(PASSED) && !repo.hook(STOP, COMMIT).contains(BLOCK));
     assert_eq!(repo.settled().lines().filter(|line| line.contains(PASSED)).count(), repo.settled().lines().count());
-    assert!(!repo.hook(STOP, COMMIT).contains(BLOCK));
 }
 
 #[test]

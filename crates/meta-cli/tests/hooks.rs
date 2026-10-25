@@ -35,7 +35,7 @@ const REJECTED: &str = "rejected";
 const SESSION_START: &str = "session-start";
 const NO_TASKS: &str = "Tasks: 0 unfinished";
 const SESSION_ACTOR: &str = "claude-abcdef1234";
-const ENV_LINE: &str = "export META_ACTOR=claude-abcdef1234\n";
+const ENV_LINE: &str = "export META_ACTOR=claude-abcdef1234\nexport META_SESSION=ABCDEF12-34\n";
 
 struct Git;
 

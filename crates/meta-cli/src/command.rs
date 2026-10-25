@@ -22,6 +22,7 @@ pub enum Command {
     List(Option<Kind>, Scope),
     Hook(HookEvent),
     WatchCi(SessionId, Commit),
+    WaitCi(SessionId),
 }
 
 impl TryFrom<Vec<String>> for Command {
@@ -56,6 +57,15 @@ impl TryFrom<Vec<String>> for Command {
             "list" => Ok(Self::List(parsed.kind()?, parsed.allowing(&[OptionName::All])?.scope())),
             "hook" => Ok(Self::Hook(parsed.allowing(&[])?.text()?.to_string().parse()?)),
             "ci-watch" => parsed.allowing(&[])?.session_and_commit(Self::WatchCi),
+            "ci-wait" => std::env::var(SessionId::VARIABLE)
+                .map_err(|_| {
+                    CliFailure::config(format!(
+                        "{} is not set; run inside a Claude session with the plugin",
+                        SessionId::VARIABLE
+                    ))
+                })
+                .and_then(|session| session.parse().map_err(CliFailure::invalid))
+                .map(Self::WaitCi),
             other => Err(CliFailure::usage(format!("unknown command `{other}`"))),
         }
     }
@@ -74,6 +84,7 @@ impl Command {
         match self {
             Self::Hook(event) => event.respond(),
             Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
+            Self::WaitCi(session) => Watcher::wait(project, &session),
             Self::Write(event) => {
                 let actor = Self::actor()?;
                 let record = log.append(&mut |snapshot| {

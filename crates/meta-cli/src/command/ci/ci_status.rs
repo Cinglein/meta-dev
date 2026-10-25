@@ -15,10 +15,26 @@ impl CiStatus {
     pub fn stop_reason(self) -> Option<Listed> {
         match self {
             Self::Running => Some(Listed::new(
-                "CI for your last push is still running; wait for it (for example sleep 60), then stop",
+                "CI for your last push is still running: run `meta ci-wait` (returns at the first failure or at completion)",
             )),
-            Self::Failed => Some(Listed::new("CI failed for your last push; fix it and push, or ask the owner")),
+            Self::Failed => Some(Listed::new(
+                "CI failed for your last push: fix it, push, then run `meta ci-wait`; or ask the owner",
+            )),
             Self::Passed | Self::TimedOut => None,
+        }
+    }
+
+    pub fn finished(self) -> Option<Self> {
+        match self {
+            Self::Running => None,
+            Self::Passed | Self::Failed | Self::TimedOut => Some(self),
+        }
+    }
+
+    pub fn failure(self) -> Option<Self> {
+        match self {
+            Self::Failed => Some(self),
+            Self::Running | Self::Passed | Self::TimedOut => None,
         }
     }
 }
