@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "\"${META_BIN:-meta}\" hook session-start", "timeout": 30 }] }
+    ],
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "\"${META_BIN:-meta}\" hook pre-tool-use", "timeout": 10 }] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "\"${META_BIN:-meta}\" hook post-tool-use", "timeout": 60 }] }
+    ]
+  }
+}

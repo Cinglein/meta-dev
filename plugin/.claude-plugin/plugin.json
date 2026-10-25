@@ -1,0 +1,5 @@
+{
+  "name": "meta-development",
+  "version": "0.0.0",
+  "description": "meta-development hooks: session state from meta/log; early refusal of PR merges, force pushes and pushes to protected branches; push after commit"
+}
