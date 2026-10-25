@@ -48,3 +48,4 @@
 {"seq":48,"at":"2026-10-25T04:22:04.221899Z","actor":"claude-xtask","kind":"TaskOpened","task":"task-b794f08a11959913","text":"meta-lints: detect binaries at root src/main.rs and src/bin/*"}
 {"seq":49,"at":"2026-10-25T04:22:04.311396Z","actor":"claude-xtask","kind":"TaskOpened","task":"task-92a7c59cd9c3ed9d","text":"meta-ci: an empty step list must fail; print total time on failure"}
 {"seq":50,"at":"2026-10-25T04:22:04.395180Z","actor":"claude-xtask","kind":"TaskOpened","task":"task-c94d2270b1a6e293","text":"meta-lints: rules print to stdout; return measurements instead"}
+{"seq":51,"at":"2026-10-25T04:22:04.475904Z","actor":"claude-xtask","kind":"TaskOpened","task":"task-7ce8ae4e36f55b69","text":"meta-lints: ownership tokens match raw substrings; match tokens"}
