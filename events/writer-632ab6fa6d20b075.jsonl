@@ -39,3 +39,4 @@
 {"seq":39,"at":"2026-10-25T03:48:27.796184Z","kind":"TaskClaimed","task":"task-6e2e8a0d752e4629","actor":"claude-xtask"}
 {"seq":40,"at":"2026-10-25T03:52:45.445397Z","actor":"claude-stage0-builder","kind":"ConcernIdentified","concern":"concern-982a5cecd95af1b0","text":"The owner does triage, priority and wall-time watching by hand; goal: a steward role reads the log, flags budget trends and blocking work, escalates only decisions","source":"docs/SPEC.md Goal: automate the owner's triage/priority/wall-time role"}
 {"seq":41,"at":"2026-10-25T03:58:39.699842Z","actor":"claude-lead","kind":"TaskOpened","task":"task-a93bd0fbb4a2501f","text":"Server-side enforcement (GitHub Pro branch protection or public repo): deferred by owner 2026-10-25; until then the local git pre-push guard is the only check"}
+{"seq":42,"at":"2026-10-25T04:05:12.331837Z","actor":"claude-xtask","kind":"TaskDone","task":"task-6e2e8a0d752e4629"}
