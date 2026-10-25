@@ -39,28 +39,30 @@ impl Baseline {
     }
 
     pub fn drifts(&self, allowed: &Baseline) -> Vec<Drift> {
-        let rules: BTreeSet<&String> = self.0.keys().chain(allowed.0.keys()).collect();
+        let found = self.totals();
+        let budget = allowed.totals();
+        let rules: BTreeSet<&str> = found.keys().chain(budget.keys()).copied().collect();
+        let total = |totals: &BTreeMap<&str, Count>, rule: &str| totals.get(rule).copied().unwrap_or_default();
         rules
             .into_iter()
-            .flat_map(|rule| Self::rule_drifts(rule, self.0.get(rule), allowed.0.get(rule)))
+            .map(|rule| Drift::new(rule, total(&found, rule), total(&budget, rule)))
             .filter(Drift::moved)
+            .collect()
+    }
+
+    pub fn grown_files(&self, allowed: &Baseline, rule: &str) -> Vec<&str> {
+        let budget = allowed.0.get(rule);
+        self.0
+            .get(rule)
+            .into_iter()
+            .flatten()
+            .filter(|(file, count)| budget.and_then(|files| files.get(*file)).is_none_or(|allowed| *count > allowed))
+            .map(|(file, _)| file.as_str())
             .collect()
     }
 
     pub fn totals(&self) -> BTreeMap<&str, Count> {
         self.0.iter().map(|(rule, files)| (rule.as_str(), files.values().sum())).collect()
-    }
-
-    fn rule_drifts(
-        rule: &str,
-        found: Option<&BTreeMap<String, Count>>,
-        allowed: Option<&BTreeMap<String, Count>>,
-    ) -> Vec<Drift> {
-        let files: BTreeSet<&String> = found.into_iter().chain(allowed).flat_map(BTreeMap::keys).collect();
-        let count = |counts: Option<&BTreeMap<String, Count>>, file: &str| {
-            counts.and_then(|counts| counts.get(file)).copied().unwrap_or_default()
-        };
-        files.into_iter().map(|file| Drift::new(rule, file, count(found, file), count(allowed, file))).collect()
     }
 }
 
@@ -74,15 +76,26 @@ impl FromIterator<(String, BTreeMap<String, Count>)> for Baseline {
 mod tests {
     use super::Baseline;
 
-    const ALLOWED: &str = "[no-comments]\n\"a.rs\" = 2\n\"b.rs\" = 1\n";
-    const FOUND: &str = "[no-comments]\n\"a.rs\" = 3\n";
-    const DRIFTS: [&str; 2] = ["no-comments a.rs: 3 found, baseline 2", "no-comments b.rs: 0 found, baseline 1"];
+    const ALLOWED: &str = "[no-comments]\n\"a.rs\" = 2\n";
+    const MOVED: &str = "[no-comments]\n\"b.rs\" = 2\n";
+    const GROWN: &str = "[no-comments]\n\"a.rs\" = 2\n\"b.rs\" = 1\n";
+    const RULE: &str = "no-comments";
+    const DRIFT: &str = "no-comments: 3 found, baseline 2";
+    const GROWN_FILE: &str = "b.rs";
 
     #[test]
-    fn drifts_name_growth_and_slack() {
+    fn a_moved_file_keeps_the_totals() {
         let allowed: Baseline = toml::from_str(ALLOWED).expect("valid baseline");
-        let found: Baseline = toml::from_str(FOUND).expect("valid baseline");
-        let drifts: Vec<String> = found.drifts(&allowed).iter().map(ToString::to_string).collect();
-        assert_eq!(drifts, DRIFTS);
+        let moved: Baseline = toml::from_str(MOVED).expect("valid baseline");
+        assert!(moved.drifts(&allowed).is_empty());
+    }
+
+    #[test]
+    fn growth_names_the_rule_and_the_grown_file() {
+        let allowed: Baseline = toml::from_str(ALLOWED).expect("valid baseline");
+        let grown: Baseline = toml::from_str(GROWN).expect("valid baseline");
+        let drifts: Vec<String> = grown.drifts(&allowed).iter().map(ToString::to_string).collect();
+        assert_eq!(drifts, [DRIFT]);
+        assert_eq!(grown.grown_files(&allowed, RULE), [GROWN_FILE]);
     }
 }

@@ -34,7 +34,7 @@ impl Workspace {
         if drifts.is_empty() {
             Ok(Tally::new(Count::of_len(files.len()), observed))
         } else {
-            Err(Failure::Ratchet(Box::new(Ratchet::new(drifts, findings))))
+            Err(Failure::Ratchet(Box::new(Ratchet::new(drifts, findings, observed, allowed))))
         }
     }
 
@@ -42,17 +42,14 @@ impl Workspace {
         let files = self.source_files()?;
         let findings = Findings::collect(&files, &self.config);
         let observed = findings.observed();
-        let grown: Vec<Drift> = Baseline::read(&self.baseline_path())?
-            .map(|allowed| observed.drifts(&allowed))
-            .unwrap_or_default()
-            .into_iter()
-            .filter(Drift::grew)
-            .collect();
+        let allowed = Baseline::read(&self.baseline_path())?;
+        let grown: Vec<Drift> =
+            allowed.iter().flat_map(|allowed| observed.drifts(allowed)).filter(Drift::grew).collect();
         if grown.is_empty() {
             observed.write(&self.baseline_path())?;
             Ok(Tally::new(Count::of_len(files.len()), observed))
         } else {
-            Err(Failure::Ratchet(Box::new(Ratchet::new(grown, findings))))
+            Err(Failure::Ratchet(Box::new(Ratchet::new(grown, findings, observed, allowed.unwrap_or_default()))))
         }
     }
 
