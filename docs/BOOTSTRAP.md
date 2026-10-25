@@ -10,8 +10,8 @@ Until stage 0 exists, this file is the tracker; stage 0's first job is to import
 | 2 | `meta run` trail recorder; first procedure (Playwright lookup); researcher/tester roles | Two agents run the same procedure and get comparable, inspectable trails | not started |
 | 3 | Typed subjects/properties/claims; evidence kinds; ladder typestate; severity budget; done needs evidence; evidence check in CI | meta-development's own features show computed status and confidence | not started |
 | 4 | Affected-test selection; lints moved out of Basho; project templates | not yet defined | not started |
-| 5 | Second project: Basho (or its general-travel-app successor) | not yet defined | not started |
+| 5 | (moved) Basho onboards as soon as possible: right after stage 0/1 (owner, 2026-10-25) | — | — |
 | later | Confidence procedure; proptest invariants; waivers; perf ledger; hosted service when the git backend's budget is overspent | — | — |
 
 Prerequisite (owner): cloud CI (fix GitHub billing or choose another runner) by stage 1.
-Open: whether Basho onboards earlier (after stage 1) — default: stage 5.
+Decided (owner, 2026-10-25): Basho onboards as soon as possible, right after stage 0/1.
