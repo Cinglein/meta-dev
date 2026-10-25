@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::entity::{Concern, Issue};
+use crate::entry::Entry;
 use crate::id::Id;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -25,6 +26,13 @@ impl Target {
         match self {
             Self::Concern(id) => Some(*id),
             Self::Issue(_) => None,
+        }
+    }
+
+    pub fn entry(self) -> Entry {
+        match self {
+            Self::Concern(id) => Entry::Concern(id),
+            Self::Issue(id) => Entry::Issue(id),
         }
     }
 

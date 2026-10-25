@@ -3,6 +3,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use crate::claim::Claim;
+use crate::entry_note::EntryNote;
 use crate::event_visitor::EventVisitor;
 use crate::new_concern::NewConcern;
 use crate::new_issue::NewIssue;
@@ -19,6 +20,8 @@ pub enum Event {
     TaskReleased(TaskRef),
     TaskDone(TaskRef),
     TaskReopened(TaskRef),
+    EntryRetired(EntryNote),
+    EntryCorrected(EntryNote),
 }
 
 impl Event {
@@ -31,6 +34,8 @@ impl Event {
             Self::TaskReleased(task) => visitor.task_released(*task),
             Self::TaskDone(task) => visitor.task_done(*task),
             Self::TaskReopened(task) => visitor.task_reopened(*task),
+            Self::EntryRetired(note) => visitor.entry_retired(note),
+            Self::EntryCorrected(note) => visitor.entry_corrected(note),
         }
     }
 }
@@ -45,6 +50,8 @@ impl fmt::Display for Event {
             Self::TaskReleased(task) => write!(formatter, "TaskReleased {task}"),
             Self::TaskDone(task) => write!(formatter, "TaskDone {task}"),
             Self::TaskReopened(task) => write!(formatter, "TaskReopened {task}"),
+            Self::EntryRetired(note) => write!(formatter, "EntryRetired {note}"),
+            Self::EntryCorrected(note) => write!(formatter, "EntryCorrected {note}"),
         }
     }
 }

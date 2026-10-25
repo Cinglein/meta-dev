@@ -20,6 +20,10 @@ impl NewIssue {
     pub fn issue(&self) -> Id<Issue> {
         self.issue
     }
+
+    pub fn corrected(&self, text: Text) -> Self {
+        Self { text, ..self.clone() }
+    }
 }
 
 impl fmt::Display for NewIssue {

@@ -1,6 +1,8 @@
 mod actor;
 mod claim;
 mod entity;
+mod entry;
+mod entry_note;
 mod event;
 mod event_visitor;
 mod id;
@@ -16,6 +18,8 @@ mod text;
 pub use actor::Actor;
 pub use claim::Claim;
 pub use entity::Task;
+pub use entry::Entry;
+pub use entry_note::EntryNote;
 pub use event::Event;
 pub use event_visitor::EventVisitor;
 pub use id::Id;

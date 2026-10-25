@@ -1,6 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
+use meta_schema::Entry;
 use thiserror::Error;
 
 use crate::state::State;
@@ -36,6 +37,22 @@ impl<'state> Listing<'state> {
         Self { state, kind, scope }
     }
 
+    fn rows(&self) -> Vec<String> {
+        let state = self.state;
+        match self.kind {
+            Kind::Tasks => state.tasks().iter().filter_map(|task| self.row(task, task.entry())).collect(),
+            Kind::Issues => state.issues().iter().filter_map(|issue| self.row(issue, issue.target().entry())).collect(),
+            Kind::Concerns => {
+                state.concerns().iter().filter_map(|concern| self.row(concern, concern.target().entry())).collect()
+            }
+        }
+    }
+
+    fn row(&self, item: &dyn fmt::Display, entry: Entry) -> Option<String> {
+        let marker = self.state.retirement(entry).map(ToString::to_string).unwrap_or_default();
+        self.shown(self.state.closed(entry)).map(|()| format!("{item}{marker}"))
+    }
+
     fn shown<Item>(&self, addressed: Option<Item>) -> Option<()> {
         match (self.scope, addressed) {
             (Scope::All, _) | (Scope::Open, None) => Some(()),
@@ -59,23 +76,6 @@ impl FromStr for Kind {
 
 impl fmt::Display for Listing<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let state = self.state;
-        match self.kind {
-            Kind::Tasks => state
-                .tasks()
-                .iter()
-                .filter(|task| self.shown(task.status().done()).is_some())
-                .try_for_each(|task| writeln!(formatter, "{task}")),
-            Kind::Issues => state
-                .issues()
-                .iter()
-                .filter(|issue| self.shown(state.addressed_by(issue.target())).is_some())
-                .try_for_each(|issue| writeln!(formatter, "{issue}")),
-            Kind::Concerns => state
-                .concerns()
-                .iter()
-                .filter(|concern| self.shown(state.addressed_by(concern.target())).is_some())
-                .try_for_each(|concern| writeln!(formatter, "{concern}")),
-        }
+        self.rows().iter().try_for_each(|row| writeln!(formatter, "{row}"))
     }
 }
