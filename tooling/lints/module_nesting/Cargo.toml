@@ -1,0 +1,13 @@
+[package]
+name = "module_nesting"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+task = { path = "../../task" }
+settings = { path = "../../settings" }
+
+[lints]
+workspace = true

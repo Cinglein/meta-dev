@@ -1,0 +1,14 @@
+[package]
+name = "primitive_boundary"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+task = { path = "../../task" }
+settings = { path = "../../settings" }
+syn = { version = "2", features = ["full", "parsing", "visit"] }
+
+[lints]
+workspace = true

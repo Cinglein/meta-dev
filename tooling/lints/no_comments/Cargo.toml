@@ -1,0 +1,13 @@
+[package]
+name = "no_comments"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+task = { path = "../../task" }
+rustc_lexer = { package = "ra-ap-rustc_lexer", version = "0.174.0" }
+
+[lints]
+workspace = true
