@@ -229,6 +229,7 @@ dependencies = [
  "meta-schema",
  "meta-state",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror",
  "toml",

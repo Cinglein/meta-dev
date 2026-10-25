@@ -1,4 +1,5 @@
 mod cli_failure;
+mod hook;
 mod output;
 mod parsed;
 mod project;
@@ -8,6 +9,7 @@ use meta_schema::{Actor, Claim, Event, NewConcern, NewIssue, NewTask, Record, Ta
 use meta_state::{Kind, Listing, Scope, State, Summary};
 
 use cli_failure::CliFailure;
+use hook::HookEvent;
 use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
 use project::Project;
@@ -16,6 +18,7 @@ use project::Project;
 pub enum Command {
     Write(Event),
     List(Option<Kind>, Scope),
+    Hook(HookEvent),
 }
 
 impl TryFrom<Vec<String>> for Command {
@@ -48,6 +51,7 @@ impl TryFrom<Vec<String>> for Command {
             "done" => Ok(Self::Write(Event::TaskDone(task()?))),
             "reopen" => Ok(Self::Write(Event::TaskReopened(task()?))),
             "list" => Ok(Self::List(parsed.kind()?, parsed.allowing(&[OptionName::All])?.scope())),
+            "hook" => Ok(Self::Hook(parsed.allowing(&[])?.text()?.to_string().parse()?)),
             other => Err(CliFailure::usage(format!("unknown command `{other}`"))),
         }
     }
@@ -55,8 +59,16 @@ impl TryFrom<Vec<String>> for Command {
 
 impl Command {
     pub fn answer(self) -> Result<Output, CliFailure> {
-        let log = Project::discover()?.log()?;
         match self {
+            Self::Hook(event) => event.respond(),
+            other => other.answer_in(&Project::discover(&std::env::current_dir().map_err(CliFailure::config)?)?),
+        }
+    }
+
+    pub fn answer_in(self, project: &Project) -> Result<Output, CliFailure> {
+        let log = project.log()?;
+        match self {
+            Self::Hook(event) => event.respond(),
             Self::Write(event) => {
                 let actor = Self::actor()?;
                 let record = log.append(&mut |snapshot| {
