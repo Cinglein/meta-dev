@@ -11,9 +11,9 @@ pub use git_log::GitLog;
 pub use log_failure::LogFailure;
 pub use memory_log::MemoryLog;
 pub use remote_name::RemoteName;
+pub use snapshot::Snapshot;
 
 use meta_schema::Record;
-use snapshot::Snapshot;
 
 pub trait LogStore {
     fn read(&self) -> Result<Snapshot, LogFailure>;

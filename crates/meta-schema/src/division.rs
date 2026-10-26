@@ -72,7 +72,7 @@ mod tests {
     const TOP: &str = "performance-and-cost";
     const NESTED: &str = "performance-and-cost/ci/tests";
     const MIXED: &str = "performance-and-cost/ci2-fast/9";
-    const REFUSED: [&str; 7] = [
+    const REFUSED: [&str; 9] = [
         "performance",
         "performance-and-cost//ci",
         "features-and-maintenance/",
@@ -80,6 +80,8 @@ mod tests {
         "performance-and-cost/c i",
         "performance-and-cost/ci_tests",
         "performance-and-cost/é",
+        "performance-and-cost/-",
+        "performance-and-cost/ci/--",
     ];
 
     #[test]

@@ -1,7 +1,9 @@
 mod assignments;
 mod blocking;
 mod board;
+mod dissolving;
 mod links;
+mod schema;
 mod waiting_rules;
 
 use meta_schema::{
@@ -78,6 +80,14 @@ impl Lifecycle {
             Step::Released => Event::TaskReleased(reference),
             Step::Reopened => Event::TaskReopened(reference),
         }
+    }
+}
+
+struct Shown;
+
+impl Shown {
+    fn first_task(script: &Script) -> String {
+        State::fold(&script.records).tasks().first().map(ToString::to_string).unwrap()
     }
 }
 

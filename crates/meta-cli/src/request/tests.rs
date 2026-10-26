@@ -1,3 +1,4 @@
+mod fetches;
 mod notices;
 
 use meta_log::{LogStore, MemoryLog};
