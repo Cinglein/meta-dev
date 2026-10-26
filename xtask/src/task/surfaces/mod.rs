@@ -47,6 +47,7 @@ mod tests {
     const SOURCE: &str = "crates/a/src/lib.rs";
     const LISTED: &str = "- lint-baseline.toml\n";
     const SUMMARY: &str = "summary.md";
+    const UNTRACKED: &str = "tooling/new.toml";
 
     impl Fixture {
         fn surfaced() -> Fixture {
@@ -62,12 +63,12 @@ mod tests {
     }
 
     #[test]
-    fn a_changed_surface_is_listed_and_written_to_the_step_summary() {
+    fn changed_and_untracked_surfaces_are_listed_and_written_to_the_step_summary() {
         let fixture = Fixture::surfaced();
-        fixture.write(BASELINE, RAISED);
-        let changed = Surfaces::changed(fixture.root(), &[Surface::from(BASELINE)]).unwrap();
+        fixture.write(BASELINE, RAISED).write(UNTRACKED, RAISED);
+        let changed = Surfaces::changed(fixture.root(), &[Surface::from(BASELINE), Surface::from(UNTRACKED)]).unwrap();
         changed.announce(Some(&fixture.path(SUMMARY))).unwrap();
-        assert!(changed.to_string().ends_with(LISTED));
+        assert!(changed.to_string().ends_with(&format!("{LISTED}- {UNTRACKED}\n")));
         assert_eq!(fs::read_to_string(fixture.path(SUMMARY)).ok(), Some(changed.to_string()));
     }
 
