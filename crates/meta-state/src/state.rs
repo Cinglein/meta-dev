@@ -3,19 +3,21 @@ mod applying;
 mod concern_state;
 mod issue_state;
 mod retired;
+mod vetting;
 
 use std::collections::HashMap;
 
-use meta_schema::{Entry, EntryNote, Id, Record, Target, Task, Text};
+use meta_schema::{Actor, Block, Entry, EntryNote, Id, Record, SchemaVersion, Target, Task, Text};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
-use crate::task_state::TaskState;
+use crate::task_state::{TaskState, TaskStatus};
 use anomaly::Anomaly;
 use applying::Applying;
 use concern_state::ConcernState;
 use issue_state::IssueState;
 pub use retired::Retired;
+use vetting::Vetting;
 
 #[derive(Clone, Debug, Default)]
 pub struct State {
@@ -26,6 +28,7 @@ pub struct State {
     addressers: HashMap<Target, Vec<Id<Task>>>,
     anomalies: Vec<Anomaly>,
     retired: HashMap<Entry, Retired>,
+    schema: Option<SchemaVersion>,
 }
 
 impl State {
@@ -34,13 +37,59 @@ impl State {
     }
 
     pub fn vet(&self, record: &Record) -> Result<(), Refusal> {
-        record.event().visit(Applying::new(&mut self.clone(), Stamp::from_record(record)))
+        self.tried(record).map(|_| ())
+    }
+
+    pub fn tried(&self, record: &Record) -> Result<Self, Refusal> {
+        self.schema
+            .filter(|marked| *marked > SchemaVersion::current())
+            .map_or(Ok(()), |marked| Err(Refusal::NewerSchema(marked)))?;
+        let mut next = self.clone();
+        record.event().visit(Applying::new(&mut next, Stamp::from_record(record))).map(|()| next.swept())
+    }
+
+    #[must_use]
+    pub fn schema(&self) -> Option<SchemaVersion> {
+        self.schema
+    }
+
+    pub(crate) fn note_schema(&mut self, version: SchemaVersion) {
+        self.schema = self.schema.max(Some(version));
+    }
+
+    pub(crate) fn swept(mut self) -> Self {
+        let ended: Vec<usize> = self
+            .tasks
+            .iter()
+            .enumerate()
+            .filter(|(_, task)| {
+                task.progress().status().waiting_on_entry().is_some_and(|entry| self.closed(entry).is_some())
+            })
+            .map(|(index, _)| index)
+            .collect();
+        self.tasks
+            .iter_mut()
+            .enumerate()
+            .filter(|(index, _)| ended.contains(index))
+            .for_each(|(_, task)| task.dissolve());
+        self
+    }
+
+    #[must_use]
+    pub fn holders(&self, task: Id<Task>) -> Vec<Actor> {
+        self.task(task)
+            .map(|task| task.progress().assignments().iter().map(|stamp| stamp.actor().clone()).collect())
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn waits_on(&self, task: Id<Task>) -> Option<Id<Task>> {
+        self.task(task).and_then(|task| self.status_of(task).waiting_on_task())
     }
 
     fn applied(mut self, record: &Record) -> Self {
         let outcome = record.event().visit(Applying::new(&mut self, Stamp::from_record(record)));
         self.anomalies.extend(outcome.err().map(|refusal| Anomaly::new(record.clone(), refusal)));
-        self
+        self.swept()
     }
 
     pub(crate) fn add_concern(&mut self, concern: ConcernState) -> Result<(), Refusal> {
@@ -81,6 +130,15 @@ impl State {
             .ok_or(Refusal::UnknownTask(task))
     }
 
+    pub(crate) fn vet_blocker(&self, block: Block) -> Result<(), Refusal> {
+        block.blocker().visit(Vetting::new(self, block.task()))
+    }
+
+    #[must_use]
+    pub fn status_of(&self, task: &TaskState) -> TaskStatus {
+        self.retirement(task.entry()).map_or_else(|| task.progress().status(), |_| TaskStatus::Retired)
+    }
+
     pub(crate) fn retire(&mut self, retired: Retired) -> Result<(), Refusal> {
         let entry = retired.note().entry();
         self.known(entry)?;
@@ -115,7 +173,7 @@ impl State {
     #[must_use]
     pub fn closed(&self, entry: Entry) -> Option<()> {
         let addressed = entry.target().and_then(|target| self.addressed_by(target));
-        let done = entry.task().and_then(|task| self.task(task)).and_then(|task| task.status().done());
+        let done = entry.task().and_then(|task| self.task(task)).filter(|task| task.progress().done().is_some());
         addressed.map(|_| ()).or(done.map(|_| ())).or(self.retirement(entry).map(|_| ()))
     }
 

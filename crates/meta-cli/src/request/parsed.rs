@@ -2,7 +2,9 @@ mod option_name;
 mod word;
 
 use meta_listing::{Kind, Scope};
-use meta_schema::{Actor, Entry, Id, Tag, Target, Task, Text};
+use meta_schema::{
+    Actor, Blocker, Division, DueTime, Entry, Id, PullRequest, Tag, Target, Task, TaskLink, Text, Tokens,
+};
 
 use crate::request::ci::{Commit, SessionId};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
@@ -18,6 +20,10 @@ pub struct Parsed {
     addresses: Vec<Target>,
     from: Option<Actor>,
     scope: Scope,
+    division: Option<Division>,
+    effort: Option<Tokens>,
+    due: Option<DueTime>,
+    on: Option<Blocker>,
 }
 
 impl Parsed {
@@ -51,6 +57,18 @@ impl Parsed {
             (OptionName::From, [value, rest @ ..]) => {
                 Self { from: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
             }
+            (OptionName::Division, [value, rest @ ..]) => {
+                Self { division: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
+            }
+            (OptionName::Effort, [value, rest @ ..]) => {
+                Self { effort: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
+            }
+            (OptionName::Due, [value, rest @ ..]) => {
+                Self { due: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
+            }
+            (OptionName::On, [value, rest @ ..]) => {
+                Self { on: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
+            }
         }
     }
 
@@ -72,6 +90,32 @@ impl Parsed {
             [word] => word.to_string().parse().map_err(CliFailure::raised::<Invalid>),
             _ => Err(CliFailure::raised::<Misuse>("expected one task id")),
         }
+    }
+
+    pub fn task_link(&self) -> Result<TaskLink, CliFailure> {
+        match self.words.as_slice() {
+            [task, pull_request] => Ok(TaskLink::new(
+                task.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
+                pull_request.to_string().parse::<PullRequest>().map_err(CliFailure::raised::<Invalid>)?,
+            )),
+            _ => Err(CliFailure::raised::<Misuse>("expected a task id and a pull request number")),
+        }
+    }
+
+    pub fn division(&self) -> Result<Division, CliFailure> {
+        self.division.clone().ok_or_else(|| CliFailure::raised::<Misuse>("--division <path> is required"))
+    }
+
+    pub fn blocker(&self) -> Result<Blocker, CliFailure> {
+        self.on.ok_or_else(|| CliFailure::raised::<Misuse>("--on <issue id|task id|review|ci|merge> is required"))
+    }
+
+    pub fn effort(&self) -> Option<Tokens> {
+        self.effort
+    }
+
+    pub fn due(&self) -> Option<DueTime> {
+        self.due
     }
 
     pub fn session_and_commit<Built>(
@@ -142,6 +186,10 @@ impl TryFrom<&[String]> for Parsed {
             addresses: vec![],
             from: None,
             scope: Scope::Open,
+            division: None,
+            effort: None,
+            due: None,
+            on: None,
         };
         empty.take(args)
     }

@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 use super::full_run::FullRun;
-use crate::top_division::TopDivision;
+use meta_schema::TopDivision;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

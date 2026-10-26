@@ -5,11 +5,11 @@ mod output;
 mod parsed;
 mod project;
 mod timed_command;
+mod writing;
 
 use meta_listing::{Kind, Scope};
 use meta_log::LogStore;
-use meta_schema::{Actor, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, Record, TaskRef};
-use meta_state::State;
+use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, TaskRef};
 
 use ci::{Commit, FailureLog, SessionId, Watcher};
 use cli_failure::{CliFailure, Invalid, Misuse, Setup};
@@ -17,6 +17,7 @@ use hook::HookEvent;
 use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
 use project::Project;
+use writing::Writing;
 
 #[derive(Debug)]
 pub enum Request {
@@ -39,18 +40,35 @@ impl TryFrom<Vec<String>> for Request {
         let task = || parsed.task().map(TaskRef::new);
         match name.as_str() {
             "concern" => {
-                let parsed = parsed.allowing(&[OptionName::Source, OptionName::Tag])?;
+                let parsed = parsed.allowing(&[OptionName::Source, OptionName::Tag, OptionName::Division])?;
                 Ok(Self::Write(Event::ConcernIdentified(NewConcern::new(
+                    parsed.division()?,
                     parsed.text()?,
                     parsed.source(),
                     parsed.tags(),
                 ))))
             }
-            "issue" => Ok(Self::Write(Event::IssueReported(NewIssue::new(parsed.allowing(&[])?.text()?)))),
-            "open" => {
-                let parsed = parsed.allowing(&[OptionName::Addresses])?;
-                Ok(Self::Write(Event::TaskOpened(NewTask::new(parsed.text()?, parsed.addresses()))))
+            "issue" => {
+                let parsed = parsed.allowing(&[OptionName::Division])?;
+                Ok(Self::Write(Event::IssueReported(NewIssue::new(parsed.division()?, parsed.text()?))))
             }
+            "open" => {
+                let parsed = parsed.allowing(&[
+                    OptionName::Addresses,
+                    OptionName::Division,
+                    OptionName::Effort,
+                    OptionName::Due,
+                ])?;
+                let opened = NewTask::new(parsed.division()?, parsed.text()?, parsed.addresses());
+                let sized = parsed.effort().into_iter().fold(opened, NewTask::allowing);
+                Ok(Self::Write(Event::TaskOpened(parsed.due().into_iter().fold(sized, NewTask::due_by))))
+            }
+            "wait" => {
+                let parsed = parsed.allowing(&[OptionName::On])?;
+                Ok(Self::Write(Event::TaskBlocked(Block::new(parsed.task()?, parsed.blocker()?))))
+            }
+            "resume" => Ok(Self::Write(Event::TaskUnblocked(task()?))),
+            "link" => Ok(Self::Write(Event::TaskLinked(parsed.allowing(&[])?.task_link()?))),
             "claim" => {
                 let parsed = parsed.allowing(&[OptionName::From])?;
                 Ok(Self::Write(Event::TaskClaimed(Claim::new(parsed.task()?, parsed.previous_claimant()))))
@@ -100,15 +118,7 @@ impl Request {
         actor: impl FnOnce() -> Result<Actor, CliFailure>,
     ) -> Result<Output, CliFailure> {
         match self {
-            Self::Write(event) => {
-                let actor = actor()?;
-                let record = log.append::<CliFailure>(&mut |snapshot| {
-                    let record = Record::new(actor.clone(), event.clone());
-                    State::fold(snapshot.complete()?).vet(&record)?;
-                    Ok(record)
-                })?;
-                Ok(Output::Written(record))
-            }
+            Self::Write(event) => Writing::new(log, actor()?, event).entered(),
             Self::List(kind, scope) => Listed::from_log(log, kind, scope).map(Output::Listed),
             Self::Hook(_) | Self::WatchCi(..) | Self::WaitCi(_) | Self::CiLog(_) => {
                 Err(CliFailure::raised::<Misuse>("not a meta/log request"))

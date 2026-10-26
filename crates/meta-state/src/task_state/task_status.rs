@@ -1,56 +1,44 @@
 use std::fmt;
 
-use meta_schema::Actor;
+use meta_schema::{Entry, ExternalKind, Id, Issue, Task};
 
-use crate::refusal::Refusal;
 use crate::stamp::Stamp;
+use crate::task_state::stalling::Stalling;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TaskStatus {
     Open,
-    Claimed(Stamp),
+    Assigned,
+    Discussion(Id<Issue>),
+    WaitingOnTask(Id<Task>),
+    WaitingOnExternal(ExternalKind),
     Done(Stamp),
+    Retired,
 }
 
 impl TaskStatus {
-    pub fn claimed(&self, by: Stamp, previous: Option<&Actor>) -> Result<Self, Refusal> {
-        match (self, previous) {
-            (Self::Open, None) => Ok(Self::Claimed(by)),
-            (Self::Claimed(held), Some(named)) if named == held.actor() => Ok(Self::Claimed(by)),
-            (Self::Claimed(held), None) => Err(Refusal::ClaimedBy(held.actor().clone())),
-            (Self::Open | Self::Claimed(_), Some(named)) => Err(Refusal::NotClaimant(named.clone())),
-            (Self::Done(_), _) => Err(Refusal::AlreadyDone),
+    #[must_use]
+    pub fn stalling(&self) -> Stalling {
+        match self {
+            Self::Open | Self::Assigned | Self::WaitingOnTask(_) | Self::WaitingOnExternal(_) => Stalling::Possible,
+            Self::Discussion(_) | Self::Done(_) | Self::Retired => Stalling::Never,
         }
     }
 
-    pub fn released(&self, by: &Stamp) -> Result<Self, Refusal> {
-        self.held_by(by).map(|_| Self::Open)
-    }
-
-    pub fn finished(&self, by: Stamp) -> Result<Self, Refusal> {
-        self.held_by(&by).map(|_| Self::Done(by))
-    }
-
-    pub fn reopened(&self) -> Result<Self, Refusal> {
+    #[must_use]
+    pub fn waiting_on_entry(&self) -> Option<Entry> {
         match self {
-            Self::Done(_) => Ok(Self::Open),
-            Self::Open | Self::Claimed(_) => Err(Refusal::NotDone),
+            Self::Discussion(issue) => Some(Entry::Issue(*issue)),
+            Self::WaitingOnTask(task) => Some(Entry::Task(*task)),
+            _ => None,
         }
     }
 
-    pub fn done(&self) -> Option<&Stamp> {
+    #[must_use]
+    pub fn waiting_on_task(&self) -> Option<Id<Task>> {
         match self {
-            Self::Done(stamp) => Some(stamp),
-            Self::Open | Self::Claimed(_) => None,
-        }
-    }
-
-    fn held_by(&self, by: &Stamp) -> Result<&Stamp, Refusal> {
-        match self {
-            Self::Claimed(held) if held.actor() == by.actor() => Ok(held),
-            Self::Claimed(held) => Err(Refusal::HeldBy(held.actor().clone())),
-            Self::Open => Err(Refusal::Unclaimed),
-            Self::Done(_) => Err(Refusal::AlreadyDone),
+            Self::WaitingOnTask(task) => Some(*task),
+            _ => None,
         }
     }
 }
@@ -59,8 +47,12 @@ impl fmt::Display for TaskStatus {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Open => formatter.write_str("open"),
-            Self::Claimed(stamp) => write!(formatter, "claimed by {stamp}"),
+            Self::Assigned => formatter.write_str("assigned"),
+            Self::Discussion(issue) => write!(formatter, "in discussion {issue}"),
+            Self::WaitingOnTask(task) => write!(formatter, "waiting on {task}"),
+            Self::WaitingOnExternal(kind) => write!(formatter, "waiting on {kind}"),
             Self::Done(stamp) => write!(formatter, "done by {stamp}"),
+            Self::Retired => formatter.write_str("retired"),
         }
     }
 }

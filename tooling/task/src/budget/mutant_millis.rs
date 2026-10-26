@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::millis::Millis;
 use crate::crate_name::CrateName;
-use crate::top_division::TopDivision;
+use meta_schema::TopDivision;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

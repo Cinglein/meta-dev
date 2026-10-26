@@ -9,9 +9,9 @@ const OWNER: &str = "owner";
 const WRITER: &str = "writer";
 const NOWHERE: [&str; 4] = ["remote", "set-url", "origin", "/nonexistent/origin.git"];
 const COUNT: [&str; 3] = ["rev-list", "--count", "meta/log"];
-const ISSUE: [&str; 2] = ["issue", "text"];
+const ISSUE: [&str; 4] = ["issue", "--division", "features-and-maintenance", "text"];
 const OFFLINE: &str = "offline";
-const WRITES: &str = "1";
+const WRITES: &str = "2";
 const LIST_ISSUES: [&str; 2] = ["list", "issues"];
 const LOCAL_NAME: &str = "localname";
 

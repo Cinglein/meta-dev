@@ -12,16 +12,19 @@ pub struct Snapshot {
 }
 
 impl Snapshot {
+    #[must_use]
     pub fn with_record(mut self, record: Record) -> Self {
         self.records.push(record);
         self
     }
 
+    #[must_use]
     pub fn with_skipped(mut self, line: SkippedLine) -> Self {
         self.skipped.push(line);
         self
     }
 
+    #[must_use]
     pub fn records(&self) -> &[Record] {
         &self.records
     }

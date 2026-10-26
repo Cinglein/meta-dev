@@ -8,6 +8,7 @@ publish.workspace = true
 [dependencies]
 derive_more = { version = "2", features = ["add", "add_assign", "display", "from", "from_str", "into", "sum"] }
 enum-map = { version = "3", features = ["serde"] }
+meta-schema = { path = "../../crates/meta-schema" }
 proc-macro2 = { version = "1", features = ["span-locations"] }
 quote = "1"
 serde = { version = "1", features = ["derive"] }

@@ -5,7 +5,9 @@ pub struct DivisionName(String);
 
 impl DivisionName {
     pub fn named(name: &str) -> Option<DivisionName> {
-        (!name.is_empty()).then(|| DivisionName(name.to_owned()))
+        let spelled = |letter: char| letter.is_ascii_lowercase() || letter.is_ascii_digit() || letter == '-';
+        (name.chars().any(|letter| letter.is_ascii_alphanumeric()) && name.chars().all(spelled))
+            .then(|| DivisionName(name.to_owned()))
     }
 }
 

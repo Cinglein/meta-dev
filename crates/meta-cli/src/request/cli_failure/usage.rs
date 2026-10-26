@@ -7,11 +7,14 @@ impl fmt::Display for Usage {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(
             "usage: meta <command> [options] [--] [words]\n\
-             \x20 concern <text> [--source <text>] [--tag acceptance-candidate]\n\
-             \x20 issue <text>\n\
-             \x20 open <text> [--addresses <concern-id|issue-id>]...\n\
-             \x20 claim <task-id> [--from <actor>]\n\
-             \x20 release|done|reopen <task-id>\n\
+             \x20 concern <text> --division <path> [--source <text>] [--tag acceptance-candidate]\n\
+             \x20 issue <text> --division <path>\n\
+             \x20 open <text> --division <path> [--addresses <concern-id|issue-id>]... [--effort <tokens>] [--due <rfc3339>]\n\
+             \x20 claim <task-id> [--from <actor>]   (assigns you; several may hold a task)\n\
+             \x20 release <task-id>   (unassigns you)\n\
+             \x20 done|reopen <task-id>\n\
+             \x20 wait <task-id> --on <issue-id|task-id|review|ci|merge> | resume <task-id>\n\
+             \x20 link <task-id> <pr-number>\n\
              \x20 retire <id> <reason>   (won't do; keeps the entry)\n\
              \x20 correct <id> <text>   (replaces the entry's text)\n\
              \x20 list [tasks|issues|concerns] [--all]\n\

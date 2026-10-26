@@ -446,6 +446,7 @@ dependencies = [
  "chrono",
  "serde",
  "serde_json",
+ "strum",
  "thiserror",
 ]
 
@@ -934,6 +935,7 @@ version = "0.1.0"
 dependencies = [
  "derive_more",
  "enum-map",
+ "meta-schema",
  "proc-macro2",
  "quote",
  "serde",
