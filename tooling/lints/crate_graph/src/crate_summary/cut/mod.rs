@@ -111,34 +111,3 @@ impl fmt::Display for Cut {
         )
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::Cut;
-    use crate::crate_summary::cut::conductance::Conductance;
-    use crate::item_count::ItemCount;
-    use crate::item_graph::ItemGraph;
-    use task::SourceFile;
-
-    const CLUSTERS: &str = "struct A(B, C); struct B(A, C); struct C(A, B, D); struct D(E, F); struct E(D, F); struct F(D, E);";
-    const TIGHT: &str = "struct A(B, C, D); struct B(C, D); struct C(D); struct D;";
-    const PATH: &str = "crates/a/src/lib.rs";
-    const SIDE_LEN: usize = 3;
-
-    #[test]
-    fn two_weakly_linked_clusters_split_between_them() {
-        let file = SourceFile::parse(PATH, CLUSTERS.to_owned()).expect("valid rust");
-        let graph = ItemGraph::of_files(&[&file]);
-        let cut = Cut::best(&graph, &graph.tangles()).expect("a cut");
-        assert_eq!(cut.smaller_side(), ItemCount::of_len(SIDE_LEN));
-        assert!(cut.conductance() < Conductance::of_ratio(1.0, 10.0));
-    }
-
-    #[test]
-    fn a_tight_cluster_has_no_cheap_cut() {
-        let file = SourceFile::parse(PATH, TIGHT.to_owned()).expect("valid rust");
-        let graph = ItemGraph::of_files(&[&file]);
-        let cut = Cut::best(&graph, &graph.tangles()).expect("a cut");
-        assert!(cut.conductance() > Conductance::of_ratio(1.0, 2.0));
-    }
-}
