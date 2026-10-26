@@ -10,7 +10,6 @@ task = { path = "../../task" }
 derive_more = { version = "2", features = ["add", "add_assign", "display", "from", "into"] }
 syn = { version = "2", features = ["full", "parsing", "visit"] }
 proc-macro2 = { version = "1", features = ["span-locations"] }
-settings = { path = "../../settings" }
 
 [lints]
 workspace = true

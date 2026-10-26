@@ -15,8 +15,4 @@ impl Body {
             _ => Body::Other,
         }
     }
-
-    pub fn projects_field(self) -> bool {
-        matches!(self, Body::FieldProjection)
-    }
 }

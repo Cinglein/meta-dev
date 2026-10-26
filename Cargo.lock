@@ -70,10 +70,8 @@ name = "const_shape"
 version = "0.0.0"
 dependencies = [
  "proc-macro2",
- "settings",
  "syn 2.0.119",
  "task",
- "toml 0.9.12+spec-1.1.0",
 ]
 
 [[package]]
@@ -90,6 +88,51 @@ name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
+
+[[package]]
+name = "corpus_check"
+version = "0.0.0"
+dependencies = [
+ "const_shape",
+ "crate_graph",
+ "distinct_signatures",
+ "enum_predicates",
+ "expression_flow",
+ "fn_shape",
+ "literal_names",
+ "manual_iteration",
+ "module_nesting",
+ "named_lifetimes",
+ "named_numbers",
+ "no_comments",
+ "no_forwarders",
+ "no_free_fns",
+ "no_numbers_in_binaries",
+ "no_parameter_bags",
+ "primitive_boundary",
+ "private_fns",
+ "public_surface",
+ "settings",
+ "settings_shape",
+ "state_graph",
+ "strum",
+ "task",
+ "test_budget",
+ "thin_main",
+ "thiserror",
+ "type_shape",
+ "vec_out_params",
+]
+
+[[package]]
+name = "crate_graph"
+version = "0.0.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+ "task",
+]
 
 [[package]]
 name = "derive_more"
@@ -155,6 +198,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "enum_predicates"
+version = "0.0.0"
+dependencies = [
+ "syn 2.0.119",
+ "task",
+]
+
+[[package]]
 name = "equivalent"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -196,7 +247,6 @@ name = "fn_shape"
 version = "0.0.0"
 dependencies = [
  "proc-macro2",
- "settings",
  "syn 2.0.119",
  "task",
 ]
@@ -315,7 +365,6 @@ checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 name = "literal_names"
 version = "0.0.0"
 dependencies = [
- "settings",
  "syn 2.0.119",
  "task",
 ]
@@ -365,20 +414,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meta-lints"
-version = "0.0.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "serde",
- "strum",
- "syn 2.0.119",
- "tempfile",
- "thiserror",
- "toml 0.8.23",
-]
-
-[[package]]
 name = "meta-listing"
 version = "0.0.0"
 dependencies = [
@@ -421,7 +456,6 @@ dependencies = [
 name = "module_nesting"
 version = "0.0.0"
 dependencies = [
- "settings",
  "task",
 ]
 
@@ -429,7 +463,6 @@ dependencies = [
 name = "named_lifetimes"
 version = "0.0.0"
 dependencies = [
- "settings",
  "syn 2.0.119",
  "task",
 ]
@@ -439,10 +472,8 @@ name = "named_numbers"
 version = "0.0.0"
 dependencies = [
  "quote",
- "settings",
  "syn 2.0.119",
  "task",
- "toml 0.9.12+spec-1.1.0",
 ]
 
 [[package]]
@@ -577,7 +608,6 @@ checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 name = "primitive_boundary"
 version = "0.0.0"
 dependencies = [
- "settings",
  "syn 2.0.119",
  "task",
 ]
@@ -587,7 +617,6 @@ name = "private_fns"
 version = "0.0.0"
 dependencies = [
  "quote",
- "settings",
  "syn 2.0.119",
  "task",
 ]
@@ -766,7 +795,6 @@ version = "0.0.0"
 dependencies = [
  "derive_more",
  "quote",
- "settings",
  "syn 2.0.119",
  "task",
 ]
@@ -866,7 +894,6 @@ version = "0.0.0"
 dependencies = [
  "derive_more",
  "proc-macro2",
- "settings",
  "syn 2.0.119",
  "task",
 ]
@@ -877,6 +904,14 @@ version = "0.0.0"
 dependencies = [
  "settings",
  "strum",
+ "task",
+]
+
+[[package]]
+name = "thin_main"
+version = "0.0.0"
+dependencies = [
+ "syn 2.0.119",
  "task",
 ]
 
@@ -955,7 +990,6 @@ dependencies = [
  "serde",
  "serde_spanned 0.6.9",
  "toml_datetime 0.6.11",
- "toml_write",
  "winnow 0.7.15",
 ]
 
@@ -967,12 +1001,6 @@ checksum = "baa693a8032d7e1cada7d0041e96126df243179ff061456783ac7f12bda4744c"
 dependencies = [
  "winnow 1.0.4",
 ]
-
-[[package]]
-name = "toml_write"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
 
 [[package]]
 name = "toml_writer"
@@ -1012,6 +1040,14 @@ name = "unicode-xid"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
+
+[[package]]
+name = "vec_out_params"
+version = "0.0.0"
+dependencies = [
+ "syn 2.0.119",
+ "task",
+]
 
 [[package]]
 name = "wasm-bindgen"
@@ -1219,33 +1255,16 @@ name = "xtask"
 version = "0.0.0"
 dependencies = [
  "affected",
- "const_shape",
- "distinct_signatures",
- "expression_flow",
- "fn_shape",
- "literal_names",
- "manual_iteration",
- "meta-lints",
- "module_nesting",
- "named_lifetimes",
- "named_numbers",
- "no_comments",
- "no_forwarders",
- "no_free_fns",
- "no_numbers_in_binaries",
- "no_parameter_bags",
- "primitive_boundary",
- "private_fns",
- "public_surface",
+ "corpus_check",
+ "crate_graph",
+ "serde",
  "settings",
- "settings_shape",
- "state_graph",
  "strum",
  "task",
- "test_budget",
+ "tempfile",
  "test_time",
  "thiserror",
- "type_shape",
+ "toml 0.9.12+spec-1.1.0",
 ]
 
 [[package]]

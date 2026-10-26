@@ -19,6 +19,11 @@ impl Report {
     }
 
     #[must_use]
+    pub fn violations(&self) -> &[Violation] {
+        &self.violations
+    }
+
+    #[must_use]
     pub fn is_clean(&self) -> bool {
         self.violations.is_empty()
     }

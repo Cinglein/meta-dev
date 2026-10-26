@@ -1,66 +1,66 @@
-use crate::task::failure::Failure;
-use const_shape::ConstShape;
-use distinct_signatures::DistinctSignatures;
-use expression_flow::ExpressionFlow;
-use fn_shape::FnShape;
-use literal_names::LiteralNames;
-use manual_iteration::ManualIteration;
-use meta_lints::Project;
-use module_nesting::ModuleNesting;
-use named_lifetimes::NamedLifetimes;
-use named_numbers::NamedNumbers;
-use no_comments::NoComments;
-use no_forwarders::NoForwarders;
-use no_free_fns::NoFreeFns;
-use no_numbers_in_binaries::NoNumbersInBinaries;
-use no_parameter_bags::NoParameterBags;
-use primitive_boundary::PrimitiveBoundary;
-use private_fns::PrivateFns;
-use public_surface::PublicSurface;
-use settings_shape::SettingsShape;
-use state_graph::StateGraph;
-use task::Policy;
-use task::Report;
-use task::Workspace;
-use test_budget::TestBudget;
-use type_shape::TypeShape;
+use std::collections::BTreeMap;
 
-pub struct Lint;
+use corpus_check::LintName;
+use strum::IntoEnumIterator;
+use task::{Policy, Report, SourceFile, Workspace};
+
+use crate::task::failure::Failure;
+use crate::task::ratchet::{Baseline, Drift, Ratchet, ViolationCount};
+
+#[derive(Debug)]
+pub struct Lint {
+    reports: BTreeMap<&'static str, Report>,
+}
 
 impl Lint {
-    pub fn run(workspace: &Workspace, policy: &Policy, project: &Project) -> Result<(), Failure> {
+    pub fn run(workspace: &Workspace, policy: &Policy) -> Result<(), Failure> {
         let files = workspace.source_files()?;
-        let reports: Vec<Report> = [
-            ConstShape::report(&files, policy),
-            DistinctSignatures::report(&files),
-            ExpressionFlow::report(&files),
-            FnShape::report(&files, policy),
-            LiteralNames::report(&files, policy),
-            ManualIteration::report(&files),
-            ModuleNesting::report(&files, policy),
-            NamedLifetimes::report(&files, policy),
-            NamedNumbers::report(&files, policy),
-            NoComments::report(&files),
-            NoForwarders::report(&files),
-            NoFreeFns::report(&files),
-            NoNumbersInBinaries::report(&files),
-            NoParameterBags::report(&files),
-            PrimitiveBoundary::report(&files, policy),
-            PrivateFns::report(&files, policy),
-            PublicSurface::report(&files),
-            SettingsShape::report(&files),
-            StateGraph::report(&files, policy),
-            TestBudget::report(&files, policy),
-            TypeShape::report(&files),
-        ]
-        .into_iter()
-        .filter(|report| !report.is_clean())
-        .collect();
-        if reports.is_empty() {
-            println!("lint: {} rust files clean", files.len());
-            Ok(project.lints().lint(&project.prior()?).map(|tally| print!("{tally}"))?)
-        } else {
-            Err(Failure::from(task::Failure::Lint(reports)))
+        let allowed = Baseline::admitted(workspace.root(), policy.baseline())?;
+        let observed = Self::gathered(&files, policy).ratchet(&allowed, |_| true)?;
+        println!("lint: {} rust files, {} baselined violations", files.len(), observed.total());
+        Ok(())
+    }
+
+    pub fn shrink(workspace: &Workspace, policy: &Policy) -> Result<Baseline, Failure> {
+        let path = policy.baseline().within(workspace.root());
+        let observed =
+            Self::gathered(&workspace.source_files()?, policy).ratchet(&Baseline::read(&path)?, Drift::grew)?;
+        observed.write(&path)?;
+        Ok(observed)
+    }
+
+    fn gathered(files: &[SourceFile], policy: &Policy) -> Lint {
+        Lint {
+            reports: LintName::iter().map(|lint| (<&'static str>::from(lint), lint.report(files, policy))).collect(),
         }
+    }
+
+    fn ratchet(self, allowed: &Baseline, failing: impl Fn(&Drift) -> bool) -> Result<Baseline, Failure> {
+        let observed: Baseline =
+            self.reports.iter().map(|(lint, report)| (*lint, ViolationCount::in_report(report))).collect();
+        let drifts: Vec<Drift> = observed.drifts(allowed).into_iter().filter(|drift| failing(drift)).collect();
+        if drifts.is_empty() { Ok(observed) } else { Err(Failure::Ratchet(Ratchet::new(drifts, self.reports))) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Lint;
+    use crate::task::ratchet::{Baseline, Drift};
+    use task::{Report, Site, Violation};
+
+    const LINT: &str = "no-comments";
+    const HEADLINE: &str = "comments go";
+    const ALLOWED: &str = "no-comments = 1";
+    const SHOWN: &str = "no-comments: 1 found, baseline 0\ncomments go:\nworkspace: a comment\n";
+
+    #[test]
+    fn growth_over_the_baseline_fails_with_the_lint_report_and_shrinking_passes() {
+        let report = Report::new(HEADLINE, vec![Violation::new(Site::Workspace, "a comment")]);
+        let lint = || Lint { reports: [(LINT, report.clone())].into() };
+        let refused = lint().ratchet(&Baseline::default(), |_| true).map_err(|failure| failure.to_string());
+        assert_eq!(refused.err().as_deref(), Some(SHOWN));
+        let allowed: Baseline = toml::from_str(ALLOWED).unwrap();
+        assert!(Lint { reports: [].into() }.ratchet(&allowed, Drift::grew).is_ok());
     }
 }

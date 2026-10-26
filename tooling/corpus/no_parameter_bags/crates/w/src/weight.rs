@@ -1,0 +1,1 @@
+pub(crate) struct Weight { arm: Plies } impl Weight { pub fn new(arm: Plies) -> Weight { Weight { arm } } pub fn settings(&self) -> Settings { Settings { arm: self.arm } } } pub(crate) struct Tally { arm: Plies } impl Tally { pub fn new(arm: Plies) -> Tally { Tally { arm } } pub fn first(pair: Pair) -> Plies { pair.arm } }

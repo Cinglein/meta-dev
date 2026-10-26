@@ -1,0 +1,1 @@
+mod part; use crate::rim::inner::Rim; pub struct Spoke(Rim); //~ file module-nesting: used only from crate::hub //~ file module-nesting: reaches into crate::rim::inner //~ no-parameter-bags: Spoke only carries

@@ -16,4 +16,5 @@ pub enum Limit {
     LiteralsPerTest,
     LargestInteger,
     SlowestShown,
+    SccItems,
 }

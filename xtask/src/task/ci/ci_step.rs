@@ -6,7 +6,6 @@ use crate::task::clippy::Clippy;
 use crate::task::failure::Failure;
 use crate::task::lint::Lint;
 use crate::task::test::Test;
-use meta_lints::Project;
 use task::Policy;
 use task::Selection;
 use task::Workspace;
@@ -24,13 +23,7 @@ pub enum CiStep {
 }
 
 impl CiStep {
-    pub fn timed(
-        self,
-        workspace: &Workspace,
-        selection: &Selection,
-        policy: &Policy,
-        project: &Project,
-    ) -> Result<(), Failure> {
+    pub fn timed(self, workspace: &Workspace, selection: &Selection, policy: &Policy) -> Result<(), Failure> {
         let started = Instant::now();
         let outcome = match self {
             CiStep::Fmt => workspace
@@ -43,7 +36,7 @@ impl CiStep {
             CiStep::Clippy => Clippy::run(workspace, selection, policy).map_err(Failure::from),
             CiStep::Test => Test::run(workspace, selection, policy).map_err(Failure::from),
             CiStep::TestTime => TestTime::run(workspace, selection, policy).map_err(Failure::from),
-            CiStep::Lint => Lint::run(workspace, policy, project),
+            CiStep::Lint => Lint::run(workspace, policy),
         };
         println!("ci: {self} {:.1?}", started.elapsed());
         outcome

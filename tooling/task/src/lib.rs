@@ -28,7 +28,7 @@ pub use line_number::LineNumber;
 pub use name::{Casing, LoweredInfix, Name, Prefix, Whole};
 pub use nesting_depth::NestingDepth;
 pub use package_graph::PackageGraph;
-pub use policy::{Floor, Interval, Limit, Most, Policy, Share, WireType};
+pub use policy::{BaselineFile, Floor, Interval, Limit, Most, Policy, Share, Surface, WireType};
 pub use reexport_count::ReexportCount;
 pub use report::Report;
 pub use selection::{CargoTool, Selection};

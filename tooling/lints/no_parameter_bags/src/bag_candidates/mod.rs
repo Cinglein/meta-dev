@@ -48,7 +48,9 @@ impl BagCandidates {
     fn carries_logic(item: &ItemImpl, self_name: &Name) -> bool {
         item.trait_.is_some()
             || item.items.iter().any(|member| match member {
-                ImplItem::Fn(function) => !MethodShape::classify(function, self_name).is_trivial(),
+                ImplItem::Fn(function) => {
+                    MethodShape::classify(function, self_name) == MethodShape::Logic
+                }
                 _ => false,
             })
     }

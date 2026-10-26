@@ -1,6 +1,6 @@
 mod impl_kind;
 
-use impl_kind::ImplKind;
+pub use impl_kind::ImplKind;
 
 use syn::{ImplItemFn, ItemImpl, Visibility};
 
