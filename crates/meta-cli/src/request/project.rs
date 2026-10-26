@@ -12,6 +12,9 @@ use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
 use crate::request::timed_command::TimedCommand;
 pub use config::{BranchName, CiSettings, Config, LogWindow, ProgramName};
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug)]
 pub struct Project {
     root: PathBuf,
