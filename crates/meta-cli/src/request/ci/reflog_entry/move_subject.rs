@@ -46,7 +46,9 @@ mod tests {
 
     use super::{CommitAction, MoveSubject};
 
-    const CREATING: [&str; 17] = [
+    const CREATING: [&str; 19] = [
+        "rebase (merge): x",
+        "merge side: Zusammenführung durch die Strategie 'ort'.",
         "commit: x",
         "commit (initial): x",
         "commit (amend): x",
@@ -68,8 +70,8 @@ mod tests {
     const MOVING: [&str; 9] = [
         "checkout: moving from main to x",
         "reset: moving to HEAD",
-        "pull: Fast-forward",
-        "merge x: Fast-forward",
+        "cherry-pick: fast-forward",
+        "rebase (reset): 'branch-point'",
         "rebase (start): checkout main",
         "rebase (finish): returning to refs/heads/x",
         "rebase (abort): returning to refs/heads/x",
