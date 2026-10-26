@@ -2,6 +2,7 @@ mod baseline_file;
 mod bit_boundary;
 mod budgets;
 mod floor;
+mod gate_env_name;
 mod least;
 mod limit;
 mod most;
@@ -16,6 +17,7 @@ mod wire_type;
 use crate::gate_status::GateStatus;
 pub use baseline_file::BaselineFile;
 pub use floor::Floor;
+pub use gate_env_name::GateEnvName;
 pub use limit::Limit;
 
 pub use most::Most;
@@ -61,6 +63,8 @@ pub struct Policy {
     gate: Option<GateStatus>,
     #[serde(default)]
     gate_wait: Option<Millis>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    gate_env: Vec<GateEnvName>,
     limits: EnumMap<Limit, Most>,
     floors: EnumMap<Floor, Least>,
     shares: EnumMap<Share, Percent>,
@@ -182,6 +186,11 @@ impl Policy {
 
     pub fn gate_wait(&self) -> Result<Millis, Failure> {
         self.gate_wait.ok_or(Failure::Unset(Self::GATE_WAIT))
+    }
+
+    #[must_use]
+    pub fn gate_env(&self) -> &[GateEnvName] {
+        &self.gate_env
     }
 
     #[must_use]

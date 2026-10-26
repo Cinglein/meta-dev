@@ -41,7 +41,7 @@ pub use name::{Casing, LoweredInfix, Name, Prefix, Whole};
 pub use nesting_depth::NestingDepth;
 pub use package_graph::PackageGraph;
 pub use policy::{
-    BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface, WireType,
+    BaselineFile, Floor, GateEnvName, Limit, Most, Policy, Share, SpecSettings, Surface, WireType,
 };
 pub use reexport_count::ReexportCount;
 pub use report::Report;

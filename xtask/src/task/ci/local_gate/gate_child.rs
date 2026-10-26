@@ -1,7 +1,7 @@
 use std::env;
 use std::path::{Path, PathBuf};
 
-use task::{CommandLine, Program, Site};
+use task::{CommandLine, GateEnvName, Program, Site};
 use tempfile::TempDir;
 
 use crate::task::ci::local_gate::{LocalGate, Toolchain};
@@ -15,6 +15,7 @@ pub struct GateChild {
     target: PathBuf,
     times: PathBuf,
     toolchain: Toolchain,
+    passed: Vec<GateEnvName>,
 }
 
 impl GateChild {
@@ -41,7 +42,13 @@ impl GateChild {
             target,
             times,
             toolchain,
+            passed: Vec::new(),
         })
+    }
+
+    #[must_use]
+    pub fn passing(self, passed: &[GateEnvName]) -> GateChild {
+        GateChild { passed: passed.to_vec(), ..self }
     }
 
     pub fn cargo_home(&self) -> &Path {
@@ -51,7 +58,7 @@ impl GateChild {
     pub fn line(&self, program: Program, directory: PathBuf) -> CommandLine {
         CommandLine::new(program)
             .in_directory(directory)
-            .inheriting_only(&Self::INHERITED)
+            .inheriting_only(Self::INHERITED.into_iter().chain(self.passed.iter().map(GateEnvName::as_str)))
             .environment(Self::HOME, self.home.path())
             .environment(Self::CARGO_HOME, &self.cargo_home)
             .environment(Self::RUSTUP_HOME, &self.rustup_home)
@@ -68,7 +75,7 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
 
-    use task::{Program, Stdout};
+    use task::{GateEnvName, Program, Stdout};
 
     use super::GateChild;
     use crate::task::fixture::Fixture;
@@ -90,5 +97,29 @@ mod tests {
         assert_eq!(shown.ok(), Some(format!("{}||{TOOLCHAIN}|{TARGET}", home.display())));
         let fresh = fs::read_dir(home).is_ok_and(|mut entries| entries.next().is_none());
         assert!(fresh && env::home_dir().is_none_or(|real| real != home) && home.starts_with(fixture.beside()));
+    }
+
+    #[test]
+    fn an_allowed_name_reaches_the_child_with_the_callers_value_and_others_stay_out() {
+        let fixture = Fixture::new();
+        fs::create_dir_all(fixture.beside()).unwrap();
+        let (name, value) = env::vars()
+            .filter(|(_, value)| !value.is_empty() && value.chars().all(|c| c.is_ascii_alphanumeric() || c == '/'))
+            .filter(|(name, _)| {
+                !GateChild::INHERITED.contains(&name.as_str()) && !name.starts_with(|c: char| c.is_ascii_digit())
+            })
+            .find_map(|(name, value)| GateEnvName::try_from(name).ok().map(|name| (name, value)))
+            .expect("an allowed variable in the environment");
+        let shown = |child: GateChild| {
+            let script = format!("printf %s \"${{{name}-unset}}\"");
+            child
+                .line(Program::Executable(SHELL.into()), fixture.beside())
+                .arguments(["-c", &script])
+                .captured::<Stdout>()
+        };
+        let toolchain = || TOOLCHAIN.parse().unwrap();
+        let child = || GateChild::new(&fixture.beside(), PathBuf::from(TARGET), PathBuf::new(), toolchain()).unwrap();
+        assert_eq!(shown(child().passing(&[name.clone()])).ok(), Some(value));
+        assert_eq!(shown(child()).ok().as_deref(), Some("unset"));
     }
 }
