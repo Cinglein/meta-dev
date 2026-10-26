@@ -30,7 +30,6 @@ const FOREIGN_IDENTITY: &str = "[author]\n\temail = someone@example.com\n[commit
 const RECORD_DIR: &str = ".git/meta-local";
 const RECORD: &str = ".git/meta-local/worktrees.jsonl";
 const TORN: &str = "{\"change\":\"Crea";
-const LINE_2: &str = "line 2";
 const MISSING: &str = "missing";
 const AGENT: &str = "agent";
 const STRAY: [&str; 4] = ["worktree", "add", "-q", "--detach"];
@@ -166,26 +165,7 @@ fn writes_go_to_the_remote_as_meta_actor_else_owner_and_offline_writes_are_refus
 }
 
 #[test]
-fn claim_with_worktree_makes_a_noreply_worktree_on_the_task_branch_that_worktrees_lists() {
-    let worktrees = tempfile::tempdir().unwrap();
-    let project = Project::seeded(worktrees.path());
-    let task = project.meta(OWNER, &OPEN).written().0;
-    let claimed = project.meta(OWNER, &[CLAIM, &task, WORKTREE]).to_string();
-    let path = Path::new(claimed.lines().last().unwrap_or_default());
-    let shown = SHOWN_BY_GIT.map(|words| Git::shown(path, &words));
-    assert_eq!(shown, [NOREPLY, NOREPLY, AGENT, &task].map(|line| format!("{line}\n")));
-    let stray = worktrees.path().join(AGENT);
-    Git::run(project.clone.path(), &[&STRAY[..], &[stray.to_str().unwrap()]].concat());
-    Git::appended(&project.clone.path().join(RECORD), TORN);
-    let run = project.meta(OWNER, &WORKTREES);
-    let listed = run.to_string();
-    assert!(listed.contains(&format!("{task} assigned {task} ")) && !listed.contains(MISSING));
-    let named = format!("{UNRECORDED} {}\n", std::fs::canonicalize(stray).unwrap().display());
-    assert!(listed.ends_with(&named) && listed.matches(UNRECORDED).count() == 1 && run.complaint().0.contains(LINE_2));
-}
-
-#[test]
-fn failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_without_a_new_claim() {
+fn failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_and_a_noreply_worktree_is_listed() {
     let worktrees = tempfile::tempdir().unwrap();
     let project = Project::seeded(Path::new(NOT_A_DIRECTORY));
     let task = project.meta(OWNER, &OPEN).written().0;
@@ -208,4 +188,21 @@ fn failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_w
     assert!(failed == opened && claimed != opened && writes() == claimed);
     assert!(tracked.contains(IGNORED) && unwritable.contains(NOT_A_DIRECTORY) && unwritable.contains(GIT_CALL));
     assert!(resumed.ends_with(&format!("{first}\n")) && Path::new(&first).exists());
+    let task = project.meta(OWNER, &OPEN).written().0;
+    let claimed = project.meta(OWNER, &[CLAIM, &task, WORKTREE]).to_string();
+    let path = Path::new(claimed.lines().last().unwrap_or_default());
+    let shown = SHOWN_BY_GIT.map(|words| Git::shown(path, &words));
+    assert_eq!(shown, [NOREPLY, NOREPLY, AGENT, &task].map(|line| format!("{line}\n")));
+    let stray = worktrees.path().join(AGENT);
+    Git::run(project.clone.path(), &[&STRAY[..], &[stray.to_str().unwrap()]].concat());
+    let record = project.clone.path().join(RECORD);
+    let torn_line = format!("line {}", std::fs::read_to_string(&record).unwrap().lines().count() + 1);
+    Git::appended(&record, TORN);
+    let run = project.meta(OWNER, &WORKTREES);
+    let listed = run.to_string();
+    assert!(listed.contains(&format!("{task} assigned {task} ")) && !listed.contains(MISSING));
+    let named = format!("{UNRECORDED} {}\n", std::fs::canonicalize(stray).unwrap().display());
+    assert!(
+        listed.ends_with(&named) && listed.matches(UNRECORDED).count() == 1 && run.complaint().0.contains(&torn_line)
+    );
 }
