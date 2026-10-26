@@ -19,7 +19,13 @@ const STATUS: &str = "git status";
 const ALL_REFS: &str = "--all";
 const AMEND: [&str; 6] = ["commit", "-q", "--amend", "--allow-empty", "-m", "rewritten"];
 const FOREIGN_IDENTITY: &str = "[user]\n\tname = someone\n\temail = someone@example.com\n";
-const AMEND_COMMAND: &str = "cd x && git commit --amend --no-edit";
+const NOREPLY_IDENTITY: &str = "[user]\n\tname = someone\n\temail = 1+someone@users.noreply.github.com\n";
+const GIT_CONFIG: &str = ".git/config";
+const BARE_CONFIG: &str = "config";
+const ELSEWHERE: &str = "ELSEWHERE";
+const FOREIGN_COMMITS: [&str; 3] =
+    ["cd ELSEWHERE && git commit --amend --no-edit", "git -C ELSEWHERE revert HEAD", "git commit -m change"];
+const ABORT: &str = "git -C ELSEWHERE rebase --abort";
 const FOREIGN_REASON: &str = "someone@example.com is not noreply; git config user.name";
 const NEW_FEATURE: [&str; 4] = ["switch", "-q", "-c", "feature"];
 const HEAD: &str = "HEAD";
@@ -45,18 +51,13 @@ impl Git {
     fn link_origin(dir: &Path, origin: &Path) {
         let url = origin.display();
         Self::configure(
-            dir,
+            &dir.join(".git/config"),
             &format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n"),
         );
     }
 
-    fn configure(dir: &Path, section: &str) {
-        std::fs::OpenOptions::new()
-            .append(true)
-            .open(dir.join(".git/config"))
-            .unwrap()
-            .write_all(section.as_bytes())
-            .unwrap();
+    fn configure(file: &Path, section: &str) {
+        std::fs::OpenOptions::new().append(true).open(file).unwrap().write_all(section.as_bytes()).unwrap();
     }
 
     fn head(dir: &Path, reference: &str) -> Revision {
@@ -84,17 +85,17 @@ impl Repo {
         Self { origin, clone }
     }
 
-    fn hook(&self, event: &str, command: &str, env_file: &Path) -> String {
+    fn hook(&self, event: &str, command: &str, cwd: &Path) -> String {
         let session = if event == SESSION_START { SESSION_FIELD } else { "" };
         let input = format!(
             r#"{{{session}"cwd":{},"tool_input":{{"command":{}}}}}"#,
-            serde_json::to_string(self.clone.path()).unwrap(),
-            serde_json::to_string(command).unwrap()
+            serde_json::to_string(cwd).unwrap(),
+            serde_json::to_string(&command.replace(ELSEWHERE, &self.origin.path().display().to_string())).unwrap()
         );
         let mut child = Command::new(META)
             .args(["hook", event])
             .env_remove("META_ACTOR")
-            .env("CLAUDE_ENV_FILE", env_file)
+            .env("CLAUDE_ENV_FILE", self.env_file())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()
@@ -109,37 +110,41 @@ impl Repo {
 }
 
 #[test]
-fn pre_tool_use_denies_a_merge_a_force_push_and_a_commit_by_a_foreign_email_and_allows_a_feature_push() {
+fn pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_wherever_they_run() {
     let repo = Repo::new();
-    let env = repo.env_file();
-    Git::configure(repo.clone.path(), FOREIGN_IDENTITY);
-    let push = repo.hook(PRE, PUSH, &env);
-    assert!(repo.hook(PRE, MERGE, &env).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
-    assert!(repo.hook(PRE, AMEND_COMMAND, &env).contains(&format!("{DENY}{FOREIGN_REASON}")));
-    assert_eq!(repo.hook(PRE, ALLOWED, &env), "");
+    let (home, elsewhere) = (repo.clone.path(), repo.origin.path());
+    Git::configure(&home.join(GIT_CONFIG), NOREPLY_IDENTITY);
+    Git::configure(&elsewhere.join(BARE_CONFIG), FOREIGN_IDENTITY);
+    let push = repo.hook(PRE, PUSH, home);
+    assert!(repo.hook(PRE, MERGE, home).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
+    let refused = format!("{DENY}{FOREIGN_REASON}");
+    let commits = FOREIGN_COMMITS.into_iter().zip([home, home, elsewhere]);
+    assert!(commits.map(|(command, cwd)| repo.hook(PRE, command, cwd)).all(|shown| shown.contains(&refused)));
+    let allowed = [(ALLOWED, home), (ABORT, elsewhere)];
+    assert!(allowed.into_iter().all(|(command, cwd)| repo.hook(PRE, command, cwd).is_empty()));
 }
 
 #[test]
 fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
     let repo = Repo::new();
-    let env = repo.env_file();
-    repo.hook(POST, COMMIT, &env);
+    let home = repo.clone.path();
+    repo.hook(POST, COMMIT, home);
     Git::run(repo.clone.path(), &NEW_FEATURE);
-    repo.hook(POST, STATUS, &env);
+    repo.hook(POST, STATUS, home);
     assert_eq!(Git::head(repo.origin.path(), ALL_REFS), Revision(String::new()));
-    repo.hook(POST, COMMIT, &env);
+    repo.hook(POST, COMMIT, home);
     assert_eq!(Git::head(repo.origin.path(), FEATURE_BRANCH), Git::head(repo.clone.path(), HEAD));
     Git::run(repo.clone.path(), &AMEND);
-    assert!(repo.hook(POST, COMMIT, &env).contains(REJECTED) && !repo.clone.path().join(WATCHERS).exists());
+    assert!(repo.hook(POST, COMMIT, home).contains(REJECTED) && !repo.clone.path().join(WATCHERS).exists());
 }
 
 #[test]
 fn session_start_shows_state_and_names_the_session_actor() {
     let repo = Repo::new();
-    let env = repo.env_file();
-    let shown = repo.hook(SESSION_START, COMMIT, &env);
+    let home = repo.clone.path();
+    let shown = repo.hook(SESSION_START, COMMIT, home);
     assert!(shown.contains(NO_TASKS) && shown.contains(SESSION_ACTOR));
-    assert_eq!(std::fs::read_to_string(env).unwrap(), ENV_LINE);
+    assert_eq!(std::fs::read_to_string(repo.env_file()).unwrap(), ENV_LINE);
 }
 
 impl fmt::Display for Repo {

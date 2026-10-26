@@ -62,6 +62,7 @@ mod tests {
     const BASELINE: &str = "self/lint-baseline.toml";
     const NOREPLY: &str = "1+someone@users.noreply.github.com";
     const WEB_COMMITTER: &str = "noreply@github.com";
+    const MAIN: &str = "main@example.com";
     const AUTHOR: &str = "author@example.com";
     const COMMITTER: &str = "committer@example.com";
     const FOREIGN: &str = "commit emails are not noreply: author@example.com, committer@example.com";
@@ -88,10 +89,10 @@ mod tests {
     }
 
     #[test]
-    fn every_commit_since_the_merge_base_has_noreply_author_and_committer_emails() {
+    fn every_commit_off_the_base_branch_has_noreply_author_and_committer_emails() {
         let fixture = Fixture::new();
         fixture.write(BASELINE, "").branch();
-        fixture.commit([NOREPLY, WEB_COMMITTER]).commit([AUTHOR, COMMITTER]);
+        fixture.criss_cross([MAIN, MAIN], [NOREPLY, WEB_COMMITTER]).commit([AUTHOR, COMMITTER]);
         let refused = Lint::run(fixture.root(), &[], &Policy::defaults());
         assert_eq!(refused.map_err(|failure| failure.to_string()).err().as_deref(), Some(FOREIGN));
     }

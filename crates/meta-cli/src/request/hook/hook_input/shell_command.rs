@@ -1,5 +1,6 @@
 mod git_call;
 
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use crate::request::output::Listed;
@@ -24,6 +25,10 @@ impl ShellCommand {
 
     pub fn writes_commits(&self) -> Option<()> {
         Self::COMMIT_WRITERS.iter().find_map(|subcommand| self.runs(subcommand))
+    }
+
+    pub fn commit_directory(&self, cwd: &Path) -> Option<PathBuf> {
+        self.writes_commits().map(|()| cwd.to_path_buf())
     }
 
     pub fn runs(&self, subcommand: &str) -> Option<()> {
@@ -55,8 +60,24 @@ impl FromStr for ShellCommand {
 
 #[cfg(test)]
 mod tests {
+    use std::path::{Path, PathBuf};
+
     use super::ShellCommand;
     use crate::request::project::Config;
+
+    const WRITERS: [&str; 4] = ["git revert HEAD", "git pull", "git am x.patch", "git commit-tree t"];
+    const NOT_WRITERS: [&str; 3] = ["git merge --abort", "git rebase --abort", "git merge-base a b"];
+    const CWD: &str = "/w";
+    const NESTED_COMMIT: &str = "(cd a && git -C b -c x=y commit -m 'cd z')";
+    const NESTED: &str = "/w/a/b";
+
+    #[test]
+    fn commit_writers_resolve_cd_and_dash_c_and_aborts_write_nothing() {
+        let directory = |command: &str| command.parse::<ShellCommand>().unwrap().commit_directory(Path::new(CWD));
+        assert!(WRITERS.iter().all(|command| directory(command).is_some()));
+        assert!(NOT_WRITERS.iter().all(|command| directory(command).is_none()));
+        assert_eq!(directory(NESTED_COMMIT), Some(PathBuf::from(NESTED)));
+    }
 
     const CONFIG: &str = "protected = [\"main\"]\n";
     const MERGES: [&str; 2] = ["gh pr merge 1", "cd x && gh pr merge 1 --squash"];
