@@ -15,6 +15,7 @@ use crate::task::usage::Usage;
 use ci::Ci;
 use const_shape::ConstShape;
 use distinct_signatures::DistinctSignatures;
+use enum_predicates::EnumPredicates;
 use expression_flow::ExpressionFlow;
 use failure::Failure;
 use fn_shape::FnShape;
@@ -37,7 +38,9 @@ use state_graph::StateGraph;
 use task::Policy;
 use task::Workspace;
 use test_budget::TestBudget;
+use thin_main::ThinMain;
 use type_shape::TypeShape;
+use vec_out_params::VecOutParams;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, VariantNames)]
 #[strum(serialize_all = "kebab-case")]
@@ -47,6 +50,7 @@ pub enum Task {
     Clippy,
     ConstShape,
     DistinctSignatures,
+    EnumPredicates,
     ExpressionFlow,
     FnShape,
     Graph,
@@ -68,7 +72,9 @@ pub enum Task {
     StateGraph,
     Test,
     TestBudget,
+    ThinMain,
     TypeShape,
+    VecOutParams,
 }
 
 impl Task {
@@ -88,6 +94,9 @@ impl Task {
             Task::Graph => Ok(project.lints().crate_graphs().map(|report| print!("{report}"))?),
             Task::ConstShape => Ok(ConstShape::report(&workspace.source_files()?, &policy).verdict()?),
             Task::DistinctSignatures => Ok(DistinctSignatures::report(&workspace.source_files()?).verdict()?),
+            Task::EnumPredicates => Ok(EnumPredicates::report(&workspace.source_files()?).verdict()?),
+            Task::ThinMain => Ok(ThinMain::report(&workspace.source_files()?).verdict()?),
+            Task::VecOutParams => Ok(VecOutParams::report(&workspace.source_files()?).verdict()?),
             Task::ExpressionFlow => Ok(ExpressionFlow::report(&workspace.source_files()?).verdict()?),
             Task::FnShape => Ok(FnShape::report(&workspace.source_files()?, &policy).verdict()?),
             Task::Lint => Lint::run(&workspace, &policy, &project),

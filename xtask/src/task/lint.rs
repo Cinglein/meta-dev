@@ -1,6 +1,7 @@
 use crate::task::failure::Failure;
 use const_shape::ConstShape;
 use distinct_signatures::DistinctSignatures;
+use enum_predicates::EnumPredicates;
 use expression_flow::ExpressionFlow;
 use fn_shape::FnShape;
 use literal_names::LiteralNames;
@@ -23,7 +24,9 @@ use task::Policy;
 use task::Report;
 use task::Workspace;
 use test_budget::TestBudget;
+use thin_main::ThinMain;
 use type_shape::TypeShape;
+use vec_out_params::VecOutParams;
 
 pub struct Lint;
 
@@ -33,6 +36,7 @@ impl Lint {
         let reports: Vec<Report> = [
             ConstShape::report(&files, policy),
             DistinctSignatures::report(&files),
+            EnumPredicates::report(&files),
             ExpressionFlow::report(&files),
             FnShape::report(&files, policy),
             LiteralNames::report(&files, policy),
@@ -51,7 +55,9 @@ impl Lint {
             SettingsShape::report(&files),
             StateGraph::report(&files, policy),
             TestBudget::report(&files, policy),
+            ThinMain::report(&files),
             TypeShape::report(&files),
+            VecOutParams::report(&files),
         ]
         .into_iter()
         .filter(|report| !report.is_clean())
