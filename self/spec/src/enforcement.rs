@@ -6,7 +6,6 @@ use crate::rust_type::RustType;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Enforcement {
-    Tracked,
     Defined,
     Lint(LintName),
     CiStep(meta_xtask::CiStep),
@@ -16,7 +15,6 @@ pub enum Enforcement {
 impl fmt::Display for Enforcement {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Enforcement::Tracked => formatter.write_str("rung 1, no enforcer"),
             Enforcement::Defined => formatter.write_str("rung 2, no enforcer"),
             Enforcement::Lint(lint) => write!(formatter, "rung 3, lint {lint}"),
             Enforcement::CiStep(step) => write!(formatter, "rung 3, ci step {step}"),
@@ -31,15 +29,13 @@ mod tests {
 
     use super::{Enforcement, LintName, RustType};
 
-    const SHOWN: [&str; 5] = [
-        "rung 1, no enforcer",
+    const SHOWN: [&str; 4] = [
         "rung 2, no enforcer",
         "rung 3, lint no-comments",
         "rung 3, ci step spec",
         "rung 4, type meta_spec::rust_type::RustType",
     ];
-    const ALL: [Enforcement; 5] = [
-        Enforcement::Tracked,
+    const ALL: [Enforcement; 4] = [
         Enforcement::Defined,
         Enforcement::Lint(LintName::NoComments),
         Enforcement::CiStep(CiStep::Spec),

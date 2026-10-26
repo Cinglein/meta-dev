@@ -77,17 +77,17 @@ mod tests {
     use tempfile::TempDir;
 
     use super::{SECTIONS, Section, SpecSettings, SpecView};
-    use crate::enforcement::Enforcement::Tracked;
+    use crate::enforcement::Enforcement::Defined;
     use crate::rule::{Rule, RuleId};
     use crate::wording::Wording;
     use task::TopDivision::PerformanceAndCost;
 
     const PROSE: &str = "\n## Old\n- kept\n";
-    const RULES: &[Rule] = &[Rule::new(RuleId::new("an-id"), PerformanceAndCost, Wording::new("Says."), Tracked)];
+    const RULES: &[Rule] = &[Rule::new(RuleId::new("an-id"), PerformanceAndCost, Wording::new("Says."), Defined)];
     const SECTION: &[Section] = &[Section::new(Wording::new("New"), RULES)];
     const CHECK: Option<&str> = Some(SpecSettings::CHECK);
     const OTHER: Option<&str> = Some("render");
-    const SHOWN: &str = "## New\n- `an-id` (performance-and-cost, rung 1, no enforcer): Says.\n\n# Not yet converted: hand-written prose, 4 words\n\n## Old\n- kept\n";
+    const SHOWN: &str = "## New\n- `an-id` (performance-and-cost, rung 2, no enforcer): Says.\n\n# Not yet converted: hand-written prose, 4 words\n\n## Old\n- kept\n";
     const SPEC: &str = "SPEC.md";
 
     #[test]

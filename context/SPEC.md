@@ -3,49 +3,49 @@
 Sections down to the next top-level heading are rendered from the rule records in `self/spec`; edit those, then run `cargo run -p meta-spec`. Each rule shows its id, division, ladder rung and enforcer.
 
 ## Divisions (owner, 2026-10-26)
-- `division-is-a-property` (architecture-and-planning, rung 1, no enforcer): A division is any behaviour or invariant made first class (e.g. Basho navigation). It is a named property, not a code area: divisions overlap freely in code and are isolated by tracking (own items, budgets, checks, status).
-- `division-context` (architecture-and-planning, rung 1, no enforcer): An agent on a division sees only that division's context.
+- `division-is-a-property` (architecture-and-planning, rung 2, no enforcer): A division is any behaviour or invariant made first class (e.g. Basho navigation). It is a named property, not a code area: divisions overlap freely in code and are isolated by tracking (own items, budgets, checks, status).
+- `division-context` (architecture-and-planning, rung 2, no enforcer): An agent on a division sees only that division's context.
 - `division-nesting` (features-and-maintenance, rung 4, type task::policy::budgets::Budgets): Divisions nest arbitrarily. A child gets a subset of its parent's budget.
 - `division-membership` (architecture-and-planning, rung 2, no enforcer): Every concern, issue and task belongs to exactly one division. An unplaced item belongs to the project root; growth there signals a missing division.
 - `division-top-level` (architecture-and-planning, rung 2, no enforcer): Top level, in every project: (1) features and maintenance (navigation, the tracker, guarding lints and mutants); (2) performance and cost (CI and test time, mutation time, Actions minutes and money, disk, agent wall time); (3) architecture and planning (the spec, DISCUSS items, the ladder; feeds 1 and 2). Architecture and planning is anything not yet at the specificity of code. A code PR is never architecture. A rule moves out once it is enforced. Limits enforced in code belong to (1) or (2). A rule sits in (3) at rung 1-2, and moves to the division that owns the property once enforced (rung 3-4).
-- `division-ownership` (architecture-and-planning, rung 1, no enforcer): Each top-level division owns its status tracking and metrics, and controls its own soundness, testing and measurability.
-- `division-dogfood` (architecture-and-planning, rung 1, no enforcer): meta-dev is an ordinary project with the same three divisions (principle 4). The steward and triage sit in its architecture and planning division.
-- `division-promotion` (architecture-and-planning, rung 1, no enforcer): Promotion: a concern that reaches ladder rung 2 (a precise property) may become a division; architecture and planning does the typing.
+- `division-ownership` (architecture-and-planning, rung 2, no enforcer): Each top-level division owns its status tracking and metrics, and controls its own soundness, testing and measurability.
+- `division-dogfood` (architecture-and-planning, rung 2, no enforcer): meta-dev is an ordinary project with the same three divisions (principle 4). The steward and triage sit in its architecture and planning division.
+- `division-promotion` (architecture-and-planning, rung 2, no enforcer): Promotion: a concern that reaches ladder rung 2 (a precise property) may become a division; architecture and planning does the typing.
 
 ## Budgets (owner, 2026-10-26)
 - `budget-definition` (architecture-and-planning, rung 2, no enforcer): A budget is a typed definition with an id, in tooling/policy.toml. Spend events in the log point at it.
 - `budget-unit` (features-and-maintenance, rung 4, type task::policy::budgets::budget::allowance::amount::Amount): Unit, exactly one per budget: Count, Duration, Share (later maybe Money or CI minutes).
 - `budget-window` (features-and-maintenance, rung 4, type task::policy::budgets::budget::window::Window): Window: per change (ratchet against the merge base), rolling per period, or standing (open items at any time).
 - `budget-overspend` (features-and-maintenance, rung 4, type task::policy::budgets::budget::overspend::Overspend): Overspend action is part of the definition: block (default) or escalate to DISCUSS.
-- `budget-measured-spend` (architecture-and-planning, rung 1, no enforcer): Spend is recorded by measurement only (CI and tools). Severity is the judged exception, checked later by calibration.
-- `budget-raise` (architecture-and-planning, rung 1, no enforcer): Raising a budget is owner-only.
-- `budget-waivers` (architecture-and-planning, rung 1, no enforcer): Waivers are spend from the waiver budget of the division whose rule they bend. They replace raw lint baselines.
+- `budget-measured-spend` (architecture-and-planning, rung 2, no enforcer): Spend is recorded by measurement only (CI and tools). Severity is the judged exception, checked later by calibration.
+- `budget-raise` (architecture-and-planning, rung 2, no enforcer): Raising a budget is owner-only.
+- `budget-waivers` (architecture-and-planning, rung 2, no enforcer): Waivers are spend from the waiver budget of the division whose rule they bend. They replace raw lint baselines.
 
 ## Severity per division (owner, 2026-10-26)
-- `severity-scale` (architecture-and-planning, rung 1, no enforcer): Each division owns its severity scale. Deeper divisions have finer scales.
-- `severity-mapping` (architecture-and-planning, rung 1, no enforcer): Each child level maps to exactly one parent level, and the order is kept (a more severe child level never maps below a less severe one). Parent caps count every child item that maps to the level.
-- `severity-caps` (architecture-and-planning, rung 1, no enforcer): Caps are standing budgets per level, split down the tree. Rating into a full level needs a downgrade elsewhere or owner sign-off.
-- `severity-evidence` (architecture-and-planning, rung 1, no enforcer): A higher level needs stronger evidence (e.g. Critical: a reproduction; Major: a concrete failure scenario).
-- `severity-raising` (architecture-and-planning, rung 1, no enforcer): The reporter proposes a level. Raising after the rating is for the owner or the reviewer who reproduced it; lowering is free.
-- `severity-gates-work` (architecture-and-planning, rung 1, no enforcer): Severity orders the steward's work and gates new work (an open Critical stops new work in its division).
+- `severity-scale` (architecture-and-planning, rung 2, no enforcer): Each division owns its severity scale. Deeper divisions have finer scales.
+- `severity-mapping` (architecture-and-planning, rung 2, no enforcer): Each child level maps to exactly one parent level, and the order is kept (a more severe child level never maps below a less severe one). Parent caps count every child item that maps to the level.
+- `severity-caps` (architecture-and-planning, rung 2, no enforcer): Caps are standing budgets per level, split down the tree. Rating into a full level needs a downgrade elsewhere or owner sign-off.
+- `severity-evidence` (architecture-and-planning, rung 2, no enforcer): A higher level needs stronger evidence (e.g. Critical: a reproduction; Major: a concrete failure scenario).
+- `severity-raising` (architecture-and-planning, rung 2, no enforcer): The reporter proposes a level. Raising after the rating is for the owner or the reviewer who reproduced it; lowering is free.
+- `severity-gates-work` (architecture-and-planning, rung 2, no enforcer): Severity orders the steward's work and gates new work (an open Critical stops new work in its division).
 
 ## Build order (2026-10-26)
-- `build-1-types` (architecture-and-planning, rung 1, no enforcer): Step 1: Division and Budget types; policy entries with ids.
-- `build-2-log-divisions` (architecture-and-planning, rung 1, no enforcer): Step 2: every log item carries a division; claims become capacity assignments; typed Discussion status; TaskLinked.
-- `build-3-status` (architecture-and-planning, rung 1, no enforcer): Step 3: `meta status` with the local record; `meta claim` worktrees and identity.
-- `build-4-heartbeat` (architecture-and-planning, rung 1, no enforcer): Step 4: heartbeat timer and `meta gc`.
-- `build-5-machine-and-pool` (architecture-and-planning, rung 1, no enforcer): Step 5: machine-layer leases and the agent pool.
-- `build-6-severity` (architecture-and-planning, rung 1, no enforcer): Step 6: severity scales, mapping and caps.
-- `build-7-waivers` (architecture-and-planning, rung 1, no enforcer): Step 7: waivers replace baselines (this also settles first-baseline seeding).
-- `build-8-rungs` (architecture-and-planning, rung 1, no enforcer): Step 8: ladder rungs on concerns.
+- `build-1-types` (architecture-and-planning, rung 2, no enforcer): Step 1: Division and Budget types; policy entries with ids.
+- `build-2-log-divisions` (architecture-and-planning, rung 2, no enforcer): Step 2: every log item carries a division; claims become capacity assignments; typed Discussion status; TaskLinked.
+- `build-3-status` (architecture-and-planning, rung 2, no enforcer): Step 3: `meta status` with the local record; `meta claim` worktrees and identity.
+- `build-4-heartbeat` (architecture-and-planning, rung 2, no enforcer): Step 4: heartbeat timer and `meta gc`.
+- `build-5-machine-and-pool` (architecture-and-planning, rung 2, no enforcer): Step 5: machine-layer leases and the agent pool.
+- `build-6-severity` (architecture-and-planning, rung 2, no enforcer): Step 6: severity scales, mapping and caps.
+- `build-7-waivers` (architecture-and-planning, rung 2, no enforcer): Step 7: waivers replace baselines (this also settles first-baseline seeding).
+- `build-8-rungs` (architecture-and-planning, rung 2, no enforcer): Step 8: ladder rungs on concerns.
 
 ## Agent wall time (owner, 2026-10-26)
-- `wall-time-guard` (architecture-and-planning, rung 1, no enforcer): Wall time is the only reliable guard against silent agent stalls. Activity signals (pushes, log events, idleness) are not: an agent blocked on a watcher that can never fire looks idle while working and busy while stuck.
-- `wall-time-budget` (architecture-and-planning, rung 1, no enforcer): Every claimed task carries a wall-time budget, set when it is claimed (a project default in tooling/policy.toml, overridable per task).
-- `wall-time-spent` (architecture-and-planning, rung 1, no enforcer): Spending it is an event, whatever the agent appears to be doing. The task is flagged and escalated: the lead checks the agent and replaces it, or extends the budget explicitly (a recorded, budgeted extension).
-- `wall-time-release` (architecture-and-planning, rung 1, no enforcer): A task whose budget expires again without an extension is released, so another agent can claim it.
-- `wall-time-headroom` (architecture-and-planning, rung 1, no enforcer): Headroom applies: a task past ~60-80% of its budget is a warning to the steward.
-- `wall-time-example` (architecture-and-planning, rung 1, no enforcer): Example: a mutation-testing PR's agent waited on a merge in a repo that had been frozen; nothing fired until the owner noticed by hand.
+- `wall-time-guard` (architecture-and-planning, rung 2, no enforcer): Wall time is the only reliable guard against silent agent stalls. Activity signals (pushes, log events, idleness) are not: an agent blocked on a watcher that can never fire looks idle while working and busy while stuck.
+- `wall-time-budget` (architecture-and-planning, rung 2, no enforcer): Every claimed task carries a wall-time budget, set when it is claimed (a project default in tooling/policy.toml, overridable per task).
+- `wall-time-spent` (architecture-and-planning, rung 2, no enforcer): Spending it is an event, whatever the agent appears to be doing. The task is flagged and escalated: the lead checks the agent and replaces it, or extends the budget explicitly (a recorded, budgeted extension).
+- `wall-time-release` (architecture-and-planning, rung 2, no enforcer): A task whose budget expires again without an extension is released, so another agent can claim it.
+- `wall-time-headroom` (architecture-and-planning, rung 2, no enforcer): Headroom applies: a task past ~60-80% of its budget is a warning to the steward.
+- `wall-time-example` (architecture-and-planning, rung 2, no enforcer): Example: a mutation-testing PR's agent waited on a merge in a repo that had been frozen; nothing fired until the owner noticed by hand.
 
 ## Status, part 1: local state (owner, 2026-10-26)
 - `status-local-never-remote` (architecture-and-planning, rung 2, no enforcer): Local file-tree facts and settings never go to the remote.
@@ -57,7 +57,7 @@ Sections down to the next top-level heading are rendered from the rule records i
 
 ## Status, part 2: external state (owner, 2026-10-26)
 - `status-external-live` (architecture-and-planning, rung 2, no enforcer): PR and CI state is read live from GitHub on each run, with one batched query per project, and is never copied into the log (GitHub is its single home).
-- `status-external-history` (architecture-and-planning, rung 1, no enforcer): History such as time red or review rounds is also derived from GitHub.
+- `status-external-history` (architecture-and-planning, rung 2, no enforcer): History such as time red or review rounds is also derived from GitHub.
 - `status-external-unknown` (architecture-and-planning, rung 2, no enforcer): If GitHub can't be reached, the state shows as unknown, and the heartbeat treats unknown as needing attention.
 
 ## Status, part 3: task-to-PR links (owner, 2026-10-26)
@@ -68,40 +68,40 @@ Sections down to the next top-level heading are rendered from the rule records i
 - `status-links-pr-state-live` (architecture-and-planning, rung 2, no enforcer): PR state itself is still read live from GitHub (part 2).
 
 ## Status, part 4: agents, metrics and worktree lifetime (owner, 2026-10-26)
-- `status-agents-independent` (architecture-and-planning, rung 1, no enforcer): Agents are an implementation detail, independent of tasks (rotating agents or dedicated pools, never 1:1); a claim becomes an assignment of agent capacity to a task.
-- `status-metrics-per-agent` (architecture-and-planning, rung 1, no enforcer): Metrics per agent, attributed to the task it is working on: (1) tokens consumed; (2) wall time; (3) compute (CPU and memory).
-- `status-metrics-wall-time` (architecture-and-planning, rung 1, no enforcer): Wall time diverges from tokens (for example a stalled script) and works at two scales: small (is this agent stalled right now?) and large (is the task on schedule against its due time?).
-- `status-metrics-compute-pool` (architecture-and-planning, rung 1, no enforcer): Compute (CPU and memory) is drawn from a central machine budget just as agents are drawn from a central pool.
+- `status-agents-independent` (architecture-and-planning, rung 2, no enforcer): Agents are an implementation detail, independent of tasks (rotating agents or dedicated pools, never 1:1); a claim becomes an assignment of agent capacity to a task.
+- `status-metrics-per-agent` (architecture-and-planning, rung 2, no enforcer): Metrics per agent, attributed to the task it is working on: (1) tokens consumed; (2) wall time; (3) compute (CPU and memory).
+- `status-metrics-wall-time` (architecture-and-planning, rung 2, no enforcer): Wall time diverges from tokens (for example a stalled script) and works at two scales: small (is this agent stalled right now?) and large (is the task on schedule against its due time?).
+- `status-metrics-compute-pool` (architecture-and-planning, rung 2, no enforcer): Compute (CPU and memory) is drawn from a central machine budget just as agents are drawn from a central pool.
 - `status-task-budgets` (architecture-and-planning, rung 2, no enforcer): Task budgets: effort (tokens plus compute) and a due time set by priority.
 - `status-stalled` (architecture-and-planning, rung 2, no enforcer): Stalled means a small-scale stall, past due with no assigned capacity, or effort spent with no recorded extension.
-- `status-worktree-lifetime` (architecture-and-planning, rung 1, no enforcer): A worktree belongs to a PR's branch; gc deletes it when that PR is merged, closed or stalled (resuming is cheap: recreate it from the remote), after the final check that all work is on the remote and nothing has it open.
+- `status-worktree-lifetime` (architecture-and-planning, rung 2, no enforcer): A worktree belongs to a PR's branch; gc deletes it when that PR is merged, closed or stalled (resuming is cheap: recreate it from the remote), after the final check that all work is on the remote and nothing has it open.
 
 ## Status, part 5: discussion status, tokens, compute (owner, 2026-10-26)
 - `status-discussion-typed` (features-and-maintenance, rung 4, type meta_state::task_state::task_status::TaskStatus): Discussion is its own fully typed task status, not a free-form blocker: a task waiting on an owner discussion is in Discussion(issue id) and is never counted as stalled.
 - `status-waits-typed` (features-and-maintenance, rung 4, type meta_schema::blocker::Blocker): Other waits are typed too (on another task, on something external).
-- `status-tokens-transcripts` (architecture-and-planning, rung 1, no enforcer): Tokens are measured from Claude Code's local transcripts: each assistant message carries a usage record (input, cache, output tokens), and each subagent has its own transcript; hooks get transcript_path.
-- `status-tokens-storage` (architecture-and-planning, rung 1, no enforcer): Per-task totals go to the log; raw transcripts stay local.
-- `status-compute-lease` (architecture-and-planning, rung 1, no enforcer): Compute is budgeted, not recorded: a task must hold a CPU and memory lease from a local, per-machine pool before running heavy commands (builds, test suites, mutants, Chrome checks); the pool is sized to the machine, and anything without a lease waits.
+- `status-tokens-transcripts` (architecture-and-planning, rung 2, no enforcer): Tokens are measured from Claude Code's local transcripts: each assistant message carries a usage record (input, cache, output tokens), and each subagent has its own transcript; hooks get transcript_path.
+- `status-tokens-storage` (architecture-and-planning, rung 2, no enforcer): Per-task totals go to the log; raw transcripts stay local.
+- `status-compute-lease` (architecture-and-planning, rung 2, no enforcer): Compute is budgeted, not recorded: a task must hold a CPU and memory lease from a local, per-machine pool before running heavy commands (builds, test suites, mutants, Chrome checks); the pool is sized to the machine, and anything without a lease waits.
 
 ## Status, part 6: heartbeat and output (owner, 2026-10-26)
-- `status-heartbeat-job` (architecture-and-planning, rung 1, no enforcer): A launchd job runs `meta status` and `meta gc` every few minutes, writing flags to the local record at no token cost.
-- `status-heartbeat-wake` (architecture-and-planning, rung 1, no enforcer): Flags needing judgement (stalled, red PR with no capacity, past due, stuck command) wake a lead Claude session, which acts and goes back to sleep; for now that is the lead's scheduled wakeups.
+- `status-heartbeat-job` (architecture-and-planning, rung 2, no enforcer): A launchd job runs `meta status` and `meta gc` every few minutes, writing flags to the local record at no token cost.
+- `status-heartbeat-wake` (architecture-and-planning, rung 2, no enforcer): Flags needing judgement (stalled, red PR with no capacity, past due, stuck command) wake a lead Claude session, which acts and goes back to sleep; for now that is the lead's scheduled wakeups.
 - `status-output` (architecture-and-planning, rung 2, no enforcer): Output: a terminal tree of divisions down to tasks (state, PR and CI, assigned capacity, effort against due time), with flags on top; a live dashboard page later if needed.
 
 ## Machine layer (owner, 2026-10-26)
-- `machine-ownership` (architecture-and-planning, rung 1, no enforcer): The machine layer is per machine and owned by no project.
-- `machine-config-state` (architecture-and-planning, rung 1, no enforcer): Config is in ~/.config/meta/machine.toml (CPU slots, memory, disk floor, maximum concurrent agents) and state is in ~/.local/state/meta.
-- `machine-lease` (architecture-and-planning, rung 1, no enforcer): Heavy commands run under meta lease (file-lock slots that a crash releases automatically, sizing CARGO_BUILD_JOBS).
-- `machine-hook-refusal` (architecture-and-planning, rung 1, no enforcer): The hook refuses unwrapped heavy commands.
-- `machine-queue` (architecture-and-planning, rung 1, no enforcer): Waiting commands are served by priority.
-- `machine-timed-runs` (architecture-and-planning, rung 1, no enforcer): Timed runs take a full-machine lease.
-- `machine-visibility` (architecture-and-planning, rung 1, no enforcer): Projects see only grant or wait; the owner sees everything.
-- `machine-disk-floor` (architecture-and-planning, rung 1, no enforcer): Disk floor: `meta claim` refuses new worktrees below it.
-- `machine-order` (architecture-and-planning, rung 1, no enforcer): The machine layer comes after `meta status`.
+- `machine-ownership` (architecture-and-planning, rung 2, no enforcer): The machine layer is per machine and owned by no project.
+- `machine-config-state` (architecture-and-planning, rung 2, no enforcer): Config is in ~/.config/meta/machine.toml (CPU slots, memory, disk floor, maximum concurrent agents) and state is in ~/.local/state/meta.
+- `machine-lease` (architecture-and-planning, rung 2, no enforcer): Heavy commands run under meta lease (file-lock slots that a crash releases automatically, sizing CARGO_BUILD_JOBS).
+- `machine-hook-refusal` (architecture-and-planning, rung 2, no enforcer): The hook refuses unwrapped heavy commands.
+- `machine-queue` (architecture-and-planning, rung 2, no enforcer): Waiting commands are served by priority.
+- `machine-timed-runs` (architecture-and-planning, rung 2, no enforcer): Timed runs take a full-machine lease.
+- `machine-visibility` (architecture-and-planning, rung 2, no enforcer): Projects see only grant or wait; the owner sees everything.
+- `machine-disk-floor` (architecture-and-planning, rung 2, no enforcer): Disk floor: `meta claim` refuses new worktrees below it.
+- `machine-order` (architecture-and-planning, rung 2, no enforcer): The machine layer comes after `meta status`.
 
 ## Token measurement (owner, 2026-10-26)
-- `tokens-measure-only` (architecture-and-planning, rung 1, no enforcer): For now, only measure tokens per model (input, cache write, cache read, output) from local transcripts, per session and subagent, attributed to tasks.
-- `tokens-budgeting-deferred` (architecture-and-planning, rung 1, no enforcer): Budgeting is DEFERRED: the unit in multiples of the Claude Pro plan's limit, calibration from limit hits (first anchor 2026-10-26 about 16:10Z), and headroom.
+- `tokens-measure-only` (architecture-and-planning, rung 2, no enforcer): For now, only measure tokens per model (input, cache write, cache read, output) from local transcripts, per session and subagent, attributed to tasks.
+- `tokens-budgeting-deferred` (architecture-and-planning, rung 2, no enforcer): Budgeting is DEFERRED: the unit in multiples of the Claude Pro plan's limit, calibration from limit hits (first anchor 2026-10-26 about 16:10Z), and headroom.
 
 ## Commit identity guard (owner, 2026-10-26)
 - `identity-noreply-only` (features-and-maintenance, rung 3, ci step lint): No commit may carry an email that isn't a GitHub noreply address.
@@ -111,15 +111,15 @@ Sections down to the next top-level heading are rendered from the rule records i
 - `identity-address-source` (architecture-and-planning, rung 2, no enforcer): The noreply address comes from local config, not from the repo.
 
 ## Agent pool and model tiers (owner, 2026-10-26)
-- `pool-shared` (architecture-and-planning, rung 1, no enforcer): Agents are drawn from one shared pool, allocated centrally.
-- `pool-no-nested-agents` (architecture-and-planning, rung 1, no enforcer): Implementer agents may not start subagents on their own: on 2026-10-26 nested agents and forks multiplied model usage unseen and hit the weekly limit.
-- `pool-allocator-spend` (architecture-and-planning, rung 1, no enforcer): Spawning should go through the allocator, and the spend (agents, tokens, wall time) should be recorded against the performance-and-cost division's budget.
-- `pool-spawn-hook` (architecture-and-planning, rung 1, no enforcer): A PreToolUse hook on the Agent tool should refuse to spawn without a grant.
-- `tier-difficulty-rating` (architecture-and-planning, rung 1, no enforcer): Every task is rated by difficulty, and very mechanical tasks go to agents on smaller models.
-- `tier-scale` (architecture-and-planning, rung 1, no enforcer): Proposed scale: Mechanical (rename, apply a known pattern, call-site updates, named consts) to Haiku; Routine (a bounded implementation against a clear spec) to Sonnet; Hard (design, adversarial review, tricky correctness such as #7 and #8) to Opus.
-- `tier-typed-field` (architecture-and-planning, rung 1, no enforcer): The rating is a typed field on the task that the agent-pool allocator reads.
-- `tier-escalation` (architecture-and-planning, rung 1, no enforcer): When a cheap tier fails review or CI, the task escalates one tier and the miss is recorded, so ratings calibrate over time.
-- `tier-spend` (architecture-and-planning, rung 1, no enforcer): Spend is counted against the performance-and-cost budget.
+- `pool-shared` (architecture-and-planning, rung 2, no enforcer): Agents are drawn from one shared pool, allocated centrally.
+- `pool-no-nested-agents` (architecture-and-planning, rung 2, no enforcer): Implementer agents may not start subagents on their own: on 2026-10-26 nested agents and forks multiplied model usage unseen and hit the weekly limit.
+- `pool-allocator-spend` (architecture-and-planning, rung 2, no enforcer): Spawning should go through the allocator, and the spend (agents, tokens, wall time) should be recorded against the performance-and-cost division's budget.
+- `pool-spawn-hook` (architecture-and-planning, rung 2, no enforcer): A PreToolUse hook on the Agent tool should refuse to spawn without a grant.
+- `tier-difficulty-rating` (architecture-and-planning, rung 2, no enforcer): Every task is rated by difficulty, and very mechanical tasks go to agents on smaller models.
+- `tier-scale` (architecture-and-planning, rung 2, no enforcer): Proposed scale: Mechanical (rename, apply a known pattern, call-site updates, named consts) to Haiku; Routine (a bounded implementation against a clear spec) to Sonnet; Hard (design, adversarial review, tricky correctness such as #7 and #8) to Opus.
+- `tier-typed-field` (architecture-and-planning, rung 2, no enforcer): The rating is a typed field on the task that the agent-pool allocator reads.
+- `tier-escalation` (architecture-and-planning, rung 2, no enforcer): When a cheap tier fails review or CI, the task escalates one tier and the miss is recorded, so ratings calibrate over time.
+- `tier-spend` (architecture-and-planning, rung 2, no enforcer): Spend is counted against the performance-and-cost budget.
 
 # Not yet converted: hand-written prose, 1846 words
 
