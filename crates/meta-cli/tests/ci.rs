@@ -7,7 +7,8 @@ use std::process::{Command, ExitStatus, Output, Stdio};
 use std::time::Duration;
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
-const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\n";
+const CONFIG: &str =
+    "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\nappear_millis = 30\n";
 const PATIENT: &str = "timeout_millis = 300\n";
 const IMPATIENT: &str = "timeout_millis = 30\n";
 const FAKE_GH: &str = r#"#!/bin/sh
@@ -17,12 +18,14 @@ case "$1 $2" in
 "run list")
   n=$((n + 1)); echo "$n" > "$count"
   if [ "$FAKE_GH_SCENARIO" = none ] || [ "$4" != "$(git rev-parse HEAD)" ]; then echo '[]'
-  elif [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
-  else echo "[{\"databaseId\":7,\"status\":\"completed\",\"conclusion\":\"$FAKE_GH_SCENARIO\"}]"; fi ;;
+  elif [ "$FAKE_GH_SCENARIO" = stuck ] || [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
+  elif [ "$FAKE_GH_SCENARIO" = success ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"success"}]'
+  else echo '[{"databaseId":7,"status":"completed","conclusion":"failure"}]'; fi ;;
 "run view")
   if [ "$3 $4" = "--job 11" ]; then cat "$FAKE_GH_DIR/bin/failed.log"
   elif [ "$3" != 7 ]; then echo '{"jobs":[]}'
   elif [ "$FAKE_GH_SCENARIO" = failure ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[{"name":"Checkout","conclusion":"success"},{"name":"cargo xtask ci","conclusion":"failure"}]},{"databaseId":12,"name":"docs","conclusion":""}]}'
+  elif [ "$FAKE_GH_SCENARIO" = unstarted ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[]}]}'
   else echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"success"}]}'; fi ;;
 esac
 "#;
@@ -46,6 +49,9 @@ const SESSION: &str = "ABCDEF12-34";
 const FAILURE: &str = "failure";
 const SUCCESS: &str = "success";
 const NONE: &str = "none";
+const STUCK: &str = "stuck";
+const UNSTARTED: &str = "unstarted";
+const POST: &str = "post-tool-use";
 const COMMIT: &str = "git commit -m change";
 const PRE: &str = "pre-tool-use";
 const STOP: &str = "stop";
@@ -63,7 +69,10 @@ const PASSED: &str = "passed after";
 const PASSED_EVENT: &str = ": passed after";
 const EVENT_PREFIX: &str = "CI ";
 const TIMED_OUT: &str = "timed-out after";
-const COMPLETIONS: [&str; 3] = [": passed after", ": failed after", ": timed-out after"];
+const UNAVAILABLE: &str = "unavailable after";
+const ABSENT: &str = "absent after";
+const COMPLETIONS: [&str; 5] =
+    [": passed after", ": failed after", ": timed-out after", ": unavailable after", ": absent after"];
 
 struct Git;
 
@@ -101,7 +110,7 @@ impl Repo {
         Git::run(origin.path(), &["init", "-q", "--bare"]);
         Git::run(clone.path(), &["init", "-q", "-b", "feature"]);
         Git::link_origin(clone.path(), origin.path().to_str().unwrap());
-        let timeout = if scenario == NONE { IMPATIENT } else { PATIENT };
+        let timeout = if scenario == STUCK { IMPATIENT } else { PATIENT };
         std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{timeout}")).unwrap();
         std::fs::create_dir(clone.path().join("bin")).unwrap();
         std::fs::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
@@ -169,7 +178,7 @@ impl fmt::Display for Repo {
 #[test]
 fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
     let repo = Repo::new(FAILURE);
-    repo.hook("post-tool-use", COMMIT);
+    repo.hook(POST, COMMIT);
     let waited = repo.session_command(CI_WAIT);
     let stop = repo.hook(STOP, COMMIT);
     let settled = repo.settled();
@@ -181,17 +190,23 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
 }
 
 #[test]
-fn a_passing_run_reports_only_completion_and_lets_the_agent_stop() {
+fn passing_or_unstarted_runs_let_the_agent_stop() {
     let repo = Repo::new(SUCCESS);
-    repo.hook("post-tool-use", COMMIT);
+    repo.hook(POST, COMMIT);
     let waited = repo.session_command(CI_WAIT);
     assert!(waited.0.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
     assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
+    let unstarted = Repo::new(UNSTARTED);
+    unstarted.hook(POST, COMMIT);
+    assert!(unstarted.settled().contains(UNAVAILABLE) && !unstarted.hook(STOP, COMMIT).contains(BLOCK));
 }
 
 #[test]
-fn a_run_that_never_appears_times_out_and_says_so() {
-    let repo = Repo::new(NONE);
-    repo.hook("post-tool-use", COMMIT);
-    assert!(repo.settled().contains(TIMED_OUT));
+fn a_missing_run_means_no_ci_and_a_stuck_run_times_out() {
+    let absent = Repo::new(NONE);
+    absent.hook(POST, COMMIT);
+    let stuck = Repo::new(STUCK);
+    stuck.hook(POST, COMMIT);
+    assert!(absent.settled().contains(ABSENT) && !absent.hook(STOP, COMMIT).contains(BLOCK));
+    assert!(stuck.settled().contains(TIMED_OUT));
 }
