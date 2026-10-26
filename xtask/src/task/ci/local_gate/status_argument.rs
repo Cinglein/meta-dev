@@ -86,6 +86,86 @@ mod tests {
         assert_eq!(description.to_string(), UNNOTED);
     }
 
+    const LIMIT: usize = 140;
+    const ALL_TIMES: &str = "fmt 160.5ms, clippy 1.8s, test 317.9ms, test-time 55.2ms, lint 47.2ms, spec 41.0ns";
+    const FAILED_TIMES: &str = "fmt 160.5ms, clippy 1.8s, test failed";
+    const APPLE: &str = "stable-aarch64-apple-darwin";
+    const MANY: [&str; 4] = ["CHROME", "TERM", "DISPLAY_NAME", "SSH_AUTH_SOCK"];
+
+    fn described(times: &str, toolchain: &str, surfaces: bool, names: &[&str]) -> String {
+        let directory = tempfile::TempDir::new().unwrap();
+        let path = directory.path().join("times");
+        std::fs::write(&path, times).unwrap();
+        let recorded = RecordedTimes::new(path);
+        let changed = Changed::new(if surfaces { vec![PathBuf::from(ANY)] } else { Vec::new() });
+        let passed: Vec<GateEnvName> = names.iter().map(|name| name.to_string().try_into().unwrap()).collect();
+        StatusArgument::Description {
+            version: "be728d0".parse().unwrap(),
+            toolchain: &toolchain.parse().unwrap(),
+            times: &recorded,
+            surfaces: &changed,
+            passed: &passed,
+        }
+        .to_string()
+        .strip_prefix("description=")
+        .unwrap()
+        .to_owned()
+    }
+
+    #[test]
+    fn every_description_fits_and_keeps_the_state_bearing_parts() {
+        let mut checked = 0;
+        for times in [ALL_TIMES, FAILED_TIMES, ""] {
+            for surfaces in [false, true] {
+                for count in 0..=MANY.len() {
+                    let shown = described(times, APPLE, surfaces, &MANY[..count]);
+                    assert!(shown.chars().count() <= LIMIT, "{shown}");
+                    assert!(shown.starts_with("meta-dev be728d0 on "));
+                    assert!(shown.contains(APPLE) && (surfaces == shown.contains("surfaces changed")));
+                    assert!(
+                        !times.contains("failed") || shown.contains("test failed") || shown.contains("failed test")
+                    );
+                    checked += 1;
+                }
+            }
+        }
+        assert_eq!(checked, 30);
+    }
+
+    #[test]
+    fn per_step_times_go_first_when_the_description_is_too_long() {
+        let long = described(ALL_TIMES, APPLE, true, &[]);
+        assert_eq!(long, format!("meta-dev be728d0 on {APPLE}; surfaces changed"));
+        let failed = described(FAILED_TIMES, APPLE, true, &["CHROME"]);
+        assert_eq!(
+            failed,
+            format!("meta-dev be728d0 on {APPLE}: {FAILED_TIMES}; surfaces changed; env passed: CHROME")
+        );
+        let tight = described(&format!("{FAILED_TIMES}, lint 1.0s, spec 1.0s"), APPLE, true, &MANY);
+        assert_eq!(
+            tight,
+            format!(
+                "meta-dev be728d0 on {APPLE}; failed test; surfaces changed; env passed: CHROME, TERM, DISPLAY_NAME, SSH_AUTH_SOCK"
+            )
+        );
+        let dropped = described(ALL_TIMES, APPLE, true, &MANY);
+        assert_eq!(
+            dropped,
+            format!(
+                "meta-dev be728d0 on {APPLE}; surfaces changed; env passed: CHROME, TERM, DISPLAY_NAME, SSH_AUTH_SOCK"
+            )
+        );
+    }
+
+    #[test]
+    fn names_that_cannot_fit_are_counted_and_a_huge_toolchain_is_cut_at_the_limit() {
+        let names = ["AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "BBBBBBBBBBBBBBBBBBBBBBBBBBBB", "CCCCCCCCCCCCCCCCCCCCCCCCCCCC"];
+        let counted = described(ALL_TIMES, APPLE, true, &names);
+        assert_eq!(counted, format!("meta-dev be728d0 on {APPLE}; surfaces changed; env passed: {}, +2", names[0]));
+        let cut = described(ALL_TIMES, &"x".repeat(300), true, &names);
+        assert_eq!(cut.chars().count(), LIMIT);
+    }
+
     #[test]
     fn passed_names_are_listed_after_the_surfaces_note() {
         let (times, changed) = (RecordedTimes::new(PathBuf::new()), Changed::new(vec![PathBuf::from(ANY)]));

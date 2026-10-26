@@ -64,12 +64,15 @@ mod tests {
     use super::GateEnvName;
     use crate::policy::Policy;
 
-    const REFUSED: [&str; 16] = [
+    const REFUSED: [&str; 24] = [
         "RUSTFLAGS", "CARGO_HOME", "CARGO_BUILD_RUSTFLAGS", "RUSTC", "RUSTC_WRAPPER",
         "RUSTUP_TOOLCHAIN", "RUSTDOCFLAGS", "HOME", "XDG_CONFIG_HOME", "PATH", "LD_PRELOAD",
-        "DYLD_LIBRARY_PATH", "rustflags", "", "A=B", "A B",
+        "DYLD_LIBRARY_PATH", "rustflags", "", "A=B", "A B", "RUST_LOG", "RUST_BACKTRACE", "CARGO",
+        "cargo", "RUSTFMT", "RUSTFMT_CONFIG", "CLIPPY_CONF_DIR", "CLIPPY",
     ];
-    const ACCEPTED: [&str; 3] = ["CHROME", "HOMEBREW_PREFIX", "PATHEXT"];
+    const ACCEPTED: [&str; 6] = [
+        "CHROME", "HOMEBREW_PREFIX", "PATHEXT", "RUSTY", "CARGOX", "MYCARGO",
+    ];
 
     #[test]
     fn a_name_that_could_change_the_build_or_is_not_a_name_is_refused() {
