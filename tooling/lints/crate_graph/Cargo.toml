@@ -13,6 +13,3 @@ syn = { version = "2", features = ["full", "parsing", "visit"] }
 
 [lints]
 workspace = true
-
-[dev-dependencies]
-settings = { path = "../../settings" }

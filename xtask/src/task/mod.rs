@@ -12,8 +12,8 @@ mod test;
 mod usage;
 
 use settings::EmbeddedDefaults;
-use strum::{EnumIter, EnumString, IntoStaticStr, VariantNames};
-use task::{Policy, Report, SourceFile, Workspace};
+use strum::{EnumString, IntoStaticStr, VariantNames};
+use task::{Policy, Workspace};
 
 use crate::task::clippy::Clippy;
 use crate::task::lint::Lint;
@@ -21,34 +21,11 @@ use crate::task::surfaces::Surfaces;
 use crate::task::test::Test;
 use crate::task::usage::Usage;
 use ci::Ci;
-use const_shape::ConstShape;
+use corpus_check::LintName;
 use crate_graph::CrateGraph;
-use distinct_signatures::DistinctSignatures;
-use enum_predicates::EnumPredicates;
-use expression_flow::ExpressionFlow;
 use failure::Failure;
-use fn_shape::FnShape;
-use literal_names::LiteralNames;
-use manual_iteration::ManualIteration;
-use module_nesting::ModuleNesting;
-use named_lifetimes::NamedLifetimes;
-use named_numbers::NamedNumbers;
-use no_comments::NoComments;
-use no_forwarders::NoForwarders;
-use no_free_fns::NoFreeFns;
-use no_numbers_in_binaries::NoNumbersInBinaries;
-use no_parameter_bags::NoParameterBags;
-use primitive_boundary::PrimitiveBoundary;
-use private_fns::PrivateFns;
-use public_surface::PublicSurface;
-use settings_shape::SettingsShape;
-use state_graph::StateGraph;
-use test_budget::TestBudget;
-use thin_main::ThinMain;
-use type_shape::TypeShape;
-use vec_out_params::VecOutParams;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumIter, EnumString, IntoStaticStr, VariantNames)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "kebab-case")]
 pub enum Task {
     Baseline,
@@ -104,38 +81,9 @@ impl Task {
             Task::Lint => Lint::run(&workspace, &policy),
             Task::Surfaces => Surfaces::announce(workspace.root(), &policy),
             Task::Test => Ok(Test::run(&workspace)?),
-            lint => Ok(lint.report(&workspace.source_files()?, &policy).map_or(Ok(()), Report::verdict)?),
-        }
-    }
-
-    fn report(self, files: &[SourceFile], policy: &Policy) -> Option<Report> {
-        match self {
-            Task::ConstShape => Some(ConstShape::report(files, policy)),
-            Task::CrateGraph => Some(CrateGraph::report(files, policy)),
-            Task::DistinctSignatures => Some(DistinctSignatures::report(files)),
-            Task::EnumPredicates => Some(EnumPredicates::report(files)),
-            Task::ThinMain => Some(ThinMain::report(files)),
-            Task::VecOutParams => Some(VecOutParams::report(files)),
-            Task::ExpressionFlow => Some(ExpressionFlow::report(files)),
-            Task::FnShape => Some(FnShape::report(files, policy)),
-            Task::LiteralNames => Some(LiteralNames::report(files, policy)),
-            Task::ManualIteration => Some(ManualIteration::report(files)),
-            Task::ModuleNesting => Some(ModuleNesting::report(files, policy)),
-            Task::NamedLifetimes => Some(NamedLifetimes::report(files, policy)),
-            Task::NamedNumbers => Some(NamedNumbers::report(files, policy)),
-            Task::NoComments => Some(NoComments::report(files)),
-            Task::NoForwarders => Some(NoForwarders::report(files)),
-            Task::NoFreeFns => Some(NoFreeFns::report(files)),
-            Task::NoNumbersInBinaries => Some(NoNumbersInBinaries::report(files)),
-            Task::NoParameterBags => Some(NoParameterBags::report(files)),
-            Task::PrimitiveBoundary => Some(PrimitiveBoundary::report(files, policy)),
-            Task::PrivateFns => Some(PrivateFns::report(files, policy)),
-            Task::PublicSurface => Some(PublicSurface::report(files)),
-            Task::SettingsShape => Some(SettingsShape::report(files)),
-            Task::StateGraph => Some(StateGraph::report(files, policy)),
-            Task::TestBudget => Some(TestBudget::report(files, policy)),
-            Task::TypeShape => Some(TypeShape::report(files)),
-            Task::Baseline | Task::Ci | Task::Clippy | Task::Graph | Task::Lint | Task::Surfaces | Task::Test => None,
+            lint => Ok(<&'static str>::from(lint)
+                .parse::<LintName>()
+                .map_or(Ok(()), |lint| lint.report(&workspace.source_files()?, &policy).verdict())?),
         }
     }
 }

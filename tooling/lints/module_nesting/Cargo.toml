@@ -7,7 +7,6 @@ publish.workspace = true
 
 [dependencies]
 task = { path = "../../task" }
-settings = { path = "../../settings" }
 
 [lints]
 workspace = true

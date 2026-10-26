@@ -75,7 +75,7 @@ impl Workspace {
         path.strip_prefix(&self.root).unwrap_or(path).to_path_buf()
     }
 
-    fn rust_files_under(directory: &Path) -> Result<Vec<PathBuf>, Failure> {
+    pub fn rust_files_under(directory: &Path) -> Result<Vec<PathBuf>, Failure> {
         let io = |error| Failure::Io {
             site: Site::File(directory.to_path_buf()),
             error,

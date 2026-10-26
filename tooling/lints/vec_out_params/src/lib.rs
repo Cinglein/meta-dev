@@ -3,9 +3,9 @@ mod finding;
 use finding::Finding;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
-use syn::{FnArg, Signature, Type};
+use syn::{FnArg, ItemMod, Signature, Type};
 
-use task::{LineNumber, Name, Report, Site, SourceFile, Violation};
+use task::{LineNumber, Name, Report, Site, SourceFile, Violation, Walk};
 
 #[derive(Debug)]
 pub struct VecOutParams<'file> {
@@ -47,6 +47,13 @@ impl VecOutParams<'_> {
 }
 
 impl<'ast> Visit<'ast> for VecOutParams<'_> {
+    fn visit_item_mod(&mut self, module: &'ast ItemMod) {
+        match Walk::outside_tests(&module.attrs) {
+            Walk::Entered => syn::visit::visit_item_mod(self, module),
+            Walk::Skipped => {}
+        }
+    }
+
     fn visit_signature(&mut self, signature: &'ast Signature) {
         let file = self.file;
         self.violations.extend(
@@ -67,26 +74,5 @@ impl<'ast> Visit<'ast> for VecOutParams<'_> {
                     )
                 }),
         );
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::VecOutParams;
-    use task::SourceFile;
-    const SOURCE: &str = "
-impl Placer {
-    fn place(&self, taken: &mut Vec<u8>) {}
-    fn read(&self, taken: &Vec<u8>) {}
-    fn own(&mut self, taken: Vec<u8>) {}
-}
-";
-    const REPORTED: [&str; 1] = [":3: fn place"];
-
-    #[test]
-    fn flags_only_mutable_vec_parameters() {
-        let file = SourceFile::parse("placer.rs", SOURCE.to_owned()).unwrap();
-        let report = VecOutParams::report(core::slice::from_ref(&file));
-        assert!(report.lists_exactly(&REPORTED), "{report}");
     }
 }

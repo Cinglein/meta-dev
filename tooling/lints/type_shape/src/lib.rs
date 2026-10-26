@@ -144,27 +144,3 @@ impl<'ast> Visit<'ast> for TypeFindings {
         syn::visit::visit_type_path(self, path);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::TypeShape;
-    use task::SourceFile;
-    const SOURCE: &str = "
-struct Flags { ready: bool, pair: (u8, u8) }
-impl Flags { fn split(&self) -> (u8, u8) { self.pair } fn load(&self) -> Result<u8, String> { Ok(0) } fn unit(&self) -> () {} }
-impl Iterator for Flags { type Item = u8; fn size_hint(&self) -> (usize, Option<usize>) { (0, None) } }
-mod inner { struct Inner { ready: bool } }
-#[cfg(test)] mod tests { struct Inner { ready: bool } }
-";
-    const REPORTED: [&str; 5] = [
-        ":2: bool field", ":2: tuple in a signature", ":3: tuple in a signature",
-        ":3: Result with a String", ":5: bool field",
-    ];
-
-    #[test]
-    fn flags_bool_fields_tuples_and_string_errors_outside_trait_impls_and_tests() {
-        let file = SourceFile::parse("flags.rs", SOURCE.to_owned()).unwrap();
-        let report = TypeShape::report(core::slice::from_ref(&file));
-        assert!(report.lists_exactly(&REPORTED), "{report}");
-    }
-}

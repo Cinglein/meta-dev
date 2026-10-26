@@ -1,0 +1,10 @@
+pub struct Arc(Bay, Cob, Den, Elm, Fig, Gum, Hut, Ivy, Jam);
+pub struct Bay(Arc, Cob, Den, Elm, Fig, Gum, Hut, Ivy, Jam);
+pub struct Cob(Arc, Bay, Den, Elm, Fig, Gum, Hut, Ivy, Jam);
+pub struct Den(Arc, Bay, Cob, Elm, Fig, Gum, Hut, Ivy, Jam);
+pub struct Elm(Arc, Bay, Cob, Den, Fig, Gum, Hut, Ivy, Jam);
+pub struct Fig(Arc, Bay, Cob, Den, Elm, Gum, Hut, Ivy, Jam);
+pub struct Gum(Arc, Bay, Cob, Den, Elm, Fig, Hut, Ivy, Jam);
+pub struct Hut(Arc, Bay, Cob, Den, Elm, Fig, Gum, Ivy, Jam);
+pub struct Ivy(Arc, Bay, Cob, Den, Elm, Fig, Gum, Hut, Jam);
+pub struct Jam(Arc, Bay, Cob, Den, Elm, Fig, Gum, Hut, Ivy);

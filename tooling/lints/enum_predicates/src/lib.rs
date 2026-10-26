@@ -99,27 +99,3 @@ impl<'ast> Visit<'ast> for EnumPredicates {
             .insert(Name::from(&item.ident));
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::EnumPredicates;
-    use task::SourceFile;
-    const SOURCE: &str = "
-pub enum Zoom { Day, Leg }
-impl Zoom {
-    pub fn is_leg(self) -> bool { matches!(self, Zoom::Leg) }
-    pub fn other(self) -> Zoom { self }
-}
-impl PartialEq for Zoom { fn eq(&self, other: &Zoom) -> bool { true } }
-pub struct Plain;
-impl Plain { pub fn is_plain(&self) -> bool { true } }
-";
-    const REPORTED: [&str; 1] = [":4: fn is_leg -> bool"];
-
-    #[test]
-    fn flags_inherent_enum_methods_returning_bool_only() {
-        let file = SourceFile::parse("zoom.rs", SOURCE.to_owned()).unwrap();
-        let report = EnumPredicates::report(core::slice::from_ref(&file));
-        assert!(report.lists_exactly(&REPORTED), "{report}");
-    }
-}

@@ -9,7 +9,6 @@ publish.workspace = true
 task = { path = "../../task" }
 syn = { version = "2", features = ["full", "parsing", "visit"] }
 proc-macro2 = { version = "1", features = ["span-locations"] }
-settings = { path = "../../settings" }
 
 [lints]
 workspace = true

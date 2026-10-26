@@ -125,26 +125,3 @@ impl<'ast> Visit<'ast> for SignatureIndex {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::DistinctSignatures;
-    use task::SourceFile;
-    const SOURCE: &str = "
-struct W;
-impl W { fn alpha(self) -> u8 { 0 } fn beta(self) -> u8 { 0 } pub fn gamma(self) -> u8 { 0 } }
-impl W { fn delta(&self) -> u8 { 0 } pub(crate) fn epsilon(self, other: u8) -> u8 { other } }
-mod inner { struct V; impl V { fn one(&self) {} fn two(&self) {} } }
-#[cfg(test)] mod tests { struct T; impl T { fn one(&self) {} fn two(&self) {} } }
-";
-    const REPORTED: [&str; 2] = [
-        "one, two share the signature V::(&self)", "alpha, beta, gamma share",
-    ];
-
-    #[test]
-    fn groups_every_fn_of_one_type_by_receiver_parameters_and_return_public_or_not() {
-        let file = SourceFile::parse("w.rs", SOURCE.to_owned()).unwrap();
-        let report = DistinctSignatures::report(core::slice::from_ref(&file));
-        assert!(report.lists_exactly(&REPORTED), "{report}");
-    }
-}

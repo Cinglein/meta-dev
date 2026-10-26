@@ -10,7 +10,6 @@ task = { path = "../../task" }
 derive_more = { version = "2", features = ["display"] }
 syn = { version = "2", features = ["full", "parsing", "visit"] }
 quote = "1"
-settings = { path = "../../settings" }
 
 [lints]
 workspace = true
