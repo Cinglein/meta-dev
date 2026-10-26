@@ -207,3 +207,4 @@
 {"at":"2026-10-26T05:26:38.393601Z","actor":"claude-privacy","kind":"IssueReported","issue":"issue-628172e63b8d8953","text":"test-time budget headroom: main suite 3.5-4.0s of 4s total (88-99%); local runs vary enough to cross it"}
 {"at":"2026-10-26T05:26:40.099883Z","actor":"claude-privacy","kind":"IssueReported","issue":"issue-e4a2f81fb8088460","text":"context/basho-postmortem.md holds personal notes; privacy rule says move to that project's private repo; self/seed/import.sh reads it"}
 {"at":"2026-10-26T05:27:54.539223Z","actor":"claude-privacy","kind":"TaskDone","task":"task-f0354f75a984dcbd"}
+{"at":"2026-10-26T05:31:49.900375Z","actor":"claude-move-postmortem","kind":"TaskOpened","task":"task-eaaf236c2fc07a84","text":"Move the Basho postmortem out of this repo into Basho's private repo; drop references"}
