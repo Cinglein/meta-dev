@@ -6,7 +6,6 @@ pub use node_index::NodeIndex;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::item_count::ItemCount;
 use referenced_names::ReferencedNames;
 use scope::Scope;
 use task::Name;
@@ -55,10 +54,6 @@ impl ItemGraph {
             names: references.keys().cloned().collect(),
             links,
         }
-    }
-
-    pub fn items(&self) -> ItemCount {
-        ItemCount::of_len(self.names.len())
     }
 
     pub fn edges(&self) -> Vec<[NodeIndex; Self::EDGE_LENGTH]> {

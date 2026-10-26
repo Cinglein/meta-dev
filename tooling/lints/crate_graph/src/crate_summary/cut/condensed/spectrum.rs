@@ -24,7 +24,6 @@ impl<'graph> Spectrum<'graph> {
     const SEED: f64 = 0.5;
     const STRIDE: f64 = 7.3;
     const OFFSET: f64 = 0.17;
-    const HALVES: f64 = 2.0;
 
     pub fn new(weights: &'graph [Vec<Weight>]) -> Spectrum<'graph> {
         Spectrum {
@@ -65,7 +64,7 @@ impl<'graph> Spectrum<'graph> {
                         weight.0 * other / (degree * other_degree).sqrt()
                     })
                     .sum();
-                (value + spread) / Self::HALVES
+                value + spread
             })
             .collect()
     }
@@ -89,7 +88,7 @@ impl<'graph> Spectrum<'graph> {
         let length = vector.iter().map(|value| value * value).sum::<f64>().sqrt();
         vector
             .into_iter()
-            .map(|value| if length > 0.0 { value / length } else { value })
+            .map(|value| value / length)
             .collect()
     }
 }

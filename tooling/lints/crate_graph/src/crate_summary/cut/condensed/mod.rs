@@ -93,26 +93,22 @@ impl Condensed {
     }
 
     pub fn conductance(&self, side: &BTreeSet<TangleIndex>) -> Conductance {
-        let inside = |index: usize| side.contains(&TangleIndex::new(index));
-        let rows = || self.weights.iter().enumerate();
-        let crossing: f64 = rows()
-            .filter(|(row, _)| inside(*row))
-            .flat_map(|(_, weights)| {
-                weights
-                    .iter()
-                    .enumerate()
-                    .filter(|(column, _)| !inside(*column))
-            })
-            .map(|(_, weight)| weight.crossings())
-            .sum();
-        let volume = |within: bool| -> f64 {
-            rows()
-                .filter(|(row, _)| inside(*row) == within)
-                .flat_map(|(_, weights)| weights)
+        let inside = |index: &usize| side.contains(&TangleIndex::new(*index));
+        let (within, beyond): (Vec<(usize, &Vec<Weight>)>, Vec<(usize, &Vec<Weight>)>) =
+            self.weights.iter().enumerate().partition(|(row, _)| inside(row));
+        let volume = |rows: &[(usize, &Vec<Weight>)]| -> f64 {
+            rows.iter()
+                .flat_map(|(_, weights)| weights.iter())
                 .map(|weight| weight.crossings())
                 .sum()
         };
-        Conductance::of_ratio(crossing, volume(true).min(volume(false)))
+        let crossing: f64 = within
+            .iter()
+            .flat_map(|(_, weights)| weights.iter().enumerate())
+            .filter(|(column, _)| !inside(column))
+            .map(|(_, weight)| weight.crossings())
+            .sum();
+        Conductance::of_ratio(crossing, volume(&within).min(volume(&beyond)))
     }
 
     fn reached(&self, tangle: TangleIndex, seen: BTreeSet<TangleIndex>) -> BTreeSet<TangleIndex> {

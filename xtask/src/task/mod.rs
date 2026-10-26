@@ -25,7 +25,6 @@ use crate::task::usage::Usage;
 use affected::{Affected, Changes};
 use ci::Ci;
 use corpus_check::LintName;
-use crate_graph::CrateGraph;
 use failure::Failure;
 use test_time::TestTime;
 
@@ -42,7 +41,6 @@ pub enum Task {
     EnumPredicates,
     ExpressionFlow,
     FnShape,
-    Graph,
     Lint,
     LiteralNames,
     ManualIteration,
@@ -88,7 +86,6 @@ impl Task {
             }
             Task::Ci => Ci::run(&workspace, &selection, &policy),
             Task::Clippy => Ok(Clippy::run(&workspace, &selection, &policy)?),
-            Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
             Task::Lint => Lint::run(&workspace, &policy),
             Task::Surfaces => Surfaces::announce(workspace.root(), &policy),
             Task::Test => Ok(Test::run(&workspace, &selection, &policy)?),

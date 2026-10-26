@@ -1,12 +1,10 @@
 mod cut;
 mod tangle;
 
-use std::fmt;
 use std::path::PathBuf;
 
 use task::{Floor, Limit, Policy, Share, Site, Violation};
 
-use crate::item_count::ItemCount;
 use crate::item_graph::ItemGraph;
 use cut::Cut;
 use tangle::Tangle;
@@ -14,8 +12,6 @@ use tangle::Tangle;
 #[derive(Clone, Debug)]
 pub struct CrateSummary {
     root: PathBuf,
-    items: ItemCount,
-    edges: ItemCount,
     tangles: Vec<Tangle>,
     cut: Option<Cut>,
 }
@@ -25,7 +21,6 @@ impl CrateSummary {
         let members = graph.tangles();
         let tangles = members
             .iter()
-            .filter(|members| members.len() > 1)
             .map(|members| {
                 Tangle::new(
                     members
@@ -38,8 +33,6 @@ impl CrateSummary {
             .collect();
         CrateSummary {
             root,
-            items: graph.items(),
-            edges: ItemCount::of_len(graph.edges().len()),
             tangles,
             cut: Cut::best(graph, &members),
         }
@@ -67,23 +60,5 @@ impl CrateSummary {
             })
             .map(|cut| Violation::new(site(), cut));
         tangles.chain(cut).collect()
-    }
-}
-
-impl fmt::Display for CrateSummary {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(
-            formatter,
-            "{}: {} items, {} edges",
-            self.root.display(),
-            self.items,
-            self.edges
-        )?;
-        self.tangles
-            .iter()
-            .try_for_each(|tangle| writeln!(formatter, "  {tangle}"))?;
-        self.cut
-            .iter()
-            .try_for_each(|cut| writeln!(formatter, "  best cut: {cut}"))
     }
 }

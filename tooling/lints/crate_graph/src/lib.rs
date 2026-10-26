@@ -1,17 +1,14 @@
 mod crate_summary;
-mod graph_report;
 mod item_count;
 mod item_graph;
 mod test_files;
 
 use std::collections::BTreeMap;
-use std::fmt;
 use std::path::{Component, Path, PathBuf};
 
 use task::{Policy, Report, SourceFile};
 
 use crate_summary::CrateSummary;
-use graph_report::GraphReport;
 use item_graph::ItemGraph;
 use test_files::TestFiles;
 
@@ -26,18 +23,13 @@ impl CrateGraph {
         Report::new(
             "a crate whose items form one big cycle or two loosely linked groups is split",
             Self::summaries(files)
-                .values()
+                .iter()
                 .flat_map(|summary| summary.violations(policy))
                 .collect(),
         )
     }
 
-    #[must_use]
-    pub fn graphs(files: &[SourceFile]) -> impl fmt::Display {
-        GraphReport::new(Self::summaries(files).into_values().collect())
-    }
-
-    fn summaries(files: &[SourceFile]) -> BTreeMap<PathBuf, CrateSummary> {
+    fn summaries(files: &[SourceFile]) -> Vec<CrateSummary> {
         let tests = TestFiles::collect(files);
         files
             .iter()
@@ -51,10 +43,7 @@ impl CrateGraph {
                 },
             )
             .into_iter()
-            .map(|(root, files)| {
-                let summary = CrateSummary::of_graph(root.clone(), &ItemGraph::of_files(&files));
-                (root, summary)
-            })
+            .map(|(root, files)| CrateSummary::of_graph(root, &ItemGraph::of_files(&files)))
             .collect()
     }
 

@@ -8,7 +8,6 @@ publish.workspace = true
 [dependencies]
 affected = { path = "../tooling/affected" }
 corpus_check = { path = "../tooling/corpus_check" }
-crate_graph = { path = "../tooling/lints/crate_graph" }
 settings = { path = "../tooling/settings" }
 serde = { version = "1", features = ["derive"] }
 strum = { version = "0.28", features = ["derive"] }

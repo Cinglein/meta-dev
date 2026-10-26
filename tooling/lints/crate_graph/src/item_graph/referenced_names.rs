@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use quote::ToTokens;
-use syn::{Item, Type};
+use syn::{Attribute, Item, Type};
 
 use task::Name;
 use task::Walk;
@@ -25,45 +25,27 @@ impl ReferencedNames {
     }
 
     fn with_item(mut self, item: &Item, scope: &Scope) -> ReferencedNames {
-        let owner = match item {
-            Item::Struct(item) if Walk::outside_tests(&item.attrs) == Walk::Entered => {
-                Some(Name::from(&item.ident))
-            }
-            Item::Enum(item) if Walk::outside_tests(&item.attrs) == Walk::Entered => {
-                Some(Name::from(&item.ident))
-            }
-            Item::Trait(item) if Walk::outside_tests(&item.attrs) == Walk::Entered => {
-                Some(Name::from(&item.ident))
-            }
-            Item::Fn(item) if Walk::outside_tests(&item.attrs) == Walk::Entered => {
-                Some(Name::from(&item.sig.ident))
-            }
-            Item::Type(item) if Walk::outside_tests(&item.attrs) == Walk::Entered => {
-                Some(Name::from(&item.ident))
-            }
-            Item::Const(item) if Walk::outside_tests(&item.attrs) == Walk::Entered => {
-                Some(Name::from(&item.ident))
-            }
-            Item::Static(item) if Walk::outside_tests(&item.attrs) == Walk::Entered => {
-                Some(Name::from(&item.ident))
-            }
-            Item::Impl(item) if Walk::outside_tests(&item.attrs) == Walk::Entered => {
-                Self::self_type(&item.self_ty)
-            }
-            _ => None,
-        };
-        let nested = match item {
-            Item::Mod(module) if Walk::outside_tests(&module.attrs) == Walk::Entered => module
-                .content
-                .as_ref()
-                .map(|(_, items)| Self::of_items(items, scope).0)
-                .unwrap_or_default(),
-            _ => BTreeMap::new(),
+        let (attributes, owner, nested): (&[Attribute], Option<Name>, &[Item]) = match item {
+            Item::Struct(item) => (&item.attrs, Some(Name::from(&item.ident)), &[]),
+            Item::Enum(item) => (&item.attrs, Some(Name::from(&item.ident)), &[]),
+            Item::Trait(item) => (&item.attrs, Some(Name::from(&item.ident)), &[]),
+            Item::Fn(item) => (&item.attrs, Some(Name::from(&item.sig.ident)), &[]),
+            Item::Type(item) => (&item.attrs, Some(Name::from(&item.ident)), &[]),
+            Item::Const(item) => (&item.attrs, Some(Name::from(&item.ident)), &[]),
+            Item::Static(item) => (&item.attrs, Some(Name::from(&item.ident)), &[]),
+            Item::Impl(item) => (&item.attrs, Self::self_type(&item.self_ty), &[]),
+            Item::Mod(module) => (
+                &module.attrs,
+                None,
+                module.content.as_ref().map_or(&[], |(_, items)| items),
+            ),
+            _ => (&[], None, &[]),
         };
         owner
             .into_iter()
             .map(|owner| (owner, scope.referenced(item.to_token_stream())))
-            .chain(nested)
+            .chain(Self::of_items(nested, scope).0)
+            .filter(|_| Walk::outside_tests(attributes) == Walk::Entered)
             .fold(&mut self.0, |names, (owner, found)| {
                 names.entry(owner).or_default().extend(found);
                 names
