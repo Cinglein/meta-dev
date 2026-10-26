@@ -81,17 +81,16 @@ impl Project {
         pushed.get(1).and_then(|_| self.independent(&pushed)).unwrap_or(pushed)
     }
 
-    pub fn unpushed(&self) -> Option<Commit> {
-        let remotes = format!("--remotes={}", self.config.remote().ok()?);
-        let ahead = Command::new("git")
+    pub fn head(&self) -> Option<Commit> {
+        let head = Command::new("git")
             .arg("-C")
             .arg(&self.root)
-            .args(["rev-list", "-1", "HEAD", "--not", &remotes])
+            .args(["rev-parse", "HEAD"])
             .output()
-            .ok()?;
-        let text = String::from_utf8_lossy(&ahead.stdout);
-        let Ok(commit) = text.parse();
-        (ahead.status.success() && !text.trim().is_empty()).then_some(commit)
+            .ok()
+            .filter(|head| head.status.success())?;
+        let Ok(commit) = String::from_utf8_lossy(&head.stdout).parse();
+        Some(commit)
     }
 
     fn independent(&self, commits: &[Commit]) -> Option<Vec<Commit>> {

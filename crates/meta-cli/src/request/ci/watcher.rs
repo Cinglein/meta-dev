@@ -67,8 +67,11 @@ impl Watcher {
             .first()
             .and(dir.writable().err())
             .map(|error| Listed::new(format!("CI state unwritable: {error}; fix it or ask the owner")));
-        let unpushed =
-            created.first().and_then(|_| project.unpushed()).filter(|head| created.contains(head)).map(|commit| {
+        let unpushed = created
+            .first()
+            .and_then(|_| project.head())
+            .filter(|head| created.contains(head) && project.pushed_tips(std::slice::from_ref(head)).is_empty())
+            .map(|commit| {
                 Listed::new(format!("HEAD {commit} is not pushed: push it, then run `meta ci-wait`; or ask the owner"))
             });
         let statuses: Vec<(Commit, Option<CiStatus>)> = commits
