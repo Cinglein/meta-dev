@@ -90,7 +90,7 @@ impl State {
             .filter(|held| !held.progress().assignments().is_empty())
             .map(|held| {
                 let fresh = pull_requests.iter().filter(|pull_request| !held.pull_requests().contains(pull_request));
-                fresh.map(|pull_request| TaskLink::new(task, *pull_request)).take(0).collect()
+                fresh.map(|pull_request| TaskLink::new(task, *pull_request)).collect()
             })
             .unwrap_or_default()
     }

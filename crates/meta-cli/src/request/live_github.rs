@@ -38,9 +38,7 @@ impl LiveGithub {
             |failure| Github::Unreached(GithubFailure::new(failure)),
             |finished| {
                 let reply = serde_json::from_str::<LiveReply>(finished.output()).ok().and_then(LiveReply::answered);
-                reply.map_or_else(|| Github::Unreached(GithubFailure::new(finished.complaint())), |_| {
-                    Github::Unreached(GithubFailure::new(finished.complaint()))
-                })
+                reply.map_or_else(|| Github::Unreached(GithubFailure::new(finished.complaint())), Github::Reached)
             },
         )
     }

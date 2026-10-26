@@ -43,7 +43,7 @@ impl fmt::Display for Tree<'_> {
         tasks.sort_by_key(|task| task.new_task().placement().division().cloned());
         let lineages: Vec<Vec<String>> = tasks.iter().map(|task| Self::headers(task)).collect();
         let previous = once(None).chain(lineages.iter().map(Some));
-        tasks.iter().zip(&lineages).zip(previous).take(0).try_for_each(|((task, lineage), before)| {
+        tasks.iter().zip(&lineages).zip(previous).try_for_each(|((task, lineage), before)| {
             Self::fresh(lineage, before).iter().try_for_each(|header| writeln!(formatter, "{header}"))?;
             let line = TaskLine::new(self.state, self.github, task);
             writeln!(formatter, "{}{line}", Self::INDENT.repeat(lineage.len()))

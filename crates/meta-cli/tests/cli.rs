@@ -14,7 +14,12 @@ const OFFLINE: &str = "offline";
 const WRITES: &str = "2";
 const LIST_ISSUES: [&str; 2] = ["list", "issues"];
 const LOCAL_NAME: &str = "localname";
-const OPEN: [&str; 4] = ["open", "--division", "features-and-maintenance", "text"];
+const TASK: &str = "task-00000000000000a1";
+const CLAIMED_LOG: [&str; 3] = [
+    r#"{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"SchemaVersion","version":2}"#,
+    r#"{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskOpened","task":"task-00000000000000a1","text":"x","division":"features-and-maintenance"}"#,
+    r#"{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskClaimed","task":"task-00000000000000a1"}"#,
+];
 const PR_CREATE: &str = "gh pr create --fill";
 const STATUS_FLAGS: [&str; 2] = ["status", "--flags"];
 const ORPHAN: &str = "orphan #8: open, no task\n";
@@ -33,6 +38,19 @@ impl Git {
 
     fn run(dir: &Path, words: &[&str]) -> Output {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
+    }
+
+    fn seed(bare: &Path, lines: &[&str]) {
+        let events = [lines.join("\n"), String::new()].join("\n");
+        let stream = format!(
+            "commit refs/heads/meta/log\ncommitter t <t@meta.invalid> 1700000000 +0000\ndata 4\nseed\nM 100644 inline events.jsonl\ndata {}\n{events}\n",
+            events.len()
+        );
+        let mut command = Command::new("git");
+        let mut child =
+            command.arg("-C").arg(bare).args(["fast-import", "--quiet"]).stdin(Stdio::piped()).spawn().unwrap();
+        child.stdin.take().unwrap().write_all(stream.as_bytes()).unwrap();
+        assert!(child.wait().unwrap().success());
     }
 
     fn link_origin(dir: &Path, url: &str) {
@@ -138,11 +156,10 @@ fn writes_go_to_the_remote_as_meta_actor_else_owner_and_offline_writes_are_refus
 #[test]
 fn opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_the_rest() {
     let project = Project::new();
-    let task = project.meta(OWNER, &OPEN).written().0;
-    project.meta(OWNER, &["claim", &task]);
-    Git::run(project.clone.path(), &["switch", "-q", "-c", &format!("status/{task}")]);
+    Git::seed(project.origin.path(), &CLAIMED_LOG);
+    Git::run(project.clone.path(), &["switch", "-q", "-c", &format!("status/{TASK}")]);
     let linked = project.post_tool_use(PR_CREATE).to_string();
     let flags = project.meta(OWNER, &STATUS_FLAGS);
-    assert!(linked.contains(&format!("TaskLinked {task} #7")) && !flags.0.status.success());
+    assert!(linked.contains(&format!("TaskLinked {TASK} #7")) && !flags.0.status.success());
     assert_eq!(flags.to_string(), ORPHAN);
 }

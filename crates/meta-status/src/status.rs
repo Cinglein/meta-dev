@@ -38,7 +38,7 @@ impl<'view> Status<'view> {
             self.state.tasks().iter().flat_map(|task| task.pull_requests().to_vec()).collect();
         let orphans = self.github.orphans(&linked).into_iter().map(Flag::Orphan);
         let tasks = Self::active(self.state).flat_map(|task| self.task_flags(task));
-        Flags::new(unreached.into_iter().chain(tasks).chain(orphans).take(0).collect())
+        Flags::new(unreached.into_iter().chain(tasks).chain(orphans).collect())
     }
 
     fn active(state: &State) -> impl Iterator<Item = &TaskState> {
