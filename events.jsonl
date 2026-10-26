@@ -147,3 +147,4 @@
 {"at":"2026-10-26T05:02:31.912088Z","actor":"claude-port-own","kind":"TaskOpened","task":"task-f92c307b2245564a","text":"Adopt chess #115: kill the const-shape free-fn and Site line Display mutants left by the corpus swap"}
 {"at":"2026-10-26T05:02:37.304916Z","actor":"claude-port-own","kind":"TaskClaimed","task":"task-f92c307b2245564a"}
 {"at":"2026-10-26T05:03:43.264854Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-683819b5ae8583ea","text":"Budgets need headroom: a measurement above ~60-80% of its budget is a warning (steward/task) before it fails; near-limit budgets are flaky under load"}
+{"at":"2026-10-26T05:04:55.636431Z","actor":"claude-port-own","kind":"TaskDone","task":"task-f92c307b2245564a"}
