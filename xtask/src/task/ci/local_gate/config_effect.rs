@@ -11,7 +11,7 @@ pub enum ConfigEffect {
 }
 
 impl ConfigEffect {
-    const NEUTRAL_TABLES: [&str; 5] = ["alias", "net", "http", "registries", "term"];
+    const NEUTRAL_TABLES: [&str; 4] = ["net", "http", "registries", "term"];
     const BUILD: &str = "build";
     const JOBS: &str = "jobs";
     const WRAPPER: &str = "rustc-wrapper";

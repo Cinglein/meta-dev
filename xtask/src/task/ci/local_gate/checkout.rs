@@ -24,7 +24,7 @@ impl Checkout {
     const PRUNE: [&str; 2] = ["worktree", "prune"];
     const LIST: [&str; 3] = ["worktree", "list", "--porcelain"];
     const CHANGES: [&str; 7] =
-        ["status", "--porcelain", "--no-renames", "--untracked-files=all", "--", ":/", ":(exclude)Cargo.lock"];
+        ["status", "--porcelain", "--ignored", "--untracked-files=all", "--", ":/", ":(exclude)Cargo.lock"];
     const NO_HOOKS: [&str; 2] = ["-c", "core.hooksPath=/dev/null"];
     const RUSTUP: &str = "rustup";
     const ACTIVE_TOOLCHAIN: [&str; 2] = ["show", "active-toolchain"];
@@ -145,7 +145,7 @@ impl Checkout {
                     .map(|entry| entry.path())
                     .filter(|path| path.is_file())
                     .map(|path| path.with_extension(""))
-                    .filter(|place| place.exists())
+                    .filter(|place| !place.exists())
                     .collect()
             })
             .unwrap_or_default()

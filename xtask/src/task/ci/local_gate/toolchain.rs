@@ -14,7 +14,7 @@ impl FromStr for Toolchain {
     fn from_str(shown: &str) -> Result<Toolchain, Failure> {
         shown
             .split_whitespace()
-            .last()
+            .next()
             .map(|name| Toolchain(name.to_owned()))
             .ok_or(Failure::Unready(Unready::NoToolchain))
     }
