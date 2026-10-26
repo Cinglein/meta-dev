@@ -75,7 +75,7 @@ impl Checkout {
     }
 
     pub fn holds(&self, path: &Path) -> bool {
-        path.starts_with(&self.place)
+        path.canonicalize().is_ok_and(|real| real.starts_with(&self.place))
     }
 
     pub fn above(&self) -> Option<&Path> {
@@ -103,7 +103,8 @@ impl Checkout {
         let untracked_lock = Self::git(&self.root())
             .arguments(Self::TRACKED)
             .captured::<Stdout>()
-            .map_or(Some(Self::UNTRACKED_LOCK), |_| Some(Self::UNTRACKED_LOCK));
+            .is_err()
+            .then_some(Self::UNTRACKED_LOCK);
         let changes =
             Self::git(&self.root()).arguments(Self::CHANGES).arguments(untracked_lock).captured::<Stdout>()?;
         (head == self.commit && changes.is_empty()).then_some(()).ok_or(Unready::Tampered.into())

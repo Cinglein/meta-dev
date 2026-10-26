@@ -63,7 +63,7 @@ impl LocalGate {
     const FIELD: &str = "-f";
     const CHECKOUTS: &str = "meta-local-gate";
     const CARGO: &str = "cargo";
-    const METADATA: [&str; 4] = ["metadata", "--format-version", "1", "--offline"];
+    const METADATA: [&str; 4] = ["metadata", "--format-version", "1", "--all-features"];
     const WORKTREES: [&str; 3] = ["worktree", "list", "--porcelain"];
 
     pub fn new(root: &Path, policy: &Policy) -> Result<LocalGate, Failure> {
