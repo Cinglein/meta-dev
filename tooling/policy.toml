@@ -57,7 +57,7 @@ lines_per_test = 20
 literals_per_test = 4
 largest_integer = 64
 scc_items = 83
-slowest_shown = 5
+slowest_shown = 25
 
 [floors]
 fn_name = 3
