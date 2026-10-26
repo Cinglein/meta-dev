@@ -14,13 +14,15 @@ const FAKE_GH: &str = r#"#!/bin/sh
 count="$FAKE_GH_DIR/count"
 read -r n < "$count" 2>/dev/null || n=0
 read -r head < "$FAKE_GH_DIR/bin/head"
+events="$FAKE_GH_DIR/.git/meta-ci/ABCDEF1234/events"
 s="$FAKE_GH_SCENARIO"
 case "$1 $2" in
 "run list")
   n=$((n + 1)); echo "$n" > "$count"
   if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
   elif [ "$s" = none ] || [ "$4" != "$head" ]; then echo '[]'
-  elif [ "$n" -lt 2 ] || { [ "$s" = late ] && { [ "$n" -lt 6 ] || [ "$n" -gt 7 ]; }; }; then echo '[]'
+  elif [ "$s" = late ] && { ! grep -q "no run yet" "$events" || grep -q "run appeared" "$events"; }; then echo '[]'
+  elif [ "$n" -lt 2 ]; then echo '[]'
   elif [ "$s" = late ] || [ "$s" = broken ] || [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
   elif [ "$s" = success ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"success"}]'
   elif [ "$s" = mixed ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"failure"},{"databaseId":8,"status":"completed","conclusion":"failure"}]'
