@@ -1,9 +1,9 @@
 use std::fmt;
 use std::path::Path;
 
-use task::GateStatus;
+use task::{GateEnvName, GateStatus};
 
-use crate::task::ci::local_gate::{GateState, MetaRev, RecordedTimes, Toolchain};
+use crate::task::ci::local_gate::{GateState, MetaRev, RecordedTimes, StatusDescription, Toolchain};
 use crate::task::revision::Commit;
 use crate::task::surfaces::Changed;
 
@@ -11,8 +11,18 @@ use crate::task::surfaces::Changed;
 pub enum StatusArgument<'post> {
     Endpoint(&'post Commit),
     State(GateState),
-    Context { status: &'post GateStatus, scope: &'post Path },
-    Description { version: MetaRev, toolchain: &'post Toolchain, times: &'post RecordedTimes, surfaces: &'post Changed },
+    Context {
+        status: &'post GateStatus,
+        scope: &'post Path,
+    },
+    Description {
+        version: MetaRev,
+        state: GateState,
+        toolchain: &'post Toolchain,
+        times: &'post RecordedTimes,
+        surfaces: &'post Changed,
+        passed: &'post [GateEnvName],
+    },
 }
 
 impl StatusArgument<'_> {
@@ -28,9 +38,14 @@ impl fmt::Display for StatusArgument<'_> {
                 write!(formatter, "context={status}")
             }
             StatusArgument::Context { status, scope } => write!(formatter, "context={status}/{}", scope.display()),
-            StatusArgument::Description { version, toolchain, times, surfaces } => {
-                write!(formatter, "description=meta-dev {version} on {toolchain}: {times}")?;
-                formatter.write_str(if surfaces.is_empty() { "" } else { Self::SURFACES })
+            StatusArgument::Description { version, state, toolchain, times, surfaces, passed } => {
+                let names: Vec<&str> = passed.iter().map(GateEnvName::as_str).collect();
+                let surfaced = if surfaces.is_empty() { "" } else { Self::SURFACES };
+                let description = StatusDescription::describing(&version.to_string(), &toolchain.to_string())
+                    .after(*state, &times.to_string())
+                    .surfacing(surfaced)
+                    .passing(&names);
+                write!(formatter, "description={description}")
             }
         }
     }
@@ -41,13 +56,15 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use settings::EmbeddedDefaults;
-    use task::Policy;
+    use task::{GateEnvName, Policy};
 
     use super::StatusArgument;
-    use crate::task::ci::local_gate::{MetaRev, RecordedTimes, Toolchain};
+    use crate::task::ci::local_gate::{GateState, MetaRev, RecordedTimes, Toolchain};
     use crate::task::surfaces::Changed;
 
     const VERSION: &str = "0a1b2c";
+    const ANY: &str = "Cargo.toml";
+    const NAMES: [&str; 2] = ["CHROME", "TERM"];
     const ROOT_CONTEXT: &str = "context=local-gate";
     const UNNOTED: &str = "description=meta-dev 0a1b2c on 1.90-x86_64-unknown-linux-gnu: ";
     const TOOLCHAIN: &str = "1.90-x86_64-unknown-linux-gnu (default)";
@@ -59,9 +76,30 @@ mod tests {
         let (times, unchanged) = (RecordedTimes::new(PathBuf::new()), Changed::new(Vec::new()));
         let version: MetaRev = VERSION.parse().unwrap();
         let toolchain: Toolchain = TOOLCHAIN.parse().unwrap();
-        let description =
-            StatusArgument::Description { version, toolchain: &toolchain, times: &times, surfaces: &unchanged };
+        let description = StatusArgument::Description {
+            version,
+            state: GateState::Success,
+            toolchain: &toolchain,
+            times: &times,
+            surfaces: &unchanged,
+            passed: &[],
+        };
         assert_eq!(context.to_string(), ROOT_CONTEXT);
         assert_eq!(description.to_string(), UNNOTED);
+    }
+
+    #[test]
+    fn passed_names_are_listed_after_the_surfaces_note() {
+        let (times, changed) = (RecordedTimes::new(PathBuf::new()), Changed::new(vec![PathBuf::from(ANY)]));
+        let passed: Vec<GateEnvName> = NAMES.iter().map(|name| name.to_string().try_into().unwrap()).collect();
+        let description = StatusArgument::Description {
+            version: VERSION.parse().unwrap(),
+            state: GateState::Success,
+            toolchain: &TOOLCHAIN.parse().unwrap(),
+            times: &times,
+            surfaces: &changed,
+            passed: &passed,
+        };
+        assert_eq!(description.to_string(), format!("{UNNOTED}; surfaces changed; env passed: CHROME, TERM"));
     }
 }
