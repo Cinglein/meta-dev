@@ -56,9 +56,13 @@ impl Project {
     pub fn created_after(&self, start: &StartMoment) -> Option<Vec<Commit>> {
         let walked = ["log", "--walk-reflogs", "--date=unix", ReflogEntry::FORMAT, "HEAD", "--"].map(OsString::from);
         let entries: Vec<ReflogEntry> = self.git_lines(walked).filter(|entries| !entries.is_empty())?;
+        let befores = entries.iter().skip(1).map(Some).chain([None]);
         let created: Vec<Commit> = entries
             .iter()
-            .filter_map(|entry| entry.created_after(start, |commit| self.born_after(commit, start)).cloned())
+            .zip(befores)
+            .filter_map(|(entry, before)| {
+                entry.created_after(start, before, |commit| self.born_after(commit, start)).cloned()
+            })
             .collect();
         Some(
             created

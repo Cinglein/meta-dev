@@ -96,6 +96,8 @@ const FAILED_EVENT: &str = ": failed after";
 const COMPLETIONS: [&str; 5] =
     [": passed after", ": failed after", ": timed-out after", ": unavailable after", ": absent after"];
 
+#[path = "ci/merges.rs"]
+mod merges;
 #[path = "ci/pushes.rs"]
 mod pushes;
 #[path = "ci/review.rs"]

@@ -30,6 +30,8 @@ pub enum CommitAction {
     RebaseContinue,
     #[strum(serialize = "am")]
     Am,
-    #[strum(serialize = "merge (strategy)")]
-    MergeByStrategy,
+    #[strum(serialize = "rebase (merge)")]
+    RebaseMerge,
+    #[strum(serialize = "merge")]
+    Merge,
 }
