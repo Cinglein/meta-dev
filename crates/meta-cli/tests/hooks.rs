@@ -18,6 +18,9 @@ const COMMIT: &str = "git commit -m change";
 const STATUS: &str = "git status";
 const ALL_REFS: &str = "--all";
 const AMEND: [&str; 6] = ["commit", "-q", "--amend", "--allow-empty", "-m", "rewritten"];
+const FOREIGN_IDENTITY: &str = "[user]\n\tname = someone\n\temail = someone@example.com\n";
+const AMEND_COMMAND: &str = "cd x && git commit --amend --no-edit";
+const FOREIGN_REASON: &str = "someone@example.com is not noreply; git config user.name";
 const NEW_FEATURE: [&str; 4] = ["switch", "-q", "-c", "feature"];
 const HEAD: &str = "HEAD";
 const FEATURE_BRANCH: &str = "feature";
@@ -40,12 +43,18 @@ impl Git {
     }
 
     fn link_origin(dir: &Path, url: &str) {
-        let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
+        Self::configure(
+            dir,
+            &format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n"),
+        );
+    }
+
+    fn configure(dir: &Path, section: &str) {
         std::fs::OpenOptions::new()
             .append(true)
             .open(dir.join(".git/config"))
             .unwrap()
-            .write_all(remote.as_bytes())
+            .write_all(section.as_bytes())
             .unwrap();
     }
 
@@ -99,11 +108,13 @@ impl Repo {
 }
 
 #[test]
-fn pre_tool_use_denies_a_merge_and_a_force_push_and_allows_a_feature_push() {
+fn pre_tool_use_denies_a_merge_a_force_push_and_a_commit_by_a_foreign_email_and_allows_a_feature_push() {
     let repo = Repo::new();
     let env = repo.env_file();
+    Git::configure(repo.clone.path(), FOREIGN_IDENTITY);
     let push = repo.hook(PRE, PUSH, &env);
     assert!(repo.hook(PRE, MERGE, &env).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
+    assert!(repo.hook(PRE, AMEND_COMMAND, &env).contains(&format!("{DENY}{FOREIGN_REASON}")));
     assert_eq!(repo.hook(PRE, ALLOWED, &env), "");
 }
 

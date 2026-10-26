@@ -35,6 +35,18 @@ impl Fixture {
             .expect("write origin HEAD");
     }
 
+    pub fn commit(&self, author: &str, committer: &str) -> &Fixture {
+        Self::ran(
+            Self::git(&self.work)
+                .env("GIT_AUTHOR_NAME", "fixture")
+                .env("GIT_COMMITTER_NAME", "fixture")
+                .env("GIT_AUTHOR_EMAIL", author)
+                .env("GIT_COMMITTER_EMAIL", committer)
+                .args(["commit", "--quiet", "--allow-empty", "-m", "fixture"]),
+        );
+        self
+    }
+
     pub fn write(&self, path: &str, text: &str) -> &Fixture {
         let file = self.path(path);
         fs::create_dir_all(file.parent().expect("parent")).expect("create dirs");

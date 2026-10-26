@@ -58,6 +58,11 @@ mod tests {
     const ALLOWED: &str = "no-comments = 1";
     const SHOWN: &str = "no-comments: 1 found, baseline 0\ncomments go:\nworkspace: a comment\n";
     const BASELINE: &str = "self/lint-baseline.toml";
+    const NOREPLY: &str = "1+someone@users.noreply.github.com";
+    const WEB_COMMITTER: &str = "noreply@github.com";
+    const AUTHOR: &str = "author@example.com";
+    const COMMITTER: &str = "committer@example.com";
+    const FOREIGN: &str = "commit emails are not noreply: author@example.com, committer@example.com";
 
     #[test]
     fn growth_over_the_baseline_fails_with_the_lint_report_and_shrinking_passes() {
@@ -78,5 +83,15 @@ mod tests {
         Lint::shrink(fixture.root(), &[], &policy).unwrap();
         assert_eq!(fs::read_to_string(fixture.path(BASELINE)).ok().as_deref(), Some(""));
         assert!(Lint::run(fixture.root(), &[], &policy).is_ok());
+    }
+
+    #[test]
+    fn every_commit_since_the_merge_base_has_noreply_author_and_committer_emails() {
+        let fixture = Fixture::new();
+        fixture.write(BASELINE, "").branch();
+        let policy = Policy::defaults();
+        assert!(Lint::run(fixture.commit(NOREPLY, WEB_COMMITTER).root(), &[], &policy).is_ok());
+        let refused = Lint::run(fixture.commit(AUTHOR, COMMITTER).root(), &[], &policy);
+        assert_eq!(refused.map_err(|failure| failure.to_string()).err().as_deref(), Some(FOREIGN));
     }
 }
