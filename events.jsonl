@@ -191,3 +191,4 @@
 {"at":"2026-10-26T05:11:22.559584Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-2ab579ba088a8e02","text":"Later: confidence procedure; proptest invariants; waivers; perf ledger; hosted log service when the git backend's budget is overspent"}
 {"at":"2026-10-26T05:11:24.202647Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-eacc3f3f5fa47f52","text":"demoted to concern-2ab579ba088a8e02 (not scheduled; WIP cap)"}
 {"at":"2026-10-26T05:11:25.855911Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-1a4e5a9815c24384","text":"Migrate agent context (context/) into the log as concerns/tasks, so context/ shrinks"}
+{"at":"2026-10-26T05:11:27.336368Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-c5cbeff552c5009e","text":"demoted to concern-1a4e5a9815c24384 (not scheduled; WIP cap)"}
