@@ -348,3 +348,4 @@
 {"at":"2026-10-26T17:52:24.908704Z","actor":"claude-lead","kind":"TaskDone","task":"task-d995d2c8d8c9bc52"}
 {"at":"2026-10-26T18:00:50.049659Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-d8ed125739fc0825","from":"claude-watcher-3"}
 {"at":"2026-10-26T18:00:52.377209Z","actor":"claude-lead","kind":"TaskDone","task":"task-d8ed125739fc0825"}
+{"at":"2026-10-26T18:00:54.306653Z","actor":"claude-lead","kind":"IssueReported","issue":"issue-e468b01b641c7d37","text":"Merged meta-dev #7 (the CI watcher judges the session's own pushed commits; option c) after five review rounds; the fourth review's three parser findings were fixed with pinned tests. Known limits, documented: two committing sessions sharing one worktree; a cherry-picked commit whose own message is exactly 'fast-forward'; commits in another worktree; pushes to a URL; timed-out or absent CI semantics (issue-8f094e4ba7d7fcb7)."}
