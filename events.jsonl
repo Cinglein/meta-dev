@@ -134,3 +134,4 @@
 {"at":"2026-10-26T04:24:45.893733Z","actor":"claude-port-own","kind":"TaskClaimed","task":"task-358c0320a1babdd6"}
 {"at":"2026-10-26T04:27:15.089184Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-ee04a5a913188c8e","text":"owner: test coverage is cargo-mutants (mutation coverage), adopted in part 3 task-71d7268b9889c774"}
 {"at":"2026-10-26T04:29:17.035195Z","actor":"claude-port-own","kind":"TaskDone","task":"task-358c0320a1babdd6"}
+{"at":"2026-10-26T04:38:55.585265Z","actor":"claude-lead","kind":"TaskOpened","task":"task-a9aca68a10fadf39","text":"Adopt chess #112: one annotated lint corpus (tooling/corpus, corpus_check, LintName table) replacing per-lint test modules; add corpus cases for meta's own lints"}
