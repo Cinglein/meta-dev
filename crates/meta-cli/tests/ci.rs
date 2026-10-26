@@ -7,7 +7,7 @@ use std::process::{Command, ExitStatus, Output, Stdio};
 use std::time::Duration;
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
-const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\n";
+const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 2\n";
 const PATIENT: &str = "appear_millis = 60\ntimeout_millis = 300\nremote_millis = 300\n";
 const QUICK: &str = "appear_millis = 30\ntimeout_millis = 120\nremote_millis = 120\n";
 const FAKE_GH: &str = r#"#!/bin/sh
@@ -53,8 +53,8 @@ ci\tcargo xtask ci\t2026-10-25T06:40:09.5000000Z ##[error]Process completed with
 ";
 const QUIET: &str = "[maintenance]\n\tauto = false\n";
 const SHELL: &str = "/bin/sh";
-const SETTLE_POLL: Duration = Duration::from_millis(10);
-const SETTLE_LENGTH: usize = 300;
+const SETTLE_POLL: Duration = Duration::from_millis(2);
+const SETTLE_LENGTH: usize = 1500;
 const SESSION: &str = "ABCDEF12-34";
 const SESSION_FILE: &str = "ABCDEF1234";
 const FAILURE: &str = "failure";

@@ -5,6 +5,7 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
+const QUIET: &str = "[maintenance]\n\tauto = false\n";
 const OWNER: &str = "owner";
 const WRITER: &str = "writer";
 const NOWHERE: [&str; 4] = ["remote", "set-url", "origin", "/nonexistent/origin.git"];
@@ -124,6 +125,8 @@ impl Project {
         Git::run(origin.path(), &["init", "-q", "--template=", "--bare"]);
         Git::run(clone.path(), &["init", "-q", "--template="]);
         Git::link_origin(clone.path(), origin.path().to_str().unwrap());
+        Git::appended(&origin.path().join("config"), QUIET);
+        Git::appended(&clone.path().join(".git/config"), QUIET);
         std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
         Self { origin, clone }
     }

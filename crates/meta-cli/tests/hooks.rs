@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
+const QUIET: &str = "[maintenance]\n\tauto = false\n";
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n";
 const MERGE: &str = "gh pr merge 1";
 const PUSH: &str = "git push --force origin feature";
@@ -93,6 +94,8 @@ impl Repo {
         Git::run(origin.path(), &["init", "-q", "--template=", "--bare"]);
         Git::run(clone.path(), &["init", "-q", "--template="]);
         Git::link_origin(clone.path(), origin.path());
+        Git::configure(&origin.path().join(BARE_CONFIG), QUIET);
+        Git::configure(&clone.path().join(GIT_CONFIG), QUIET);
         std::fs::write(clone.path().join("meta.toml"), CONFIG).unwrap();
         Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "start"]);
         Self { origin, clone }
