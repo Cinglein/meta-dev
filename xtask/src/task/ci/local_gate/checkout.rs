@@ -114,7 +114,7 @@ impl Checkout {
         CommandLine::new(Program::Executable(PathBuf::from(Self::RUSTUP)))
             .in_directory(self.root())
             .arguments(Self::ACTIVE_TOOLCHAIN)
-            .inheriting_only(&Self::RUSTUP_ENVIRONMENT)
+            .inheriting_only(Self::RUSTUP_ENVIRONMENT)
             .captured::<Stdout>()?
             .parse()
     }

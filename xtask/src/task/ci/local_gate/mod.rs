@@ -39,7 +39,7 @@ use worktrees::Worktrees;
 use std::env;
 use std::path::{Path, PathBuf};
 
-use task::{Branch, CommandLine, GateStatus, Policy, Program, Stdout};
+use task::{Branch, CommandLine, GateEnvName, GateStatus, Policy, Program, Stdout};
 
 use crate::task::failure::Failure;
 use crate::task::revision::Commit;
@@ -51,6 +51,7 @@ pub struct LocalGate {
     root: PathBuf,
     gh: CommandLine,
     status: GateStatus,
+    passed: Vec<GateEnvName>,
 }
 
 impl LocalGate {
@@ -71,6 +72,7 @@ impl LocalGate {
             root: root.to_path_buf(),
             gh: CommandLine::new(Program::GitHub),
             status: policy.gate()?.clone(),
+            passed: policy.gate_env().to_vec(),
         })
     }
 
@@ -96,7 +98,8 @@ impl LocalGate {
         let lock = GateLock::guarding(&target, policy.gate_wait()?)?;
         let checkout = self.checkout(&parent)?;
         let toolchain = checkout.toolchain()?;
-        let child = GateChild::new(&parent, target, checkout.times().path().to_path_buf(), toolchain.clone())?;
+        let child = GateChild::new(&parent, target, checkout.times().path().to_path_buf(), toolchain.clone())?
+            .passing(&self.passed);
         let cargo = || child.line(Program::Executable(PathBuf::from(Self::CARGO)), checkout.root());
         let metadata: CargoMetadata = cargo().arguments(Self::METADATA).captured::<Stdout>()?.parse()?;
         OutsideConfig::around(checkout.above().unwrap_or(&parent), child.cargo_home())
@@ -133,6 +136,7 @@ impl LocalGate {
             toolchain: findings.toolchain(),
             times: &times,
             surfaces: findings.surfaces(),
+            passed: &self.passed,
         };
         [StatusArgument::State(state), context, description]
             .iter()
