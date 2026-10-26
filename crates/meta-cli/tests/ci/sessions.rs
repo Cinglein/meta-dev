@@ -19,7 +19,6 @@ const PULL_WORDS: [&str; 4] = ["pull", "-q", "origin", WORKTREE];
 const STATE_ROOT: &str = ".git/meta-ci";
 const FUTURE: &str = "@4000000000 +0000";
 const FUTURE_START: &str = "4000000000";
-const THEIRS_START: &str = ".git/meta-ci/THEIRS2/started";
 
 struct Reviewer;
 
@@ -33,9 +32,6 @@ impl Reviewer {
     }
 
     fn plant_future_start(repo: &Repo) {
-        let started = repo.clone.path().join(THEIRS_START);
-        std::fs::create_dir_all(started.parent().unwrap()).unwrap();
-        std::fs::write(started, FUTURE_START).unwrap();
         StartFile::plant(repo.sessions.path(), THEIRS, FUTURE_START);
     }
 

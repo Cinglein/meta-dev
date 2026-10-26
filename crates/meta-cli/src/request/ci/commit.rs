@@ -15,7 +15,7 @@ impl FromStr for Commit {
     type Err = std::convert::Infallible;
 
     fn from_str(sha: &str) -> Result<Self, Self::Err> {
-        Ok(Self(sha.trim().to_owned()))
+        Ok(Self(sha.split_whitespace().next().unwrap_or_default().to_owned()))
     }
 }
 

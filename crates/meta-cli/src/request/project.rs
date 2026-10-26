@@ -54,24 +54,35 @@ impl Project {
         })
     }
 
-    pub fn created_since(&self, start: UnixSeconds) -> Vec<Commit> {
+    pub fn created_since(&self, start: UnixSeconds) -> Option<Vec<Commit>> {
         let walked = ["log", "--walk-reflogs", "--date=unix", ReflogEntry::FORMAT, "HEAD", "--"].map(OsString::from);
-        let entries: Vec<ReflogEntry> = self.git_lines(walked).unwrap_or_default();
+        let entries: Vec<ReflogEntry> = self.git_lines(walked).filter(|entries| !entries.is_empty())?;
         let created: Vec<Commit> = entries.iter().filter_map(|entry| entry.created_since(start).cloned()).collect();
-        created
-            .iter()
-            .enumerate()
-            .filter(|(at, commit)| created.iter().position(|other| other == *commit) == Some(*at))
-            .map(|(_, commit)| commit.clone())
-            .collect()
+        Some(
+            created
+                .iter()
+                .enumerate()
+                .filter(|(at, commit)| created.iter().position(|other| other == *commit) == Some(*at))
+                .map(|(_, commit)| commit.clone())
+                .collect(),
+        )
     }
 
-    pub fn pushed_tips(&self, commits: &[Commit]) -> Vec<Commit> {
+    pub fn remote_heads(&self) -> Result<Vec<Commit>, Listed> {
+        let remote = self.config.remote().map_err(|failure| Listed::new(failure.to_string()))?;
+        let listed = [OsString::from("ls-remote"), OsString::from("--heads"), OsString::from(remote.to_string())];
+        self.git_lines(listed).ok_or_else(|| {
+            Listed::new(format!("git ls-remote {remote} failed, so what is pushed is unknown: retry; or ask the owner"))
+        })
+    }
+
+    pub fn pushed_tips(&self, commits: &[Commit], heads: &[Commit]) -> Vec<Commit> {
         let remote = commits.first().and_then(|_| self.config.remote().ok());
         let listed = commits.iter().map(Commit::argument);
         let ahead = remote.map(|remote| {
             let words = [OsString::from("rev-list"), OsString::from("--ignore-missing")].into_iter().chain(listed);
-            words.chain([OsString::from("--not"), OsString::from(format!("--remotes={remote}"))])
+            let not = words.chain([OsString::from("--not"), OsString::from(format!("--remotes={remote}"))]);
+            not.chain(heads.iter().map(Commit::argument))
         });
         let unpushed: Option<Vec<Commit>> = ahead.and_then(|words| self.git_lines(words));
         let pushed: Vec<Commit> = unpushed.map_or_else(Vec::new, |unpushed| {

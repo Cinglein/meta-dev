@@ -25,7 +25,6 @@ const REJECTED: &str = "rejected";
 const SESSION_START: &str = "session-start";
 const SESSION_FIELD: &str = r#""session_id":"ABCDEF12-34","#;
 const WATCHERS: &str = ".git/meta-ci";
-const STARTED: &str = ".git/meta-ci/ABCDEF1234/started";
 const NO_TASKS: &str = "Tasks: 0 unfinished";
 const SESSION_ACTOR: &str = "claude-abcdef1234";
 const ENV_LINE: &str = "export META_ACTOR=claude-abcdef1234\nexport META_SESSION=ABCDEF12-34\n";
@@ -129,8 +128,6 @@ fn session_start_shows_state_and_names_the_session_actor() {
     let shown = repo.hook(SESSION_START, COMMIT, &env);
     assert!(shown.contains(NO_TASKS) && shown.contains(SESSION_ACTOR));
     assert_eq!(std::fs::read_to_string(env).unwrap(), ENV_LINE);
-    let started = std::fs::read_to_string(repo.clone.path().join(STARTED)).unwrap();
-    assert!(!started.is_empty() && started.chars().all(|digit| digit.is_ascii_digit()));
 }
 
 impl fmt::Display for Repo {

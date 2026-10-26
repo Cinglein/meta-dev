@@ -6,7 +6,8 @@ use std::path::PathBuf;
 use meta_schema::Actor;
 use serde::Deserialize;
 
-use crate::request::ci::SessionId;
+use crate::request::ci::{SessionId, SessionStart};
+use crate::request::output::Listed;
 
 use shell_command::ShellCommand;
 use tool_input::ToolInput;
@@ -32,6 +33,12 @@ impl HookInput {
 
     pub fn session(&self) -> Option<&SessionId> {
         self.session_id.as_ref()
+    }
+
+    pub fn unrecorded_start(&self) -> Option<Listed> {
+        let session = self.session()?;
+        self.command()?.writes()?;
+        SessionStart::for_session(session).record().err()
     }
 
     pub fn announced_actor(&self) -> Option<Actor> {

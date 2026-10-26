@@ -53,12 +53,16 @@ impl HookEvent {
     pub fn respond(self) -> Result<Output, CliFailure> {
         let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
         let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
-        let reply = Project::try_from(input.cwd().as_path()).ok().map(|project| {
-            let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
-            session.as_ref().map(SessionDir::begin);
-            self.reply(&project, &input).with_news(session.and_then(|dir| dir.news()))
-        });
+        let unrecorded = (self == Self::PreToolUse).then(|| input.unrecorded_start()).flatten();
+        let refused = unrecorded.map(|reason| Reply::new(self, Verdict::Deny(Denial::from(reason)), None));
+        let reply = refused.or_else(|| self.answer(&input));
         Ok(Output::Listed(Listed::new(reply.map(|reply| reply.to_string()).unwrap_or_default())))
+    }
+
+    fn answer(self, input: &HookInput) -> Option<Reply> {
+        let project = Project::try_from(input.cwd().as_path()).ok()?;
+        let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
+        Some(self.reply(&project, input).with_news(session.and_then(|dir| dir.news())))
     }
 
     fn reply(self, project: &Project, input: &HookInput) -> Reply {

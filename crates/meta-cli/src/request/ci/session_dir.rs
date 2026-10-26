@@ -8,7 +8,6 @@ use std::path::PathBuf;
 use super::ci_status::CiStatus;
 use super::commit::Commit;
 use super::session_id::SessionId;
-use super::unix_seconds::UnixSeconds;
 use crate::request::output::Listed;
 use crate::request::project::Project;
 use git_link::GitLink;
@@ -23,7 +22,6 @@ impl SessionDir {
     const SEEN: &'static str = "seen";
     const STATES: &'static str = "states";
     const PARTIAL: &'static str = "partial";
-    const STARTED: &'static str = "started";
     const LOCKS: &'static str = "locks";
     const PROBE: &'static str = "probe";
 
@@ -71,19 +69,8 @@ impl SessionDir {
         state.matching(commit).map(WatchState::status)
     }
 
-    pub fn begin(&self) -> std::io::Result<UnixSeconds> {
-        std::fs::create_dir_all(&self.0)?;
-        let start = UnixSeconds::now();
-        write!(std::fs::File::create_new(self.0.join(Self::STARTED))?, "{start}")?;
-        Ok(start)
-    }
-
-    pub fn created(&self, project: &Project) -> Vec<Commit> {
-        let started = std::fs::read_to_string(self.0.join(Self::STARTED)).ok().and_then(|text| text.parse().ok());
-        started.map(|start| project.created_since(start)).unwrap_or_default()
-    }
-
     pub fn writable(&self) -> std::io::Result<()> {
+        std::fs::create_dir_all(&self.0)?;
         std::fs::File::create(self.0.join(Self::PROBE))?;
         std::fs::remove_file(self.0.join(Self::PROBE))
     }

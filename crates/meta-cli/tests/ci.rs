@@ -189,7 +189,6 @@ impl FailingHead {
 struct Planted;
 
 impl Planted {
-    const SESSION_DIR: &'static str = ".git/meta-ci/ABCDEF1234";
     const STATES: &'static str = ".git/meta-ci/ABCDEF1234/states";
     const PRE_RECEIVE: &'static str = "hooks/pre-receive";
     const REFUSE: &'static str = "#!/bin/sh\nexit 1\n";
@@ -284,8 +283,6 @@ impl Repo {
         std::fs::write(clone.path().join("bin/failed.log"), FAILED_LOG).unwrap();
         std::fs::set_permissions(clone.path().join("bin/gh"), std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
         Git::run_at(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"], Git::LONG_AGO);
-        std::fs::create_dir_all(clone.path().join(Planted::SESSION_DIR)).unwrap();
-        std::fs::write(clone.path().join(Planted::SESSION_DIR).join("started"), "0").unwrap();
         let sessions = tempfile::tempdir().unwrap();
         StartFile::plant(sessions.path(), SESSION_FILE, "0");
         let repo = Self { origin, clone, sessions, scenario };

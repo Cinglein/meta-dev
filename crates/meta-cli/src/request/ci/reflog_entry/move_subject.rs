@@ -4,12 +4,21 @@ use std::str::FromStr;
 pub struct MoveSubject(String);
 
 impl MoveSubject {
-    const ONLY_MOVES_FIRST: [&'static str; 3] = ["checkout:", "reset:", "clone:"];
-    const ONLY_MOVES_ANYWHERE: [&'static str; 4] = ["Fast-forward", "(start)", "(finish)", "(abort)"];
+    const ACTION_END: &'static str = ": ";
+    const CREATING: [&'static str; 6] =
+        ["commit", "commit (amend)", "commit (merge)", "commit (initial)", "cherry-pick", "revert"];
+    const REPLAYERS: [&'static str; 2] = ["rebase", "pull"];
+    const PICKS: [&'static str; 5] = ["(pick)", "(reword)", "(edit)", "(squash)", "(fixup)"];
+    const MERGERS: [&'static str; 2] = ["merge ", "pull"];
+    const MERGE_MADE: &'static str = "Merge made by the '";
 
     pub fn creates(&self) -> bool {
-        !Self::ONLY_MOVES_FIRST.iter().any(|kind| self.0.starts_with(kind))
-            && !Self::ONLY_MOVES_ANYWHERE.iter().any(|kind| self.0.contains(kind))
+        self.0.split_once(Self::ACTION_END).is_some_and(|(action, rest)| {
+            Self::CREATING.contains(&action)
+                || (Self::REPLAYERS.iter().any(|replayer| action.starts_with(replayer))
+                    && Self::PICKS.iter().any(|pick| action.ends_with(pick)))
+                || (Self::MERGERS.iter().any(|merger| action.starts_with(merger)) && rest.starts_with(Self::MERGE_MADE))
+        })
     }
 }
 

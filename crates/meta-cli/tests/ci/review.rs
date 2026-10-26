@@ -1,6 +1,8 @@
 use std::path::Path;
 
-use super::{BLOCK, FAILURE, Git, NEXT_COMMIT, POST, PRE, PUSH_WORDS, Planted, Repo, STOP, Session, StartFile};
+use super::{
+    BLOCK, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSH_WORDS, Planted, Repo, STOP, Session, StartFile,
+};
 
 const WRITE: &str = "git commit -m x";
 const READ: &str = "cargo test";
@@ -23,6 +25,7 @@ const SINGLE: [&str; 4] = ["--single-branch", "-b", "main", "-q"];
 const NO_REFLOG: [&str; 4] = ["-c", "core.logAllRefUpdates=false", "-b", "feature"];
 const BRANCH: [&str; 4] = ["checkout", "-q", "-b", "feature2"];
 const PUSH_BRANCH: [&str; 5] = ["push", "-q", "-u", "origin", "feature2"];
+const PUSH_ASIDE: [&str; 4] = ["push", "-q", "origin", "HEAD:aside"];
 const BACK_TO_MAIN: [&str; 3] = ["checkout", "-q", "main"];
 const NOT_PUSHED: &str = "is not pushed";
 const REFLOG_OFF: &str = "reflog";
@@ -83,6 +86,7 @@ fn readers_and_single_branch_clones_are_judged_by_what_the_remote_holds() {
     let read = reader.hook(STOP, READ);
     let _: Vec<_> =
         [BRANCH.as_slice(), &NEXT_COMMIT, &PUSH_BRANCH].iter().map(|words| Git::run(single.path(), words)).collect();
+    FailingHead::copy_from(&repo, single.path());
     let pushed = lone.hook(STOP, READ);
     Git::run(single.path(), &BACK_TO_MAIN);
     let stops = [pushed, lone.hook(STOP, READ)];
@@ -98,7 +102,7 @@ fn a_reflog_that_is_off_or_an_unwritable_state_dir_fails_closed() {
     let [blind, locked] = [(quiet.path(), BLIND), (clone, LOCKED)].map(|(cwd, id)| Session { repo: &repo, cwd, id });
     blind.hook(PRE, WRITE);
     Git::run(quiet.path(), &NEXT_COMMIT);
-    Git::run(quiet.path(), &PUSH_WORDS);
+    Git::run(quiet.path(), &PUSH_ASIDE);
     let off = blind.hook(STOP, READ);
     std::fs::create_dir_all(clone.join(STATE_ROOT)).unwrap();
     let open = Planted::locked(&clone.join(STATE_ROOT));

@@ -1,6 +1,8 @@
 mod elapsed;
 mod failure_log;
 mod gh;
+mod reach;
+mod session_commits;
 
 use std::cell::OnceCell;
 use std::ops::ControlFlow;
@@ -18,6 +20,8 @@ use crate::request::project::{CiSettings, Project};
 use elapsed::Elapsed;
 pub use failure_log::FailureLog;
 use gh::{Gh, Observation};
+use reach::Reach;
+use session_commits::SessionCommits;
 
 #[derive(Debug)]
 pub struct Watcher {
@@ -54,26 +58,22 @@ impl Watcher {
     }
 
     pub fn watch_all(project: &Project, session: &SessionId) -> Result<(), Listed> {
-        let dir =
-            SessionDir::for_session(project, session).ok_or_else(|| Listed::new("CI not watched: no git directory"))?;
-        project.pushed_tips(&dir.created(project)).iter().try_for_each(|commit| Self::spawn(project, session, commit))
+        let seen = SessionCommits::judged(project, session, Reach::Tracking)?;
+        seen.pushed().iter().try_for_each(|commit| Self::spawn(project, session, commit))
     }
 
     pub fn stop_reason(project: &Project, session: &SessionId) -> Option<Listed> {
         let dir = SessionDir::for_session(project, session)?;
-        let created = dir.created(project);
-        let commits = project.pushed_tips(&created);
+        let seen = SessionCommits::judged(project, session, Reach::Remote);
+        let unknown = seen.as_ref().err().map(|reason| Listed::new(reason.to_string()));
+        let commits = seen.as_ref().map(|seen| seen.pushed().to_vec()).unwrap_or_default();
         let unwritable = commits
             .first()
             .and(dir.writable().err())
             .map(|error| Listed::new(format!("CI state unwritable: {error}; fix it or ask the owner")));
-        let unpushed = created
-            .first()
-            .and_then(|_| project.head())
-            .filter(|head| created.contains(head) && project.pushed_tips(std::slice::from_ref(head)).is_empty())
-            .map(|commit| {
-                Listed::new(format!("HEAD {commit} is not pushed: push it, then run `meta ci-wait`; or ask the owner"))
-            });
+        let unpushed = seen.as_ref().ok().and_then(SessionCommits::unpushed_head).map(|commit| {
+            Listed::new(format!("HEAD {commit} is not pushed: push it, then run `meta ci-wait`; or ask the owner"))
+        });
         let statuses: Vec<(Commit, Option<CiStatus>)> = commits
             .into_iter()
             .map(|commit| {
@@ -87,7 +87,7 @@ impl Watcher {
             .find(|(_, status)| status.is_none())
             .map(|(commit, _)| Listed::new(format!("CI not watched for {commit}: push again to watch it")));
         let known = statuses.iter().find_map(|(_, status)| status.and_then(CiStatus::stop_reason));
-        unwritable.or(unpushed).or(unwatched).or(known)
+        unknown.or(unwritable).or(unpushed).or(unwatched).or(known)
     }
 
     pub fn watch(project: &Project, session: &SessionId, commit: Commit) -> Result<Output, CliFailure> {
@@ -116,7 +116,8 @@ impl Watcher {
     pub fn wait(project: &Project, session: &SessionId) -> Result<Output, CliFailure> {
         let dir =
             SessionDir::for_session(project, session).ok_or_else(|| CliFailure::raised::<Setup>("no git directory"))?;
-        let pushed = project.pushed_tips(&dir.created(project));
+        let seen = SessionCommits::judged(project, session, Reach::Remote).map_err(CliFailure::raised::<Invalid>)?;
+        let pushed = seen.pushed();
         pushed.first().ok_or_else(|| CliFailure::raised::<Invalid>("no CI watched for this session"))?;
         pushed
             .iter()
