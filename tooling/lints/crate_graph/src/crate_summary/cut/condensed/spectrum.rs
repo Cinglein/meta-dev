@@ -86,9 +86,6 @@ impl<'graph> Spectrum<'graph> {
 
     fn unit(vector: Vec<f64>) -> Vec<f64> {
         let length = vector.iter().map(|value| value * value).sum::<f64>().sqrt();
-        vector
-            .into_iter()
-            .map(|value| value / length)
-            .collect()
+        vector.into_iter().map(|value| value / length).collect()
     }
 }

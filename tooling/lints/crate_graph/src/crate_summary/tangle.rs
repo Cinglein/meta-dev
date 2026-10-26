@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::item_count::ItemCount;
+use crate::crate_summary::item_count::ItemCount;
 use task::Name;
 
 #[derive(Clone, Debug, PartialEq, Eq)]

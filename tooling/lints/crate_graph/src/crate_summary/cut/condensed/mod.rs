@@ -6,7 +6,7 @@ pub use tangle_index::TangleIndex;
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::crate_summary::cut::conductance::Conductance;
-use crate::item_count::ItemCount;
+use crate::crate_summary::item_count::ItemCount;
 use crate::item_graph::{ItemGraph, NodeIndex};
 use spectrum::{Spectrum, Weight};
 
@@ -94,8 +94,11 @@ impl Condensed {
 
     pub fn conductance(&self, side: &BTreeSet<TangleIndex>) -> Conductance {
         let inside = |index: &usize| side.contains(&TangleIndex::new(*index));
-        let (within, beyond): (Vec<(usize, &Vec<Weight>)>, Vec<(usize, &Vec<Weight>)>) =
-            self.weights.iter().enumerate().partition(|(row, _)| inside(row));
+        let (within, beyond): (Vec<_>, Vec<_>) = self
+            .weights
+            .iter()
+            .enumerate()
+            .partition(|(row, _)| inside(row));
         let volume = |rows: &[(usize, &Vec<Weight>)]| -> f64 {
             rows.iter()
                 .flat_map(|(_, weights)| weights.iter())

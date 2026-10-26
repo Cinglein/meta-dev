@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use crate::crate_summary::cut::conductance::Conductance;
-use crate::item_count::ItemCount;
+use crate::crate_summary::item_count::ItemCount;
 use crate::item_graph::{ItemGraph, NodeIndex};
 use condensed::{Condensed, TangleIndex};
 use task::Name;

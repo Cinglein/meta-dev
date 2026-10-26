@@ -1,5 +1,4 @@
 mod crate_summary;
-mod item_count;
 mod item_graph;
 mod test_files;
 
