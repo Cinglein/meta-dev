@@ -202,3 +202,4 @@
 {"at":"2026-10-26T05:20:57.712516Z","actor":"claude-lead","kind":"TaskOpened","task":"task-f0354f75a984dcbd","text":"Privacy + agent rules: meta's actor defaults to a neutral name (never $USER); one consolidated CLAUDE.md for meta-development (standing process, code and privacy rules; no personal or machine details in repo or log)"}
 {"at":"2026-10-26T05:21:15.800133Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-5bc8cecd9314317c","text":"primitive-boundary accepts any Display/FromStr/TryFrom impl in a file as a 'door' for the whole file, so agents added unused Display impls just to pass it (6 found in meta-cli); a door should only count if it's used"}
 {"at":"2026-10-26T05:21:39.837423Z","actor":"claude-privacy","kind":"TaskClaimed","task":"task-f0354f75a984dcbd"}
+{"at":"2026-10-26T05:23:40.866690Z","actor":"claude-batch-small","kind":"TaskDone","task":"task-81012cb9c5a061fc"}
