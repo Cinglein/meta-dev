@@ -512,6 +512,7 @@ dependencies = [
  "mutant_costs",
  "mutation",
  "serde",
+ "serde_json",
  "settings",
  "stacked",
  "strum",
