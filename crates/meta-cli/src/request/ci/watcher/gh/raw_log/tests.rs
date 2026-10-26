@@ -21,7 +21,7 @@ struct Limits;
 impl Limits {
     fn excerpt(text: &str) -> String {
         let window: LogWindow = toml::from_str(text).unwrap();
-        RawLog::new(CLIPPY.to_owned()).excerpt(&window).to_string()
+        CLIPPY.parse::<RawLog>().unwrap().excerpt(&window).to_string()
     }
 }
 

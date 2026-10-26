@@ -6,10 +6,13 @@ use std::process::{Command, Output};
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const OWNER: &str = "owner";
 const ALICE: &str = "alice";
-const CONCERN: [&str; 5] = ["concern", "CI", "is", "slow", "--tag"];
+const CONCERN: [&str; 7] = ["concern", "CI", "is", "slow", "--source", "chat", "--tag"];
+const CONCERN_SHOWN: &str = " CI is slow #acceptance-candidate (from chat)";
 const TAG: &str = "acceptance-candidate";
 const OPEN_DASHED: [&str; 4] = ["open", "--", "--dashed", "text"];
 const ISSUE_WITH_OPTION: [&str; 2] = ["issue", "--verbose"];
+const ISSUE_SOURCED: [&str; 4] = ["issue", "text", "--source", "chat"];
+const NOT_HERE: &str = "--source does not apply here\nusage: meta <command>";
 const LIST_ALL_CONCERNS: [&str; 3] = ["list", "concerns", "--all"];
 const SUMMARY: [&str; 1] = ["list"];
 const NOWHERE: [&str; 4] = ["remote", "set-url", "origin", "/nonexistent/origin.git"];
@@ -17,6 +20,7 @@ const COUNT: [&str; 3] = ["rev-list", "--count", "meta/log"];
 const ISSUE: [&str; 2] = ["issue", "text"];
 const OPEN_FOR: [&str; 3] = ["open", "budget", "--addresses"];
 const CLAIM: &str = "claim";
+const FROM: &str = "--from";
 const DONE: &str = "done";
 const NOTHING_OPEN: &str = "Concerns: 0 open";
 const HELD: &str = "held by alice";
@@ -89,9 +93,10 @@ fn a_task_addresses_a_concern_when_its_claimant_finishes_it() {
     let project = Project::new();
     let concern = project.meta(OWNER, &[&CONCERN[..], &[TAG]].concat()).written();
     let task = project.meta(OWNER, &[&OPEN_FOR[..], &[concern.0.as_str()]].concat()).written();
-    project.task_step(ALICE, CLAIM, &task);
+    project.task_step(OWNER, CLAIM, &task);
+    project.meta(ALICE, &[CLAIM, &task.0, FROM, OWNER]);
     project.task_step(ALICE, DONE, &task);
-    assert!(project.meta(OWNER, &LIST_ALL_CONCERNS).to_string().contains(&concern.0));
+    assert!(project.meta(OWNER, &LIST_ALL_CONCERNS).to_string().contains(&format!("{}{CONCERN_SHOWN}", concern.0)));
     assert!(project.meta(OWNER, &SUMMARY).to_string().contains(NOTHING_OPEN));
 }
 
@@ -101,7 +106,10 @@ fn refusals_and_bad_input_say_why_and_write_nothing() {
     let task = project.meta(OWNER, &OPEN_DASHED).written();
     project.task_step(ALICE, CLAIM, &task);
     assert!(project.task_step(OWNER, DONE, &task).complaint().0.contains(HELD));
-    assert!(project.meta(OWNER, &ISSUE_WITH_OPTION).complaint().0.contains(UNKNOWN_OPTION));
+    assert!(
+        project.meta(OWNER, &ISSUE_WITH_OPTION).complaint().0.contains(UNKNOWN_OPTION)
+            && project.meta(OWNER, &ISSUE_SOURCED).complaint().0.contains(NOT_HERE)
+    );
     assert!(Run(Git::run(project.origin.path(), &COUNT)).to_string().starts_with(WRITES));
 }
 

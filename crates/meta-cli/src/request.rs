@@ -34,7 +34,7 @@ impl TryFrom<Vec<String>> for Request {
         let (_program, words) =
             args.split_first().ok_or_else(|| CliFailure::raised::<Misuse>("missing program name"))?;
         let (name, rest) = words.split_first().ok_or_else(|| CliFailure::raised::<Misuse>("missing command"))?;
-        let parsed = Parsed::new(rest)?;
+        let parsed = Parsed::try_from(rest)?;
         let task = || parsed.task().map(TaskRef::new);
         match name.as_str() {
             "concern" => {
@@ -77,9 +77,9 @@ impl Request {
     pub fn answer(self) -> Result<Output, CliFailure> {
         match self {
             Self::Hook(event) => event.respond(),
-            other => {
-                other.answer_in(&Project::discover(&std::env::current_dir().map_err(CliFailure::raised::<Setup>)?)?)
-            }
+            other => other.answer_in(&Project::try_from(
+                std::env::current_dir().map_err(CliFailure::raised::<Setup>)?.as_path(),
+            )?),
         }
     }
 

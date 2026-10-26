@@ -1,5 +1,3 @@
-use std::fmt;
-
 use serde::Deserialize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
@@ -21,11 +19,5 @@ impl RunStatus {
             Self::Completed => Some(self),
             Self::Queued | Self::InProgress | Self::Waiting | Self::Requested | Self::Pending | Self::Unknown => None,
         }
-    }
-}
-
-impl fmt::Display for RunStatus {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{self:?}")
     }
 }

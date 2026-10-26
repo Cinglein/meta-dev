@@ -1,6 +1,8 @@
 use std::fmt;
 use std::str::FromStr;
 
+use chrono::{DateTime, Utc};
+
 use crate::request::output::Listed;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -26,9 +28,7 @@ impl LogLine {
     fn cleaned(raw: &str) -> String {
         let text = raw
             .split_once(' ')
-            .filter(|(stamp, _)| {
-                stamp.ends_with('Z') && stamp.contains('T') && stamp.starts_with(|c: char| c.is_ascii_digit())
-            })
+            .filter(|(stamp, _)| stamp.parse::<DateTime<Utc>>().is_ok())
             .map_or(raw, |(_, rest)| rest);
         text.split_once(Self::ESCAPE).map_or_else(
             || text.to_owned(),

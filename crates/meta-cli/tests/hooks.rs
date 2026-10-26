@@ -7,14 +7,14 @@ use std::process::{Command, Output, Stdio};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n";
-const BLOCKED: [&str; 7] = [
-    "gh pr merge 1",
-    "cd x && gh pr merge 1 --squash",
+const MERGES: [&str; 2] = ["gh pr merge 1", "cd x && gh pr merge 1 --squash"];
+const PUSHES: [&str; 6] = [
     "git push --force origin feature",
     "git push -uf origin feature",
     "git push origin +feature",
     "git -C x push origin HEAD:refs/heads/main",
     "git push --force-with-lease origin main",
+    "git --no-pager push origin main",
 ];
 const ALLOWED: [&str; 4] = [
     "git push -u origin feature",
@@ -22,13 +22,15 @@ const ALLOWED: [&str; 4] = [
     "git commit -m 'git push origin main'",
     "gh pr view 1",
 ];
-const DENY: &str = "\"permissionDecision\":\"deny\"";
+const DENY: &str = "\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"meta-development: ";
+const PUSH_REASON: &str = "meta-development: git push";
 const PRE: &str = "pre-tool-use";
 const POST: &str = "post-tool-use";
 const COMMIT: &str = "git commit -m change";
+const STATUS: &str = "git status";
+const ALL_REFS: &str = "--all";
 const AMEND: [&str; 6] = ["commit", "-q", "--amend", "--allow-empty", "-m", "rewritten"];
 const NEW_FEATURE: [&str; 4] = ["switch", "-q", "-c", "feature"];
-const MAIN: &str = "main";
 const HEAD: &str = "HEAD";
 const FEATURE_BRANCH: &str = "feature";
 const REJECTED: &str = "rejected";
@@ -99,7 +101,13 @@ impl Repo {
 fn pre_tool_use_denies_merges_force_pushes_and_protected_pushes_only() {
     let repo = Repo::new();
     let env = repo.env_file();
-    assert!(BLOCKED.iter().all(|command| repo.hook(PRE, command, &env).contains(DENY)));
+    assert!(MERGES.iter().all(|command| repo.hook(PRE, command, &env).contains(DENY)));
+    assert!(
+        PUSHES
+            .iter()
+            .map(|command| repo.hook(PRE, command, &env))
+            .all(|reply| reply.contains(DENY) && reply.contains(PUSH_REASON))
+    );
     assert!(ALLOWED.iter().all(|command| repo.hook(PRE, command, &env).is_empty()));
 }
 
@@ -108,8 +116,9 @@ fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
     let repo = Repo::new();
     let env = repo.env_file();
     repo.hook(POST, COMMIT, &env);
-    assert_ne!(Git::head(repo.origin.path(), MAIN), Git::head(repo.clone.path(), HEAD));
     Git::run(repo.clone.path(), &NEW_FEATURE);
+    repo.hook(POST, STATUS, &env);
+    assert_eq!(Git::head(repo.origin.path(), ALL_REFS), Revision(String::new()));
     repo.hook(POST, COMMIT, &env);
     assert_eq!(Git::head(repo.origin.path(), FEATURE_BRANCH), Git::head(repo.clone.path(), HEAD));
     Git::run(repo.clone.path(), &AMEND);

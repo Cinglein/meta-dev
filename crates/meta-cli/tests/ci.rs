@@ -3,7 +3,7 @@
 use std::fmt;
 use std::io::Write as _;
 use std::path::Path;
-use std::process::{Command, Output, Stdio};
+use std::process::{Command, ExitStatus, Output, Stdio};
 use std::time::Duration;
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
@@ -16,11 +16,12 @@ n=$(cat "$count" 2>/dev/null || echo 0)
 case "$1 $2" in
 "run list")
   n=$((n + 1)); echo "$n" > "$count"
-  if [ "$FAKE_GH_SCENARIO" = none ]; then echo '[]'
+  if [ "$FAKE_GH_SCENARIO" = none ] || [ "$4" != "$(git rev-parse HEAD)" ]; then echo '[]'
   elif [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
   else echo "[{\"databaseId\":7,\"status\":\"completed\",\"conclusion\":\"$FAKE_GH_SCENARIO\"}]"; fi ;;
 "run view")
-  if [ "$3" = --job ]; then cat "$FAKE_GH_DIR/bin/failed.log"
+  if [ "$3 $4" = "--job 11" ]; then cat "$FAKE_GH_DIR/bin/failed.log"
+  elif [ "$3" != 7 ]; then echo '{"jobs":[]}'
   elif [ "$FAKE_GH_SCENARIO" = failure ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[{"name":"Checkout","conclusion":"success"},{"name":"cargo xtask ci","conclusion":"failure"}]},{"databaseId":12,"name":"docs","conclusion":""}]}'
   else echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"success"}]}'; fi ;;
 esac
@@ -49,6 +50,7 @@ const COMMIT: &str = "git commit -m change";
 const PRE: &str = "pre-tool-use";
 const STOP: &str = "stop";
 const BLOCK: &str = "\"decision\":\"block\"";
+const BLOCK_REASON: &str = "\"reason\":\"meta-development: CI failed for your last push";
 const JOB_FAILED: &str = "ci failed after";
 const CI_LOG_HINT: &str = "run `meta ci-log`";
 const STEP_LISTED: &str = "s: ci / cargo xtask ci; run `meta ci-log`";
@@ -58,6 +60,8 @@ const COMPILING: &str = "Compiling";
 const CI_WAIT: &str = "ci-wait";
 const CI_LOG: &str = "ci-log";
 const PASSED: &str = "passed after";
+const PASSED_EVENT: &str = ": passed after";
+const EVENT_PREFIX: &str = "CI ";
 const TIMED_OUT: &str = "timed-out after";
 const COMPLETIONS: [&str; 3] = [": passed after", ": failed after", ": timed-out after"];
 
@@ -72,7 +76,7 @@ impl Git {
     }
 }
 
-struct Waited(String);
+struct Waited(String, ExitStatus);
 
 struct Repo {
     _origin: tempfile::TempDir,
@@ -130,7 +134,8 @@ impl Repo {
             .env("FAKE_GH_SCENARIO", self.scenario)
             .output()
             .unwrap();
-        Waited(format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)))
+        let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        Waited(text, output.status)
     }
 
     fn settled(&self) -> String {
@@ -155,11 +160,12 @@ impl fmt::Display for Repo {
 fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
     let repo = Repo::new(FAILURE);
     repo.hook("post-tool-use", COMMIT);
-    assert!(repo.session_command(CI_WAIT).0.contains(JOB_FAILED));
+    let waited = repo.session_command(CI_WAIT);
     let stop = repo.hook(STOP, COMMIT);
     let settled = repo.settled();
     let next = format!("{stop}{}", repo.hook(PRE, COMMIT));
-    assert!(stop.contains(BLOCK) && settled.contains(STEP_LISTED) && next.contains(CI_LOG_HINT));
+    assert!(waited.0.contains(JOB_FAILED) && !waited.1.success() && stop.contains(BLOCK_REASON));
+    assert!(settled.contains(STEP_LISTED) && next.contains(CI_LOG_HINT));
     assert!(
         repo.session_command(CI_LOG).0.contains(PANIC_BLOCK) && !repo.session_command(CI_LOG).0.contains(COMPILING)
     );
@@ -169,8 +175,9 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
 fn a_passing_run_reports_only_completion_and_lets_the_agent_stop() {
     let repo = Repo::new(SUCCESS);
     repo.hook("post-tool-use", COMMIT);
-    assert!(repo.session_command(CI_WAIT).0.contains(PASSED) && !repo.hook(STOP, COMMIT).contains(BLOCK));
-    assert_eq!(repo.settled().lines().filter(|line| line.contains(PASSED)).count(), repo.settled().lines().count());
+    let waited = repo.session_command(CI_WAIT);
+    assert!(waited.0.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
+    assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
 }
 
 #[test]
