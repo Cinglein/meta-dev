@@ -24,13 +24,16 @@ pub struct Collection(Vec<Verdict>);
 
 impl Collection {
     pub fn swept<Host: Inspection>(sweeper: &Sweeper<'_, Host>, census: &Census) -> Self {
-        let assessed: Vec<Assessed<'_>> = census.tracked().iter().map(|tracked| sweeper.assessed(tracked)).collect();
+        let assessed: Vec<Assessed<'_>> =
+            census.tracked().iter().map(|tracked| sweeper.assessed(tracked, census)).collect();
         let candidates: Vec<PathBuf> = assessed.iter().filter_map(Assessed::candidate).map(Path::to_path_buf).collect();
         let occupancy = LazyCell::new(|| sweeper.host().occupancy(&candidates));
         let finished =
             assessed.into_iter().map(|assessed| assessed.verdict(|candidate| sweeper.freed(candidate, &occupancy)));
-        let unrecorded = census.unrecorded().map(|path| Verdict::Unrecorded { path: path.to_path_buf() });
-        Self(finished.chain(unrecorded).collect())
+        let unrecorded = census.unrecorded().map(|path| sweeper.unrecorded(path));
+        let mut verdicts: Vec<Verdict> = finished.chain(unrecorded).collect();
+        verdicts.sort_by_key(|verdict| verdict.stranded().is_none());
+        Self(verdicts)
     }
 
     pub fn trailed(&self, at: DateTime<Utc>) -> Vec<TrailEntry> {

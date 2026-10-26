@@ -15,21 +15,26 @@ pub enum TrailEntry {
     Freed { path: PathBuf, at: DateTime<Utc>, reason: Reason, bytes: ByteCount },
     Refused { path: PathBuf, at: DateTime<Utc>, reason: Reason },
     Closed { path: PathBuf, at: DateTime<Utc> },
+    Moved { path: PathBuf, to: PathBuf, at: DateTime<Utc> },
 }
 
 impl TrailEntry {
-    pub fn applied<'trail>(&'trail self, current: Vec<&'trail RecordedWorktree>) -> Vec<&'trail RecordedWorktree> {
+    pub fn applied(&self, current: Vec<RecordedWorktree>) -> Vec<RecordedWorktree> {
         match self {
-            Self::Created(worktree) => self.dropped(current).chain([worktree]).collect(),
+            Self::Created(worktree) => self.dropped(current).chain([worktree.clone()]).collect(),
             Self::Removed { .. } | Self::Freed { .. } | Self::Closed { .. } => self.dropped(current).collect(),
             Self::Refused { .. } => current,
+            Self::Moved { path, to, .. } => {
+                current.into_iter().map(|worktree| Self::followed(worktree, path, to)).collect()
+            }
         }
     }
 
-    fn dropped<'trail>(
-        &self,
-        current: Vec<&'trail RecordedWorktree>,
-    ) -> impl Iterator<Item = &'trail RecordedWorktree> + use<'trail, '_> {
+    fn followed(worktree: RecordedWorktree, path: &Path, to: &Path) -> RecordedWorktree {
+        if worktree.path() == path { worktree.relocated(to) } else { worktree }
+    }
+
+    fn dropped(&self, current: Vec<RecordedWorktree>) -> impl Iterator<Item = RecordedWorktree> + use<'_> {
         current.into_iter().filter(|worktree| worktree.path() != self.path())
     }
 
@@ -39,7 +44,8 @@ impl TrailEntry {
             Self::Removed { path, .. }
             | Self::Freed { path, .. }
             | Self::Refused { path, .. }
-            | Self::Closed { path, .. } => path,
+            | Self::Closed { path, .. }
+            | Self::Moved { path, .. } => path,
         }
     }
 }

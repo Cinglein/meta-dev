@@ -18,6 +18,7 @@ use super::git_call::GitCall;
 use super::inspection::Inspection;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
+use crate::request::local::local_clone::quarantine::Stamp;
 use walker::Walker;
 
 #[derive(Debug, Default)]
@@ -91,5 +92,9 @@ impl Inspection for Host {
             Ok(listed) => Occupancy::Unlisted(Cause::new(String::from_utf8_lossy(&listed.stderr))),
             Err(failure) => Occupancy::Unlisted(Cause::new(failure)),
         }
+    }
+
+    fn stamp(&self) -> Stamp {
+        Stamp::current()
     }
 }

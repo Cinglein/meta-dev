@@ -18,6 +18,10 @@ impl RefLine {
         Self { object: object.trim().to_owned(), name: name.to_owned() }
     }
 
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     pub fn object(&self) -> &OsStr {
         OsStr::new(&self.object)
     }

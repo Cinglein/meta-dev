@@ -29,7 +29,7 @@ const NO_BRANCH: &str = "task branch missing";
 const SHARED: &str = "branch checked out elsewhere";
 const STRANGER: &str = "a different worktree at the recorded path";
 const OWN_CHECKOUTS: &str = "worktree /clone\nHEAD c0\nbranch refs/heads/main\n\nworktree /trees/task-00000000000000b1\nHEAD c1\nbranch refs/heads/task-00000000000000b1\n";
-const REFUSED: [Case; 54] = [
+const REFUSED: [Case; 58] = [
     Case("symlink", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::Symlink)),
     Case("not found", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::Missing)),
     Case("unreadable entry", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::File)),
@@ -86,9 +86,11 @@ const REFUSED: [Case; 54] = [
     }),
     Case("commits not on the remote", |host| host.answer_is("rev-parse", "c9\n")),
     Case("remote unreachable: offline", |host| host.fails("ls-remote")),
-    Case("commits not on the remote", |host| {
-        host.text_is("/clone/.git/worktrees/task-00000000000000b1/ORIG_HEAD", "c7\n");
-    }),
+    Case("commits not on the remote", |host| host.holds(&["ORIG_HEAD"])),
+    Case(PAUSED, |host| host.holds(&["CHERRY_PICK_HEAD"])),
+    Case(PAUSED, |host| host.holds(&["MERGE_HEAD"])),
+    Case(PAUSED, |host| host.holds(&["REVERT_HEAD"])),
+    Case(PAUSED, |host| host.holds(&["REBASE_HEAD"])),
     Case(PAUSED, |host| host.entry_is("/clone/.git/worktrees/task-00000000000000b1/rebase-merge", EntryKind::Dir)),
     Case(PAUSED, |host| host.entry_is("/clone/.git/worktrees/task-00000000000000b1/rebase-apply", EntryKind::Dir)),
     Case(PAUSED, |host| host.entry_is("/clone/.git/worktrees/task-00000000000000b1/sequencer", EntryKind::Dir)),

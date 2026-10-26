@@ -28,6 +28,10 @@ impl RecordedWorktree {
         Self { worktree: Some(worktree), ..self }
     }
 
+    pub fn relocated(self, path: &Path) -> Self {
+        Self { path: path.to_path_buf(), ..self }
+    }
+
     pub fn worktree(&self) -> Option<&WorktreeId> {
         self.worktree.as_ref()
     }

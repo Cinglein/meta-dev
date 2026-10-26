@@ -13,6 +13,7 @@ use super::inspection::Inspection;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
 use crate::request::local::byte_count::ByteCount;
+use crate::request::local::local_clone::quarantine::Stamp;
 use crate::request::local::recorded_worktree::RecordedWorktree;
 use crate::request::local::worktree_id::WorktreeId;
 
@@ -32,7 +33,7 @@ const TEXTS: [(&str, &str); 4] = [
         "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n",
     ),
 ];
-const ANSWERS: [(&str, &str); 10] = [
+const ANSWERS: [(&str, &str); 12] = [
     ("symbolic-ref", "refs/heads/task-00000000000000b1\n"),
     ("ls-files", "H 100644 a1 0\tmeta.toml\0"),
     ("status", "!! target/\0"),
@@ -42,6 +43,8 @@ const ANSWERS: [(&str, &str); 10] = [
     ("list", ""),
     ("move", ""),
     ("remove", ""),
+    ("lock", ""),
+    ("unlock", ""),
     ("update-ref", ""),
 ];
 const WALK: [(&str, EntryKind, u64); 16] = [
@@ -69,7 +72,9 @@ const UNEXPECTED: &str = "unexpected git call";
 const OFFLINE: &str = "offline";
 const SPACE: &str = " ";
 const MOVE: &str = "move";
-const QUARANTINED: &str = ".gc-";
+const PSEUDO: [&str; 5] = ["ORIG_HEAD", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD"];
+const HELD: &str = "c7\n";
+const STAMP: &str = "1x0";
 
 #[derive(Debug)]
 pub struct FakeHost {
@@ -83,6 +88,8 @@ pub struct FakeHost {
     calls: RefCell<Vec<Vec<OsString>>>,
     scans: RefCell<Vec<Vec<PathBuf>>>,
     raced: HashMap<&'static str, String>,
+    relocation: RefCell<Option<[PathBuf; 2]>>,
+    pseudo: Vec<&'static str>,
 }
 
 impl FakeHost {
@@ -101,6 +108,8 @@ impl FakeHost {
             calls: RefCell::new(Vec::new()),
             scans: RefCell::new(Vec::new()),
             raced: HashMap::new(),
+            relocation: RefCell::new(None),
+            pseudo: Vec::new(),
         }
     }
 
@@ -167,8 +176,35 @@ impl FakeHost {
         self.scans.borrow().clone()
     }
 
+    pub fn holds(&mut self, pseudo: &[&'static str]) {
+        self.pseudo.extend(pseudo);
+    }
+
+    pub fn relocate(&self, arguments: &[OsString]) {
+        let moved: Vec<PathBuf> =
+            arguments.iter().skip_while(|argument| *argument != MOVE).skip(1).map(PathBuf::from).collect();
+        let pair = <[PathBuf; 2]>::try_from(moved).ok();
+        let fresh = pair.map(|pair| self.relocation.borrow().is_none().then_some(pair));
+        drop(fresh.map(|next| self.relocation.replace(next)));
+    }
+
     fn quarantined(&self) -> bool {
-        self.calls.borrow().iter().any(|earlier| earlier.iter().any(|argument| argument == MOVE))
+        self.relocation.borrow().is_some()
+    }
+
+    fn translated(&self, path: &Path) -> Option<PathBuf> {
+        self.relocation.borrow().as_ref().map_or(Some(path.to_path_buf()), |[from, to]| {
+            match (path.strip_prefix(from), path.strip_prefix(to)) {
+                (Ok(_), _) => None,
+                (_, Ok(inner)) => Some(from.join(inner)),
+                (Err(_), Err(_)) => Some(path.to_path_buf()),
+            }
+        })
+    }
+
+    fn pseudo_answer(&self, arguments: &[OsString]) -> Option<Result<String, Kept>> {
+        let named = PSEUDO.iter().find(|name| arguments.iter().any(|argument| argument == **name))?;
+        Some(self.pseudo.contains(named).then(|| HELD.to_owned()).ok_or_else(|| Kept::Uninspected(Cause::new(""))))
     }
 
     fn beyond(arguments: &[OsString]) -> String {
@@ -182,8 +218,10 @@ impl FakeHost {
 
 impl Inspection for FakeHost {
     fn entry(&self, path: &Path) -> EntryKind {
-        let texted = self.texts.contains_key(path).then_some(EntryKind::File);
-        self.entries.get(path).copied().or(texted).unwrap_or(EntryKind::Missing)
+        self.translated(path).map_or(EntryKind::Missing, |path| {
+            let texted = self.texts.contains_key(&path).then_some(EntryKind::File);
+            self.entries.get(&path).copied().or(texted).unwrap_or(EntryKind::Missing)
+        })
     }
 
     fn canonical(&self, path: &Path) -> Option<PathBuf> {
@@ -192,11 +230,10 @@ impl Inspection for FakeHost {
     }
 
     fn text(&self, path: &Path) -> Option<String> {
-        let moved_back = path.components().map(|part| {
-            let name = part.as_os_str().to_string_lossy();
-            PathBuf::from(name.strip_prefix(QUARANTINED).unwrap_or(&name))
-        });
-        self.texts.get(&moved_back.collect::<PathBuf>()).cloned()
+        let text = self.texts.get(&self.translated(path)?).cloned()?;
+        Some(self.relocation.borrow().as_ref().map_or(text.clone(), |[from, to]| {
+            text.replace(from.to_string_lossy().as_ref(), to.to_string_lossy().as_ref())
+        }))
     }
 
     fn git(&self, call: &GitCall) -> Result<String, Kept> {
@@ -205,7 +242,9 @@ impl Inspection for FakeHost {
         let raced = word.and_then(|word| self.raced.get(word)).filter(|_| self.quarantined());
         let raced = raced.map(|race| Ok(race.clone()));
         self.calls.borrow_mut().push(arguments.clone());
-        let answer = raced.or_else(|| word.and_then(|word| self.answers.get(word).cloned()));
+        self.relocate(&arguments);
+        let answer =
+            self.pseudo_answer(&arguments).or(raced).or_else(|| word.and_then(|word| self.answers.get(word).cloned()));
         let listed = arguments.iter().any(|argument| argument == REV_LIST).then(|| Ok(Self::beyond(&arguments)));
         answer.or(listed).unwrap_or_else(|| Err(Kept::Uninspected(Cause::new(UNEXPECTED))))
     }
@@ -221,5 +260,10 @@ impl Inspection for FakeHost {
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
         self.scans.borrow_mut().push(paths.to_vec());
         Occupancy::Listed(Vec::new())
+    }
+
+    fn stamp(&self) -> Stamp {
+        let Ok(stamp) = STAMP.parse();
+        stamp
     }
 }

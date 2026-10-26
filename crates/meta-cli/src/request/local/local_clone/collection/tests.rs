@@ -13,7 +13,15 @@ const ESCAPED: &str = "/elsewhere/task-00000000000000b1";
 const GONE: &str = "/trees/gone";
 const LIVE: &str = "/trees/live";
 const STRAY: &str = "/trees/stray";
-const PLANNED: &str = "would free /trees/task-00000000000000b1: 1160 bytes; pr #1 merged
+const LOST: &str = "/trees/lost";
+const KEPT_QUARANTINE: &str = "/trees/.gc-kept-2x0";
+const LISTED: [&str; 4] = [PATH, STRAY, "/trees/.gc-lost-1x0", "/trees/.gc-old-9x9"];
+const SWEPT: [&str; 6] = [PATH, ESCAPED, GONE, LIVE, LOST, KEPT_QUARANTINE];
+const PLANNED: &str =
+    "STRANDED in quarantine /trees/.gc-lost-1x0: left alone, move it back by hand; record follows from /trees/lost
+STRANDED in quarantine /trees/.gc-kept-2x0: left alone, move it back by hand
+STRANDED in quarantine /trees/.gc-old-9x9: left alone, move it back by hand
+would free /trees/task-00000000000000b1: 1160 bytes; pr #1 merged
 kept /elsewhere/task-00000000000000b1: path escapes the worktree root; pr #1 merged
 would close /trees/gone: missing
 kept /trees/live: pr #2 open
@@ -24,18 +32,20 @@ const DONE: [&str; 3] = [
     "kept /elsewhere/task-00000000000000b1: path escapes the worktree root; pr #1 merged\n",
     "closed /trees/gone: missing\n",
 ];
-const TRAILED: [&str; 3] = [
+const TRAILED: [&str; 4] = [
+    r#""change":"Moved","path":"/trees/lost","to":"/trees/.gc-lost-1x0""#,
     r#""change":"Freed","path":"/trees/task-00000000000000b1""#,
     r#""change":"Refused","path":"/elsewhere/task-00000000000000b1""#,
     r#""change":"Closed","path":"/trees/gone""#,
 ];
-const REASONS: [&str; 3] = [
+const REASONS: [&str; 4] = [
+    r#""at":"#,
     r#""reason":"pr #1 merged","bytes":1160}"#,
     r#""reason":"path escapes the worktree root; pr #1 merged"}"#,
     r#""at":"#,
 ];
 const REMOVALS: [&str; 2] =
-    ["worktree remove /trees/.gc-task-00000000000000b1", "update-ref -d refs/heads/task-00000000000000b1 c1"];
+    ["worktree remove /trees/.gc-task-00000000000000b1-1x0", "update-ref -d refs/heads/task-00000000000000b1 c1"];
 const UNREMOVED: &str = "kept /trees/task-00000000000000b1: removal failed: offline; pr #1 merged\n";
 const LIVE_ONLY: &str = "kept /trees/live: pr #2 open\n";
 
@@ -57,7 +67,7 @@ impl Scene {
             RecordedWorktree::new(PathBuf::from(path), TASK.parse().unwrap()).identified(FakeHost::worktree_id())
         };
         let tracked = tracked.iter().map(|path| Tracked::new(recorded(path), lifetime(path))).collect();
-        Self { host, census: Census::new(tracked, [PATH, STRAY].map(PathBuf::from).to_vec()) }
+        Self { host, census: Census::new(tracked, LISTED.map(PathBuf::from).to_vec()) }
     }
 
     fn swept(&self, sweep: Sweep) -> Collection {
@@ -68,7 +78,7 @@ impl Scene {
 
 #[test]
 fn a_dry_run_vets_and_scans_once_but_deletes_and_trails_nothing() {
-    let scene = Scene::new(&[PATH, ESCAPED, GONE, LIVE]);
+    let scene = Scene::new(&SWEPT);
     let planned = scene.swept(Sweep::Planned);
     assert_eq!(planned.to_string(), PLANNED);
     assert!(planned.trailed(Utc::now()).is_empty() && scene.host.scans() == [vec![PathBuf::from(PATH)]]);
@@ -77,17 +87,16 @@ fn a_dry_run_vets_and_scans_once_but_deletes_and_trails_nothing() {
 
 #[test]
 fn a_sweep_re_vets_removes_the_worktree_then_its_branch_and_trails_each_removal_refusal_and_closure() {
-    let scene = Scene::new(&[PATH, ESCAPED, GONE, LIVE]);
+    let scene = Scene::new(&SWEPT);
     let done = scene.swept(Sweep::Done);
     let trailed: Vec<String> =
         done.trailed(Utc::now()).iter().map(|entry| serde_json::to_string(entry).unwrap()).collect();
     assert!(DONE.iter().all(|line| done.to_string().contains(line)), "{done}");
     assert!(
-        trailed
-            .iter()
-            .zip(TRAILED)
-            .zip(REASONS)
-            .all(|((entry, change), reason)| { entry.starts_with(&["{", change].concat()) && entry.contains(reason) }),
+        trailed.len() == TRAILED.len()
+            && trailed.iter().zip(TRAILED).zip(REASONS).all(|((entry, change), reason)| {
+                entry.starts_with(&["{", change].concat()) && entry.contains(reason)
+            }),
         "{trailed:?}"
     );
     let calls = scene.host.calls();
@@ -98,7 +107,7 @@ fn a_sweep_re_vets_removes_the_worktree_then_its_branch_and_trails_each_removal_
 fn a_failed_removal_keeps_the_worktree_and_no_candidate_means_no_scan() {
     let mut failing = Scene::new(&[PATH]);
     failing.host.fails("remove");
-    assert!(failing.swept(Sweep::Done).to_string().starts_with(UNREMOVED));
+    assert!(failing.swept(Sweep::Done).to_string().contains(UNREMOVED));
     let live = Scene::new(&[LIVE]);
-    assert!(live.swept(Sweep::Done).to_string().starts_with(LIVE_ONLY) && live.host.scans().is_empty());
+    assert!(live.swept(Sweep::Done).to_string().contains(LIVE_ONLY) && live.host.scans().is_empty());
 }

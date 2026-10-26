@@ -1,11 +1,13 @@
 mod path_line;
 mod scope;
+mod step;
 mod worktree_config;
 
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use super::ref_line::RefLine;
+use super::ref_list::RefList;
 use crate::request::local::local_clone::vetting::context::Context;
 use crate::request::local::local_clone::vetting::entry_kind::EntryKind;
 use crate::request::local::local_clone::vetting::git_call::GitCall;
@@ -14,6 +16,7 @@ use crate::request::local::local_clone::vetting::kept::Kept;
 use crate::request::local::worktree_id::WorktreeId;
 use path_line::PathLine;
 pub use scope::Scope;
+pub use step::Step;
 use worktree_config::WorktreeConfig;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -31,12 +34,14 @@ impl Link {
     const LOCKED: &'static str = "locked";
     const ALTERNATES: &'static str = "objects/info/alternates";
     const MODULES: &'static str = "modules";
-    const PAUSES: [&'static str; 6] =
-        ["rebase-merge", "rebase-apply", "sequencer", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"];
+    const PAUSED_DIRS: [&'static str; 3] = ["rebase-merge", "rebase-apply", "sequencer"];
+    const PAUSED_REFS: [&'static str; 4] = ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD"];
     const CONFIG: &'static str = "config.worktree";
     const ORIG_HEAD: &'static str = "ORIG_HEAD";
-    const QUARANTINE: &'static str = ".gc-";
-    const REMOVE: [&'static str; 2] = ["worktree", "remove"];
+    const RESOLVE: [&'static str; 3] = ["rev-parse", "--verify", "-q"];
+    const HEAD: [&'static str; 3] = ["rev-parse", "--verify", "HEAD"];
+    const REFS: [&'static str; 5] =
+        ["for-each-ref", "--format=%(objectname) %(refname)", "refs/worktree/", "refs/bisect/", "refs/rewritten/"];
     const MOVE: [&'static str; 2] = ["worktree", "move"];
     const UNBRANCH: [&'static str; 2] = ["update-ref", "-d"];
 
@@ -69,18 +74,16 @@ impl Link {
         })
     }
 
-    pub fn orig_head(&self, host: &impl Inspection) -> Option<RefLine> {
-        host.text(&self.git_dir.join(Self::ORIG_HEAD)).map(|object| RefLine::pseudo(Self::ORIG_HEAD, &object))
+    pub fn refs(&self, host: &impl Inspection, branch: &str) -> Result<RefList, Kept> {
+        let head = RefLine::head(&self.git(host, Scope::Worktree, &Self::HEAD.map(OsStr::new))?);
+        let named = Self::REFS.map(OsStr::new).into_iter().chain([OsStr::new(branch)]).collect::<Vec<_>>();
+        let local = self.git(host, Scope::Worktree, &named)?.parse::<RefList>()?.headed(head);
+        let orig = self.resolved(host, Self::ORIG_HEAD).map(|object| RefLine::pseudo(Self::ORIG_HEAD, &object));
+        Ok(orig.into_iter().fold(local, RefList::headed))
     }
 
     pub fn path(&self) -> &Path {
         &self.path
-    }
-
-    pub fn quarantine(&self) -> PathBuf {
-        let mut name = OsString::from(Self::QUARANTINE);
-        name.push(self.path.file_name().unwrap_or_default());
-        self.path.with_file_name(name)
     }
 
     pub fn relocated(&self, path: &Path) -> Self {
@@ -92,14 +95,19 @@ impl Link {
         GitCall::common(&self.common, &words.collect::<Vec<_>>())
     }
 
-    pub fn removal(&self) -> GitCall {
-        let words = Self::REMOVE.map(OsStr::new).into_iter().chain([self.path.as_os_str()]).collect::<Vec<_>>();
+    pub fn step(&self, step: Step) -> GitCall {
+        let words = step.words().iter().map(OsStr::new).chain([self.path.as_os_str()]).collect::<Vec<_>>();
         GitCall::common(&self.common, &words)
     }
 
     pub fn unbranch(&self, branch: &RefLine) -> GitCall {
         let words = Self::UNBRANCH.map(OsStr::new).into_iter().chain(branch.deletion()).collect::<Vec<_>>();
         GitCall::common(&self.common, &words)
+    }
+
+    fn resolved(&self, host: &impl Inspection, name: &str) -> Option<String> {
+        let words = Self::RESOLVE.map(OsStr::new).into_iter().chain([OsStr::new(name)]).collect::<Vec<_>>();
+        self.git(host, Scope::Worktree, &words).ok().filter(|object| object.lines().next().is_some())
     }
 
     fn guarded(&self, host: &impl Inspection) -> Result<(), Kept> {
@@ -109,7 +117,10 @@ impl Link {
         absent(&[&self.git_dir], Self::LOCKED).then_some(()).ok_or(Kept::Locked)?;
         absent(&both, Self::ALTERNATES).then_some(()).ok_or(Kept::Borrowed)?;
         absent(&both, Self::MODULES).then_some(()).ok_or(Kept::Submodules)?;
-        Self::PAUSES.iter().all(|pause| absent(&[&self.git_dir], pause)).then_some(()).ok_or(Kept::Paused)?;
+        (Self::PAUSED_DIRS.iter().all(|pause| absent(&[&self.git_dir], pause))
+            && Self::PAUSED_REFS.iter().all(|name| self.resolved(host, name).is_none()))
+        .then_some(())
+        .ok_or(Kept::Paused)?;
         let Ok(config) = host.text(&self.git_dir.join(Self::CONFIG)).unwrap_or_default().parse::<WorktreeConfig>();
         config.unredirected()
     }

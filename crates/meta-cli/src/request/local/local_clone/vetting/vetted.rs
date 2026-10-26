@@ -17,7 +17,8 @@ use crate::request::local::byte_count::ByteCount;
 use crate::request::local::recorded_worktree::RecordedWorktree;
 use checkouts::Checkouts;
 use index::Index;
-use link::{Link, Scope};
+use link::Scope;
+pub use link::{Link, Step};
 use porcelain::Porcelain;
 use ref_line::RefLine;
 use ref_list::RefList;
@@ -42,11 +43,8 @@ impl Vetted {
         "--ignore-submodules=none",
         "--no-renames",
     ];
-    const HEAD: [&'static str; 3] = ["rev-parse", "--verify", "HEAD"];
     const ON_BRANCH: [&'static str; 3] = ["symbolic-ref", "-q", "HEAD"];
     const CHECKOUTS: [&'static str; 3] = ["worktree", "list", "--porcelain"];
-    const REFS: [&'static str; 5] =
-        ["for-each-ref", "--format=%(objectname) %(refname)", "refs/worktree/", "refs/bisect/", "refs/rewritten/"];
     const REMOTE: &'static str = "ls-remote";
     const BEYOND: [&'static str; 3] = ["rev-list", "--max-count=1", "--ignore-missing"];
     const NOT: &'static str = "--not";
@@ -64,8 +62,10 @@ impl Vetted {
         Ok(Self { branch: refs.named(&branch).cloned().ok_or(Kept::NoBranch)?, refs, link, bytes })
     }
 
-    pub fn rechecked(&self, quarantine: &Path, host: &impl Inspection) -> Result<(), Kept> {
-        (Self::settled(&self.link.relocated(quarantine), host)? == self.bytes).then_some(()).ok_or(Kept::Changed)
+    pub fn rechecked(&self, held: &Link, host: &impl Inspection) -> Result<(), Kept> {
+        (Self::settled(held, host)? == self.bytes && held.refs(host, self.branch.name())? == self.refs)
+            .then_some(())
+            .ok_or(Kept::Changed)
     }
 
     pub fn link(&self) -> &Link {
@@ -114,15 +114,13 @@ impl Vetted {
     }
 
     fn pushed(link: &Link, branch: &str, context: &Context, host: &impl Inspection) -> Result<RefList, Kept> {
-        let head = RefLine::head(&link.git(host, Scope::Worktree, &Self::HEAD.map(OsStr::new))?);
-        let named = Self::REFS.map(OsStr::new).into_iter().chain([OsStr::new(branch)]).collect::<Vec<_>>();
-        let local = link.git(host, Scope::Worktree, &named)?.parse::<RefList>()?.headed(head);
-        let local = link.orig_head(host).into_iter().fold(local, RefList::headed);
+        let local = link.refs(host, branch)?;
         let listed = link.git(host, Scope::Common, &[OsStr::new(Self::REMOTE), context.remote().as_ref()]);
         let remote: RefList = listed.map_err(|kept| kept.recast(Kept::Unreachable))?.parse()?;
         local.matched(&remote)?;
         let beyond = Self::BEYOND.map(OsStr::new).into_iter().chain(local.objects()).chain([OsStr::new(Self::NOT)]);
         let words: Vec<&OsStr> = beyond.chain(remote.objects()).collect();
-        link.git(host, Scope::Common, &words)?.lines().next().is_none().then_some(local).ok_or(Kept::Unpushed)
+        link.git(host, Scope::Common, &words)?.lines().next().is_none().then_some(()).ok_or(Kept::Unpushed)?;
+        (link.refs(host, branch)? == local).then_some(local).ok_or(Kept::Changed)
     }
 }

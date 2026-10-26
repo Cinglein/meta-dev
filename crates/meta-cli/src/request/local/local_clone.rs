@@ -2,6 +2,7 @@ mod collection;
 mod gc_lock;
 mod git;
 mod git_dir;
+mod quarantine;
 mod vetting;
 
 use std::ffi::OsStr;
@@ -130,7 +131,7 @@ impl LocalClone {
         let trail = LocalTrail::read(self.git_dir.as_ref())?;
         trail.torn().iter().for_each(|torn| eprintln!("meta: warning: {torn}"));
         let state = State::fold(project.log()?.read()?.records());
-        let recorded: Vec<RecordedWorktree> = trail.current().into_iter().cloned().collect();
+        let recorded: Vec<RecordedWorktree> = trail.current();
         let tasks: Vec<Id<Task>> = recorded.iter().map(RecordedWorktree::task).collect();
         let github = LiveGithub::for_project(project).read(&Status::linked_query(&state, &tasks));
         let status = Status::new(&state, &github, Utc::now().into());

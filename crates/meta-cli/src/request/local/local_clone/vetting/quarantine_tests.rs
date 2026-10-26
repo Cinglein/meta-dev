@@ -13,7 +13,7 @@ use crate::request::local::recorded_worktree::RecordedWorktree;
 const LATE: &str = "late.log";
 const RACES: [[&str; 2]; 2] = [["status", "?? late.log\0"], ["rev-parse", "c5\n"]];
 const RACED: [&str; 2] = ["untracked files", "changed during checks"];
-const QUARANTINE: &str = "/trees/.gc-task-00000000000000b1";
+const QUARANTINE: &str = "/trees/.gc-task-00000000000000b1-1x0";
 const MOVED_OUT: &str = "worktree move /trees/task-00000000000000b1 /trees/.gc-task-00000000000000b1";
 const MOVED_BACK: &str = "worktree move /trees/.gc-task-00000000000000b1";
 const RESTORED: &str = " /trees/task-00000000000000b1";
@@ -35,7 +35,9 @@ impl Sweep {
     fn refusal(&self) -> Option<String> {
         let vet = || Vetted::proved(&FakeHost::worktree(), &self.0.context(), &self.0);
         let deletable = Deletable::confirmed(vet().unwrap(), &Occupancy::Listed(vec![]), vet());
-        deletable.and_then(|deletable| deletable.removed(&self.0)).err().map(|kept| kept.to_string())
+        let removed =
+            deletable.and_then(|deletable| deletable.removed(&FakeHost::worktree(), &self.0.context(), &self.0));
+        removed.err().map(|kept| kept.to_string())
     }
 }
 
