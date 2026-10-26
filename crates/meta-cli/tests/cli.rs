@@ -24,7 +24,13 @@ const NOREPLY: &str = "1+agent@users.noreply.github.com";
 const CLAIM: &str = "claim";
 const WORKTREE: &str = "--worktree";
 const WORKTREES: [&str; 1] = ["worktrees"];
-const SHOWN_BY_GIT: [[&str; 2]; 3] = [["config", "user.email"], ["config", "user.name"], ["branch", "--show-current"]];
+const SHOWN_BY_GIT: [[&str; 2]; 4] =
+    [["config", "author.email"], ["config", "committer.email"], ["config", "user.name"], ["branch", "--show-current"]];
+const FOREIGN_IDENTITY: &str = "[author]\n\temail = someone@example.com\n[committer]\n\temail = someone@example.com\n";
+const RECORD_DIR: &str = ".git/meta-local";
+const RECORD: &str = ".git/meta-local/worktrees.jsonl";
+const TORN: &str = "{\"change\":\"Crea";
+const LINE_2: &str = "line 2";
 const MISSING: &str = "missing";
 const AGENT: &str = "agent";
 const STRAY: [&str; 4] = ["worktree", "add", "-q", "--detach"];
@@ -51,12 +57,11 @@ impl Git {
 
     fn link_origin(dir: &Path, url: &str) {
         let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
-        std::fs::OpenOptions::new()
-            .append(true)
-            .open(dir.join(".git/config"))
-            .unwrap()
-            .write_all(remote.as_bytes())
-            .unwrap();
+        Self::appended(&dir.join(".git/config"), &remote);
+    }
+
+    fn appended(file: &Path, text: impl AsRef<[u8]>) {
+        std::fs::OpenOptions::new().append(true).open(file).unwrap().write_all(text.as_ref()).unwrap();
     }
 }
 
@@ -119,6 +124,7 @@ impl Project {
         let project = Self::new();
         assert!(SEED.iter().all(|words| Git::run(project.clone.path(), words).status.success()));
         std::fs::write(project.clone.path().join(EXCLUDE), LOCAL_SETTINGS_RULE).unwrap();
+        Git::appended(&project.clone.path().join(".git/config"), FOREIGN_IDENTITY);
         Settings::written(project.clone.path(), worktrees);
         project
     }
@@ -154,13 +160,15 @@ fn claim_with_worktree_makes_a_noreply_worktree_on_the_task_branch_that_worktree
     let claimed = project.meta(OWNER, &[CLAIM, &task, WORKTREE]).to_string();
     let path = Path::new(claimed.lines().last().unwrap_or_default());
     let shown = SHOWN_BY_GIT.map(|words| Git::shown(path, &words));
-    assert_eq!(shown, [NOREPLY, AGENT, &task].map(|line| format!("{line}\n")));
+    assert_eq!(shown, [NOREPLY, NOREPLY, AGENT, &task].map(|line| format!("{line}\n")));
     let stray = worktrees.path().join(AGENT);
     Git::run(project.clone.path(), &[&STRAY[..], &[stray.to_str().unwrap()]].concat());
-    let listed = project.meta(OWNER, &WORKTREES).to_string();
+    Git::appended(&project.clone.path().join(RECORD), TORN);
+    let run = project.meta(OWNER, &WORKTREES);
+    let listed = run.to_string();
     assert!(listed.contains(&format!("{task} assigned {task} ")) && !listed.contains(MISSING));
     let named = format!("{UNRECORDED} {}\n", std::fs::canonicalize(stray).unwrap().display());
-    assert!(listed.ends_with(&named) && listed.matches(UNRECORDED).count() == 1);
+    assert!(listed.ends_with(&named) && listed.matches(UNRECORDED).count() == 1 && run.complaint().0.contains(LINE_2));
 }
 
 #[test]
@@ -175,8 +183,11 @@ fn failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_w
     let tracked = project.meta(OWNER, &claim).complaint().0;
     std::fs::write(project.clone.path().join(EXCLUDE), LOCAL_SETTINGS_RULE).unwrap();
     let unwritable = project.meta(OWNER, &claim).complaint().0;
-    let failed = writes();
     Settings::written(project.clone.path(), worktrees.path());
+    std::fs::write(project.clone.path().join(RECORD_DIR), "").unwrap();
+    project.meta(OWNER, &claim);
+    std::fs::remove_file(project.clone.path().join(RECORD_DIR)).unwrap();
+    let failed = writes();
     let first = project.meta(OWNER, &claim).to_string().lines().last().unwrap_or_default().to_owned();
     let claimed = writes();
     std::fs::remove_dir_all(&first).ok();
