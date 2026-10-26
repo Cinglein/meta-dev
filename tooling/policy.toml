@@ -57,6 +57,7 @@ fn_name = 3
 lifetime_name = 2
 cut_side = 5
 price_sample = 30
+diff_factor = 3
 
 [shares]
 tests_per_hundred_files = 40
@@ -85,14 +86,14 @@ job_setup = 90000
 full_run = ["every_main_push", "weekly", "on_demand"]
 
 [mutant_millis]
-default = 5900
+default = 3700
 
 [mutant_millis.crates]
 affected = 1300
 crate_graph = 1500
 expression_flow = 1400
 fn_shape = 1400
-meta-cli = 5900
+meta-cli = 2000
 meta-log = 2100
 meta-schema = 1300
 meta-state = 1100

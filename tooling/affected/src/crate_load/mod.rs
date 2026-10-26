@@ -31,6 +31,17 @@ impl CrateLoad {
         }
     }
 
+    #[must_use]
+    pub fn priced(
+        name: CrateName,
+        mutants: MutantCount,
+        policy: &Policy,
+        _job: Interval,
+    ) -> CrateLoad {
+        let each = policy.mutant_millis().for_crate(&name);
+        CrateLoad::new(name, mutants, each, policy)
+    }
+
     pub fn listed(listing: CommandLine, policy: &Policy) -> Result<Vec<CrateLoad>, Failure> {
         let json = listing
             .argument(MutantsArgument::List)

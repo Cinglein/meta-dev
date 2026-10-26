@@ -55,6 +55,7 @@ fn_name = 3
 lifetime_name = 2
 cut_side = 5
 price_sample = 30
+diff_factor = 3
 
 [shares]
 tests_per_hundred_files = 50

@@ -44,9 +44,10 @@ mod tests {
     use settings::EmbeddedDefaults;
     use std::fs;
     use std::path::Path;
-    use std::time::Duration;
     use task::Program;
-    const JOB_TIMEOUT: &str = "    timeout-minutes: ";
+    const TIMEOUT: &str = "timeout-minutes: ";
+    const STEP_LIMIT: &str = "        timeout-minutes: 5";
+    const STEP_LIMIT_TOO_LONG: &str = "        timeout-minutes: 9";
     const SECONDS_PER_MINUTE: u64 = 60;
     const WORKFLOWS: [(&str, Interval); 2] = [
         ("../../.github/workflows/ci.yml", Interval::DiffJob),
@@ -75,18 +76,21 @@ mod tests {
     }
 
     #[test]
-    fn every_mutants_job_timeout_in_the_workflows_is_its_job_limit_in_the_policy() {
+    fn each_mutants_job_timeout_is_its_policy_limit_and_each_step_timeout_one_minute_less() {
         let policy = Policy::defaults();
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let limits = |workflow: &str| -> Vec<Duration> {
-            fs::read_to_string(root.join(workflow))
-                .unwrap()
+        let fits = |text: &str, job: Interval| {
+            let limit = policy.interval(job).whole_seconds() / SECONDS_PER_MINUTE;
+            let found: Vec<(usize, u64)> = text
                 .lines()
-                .filter_map(|line| line.strip_prefix(JOB_TIMEOUT))
-                .map(|minutes| Duration::from_secs(minutes.trim().parse::<u64>().unwrap() * SECONDS_PER_MINUTE))
-                .collect()
+                .filter_map(|line| line.trim_start().strip_prefix(TIMEOUT).map(|minutes| (line, minutes)))
+                .map(|(line, minutes)| (line.len() - line.trim_start().len(), minutes.trim().parse().unwrap()))
+                .collect();
+            let job_indent = found.iter().map(|(indent, _)| *indent).min();
+            let step = |indent| u64::from(Some(indent) != job_indent);
+            found.len() > 1 && found.iter().all(|(indent, minutes)| minutes + step(*indent) == limit)
         };
-        let found = WORKFLOWS.map(|(workflow, _)| limits(workflow));
-        assert_eq!(found, WORKFLOWS.map(|(_, job)| vec![policy.interval(job).duration()]));
+        let read = |workflow: &str| fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(workflow)).unwrap();
+        assert!(WORKFLOWS.iter().all(|(workflow, job)| fits(&read(workflow), *job)));
+        assert!(!fits(&read(WORKFLOWS[0].0).replace(STEP_LIMIT, STEP_LIMIT_TOO_LONG), WORKFLOWS[0].1));
     }
 }

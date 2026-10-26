@@ -13,6 +13,7 @@ use tally::Tally;
 use task::CrateName;
 use task::Failure;
 use task::Floor;
+use task::Interval;
 use task::Millis;
 use task::Policy;
 use task::Site;
@@ -55,7 +56,7 @@ impl MutantCosts {
         spelled.join(", ")
     }
 
-    pub fn priced_within(&self, policy: &Policy) -> Result<(), Failure> {
+    pub fn priced_within(&self, policy: &Policy, _job: Interval) -> Result<(), Failure> {
         let table = policy.mutant_millis();
         let under: Vec<String> = self
             .prices
@@ -111,12 +112,16 @@ impl fmt::Display for MutantCosts {
 
 #[cfg(test)]
 mod tests {
-    use super::{Failure, Millis, MutantCosts, Outcomes};
+    use super::{Failure, Interval, MutantCosts, Outcomes};
     use settings::EmbeddedDefaults;
     use std::{env, fs, iter, process};
     use task::Policy;
     const LISTED: &str = "meta-cli";
     const SAMPLE: usize = 30;
+    const AFFECTED: &str = "affected";
+    const CASES: [(f64, Interval, bool); 3] =
+        [(2.8, Interval::DiffJob, true), (2.8, Interval::FullJob, false), (4.0, Interval::DiffJob, false)];
+    const SMALL_DEAR_DIFF: &[(&str, f64, usize)] = &[(AFFECTED, 4.0, BELOW_SAMPLE)];
     const BELOW_SAMPLE: usize = 29;
     const BASELINE: &str = r#"{"scenario": "Baseline", "phase_results": [{"phase": "Build", "duration": 9.0}]}"#;
     const RUNS: [&[(&str, f64, usize)]; 3] =
@@ -129,7 +134,8 @@ mod tests {
     const SCRATCH: &str = "meta-costs";
     const NESTED: [&str; 3] = ["a", "b", "outcomes.json"];
     const DECOY: &str = "other.json";
-    const EMPTY_RUN: &str = r#"{"outcomes": []}"#;
+    const SLOW_BASELINE: &str =
+        r#"{"outcomes": [{"scenario": "Baseline", "phase_results": [{"phase": "Build", "duration": 60.0}]}]}"#;
 
     #[test]
     fn each_sampled_crate_is_priced_at_its_costliest_run_rounded_up_and_small_runs_are_only_reported() {
@@ -145,36 +151,36 @@ mod tests {
         assert_eq!((costs.to_string(), costs.below_sample_floor()), (TABLE.to_owned(), SMALL.to_owned()));
         let sliced = MutantCosts::across([iter::repeat_with(|| run(SLICE)).take(SLICES).collect()], &policy);
         assert!(sliced.to_string().ends_with(SLICED_PRICE));
+        let small = MutantCosts::across([vec![run(SMALL_DEAR_DIFF)]], &policy);
+        assert!(small.priced_within(&policy, Interval::DiffJob).is_ok());
     }
 
     #[test]
-    fn a_sampled_crate_at_its_price_is_within_it_dearer_is_underpriced_and_a_small_run_never_is() {
+    fn a_diff_run_may_cost_the_full_price_times_the_diff_factor_and_a_full_run_only_the_full_price() {
         let policy = Policy::defaults();
-        let price = policy.mutant_millis().for_crate(&LISTED.parse().unwrap());
-        let measured = |millis: Millis, mutants: usize| {
-            let seconds = millis.duration().as_secs_f64();
+        let measured = |seconds: f64, job| {
             let one = format!(
-                r#"{{"scenario": {{"Mutant": {{"package": "{LISTED}"}}}}, "phase_results": [{{"phase": "Test", "duration": {seconds}}}]}}"#
+                r#"{{"scenario": {{"Mutant": {{"package": "{AFFECTED}"}}}}, "phase_results": [{{"phase": "Test", "duration": {seconds}}}]}}"#
             );
-            let run = format!(r#"{{"outcomes": [{}]}}"#, vec![one; mutants].join(", "));
-            MutantCosts::across([vec![Outcomes::parse(&run).unwrap()]], &policy).priced_within(&policy)
+            let run = format!(r#"{{"outcomes": [{}]}}"#, vec![one; SAMPLE].join(", "));
+            MutantCosts::across([vec![Outcomes::parse(&run).unwrap()]], &policy).priced_within(&policy, job)
         };
-        assert!(measured(price, SAMPLE).is_ok());
-        assert!(matches!(measured(price.plus(price), SAMPLE), Err(Failure::Underpriced(_))));
-        assert!(measured(price.plus(price), BELOW_SAMPLE).is_ok());
+        assert!(CASES.iter().all(|(seconds, job, within)| measured(*seconds, *job).is_ok() == *within));
     }
 
     #[test]
-    fn outcome_files_under_nested_directories_make_one_run_and_other_files_are_skipped() {
+    fn nested_outcome_files_make_one_run_and_a_baseline_dearer_than_the_crate_overhead_fails() {
+        let policy = Policy::defaults();
         let root = env::temp_dir().join(format!("{SCRATCH}-{}", process::id()));
         let file = NESTED.iter().fold(root.clone(), |path, part| path.join(part));
         fs::create_dir_all(file.parent().unwrap()).unwrap();
-        fs::write(&file, EMPTY_RUN).unwrap();
+        fs::write(&file, SLOW_BASELINE).unwrap();
         fs::write(root.join(DECOY), SCRATCH).unwrap();
         let found = MutantCosts::outcome_files(&root);
         let run = MutantCosts::read_run(&root);
         fs::remove_dir_all(&root).unwrap();
         assert_eq!(found.unwrap(), vec![file]);
-        assert_eq!(run.unwrap().len(), 1);
+        let costs = MutantCosts::across([run.unwrap()], &policy);
+        assert!(matches!(costs.priced_within(&policy, Interval::FullJob), Err(Failure::Underpriced(_))));
     }
 }

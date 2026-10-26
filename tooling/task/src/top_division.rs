@@ -21,7 +21,7 @@ mod tests {
         TopDivision::PerformanceAndCost,
         TopDivision::ArchitectureAndPlanning,
     ];
-    const ENTRIES_PER_DIVISION: [usize; 3] = [17, 18, 0];
+    const ENTRIES_PER_DIVISION: [usize; 3] = [17, 19, 0];
 
     #[test]
     fn every_policy_entry_sits_in_one_division_and_none_enforced_in_code_is_architecture() {

@@ -117,9 +117,8 @@ mod tests {
         let measured = Millis::new(u64::try_from(measured).unwrap());
         let mutants: usize = PR_SEVEN_MUTANTS.parse().unwrap();
         let name: CrateName = PR_SEVEN_CRATE.parse().unwrap();
-        let price = policy.mutant_millis().for_crate(&name);
-        let load = CrateLoad::new(name, MutantCount::from(mutants), price, &policy);
         let job = Interval::DiffJob;
+        let load = CrateLoad::priced(name, MutantCount::from(mutants), &policy, job);
         let shards = Packing::shards(&[load], &policy, job).len();
         let spent = policy
             .interval(Interval::JobSetup)
