@@ -4,7 +4,7 @@ set -eu
 meta="${META_BIN:-meta}"
 export META_ACTOR=seed
 
-PM="context/basho-postmortem.md"
+PM="Basho postmortem"
 
 concern() {
   id=$("$meta" concern "$3" --source "$PM $2" --tag acceptance-candidate | awk '{print $5}')
