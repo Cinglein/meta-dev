@@ -10,6 +10,7 @@ use serde::de::Error as _;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::entity::Entity;
+use crate::unparsed::Unparsed;
 use id_failure::IdFailure;
 use raw_id::RawId;
 
@@ -33,7 +34,7 @@ impl<Kind: Entity> FromStr for Id<Kind> {
         let hex = text
             .strip_prefix(Kind::PREFIX)
             .and_then(|rest| rest.strip_prefix('-'))
-            .ok_or_else(|| IdFailure::WrongKind { expected: Kind::PREFIX, found: text.to_owned() })?;
+            .ok_or_else(|| IdFailure::WrongKind { expected: Kind::PREFIX, found: Unparsed::from(text) })?;
         Ok(Self { raw: hex.parse()?, kind: PhantomData })
     }
 }

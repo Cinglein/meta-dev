@@ -1,19 +1,17 @@
+mod tag_failure;
+
 use std::fmt;
 use std::str::FromStr;
 
 use serde::de::Error as _;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use thiserror::Error;
+
+use crate::unparsed::Unparsed;
+use tag_failure::TagFailure;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Tag {
     AcceptanceCandidate,
-}
-
-#[derive(Debug, Error)]
-pub enum TagFailure {
-    #[error("unknown tag `{0}`; known: acceptance-candidate")]
-    Unknown(String),
 }
 
 impl Tag {
@@ -26,7 +24,7 @@ impl FromStr for Tag {
     fn from_str(name: &str) -> Result<Self, Self::Err> {
         match name {
             Self::ACCEPTANCE_CANDIDATE => Ok(Self::AcceptanceCandidate),
-            other => Err(TagFailure::Unknown(other.to_owned())),
+            other => Err(TagFailure::Unknown(Unparsed::from(other))),
         }
     }
 }

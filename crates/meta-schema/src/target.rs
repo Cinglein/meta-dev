@@ -1,24 +1,21 @@
+mod target_failure;
+
 use std::fmt;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 use crate::entity::{Concern, Issue};
 use crate::entry::Entry;
 use crate::id::Id;
+use crate::unparsed::Unparsed;
+use target_failure::TargetFailure;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Target {
     Concern(Id<Concern>),
     Issue(Id<Issue>),
-}
-
-#[derive(Debug, Error)]
-pub enum TargetFailure {
-    #[error("`{0}` is not a concern or issue id")]
-    Unknown(String),
 }
 
 impl Target {
@@ -38,7 +35,7 @@ impl FromStr for Target {
         text.parse()
             .map(Self::Concern)
             .or_else(|_| text.parse().map(Self::Issue))
-            .map_err(|_| TargetFailure::Unknown(text.to_owned()))
+            .map_err(|_| TargetFailure::Unknown(Unparsed::from(text)))
     }
 }
 

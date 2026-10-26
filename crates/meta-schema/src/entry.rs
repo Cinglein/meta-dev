@@ -1,12 +1,15 @@
+mod entry_failure;
+
 use std::fmt;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 use crate::entity::{Concern, Issue, Task};
 use crate::id::Id;
 use crate::target::Target;
+use crate::unparsed::Unparsed;
+use entry_failure::EntryFailure;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -14,12 +17,6 @@ pub enum Entry {
     Concern(Id<Concern>),
     Issue(Id<Issue>),
     Task(Id<Task>),
-}
-
-#[derive(Debug, Error)]
-pub enum EntryFailure {
-    #[error("`{0}` is not a concern, issue or task id")]
-    Unknown(String),
 }
 
 impl Entry {
@@ -49,7 +46,7 @@ impl FromStr for Entry {
             .map(Self::Task)
             .or_else(|_| text.parse().map(Self::Concern))
             .or_else(|_| text.parse().map(Self::Issue))
-            .map_err(|_| EntryFailure::Unknown(text.to_owned()))
+            .map_err(|_| EntryFailure::Unknown(Unparsed::from(text)))
     }
 }
 
