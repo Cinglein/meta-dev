@@ -441,6 +441,7 @@ version = "0.0.0"
 dependencies = [
  "chrono",
  "meta-schema",
+ "serde_json",
  "thiserror",
 ]
 
