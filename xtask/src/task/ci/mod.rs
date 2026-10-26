@@ -1,5 +1,6 @@
 mod ci_step;
 
+use std::path::Path;
 use std::time::Instant;
 
 use strum::IntoEnumIterator;
@@ -14,12 +15,18 @@ use task::Workspace;
 pub struct Ci;
 
 impl Ci {
-    pub fn run(workspace: &Workspace, selection: &Selection, policy: &Policy) -> Result<(), Failure> {
+    pub fn run(
+        workspace: &Workspace,
+        selection: &Selection,
+        policy: &Policy,
+        summary: Option<&Path>,
+    ) -> Result<(), Failure> {
         println!("ci: checking {selection}");
         let started = Instant::now();
         let outcome = CiStep::iter().try_for_each(|step| step.timed(workspace, selection, policy));
         println!("ci: total {:.1?}", started.elapsed());
-        Surfaces::announce(workspace.root(), policy).unwrap_or_else(|failure| eprintln!("surfaces: {failure}"));
+        Surfaces::announce(workspace.root(), policy, summary)
+            .unwrap_or_else(|failure| eprintln!("surfaces: {failure}"));
         outcome
     }
 }

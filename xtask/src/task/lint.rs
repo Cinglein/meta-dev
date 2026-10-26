@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use corpus_check::LintName;
 use strum::IntoEnumIterator;
-use task::{Policy, Report, SourceFile, Workspace};
+use task::{Policy, Report, SourceFile};
 
 use crate::task::failure::Failure;
 use crate::task::ratchet::{Baseline, Drift, Ratchet, ViolationCount};
@@ -13,18 +14,16 @@ pub struct Lint {
 }
 
 impl Lint {
-    pub fn run(workspace: &Workspace, policy: &Policy) -> Result<(), Failure> {
-        let files = workspace.source_files()?;
-        let allowed = Baseline::admitted(workspace.root(), policy.baseline())?;
-        let observed = Self::gathered(&files, policy).ratchet(&allowed, |_| true)?;
+    pub fn run(root: &Path, files: &[SourceFile], policy: &Policy) -> Result<(), Failure> {
+        let allowed = Baseline::admitted(root, policy.baseline())?;
+        let observed = Self::gathered(files, policy).ratchet(&allowed, |_| true)?;
         println!("lint: {} rust files, {} baselined violations", files.len(), observed.total());
         Ok(())
     }
 
-    pub fn shrink(workspace: &Workspace, policy: &Policy) -> Result<Baseline, Failure> {
-        let path = policy.baseline().within(workspace.root());
-        let observed =
-            Self::gathered(&workspace.source_files()?, policy).ratchet(&Baseline::read(&path)?, Drift::grew)?;
+    pub fn shrink(root: &Path, files: &[SourceFile], policy: &Policy) -> Result<Baseline, Failure> {
+        let path = policy.baseline().within(root);
+        let observed = Self::gathered(files, policy).ratchet(&Baseline::read(&path)?, Drift::grew)?;
         observed.write(&path)?;
         Ok(observed)
     }
@@ -45,14 +44,20 @@ impl Lint {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
+    use settings::EmbeddedDefaults;
+
     use super::Lint;
+    use crate::task::fixture::Fixture;
     use crate::task::ratchet::{Baseline, Drift};
-    use task::{Report, Site, Violation};
+    use task::{Policy, Report, Site, Violation};
 
     const LINT: &str = "no-comments";
     const HEADLINE: &str = "comments go";
     const ALLOWED: &str = "no-comments = 1";
     const SHOWN: &str = "no-comments: 1 found, baseline 0\ncomments go:\nworkspace: a comment\n";
+    const BASELINE: &str = "self/lint-baseline.toml";
 
     #[test]
     fn growth_over_the_baseline_fails_with_the_lint_report_and_shrinking_passes() {
@@ -62,5 +67,16 @@ mod tests {
         assert_eq!(refused.err().as_deref(), Some(SHOWN));
         let allowed: Baseline = toml::from_str(ALLOWED).unwrap();
         assert!(Lint { reports: [].into() }.ratchet(&allowed, Drift::grew).is_ok());
+    }
+
+    #[test]
+    fn a_baseline_above_the_findings_fails_until_shrunk_to_them() {
+        let fixture = Fixture::new();
+        fixture.write(BASELINE, ALLOWED).branch();
+        let policy = Policy::defaults();
+        assert!(Lint::run(fixture.root(), &[], &policy).is_err());
+        Lint::shrink(fixture.root(), &[], &policy).unwrap();
+        assert_eq!(fs::read_to_string(fixture.path(BASELINE)).ok().as_deref(), Some(""));
+        assert!(Lint::run(fixture.root(), &[], &policy).is_ok());
     }
 }

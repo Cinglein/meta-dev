@@ -74,17 +74,25 @@ mod tests {
     use task::BaselineFile;
 
     const BASELINE: &str = "lint-baseline.toml";
+    const MOVED: &str = "self/moved.toml";
+    const POLICY: &str = "tooling/policy.toml";
+    const MOVED_POLICY: &str = "baseline = \"self/moved.toml\"\n";
     const ONE: &str = "crate-graph = 1\n";
     const TWO: &str = "crate-graph = 2\n";
+    const THREE: &str = "crate-graph = 1\nno-comments = 2\n";
     const GREW: &str = "crate-graph: 2 found, baseline 1";
+    const RAISED: &str = "baseline raised above the merge base:\ncrate-graph: 2 found, baseline 1";
 
     #[test]
-    fn a_raised_baseline_is_refused_against_the_merge_base() {
+    fn a_raised_baseline_is_refused_against_the_merge_base_even_after_a_move() {
         let fixture = Fixture::new();
         fixture.write(BASELINE, ONE).branch();
         fixture.write(BASELINE, TWO);
         let admitted = Baseline::admitted(fixture.root(), &BaselineFile::from(BASELINE));
-        assert!(matches!(admitted, Err(Failure::Raised(_))));
+        assert_eq!(admitted.map_err(|failure| failure.to_string()).err().as_deref(), Some(RAISED));
+        let moved = Fixture::new();
+        moved.write(POLICY, MOVED_POLICY).write(MOVED, TWO).branch();
+        assert!(Baseline::admitted(moved.write(BASELINE, TWO).root(), &BaselineFile::from(BASELINE)).is_ok());
     }
 
     #[test]
@@ -98,5 +106,16 @@ mod tests {
             grown.drifts(&allowed).iter().all(super::Drift::grew)
                 && empty.drifts(&allowed).iter().all(|drift| !drift.grew())
         );
+        assert_eq!(toml::from_str::<Baseline>(THREE).unwrap().total().to_string(), "3");
+    }
+
+    #[test]
+    fn a_missing_baseline_reads_empty_a_written_one_reads_back_and_a_directory_fails() {
+        let fixture = Fixture::new();
+        let written: Baseline = toml::from_str(THREE).unwrap();
+        assert_eq!(Baseline::read(&fixture.path(BASELINE)).ok(), Some(Baseline::default()));
+        written.write(&fixture.path(BASELINE)).unwrap();
+        assert_eq!(Baseline::read(&fixture.path(BASELINE)).ok(), Some(written));
+        assert!(matches!(Baseline::read(fixture.root()), Err(Failure::Task(_))));
     }
 }

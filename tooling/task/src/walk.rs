@@ -43,3 +43,21 @@ impl Walk {
             .unwrap_or(Walk::Entered)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use syn::{Attribute, parse_quote};
+
+    use super::Walk;
+
+    #[test]
+    fn only_a_cfg_naming_test_skips_the_walk() {
+        let gated: Attribute = parse_quote!(#[cfg(any(test, feature = "proptest"))]);
+        let derived: Attribute = parse_quote!(#[cfg_attr(test, derive(Debug))]);
+        assert_eq!(
+            Walk::outside_tests(std::slice::from_ref(&derived)),
+            Walk::Entered
+        );
+        assert_eq!(Walk::outside_tests(&[derived, gated]), Walk::Skipped);
+    }
+}
