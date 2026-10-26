@@ -365,3 +365,4 @@
 {"at":"2026-10-26T19:45:22.249709Z","actor":"claude-gate-env","kind":"TaskClaimed","task":"task-b45789b7c1d3bb1e"}
 {"at":"2026-10-26T19:52:50.501154Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-7b7dc3bdb138864a","text":"meta-xtask assigns each source file to a package by directory prefix, so a nested package (Basho's xtask/map_draft) had its files claimed by the outer xtask package, and public-surface reported its exports as unused. Basho worked around it by moving the crate to tools/. Assign files to the deepest package manifest instead.","division":"features-and-maintenance","source":"claude-lead"}
 {"at":"2026-10-26T19:56:52.496432Z","actor":"claude-status-view","kind":"TaskDone","task":"task-53c6698cb2d5ea01"}
+{"at":"2026-10-26T19:58:43.699948Z","actor":"claude-gate-env","kind":"TaskLinked","task":"task-b45789b7c1d3bb1e","pr":21}
