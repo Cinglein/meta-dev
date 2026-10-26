@@ -1,0 +1,10 @@
+pub struct Ape(Bat, Cod, Doe, Eft, Fox, Gnu, Hen, Ibex, Jay);
+pub struct Bat(Cod, Doe, Eft, Fox, Gnu, Hen, Ibex, Jay);
+pub struct Cod(Doe, Eft, Fox, Gnu, Hen, Ibex, Jay);
+pub struct Doe(Eft, Fox, Gnu, Hen, Ibex, Jay);
+pub struct Eft(Fox, Gnu, Hen, Ibex, Jay);
+pub struct Fox(Gnu, Hen, Ibex, Jay);
+pub struct Gnu(Hen, Ibex, Jay);
+pub struct Hen(Ibex, Jay);
+pub struct Ibex(Jay);
+pub struct Jay;

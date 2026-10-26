@@ -1,4 +1,4 @@
-pub struct Ask(Bid, Cap, Dip, Eel, Oak); //~ crate crate-graph: conductance 0.024 between 5 items
+pub struct Ask(Bid, Cap, Dip, Eel, Oak); //~ crate crate-graph: conductance 0.024 between 5 items [Ask Bid Cap Dip Eel] and 5 items [Oak Pea Rye Sky Tea]
 pub struct Bid(Ask, Cap, Dip, Eel);
 pub struct Cap(Ask, Bid, Dip, Eel);
 pub struct Dip(Ask, Bid, Cap, Eel);
