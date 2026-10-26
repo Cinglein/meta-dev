@@ -13,10 +13,16 @@ impl Identity {
     const IDENTS: [&'static str; 2] = ["GIT_AUTHOR_IDENT", "GIT_COMMITTER_IDENT"];
 
     pub fn refusal_in(directory: &Path) -> Option<Listed> {
+        let unresolved =
+            Listed::new(format!("cannot resolve the commit directory; use an absolute path: {}", directory.display()));
+        (!directory.is_dir()).then_some(unresolved).or_else(|| Self::foreign_in(directory)?.refusal())
+    }
+
+    fn foreign_in(directory: &Path) -> Option<Identity> {
         Self::IDENTS.iter().find_map(|ident| {
             let shown = Command::new("git").arg("-C").arg(directory).args(["var", ident]).output().ok()?;
             let Ok(identity) = String::from_utf8_lossy(&shown.stdout).parse::<Identity>();
-            identity.refusal()
+            Some(identity).filter(|identity| !identity.0.noreply())
         })
     }
 

@@ -1,12 +1,11 @@
 use std::fmt;
-use std::path::{Path, PathBuf};
 
 use crate::request::output::Listed;
 use crate::request::project::{BranchName, Config};
 
 #[derive(Debug)]
 pub struct GitCall {
-    directories: Vec<PathBuf>,
+    directories: Vec<String>,
     words: Vec<String>,
 }
 
@@ -26,7 +25,7 @@ impl GitCall {
             .get(..rest.len() - words.len())?
             .windows(Self::OPTION_PAIR_LEN)
             .filter_map(|pair| match pair {
-                [option, directory] if option == Self::DIRECTORY => Some(PathBuf::from(directory)),
+                [option, directory] if option == Self::DIRECTORY => Some(directory.clone()),
                 _ => None,
             })
             .collect();
@@ -39,8 +38,8 @@ impl GitCall {
             .then_some(())
     }
 
-    pub fn directory(&self, cwd: &Path) -> PathBuf {
-        self.directories.iter().fold(cwd.to_path_buf(), |directory, next| directory.join(next))
+    pub fn directory_words(&self) -> &[String] {
+        &self.directories
     }
 
     pub fn runs(&self, subcommand: &str) -> Option<()> {

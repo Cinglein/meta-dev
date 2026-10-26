@@ -1,4 +1,5 @@
 mod git_call;
+mod working_directory;
 
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -6,12 +7,13 @@ use std::str::FromStr;
 use crate::request::output::Listed;
 use crate::request::project::Config;
 use git_call::GitCall;
+use working_directory::WorkingDirectory;
 
 #[derive(Debug)]
 pub struct ShellCommand(Vec<Vec<String>>);
 
 impl ShellCommand {
-    const SEPARATORS: &'static [char] = &[';', '&', '|', '\n', '(', ')'];
+    const SEPARATORS: &'static [char] = &[';', '&', '|', '\n'];
     const QUOTES: &'static [char] = &['\'', '"'];
     const PR_MERGE: &'static [&'static str] = &["gh", "pr", "merge"];
     pub fn refusal(&self, config: &Config) -> Option<Listed> {
@@ -21,24 +23,9 @@ impl ShellCommand {
             .or_else(|| self.segments().filter_map(GitCall::parse).find_map(|call| call.push_refusal(config)))
     }
 
-    pub fn commit_directory(&self, cwd: &Path) -> Option<PathBuf> {
-        self.segments().scan(cwd.to_path_buf(), |directory, words| Some(Self::step(directory, words))).flatten().next()
-    }
-
     pub fn commit_directories(&self, cwd: &Path) -> Vec<PathBuf> {
-        self.commit_directory(cwd).into_iter().collect()
-    }
-
-    fn step(directory: &mut PathBuf, words: &[String]) -> Option<PathBuf> {
-        match words {
-            [cd, target] if cd == "cd" => {
-                directory.push(target);
-                None
-            }
-            _ => GitCall::parse(words)
-                .filter(|call| call.writes_commits().is_some())
-                .map(|call| call.directory(directory)),
-        }
+        let mut shell = WorkingDirectory::new(cwd);
+        self.segments().filter_map(|words| shell.follow(words)).collect()
     }
 
     pub fn runs(&self, subcommand: &str) -> Option<()> {
@@ -55,7 +42,9 @@ impl FromStr for ShellCommand {
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         Ok(Self(
-            text.split(Self::SEPARATORS)
+            text.replace('(', ";(;")
+                .replace(')', ";);")
+                .split(Self::SEPARATORS)
                 .map(|segment| {
                     segment
                         .split_whitespace()
@@ -82,8 +71,8 @@ mod tests {
         ("(cd a && git -c x=y -C b commit -m 'cd z')", &["/w/good/a/b"]),
         ("git commit -m x && git -C ../bad commit -m y", &["/w/good", "/w/good/../bad"]),
         ("git commit; cd ../bad; git commit", &["/w/good", "/w/good/../bad"]),
-        ("(cd ../bad && git commit) && git commit", &["/w/good/../bad", "/w/good"]),
-        ("cd $PWD/a && git -C ~/b commit && git -C $HOME commit", &["~/b", "~"]),
+        ("(cd ../bad && pwd && git commit) && git commit", &["/w/good/../bad", "/w/good"]),
+        ("cd $PWD/a && git -C ~/b commit && git -C $HOME commit; git -C $PWD/c commit", &["~/b", "~", "/w/good/a/c"]),
     ];
 
     #[test]
