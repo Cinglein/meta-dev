@@ -21,8 +21,12 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            examples/consumer -> target
       - run: cargo xtask ci ${{ github.event_name == 'pull_request' && '--affected' || '' }}
-      - run: cargo xtask ci
+      - run: cargo generate-lockfile && cargo xtask ci
         working-directory: examples/consumer
 
   stacked:
