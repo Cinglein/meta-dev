@@ -14,6 +14,7 @@ mutant_costs = { path = "../tooling/mutant_costs" }
 mutation = { path = "../tooling/mutation" }
 settings = { path = "../tooling/settings" }
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 stacked = { path = "../tooling/stacked" }
 strum = { version = "0.28", features = ["derive"] }
 tempfile = "3"

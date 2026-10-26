@@ -12,7 +12,7 @@ pub enum StatusArgument<'post> {
     Endpoint(&'post Commit),
     State(GateState),
     Context { status: &'post GateStatus, scope: &'post Path },
-    Description { version: MetaRev, toolchain: Toolchain, times: &'post RecordedTimes, surfaces: &'post Changed },
+    Description { version: MetaRev, toolchain: &'post Toolchain, times: &'post RecordedTimes, surfaces: &'post Changed },
 }
 
 impl StatusArgument<'_> {
@@ -59,7 +59,8 @@ mod tests {
         let (times, unchanged) = (RecordedTimes::new(PathBuf::new()), Changed::new(Vec::new()));
         let version: MetaRev = VERSION.parse().unwrap();
         let toolchain: Toolchain = TOOLCHAIN.parse().unwrap();
-        let description = StatusArgument::Description { version, toolchain, times: &times, surfaces: &unchanged };
+        let description =
+            StatusArgument::Description { version, toolchain: &toolchain, times: &times, surfaces: &unchanged };
         assert_eq!(context.to_string(), ROOT_CONTEXT);
         assert_eq!(description.to_string(), UNNOTED);
     }

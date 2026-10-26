@@ -27,6 +27,8 @@ pub enum Failure {
     Busy(Busy),
     #[error("{0}")]
     Configured(OutsideConfig),
+    #[error("cargo metadata: {0}")]
+    Metadata(#[from] serde_json::Error),
     #[error("merge-base [spec] in tooling/policy.toml: {0}")]
     PriorSpec(toml::de::Error),
     #[error("merge-base spec file {} is unreadable", .0.display())]

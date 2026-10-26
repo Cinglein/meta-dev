@@ -22,6 +22,10 @@ impl OutsideConfig {
         OutsideConfig(configs.chain(tools.filter(|file| file.exists())).collect())
     }
 
+    pub fn and(self, more: Vec<PathBuf>) -> OutsideConfig {
+        OutsideConfig(self.0.into_iter().chain(more).collect())
+    }
+
     pub fn refused(self) -> Result<(), Failure> {
         if self.0.is_empty() { Ok(()) } else { Err(Failure::Configured(self)) }
     }
@@ -29,7 +33,7 @@ impl OutsideConfig {
 
 impl fmt::Display for OutsideConfig {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "gate refused: config outside the commit changes the build:")?;
+        write!(formatter, "gate refused: config or code outside the commit changes the build:")?;
         self.0.iter().try_for_each(|file| write!(formatter, " {}", file.display()))
     }
 }
@@ -77,7 +81,8 @@ mod tests {
     fn a_clippy_or_rustfmt_config_above_the_checkout_refuses_the_gate() {
         let fixture = Fixture::new();
         let rustfmt = fixture.beside().with_file_name(RUSTFMT);
-        assert!(!fixture.outside().0.contains(&rustfmt) && OutsideConfig(Vec::new()).refused().is_ok());
+        let added = OutsideConfig(Vec::new()).and(vec![rustfmt.clone()]).0 == [rustfmt.clone()];
+        assert!(!fixture.outside().0.contains(&rustfmt) && OutsideConfig(Vec::new()).refused().is_ok() && added);
         Fixture::placed(&rustfmt, FORMATTED);
         assert!(fixture.outside().refused().is_err_and(|failure| failure.to_string().contains(RUSTFMT)));
     }

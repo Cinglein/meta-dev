@@ -73,6 +73,10 @@ impl Checkout {
         Ok(parent)
     }
 
+    pub fn holds(&self, path: &Path) -> bool {
+        path.starts_with(&self.place)
+    }
+
     pub fn above(&self) -> Option<&Path> {
         self.place.parent()
     }
@@ -216,7 +220,9 @@ mod tests {
         let fixture = Fixture::new();
         let checkout = fixture.checked_out();
         assert!(checkout.root().join("committed.txt").exists() && !checkout.root().join("hello.txt").exists());
-        let outside = checkout.above().is_some_and(|above| checkout.root().starts_with(above));
+        let outside = checkout.above().is_some_and(|above| checkout.root().starts_with(above))
+            && checkout.holds(&checkout.root())
+            && !checkout.holds(fixture.root());
         let excluded = checkout.root().with_file_name(CARGO_CONFIG);
         assert!(outside && !checkout.root().starts_with(fixture.root()) && !excluded.exists());
         let local = checkout.version().is_ok_and(|version| version == MetaRev::local());
