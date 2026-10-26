@@ -38,4 +38,6 @@ impl fmt::Display for Flags {
 }
 
 #[cfg(test)]
+mod kinds;
+#[cfg(test)]
 mod tests;
