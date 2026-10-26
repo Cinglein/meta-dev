@@ -41,11 +41,10 @@ impl fmt::Display for StatusArgument<'_> {
             StatusArgument::Description { version, toolchain, times, surfaces, passed } => {
                 write!(formatter, "description=meta-dev {version} on {toolchain}: {times}")?;
                 formatter.write_str(if surfaces.is_empty() { "" } else { Self::SURFACES })?;
-                if passed.is_empty() {
-                    return Ok(());
-                }
                 let names: Vec<&str> = passed.iter().map(GateEnvName::as_str).collect();
-                write!(formatter, "{}{}", Self::PASSED, names.join(", "))
+                formatter.write_str(
+                    &names.first().map(|_| format!("{}{}", Self::PASSED, names.join(", "))).unwrap_or_default(),
+                )
             }
         }
     }

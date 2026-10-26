@@ -12,6 +12,17 @@ impl GateEnvName {
         "CARGO_", "RUSTC", "RUSTUP_", "RUSTDOC", "XDG_", "LD_", "DYLD_",
     ];
 
+    fn spelled(name: &str) -> bool {
+        !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+    }
+
+    fn changes_build(upper: &str) -> bool {
+        Self::EXACT.contains(&upper)
+            || Self::PREFIXES
+                .iter()
+                .any(|prefix| upper.starts_with(prefix))
+    }
+
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
@@ -22,18 +33,13 @@ impl TryFrom<String> for GateEnvName {
     type Error = String;
 
     fn try_from(name: String) -> Result<GateEnvName, String> {
-        let spelled =
-            !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
-        let upper = name.to_ascii_uppercase();
-        let changes_build = Self::EXACT.contains(&upper.as_str())
-            || Self::PREFIXES
-                .iter()
-                .any(|prefix| upper.starts_with(prefix));
-        match (spelled, changes_build) {
-            (false, _) => Err(format!(
+        match name.to_ascii_uppercase() {
+            _ if !Self::spelled(&name) => Err(format!(
                 "gate_env name {name:?} is not an environment variable name"
             )),
-            (_, true) => Err(format!("gate_env name {name} could change the build")),
+            upper if Self::changes_build(&upper) => {
+                Err(format!("gate_env name {name} could change the build"))
+            }
             _ => Ok(GateEnvName(name)),
         }
     }
@@ -65,10 +71,6 @@ mod tests {
     ];
     const ACCEPTED: [&str; 3] = ["CHROME", "HOMEBREW_PREFIX", "PATHEXT"];
 
-    fn policy_with(names: &[&str]) -> Result<Policy, toml::de::Error> {
-        toml::from_str(&format!("gate_env = {names:?}\n{}", Policy::DEFAULTS))
-    }
-
     #[test]
     fn a_name_that_could_change_the_build_or_is_not_a_name_is_refused() {
         let kept: Vec<&str> = REFUSED
@@ -85,11 +87,16 @@ mod tests {
 
     #[test]
     fn the_policy_refuses_such_a_name_when_read_and_lists_the_others_in_order() {
-        assert!(policy_with(&[ACCEPTED[0], REFUSED[0]]).is_err());
+        let policy_with = |names: &[&str]| {
+            toml::from_str::<Policy>(&format!("gate_env = {names:?}\n{}", Policy::DEFAULTS))
+        };
         let named = policy_with(&ACCEPTED).unwrap();
         let shown: Vec<&str> = named.gate_env().iter().map(GateEnvName::as_str).collect();
         assert_eq!(shown, ACCEPTED);
-        assert_eq!(Policy::defaults().gate_env(), []);
+        assert!(
+            policy_with(&[ACCEPTED[0], REFUSED[0]]).is_err()
+                && Policy::defaults().gate_env().is_empty()
+        );
         assert_eq!(
             toml::from_str::<Policy>(&toml::to_string(&named).unwrap()).unwrap(),
             named

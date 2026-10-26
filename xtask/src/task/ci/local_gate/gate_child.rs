@@ -82,6 +82,7 @@ mod tests {
 
     const SHELL: &str = "sh";
     const SHOWN: [&str; 2] = ["-c", "printf %s \"$HOME|$XDG_CONFIG_HOME|$RUSTUP_TOOLCHAIN|$CARGO_TARGET_DIR\""];
+    const PRINT: [&str; 2] = ["-c", "printf %s \"$(printenv \"$0\")\""];
     const TOOLCHAIN: &str = "1.90-x86_64-unknown-linux-gnu";
     const TARGET: &str = "gate-target";
 
@@ -104,22 +105,20 @@ mod tests {
         let fixture = Fixture::new();
         fs::create_dir_all(fixture.beside()).unwrap();
         let (name, value) = env::vars()
-            .filter(|(_, value)| !value.is_empty() && value.chars().all(|c| c.is_ascii_alphanumeric() || c == '/'))
-            .filter(|(name, _)| {
-                !GateChild::INHERITED.contains(&name.as_str()) && !name.starts_with(|c: char| c.is_ascii_digit())
+            .filter(|(name, value)| {
+                !value.is_empty()
+                    && value.chars().all(char::is_alphanumeric)
+                    && !GateChild::INHERITED.contains(&name.as_str())
             })
             .find_map(|(name, value)| GateEnvName::try_from(name).ok().map(|name| (name, value)))
-            .expect("an allowed variable in the environment");
+            .unwrap();
         let shown = |child: GateChild| {
-            let script = format!("printf %s \"${{{name}-unset}}\"");
-            child
-                .line(Program::Executable(SHELL.into()), fixture.beside())
-                .arguments(["-c", &script])
-                .captured::<Stdout>()
+            let line = child.line(Program::Executable(SHELL.into()), fixture.beside());
+            line.arguments(PRINT).argument(&name).captured::<Stdout>()
         };
         let toolchain = || TOOLCHAIN.parse().unwrap();
         let child = || GateChild::new(&fixture.beside(), PathBuf::from(TARGET), PathBuf::new(), toolchain()).unwrap();
         assert_eq!(shown(child().passing(std::slice::from_ref(&name))).ok(), Some(value));
-        assert_eq!(shown(child()).ok().as_deref(), Some("unset"));
+        assert_eq!(shown(child()).ok(), Some(String::new()));
     }
 }

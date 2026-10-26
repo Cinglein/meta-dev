@@ -2,7 +2,6 @@ mod baseline_file;
 mod bit_boundary;
 mod budgets;
 mod floor;
-mod gate_env_name;
 mod least;
 mod limit;
 mod most;
@@ -14,10 +13,10 @@ mod vague;
 mod vocabulary;
 mod wire_type;
 
+use crate::gate_env_name::GateEnvName;
 use crate::gate_status::GateStatus;
 pub use baseline_file::BaselineFile;
 pub use floor::Floor;
-pub use gate_env_name::GateEnvName;
 pub use limit::Limit;
 
 pub use most::Most;
