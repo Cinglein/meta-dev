@@ -12,10 +12,6 @@ impl GateEnvName {
         "CARGO_", "RUSTC", "RUSTUP_", "RUSTDOC", "XDG_", "LD_", "DYLD_",
     ];
 
-    fn spelled(name: &str) -> bool {
-        !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-    }
-
     fn changes_build(upper: &str) -> bool {
         Self::EXACT.contains(&upper)
             || Self::PREFIXES
@@ -34,9 +30,13 @@ impl TryFrom<String> for GateEnvName {
 
     fn try_from(name: String) -> Result<GateEnvName, String> {
         match name.to_ascii_uppercase() {
-            _ if !Self::spelled(&name) => Err(format!(
-                "gate_env name {name:?} is not an environment variable name"
-            )),
+            _ if name.is_empty()
+                || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') =>
+            {
+                Err(format!(
+                    "gate_env name {name:?} is not an environment variable name"
+                ))
+            }
             upper if Self::changes_build(&upper) => {
                 Err(format!("gate_env name {name} could change the build"))
             }
