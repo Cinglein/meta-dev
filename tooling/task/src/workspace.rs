@@ -9,10 +9,12 @@ use crate::failure::Failure;
 use crate::package_graph::PackageGraph;
 use crate::site::Site;
 use crate::source_file::SourceFile;
+use crate::target_directory::TargetDirectory;
 
 #[derive(Debug)]
 pub struct Workspace {
     root: PathBuf,
+    target: PathBuf,
     packages: PackageGraph,
 }
 
@@ -41,8 +43,14 @@ impl Workspace {
             .captured::<Stdout>()?;
         Ok(Workspace {
             root,
+            target: TargetDirectory::from_metadata(&metadata)?,
             packages: PackageGraph::from_metadata(&metadata)?,
         })
+    }
+
+    #[must_use]
+    pub fn target(&self) -> &Path {
+        &self.target
     }
 
     #[must_use]
@@ -116,13 +124,13 @@ impl Workspace {
 
 #[cfg(test)]
 mod tests {
-    use super::{PackageGraph, Workspace};
+    use super::{PackageGraph, TargetDirectory, Workspace};
     use std::fs;
     const TREE: [&str; 4] = ["a/src/a.rs", "b/b.rs", "target/skipped.rs", "a/notes.txt"];
     const FOUND: [&str; 2] = ["a:a/src/a.rs", "b:b/b.rs"];
     const TEXT: &str = "pub struct Found;";
     const ROOT_MARK: &str = "ROOT";
-    const METADATA: &str = r#"{"workspace_root": "ROOT", "packages": [
+    const METADATA: &str = r#"{"workspace_root": "ROOT", "target_directory": "ROOT/built", "packages": [
         {"name": "a", "manifest_path": "ROOT/a/Cargo.toml", "dependencies": []},
         {"name": "b", "manifest_path": "ROOT/b/Cargo.toml", "dependencies": []}
     ]}"#;
@@ -136,12 +144,17 @@ mod tests {
         });
         let metadata = METADATA.replace(ROOT_MARK, &root.display().to_string());
         let packages = PackageGraph::from_metadata(&metadata).unwrap();
-        let workspace = Workspace { root, packages };
+        let target = TargetDirectory::from_metadata(&metadata).unwrap();
+        let workspace = Workspace {
+            root,
+            target,
+            packages,
+        };
         let files = workspace.source_files().unwrap();
         let found = files
             .iter()
             .map(|file| format!("{}:{}", file.crate_name().unwrap(), file.path().display()));
-        assert!(found.eq(FOUND.map(String::from)));
+        assert!(found.eq(FOUND.map(String::from)) && workspace.target().ends_with("built"));
         fs::remove_dir_all(workspace.root()).unwrap();
     }
 }

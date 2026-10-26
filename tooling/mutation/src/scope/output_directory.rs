@@ -9,14 +9,12 @@ use task::Site;
 pub struct OutputDirectory(PathBuf);
 
 impl OutputDirectory {
-    const ROOT: &str = "target/mutants";
+    const ROOT: &str = "mutants";
 
-    pub fn cleared(workspace_root: &Path) -> Result<OutputDirectory, Failure> {
-        let root = workspace_root.join(Self::ROOT);
+    pub fn cleared(target: &Path) -> Result<OutputDirectory, Failure> {
+        let root = target.join(Self::ROOT);
         match fs::remove_dir_all(&root) {
-            Err(error) if error.kind() != ErrorKind::NotFound => {
-                Err(Failure::Io { site: Site::File(Self::ROOT.into()), error })
-            }
+            Err(error) if error.kind() != ErrorKind::NotFound => Err(Failure::Io { site: Site::File(root), error }),
             _ => Ok(OutputDirectory(root)),
         }
     }
@@ -37,7 +35,7 @@ impl OutputDirectory {
 mod tests {
     use super::OutputDirectory as Output;
     use std::{env, fs, process};
-    const STALE: &str = "target/mutants/stale/missed.txt";
+    const STALE: &str = "mutants/stale/missed.txt";
     const RUN: &str = "schema+state";
 
     #[test]

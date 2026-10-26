@@ -26,7 +26,7 @@ pub enum Scope {
 }
 
 impl Scope {
-    const DIFF_FILE: &str = "target/mutants.diff";
+    const DIFF_FILE: &str = "mutants.diff";
     const SHARD_VARIABLE: &str = "MUTANTS_SHARD";
 
     pub fn applied(
@@ -35,7 +35,7 @@ impl Scope {
         workspace: &Workspace,
         policy: &Policy,
     ) -> Result<Vec<MutantsRun>, Failure> {
-        let output = OutputDirectory::cleared(workspace.root())?;
+        let output = OutputDirectory::cleared(workspace.target())?;
         let line = line.argument(MutantsArgument::InPlace);
         match self {
             Scope::ChangedLines => {
@@ -44,7 +44,7 @@ impl Scope {
                         Self::write_diff(
                             workspace.root(),
                             policy.branch(Branch::Base),
-                            &workspace.root().join(Self::DIFF_FILE),
+                            &workspace.target().join(Self::DIFF_FILE),
                         )?;
                         vec![spelled.parse()?]
                     }
@@ -52,7 +52,7 @@ impl Scope {
                 };
                 let line = line
                     .argument(MutantsArgument::InDiff)
-                    .argument(Self::DIFF_FILE)
+                    .argument(workspace.target().join(Self::DIFF_FILE).display())
                     .argument(MutantsArgument::BaselineSkip);
                 Self::shard_runs(&line, workspace, &output, &shards)
             }
@@ -69,12 +69,12 @@ impl Scope {
     }
 
     pub fn changed_shards(workspace: &Workspace, policy: &Policy) -> Result<Vec<Shard>, Failure> {
-        Self::write_diff(workspace.root(), policy.branch(Branch::Base), &workspace.root().join(Self::DIFF_FILE))?;
+        Self::write_diff(workspace.root(), policy.branch(Branch::Base), &workspace.target().join(Self::DIFF_FILE))?;
         let listing = workspace
             .line(Program::Cargo)
             .argument(CargoArgument::Mutants)
             .argument(MutantsArgument::InDiff)
-            .argument(Self::DIFF_FILE);
+            .argument(workspace.target().join(Self::DIFF_FILE).display());
         Ok(Packing::shards(&CrateLoad::listed(listing, policy)?, policy.interval(Interval::PerSlice)))
     }
 
