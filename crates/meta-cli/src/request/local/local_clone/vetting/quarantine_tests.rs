@@ -11,10 +11,12 @@ use super::vetted::Vetted;
 use crate::request::local::recorded_worktree::RecordedWorktree;
 
 const LATE: &str = "late.log";
-const RACED: &str = "untracked files";
+const RACES: [[&str; 2]; 2] = [["status", "?? late.log\0"], ["rev-parse", "c5\n"]];
+const RACED: [&str; 2] = ["untracked files", "changed during checks"];
 const QUARANTINE: &str = "/trees/.gc-task-00000000000000b1";
 const MOVED_OUT: &str = "worktree move /trees/task-00000000000000b1 /trees/.gc-task-00000000000000b1";
-const MOVED_BACK: &str = "worktree move /trees/.gc-task-00000000000000b1 /trees/task-00000000000000b1";
+const MOVED_BACK: &str = "worktree move /trees/.gc-task-00000000000000b1";
+const RESTORED: &str = " /trees/task-00000000000000b1";
 const REMOVE: &str = "worktree remove";
 const INHERITED: [&str; 3] = ["GIT_DIR", "HOME", "GIT_INDEX_FILE"];
 const ISOLATED: [(&str, Option<&str>); 5] = [
@@ -38,17 +40,22 @@ impl Sweep {
 }
 
 #[test]
-fn a_file_written_after_the_vet_is_caught_in_quarantine_and_the_worktree_moves_back() {
-    let mut host = FakeHost::clean();
-    host.races(LATE);
-    let sweep = Sweep(host);
-    assert_eq!(sweep.refusal(), Some(RACED.to_owned()));
-    let calls = sweep.0.calls();
+fn a_file_or_commit_made_after_the_vet_is_caught_in_quarantine_and_the_worktree_moves_back() {
+    let sweeps = RACES.map(|race| {
+        let mut host = FakeHost::clean();
+        host.races(race);
+        Sweep(host)
+    });
+    assert_eq!(sweeps.each_ref().map(Sweep::refusal), RACED.map(|reason| Some(reason.to_owned())));
+    let calls: Vec<Vec<String>> = sweeps.iter().map(|sweep| sweep.0.calls()).collect();
     assert!(
-        calls.iter().any(|call| call.ends_with(MOVED_OUT))
-            && calls.last().is_some_and(|call| call.ends_with(MOVED_BACK))
+        calls.iter().all(|calls| {
+            calls.iter().any(|call| call.contains(MOVED_OUT))
+                && calls.last().is_some_and(|call| call.contains(MOVED_BACK) && call.ends_with(RESTORED))
+                && !calls.iter().any(|call| call.contains(REMOVE))
+        }),
+        "{calls:?}"
     );
-    assert!(!calls.iter().any(|call| call.contains(REMOVE)), "{calls:?}");
 }
 
 #[test]

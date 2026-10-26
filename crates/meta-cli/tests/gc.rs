@@ -48,7 +48,7 @@ const CONFIG: &str = "remote = \"origin\"\n";
 const SWEPT: [Line; 6] = [
     Line("freed ", MERGED, ": "),
     Line("kept ", OPEN, ": pr #2 open\n"),
-    Line("kept ", DIRTY, ": symlink; pr #3 closed\n"),
+    Line("kept ", DIRTY, ": commits not on the remote; pr #3 closed\n"),
     Line("kept ", BUSY, ": in use; pr #4 merged\n"),
     Line("unrecorded ", STRAY, ": left alone\n"),
     Line("closed ", GONE, ": missing\n"),
@@ -166,6 +166,7 @@ impl Scene {
         std::fs::write(scene.clone.path().join("meta.toml"), CONFIG).unwrap();
         Git::run(scene.clone.path(), &["add", "meta.toml"]);
         Git::run(scene.clone.path(), &["commit", "-q", "-m", "seed"]);
+        Git::run(scene.clone.path(), &["refs", "migrate", "--ref-format=reftable"]);
         std::fs::write(scene.clone.path().join(".git/info/exclude"), EXCLUDED).unwrap();
         std::fs::write(scene.clone.path().join("meta.local.toml"), Settings(&scene.trees()).to_string()).unwrap();
         std::fs::create_dir(scene.clone.path().join("bin")).unwrap();
@@ -186,8 +187,8 @@ impl Scene {
         std::fs::create_dir_all(trees.join(MERGED).join("target/debug")).unwrap();
         std::fs::write(trees.join(MERGED).join("target/debug/.cargo-lock"), "").unwrap();
         std::fs::write(trees.join(MERGED).join("target/CACHEDIR.TAG"), CARGO_TAG).unwrap();
-        std::fs::create_dir(trees.join(DIRTY).join("target")).unwrap();
-        std::os::unix::fs::symlink(&trees, trees.join(DIRTY).join("target/trees")).unwrap();
+        Git::run(&trees.join(DIRTY), &["commit", "-q", "--allow-empty", "-m", "precious"]);
+        Git::run(&trees.join(DIRTY), &["reset", "-q", "--hard", "HEAD~1"]);
         std::fs::create_dir_all(self.clone.path().join(".git/meta-local")).unwrap();
         let trail: String = RECORDED.iter().map(|task| Created(&trees, task).to_string()).collect();
         std::fs::write(self.clone.path().join(TRAIL), trail).unwrap();

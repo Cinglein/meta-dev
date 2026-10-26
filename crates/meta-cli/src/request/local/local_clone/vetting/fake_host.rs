@@ -70,9 +70,6 @@ const OFFLINE: &str = "offline";
 const SPACE: &str = " ";
 const MOVE: &str = "move";
 const QUARANTINED: &str = ".gc-";
-const STATUS: &str = "status";
-const UNTRACKED: &str = "?? ";
-const ENTRY_END: &str = "\0";
 
 #[derive(Debug)]
 pub struct FakeHost {
@@ -85,7 +82,7 @@ pub struct FakeHost {
     places: [PathBuf; 3],
     calls: RefCell<Vec<Vec<OsString>>>,
     scans: RefCell<Vec<Vec<PathBuf>>>,
-    raced: Option<String>,
+    raced: HashMap<&'static str, String>,
 }
 
 impl FakeHost {
@@ -103,7 +100,7 @@ impl FakeHost {
             places: [ROOT, CHECKOUT, COMMON].map(PathBuf::from),
             calls: RefCell::new(Vec::new()),
             scans: RefCell::new(Vec::new()),
-            raced: None,
+            raced: HashMap::new(),
         }
     }
 
@@ -115,8 +112,9 @@ impl FakeHost {
         WorktreeId::parsed(Path::new(TASK)).unwrap()
     }
 
-    pub fn races(&mut self, untracked: &str) {
-        self.raced = Some([UNTRACKED, untracked, ENTRY_END].concat());
+    pub fn races(&mut self, race: [&'static str; 2]) {
+        let [word, answer] = race;
+        self.raced.insert(word, answer.to_owned());
     }
 
     pub fn context(&self) -> Context {
@@ -204,7 +202,7 @@ impl Inspection for FakeHost {
     fn git(&self, call: &GitCall) -> Result<String, Kept> {
         let arguments = call.arguments();
         let word = arguments.iter().find_map(|argument| self.answers.keys().find(|word| argument == **word));
-        let raced = self.raced.as_ref().filter(|_| word == Some(&STATUS) && self.quarantined());
+        let raced = word.and_then(|word| self.raced.get(word)).filter(|_| self.quarantined());
         let raced = raced.map(|race| Ok(race.clone()));
         self.calls.borrow_mut().push(arguments.clone());
         let answer = raced.or_else(|| word.and_then(|word| self.answers.get(word).cloned()));
