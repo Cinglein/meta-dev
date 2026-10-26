@@ -141,8 +141,10 @@ fn claim_with_worktree_makes_a_noreply_worktree_on_the_task_branch_that_worktree
     let path = Path::new(claimed.lines().last().unwrap_or_default());
     let shown = SHOWN_BY_GIT.map(|words| Git::shown(path, &words));
     assert_eq!(shown, [NOREPLY, AGENT, &task].map(|line| format!("{line}\n")));
-    Git::run(project.clone.path(), &[&STRAY[..], &[worktrees.path().join(AGENT).to_str().unwrap()]].concat());
+    let stray = worktrees.path().join(AGENT);
+    Git::run(project.clone.path(), &[&STRAY[..], &[stray.to_str().unwrap()]].concat());
     let listed = project.meta(OWNER, &WORKTREES).to_string();
     assert!(listed.contains(&format!("{task} assigned {task} ")) && !listed.contains(MISSING));
-    assert_eq!(listed.matches(UNRECORDED).count(), 1);
+    let named = format!("{UNRECORDED} {}\n", std::fs::canonicalize(stray).unwrap().display());
+    assert!(listed.ends_with(&named) && listed.matches(UNRECORDED).count() == 1);
 }

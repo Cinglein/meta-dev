@@ -14,6 +14,7 @@ const SIBLING: &str = "/work/clone-worktrees";
 const RELATIVE: &str = "worktree_root = \"trees\"";
 const NESTED: &str = "/work/clone/trees";
 const NOWHERE: &str = "/nonexistent/clone";
+const NOT_A_DIRECTORY: &str = "/dev/null";
 const REFUSED: [&str; 2] = ["[identity]\nname = \"a\"\nemail = \"a@example.com\"", "root = \"trees\""];
 const ACTOR: &str = "agent";
 const DIVISION: &str = "features-and-maintenance";
@@ -51,7 +52,8 @@ fn settings_default_to_a_sibling_root_resolve_relative_roots_and_refuse_foreign_
     let roots = [absent.worktree_root(checkout), relative.worktree_root(checkout)];
     assert_eq!(roots, [PathBuf::from(SIBLING), PathBuf::from(NESTED)]);
     assert!(absent.identity().is_err() && LocalTrail::read(Path::new(NOWHERE)).unwrap() == LocalTrail::default());
-    assert!(REFUSED.iter().all(|text| text.parse::<LocalSettings>().is_err()));
+    let unreadable = LocalSettings::read(Path::new(NOT_A_DIRECTORY)).unwrap_err().to_string();
+    assert!(REFUSED.iter().all(|text| text.parse::<LocalSettings>().is_err()) && unreadable.contains(NOT_A_DIRECTORY));
 }
 
 #[test]
