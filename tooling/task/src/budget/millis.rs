@@ -37,8 +37,13 @@ impl Millis {
     }
 
     #[must_use]
-    pub fn div_ceil(self, other: Millis) -> usize {
-        usize::try_from(self.0.div_ceil(other.0.max(1))).unwrap_or(usize::MAX)
+    pub fn checked_minus(self, other: Millis) -> Option<Millis> {
+        self.0.checked_sub(other.0).map(Millis)
+    }
+
+    #[must_use]
+    pub fn times_fitting(self, each: Millis) -> usize {
+        usize::try_from(self.0 / each.0.max(1)).unwrap_or(usize::MAX)
     }
 
     #[must_use]
@@ -50,6 +55,18 @@ impl Millis {
     pub const fn rounded_to(self, step: NonZeroU64) -> Millis {
         let step = step.get();
         Millis((self.0 + step / Self::HALVING) / step * step)
+    }
+}
+
+impl From<Millis> for usize {
+    fn from(millis: Millis) -> usize {
+        usize::try_from(millis.0).unwrap_or(usize::MAX)
+    }
+}
+
+impl From<usize> for Millis {
+    fn from(millis: usize) -> Millis {
+        Millis(u64::try_from(millis).unwrap_or(u64::MAX))
     }
 }
 

@@ -8,4 +8,5 @@ pub enum Share {
     TestsPerHundredFiles,
     TestLinePercent,
     CutConductance,
+    ShardHeadroom,
 }

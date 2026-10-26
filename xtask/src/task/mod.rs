@@ -103,7 +103,8 @@ impl Task {
             Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
             Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy),
             Task::MutantCosts => Ok(MutantCosts::measure(Path::new(&flags.next().ok_or_else(Self::usage)?))
-                .map(|costs| println!("{costs}"))?),
+                .inspect(|costs| println!("{costs}"))?
+                .priced_within(&policy)?),
             Task::Mutants => Ok(Mutants::run(&workspace, Scope::ChangedLines, &policy)?),
             Task::MutantsFull => Ok(Mutants::run(&workspace, Scope::Workspace, &policy)?),
             Task::MutantsPlan => Ok(ShardPlan::full(

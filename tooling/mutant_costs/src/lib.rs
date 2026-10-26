@@ -12,11 +12,13 @@ use tally::Tally;
 
 use task::CrateName;
 use task::Failure;
+use task::Millis;
+use task::Policy;
 use task::Site;
 
 #[derive(Debug)]
 pub struct MutantCosts {
-    tallies: BTreeMap<CrateName, Tally>,
+    prices: BTreeMap<CrateName, Millis>,
 }
 
 impl MutantCosts {
@@ -35,9 +37,26 @@ impl MutantCosts {
 
     #[must_use]
     pub fn tally(all: impl IntoIterator<Item = Outcomes>) -> MutantCosts {
-        MutantCosts {
-            tallies: all.into_iter().fold(BTreeMap::new(), |tallies, outcomes| outcomes.tallied_into(tallies)),
-        }
+        MutantCosts { prices: all.into_iter().fold(BTreeMap::new(), |prices, run| Self::costliest_run(prices, &run)) }
+    }
+
+    pub fn priced_within(&self, policy: &Policy) -> Result<(), Failure> {
+        let table = policy.mutant_millis();
+        let under: Vec<String> = self
+            .prices
+            .iter()
+            .filter(|(name, price)| price.rounded_to(Self::STEP) > table.for_crate(name))
+            .map(|(name, price)| format!("{name} {price} > {}", table.for_crate(name)))
+            .collect();
+        under.is_empty().then_some(()).ok_or_else(|| Failure::Underpriced(under.join(", ")))
+    }
+
+    fn costliest_run(mut prices: BTreeMap<CrateName, Millis>, run: &Outcomes) -> BTreeMap<CrateName, Millis> {
+        run.tallied_into(BTreeMap::new()).into_iter().for_each(|(name, tally): (CrateName, Tally)| {
+            let price = prices.entry(name).or_default();
+            *price = (*price).max(tally.mean());
+        });
+        prices
     }
 
     fn outcome_files(path: &Path) -> Result<Vec<PathBuf>, Failure> {
@@ -61,31 +80,50 @@ impl MutantCosts {
 
 impl fmt::Display for MutantCosts {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let overall = self.tallies.values().fold(Tally::default(), |all, tally| all.plus(*tally));
+        let costliest = self.prices.values().max().copied().unwrap_or_default();
         writeln!(formatter, "[mutant_millis]")?;
-        writeln!(formatter, "default = {}", overall.mean().rounded_to(Self::STEP))?;
+        writeln!(formatter, "default = {}", costliest.rounded_to(Self::STEP))?;
         writeln!(formatter)?;
         writeln!(formatter, "[mutant_millis.crates]")?;
-        self.tallies
+        self.prices
             .iter()
-            .try_for_each(|(name, tally)| writeln!(formatter, "{name} = {}", tally.mean().rounded_to(Self::STEP)))
+            .try_for_each(|(name, price)| writeln!(formatter, "{name} = {}", price.rounded_to(Self::STEP)))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{MutantCosts, Outcomes};
+    use super::{Failure, Millis, MutantCosts, Outcomes};
+    use settings::EmbeddedDefaults;
     use std::{env, fs, process};
+    use task::Policy;
+    const LISTED: &str = "meta-cli";
     const SNIPPET: &str = r#"{"outcomes": [{"scenario": "Baseline", "phase_results": [{"phase": "Build", "duration": 9.0}]}, {"scenario": {"Mutant": {"package": "log", "file": "x"}}, "phase_results": [{"phase": "Build", "duration": 2.56}, {"phase": "Test", "duration": 0.5}]}, {"scenario": {"Mutant": {"package": "state"}}, "phase_results": [{"phase": "Build", "duration": 1.0}]}]}"#;
-    const TABLE: &str = "[mutant_millis]\ndefault = 2000\n\n[mutant_millis.crates]\nlog = 3100\nstate = 1000\n";
+    const SLOWER_STATE: &str = r#"{"outcomes": [{"scenario": {"Mutant": {"package": "state"}}, "phase_results": [{"phase": "Test", "duration": 2.0}]}]}"#;
+    const TABLE: &str = "[mutant_millis]\ndefault = 3100\n\n[mutant_millis.crates]\nlog = 3100\nstate = 2000\n";
     const SCRATCH: &str = "meta-costs";
     const NESTED: [&str; 3] = ["a", "b", "outcomes.json"];
     const DECOY: &str = "other.json";
 
     #[test]
-    fn mutant_phases_are_averaged_per_crate_and_overall_then_rounded_to_a_hundred_millis() {
-        let costs = MutantCosts::tally([Outcomes::parse(SNIPPET).unwrap()]);
-        assert_eq!(costs.to_string(), TABLE);
+    fn each_crate_is_priced_at_its_costliest_run_and_unknown_crates_at_the_costliest_crate() {
+        let runs = [SNIPPET, SLOWER_STATE, SNIPPET].map(|run| Outcomes::parse(run).unwrap());
+        assert_eq!(MutantCosts::tally(runs).to_string(), TABLE);
+    }
+
+    #[test]
+    fn a_crate_measured_at_its_price_is_within_it_and_one_measured_dearer_is_underpriced() {
+        let policy = Policy::defaults();
+        let price = policy.mutant_millis().for_crate(&LISTED.parse().unwrap());
+        let measured = |millis: Millis| {
+            let seconds = millis.duration().as_secs_f64();
+            let run = format!(
+                r#"{{"outcomes": [{{"scenario": {{"Mutant": {{"package": "{LISTED}"}}}}, "phase_results": [{{"phase": "Test", "duration": {seconds}}}]}}]}}"#
+            );
+            MutantCosts::tally([Outcomes::parse(&run).unwrap()]).priced_within(&policy)
+        };
+        assert!(measured(price).is_ok());
+        assert!(matches!(measured(price.plus(price)), Err(Failure::Underpriced(_))));
     }
 
     #[test]

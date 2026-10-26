@@ -59,6 +59,7 @@ cut_side = 5
 tests_per_hundred_files = 50
 test_line_percent = 40
 cut_conductance = 19
+shard_headroom = 60
 
 [memory_gib]
 granted = 5
@@ -71,10 +72,9 @@ per_test = 1000
 total = 4000
 sample_every = 20
 discover_every = 100
-per_shard = 220000
 per_crate = 15000
-per_slice = 150000
 test_timeout = 30000
+full_job = 480000
 diff_job = 360000
 
 [mutation]
