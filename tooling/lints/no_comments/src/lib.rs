@@ -44,22 +44,3 @@ impl NoComments {
             .collect()
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::{LineNumber, NoComments};
-    #[test]
-    fn flags_line_block_and_doc_comments() {
-        let source = "fn a() {}\n// one\nfn b() {}\n/* two */\n/// three\nfn c() {}\n";
-        assert_eq!(
-            NoComments::comment_lines(source),
-            [2, 4, 5].map(LineNumber::new)
-        );
-    }
-
-    #[test]
-    fn ignores_comment_syntax_inside_literals() {
-        let source = "const URL: &str = \"https://example.com\";\nconst C: char = '/';\n";
-        assert_eq!(NoComments::comment_lines(source), []);
-    }
-}

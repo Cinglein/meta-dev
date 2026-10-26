@@ -1,0 +1,37 @@
+[package]
+name = "corpus_check"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+task = { path = "../task" }
+settings = { path = "../settings" }
+strum = { version = "0.28", features = ["derive"] }
+thiserror = "2"
+const_shape = { path = "../lints/const_shape" }
+crate_graph = { path = "../lints/crate_graph" }
+distinct_signatures = { path = "../lints/distinct_signatures" }
+expression_flow = { path = "../lints/expression_flow" }
+fn_shape = { path = "../lints/fn_shape" }
+literal_names = { path = "../lints/literal_names" }
+manual_iteration = { path = "../lints/manual_iteration" }
+module_nesting = { path = "../lints/module_nesting" }
+named_lifetimes = { path = "../lints/named_lifetimes" }
+named_numbers = { path = "../lints/named_numbers" }
+no_comments = { path = "../lints/no_comments" }
+no_forwarders = { path = "../lints/no_forwarders" }
+no_free_fns = { path = "../lints/no_free_fns" }
+no_numbers_in_binaries = { path = "../lints/no_numbers_in_binaries" }
+no_parameter_bags = { path = "../lints/no_parameter_bags" }
+primitive_boundary = { path = "../lints/primitive_boundary" }
+private_fns = { path = "../lints/private_fns" }
+public_surface = { path = "../lints/public_surface" }
+settings_shape = { path = "../lints/settings_shape" }
+state_graph = { path = "../lints/state_graph" }
+test_budget = { path = "../lints/test_budget" }
+type_shape = { path = "../lints/type_shape" }
+
+[lints]
+workspace = true

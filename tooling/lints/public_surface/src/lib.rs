@@ -46,31 +46,3 @@ impl PublicSurface {
         )
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::PublicSurface;
-    use task::SourceFile;
-    const LIB: &str =
-        "mod x; use x::Private;\npub use x::{Used, Unused, Wired}; pub use x::Original as Seen;";
-    const FILES: [(&str, &str, &str); 4] = [
-        ("a", "crates/a/src/lib.rs", LIB),
-        ("a", "crates/a/src/main.rs", "use a::Wired; fn main() {}"),
-        (
-            "b", "crates/b/src/main.rs", "use a::Used; fn main() { a::Seen::go(); }",
-        ),
-        ("c", "crates/c/src/lib.rs", "mod y; pub use y::Lonely;"),
-    ];
-    const REPORTED: [&str; 1] = ["crates/a/src/lib.rs:2: Unused is exported"];
-
-    #[test]
-    fn flags_an_unnamed_reexport_but_counts_the_crates_own_binary_as_a_user() {
-        let files = FILES.map(|(name, path, text)| {
-            SourceFile::parse(path, text.to_owned())
-                .unwrap()
-                .in_crate(name.parse().unwrap())
-        });
-        let report = PublicSurface::report(&files);
-        assert!(report.lists_exactly(&REPORTED), "{report}");
-    }
-}

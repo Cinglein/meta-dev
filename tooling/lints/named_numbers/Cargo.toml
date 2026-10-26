@@ -12,7 +12,3 @@ quote = "1"
 
 [lints]
 workspace = true
-
-[dev-dependencies]
-settings = { path = "../../settings" }
-toml = "0.9"

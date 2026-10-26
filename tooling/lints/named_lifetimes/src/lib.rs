@@ -66,22 +66,3 @@ impl<'ast> Visit<'ast> for ShortLifetimes<'_> {
         );
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::NamedLifetimes;
-    use settings::EmbeddedDefaults;
-    use task::{Policy, SourceFile};
-    const SOURCE: &str = "
-struct Scan<'a, 'scan> { text: &'a str, path: &'scan Path, owned: &'static str }
-impl<'b> Scan<'b, '_> { fn view<'c>(&'c self) -> &'c str { self.text } }
-";
-    const REPORTED: [&str; 3] = [":2: 'a", ":3: 'b", ":3: 'c"];
-
-    #[test]
-    fn flags_single_letter_lifetimes_where_they_are_declared() {
-        let file = SourceFile::parse("scan.rs", SOURCE.to_owned()).unwrap();
-        let report = NamedLifetimes::report(core::slice::from_ref(&file), &Policy::defaults());
-        assert!(report.lists_exactly(&REPORTED), "{report}");
-    }
-}

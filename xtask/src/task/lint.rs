@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
+use corpus_check::LintName;
 use strum::IntoEnumIterator;
 use task::{Policy, Report, SourceFile, Workspace};
 
-use crate::task::Task;
 use crate::task::failure::Failure;
 use crate::task::ratchet::{Baseline, Drift, Ratchet, ViolationCount};
 
@@ -31,9 +31,7 @@ impl Lint {
 
     fn gathered(files: &[SourceFile], policy: &Policy) -> Lint {
         Lint {
-            reports: Task::iter()
-                .filter_map(|task| task.report(files, policy).map(|report| (<&'static str>::from(task), report)))
-                .collect(),
+            reports: LintName::iter().map(|lint| (<&'static str>::from(lint), lint.report(files, policy))).collect(),
         }
     }
 

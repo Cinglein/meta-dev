@@ -115,30 +115,3 @@ impl<'ast> Visit<'ast> for IteratorCalls {
         syn::visit::visit_expr_method_call(self, call);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::ManualIteration;
-    use task::SourceFile;
-    const SOURCE: &str = "
-impl W {
-    fn walk(&self, out: &mut Vec<u8>) {
-        let mut items = self.items.iter().rev(); let frozen = self.items.iter();
-        for item in self.items { out.push(item); } for item in self.items { if item > 1 { out.push(item); } }
-        for item in self.items { if item > 1 { out.push(item); } else { out.clear(); } } for item in self.items { self.visit(item); } let mut total = 0;
-    }
-}
-mod inner { fn fill(out: &mut Vec<u8>) { for item in [1] { out.push(item); } } }
-#[cfg(test)] mod tests { fn fill(out: &mut Vec<u8>) { for item in [1] { out.push(item); } } }
-";
-    const REPORTED: [&str; 4] = [
-        ":4: mutable iterator", ":5: loop that only", ":5: loop that only", ":9: loop that only",
-    ];
-
-    #[test]
-    fn flags_mutable_iterator_locals_and_accumulating_loops_outside_tests() {
-        let file = SourceFile::parse("walk.rs", SOURCE.to_owned()).unwrap();
-        let report = ManualIteration::report(core::slice::from_ref(&file));
-        assert!(report.lists_exactly(&REPORTED), "{report}");
-    }
-}

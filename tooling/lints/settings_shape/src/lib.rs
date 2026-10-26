@@ -55,26 +55,3 @@ impl SettingsShape {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::SettingsShape;
-    use task::SourceFile;
-    const SOURCE: &str = "
-#[derive(Deserialize)] pub struct Settings { schedule: Schedule, rounds: Count, plain: Plain }
-impl EmbeddedDefaults for Settings { const DEFAULTS: &str = \"\"; }
-#[derive(Deserialize)] #[serde(default)] pub struct Schedule { batches: usize }
-#[derive(Deserialize)] pub struct Count(usize); #[derive(Debug)] pub struct Plain { x: usize }
-#[derive(Deserialize)] pub struct Metadata { packages: Vec<Package> }
-#[derive(Deserialize)] #[serde(deny_unknown_fields)] pub struct Strict { rounds: usize }
-impl EmbeddedDefaults for Strict { const DEFAULTS: &str = \"\"; }
-";
-    const REPORTED: [&str; 2] = ["x.rs:2: struct is read", "x.rs:4: struct is read"];
-
-    #[test]
-    fn flags_named_structs_reachable_from_embedded_defaults_that_do_not_deny_unknown_keys() {
-        let file = SourceFile::parse("crates/a/src/x.rs", SOURCE.to_owned()).unwrap();
-        let report = SettingsShape::report(&[file]);
-        assert!(report.lists_exactly(&REPORTED), "{report}");
-    }
-}

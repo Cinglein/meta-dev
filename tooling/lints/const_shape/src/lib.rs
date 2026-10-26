@@ -146,37 +146,3 @@ impl<'ast> Visit<'ast> for ConstContexts<'_> {
         syn::visit::visit_expr_for_loop(self, expr);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::ConstShape;
-    use settings::EmbeddedDefaults;
-    use task::Policy;
-    use task::SourceFile;
-    const BIT_BOUNDARY: &str = "bit_boundary";
-    const SOURCE: &str = "
-const fn free(mut rest: &[u8]) -> u8 { let mut i = 0; while i < 2 { i += 1; } while let [_, tail @ ..] = rest { rest = tail; } loop { break i } }
-const CELLS: u8 = { let mut i = 0; while i < 2 { i += 1; } i };
-impl Table { const SIZE: u8 = { for n in 0..2 {} 0 }; const fn build(key: u8) -> u8 { key as u8 } }
-impl Table { fn lookup(&self, key: Kind) -> u8 { let z = const { loop {} }; let mut i = 0; while i < 2 { i += 1; } for n in 0..2 {} loop { break self.0[key as usize] } } }
-mod inner { fn widen(x: u8) -> u16 { x as u16 } }
-#[cfg(test)] mod tests { fn widen(x: u8) -> u16 { x as u16 } }
-";
-    const BOUNDARY: &str = "crates/board/src/bitboard/mod.rs";
-    const BITS: &str = "fn widen(x: u8) -> u16 { x as u16 }";
-    const REPORTED: [&str; 7] = [
-        ":2: counter loop", ":2: open loop", ":3: counter loop", ":4: for loop", ":5: open loop",
-        ":5: as cast", ":6: as cast",
-    ];
-
-    #[test]
-    fn flags_counter_and_open_loops_in_const_context_and_casts_outside_const_or_boundary_files() {
-        let mut table: toml::Table = toml::from_str(Policy::DEFAULTS).unwrap();
-        table.insert(BIT_BOUNDARY.to_owned(), toml::Value::from(vec![BOUNDARY]));
-        let policy: Policy = table.try_into().unwrap();
-        let file = SourceFile::parse("table.rs", SOURCE.to_owned()).unwrap();
-        let bits = SourceFile::parse(BOUNDARY, BITS.to_owned()).unwrap();
-        let report = ConstShape::report(&[bits, file], &policy);
-        assert!(report.lists_exactly(&REPORTED), "{report}");
-    }
-}

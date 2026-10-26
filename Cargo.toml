@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*", "tooling/lints/*", "tooling/settings", "tooling/task", "xtask"]
+members = ["crates/*", "tooling/corpus_check", "tooling/lints/*", "tooling/settings", "tooling/task", "xtask"]
 
 [workspace.package]
 version = "0.0.0"
