@@ -1,6 +1,8 @@
 mod walker;
 
 #[cfg(test)]
+mod freeze_tests;
+#[cfg(test)]
 mod tests;
 
 use std::cell::RefCell;
@@ -18,6 +20,7 @@ use super::git_call::GitCall;
 use super::inspection::Inspection;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
+use super::thaw::{Thaw, Thawed};
 use crate::request::local::local_clone::quarantine::Stamp;
 use walker::Walker;
 
@@ -92,6 +95,28 @@ impl Inspection for Host {
             Ok(listed) => Occupancy::Unlisted(Cause::new(String::from_utf8_lossy(&listed.stderr))),
             Err(failure) => Occupancy::Unlisted(Cause::new(failure)),
         }
+    }
+
+    fn frozen(&self, path: &Path) -> Result<Thaw, Kept> {
+        let files = self.walked(path).into_iter().filter(|found| found.kind() == EntryKind::File);
+        let frozen: Vec<std::io::Result<Thawed>> = files
+            .map(|found| path.join(found.path()))
+            .map(|file| {
+                let original = file.symlink_metadata()?.permissions();
+                let mut read_only = original.clone();
+                read_only.set_readonly(true);
+                std::fs::set_permissions(&file, read_only).map(|()| Thawed::new(file, original))
+            })
+            .collect();
+        let thaw = Thaw::new(frozen.iter().filter_map(|frozen| frozen.as_ref().ok().cloned()).collect());
+        frozen.into_iter().find_map(Result::err).map_or(Ok(thaw.clone()), |failure| {
+            self.thawed(&thaw);
+            Err(Kept::Uninspected(Cause::new(failure)))
+        })
+    }
+
+    fn thawed(&self, thaw: &Thaw) {
+        thaw.files().iter().for_each(|thawed| drop(std::fs::set_permissions(thawed.path(), thawed.permissions())));
     }
 
     fn stamp(&self) -> Stamp {

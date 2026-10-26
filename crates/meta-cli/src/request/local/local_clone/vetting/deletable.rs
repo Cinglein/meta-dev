@@ -39,9 +39,15 @@ impl Deletable {
     fn quarantined(&self, held: &Link, proved: Result<Link, Kept>, host: &impl Inspection) -> Result<(), Kept> {
         (proved? == *held).then_some(()).ok_or(Kept::Changed)?;
         host.git(&held.step(Step::Lock))?;
-        self.0.rechecked(held, host)?;
-        host.git(&held.step(Step::Unlock))?;
-        host.git(&held.step(Step::Remove)).map(drop)
+        let thaw = host.frozen(held.path())?;
+        let quarantine = held.path().to_path_buf();
+        self.0
+            .rechecked(held, host)
+            .and_then(|()| host.occupancy(std::slice::from_ref(&quarantine)).vacant(&quarantine))
+            .and_then(|()| host.git(&held.step(Step::Unlock)))
+            .and_then(|_| host.git(&held.step(Step::Remove)))
+            .map(drop)
+            .inspect_err(|_| host.thawed(&thaw))
     }
 
     fn restored(link: &Link, held: &Link, kept: Kept, host: &impl Inspection) -> Kept {

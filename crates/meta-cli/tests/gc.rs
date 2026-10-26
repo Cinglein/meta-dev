@@ -44,6 +44,9 @@ const EXCLUDED: &str = "/meta.local.toml\n/bin\ntarget/\n";
 const CARGO_TAG: &str =
     "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n";
 const GC: [&str; 1] = ["gc"];
+const TICK: [&str; 2] = ["heartbeat", "tick-run"];
+const HEARTBEAT: &str = ".git/meta-local/heartbeat.json";
+const PLANNED: Line = Line("would free ", MERGED, ": ");
 const CONFIG: &str = "remote = \"origin\"\n";
 const SWEPT: [Line; 6] = [
     Line("freed ", MERGED, ": "),
@@ -166,7 +169,6 @@ impl Scene {
         std::fs::write(scene.clone.path().join("meta.toml"), CONFIG).unwrap();
         Git::run(scene.clone.path(), &["add", "meta.toml"]);
         Git::run(scene.clone.path(), &["commit", "-q", "-m", "seed"]);
-        Git::run(scene.clone.path(), &["refs", "migrate", "--ref-format=reftable"]);
         std::fs::write(scene.clone.path().join(".git/info/exclude"), EXCLUDED).unwrap();
         std::fs::write(scene.clone.path().join("meta.local.toml"), Settings(&scene.trees()).to_string()).unwrap();
         std::fs::create_dir(scene.clone.path().join("bin")).unwrap();
@@ -188,7 +190,9 @@ impl Scene {
         std::fs::write(trees.join(MERGED).join("target/debug/.cargo-lock"), "").unwrap();
         std::fs::write(trees.join(MERGED).join("target/CACHEDIR.TAG"), CARGO_TAG).unwrap();
         Git::run(&trees.join(DIRTY), &["commit", "-q", "--allow-empty", "-m", "precious"]);
+        Git::run(&trees.join(DIRTY), &["update-ref", "WIP", "HEAD"]);
         Git::run(&trees.join(DIRTY), &["reset", "-q", "--hard", "HEAD~1"]);
+        Git::run(&trees.join(DIRTY), &["update-ref", "-d", "ORIG_HEAD"]);
         std::fs::create_dir_all(self.clone.path().join(".git/meta-local")).unwrap();
         let trail: String = RECORDED.iter().map(|task| Created(&trees, task).to_string()).collect();
         std::fs::write(self.clone.path().join(TRAIL), trail).unwrap();
@@ -215,6 +219,9 @@ fn gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_wit
     let _held = File::open(trees.join(BUSY).join(".git")).unwrap();
     let shows = |shown: &str, lines: &[Line]| lines.iter().all(|line| shown.contains(&Shown(line, &trees).to_string()));
     let freed = Freed(&trees).to_string();
+    scene.meta(&TICK);
+    let ticked = std::fs::read_to_string(scene.clone.path().join(HEARTBEAT)).unwrap_or_default();
+    assert!(ticked.contains(&Shown(&PLANNED, &trees).to_string()) && trees.join(MERGED).exists(), "{ticked}");
     let swept = scene.meta(&GC);
     let trail = std::fs::read_to_string(scene.clone.path().join(TRAIL)).unwrap();
     let branch = Git::run(scene.clone.path(), &["branch", "--list", MERGED]).stdout;

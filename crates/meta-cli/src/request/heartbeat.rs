@@ -2,6 +2,7 @@ mod gc_hook;
 mod heartbeat_record;
 mod latest_flags;
 mod launchd_plist;
+mod pulse;
 mod snapshot;
 mod tick;
 
@@ -15,9 +16,13 @@ use crate::request::local::LocalClone;
 use crate::request::output::{Listed, Output};
 use crate::request::project::{HeartbeatSettings, Project};
 #[cfg(test)]
+pub use gc_hook::GcHook;
+#[cfg(test)]
 pub use heartbeat_record::HeartbeatRecord;
 pub use latest_flags::LatestFlags;
 pub use launchd_plist::LaunchdPlist;
+#[cfg(test)]
+pub use pulse::Pulse;
 #[cfg(test)]
 pub use snapshot::Snapshot;
 pub use tick::Tick;
@@ -50,7 +55,7 @@ impl Heartbeat {
         let clone = LocalClone::try_from(project)?;
         match self {
             Self::Tick => Tick::supervised(Self::inner_tick(project)?, settings.tick_limit()),
-            Self::TickRun => Tick::live(project, &clone),
+            Self::TickRun => Tick::live(project, &clone, settings.gc_mode()),
             Self::Flags => LatestFlags::answer(clone.git_dir().as_ref(), &settings, Utc::now()),
             Self::Plist => Self::plist(&clone, &settings),
         }

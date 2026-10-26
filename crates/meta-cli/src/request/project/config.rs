@@ -8,7 +8,7 @@ use serde::Deserialize;
 use crate::request::cli_failure::{CliFailure, Setup};
 pub use branch_name::BranchName;
 pub use ci_settings::{CiSettings, LogWindow, ProgramName};
-pub use heartbeat_settings::{HeartbeatSettings, TickLimit};
+pub use heartbeat_settings::{GcMode, HeartbeatSettings, TickLimit};
 
 #[derive(Debug, Default, Deserialize)]
 pub struct Config {

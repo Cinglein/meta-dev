@@ -3,19 +3,20 @@ mod gave_up;
 use std::path::Path;
 use std::process::Command;
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use meta_log::LogStore;
 use meta_pull_query::LiveQuery;
 use meta_status::Github;
 
 use super::gc_hook::GcHook;
 use super::heartbeat_record::HeartbeatRecord;
+use super::pulse::Pulse;
 use super::snapshot::Snapshot;
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::live_github::LiveGithub;
 use crate::request::local::LocalClone;
 use crate::request::output::{Listed, Output};
-use crate::request::project::{Project, TickLimit};
+use crate::request::project::{GcMode, Project, TickLimit};
 use crate::request::status_view::StatusView;
 use crate::request::timed_command::TimedCommand;
 use gave_up::GaveUp;
@@ -28,14 +29,14 @@ impl Tick {
         git_dir: &Path,
         log: &impl LogStore,
         github: impl FnOnce(&LiveQuery) -> Github,
-        now: DateTime<Utc>,
+        pulse: Pulse,
     ) -> Result<Output, CliFailure> {
         let flags = StatusView::current_flags(log, github)?;
         let before = HeartbeatRecord::read(git_dir).ok().flatten();
         let seen = before.as_ref().map(|record| record.latest().flags().clone()).unwrap_or_default();
         let fresh = Listed::new(flags.since(&seen));
         let judged = flags.awaiting_judgement();
-        HeartbeatRecord::succeeding(before, Snapshot::new(now, flags, GcHook::run())).write(git_dir)?;
+        HeartbeatRecord::succeeding(before, Snapshot::new(pulse.now(), flags, pulse.gc_hook())).write(git_dir)?;
         Ok(match judged.raised() {
             Some(_) => Output::Flagged(fresh),
             None => Output::Listed(fresh),
@@ -49,8 +50,9 @@ impl Tick {
         finished.verdict().answered(&finished)
     }
 
-    pub fn live(project: &Project, clone: &LocalClone) -> Result<Output, CliFailure> {
+    pub fn live(project: &Project, clone: &LocalClone, mode: GcMode) -> Result<Output, CliFailure> {
         let github = |query: &LiveQuery| LiveGithub::for_project(project).read(query);
-        Self::answer(clone.git_dir().as_ref(), &project.log()?, github, Utc::now())
+        let pulse = Pulse::new(Utc::now(), GcHook::run(project, clone, mode));
+        Self::answer(clone.git_dir().as_ref(), &project.log()?, github, pulse)
     }
 }

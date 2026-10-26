@@ -18,6 +18,8 @@ const MOVED_OUT: &str = "worktree move /trees/task-00000000000000b1 /trees/.gc-t
 const MOVED_BACK: &str = "worktree move /trees/.gc-task-00000000000000b1";
 const RESTORED: &str = " /trees/task-00000000000000b1";
 const REMOVE: &str = "worktree remove";
+const FROZEN: &str = "frozen /trees/.gc-task-00000000000000b1-1x0";
+const THAWED: &str = "thawed /trees/.gc-task-00000000000000b1-1x0";
 const INHERITED: [&str; 3] = ["GIT_DIR", "HOME", "GIT_INDEX_FILE"];
 const ISOLATED: [(&str, Option<&str>); 5] = [
     ("GIT_CONFIG_GLOBAL", Some("/dev/null")),
@@ -55,6 +57,7 @@ fn a_file_or_commit_made_after_the_vet_is_caught_in_quarantine_and_the_worktree_
             calls.iter().any(|call| call.contains(MOVED_OUT))
                 && calls.last().is_some_and(|call| call.contains(MOVED_BACK) && call.ends_with(RESTORED))
                 && !calls.iter().any(|call| call.contains(REMOVE))
+                && [FROZEN, THAWED].iter().all(|step| calls.iter().any(|call| call == step))
         }),
         "{calls:?}"
     );

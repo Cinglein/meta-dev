@@ -9,6 +9,7 @@ mod host;
 mod inspection;
 mod kept;
 mod occupancy;
+mod thaw;
 mod vetted;
 
 pub use context::Context;

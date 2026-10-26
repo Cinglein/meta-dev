@@ -12,10 +12,13 @@ use super::git_call::GitCall;
 use super::inspection::Inspection;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
+use super::thaw::{Thaw, Thawed};
 use crate::request::local::byte_count::ByteCount;
 use crate::request::local::local_clone::quarantine::Stamp;
 use crate::request::local::recorded_worktree::RecordedWorktree;
 use crate::request::local::worktree_id::WorktreeId;
+use std::fs::Permissions;
+use std::os::unix::fs::PermissionsExt;
 
 pub const TASK: &str = "task-00000000000000b1";
 pub const PATH: &str = "/trees/task-00000000000000b1";
@@ -77,6 +80,9 @@ const PEELED: &str = "^{commit}";
 const ROOT_HEAD: &str = "HEAD";
 const HELD: &str = "c7\n";
 const STAMP: &str = "1x0";
+const FROZEN: &str = "frozen";
+const NO_MODE: u32 = 0o0;
+const THAWED: &str = "thawed";
 
 #[derive(Debug)]
 pub struct FakeHost {
@@ -286,6 +292,16 @@ impl Inspection for FakeHost {
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
         self.scans.borrow_mut().push(paths.to_vec());
         Occupancy::Listed(self.open.clone())
+    }
+
+    fn frozen(&self, path: &Path) -> Result<Thaw, Kept> {
+        self.calls.borrow_mut().push(vec![OsString::from(FROZEN), path.as_os_str().to_os_string()]);
+        Ok(Thaw::new(vec![Thawed::new(path.to_path_buf(), Permissions::from_mode(NO_MODE))]))
+    }
+
+    fn thawed(&self, thaw: &Thaw) {
+        let thawed = thaw.files().iter().map(|thawed| thawed.path().as_os_str().to_os_string());
+        self.calls.borrow_mut().push([OsString::from(THAWED)].into_iter().chain(thawed).collect());
     }
 
     fn stamp(&self) -> Stamp {
