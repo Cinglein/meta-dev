@@ -18,7 +18,7 @@ impl Revision {
 
     pub fn merge_base(root: &Path, base: &BranchName) -> Result<Revision, Failure> {
         let found = Self::git(root).arguments(["merge-base", "HEAD"]).argument(base).captured::<Stdout>();
-        let commit = found.map_err(|_| Failure::NoDefaultBranch)?.parse()?;
+        let commit = found.map_err(|_| task::Failure::NoMergeBase)?.parse()?;
         Ok(Revision { root: root.to_path_buf(), commit })
     }
 

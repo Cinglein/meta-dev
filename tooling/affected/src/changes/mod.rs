@@ -31,7 +31,8 @@ impl Changes {
             .argument(GitArgument::Relative)
             .argument(GitArgument::MergeBase)
             .argument(base)
-            .captured::<Stdout>()?
+            .captured::<Stdout>()
+            .map_err(|_| Failure::NoMergeBase)?
             .lines()
             .map(PathBuf::from)
             .collect();

@@ -16,8 +16,6 @@ pub enum Failure {
     Baseline(#[from] toml::de::Error),
     #[error("baseline: {0}")]
     Written(#[from] toml::ser::Error),
-    #[error("no merge base with the [branches] base of tooling/policy.toml; run `git fetch origin`")]
-    NoDefaultBranch,
     #[error("step summary: {0}")]
     Summary(io::Error),
 }
