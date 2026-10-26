@@ -1,7 +1,12 @@
+mod prose_lines;
+
 use std::fs;
 use std::path::Path;
 
-use task::{LineNumber, Report, Site, Violation};
+use task::{Report, Site, Violation};
+
+use crate::task::revision::Revision;
+use prose_lines::ProseLines;
 
 #[derive(Debug)]
 pub struct SpecProse;
@@ -9,41 +14,40 @@ pub struct SpecProse;
 impl SpecProse {
     pub const LINT: &str = "spec-prose";
     const PATH: &str = "context/SPEC.md";
-    const UNCONVERTED: &str = "# Not yet converted";
 
-    pub fn report(root: &Path) -> Report {
-        let text = fs::read_to_string(root.join(Self::PATH)).unwrap_or_default();
-        let unconverted = text
-            .lines()
-            .zip(1..)
-            .skip_while(|(line, _)| !line.starts_with(Self::UNCONVERTED))
-            .skip(1)
-            .filter(|(line, _)| !line.is_empty())
-            .map(|(_, number)| Violation::new(Site::Line(Self::PATH.into(), LineNumber::new(number)), "unconverted"));
+    pub fn since(root: &Path, base: &Revision) -> Report {
+        let written = fs::read_to_string(root.join(Self::PATH)).unwrap_or_default();
+        Self::report(&written, base.file(Path::new(Self::PATH)).as_deref())
+    }
+
+    pub fn report(written: &str, prior: Option<&str>) -> Report {
+        let found = written.parse::<ProseLines>().unwrap_or_default();
+        let grown = prior
+            .and_then(|prior| prior.parse::<ProseLines>().ok())
+            .filter(|allowed| found > *allowed)
+            .map(|_| Violation::new(Site::File(Self::PATH.into()), found));
         Report::new(
-            "hand-written spec prose only shrinks; convert it to rule records in self/spec",
-            unconverted.collect(),
+            "hand-written spec prose grew past the merge base; convert it to rule records in self/spec",
+            grown.into_iter().collect(),
         )
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-
     use super::SpecProse;
-    use tempfile::TempDir;
 
-    const SPEC: &str = "# Rules\n- `id`: kept\n# Not yet converted: 2 lines\n\n## Old\n- prose\n";
-    const FOUND: &str = "context/SPEC.md:5: unconverted|context/SPEC.md:6: unconverted";
+    const UNMARKED: &str = "# Rules\n- kept\n";
+    const ONE: &str = "# Rules\n# Not yet converted\n\n- old\n";
+    const TWO: &str = "# Not yet converted\n- old\n\n- new\n";
+    const GREW: &str = "context/SPEC.md: 2 unconverted lines";
 
     #[test]
-    fn only_non_blank_lines_after_the_marker_count_and_a_missing_spec_counts_none() {
-        let root = TempDir::new().unwrap();
-        assert!(SpecProse::report(root.path()).is_clean());
-        fs::create_dir(root.path().join("context")).unwrap();
-        fs::write(root.path().join("context/SPEC.md"), SPEC).unwrap();
-        let found: Vec<String> = SpecProse::report(root.path()).violations().iter().map(ToString::to_string).collect();
-        assert_eq!(found.join("|"), FOUND);
+    fn prose_may_shrink_or_hold_but_not_grow_past_a_marked_merge_base() {
+        let shown: Vec<String> =
+            SpecProse::report(TWO, Some(ONE)).violations().iter().map(ToString::to_string).collect();
+        assert_eq!(shown, [GREW]);
+        assert!(SpecProse::report(ONE, Some(TWO)).is_clean() && SpecProse::report(ONE, Some(ONE)).is_clean());
+        assert!(SpecProse::report(TWO, Some(UNMARKED)).is_clean() && SpecProse::report(TWO, None).is_clean());
     }
 }

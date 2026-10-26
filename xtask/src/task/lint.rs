@@ -9,6 +9,7 @@ use task::{Branch, Policy, Report, SourceFile};
 
 use crate::task::failure::Failure;
 use crate::task::ratchet::{Baseline, Drift, Ratchet, ViolationCount};
+use crate::task::revision::Revision;
 use spec_prose::SpecProse;
 
 #[derive(Debug)]
@@ -19,23 +20,25 @@ pub struct Lint {
 impl Lint {
     pub fn run(root: &Path, files: &[SourceFile], policy: &Policy) -> Result<(), Failure> {
         let allowed = Baseline::admitted(root, policy.baseline(), policy.branch(Branch::Base))?;
-        let observed = Self::gathered(root, files, policy).ratchet(&allowed, |_| true)?;
+        let spec = SpecProse::since(root, &Revision::merge_base(root, policy.branch(Branch::Base))?);
+        let observed = Self::gathered(files, policy, spec).ratchet(&allowed, |_| true)?;
         println!("lint: {} rust files, {} baselined violations", files.len(), observed.total());
         Ok(())
     }
 
     pub fn shrink(root: &Path, files: &[SourceFile], policy: &Policy) -> Result<Baseline, Failure> {
         let path = policy.baseline().within(root);
-        let observed = Self::gathered(root, files, policy).ratchet(&Baseline::read(&path)?, Drift::grew)?;
+        let spec = SpecProse::report("", None);
+        let observed = Self::gathered(files, policy, spec).ratchet(&Baseline::read(&path)?, Drift::grew)?;
         observed.write(&path)?;
         Ok(observed)
     }
 
-    fn gathered(root: &Path, files: &[SourceFile], policy: &Policy) -> Lint {
+    fn gathered(files: &[SourceFile], policy: &Policy, spec: Report) -> Lint {
         Lint {
             reports: LintName::iter()
                 .map(|lint| (<&'static str>::from(lint), lint.report(files, policy)))
-                .chain([(SpecProse::LINT, SpecProse::report(root))])
+                .chain([(SpecProse::LINT, spec)])
                 .collect(),
         }
     }
