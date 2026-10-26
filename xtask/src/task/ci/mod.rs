@@ -13,7 +13,7 @@ use strum::IntoEnumIterator;
 
 use crate::task::failure::Failure;
 use crate::task::surfaces::Surfaces;
-use ci_step::CiStep;
+pub use ci_step::CiStep;
 use step_times::StepTimes;
 use task::Policy;
 use task::Selection;

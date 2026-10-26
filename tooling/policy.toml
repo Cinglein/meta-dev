@@ -34,7 +34,12 @@ surfaces = [
     ".claude",
     ".github",
     "plugin",
+    "self/spec",
 ]
+
+[spec]
+package = "meta-spec"
+file = "context/SPEC.md"
 
 [branches]
 default = "main"

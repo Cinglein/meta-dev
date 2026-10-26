@@ -1,4 +1,4 @@
-exclude_globs = ["xtask/src/main.rs"]
+exclude_globs = ["xtask/src/main.rs", "self/spec/src/main.rs"]
 exclude_re = [
     "MutantCosts::measure",
     "Task::run",

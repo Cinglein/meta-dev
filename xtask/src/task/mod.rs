@@ -25,6 +25,7 @@ use crate::task::surfaces::Surfaces;
 use crate::task::test::Test;
 use crate::task::usage::Usage;
 use affected::{Affected, Changes};
+pub use ci::CiStep;
 use ci::{Ci, LocalGate};
 use corpus_check::LintName;
 use crate_graph::CrateGraph;

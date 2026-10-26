@@ -8,6 +8,7 @@ mod limit;
 mod most;
 mod percent;
 mod share;
+mod spec_settings;
 mod surface;
 mod vague;
 mod vocabulary;
@@ -20,6 +21,7 @@ pub use limit::Limit;
 
 pub use most::Most;
 pub use share::Share;
+pub use spec_settings::SpecSettings;
 pub use surface::Surface;
 pub use wire_type::WireType;
 
@@ -67,6 +69,8 @@ pub struct Policy {
     mutation: MutationCadence,
     #[serde(default)]
     budgets: Budgets,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    spec: Option<SpecSettings>,
 }
 
 #[cfg(any(test, feature = "test-policy"))]
@@ -142,6 +146,11 @@ impl Policy {
     #[must_use]
     pub fn budgets(&self) -> &Budgets {
         &self.budgets
+    }
+
+    #[must_use]
+    pub fn spec(&self) -> Option<&SpecSettings> {
+        self.spec.as_ref()
     }
 
     #[must_use]
