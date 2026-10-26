@@ -52,7 +52,10 @@ impl Packing {
 mod tests {
     use super::{CrateLoad, Packing};
     use settings::EmbeddedDefaults;
-    use task::{Interval, MutantCount, Policy};
+    use std::time::Duration;
+    use task::{CrateName, Interval, Millis, MutantCount, Policy};
+    const PR_SEVEN_CRATE: &str = "meta-cli";
+    const PR_SEVEN_SECONDS_PER_MUTANT_ON_CI: f64 = 5.4;
     const LOADS: [(&str, usize, Interval); 4] = [
         ("a", 1, Interval::PerShard),
         ("b", 1, Interval::PerSlice),
@@ -77,5 +80,25 @@ mod tests {
             .map(ToString::to_string)
             .collect();
         assert_eq!(shards, SHARDS);
+    }
+
+    #[test]
+    fn a_meta_cli_diff_the_size_of_pr_7_fits_its_job_limit_at_the_cost_measured_on_ci() {
+        let policy = Policy::defaults();
+        let measured = Duration::from_secs_f64(PR_SEVEN_SECONDS_PER_MUTANT_ON_CI).as_millis();
+        let measured = Millis::new(u64::try_from(measured).unwrap());
+        let job = policy.interval(Interval::DiffJob);
+        let mutants = job.div_ceil(measured);
+        let name: CrateName = PR_SEVEN_CRATE.parse().unwrap();
+        let price = policy.mutant_millis().for_crate(&name);
+        let load = CrateLoad::new(name, MutantCount::from(mutants), price, &policy);
+        let shards = Packing::shards(&[load], policy.interval(Interval::PerSlice)).len();
+        let spent = policy
+            .interval(Interval::PerCrate)
+            .plus(measured.times(mutants.div_ceil(shards)));
+        assert!(
+            spent <= job,
+            "{mutants} mutants in {shards} shards: {spent} ms each"
+        );
     }
 }

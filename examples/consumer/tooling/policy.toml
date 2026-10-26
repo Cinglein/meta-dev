@@ -75,6 +75,7 @@ per_shard = 220000
 per_crate = 15000
 per_slice = 150000
 test_timeout = 30000
+diff_job = 360000
 
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]

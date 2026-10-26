@@ -13,4 +13,5 @@ pub enum Interval {
     PerCrate,
     PerSlice,
     TestTimeout,
+    DiffJob,
 }
