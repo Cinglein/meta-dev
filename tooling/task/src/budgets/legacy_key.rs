@@ -113,9 +113,10 @@ impl LegacyKey {
 mod tests {
     use settings::EmbeddedDefaults;
 
-    use super::super::budget::{Budget, Measure};
+    use super::super::budget::Measure;
     use super::LegacyKey;
     use crate::budget::{Interval, Millis};
+    use crate::percent::Percent;
     use crate::policy::Policy;
 
     const MILLIS: &str = "[millis]\n";
@@ -133,6 +134,11 @@ mod tests {
     const DROPPED: &str = "";
     const DEPRECATED: [LegacyKey; 2] = [LegacyKey::Total, LegacyKey::PriceTolerance];
     const PRICED: Millis = Millis::new(64);
+    const TOLERANCE: usize = 25;
+    const DERIVED: [Option<(Measure, Option<Percent>)>; 2] = [
+        Some((Measure::TestWallTime, None)),
+        Some((Measure::MutantPrice, Some(Percent::new(TOLERANCE)))),
+    ];
 
     impl Policy {
         fn refusal(text: &str) -> Option<String> {
@@ -162,11 +168,12 @@ mod tests {
             Policy::defaults().timed_and_priced()
         );
         assert!(old.deprecated() == DEPRECATED && Policy::defaults().deprecated().is_empty());
-        let derived = old
-            .budgets()
-            .budget(&LegacyKey::Total.budget_id())
-            .map(Budget::measure);
-        assert_eq!(derived, Some(Measure::TestWallTime));
+        let derived = DEPRECATED.map(|key| {
+            old.budgets()
+                .budget(&key.budget_id())
+                .map(|budget| (budget.measure(), budget.tolerance()))
+        });
+        assert_eq!(derived, DERIVED);
     }
 
     #[test]
