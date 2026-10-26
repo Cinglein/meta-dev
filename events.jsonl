@@ -149,3 +149,4 @@
 {"at":"2026-10-26T05:03:43.264854Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-683819b5ae8583ea","text":"Budgets need headroom: a measurement above ~60-80% of its budget is a warning (steward/task) before it fails; near-limit budgets are flaky under load"}
 {"at":"2026-10-26T05:04:55.636431Z","actor":"claude-port-own","kind":"TaskDone","task":"task-f92c307b2245564a"}
 {"at":"2026-10-26T05:05:34.963631Z","actor":"claude-adopt-affected","kind":"TaskOpened","task":"task-8622ca930b87f40e","text":"Test suite headroom: Mac test-time suite at most ~60% of the 4000 ms budget under load; in-memory LogStore for CLI behaviour tests, fewer git calls per meta-log write"}
+{"at":"2026-10-26T05:05:44.205995Z","actor":"claude-adopt-affected","kind":"TaskClaimed","task":"task-8622ca930b87f40e"}
