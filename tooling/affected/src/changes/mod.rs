@@ -6,7 +6,7 @@ use crate::reach::Reach;
 use included_files::IncludedFiles;
 use task::Failure;
 use task::Workspace;
-use task::{GitArgument, Program, Stdout};
+use task::{BranchName, GitArgument, Program, Stdout};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Changes {
@@ -15,23 +15,22 @@ pub enum Changes {
 }
 
 impl Changes {
-    const BASE: &str = "origin/main";
-
-    pub fn reaches(self, workspace: &Workspace) -> Result<Vec<Reach>, Failure> {
+    pub fn reaches(self, workspace: &Workspace, base: &BranchName) -> Result<Vec<Reach>, Failure> {
         match self {
             Changes::Everything => Ok(vec![Reach::Everything]),
-            Changes::SinceMain => Self::since_main(workspace),
+            Changes::SinceMain => Self::since_main(workspace, base),
         }
     }
 
-    fn since_main(workspace: &Workspace) -> Result<Vec<Reach>, Failure> {
+    fn since_main(workspace: &Workspace, base: &BranchName) -> Result<Vec<Reach>, Failure> {
         let packages = workspace.packages();
         let changed: Vec<PathBuf> = workspace
             .line(Program::Git)
             .argument(GitArgument::Diff)
             .argument(GitArgument::NameOnly)
+            .argument(GitArgument::Relative)
             .argument(GitArgument::MergeBase)
-            .argument(Self::BASE)
+            .argument(base)
             .captured::<Stdout>()?
             .lines()
             .map(PathBuf::from)

@@ -9,7 +9,7 @@ pub struct Commit(String);
 
 impl Commit {
     pub fn object(&self, path: &Path) -> String {
-        format!("{}:{}", self.0, path.display())
+        format!("{}:./{}", self.0, path.display())
     }
 }
 

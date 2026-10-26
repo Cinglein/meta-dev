@@ -10,6 +10,7 @@ pub use packing::Packing;
 pub use tested_crates::TestedCrates;
 
 use reach::Reach;
+use task::BranchName;
 use task::Failure;
 use task::PackageGraph;
 use task::Selection;
@@ -19,10 +20,14 @@ use task::Workspace;
 pub struct Affected;
 
 impl Affected {
-    pub fn selection(workspace: &Workspace, changes: Changes) -> Result<Selection, Failure> {
+    pub fn selection(
+        workspace: &Workspace,
+        changes: Changes,
+        base: &BranchName,
+    ) -> Result<Selection, Failure> {
         Ok(Self::reached(
             workspace.packages(),
-            &changes.reaches(workspace)?,
+            &changes.reaches(workspace, base)?,
         ))
     }
 

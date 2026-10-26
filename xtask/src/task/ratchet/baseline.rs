@@ -4,7 +4,7 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use task::{BaselineFile, Site};
+use task::{BaselineFile, BranchName, Site};
 
 use crate::task::failure::Failure;
 use crate::task::prior_policy::PriorPolicy;
@@ -26,9 +26,9 @@ impl Baseline {
         }
     }
 
-    pub fn admitted(root: &Path, file: &BaselineFile) -> Result<Baseline, Failure> {
+    pub fn admitted(root: &Path, file: &BaselineFile, base: &BranchName) -> Result<Baseline, Failure> {
         let allowed = Self::read(&file.within(root))?;
-        let revision = Revision::merge_base(root)?;
+        let revision = Revision::merge_base(root, base)?;
         let prior_policy = PriorPolicy::read_at(&revision);
         let prior_file = prior_policy.baseline().unwrap_or(file);
         let prior: Baseline =
@@ -71,9 +71,10 @@ mod tests {
     use super::Baseline;
     use crate::task::failure::Failure;
     use crate::task::fixture::Fixture;
-    use task::BaselineFile;
+    use task::{BaselineFile, BranchName};
 
     const BASELINE: &str = "lint-baseline.toml";
+    const BASE: &str = "origin/main";
     const MOVED: &str = "self/moved.toml";
     const POLICY: &str = "tooling/policy.toml";
     const MOVED_POLICY: &str = "baseline = \"self/moved.toml\"\n";
@@ -85,14 +86,15 @@ mod tests {
 
     #[test]
     fn a_raised_baseline_is_refused_against_the_merge_base_even_after_a_move() {
+        let Ok(base) = BASE.parse::<BranchName>();
         let fixture = Fixture::new();
         fixture.write(BASELINE, ONE).branch();
         fixture.write(BASELINE, TWO);
-        let admitted = Baseline::admitted(fixture.root(), &BaselineFile::from(BASELINE));
+        let admitted = Baseline::admitted(fixture.root(), &BaselineFile::from(BASELINE), &base);
         assert_eq!(admitted.map_err(|failure| failure.to_string()).err().as_deref(), Some(RAISED));
         let moved = Fixture::new();
         moved.write(POLICY, MOVED_POLICY).write(MOVED, TWO).branch();
-        assert!(Baseline::admitted(moved.write(BASELINE, TWO).root(), &BaselineFile::from(BASELINE)).is_ok());
+        assert!(Baseline::admitted(moved.write(BASELINE, TWO).root(), &BaselineFile::from(BASELINE), &base).is_ok());
     }
 
     #[test]
