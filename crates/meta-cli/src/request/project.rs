@@ -1,5 +1,4 @@
 mod config;
-mod identity;
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -10,8 +9,6 @@ use crate::request::ci::Commit;
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
 pub use config::{BranchName, CiSettings, Config, LogWindow, ProgramName};
-use identity::Identity;
-
 #[derive(Debug)]
 pub struct Project {
     root: PathBuf,
@@ -21,8 +18,6 @@ pub struct Project {
 impl Project {
     const CONFIG_FILE: &'static str = "meta.toml";
     const GIT_ENTRY: &'static str = ".git";
-    const IDENTS: [&'static str; 2] = ["GIT_AUTHOR_IDENT", "GIT_COMMITTER_IDENT"];
-
     pub fn log(&self) -> Result<GitLog, CliFailure> {
         self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote.clone()))
     }
@@ -65,14 +60,6 @@ impl Project {
             .ok()?;
         let Ok(commit) = String::from_utf8_lossy(&head.stdout).parse();
         head.status.success().then_some(commit)
-    }
-
-    pub fn identity_refusal(&self) -> Option<Listed> {
-        Self::IDENTS.iter().find_map(|ident| {
-            let shown = Command::new("git").arg("-C").arg(&self.root).args(["var", ident]).output().ok()?;
-            let Ok(identity) = String::from_utf8_lossy(&shown.stdout).parse::<Identity>();
-            identity.refusal()
-        })
     }
 
     fn unprotected_branch(&self) -> Option<BranchName> {

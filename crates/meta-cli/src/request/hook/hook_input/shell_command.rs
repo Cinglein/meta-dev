@@ -14,8 +14,6 @@ impl ShellCommand {
     const SEPARATORS: &'static [char] = &[';', '&', '|', '\n', '(', ')'];
     const QUOTES: &'static [char] = &['\'', '"'];
     const PR_MERGE: &'static [&'static str] = &["gh", "pr", "merge"];
-    const COMMIT_WRITERS: &'static [&'static str] = &["commit", "rebase", "cherry-pick", "merge"];
-
     pub fn refusal(&self, config: &Config) -> Option<Listed> {
         self.segments()
             .find(|words| words.windows(Self::PR_MERGE.len()).any(|window| window == Self::PR_MERGE))
@@ -23,12 +21,20 @@ impl ShellCommand {
             .or_else(|| self.segments().filter_map(GitCall::parse).find_map(|call| call.push_refusal(config)))
     }
 
-    pub fn writes_commits(&self) -> Option<()> {
-        Self::COMMIT_WRITERS.iter().find_map(|subcommand| self.runs(subcommand))
+    pub fn commit_directory(&self, cwd: &Path) -> Option<PathBuf> {
+        self.segments().scan(cwd.to_path_buf(), |directory, words| Some(Self::step(directory, words))).flatten().next()
     }
 
-    pub fn commit_directory(&self, cwd: &Path) -> Option<PathBuf> {
-        self.writes_commits().map(|()| cwd.to_path_buf())
+    fn step(directory: &mut PathBuf, words: &[String]) -> Option<PathBuf> {
+        match words {
+            [cd, target] if cd == "cd" => {
+                directory.push(target);
+                None
+            }
+            _ => GitCall::parse(words)
+                .filter(|call| call.writes_commits().is_some())
+                .map(|call| call.directory(directory)),
+        }
     }
 
     pub fn runs(&self, subcommand: &str) -> Option<()> {

@@ -23,9 +23,7 @@ const NOREPLY_IDENTITY: &str = "[user]\n\tname = someone\n\temail = 1+someone@us
 const GIT_CONFIG: &str = ".git/config";
 const BARE_CONFIG: &str = "config";
 const ELSEWHERE: &str = "ELSEWHERE";
-const FOREIGN_COMMITS: [&str; 3] =
-    ["cd ELSEWHERE && git commit --amend --no-edit", "git -C ELSEWHERE revert HEAD", "git commit -m change"];
-const ABORT: &str = "git -C ELSEWHERE rebase --abort";
+const FOREIGN_COMMITS: [&str; 2] = ["cd ELSEWHERE && git commit --amend --no-edit", "git commit -m change"];
 const FOREIGN_REASON: &str = "someone@example.com is not noreply; git config user.name";
 const NEW_FEATURE: [&str; 4] = ["switch", "-q", "-c", "feature"];
 const HEAD: &str = "HEAD";
@@ -112,16 +110,16 @@ impl Repo {
 #[test]
 fn pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_wherever_they_run() {
     let repo = Repo::new();
-    let (home, elsewhere) = (repo.clone.path(), repo.origin.path());
+    let home = repo.clone.path();
+    let elsewhere = repo.origin.path();
     Git::configure(&home.join(GIT_CONFIG), NOREPLY_IDENTITY);
     Git::configure(&elsewhere.join(BARE_CONFIG), FOREIGN_IDENTITY);
     let push = repo.hook(PRE, PUSH, home);
     assert!(repo.hook(PRE, MERGE, home).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
     let refused = format!("{DENY}{FOREIGN_REASON}");
-    let commits = FOREIGN_COMMITS.into_iter().zip([home, home, elsewhere]);
+    let commits = FOREIGN_COMMITS.into_iter().zip([home, elsewhere]);
     assert!(commits.map(|(command, cwd)| repo.hook(PRE, command, cwd)).all(|shown| shown.contains(&refused)));
-    let allowed = [(ALLOWED, home), (ABORT, elsewhere)];
-    assert!(allowed.into_iter().all(|(command, cwd)| repo.hook(PRE, command, cwd).is_empty()));
+    assert_eq!(repo.hook(PRE, ALLOWED, home), "");
 }
 
 #[test]

@@ -48,10 +48,10 @@ impl Revision {
             .collect())
     }
 
-    pub fn noreply_since(&self) -> Result<(), Failure> {
-        let emails = Self::git(&self.root)
+    pub fn noreply_off(root: &Path, base: &BranchName) -> Result<(), Failure> {
+        let emails = Self::git(root)
             .arguments(["log", "--format=%ae%n%ce", "HEAD", "--not"])
-            .argument(&self.commit)
+            .argument(base)
             .captured::<Stdout>()?;
         ForeignEmails::refused(&emails)
     }

@@ -1,19 +1,31 @@
+use std::path::Path;
+use std::process::Command;
 use std::str::FromStr;
+
+use meta_schema::Email;
 
 use crate::request::output::Listed;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Identity(String);
+pub struct Identity(Email);
 
 impl Identity {
-    const NOREPLY_DOMAIN: &'static str = "@users.noreply.github.com";
+    const IDENTS: [&'static str; 2] = ["GIT_AUTHOR_IDENT", "GIT_COMMITTER_IDENT"];
 
-    pub fn refusal(&self) -> Option<Listed> {
-        (!self.0.ends_with(Self::NOREPLY_DOMAIN)).then(|| {
+    pub fn refusal_in(directory: &Path) -> Option<Listed> {
+        Self::IDENTS.iter().find_map(|ident| {
+            let shown = Command::new("git").arg("-C").arg(directory).args(["var", ident]).output().ok()?;
+            let Ok(identity) = String::from_utf8_lossy(&shown.stdout).parse::<Identity>();
+            identity.refusal()
+        })
+    }
+
+    fn refusal(&self) -> Option<Listed> {
+        (!self.0.noreply()).then(|| {
             Listed::new(format!(
                 "{} is not noreply; git config user.name NAME && git config user.email ID+NAME{}",
                 self.0,
-                Self::NOREPLY_DOMAIN
+                Email::NOREPLY_DOMAIN
             ))
         })
     }
@@ -24,7 +36,7 @@ impl FromStr for Identity {
 
     fn from_str(ident: &str) -> Result<Self, Self::Err> {
         let email = ident.split_once('<').and_then(|(_, rest)| rest.split_once('>')).map_or("", |(email, _)| email);
-        Ok(Self(email.to_owned()))
+        Ok(Self(Email::from(email)))
     }
 }
 
