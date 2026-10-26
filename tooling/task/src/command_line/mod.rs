@@ -1,10 +1,14 @@
 mod cargo_argument;
+mod git_argument;
 mod program;
+mod stderr;
 mod stdout;
 mod stream;
 
 pub use cargo_argument::CargoArgument;
+pub use git_argument::GitArgument;
 pub use program::Program;
+pub use stderr::Stderr;
 pub use stdout::Stdout;
 pub use stream::Stream;
 
