@@ -46,8 +46,16 @@ const ENV_LINE: &str = "export META_ACTOR=claude-abcdef1234\nexport META_SESSION
 struct Git;
 
 impl Git {
-    const IDENTITY: [&'static str; 6] =
-        ["-c", "user.name=t", "-c", "user.email=t@meta.invalid", "-c", "init.defaultBranch=main"];
+    const IDENTITY: [&'static str; 8] = [
+        "-c",
+        "user.name=t",
+        "-c",
+        "user.email=t@meta.invalid",
+        "-c",
+        "init.defaultBranch=main",
+        "-c",
+        "maintenance.auto=false",
+    ];
 
     fn run(dir: &Path, words: &[&str]) -> Output {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
@@ -82,8 +90,8 @@ impl Repo {
     fn new() -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Git::run(origin.path(), &["init", "-q", "--bare"]);
-        Git::run(clone.path(), &["init", "-q"]);
+        Git::run(origin.path(), &["init", "-q", "--template=", "--bare"]);
+        Git::run(clone.path(), &["init", "-q", "--template="]);
         Git::link_origin(clone.path(), origin.path());
         std::fs::write(clone.path().join("meta.toml"), CONFIG).unwrap();
         Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "start"]);

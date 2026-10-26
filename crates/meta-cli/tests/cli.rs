@@ -44,8 +44,16 @@ const GIT_CALL: &str = "git -C /";
 struct Git;
 
 impl Git {
-    const IDENTITY: [&'static str; 6] =
-        ["-c", "user.name=test", "-c", "user.email=test@meta.invalid", "-c", "init.defaultBranch=main"];
+    const IDENTITY: [&'static str; 8] = [
+        "-c",
+        "user.name=test",
+        "-c",
+        "user.email=test@meta.invalid",
+        "-c",
+        "init.defaultBranch=main",
+        "-c",
+        "maintenance.auto=false",
+    ];
 
     fn run(dir: &Path, words: &[&str]) -> Output {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
@@ -113,8 +121,8 @@ impl Project {
     fn new() -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Git::run(origin.path(), &["init", "-q", "--bare"]);
-        Git::run(clone.path(), &["init", "-q"]);
+        Git::run(origin.path(), &["init", "-q", "--template=", "--bare"]);
+        Git::run(clone.path(), &["init", "-q", "--template="]);
         Git::link_origin(clone.path(), origin.path().to_str().unwrap());
         std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
         Self { origin, clone }

@@ -108,8 +108,16 @@ mod sessions;
 struct Git;
 
 impl Git {
-    const IDENTITY: [&'static str; 6] =
-        ["-c", "user.name=t", "-c", "user.email=t@meta.invalid", "-c", "init.defaultBranch=main"];
+    const IDENTITY: [&'static str; 8] = [
+        "-c",
+        "user.name=t",
+        "-c",
+        "user.email=t@meta.invalid",
+        "-c",
+        "init.defaultBranch=main",
+        "-c",
+        "maintenance.auto=false",
+    ];
 
     const LONG_AGO: &'static str = "@1000000000 +0000";
 
@@ -280,8 +288,8 @@ impl Repo {
     fn new(scenario: &'static str) -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Git::run(origin.path(), &["init", "-q", "--bare"]);
-        Git::run(clone.path(), &["init", "-q", "-b", "feature"]);
+        Git::run(origin.path(), &["init", "-q", "--template=", "--bare"]);
+        Git::run(clone.path(), &["init", "-q", "--template=", "-b", "feature"]);
         Git::link_origin(clone.path(), origin.path().to_str().unwrap());
         std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{PATIENT}")).unwrap();
         std::fs::create_dir(clone.path().join("bin")).unwrap();
