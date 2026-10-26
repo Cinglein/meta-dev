@@ -71,7 +71,7 @@ impl HookEvent {
                     .and_then(|log| Listed::from_log(&log, None, Scope::Open))
                     .map_or_else(|failure| format!("meta/log unreadable: {failure}\n"), |listed| listed.to_string());
                 let shown = format!(
-                    "state of meta/log. actor: {actor}. meta list | claim | done | release | issue | concern | open (issue, concern and open need --division <path>)\n{state}"
+                    "state of meta/log. actor: {actor}. meta list | claim | done | release | wait | resume | link | issue | concern | open (issue, concern and open need --division <path>)\n{state}"
                 );
                 Reply::new(self, Verdict::Allow, Some(Listed::new(shown)))
             }

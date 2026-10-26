@@ -6,7 +6,8 @@ pub struct DivisionName(String);
 impl DivisionName {
     pub fn named(name: &str) -> Option<DivisionName> {
         let spelled = |letter: char| letter.is_ascii_lowercase() || letter.is_ascii_digit() || letter == '-';
-        (!name.is_empty() && name.chars().all(spelled)).then(|| DivisionName(name.to_owned()))
+        (name.chars().any(|letter| letter.is_ascii_alphanumeric()) && name.chars().all(spelled))
+            .then(|| DivisionName(name.to_owned()))
     }
 }
 

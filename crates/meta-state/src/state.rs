@@ -7,7 +7,7 @@ mod vetting;
 
 use std::collections::HashMap;
 
-use meta_schema::{Actor, Block, Entry, EntryNote, Id, Record, Target, Task, Text};
+use meta_schema::{Actor, Block, Entry, EntryNote, Id, Record, SchemaVersion, Target, Task, Text};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
@@ -28,6 +28,7 @@ pub struct State {
     addressers: HashMap<Target, Vec<Id<Task>>>,
     anomalies: Vec<Anomaly>,
     retired: HashMap<Entry, Retired>,
+    schema: Option<SchemaVersion>,
 }
 
 impl State {
@@ -40,8 +41,38 @@ impl State {
     }
 
     pub fn tried(&self, record: &Record) -> Result<Self, Refusal> {
+        self.schema
+            .filter(|marked| *marked > SchemaVersion::current())
+            .map_or(Ok(()), |marked| Err(Refusal::NewerSchema(marked)))?;
         let mut next = self.clone();
-        record.event().visit(Applying::new(&mut next, Stamp::from_record(record))).map(|()| next)
+        record.event().visit(Applying::new(&mut next, Stamp::from_record(record))).map(|()| next.swept())
+    }
+
+    #[must_use]
+    pub fn schema(&self) -> Option<SchemaVersion> {
+        self.schema
+    }
+
+    pub(crate) fn note_schema(&mut self, version: SchemaVersion) {
+        self.schema = self.schema.max(Some(version));
+    }
+
+    pub(crate) fn swept(mut self) -> Self {
+        let ended: Vec<usize> = self
+            .tasks
+            .iter()
+            .enumerate()
+            .filter(|(_, task)| {
+                task.progress().status().waiting_on_entry().is_some_and(|entry| self.closed(entry).is_some())
+            })
+            .map(|(index, _)| index)
+            .collect();
+        self.tasks
+            .iter_mut()
+            .enumerate()
+            .filter(|(index, _)| ended.contains(index))
+            .for_each(|(_, task)| task.dissolve());
+        self
     }
 
     #[must_use]
@@ -58,7 +89,7 @@ impl State {
     fn applied(mut self, record: &Record) -> Self {
         let outcome = record.event().visit(Applying::new(&mut self, Stamp::from_record(record)));
         self.anomalies.extend(outcome.err().map(|refusal| Anomaly::new(record.clone(), refusal)));
-        self
+        self.swept()
     }
 
     pub(crate) fn add_concern(&mut self, concern: ConcernState) -> Result<(), Refusal> {

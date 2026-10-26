@@ -1,4 +1,4 @@
-use meta_schema::{Actor, Entry, Id, PullRequest, Target, Task};
+use meta_schema::{Actor, Entry, Id, PullRequest, SchemaVersion, Target, Task};
 use thiserror::Error;
 
 #[derive(Clone, Debug, PartialEq, Eq, Error)]
@@ -17,6 +17,8 @@ pub enum Refusal {
     AlreadyAssigned(Actor),
     #[error("{0} is not assigned to the task")]
     NotAssigned(Actor),
+    #[error("meta/log was written by a newer meta (schema {0}); upgrade meta")]
+    NewerSchema(SchemaVersion),
     #[error("{0} is closed")]
     Closed(Entry),
     #[error("waits would form a loop")]

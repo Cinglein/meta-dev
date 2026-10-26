@@ -12,15 +12,20 @@ use waiting::Waiting;
 pub struct Activity {
     assignments: Vec<Stamp>,
     blocker: Option<Blocker>,
+    ended: Option<Blocker>,
 }
 
 impl Activity {
     pub fn unassigned() -> Self {
-        Self { assignments: Vec::new(), blocker: None }
+        Self { assignments: Vec::new(), blocker: None, ended: None }
     }
 
     pub fn assignments(&self) -> &[Stamp] {
         &self.assignments
+    }
+
+    pub fn ended(&self) -> Option<Blocker> {
+        self.ended
     }
 
     pub fn status(&self) -> TaskStatus {
@@ -34,13 +39,13 @@ impl Activity {
         let kept = previous.map_or_else(|| Ok(self.assignments.clone()), |named| self.without(named))?;
         let actor = by.actor().clone();
         Self::holds(&kept, &actor).then_some(()).map_or_else(
-            || Ok(Self { assignments: [kept, vec![by]].concat(), blocker: self.blocker }),
+            || Ok(Self { assignments: [kept, vec![by]].concat(), ..self.clone() }),
             |()| Err(Refusal::AlreadyAssigned(actor)),
         )
     }
 
     pub fn released(&self, by: &Stamp) -> Result<Self, Refusal> {
-        let left = self.without(by.actor()).map(|kept| Self { assignments: kept, blocker: self.blocker })?;
+        let left = self.without(by.actor()).map(|kept| Self { assignments: kept, ..self.clone() })?;
         (left.assignments.is_empty() && self.blocker.is_some() && left.status().stalling() == Stalling::Possible)
             .then_some(())
             .map_or(Ok(left), |()| Err(Refusal::WaitWithoutHolder))
@@ -51,17 +56,19 @@ impl Activity {
     }
 
     pub fn blocked(&self, on: Blocker, by: &Actor) -> Result<Self, Refusal> {
-        self.permitting(by)?.blocker.map_or_else(
-            || Ok(Self { assignments: self.assignments.clone(), blocker: Some(on) }),
+        self.holder(by)?;
+        self.blocker.map_or_else(
+            || Ok(Self { blocker: Some(on), ended: None, ..self.clone() }),
             |_| Err(Refusal::AlreadyWaiting),
         )
     }
 
     pub fn unblocked(&self, by: &Actor) -> Result<Self, Refusal> {
-        self.permitting(by)?
-            .blocker
-            .map(|_| Self { assignments: self.assignments.clone(), blocker: None })
-            .ok_or(Refusal::NotBlocked)
+        self.permitting(by)?.blocker.map(|_| Self { blocker: None, ..self.clone() }).ok_or(Refusal::NotBlocked)
+    }
+
+    pub fn dissolved(&self) -> Self {
+        Self { blocker: None, ended: self.blocker.or(self.ended), ..self.clone() }
     }
 
     fn permitting(&self, actor: &Actor) -> Result<&Self, Refusal> {

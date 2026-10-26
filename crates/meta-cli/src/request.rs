@@ -1,24 +1,23 @@
 mod ci;
 mod cli_failure;
 mod hook;
-mod marker;
 mod output;
 mod parsed;
 mod project;
 mod timed_command;
+mod writing;
 
 use meta_listing::{Kind, Scope};
 use meta_log::LogStore;
-use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, Record, TaskRef};
-use meta_state::State;
+use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, TaskRef};
 
 use ci::{Commit, FailureLog, SessionId, Watcher};
 use cli_failure::{CliFailure, Invalid, Misuse, Setup};
 use hook::HookEvent;
-use marker::Marker;
-use output::{Holders, Listed, Output};
+use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
 use project::Project;
+use writing::Writing;
 
 #[derive(Debug)]
 pub enum Request {
@@ -119,16 +118,7 @@ impl Request {
         actor: impl FnOnce() -> Result<Actor, CliFailure>,
     ) -> Result<Output, CliFailure> {
         match self {
-            Self::Write(event) => {
-                let actor = actor()?;
-                Marker::ensured(log, &actor)?;
-                let record = log.append::<CliFailure>(&mut |snapshot| {
-                    let record = Record::new(actor.clone(), event.clone());
-                    State::fold(snapshot.complete()?).vet(&record)?;
-                    Ok(record)
-                })?;
-                Ok(Output::Written(record, Holders::after(log, &event)?))
-            }
+            Self::Write(event) => Writing::new(log, actor()?, event).entered(),
             Self::List(kind, scope) => Listed::from_log(log, kind, scope).map(Output::Listed),
             Self::Hook(_) | Self::WatchCi(..) | Self::WaitCi(_) | Self::CiLog(_) => {
                 Err(CliFailure::raised::<Misuse>("not a meta/log request"))

@@ -1,21 +1,14 @@
 use std::fmt;
 
-use meta_log::LogStore;
 use meta_schema::{Actor, Event};
 use meta_state::State;
-
-use crate::request::cli_failure::CliFailure;
 
 #[derive(Debug, Default)]
 pub struct Holders(Vec<Actor>);
 
 impl Holders {
-    pub fn after(log: &impl LogStore, event: &Event) -> Result<Self, CliFailure> {
-        let held = event
-            .claimed_task()
-            .map(|task| log.read().map(|snapshot| State::fold(snapshot.records()).holders(task)))
-            .transpose()?;
-        Ok(Self(held.unwrap_or_default()))
+    pub fn in_state(state: &State, event: &Event) -> Self {
+        Self(event.claimed_task().map(|task| state.holders(task)).unwrap_or_default())
     }
 }
 

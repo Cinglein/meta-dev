@@ -39,6 +39,20 @@ impl Progress {
         }
     }
 
+    pub fn ended(&self) -> Option<Blocker> {
+        match self {
+            Self::Active(activity) => activity.ended(),
+            Self::Done(_) => None,
+        }
+    }
+
+    pub fn dissolved(&self) -> Self {
+        match self {
+            Self::Active(activity) => Self::Active(activity.dissolved()),
+            Self::Done(stamp) => Self::Done(stamp.clone()),
+        }
+    }
+
     pub fn claimed(&self, by: Stamp, previous: Option<&Actor>) -> Result<Self, Refusal> {
         match self {
             Self::Active(activity) => activity.claimed(by, previous).map(Self::Active),

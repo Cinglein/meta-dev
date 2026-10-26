@@ -32,7 +32,7 @@ fn the_first_write_leaves_one_schema_marker_before_the_entry_and_later_writes_ad
 fn a_refused_write_leaves_the_log_untouched_and_a_newer_log_refuses_writes() {
     let meta = Meta::default();
     assert!(meta.run(OWNER, &[DONE, GHOST_TASK]).is_err());
-    assert!(meta.0.read().unwrap().records().is_empty());
+    assert_eq!(meta.0.read().unwrap().records().len(), 0);
     let newer: Record = serde_json::from_str(NEWER_MARK).unwrap();
     meta.0.append::<CliFailure>(&mut |_| Ok(newer.clone())).unwrap();
     assert!(meta.run(OWNER, &OPEN_DASHED).unwrap_err().to_string().contains("newer"));

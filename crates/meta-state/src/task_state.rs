@@ -54,6 +54,10 @@ impl TaskState {
         Ok(())
     }
 
+    pub fn dissolve(&mut self) {
+        self.progress = self.progress.dissolved();
+    }
+
     pub fn linked(&mut self, pull_request: PullRequest) -> Result<(), Refusal> {
         if self.pull_requests.contains(&pull_request) {
             Err(Refusal::AlreadyLinked(pull_request))
@@ -68,6 +72,7 @@ impl fmt::Display for TaskState {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "[{}] {} — opened by {}", self.progress.status(), self.task, self.opened)?;
         self.progress.assignments().iter().try_for_each(|stamp| write!(formatter, " — assigned {stamp}"))?;
+        self.progress.ended().map_or(Ok(()), |ended| write!(formatter, " — wait on {ended} closed"))?;
         self.pull_requests.iter().try_for_each(|pull_request| write!(formatter, " PR {pull_request}"))
     }
 }

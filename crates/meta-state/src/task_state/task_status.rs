@@ -1,6 +1,6 @@
 use std::fmt;
 
-use meta_schema::{ExternalKind, Id, Issue, Task};
+use meta_schema::{Entry, ExternalKind, Id, Issue, Task};
 
 use crate::stamp::Stamp;
 use crate::task_state::stalling::Stalling;
@@ -22,6 +22,15 @@ impl TaskStatus {
         match self {
             Self::Open | Self::Assigned | Self::WaitingOnTask(_) | Self::WaitingOnExternal(_) => Stalling::Possible,
             Self::Discussion(_) | Self::Done(_) | Self::Retired => Stalling::Never,
+        }
+    }
+
+    #[must_use]
+    pub fn waiting_on_entry(&self) -> Option<Entry> {
+        match self {
+            Self::Discussion(issue) => Some(Entry::Issue(*issue)),
+            Self::WaitingOnTask(task) => Some(Entry::Task(*task)),
+            _ => None,
         }
     }
 

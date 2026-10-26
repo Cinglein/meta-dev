@@ -69,7 +69,8 @@ impl EventVisitor for Applying<'_> {
         self.state.correct(note)
     }
 
-    fn schema_versioned(self, _version: SchemaVersion) -> Self::Output {
+    fn schema_versioned(self, version: SchemaVersion) -> Self::Output {
+        self.state.note_schema(version);
         Ok(())
     }
 
