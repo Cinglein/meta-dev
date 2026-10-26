@@ -233,3 +233,4 @@
 {"at":"2026-10-26T07:07:13.325277Z","actor":"claude-superset","kind":"TaskClaimed","task":"task-d3fa995600f58f8f"}
 {"at":"2026-10-26T07:07:32.849310Z","actor":"claude-shippable","kind":"TaskClaimed","task":"task-46a7a7ced8555d7c"}
 {"at":"2026-10-26T07:08:37.787094Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-eec45aca42cdb6ba"}
+{"at":"2026-10-26T07:13:25.536372Z","actor":"claude-basho-onboard","kind":"IssueReported","issue":"issue-63a4fe84bc035a99","text":"DISCUSS: ci watcher counts GitHub jobs that never started (billing/spending limit) as a CI failure, so Stop blocks with \"fix it\" though nothing ran; seen on a consumer PR. Simplest: classify not-started jobs as CI unavailable, let Stop pass and ask for the local gate result instead"}
