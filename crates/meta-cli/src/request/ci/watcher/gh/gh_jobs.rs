@@ -28,3 +28,20 @@ impl GhJobs {
         self.jobs.iter().filter_map(GhJob::failure).map(|job| job.database_id().argument()).collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::GhJobs;
+
+    const STARTED: &str =
+        r#"{"jobs":[{"name":"ci","conclusion":"failure","steps":[{"name":"t","conclusion":"failure"}]}]}"#;
+    const UNSTARTED: &str = r#"{"jobs":[{"name":"ci","conclusion":"failure","steps":[]}]}"#;
+
+    #[test]
+    fn a_failed_job_without_steps_never_started() {
+        let started: GhJobs = serde_json::from_str(STARTED).unwrap();
+        let unstarted: GhJobs = serde_json::from_str(UNSTARTED).unwrap();
+        assert!(started.first_unstarted().is_none() && started.first_failure().is_some());
+        assert!(unstarted.first_unstarted().is_some() && unstarted.first_failure().is_none());
+    }
+}

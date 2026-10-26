@@ -8,7 +8,7 @@ use std::time::Duration;
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str =
-    "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\nappear_millis = 30\n";
+    "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\nappear_millis = 100\n";
 const PATIENT: &str = "timeout_millis = 300\n";
 const IMPATIENT: &str = "timeout_millis = 30\n";
 const FAKE_GH: &str = r#"#!/bin/sh
@@ -18,6 +18,7 @@ case "$1 $2" in
 "run list")
   n=$((n + 1)); echo "$n" > "$count"
   if [ "$FAKE_GH_SCENARIO" = none ] || [ "$4" != "$(git rev-parse HEAD)" ]; then echo '[]'
+  elif [ "$FAKE_GH_SCENARIO" = stuck ] && [ "$n" -lt 2 ]; then echo '[]'
   elif [ "$FAKE_GH_SCENARIO" = stuck ] || [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
   elif [ "$FAKE_GH_SCENARIO" = success ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"success"}]'
   else echo '[{"databaseId":7,"status":"completed","conclusion":"failure"}]'; fi ;;
@@ -69,8 +70,8 @@ const PASSED: &str = "passed after";
 const PASSED_EVENT: &str = ": passed after";
 const EVENT_PREFIX: &str = "CI ";
 const TIMED_OUT: &str = "timed-out after";
-const UNAVAILABLE: &str = "unavailable after";
-const ABSENT: &str = "absent after";
+const UNAVAILABLE: &str = "unavailable after 0s: jobs never started";
+const ABSENT: &str = "absent after 0s: no run for this commit";
 const COMPLETIONS: [&str; 5] =
     [": passed after", ": failed after", ": timed-out after", ": unavailable after", ": absent after"];
 
