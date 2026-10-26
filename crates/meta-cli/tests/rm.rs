@@ -23,7 +23,8 @@ const REMOVALS: &str = "3";
 const WORKTREES: [&str; 3] = ["worktree", "list", "--porcelain"];
 const COMMIT: [&str; 5] = ["commit", "-q", "--allow-empty", "-m", "work"];
 const LINK: &str = "link";
-const PLAIN: &str = "plain";
+const FOREIGN: &str = "foreign";
+const FOREIGN_TAG: &str = "Signature: 8a477f597d28d172789f06886806bc55\n# Another tool's cache.\n";
 const DIRTY: &str = "dirty";
 const UNTRACKED: &str = "untracked";
 const IGNORED: &str = "ignored";
@@ -37,7 +38,7 @@ const REFUSALS: [(&str, &str); 10] = [
     (MISSING, "not found"),
     (LINK, "symlink"),
     (".", "holds the current repo"),
-    (PLAIN, "neither a cargo target dir nor a git work tree root"),
+    (FOREIGN, "neither a cargo target dir nor a git work tree root"),
     (DIRTY, "uncommitted changes"),
     (UNTRACKED, "untracked files"),
     (IGNORED, "ignored files besides cargo target dirs"),
@@ -77,12 +78,12 @@ impl Git {
     }
 }
 
-struct CargoTag;
+struct CacheTag;
 
-impl CargoTag {
-    fn plant(dir: PathBuf) -> PathBuf {
+impl CacheTag {
+    fn plant(dir: PathBuf, tag: &str) -> PathBuf {
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("CACHEDIR.TAG"), CARGO_TAG).unwrap();
+        std::fs::write(dir.join("CACHEDIR.TAG"), tag).unwrap();
         dir
     }
 }
@@ -123,9 +124,9 @@ impl Scene {
 fn a_target_dir_a_pushed_worktree_and_a_pushed_clone_are_removed_and_logged() {
     let scene = Scene::new();
     let worktree = Git::worktree(&scene.project(), scene.place(DONE));
-    CargoTag::plant(scene.place(NESTED_TARGET));
+    CacheTag::plant(scene.place(NESTED_TARGET), CARGO_TAG);
     Git::run(scene.root.path(), &["clone", "-q", ORIGIN, COPY]);
-    let removed = [CargoTag::plant(scene.place(LOOSE_TARGET)), worktree, scene.place(COPY)];
+    let removed = [CacheTag::plant(scene.place(LOOSE_TARGET), CARGO_TAG), worktree, scene.place(COPY)];
     let run = scene.meta_rm(&removed);
     let worktrees = Git::run(&scene.project(), &WORKTREES).transcript();
     assert!(removed.iter().all(|path| !path.exists()) && !worktrees.contains(DONE), "{}", run.transcript());
@@ -137,14 +138,14 @@ fn a_target_dir_a_pushed_worktree_and_a_pushed_clone_are_removed_and_logged() {
 fn each_refused_path_is_kept_with_its_reason() {
     let scene = Scene::new();
     std::os::unix::fs::symlink(scene.project(), scene.place(LINK)).unwrap();
-    std::fs::create_dir(scene.place(PLAIN)).unwrap();
+    CacheTag::plant(scene.place(FOREIGN), FOREIGN_TAG);
     std::fs::write(Git::worktree(&scene.project(), scene.place(DIRTY)).join("meta.toml"), EXCLUDED).unwrap();
     std::fs::write(Git::worktree(&scene.project(), scene.place(UNTRACKED)).join(HELD), CONFIG).unwrap();
     std::fs::write(Git::worktree(&scene.project(), scene.place(IGNORED)).join("junk"), CONFIG).unwrap();
     Git::run(&Git::worktree(&scene.project(), scene.place(UNPUSHED)), &COMMIT);
     Git::run(scene.root.path(), &["clone", "-q", ORIGIN, FORKED]);
     Git::worktree(&scene.place(FORKED), scene.place(FORK));
-    let _held = File::create(CargoTag::plant(scene.place(BUSY)).join(HELD)).unwrap();
+    let _held = File::create(CacheTag::plant(scene.place(BUSY), CARGO_TAG).join(HELD)).unwrap();
     let kept: Vec<PathBuf> = REFUSALS.iter().map(|(name, _)| scene.place(name)).collect();
     let run = scene.meta_rm(&kept);
     assert!(REFUSALS.iter().all(|(name, reason)| run.refuses(&scene.place(name), reason)), "{}", run.transcript());

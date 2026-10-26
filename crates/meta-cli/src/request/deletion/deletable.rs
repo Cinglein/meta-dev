@@ -1,18 +1,15 @@
-mod cargo_tag;
 mod footprint;
-mod occupancy;
-mod work_tree;
 
 use std::path::{Path, PathBuf};
 
 use meta_schema::{ByteCount, Removal, RemovedKind};
 
 use super::kept::Kept;
+use super::occupancy::Occupancy;
+use super::vetted::Vetted;
+use super::work_tree::WorkTree;
 use crate::request::cli_failure::Message;
-use cargo_tag::CargoTag;
 use footprint::Footprint;
-use occupancy::Occupancy;
-use work_tree::WorkTree;
 
 #[derive(Debug)]
 pub struct Deletable {
@@ -22,22 +19,11 @@ pub struct Deletable {
 }
 
 impl Deletable {
-    const GIT_ENTRY: &'static str = ".git";
     const HOME: &'static str = "~";
 
-    pub fn vetted(given: &Path, project: &Path) -> Result<Self, Kept> {
-        let entry = given.symlink_metadata().map_err(|_| Kept::NotFound)?;
-        let path =
-            (!entry.is_symlink()).then(|| given.canonicalize()).ok_or(Kept::Symlink)?.map_err(|_| Kept::NotFound)?;
-        let current = project.canonicalize().map_err(|failure| Kept::Uninspected(Message::new(failure)))?;
-        let kind = match (current.starts_with(&path), CargoTag::marks(&path), path.join(Self::GIT_ENTRY).exists()) {
-            (true, _, _) => Err(Kept::HoldsCurrentRepo),
-            (false, true, _) => Ok(RemovedKind::TargetDir),
-            (false, false, true) => WorkTree::new(&path).settled_kind(),
-            (false, false, false) => Err(Kept::Unrecognised),
-        }?;
-        Occupancy::vacant(&path)?;
-        Ok(Self { bytes: Footprint::measured(&path), path, kind })
+    pub fn vacated(vetted: &Vetted, occupancy: &Occupancy) -> Result<Self, Kept> {
+        occupancy.vacant(vetted.path())?;
+        Ok(Self { path: vetted.path().to_path_buf(), kind: vetted.kind(), bytes: Footprint::measured(vetted.path()) })
     }
 
     pub fn delete(self) -> Result<Removal, Kept> {

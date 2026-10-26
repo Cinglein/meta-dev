@@ -1,6 +1,10 @@
+mod cargo_tag;
 mod deletable;
 mod kept;
+mod occupancy;
 mod verdict;
+mod vetted;
+mod work_tree;
 
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -10,7 +14,10 @@ use meta_schema::Event;
 use crate::request::cli_failure::{CliFailure, Invalid};
 use crate::request::output::{Listed, Output};
 use deletable::Deletable;
+use kept::Kept;
+use occupancy::Occupancy;
 use verdict::Verdict;
+use vetted::Vetted;
 
 #[derive(Debug)]
 pub struct Deletion {
@@ -28,12 +35,18 @@ impl Deletion {
         project: &Path,
         mut record: impl FnMut(Event) -> Result<Output, CliFailure>,
     ) -> Result<Output, CliFailure> {
+        let vetted: Vec<Result<Vetted, Kept>> =
+            self.paths.iter().map(|given| Vetted::checked(given, project)).collect();
+        let occupancy = Occupancy::scanned(&vetted.iter().flatten().map(Vetted::path).collect::<Vec<_>>());
         let verdicts = self
             .paths
             .iter()
-            .map(|given| match Deletable::vetted(given, project).and_then(Deletable::delete) {
-                Ok(removal) => record(Event::PathRemoved(removal)).map(Verdict::Removed),
-                Err(kept) => Ok(Verdict::Refused(given.clone(), kept)),
+            .zip(vetted)
+            .map(|(given, vetted)| {
+                match vetted.and_then(|vetted| Deletable::vacated(&vetted, &occupancy)).and_then(Deletable::delete) {
+                    Ok(removal) => record(Event::PathRemoved(removal)).map(Verdict::Removed),
+                    Err(kept) => Ok(Verdict::Refused(given.clone(), kept)),
+                }
             })
             .collect::<Result<Vec<_>, _>>()?;
         let done = Self { verdicts, ..self };

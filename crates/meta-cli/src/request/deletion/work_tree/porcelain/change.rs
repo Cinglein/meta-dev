@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use crate::request::deletion::deletable::cargo_tag::CargoTag;
+use crate::request::deletion::cargo_tag::CargoTag;
 use crate::request::deletion::kept::Kept;
 
 #[derive(Debug)]
