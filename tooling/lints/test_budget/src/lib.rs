@@ -7,6 +7,7 @@ use task::Site;
 use task::SourceFile;
 use task::SupportModules;
 use task::Violation;
+use task::{Amount, Percent};
 use task::{Policy, Share};
 
 mod file_count;
@@ -31,13 +32,23 @@ pub struct TestBudget {
 }
 
 impl TestBudget {
+    #[must_use]
     pub fn report(files: &[SourceFile], policy: &Policy) -> Report {
+        Self::measured(files, policy).summarise(policy)
+    }
+
+    #[must_use]
+    pub fn line_share(files: &[SourceFile], policy: &Policy) -> Amount {
+        let measured = Self::measured(files, policy);
+        Amount::Share(Percent::rounded_up(measured.test_lines, measured.lines))
+    }
+
+    fn measured(files: &[SourceFile], policy: &Policy) -> Self {
         let support: Vec<PathBuf> = files.iter().flat_map(SupportModules::paths).collect();
         files
             .iter()
             .map(|file| Self::measure(file, &support, policy))
             .sum::<Self>()
-            .summarise(policy)
     }
 
     fn measure(file: &SourceFile, support: &[PathBuf], policy: &Policy) -> Self {

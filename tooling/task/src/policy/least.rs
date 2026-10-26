@@ -3,8 +3,8 @@ use std::num::NonZeroU64;
 use derive_more::{From, Into};
 use serde::{Deserialize, Serialize};
 
-use super::percent::Percent;
 use crate::budget::Millis;
+use crate::percent::Percent;
 
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, From, Into, Serialize, Deserialize,

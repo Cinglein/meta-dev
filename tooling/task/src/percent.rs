@@ -32,6 +32,11 @@ impl Percent {
         self.0 > Self::WHOLE
     }
 
+    pub fn rounded_up<Count: Into<usize>>(part: Count, whole: Count) -> Percent {
+        let scaled = part.into().saturating_mul(Self::WHOLE);
+        Percent(NonZeroUsize::new(whole.into()).map_or(0, |whole| scaled.div_ceil(whole.get())))
+    }
+
     pub fn applied_to<Whole: Into<usize>, Part: From<usize>>(self, whole: Whole) -> Part {
         Part::from(whole.into() * self.0 / Self::WHOLE)
     }
@@ -54,6 +59,9 @@ mod tests {
     const EIGHTEEN: Percent = Percent(18);
     const FIFTY: usize = 50;
     const NINE: usize = 9;
+    const FIFTY_NINE: usize = 59;
+    const NOTHING: usize = 0;
+    const SIXTEEN: Percent = Percent(16);
     const HALF: Percent = Percent(50);
     const QUARTER: f64 = 0.25;
     const ONE_HALF: f64 = 0.5;
@@ -66,5 +74,12 @@ mod tests {
     #[test]
     fn a_percent_exceeds_only_a_smaller_ratio() {
         assert!(HALF.exceeds(QUARTER) && !HALF.exceeds(ONE_HALF));
+    }
+
+    #[test]
+    fn a_share_rounds_up_and_a_share_of_nothing_is_none() {
+        assert_eq!(Percent::rounded_up(NINE, FIFTY), EIGHTEEN);
+        assert_eq!(Percent::rounded_up(NINE, FIFTY_NINE), SIXTEEN);
+        assert_eq!(Percent::rounded_up(NINE, NOTHING), Percent::NONE);
     }
 }

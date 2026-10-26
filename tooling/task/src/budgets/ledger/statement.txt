@@ -1,0 +1,10 @@
+budget             division                   measure                     source          spend    warning   blocking state
+lint-findings      features-and-maintenance   lint_findings               ci                  -                     - -
+mutant-price       performance-and-cost       mutant_price                ci                  -        60%       125% -
+mutants-diff-job   performance-and-cost       workflow_wall_time diff_job ci                  -   216000ms   360000ms -
+mutants-full-job   performance-and-cost       workflow_wall_time full_job ci                  -   288000ms   480000ms -
+slowest-test       performance-and-cost       slowest_test                local_gate      999ms      600ms     1000ms warn
+tangle-items       features-and-maintenance   tangle_items                ci                  -         49         83 -
+test-line-share    features-and-maintenance   test_line_share             ci                  -        10%        18% -
+test-time          performance-and-cost       test_wall_time              local_gate     4001ms     2400ms     4000ms over
+unit-time          performance-and-cost/unit  test_wall_time              local_gate          -     1200ms     2000ms -

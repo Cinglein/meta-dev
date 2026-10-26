@@ -91,13 +91,18 @@ mod tests {
     const TICK: Duration = Duration::from_millis(1);
     const WHOLE_IN_UNITS: usize = 4;
     const REPORTED: [&str; 2] = ["slowest-test", "test-time"];
+    const NOTHING_TIMED: [&str; 1] = ["no tests were found to time"];
+    const HEADLINE: &str = "timed";
 
     impl TestTime {
         fn over_budget(timings: Vec<TestTiming>, policy: &Policy) -> Report {
             let mut ledger = Ledger::default();
             let found = TestTime { timings }.recorded(policy, &mut ledger);
-            assert!(found.is_clean(), "{found}");
-            ledger.statement(policy).verdict(&Selection::Workspace)
+            let verdict = ledger.statement(policy).verdict(&Selection::Workspace);
+            Report::new(
+                HEADLINE,
+                [found.violations(), verdict.violations()].concat(),
+            )
         }
     }
 
@@ -117,12 +122,6 @@ mod tests {
             TestTime::over_budget(exact, &policy).is_clean() && over.lists_exactly(&REPORTED),
             "{over}"
         );
-        assert!(
-            !TestTime {
-                timings: Vec::new()
-            }
-            .recorded(&policy, &mut Ledger::default())
-            .is_clean()
-        );
+        assert!(TestTime::over_budget(Vec::new(), &policy).lists_exactly(&NOTHING_TIMED));
     }
 }

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::policy::budgets::budget_id::BudgetId;
-use crate::policy::percent::Percent;
+use crate::budgets::budget_id::BudgetId;
+use crate::percent::Percent;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

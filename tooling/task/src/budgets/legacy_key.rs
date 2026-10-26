@@ -124,25 +124,29 @@ mod tests {
     const BOTH: &str = "millis.total: also set as a budget; drop the old key";
     const NEITHER: &str = "millis.total: not set; declare it as a budget";
 
+    const DROPPED: &str = "";
+    const DEPRECATED: [LegacyKey; 1] = [LegacyKey::Total];
+
     impl Policy {
         fn refusal(text: &str) -> Option<String> {
             toml::from_str::<Policy>(text)
                 .err()
                 .map(|error| error.message().to_owned())
         }
+
+        fn unbudgeted() -> String {
+            Policy::DEFAULTS.replace(NEW, DROPPED)
+        }
     }
 
     #[test]
     fn an_old_key_reads_as_its_budget_did_and_is_noted_as_deprecated() {
-        let old = toml::from_str::<Policy>(&Policy::DEFAULTS.replace(NEW, "").replace(MILLIS, OLD))
-            .unwrap();
+        let old = toml::from_str::<Policy>(&Policy::unbudgeted().replace(MILLIS, OLD)).unwrap();
         assert_eq!(
             old.interval(Interval::Total),
             Policy::defaults().interval(Interval::Total)
         );
-        assert!(
-            old.deprecated() == [LegacyKey::Total] && Policy::defaults().deprecated().is_empty()
-        );
+        assert!(old.deprecated() == DEPRECATED && Policy::defaults().deprecated().is_empty());
         let derived = old
             .budgets()
             .budget(&LegacyKey::Total.budget_id())
@@ -157,7 +161,7 @@ mod tests {
             Some(BOTH)
         );
         assert_eq!(
-            Policy::refusal(&Policy::DEFAULTS.replace(NEW, "")).as_deref(),
+            Policy::refusal(&Policy::unbudgeted()).as_deref(),
             Some(NEITHER)
         );
     }

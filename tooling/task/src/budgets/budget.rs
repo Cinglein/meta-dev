@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 
 use super::budget_id::BudgetId;
 use super::tree_failure::TreeFailure;
-use crate::policy::domains::{Domains, Extent};
-use crate::policy::percent::Percent;
+use crate::domains::{Domains, Extent};
+use crate::percent::Percent;
 use allowance::Allowance;
 pub use allowance::Amount;
 pub use lines::Lines;

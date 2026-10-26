@@ -4,7 +4,7 @@ mod unit;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
-use crate::policy::domains::ScopeKind;
+use crate::domains::ScopeKind;
 pub use mutation_job::MutationJob;
 pub use unit::Unit;
 

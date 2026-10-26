@@ -12,7 +12,7 @@ pub struct Row<'policy> {
 }
 
 impl<'policy> Row<'policy> {
-    pub const HEADER: &str = "budget             division                   measure                  source         spend    warning   blocking state";
+    pub const HEADER: &str = "budget             division                   measure                     source          spend    warning   blocking state";
     const UNMEASURED: &str = "-";
 
     #[must_use]
@@ -49,7 +49,7 @@ impl fmt::Display for Row<'_> {
         let shown = |value: Option<String>| value.unwrap_or_else(|| Self::UNMEASURED.to_owned());
         write!(
             formatter,
-            "{:<18} {:<26} {:<24} {:<10} {:>10} {:>21} {}",
+            "{:<18} {:<26} {:<27} {:<10} {:>10} {:>21} {}",
             self.id.to_string(),
             self.budget.division().to_string(),
             self.budget.measure().to_string(),

@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use super::budgets::{LegacyKey, TreeFailure};
+use crate::budgets::{LegacyKey, TreeFailure};
 
 #[derive(Debug, Error)]
 pub enum PolicyFailure {

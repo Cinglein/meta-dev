@@ -4,10 +4,9 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use crate::budget::Millis;
-use crate::policy::baseline_file::BaselineFile;
-use crate::policy::budgets::budget::measure::Unit;
-use crate::policy::most::Most;
-use crate::policy::percent::Percent;
+use crate::budgets::budget::measure::Unit;
+use crate::percent::Percent;
+use crate::policy::{BaselineFile, Most};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]

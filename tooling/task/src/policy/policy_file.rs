@@ -5,16 +5,16 @@ use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
 use super::bit_boundary::BitBoundary;
-use super::budgets::{Amount, Budgets, LegacyKey, Measure};
-use super::domains::Domains;
 use super::least::Least;
-use super::percent::Percent;
 use super::policy_failure::PolicyFailure;
 use super::{BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface};
 use crate::branches::{Branch, BranchName};
 use crate::budget::{AvailableGib, Interval, MemoryShare, Millis, MutantMillis, MutationCadence};
+use crate::budgets::{Amount, Budgets, LegacyKey, Measure};
+use crate::domains::Domains;
 use crate::gate_env_name::GateEnvName;
 use crate::gate_status::GateStatus;
+use crate::percent::Percent;
 use entries::Entries;
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -4,8 +4,10 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use corpus_check::LintName;
+use crate_graph::CrateGraph;
 use strum::IntoEnumIterator;
 use task::{Branch, Ledger, Measure, Policy, Report, SourceFile};
+use test_budget::TestBudget;
 
 use crate::task::failure::Failure;
 use crate::task::ratchet::{Baseline, Drift, Ratchet, ViolationCount};
@@ -26,6 +28,8 @@ impl Lint {
         let observed = Self::gathered(files, policy, spec).ratchet(&allowed, |_| true)?;
         println!("lint: {} rust files, {} baselined violations", files.len(), observed.total());
         ledger.ratchet(Measure::LintFindings, allowed.total().counted(), observed.total().counted());
+        ledger.spend(Measure::TestLineShare, TestBudget::line_share(files, policy));
+        ledger.spend(Measure::TangleItems, CrateGraph::largest_tangle(files));
         Ok(())
     }
 
@@ -96,9 +100,9 @@ mod tests {
         assert!(Lint::run(fixture.root(), &[], &policy, &mut ledger).is_err());
         Lint::shrink(fixture.root(), &[], &policy).unwrap();
         assert_eq!(fs::read_to_string(fixture.path(BASELINE)).ok().as_deref(), Some(""));
-        assert!(Lint::run(fixture.root(), &[], &policy, &mut ledger).is_ok());
+        let passed = Lint::run(fixture.root(), &[], &policy, &mut ledger).is_ok();
         let statement = ledger.statement(&policy).to_string();
-        assert!(statement.lines().any(|row| row.starts_with(LINT_FINDINGS) && row.ends_with(MEASURED_OK)));
+        assert!(passed && statement.lines().any(|row| row.starts_with(LINT_FINDINGS) && row.ends_with(MEASURED_OK)));
     }
 
     #[test]

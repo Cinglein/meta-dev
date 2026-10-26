@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use super::budget_id::BudgetId;
-use crate::policy::domains::ScopeKind;
+use crate::domains::ScopeKind;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum TreeFailure {

@@ -1,12 +1,9 @@
 mod baseline_file;
 mod bit_boundary;
-pub(crate) mod budgets;
-mod domains;
 mod floor;
 mod least;
 mod limit;
 mod most;
-mod percent;
 mod policy_failure;
 mod policy_file;
 mod share;
@@ -32,12 +29,12 @@ use std::fs;
 use std::num::NonZeroU64;
 use std::path::Path;
 
+use crate::budgets::{Budgets, LegacyKey};
+use crate::domains::Domains;
+use crate::percent::Percent;
 use bit_boundary::BitBoundary;
-use budgets::{Budgets, LegacyKey};
-use domains::Domains;
 use enum_map::EnumMap;
 use least::Least;
-use percent::Percent;
 use policy_failure::PolicyFailure;
 use policy_file::PolicyFile;
 use serde::{Deserialize, Serialize, Serializer};

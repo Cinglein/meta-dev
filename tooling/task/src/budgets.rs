@@ -100,9 +100,8 @@ impl From<Budgets> for BTreeMap<BudgetId, Budget> {
 
 #[cfg(test)]
 mod tests {
+    use super::Budgets;
     use super::budget::State;
-    use super::{Amount, Budgets};
-    use crate::budget::Millis;
 
     const TREE: &str = r#"
 [ci]
@@ -134,7 +133,7 @@ tolerance = 10
     const MEASURED: &str = "measure = \"tangle_items\"\nsource = \"ci\"\nwindow = ";
     const PART: &str = "ci-tests";
     const WHOLE: &str = "ci";
-    const PART_MILLIS: u64 = 2400;
+    const PART_AMOUNT: &str = "2400ms";
     const OVER: Option<State> = Some(State::Over);
     const WARN: Option<State> = Some(State::Warn);
     const UNITLESS: [&str; 3] = [
@@ -180,8 +179,11 @@ tolerance = 10
         let [part, whole] = [PART, WHOLE].map(|id| budgets.budget(&id.parse().unwrap()).unwrap());
         assert!(!part.blocks(OVER) && whole.blocks(OVER) && !whole.blocks(WARN));
         assert_eq!(
-            budgets.amount(part),
-            Some(Amount::Duration(Millis::new(PART_MILLIS)))
+            budgets
+                .amount(part)
+                .map(|amount| amount.to_string())
+                .as_deref(),
+            Some(PART_AMOUNT)
         );
     }
 
