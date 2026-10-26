@@ -1,6 +1,6 @@
 # Meta-development repo: spec (draft, started 2026-10-22)
 
-Source: Basho postmortem (context/basho-postmortem.md, part 3).
+Source: Basho postmortem, part 3 (kept in the Basho project's private repo).
 
 ## Core principles (owner)
 1. Everything is tracked and leaves a trail.
