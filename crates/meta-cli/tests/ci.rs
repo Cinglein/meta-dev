@@ -17,10 +17,11 @@ s="$FAKE_GH_SCENARIO"
 case "$1 $2" in
 "run list")
   n=$((n + 1)); echo "$n" > "$count"
-  if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
+  if { [ "$s" = broken ] && [ "$n" -lt 3 ]; } || { [ "$s" = partial ] && [ "$n" -gt 5 ]; }; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
   elif [ "$s" = none ] || [ "$4" != "$(git rev-parse HEAD)" ]; then echo '[]'
   elif [ "$n" -lt 2 ] || { [ "$s" = late ] && [ "$n" -lt 8 ]; }; then echo '[]'
-  elif [ "$s" = late ] || [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
+  elif [ "$s" = vanish ] && [ "$n" -gt 3 ]; then echo '[]'
+  elif [ "$s" = late ] || [ "$s" = partial ] || [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
   elif [ "$s" = success ] || [ "$s" = broken ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"success"}]'
   elif [ "$s" = mixed ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"failure"},{"databaseId":8,"status":"completed","conclusion":"failure"}]'
   else echo '[{"databaseId":7,"status":"completed","conclusion":"failure"}]'; fi ;;
@@ -29,7 +30,7 @@ case "$1 $2" in
   elif [ "$3 $4" = "--job 11" ]; then cat "$FAKE_GH_DIR/bin/failed.log"
   elif [ "$3" = 8 ]; then echo '{"jobs":[{"databaseId":13,"name":"lint","conclusion":"failure","steps":[{"name":"clippy","conclusion":"failure"}]}]}'
   elif [ "$3" != 7 ]; then echo '{"jobs":[]}'
-  elif [ "$s" = failure ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[{"name":"Checkout","conclusion":"success"},{"name":"cargo xtask ci","conclusion":"failure"}]},{"databaseId":12,"name":"docs","conclusion":""}]}'
+  elif [ "$s" = failure ] || [ "$s" = partial ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[{"name":"Checkout","conclusion":"success"},{"name":"cargo xtask ci","conclusion":"failure"}]},{"databaseId":12,"name":"docs","conclusion":""}]}'
   elif [ "$s" = unstarted ] || [ "$s" = mixed ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[]}]}'
   else echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"success"}]}'; fi ;;
 esac
@@ -57,6 +58,9 @@ const NONE: &str = "none";
 const LATE: &str = "late";
 const BROKEN: &str = "broken";
 const MIXED: &str = "mixed";
+const PARTIAL: &str = "partial";
+const VANISH: &str = "vanish";
+const STALE: &str = "0000000000000000000000000000000000000000 passed";
 const UNSTARTED: &str = "unstarted";
 const POST: &str = "post-tool-use";
 const COMMIT: &str = "git commit -m change";
@@ -168,6 +172,15 @@ impl Repo {
         Waited(text, output.status)
     }
 
+    fn stale(&self) {
+        let dir = self.clone.path().join(".git/meta-ci/ABCDEF1234");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("state"), STALE).unwrap();
+        let mut permissions = std::fs::metadata(dir.join("state")).unwrap().permissions();
+        permissions.set_readonly(true);
+        std::fs::set_permissions(dir.join("state"), permissions).unwrap();
+    }
+
     fn settled(&self) -> String {
         let events = self.clone.path().join(".git/meta-ci/ABCDEF1234/events");
         std::iter::repeat_with(|| {
@@ -189,6 +202,7 @@ impl fmt::Display for Repo {
 #[test]
 fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
     let repo = Repo::new(FAILURE);
+    repo.stale();
     repo.hook(POST, COMMIT);
     let waited = repo.session_command(CI_WAIT);
     let stop = repo.hook(STOP, COMMIT);
@@ -216,15 +230,21 @@ fn passing_or_unstarted_runs_let_the_agent_stop() {
 
 #[test]
 fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
-    let repos = [NONE, LATE, BROKEN, MIXED].map(Repo::new);
+    let repos = [NONE, LATE, BROKEN, MIXED, PARTIAL, VANISH].map(Repo::new);
     let _: Vec<String> = repos.iter().map(|repo| repo.hook(POST, COMMIT)).collect();
-    let [absent, late, broken, mixed] = repos.each_ref().map(Repo::settled);
+    let [absent, late, broken, mixed, partial, vanish] = repos.each_ref().map(Repo::settled);
     let [none, ..] = &repos;
     assert!(
         absent.contains(ABSENT)
             && absent.split_once(NO_RUN_YET).is_some_and(|(_, after)| !after.contains(NO_RUN_YET))
             && !none.hook(STOP, COMMIT).contains(BLOCK)
+            && !none.session_command(CI_WAIT).1.success()
     );
     assert!(late.contains(NO_RUN_YET) && late.contains(RUN_APPEARED) && late.contains(TIMED_OUT));
-    assert!(broken.contains(LIST_ERROR) && broken.contains(VIEW_ERROR) && mixed.contains(FAILED_EVENT));
+    assert!(
+        broken.contains(LIST_ERROR)
+            && broken.contains(VIEW_ERROR)
+            && [mixed, partial].iter().all(|settled| settled.contains(FAILED_EVENT))
+            && vanish.contains(TIMED_OUT)
+    );
 }
