@@ -1,7 +1,13 @@
 mod changes;
+mod crate_load;
+mod packing;
 mod reach;
+mod tested_crates;
 
 pub use changes::Changes;
+pub use crate_load::CrateLoad;
+pub use packing::Packing;
+pub use tested_crates::TestedCrates;
 
 use reach::Reach;
 use task::Failure;

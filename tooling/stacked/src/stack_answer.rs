@@ -1,0 +1,62 @@
+use std::str::FromStr;
+
+use task::BranchName;
+use task::Failure;
+
+pub struct StackAnswer {
+    base: BranchName,
+    stack: Option<String>,
+}
+
+impl StackAnswer {
+    const NONE: &str = "none";
+
+    pub fn on_default_branch(base: BranchName, default: &BranchName) -> Option<StackAnswer> {
+        (base == *default).then_some(StackAnswer { base, stack: None })
+    }
+
+    pub fn verdict(&self, number: &str, default: &BranchName) -> Result<String, Failure> {
+        match (&self.base, &self.stack) {
+            (base, _) if base == default => Ok(format!("stacked: pull request #{number} targets {base}")),
+            (base, Some(stack)) => Ok(format!("stacked: pull request #{number} targets {base} inside stack #{stack}")),
+            (base, None) => Err(Failure::Refused(format!(
+                "pull request #{number} targets {base} but belongs to no GitHub stack; link it with gh stack link <bottom> ... <top>"
+            ))),
+        }
+    }
+}
+
+impl FromStr for StackAnswer {
+    type Err = Failure;
+
+    fn from_str(text: &str) -> Result<StackAnswer, Failure> {
+        let (base, stack) = text.trim().split_once(' ').ok_or_else(|| Failure::GitHub(text.to_owned()))?;
+        let Ok(base) = base.parse();
+        Ok(StackAnswer { base, stack: (stack != Self::NONE).then(|| stack.to_owned()) })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::StackAnswer;
+    use task::BranchName;
+    const ANSWERS: [&str; 3] = ["trunk none", "feature 12", "feature none"];
+    const BASES: [&str; 2] = ["trunk", "feature"];
+    const NUMBER: &str = "7";
+
+    #[test]
+    fn a_pull_request_passes_on_the_default_branch_or_inside_a_stack_and_is_refused_loose_off_it() {
+        let trunk: BranchName = BASES[0].parse().unwrap();
+        let verdict = |answer: &str| answer.parse::<StackAnswer>().unwrap().verdict(NUMBER, &trunk);
+        let [on_default, stacked, loose] = ANSWERS.map(verdict);
+        let fine = on_default.is_ok() && stacked.unwrap().contains("stack #12") && loose.is_err();
+        assert!(fine && "garbage".parse::<StackAnswer>().is_err());
+    }
+
+    #[test]
+    fn only_the_default_branch_is_known_without_asking_github() {
+        let trunk: BranchName = BASES[0].parse().unwrap();
+        let [default, feature] = BASES.map(|base| StackAnswer::on_default_branch(base.parse().unwrap(), &trunk));
+        assert!(default.is_some_and(|answer| answer.verdict(NUMBER, &trunk).is_ok()) && feature.is_none());
+    }
+}

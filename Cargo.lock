@@ -6,6 +6,9 @@ version = 4
 name = "affected"
 version = "0.0.0"
 dependencies = [
+ "serde",
+ "serde_json",
+ "settings",
  "syn 2.0.119",
  "task",
 ]
@@ -464,6 +467,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "mutant_costs"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "task",
+]
+
+[[package]]
+name = "mutation"
+version = "0.0.0"
+dependencies = [
+ "affected",
+ "serde",
+ "serde_json",
+ "settings",
+ "strum",
+ "sysinfo",
+ "task",
+]
+
+[[package]]
 name = "named_lifetimes"
 version = "0.0.0"
 dependencies = [
@@ -792,6 +817,14 @@ name = "slab"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
+
+[[package]]
+name = "stacked"
+version = "0.0.0"
+dependencies = [
+ "strum",
+ "task",
+]
 
 [[package]]
 name = "state_graph"
@@ -1260,8 +1293,11 @@ version = "0.0.0"
 dependencies = [
  "affected",
  "corpus_check",
+ "mutant_costs",
+ "mutation",
  "serde",
  "settings",
+ "stacked",
  "strum",
  "task",
  "tempfile",
