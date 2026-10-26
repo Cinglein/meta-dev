@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 use super::full_run::FullRun;
+use crate::top_division::TopDivision;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -11,6 +12,8 @@ pub struct MutationCadence {
 }
 
 impl MutationCadence {
+    pub const DIVISION: TopDivision = TopDivision::PerformanceAndCost;
+
     #[must_use]
     pub fn due(&self, trigger: Option<FullRun>) -> Option<FullRun> {
         trigger.filter(|run| self.full_run.contains(run))

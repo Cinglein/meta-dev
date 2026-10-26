@@ -1,11 +1,19 @@
+use derive_more::{Add, From, Sum};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Add, From, Sum, Serialize, Deserialize,
+)]
 #[serde(transparent)]
 pub struct Percent(usize);
 
 impl Percent {
     const WHOLE: usize = 100;
+
+    #[must_use]
+    pub const fn is_more_than_whole(self) -> bool {
+        self.0 > Self::WHOLE
+    }
 
     pub fn applied_to<Whole: Into<usize>, Part: From<usize>>(self, whole: Whole) -> Part {
         Part::from(whole.into() * self.0 / Self::WHOLE)

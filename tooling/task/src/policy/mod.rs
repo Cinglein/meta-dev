@@ -1,5 +1,6 @@
 mod baseline_file;
 mod bit_boundary;
+mod budgets;
 mod floor;
 mod least;
 mod limit;
@@ -24,6 +25,7 @@ use std::fs;
 use std::path::Path;
 
 use bit_boundary::BitBoundary;
+use budgets::Budgets;
 use enum_map::EnumMap;
 use least::Least;
 use percent::Percent;
@@ -57,6 +59,8 @@ pub struct Policy {
     millis: EnumMap<Interval, Millis>,
     mutant_millis: MutantMillis,
     mutation: MutationCadence,
+    #[serde(default)]
+    budgets: Budgets,
 }
 
 #[cfg(any(test, feature = "test-policy"))]
@@ -125,6 +129,11 @@ impl Policy {
             self.memory_gib[MemoryShare::Granted].minus(self.memory_gib[MemoryShare::ForTheTests]),
             self.memory_gib[MemoryShare::PerCompilerTask],
         )
+    }
+
+    #[must_use]
+    pub fn budgets(&self) -> &Budgets {
+        &self.budgets
     }
 
     #[must_use]
