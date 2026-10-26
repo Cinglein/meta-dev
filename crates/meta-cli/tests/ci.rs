@@ -9,7 +9,7 @@ use std::time::Duration;
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str =
     "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\nappear_millis = 60\n";
-const PATIENT: &str = "timeout_millis = 120\n";
+const PATIENT: &str = "timeout_millis = 300\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 count="$FAKE_GH_DIR/count"
 read -r n < "$count" 2>/dev/null || n=0
@@ -20,7 +20,7 @@ case "$1 $2" in
   n=$((n + 1)); echo "$n" > "$count"
   if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
   elif [ "$s" = none ] || [ "$4" != "$head" ]; then echo '[]'
-  elif [ "$n" -lt 2 ] || { [ "$s" = late ] && { [ "$n" -lt 8 ] || [ "$n" -gt 9 ]; }; }; then echo '[]'
+  elif [ "$n" -lt 2 ] || { [ "$s" = late ] && { [ "$n" -lt 6 ] || [ "$n" -gt 7 ]; }; }; then echo '[]'
   elif [ "$s" = late ] || [ "$s" = broken ] || [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
   elif [ "$s" = success ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"success"}]'
   elif [ "$s" = mixed ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"failure"},{"databaseId":8,"status":"completed","conclusion":"failure"}]'
@@ -58,7 +58,10 @@ const NONE: &str = "none";
 const LATE: &str = "late";
 const BROKEN: &str = "broken";
 const MIXED: &str = "mixed";
-const STALE: &str = "0000000000000000000000000000000000000000 passed";
+const NOT_WATCHED: &str = "CI not watched for";
+const PLAIN_PUSH: &str = "git push";
+const PUSH_WORDS: [&str; 4] = ["push", "-q", "origin", "feature"];
+const NEXT_COMMIT: [&str; 5] = ["commit", "-q", "--allow-empty", "-m", "next"];
 const UNSTARTED: &str = "unstarted";
 const POST: &str = "post-tool-use";
 const COMMIT: &str = "git commit -m change";
@@ -115,12 +118,9 @@ struct Stale;
 
 impl Stale {
     fn plant(repo: &Repo) {
-        let state = repo.clone.path().join(".git/meta-ci/ABCDEF1234/state");
-        std::fs::create_dir_all(state.parent().unwrap()).unwrap();
-        std::fs::write(&state, STALE).unwrap();
-        let mut permissions = std::fs::metadata(&state).unwrap().permissions();
-        permissions.set_readonly(true);
-        std::fs::set_permissions(&state, permissions).unwrap();
+        let head = String::from_utf8(Git::run(repo.clone.path(), &["rev-parse", "HEAD"]).stdout).unwrap();
+        let states = repo.clone.path().join(".git/meta-ci/ABCDEF1234/states");
+        std::fs::create_dir_all(states.join(head.trim())).unwrap();
     }
 }
 
@@ -205,7 +205,6 @@ impl fmt::Display for Repo {
 #[test]
 fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
     let repo = Repo::new(FAILURE);
-    Stale::plant(&repo);
     repo.hook(POST, COMMIT);
     let waited = repo.session_command(CI_WAIT);
     let stop = repo.hook(STOP, COMMIT);
@@ -220,15 +219,26 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
 #[test]
 fn passing_or_unstarted_runs_let_the_agent_stop() {
     let repo = Repo::new(SUCCESS);
-    repo.hook(POST, COMMIT);
+    Git::run(repo.clone.path(), &PUSH_WORDS);
+    repo.hook(POST, PLAIN_PUSH);
     let waited = repo.session_command(CI_WAIT);
     assert!(waited.0.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
     assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
+    Git::run(repo.clone.path(), &NEXT_COMMIT);
+    Stale::plant(&repo);
+    Git::run(repo.clone.path(), &PUSH_WORDS);
+    repo.hook(POST, PLAIN_PUSH);
     let unstarted = Repo::new(UNSTARTED);
     unstarted.hook(POST, COMMIT);
     let settled = unstarted.settled();
     let wait = unstarted.session_command(CI_WAIT).1;
-    assert!(settled.contains(UNAVAILABLE) && !unstarted.hook(STOP, COMMIT).contains(BLOCK) && !wait.success());
+    let unwatched = repo.hook(STOP, COMMIT);
+    assert!(
+        settled.contains(UNAVAILABLE)
+            && !unstarted.hook(STOP, COMMIT).contains(BLOCK)
+            && !wait.success()
+            && unwatched.contains(NOT_WATCHED)
+    );
 }
 
 #[test]
