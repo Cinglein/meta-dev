@@ -404,3 +404,4 @@
 {"at":"2026-10-26T21:57:16.338448Z","actor":"claude-heartbeat","kind":"TaskClaimed","task":"task-3de30cc240748809"}
 {"at":"2026-10-26T22:01:06.852654Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-d067e07c8d51f895","text":"Spec rules drift from the code: all 89 rules stayed at rung 1 while today's PRs added real enforcers, because nothing ties a new enforcer to its rule. An audit PR is running. Prevention: when a PR adds an enforcer, it also updates its spec rule, and reviewers check this (a lint can't know which code enforces which rule).","division":"architecture-and-planning","source":"owner"}
 {"at":"2026-10-26T22:03:13.593562Z","actor":"claude-spec-audit","kind":"TaskOpened","task":"task-83ae4c1dc1a2fb90","text":"Audit all spec rules against code and set honest rungs","division":"architecture-and-planning"}
+{"at":"2026-10-26T22:03:17.867498Z","actor":"claude-spec-audit","kind":"TaskClaimed","task":"task-83ae4c1dc1a2fb90"}
