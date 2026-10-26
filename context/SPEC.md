@@ -176,8 +176,6 @@ Source: Basho postmortem, part 3 (kept in the Basho project's private repo).
   - Unused or redundant structure is paid down (deleted).
   - Tension by design: the vagueness budget pushes to define; the complexity budget pushes to define only what earns its keep.
 
-## Next: bootstrapping (smallest useful first version, build order)
-
 ## Goal: sight-unseen merges (owner, 2026-10-25)
 - Today the owner reviews and merges every PR. That is a bottleneck, worse as implementer agents parallelise.
 - GOAL: the system becomes robust enough that most PRs can be merged sight-unseen.

@@ -5,6 +5,8 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use task::Policy;
+
 use crate::section::Section;
 use crate::sections::SECTIONS;
 use unconverted::Unconverted;
@@ -16,21 +18,25 @@ pub struct SpecView {
 }
 
 impl SpecView {
-    const PATH: &str = "context/SPEC.md";
     const HEADER: &str = "# Meta-development repo: spec (draft, started 2026-10-22)\n\nSections down to the next top-level heading are rendered from the rule records in `self/spec`; edit those, then run `cargo run -p meta-spec`. Each rule shows its id, division, ladder rung and enforcer.\n\n";
+    const UNSET: &str = "no [spec] file in tooling/policy.toml";
 
     #[must_use]
     pub fn root() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
     }
 
-    pub fn written(root: &Path) -> io::Result<String> {
-        fs::read_to_string(root.join(Self::PATH))
+    pub fn file() -> io::Result<PathBuf> {
+        let policy = Policy::read(&Self::root()).map_err(io::Error::other)?;
+        policy.spec().map(|spec| Self::root().join(spec.file())).ok_or_else(|| io::Error::other(Self::UNSET))
     }
 
-    pub fn rewrite(root: &Path) -> io::Result<()> {
-        Self::written(root)
-            .and_then(|written| fs::write(root.join(Self::PATH), Self::over(&written, SECTIONS).to_string()))
+    pub fn written(file: &Path) -> io::Result<String> {
+        fs::read_to_string(file)
+    }
+
+    pub fn rewrite(file: &Path) -> io::Result<()> {
+        Self::written(file).and_then(|written| fs::write(file, Self::over(&written, SECTIONS).to_string()))
     }
 
     fn over(written: &str, sections: &'static [Section]) -> SpecView {
@@ -63,11 +69,12 @@ mod tests {
     const RULES: &[Rule] = &[Rule::new("an-id", PerformanceAndCost, "Says.", Tracked)];
     const SECTION: &[Section] = &[Section::new("New", RULES)];
     const SHOWN: &str = "## New\n- `an-id` (performance-and-cost, rung 1, no enforcer): Says.\n\n# Not yet converted: hand-written prose, 2 lines\n\n## Old\n- kept\n";
+    const SPEC: &str = "SPEC.md";
     const STALE: &str = "context/SPEC.md differs from its render: run `cargo run -p meta-spec`";
 
     #[test]
     fn the_checked_in_spec_is_its_render_with_unique_ids_and_existing_test_enforcers() {
-        let written = SpecView::written(&SpecView::root()).unwrap();
+        let written = SpecView::written(&SpecView::file().unwrap()).unwrap();
         assert!(SpecView::over(&written, SECTIONS).to_string() == written, "{STALE}");
         let rules: Vec<&Rule> = SECTIONS.iter().flat_map(Section::rules).collect();
         assert_eq!(rules.iter().map(|rule| rule.rule_id()).collect::<BTreeSet<_>>().len(), rules.len());
@@ -87,10 +94,10 @@ mod tests {
     #[test]
     fn a_rewrite_renders_the_records_over_the_kept_prose_and_a_missing_spec_fails() {
         let root = TempDir::new().unwrap();
-        assert!(SpecView::rewrite(root.path()).is_err());
-        fs::create_dir(root.path().join("context")).unwrap();
-        fs::write(root.path().join(SpecView::PATH), PROSE).unwrap();
-        SpecView::rewrite(root.path()).unwrap();
-        assert_eq!(SpecView::written(root.path()).ok(), Some(SpecView::over(PROSE, SECTIONS).to_string()));
+        let file = root.path().join(SPEC);
+        assert!(SpecView::rewrite(&file).is_err());
+        fs::write(&file, PROSE).unwrap();
+        SpecView::rewrite(&file).unwrap();
+        assert_eq!(SpecView::written(&file).ok(), Some(SpecView::over(PROSE, SECTIONS).to_string()));
     }
 }

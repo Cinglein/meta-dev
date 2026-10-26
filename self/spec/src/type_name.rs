@@ -1,3 +1,4 @@
+use std::any::type_name;
 use std::fmt;
 
 #[derive(Clone, Copy, Debug)]
@@ -5,8 +6,8 @@ pub struct TypeName(fn() -> &'static str);
 
 impl TypeName {
     #[must_use]
-    pub const fn new(named: fn() -> &'static str) -> TypeName {
-        TypeName(named)
+    pub const fn naming<Named: ?Sized>() -> TypeName {
+        TypeName(type_name::<Named>)
     }
 }
 

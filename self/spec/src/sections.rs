@@ -1,4 +1,4 @@
-use crate::division::Division::{ArchitectureAndPlanning, FeaturesAndMaintenance, PerformanceAndCost};
+use crate::division::Division::ArchitectureAndPlanning;
 use crate::enforcement::Enforcement::Tracked;
 use crate::rule::Rule;
 use crate::section::Section;
@@ -62,38 +62,38 @@ pub const SECTIONS: &[Section] = &[
         &[
             Rule::new(
                 "budget-definition",
-                PerformanceAndCost,
+                ArchitectureAndPlanning,
                 "A budget is a typed definition with an id, in tooling/policy.toml. Spend events in the log point at it.",
                 Tracked,
             ),
             Rule::new(
                 "budget-unit",
-                PerformanceAndCost,
+                ArchitectureAndPlanning,
                 "Unit, exactly one per budget: Count, Duration, Share (later maybe Money or CI minutes).",
                 Tracked,
             ),
             Rule::new(
                 "budget-window",
-                PerformanceAndCost,
+                ArchitectureAndPlanning,
                 "Window: per change (ratchet against the merge base), rolling per period, or standing (open items at any time).",
                 Tracked,
             ),
             Rule::new(
                 "budget-overspend",
-                PerformanceAndCost,
+                ArchitectureAndPlanning,
                 "Overspend action is part of the definition: block (default) or escalate to DISCUSS.",
                 Tracked,
             ),
             Rule::new(
                 "budget-measured-spend",
-                PerformanceAndCost,
+                ArchitectureAndPlanning,
                 "Spend is recorded by measurement only (CI and tools). Severity is the judged exception, checked later by calibration.",
                 Tracked,
             ),
-            Rule::new("budget-raise", PerformanceAndCost, "Raising a budget is owner-only.", Tracked),
+            Rule::new("budget-raise", ArchitectureAndPlanning, "Raising a budget is owner-only.", Tracked),
             Rule::new(
                 "budget-waivers",
-                PerformanceAndCost,
+                ArchitectureAndPlanning,
                 "Waivers are spend from the waiver budget of the division whose rule they bend. They replace raw lint baselines.",
                 Tracked,
             ),
@@ -104,37 +104,37 @@ pub const SECTIONS: &[Section] = &[
         &[
             Rule::new(
                 "severity-scale",
-                FeaturesAndMaintenance,
+                ArchitectureAndPlanning,
                 "Each division owns its severity scale. Deeper divisions have finer scales.",
                 Tracked,
             ),
             Rule::new(
                 "severity-mapping",
-                FeaturesAndMaintenance,
+                ArchitectureAndPlanning,
                 "Each child level maps to exactly one parent level, and the order is kept (a more severe child level never maps below a less severe one). Parent caps count every child item that maps to the level.",
                 Tracked,
             ),
             Rule::new(
                 "severity-caps",
-                FeaturesAndMaintenance,
+                ArchitectureAndPlanning,
                 "Caps are standing budgets per level, split down the tree. Rating into a full level needs a downgrade elsewhere or owner sign-off.",
                 Tracked,
             ),
             Rule::new(
                 "severity-evidence",
-                FeaturesAndMaintenance,
+                ArchitectureAndPlanning,
                 "A higher level needs stronger evidence (e.g. Critical: a reproduction; Major: a concrete failure scenario).",
                 Tracked,
             ),
             Rule::new(
                 "severity-raising",
-                FeaturesAndMaintenance,
+                ArchitectureAndPlanning,
                 "The reporter proposes a level. Raising after the rating is for the owner or the reviewer who reproduced it; lowering is free.",
                 Tracked,
             ),
             Rule::new(
                 "severity-gates-work",
-                FeaturesAndMaintenance,
+                ArchitectureAndPlanning,
                 "Severity orders the steward's work and gates new work (an open Critical stops new work in its division).",
                 Tracked,
             ),

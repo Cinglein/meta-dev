@@ -34,6 +34,10 @@ surfaces = [
     "plugin",
 ]
 
+[spec]
+package = "meta-spec"
+file = "context/SPEC.md"
+
 [branches]
 default = "main"
 base = "origin/main"

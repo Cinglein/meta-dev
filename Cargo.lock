@@ -456,6 +456,8 @@ dependencies = [
  "corpus_check",
  "meta-xtask",
  "strum",
+ "syn 2.0.119",
+ "task",
  "tempfile",
 ]
 

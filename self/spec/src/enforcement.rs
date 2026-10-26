@@ -41,14 +41,12 @@ impl fmt::Display for Enforcement {
 
 #[cfg(test)]
 mod tests {
-    use std::any::type_name;
-
     use super::{Enforcement, LintName, Task, TestFn, TypeName};
     use crate::spec_view::SpecView;
 
     const THIS_FILE: &str = "self/spec/src/enforcement.rs";
     const THIS_TEST: &str = "each_rung_shows_its_enforcer_and_only_an_existing_test_enforces";
-    const ABSENT: &str = "absent";
+    const NOT_A_TEST: TestFn = TestFn::new("self/spec/src/test_fn.rs", "exists_under");
     const SHOWN: [&str; 6] = [
         "rung 1, no enforcer",
         "rung 2, no enforcer",
@@ -64,15 +62,13 @@ mod tests {
         Enforcement::Lint(LintName::NoComments),
         Enforcement::Test(TEST),
         Enforcement::CiStep(Task::Lint),
-        Enforcement::Type(TypeName::new(type_name::<TypeName>)),
+        Enforcement::Type(TypeName::naming::<TypeName>()),
     ];
 
     #[test]
     fn each_rung_shows_its_enforcer_and_only_an_existing_test_enforces() {
         assert_eq!(ALL.map(|enforcement| enforcement.to_string()), SHOWN);
         assert_eq!(ALL.iter().filter_map(Enforcement::test).collect::<Vec<_>>(), [&TEST]);
-        assert!(
-            TEST.exists_under(&SpecView::root()) && !TestFn::new(THIS_FILE, ABSENT).exists_under(&SpecView::root())
-        );
+        assert!(TEST.exists_under(&SpecView::root()) && !NOT_A_TEST.exists_under(&SpecView::root()));
     }
 }

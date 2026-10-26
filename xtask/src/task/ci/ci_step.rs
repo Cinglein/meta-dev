@@ -20,6 +20,7 @@ pub enum CiStep {
     Test,
     TestTime,
     Lint,
+    Spec,
 }
 
 impl CiStep {
@@ -40,6 +41,15 @@ impl CiStep {
                 .source_files()
                 .map_err(Failure::from)
                 .and_then(|files| Lint::run(workspace.root(), &files, policy)),
+            CiStep::Spec => policy.spec().map_or(Ok(()), |spec| {
+                workspace
+                    .line(Program::Cargo)
+                    .argument(CargoArgument::Test)
+                    .argument(CargoArgument::Package)
+                    .argument(spec.package())
+                    .run()
+                    .map_err(Failure::from)
+            }),
         };
         println!("ci: {self} {:.1?}", started.elapsed());
         outcome
