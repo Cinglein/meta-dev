@@ -189,3 +189,4 @@
 {"at":"2026-10-26T05:11:19.587443Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-bb1ee2da3b82b33a","text":"Stage 3: typed subjects/properties/claims; evidence kinds; ladder typestate; severity budget; done needs evidence"}
 {"at":"2026-10-26T05:11:21.058323Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-e63cfc0bf56bc333","text":"demoted to concern-bb1ee2da3b82b33a (not scheduled; WIP cap)"}
 {"at":"2026-10-26T05:11:22.559584Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-2ab579ba088a8e02","text":"Later: confidence procedure; proptest invariants; waivers; perf ledger; hosted log service when the git backend's budget is overspent"}
+{"at":"2026-10-26T05:11:24.202647Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-eacc3f3f5fa47f52","text":"demoted to concern-2ab579ba088a8e02 (not scheduled; WIP cap)"}
