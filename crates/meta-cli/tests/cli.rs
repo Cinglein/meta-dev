@@ -27,6 +27,7 @@ const HELD: &str = "held by alice";
 const UNKNOWN_OPTION: &str = "unknown option";
 const OFFLINE: &str = "offline";
 const WRITES: &str = "2";
+const LOCAL_NAME: &str = "localname";
 
 struct Git;
 
@@ -46,7 +47,12 @@ struct Complaint(String);
 struct Written(String);
 
 impl Run {
+    const ACTOR_INDEX: usize = 2;
     const ID_INDEX: usize = 4;
+
+    fn actor(&self) -> Option<String> {
+        self.to_string().split_whitespace().nth(Self::ACTOR_INDEX).map(str::to_owned)
+    }
 
     fn complaint(&self) -> Complaint {
         Complaint(String::from_utf8_lossy(&self.0.stderr).into_owned())
@@ -83,15 +89,23 @@ impl Project {
         Run(Command::new(META).current_dir(self.clone.path()).args(words).env("META_ACTOR", actor).output().unwrap())
     }
 
+    fn meta_unset(&self, words: &[&str]) -> Run {
+        let mut command = Command::new(META);
+        command.current_dir(self.clone.path()).args(words).env_remove("META_ACTOR").env("USER", LOCAL_NAME);
+        Run(command.output().unwrap())
+    }
+
     fn task_step(&self, actor: &str, step: &str, task: &Written) -> Run {
         self.meta(actor, &[step, &task.0])
     }
 }
 
 #[test]
-fn a_task_addresses_a_concern_when_its_claimant_finishes_it() {
+fn an_unset_actor_writes_as_owner_and_a_task_addresses_a_concern_when_its_claimant_finishes_it() {
     let project = Project::new();
-    let concern = project.meta(OWNER, &[&CONCERN[..], &[TAG]].concat()).written();
+    let opened = project.meta_unset(&[&CONCERN[..], &[TAG]].concat());
+    assert_eq!(opened.actor().as_deref(), Some(OWNER));
+    let concern = opened.written();
     let task = project.meta(OWNER, &[&OPEN_FOR[..], &[concern.0.as_str()]].concat()).written();
     project.task_step(OWNER, CLAIM, &task);
     project.meta(ALICE, &[CLAIM, &task.0, FROM, OWNER]);

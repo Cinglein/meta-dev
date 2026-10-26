@@ -4,7 +4,7 @@ set -eu
 meta="${META_BIN:-meta}"
 export META_ACTOR=reseed
 
-"$meta" issue -- 'Lead committed in a local worktree while the stage-0 builder was editing the same working tree; every agent needs its own worktree, enforced'
+"$meta" issue -- 'Lead committed in the main checkout while the stage-0 builder was editing the same working tree; every agent needs its own worktree, enforced'
 "$meta" open -- 'Server-side enforcement (GitHub Pro branch protection or public repo): deferred by owner 2026-10-25; until then the local git pre-push guard is the only check'
 "$meta" issue -- 'Second review of PR #1: runaway pre-push recursion via chained hooksPath; cross-clone double claims; offline events reorder history; migration resurrected and deleted events; owner: rewrite hooks to simplest viable'
 "$meta" issue -- 'PR ordering: xtask (#2) was stacked on sprawling stage-0 (#1) and had to wait (same pattern as Basho #72). Rule: PRs branch off main unless a truly sequential atomic set; agents accept and fix merge conflicts'

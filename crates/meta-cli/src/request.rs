@@ -115,11 +115,9 @@ impl Request {
     }
 
     fn actor() -> Result<Actor, CliFailure> {
-        ["META_ACTOR", "USER"]
-            .iter()
-            .find_map(|variable| std::env::var(variable).ok().filter(|name| !name.is_empty()))
-            .ok_or_else(|| CliFailure::raised::<Setup>("set META_ACTOR"))?
-            .parse()
-            .map_err(CliFailure::raised::<Invalid>)
+        std::env::var("META_ACTOR")
+            .ok()
+            .filter(|name| !name.is_empty())
+            .map_or_else(|| Ok(Actor::owner()), |name| name.parse().map_err(CliFailure::raised::<Invalid>))
     }
 }

@@ -1,6 +1,6 @@
 # Meta-development repo: spec (draft, started 2026-10-22)
 
-Source: Basho postmortem (the Basho project's private repo, part 3).
+Source: Basho postmortem (context/basho-postmortem.md, part 3).
 
 ## Core principles (owner)
 1. Everything is tracked and leaves a trail.
@@ -175,11 +175,5 @@ Prose is allowed only in three categories, each clearly marked and separated fro
 2. Documentation: legible to humans and agents; the bare minimum; concrete, with examples; always STE100.
 3. Strings attached to structured data: terse (e.g. audit-log entries).
 Every other surface contains no prose. Enforced by lints (meta-lints); counted against the vagueness budget.
-- Classification (owner):
-  - Code comments, including `///` docs: BANNED outright (as in the chess lints; Basho has xtask/src/task/no_comments.rs). Meaning lives in names and types.
-  - Error and help text: category 3.
-  - Commit messages, PR titles and descriptions: category 3 (loosely structured data). Keep them terse.
-  - SPEC.md and the postmortem: agent context (1).
-  - A short STE100 README and usage guide: documentation (2).
-- Location (owner): agent context lives in context/. docs/ is reserved for documentation (2); it does not exist until there is some.
+- Classification and locations: CLAUDE.md.
 - Stage 4 moves Basho's lints (incl. no_comments) into meta-lints. meta-development should adopt them as early as possible (dogfooding).
