@@ -204,3 +204,4 @@
 {"at":"2026-10-26T05:21:39.837423Z","actor":"claude-privacy","kind":"TaskClaimed","task":"task-f0354f75a984dcbd"}
 {"at":"2026-10-26T05:23:40.866690Z","actor":"claude-batch-small","kind":"TaskDone","task":"task-81012cb9c5a061fc"}
 {"at":"2026-10-26T05:23:42.413460Z","actor":"claude-batch-small","kind":"IssueReported","issue":"issue-613a295c7ec6a48c","text":"Local cargo xtask ci fails the 4 s suite test-time budget on this Mac (main: 4.5 s, PR #26: 5.3 s); GitHub ci on the same code takes 1.3 s. Local budget gate is noisy under parallel agents."}
+{"at":"2026-10-26T05:26:38.393601Z","actor":"claude-privacy","kind":"IssueReported","issue":"issue-628172e63b8d8953","text":"test-time budget headroom: main suite 3.5-4.0s of 4s total (88-99%); local runs vary enough to cross it"}
