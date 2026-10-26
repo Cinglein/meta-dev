@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use super::percent::Percent;
 use budget::Budget;
+pub use budget::{Amount, Overspend, Window};
 use budget_id::BudgetId;
 use tree_failure::TreeFailure;
 

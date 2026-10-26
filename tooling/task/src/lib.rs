@@ -43,7 +43,8 @@ pub use name::{Casing, LoweredInfix, Name, Prefix, Whole};
 pub use nesting_depth::NestingDepth;
 pub use package_graph::PackageGraph;
 pub use policy::{
-    BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface, WireType,
+    Amount, BaselineFile, Budgets, Floor, Limit, Most, Overspend, Policy, Share, SpecSettings,
+    Surface, Window, WireType,
 };
 pub use reexport_count::ReexportCount;
 pub use report::Report;

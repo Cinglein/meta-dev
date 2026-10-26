@@ -1,8 +1,13 @@
-use crate::enforcement::Enforcement::Tracked;
+use crate::enforcement::Enforcement::{self, Defined, Tracked};
 use crate::rule::{Rule, RuleId};
+use crate::rust_type::RustType;
 use crate::section::Section;
 use crate::wording::Wording;
-use task::TopDivision::ArchitectureAndPlanning;
+use meta_schema::Blocker;
+use meta_state::TaskStatus;
+use meta_xtask::CiStep;
+use task::TopDivision::{ArchitectureAndPlanning, FeaturesAndMaintenance};
+use task::{Amount, Budgets, Overspend, Window};
 
 pub const SECTIONS: &[Section] = &[
     Section::new(
@@ -24,9 +29,9 @@ pub const SECTIONS: &[Section] = &[
             ),
             Rule::new(
                 RuleId::new("division-nesting"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("Divisions nest arbitrarily. A child gets a subset of its parent's budget."),
-                Tracked,
+                Enforcement::Type(RustType::naming::<Budgets>()),
             ),
             Rule::new(
                 RuleId::new("division-membership"),
@@ -34,7 +39,7 @@ pub const SECTIONS: &[Section] = &[
                 Wording::new(
                     "Every concern, issue and task belongs to exactly one division. An unplaced item belongs to the project root; growth there signals a missing division.",
                 ),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("division-top-level"),
@@ -42,7 +47,7 @@ pub const SECTIONS: &[Section] = &[
                 Wording::new(
                     "Top level, in every project: (1) features and maintenance (navigation, the tracker, guarding lints and mutants); (2) performance and cost (CI and test time, mutation time, Actions minutes and money, disk, agent wall time); (3) architecture and planning (the spec, DISCUSS items, the ladder; feeds 1 and 2). Architecture and planning is anything not yet at the specificity of code. A code PR is never architecture. A rule moves out once it is enforced. Limits enforced in code belong to (1) or (2). A rule sits in (3) at rung 1-2, and moves to the division that owns the property once enforced (rung 3-4).",
                 ),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("division-ownership"),
@@ -79,27 +84,27 @@ pub const SECTIONS: &[Section] = &[
                 Wording::new(
                     "A budget is a typed definition with an id, in tooling/policy.toml. Spend events in the log point at it.",
                 ),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("budget-unit"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("Unit, exactly one per budget: Count, Duration, Share (later maybe Money or CI minutes)."),
-                Tracked,
+                Enforcement::Type(RustType::naming::<Amount>()),
             ),
             Rule::new(
                 RuleId::new("budget-window"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "Window: per change (ratchet against the merge base), rolling per period, or standing (open items at any time).",
                 ),
-                Tracked,
+                Enforcement::Type(RustType::naming::<Window>()),
             ),
             Rule::new(
                 RuleId::new("budget-overspend"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("Overspend action is part of the definition: block (default) or escalate to DISCUSS."),
-                Tracked,
+                Enforcement::Type(RustType::naming::<Overspend>()),
             ),
             Rule::new(
                 RuleId::new("budget-measured-spend"),
@@ -289,7 +294,7 @@ pub const SECTIONS: &[Section] = &[
                 RuleId::new("status-local-never-remote"),
                 ArchitectureAndPlanning,
                 Wording::new("Local file-tree facts and settings never go to the remote."),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("status-local-settings"),
@@ -297,7 +302,7 @@ pub const SECTIONS: &[Section] = &[
                 Wording::new(
                     "Settings (worktree root, target-dir layout, gc retention) live in a gitignored local config per clone, such as meta.local.toml (ignore rule committed, defaults when absent).",
                 ),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("status-local-record"),
@@ -305,7 +310,7 @@ pub const SECTIONS: &[Section] = &[
                 Wording::new(
                     "The record of worktrees and target dirs (paths, creation, local trail) is typed, written only by meta, and kept inside the clone's git dir, never pushed.",
                 ),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("status-local-claim-worktree"),
@@ -313,19 +318,19 @@ pub const SECTIONS: &[Section] = &[
                 Wording::new(
                     "`meta claim` creates the task's worktree under the configured root and records it. Agents make no ad-hoc clones.",
                 ),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("status-local-join"),
                 ArchitectureAndPlanning,
                 Wording::new("Status joins the record to the log by task id."),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("status-local-lost-record"),
                 ArchitectureAndPlanning,
                 Wording::new("If the record is lost, gc deletes nothing and reports leftovers."),
-                Tracked,
+                Defined,
             ),
         ],
     ),
@@ -338,7 +343,7 @@ pub const SECTIONS: &[Section] = &[
                 Wording::new(
                     "PR and CI state is read live from GitHub on each run, with one batched query per project, and is never copied into the log (GitHub is its single home).",
                 ),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("status-external-history"),
@@ -352,7 +357,7 @@ pub const SECTIONS: &[Section] = &[
                 Wording::new(
                     "If GitHub can't be reached, the state shows as unknown, and the heartbeat treats unknown as needing attention.",
                 ),
-                Tracked,
+                Defined,
             ),
         ],
     ),
@@ -363,7 +368,7 @@ pub const SECTIONS: &[Section] = &[
                 RuleId::new("status-links-branch"),
                 ArchitectureAndPlanning,
                 Wording::new("`meta claim` names the task's branch."),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("status-links-event"),
@@ -371,25 +376,25 @@ pub const SECTIONS: &[Section] = &[
                 Wording::new(
                     "When a PR is opened from a claimed task's branch, the hook writes a TaskLinked { task, pr } event to the log.",
                 ),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("status-links-several"),
                 ArchitectureAndPlanning,
                 Wording::new("A task can link several PRs, as in a gh stack."),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("status-links-orphan-pr"),
                 ArchitectureAndPlanning,
                 Wording::new("Status flags any open PR that has no task."),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("status-links-pr-state-live"),
                 ArchitectureAndPlanning,
                 Wording::new("PR state itself is still read live from GitHub (part 2)."),
-                Tracked,
+                Defined,
             ),
         ],
     ),
@@ -432,7 +437,7 @@ pub const SECTIONS: &[Section] = &[
                 RuleId::new("status-task-budgets"),
                 ArchitectureAndPlanning,
                 Wording::new("Task budgets: effort (tokens plus compute) and a due time set by priority."),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("status-stalled"),
@@ -440,7 +445,7 @@ pub const SECTIONS: &[Section] = &[
                 Wording::new(
                     "Stalled means a small-scale stall, past due with no assigned capacity, or effort spent with no recorded extension.",
                 ),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("status-worktree-lifetime"),
@@ -457,17 +462,17 @@ pub const SECTIONS: &[Section] = &[
         &[
             Rule::new(
                 RuleId::new("status-discussion-typed"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "Discussion is its own fully typed task status, not a free-form blocker: a task waiting on an owner discussion is in Discussion(issue id) and is never counted as stalled.",
                 ),
-                Tracked,
+                Enforcement::Type(RustType::naming::<TaskStatus>()),
             ),
             Rule::new(
                 RuleId::new("status-waits-typed"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("Other waits are typed too (on another task, on something external)."),
-                Tracked,
+                Enforcement::Type(RustType::naming::<Blocker>()),
             ),
             Rule::new(
                 RuleId::new("status-tokens-transcripts"),
@@ -518,7 +523,7 @@ pub const SECTIONS: &[Section] = &[
                 Wording::new(
                     "Output: a terminal tree of divisions down to tasks (state, PR and CI, assigned capacity, effort against due time), with flags on top; a live dashboard page later if needed.",
                 ),
-                Tracked,
+                Defined,
             ),
         ],
     ),
@@ -611,9 +616,9 @@ pub const SECTIONS: &[Section] = &[
         &[
             Rule::new(
                 RuleId::new("identity-noreply-only"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("No commit may carry an email that isn't a GitHub noreply address."),
-                Tracked,
+                Enforcement::CiStep(CiStep::Lint),
             ),
             Rule::new(
                 RuleId::new("identity-hook"),
@@ -621,15 +626,15 @@ pub const SECTIONS: &[Section] = &[
                 Wording::new(
                     "Enforced in three places, (1): the PreToolUse hook refuses git commit, and rebase or amend that rewrite commits, when the effective identity isn't noreply, naming the git config commands that fix it.",
                 ),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("identity-ci"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "Enforced in three places, (2): cargo xtask ci (lint) fails on any commit in the PR range whose author or committer email isn't noreply.",
                 ),
-                Tracked,
+                Enforcement::CiStep(CiStep::Lint),
             ),
             Rule::new(
                 RuleId::new("identity-claim"),
@@ -637,13 +642,13 @@ pub const SECTIONS: &[Section] = &[
                 Wording::new(
                     "Enforced in three places, (3): `meta claim` sets the noreply identity on worktrees it creates.",
                 ),
-                Tracked,
+                Defined,
             ),
             Rule::new(
                 RuleId::new("identity-address-source"),
                 ArchitectureAndPlanning,
                 Wording::new("The noreply address comes from local config, not from the repo."),
-                Tracked,
+                Defined,
             ),
         ],
     ),

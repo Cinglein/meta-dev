@@ -30,7 +30,7 @@ use std::num::NonZeroU64;
 use std::path::Path;
 
 use bit_boundary::BitBoundary;
-use budgets::Budgets;
+pub use budgets::{Amount, Budgets, Overspend, Window};
 use enum_map::EnumMap;
 use least::Least;
 use percent::Percent;

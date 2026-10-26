@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::policy::budgets::budget_id::BudgetId;
 use crate::policy::percent::Percent;
-use amount::Amount;
+pub use amount::Amount;
 use part::Part;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

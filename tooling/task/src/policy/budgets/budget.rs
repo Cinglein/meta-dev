@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use super::budget_id::BudgetId;
 use super::tree_failure::TreeFailure;
-pub use allowance::Allowance;
+pub use allowance::{Allowance, Amount};
 use meta_schema::Division;
 pub use overspend::Overspend;
 pub use window::Window;
