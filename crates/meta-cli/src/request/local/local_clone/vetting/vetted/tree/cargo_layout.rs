@@ -32,8 +32,8 @@ impl<'tree> CargoLayout<'tree> {
             }
             [free, ..] if Self::FREE_DIRS.contains(free) => true,
             [profile, rest @ ..] if self.profile(&[profile]) => Self::in_profile(rest, kind),
-            [triple, profile, rest @ ..] if self.profile(&[triple, profile]) => Self::in_profile(rest, kind),
-            _ => false,
+            [_triple, _profile, rest @ ..] => Self::in_profile(rest, kind),
+            [] => false,
         }
     }
 
