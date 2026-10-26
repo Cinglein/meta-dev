@@ -2,7 +2,7 @@ name: mutants
 
 on:
   push:
-    branches: [main, adopt-mutation]
+    branches: [main]
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
