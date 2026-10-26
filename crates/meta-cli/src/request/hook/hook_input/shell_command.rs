@@ -16,6 +16,9 @@ impl ShellCommand {
     const SEPARATORS: &'static [char] = &[';', '&', '|', '\n'];
     const QUOTES: &'static [char] = &['\'', '"'];
     const PR_MERGE: &'static [&'static str] = &["gh", "pr", "merge"];
+    const WRITING: &'static [&'static str] =
+        &["commit", "merge", "rebase", "cherry-pick", "revert", "pull", "am", "push"];
+
     pub fn refusal(&self, config: &Config) -> Option<Listed> {
         self.segments()
             .find(|words| words.windows(Self::PR_MERGE.len()).any(|window| window == Self::PR_MERGE))
@@ -30,6 +33,10 @@ impl ShellCommand {
 
     pub fn runs(&self, subcommand: &str) -> Option<()> {
         self.segments().filter_map(GitCall::parse).find_map(|call| call.runs(subcommand))
+    }
+
+    pub fn writes(&self) -> Option<()> {
+        Self::WRITING.iter().find_map(|subcommand| self.runs(subcommand))
     }
 
     fn segments(&self) -> impl Iterator<Item = &[String]> {

@@ -10,6 +10,7 @@ pub enum Share {
     TestsPerHundredFiles,
     TestLinePercent,
     CutConductance,
+    ShardHeadroom,
 }
 
 impl Share {
@@ -19,6 +20,7 @@ impl Share {
             Share::TestsPerHundredFiles | Share::TestLinePercent | Share::CutConductance => {
                 TopDivision::FeaturesAndMaintenance
             }
+            Share::ShardHeadroom => TopDivision::PerformanceAndCost,
         }
     }
 }

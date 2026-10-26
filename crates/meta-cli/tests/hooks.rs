@@ -40,6 +40,7 @@ const SESSION_FIELD: &str = r#""session_id":"ABCDEF12-34","#;
 const WATCHERS: &str = ".git/meta-ci";
 const NO_TASKS: &str = "Tasks: 0 unfinished";
 const SESSION_ACTOR: &str = "claude-abcdef1234";
+const SESSION_STARTED: &str = "meta-sessions/ABCDEF1234/started";
 const ENV_LINE: &str = "export META_ACTOR=claude-abcdef1234\nexport META_SESSION=ABCDEF12-34\n";
 
 struct Git;
@@ -100,6 +101,7 @@ impl Repo {
             .args(["hook", event])
             .env_remove("META_ACTOR")
             .env("CLAUDE_ENV_FILE", self.env_file())
+            .env("TMPDIR", self.clone.path())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()
@@ -149,6 +151,7 @@ fn session_start_shows_state_and_names_the_session_actor() {
     let shown = repo.hook(SESSION_START, COMMIT, home);
     assert!(shown.contains(NO_TASKS) && shown.contains(SESSION_ACTOR));
     assert_eq!(std::fs::read_to_string(repo.env_file()).unwrap(), ENV_LINE);
+    assert!(home.join(SESSION_STARTED).exists());
 }
 
 impl fmt::Display for Repo {

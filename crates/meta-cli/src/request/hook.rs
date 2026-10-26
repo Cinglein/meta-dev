@@ -7,7 +7,7 @@ use std::str::FromStr;
 use meta_listing::Scope;
 use meta_schema::Actor;
 
-use crate::request::ci::{CiStatus, SessionDir, Watcher};
+use crate::request::ci::{SessionDir, Watcher};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
 use crate::request::output::{Listed, Output};
 use crate::request::project::Project;
@@ -49,20 +49,20 @@ impl fmt::Display for HookEvent {
 
 impl HookEvent {
     const COMMIT: &'static str = "commit";
-    const PUSH: &'static str = "push";
 
     pub fn respond(self) -> Result<Output, CliFailure> {
         let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
         let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
         let reply = Project::try_from(input.cwd().as_path()).ok().map(|project| {
             let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
-            self.reply(&project, &input, session.as_ref()).with_news(session.and_then(|dir| dir.news()))
+            self.reply(&project, &input).with_news(session.and_then(|dir| dir.news()))
         });
-        let reply = reply.or_else(|| self.outside_projects(&input));
+        let opened = (self == Self::SessionStart).then(|| input.open_session()).and_then(Result::err);
+        let reply = reply.or_else(|| self.outside_projects(&input)).map(|reply| reply.with_news(opened));
         Ok(Output::Listed(Listed::new(reply.map(|reply| reply.to_string()).unwrap_or_default())))
     }
 
-    fn reply(self, project: &Project, input: &HookInput, session: Option<&SessionDir>) -> Reply {
+    fn reply(self, project: &Project, input: &HookInput) -> Reply {
         match self {
             Self::SessionStart => {
                 let actor = input.announced_actor().unwrap_or_else(Actor::owner);
@@ -80,7 +80,7 @@ impl HookEvent {
                 input
                     .command()
                     .and_then(|command| command.refusal(project.config()))
-                    .or_else(|| input.foreign_commit())
+                    .or_else(|| input.refusal())
                     .map(Denial::from)
                     .map_or(Verdict::Allow, Verdict::Deny),
                 None,
@@ -88,35 +88,24 @@ impl HookEvent {
             Self::PostToolUse => Reply::new(self, Verdict::Allow, Self::after_push(project, input)),
             Self::Stop => Reply::new(
                 self,
-                Self::stop_reason(project, session).map(Blocking::from).map_or(Verdict::Allow, Verdict::Block),
+                input
+                    .session()
+                    .and_then(|session| Watcher::stop_reason(project, session))
+                    .map(Blocking::from)
+                    .map_or(Verdict::Allow, Verdict::Block),
                 None,
             ),
         }
     }
 
     fn outside_projects(self, input: &HookInput) -> Option<Reply> {
-        let refusal = (self == Self::PreToolUse).then(|| input.foreign_commit()).flatten()?;
+        let refusal = (self == Self::PreToolUse).then(|| input.refusal()).flatten()?;
         Some(Reply::new(self, Verdict::Deny(Denial::from(refusal)), None))
     }
 
-    fn stop_reason(project: &Project, session: Option<&SessionDir>) -> Option<Listed> {
-        let dir = session?.watched()?;
-        let head = project.pushed_head()?;
-        dir.status_of(&head).map_or_else(
-            || Some(Listed::new(format!("CI not watched for {head}: push again to watch it"))),
-            CiStatus::stop_reason,
-        )
-    }
-
     fn after_push(project: &Project, input: &HookInput) -> Option<Listed> {
-        let command = input.command()?;
-        let pushed = match command.runs(Self::COMMIT) {
-            Some(()) => project.push_current_branch()?,
-            None => command.runs(Self::PUSH).and_then(|()| project.pushed_head()).map(Ok)?,
-        };
-        match pushed {
-            Ok(commit) => input.session().and_then(|session| Watcher::spawn(project, session, &commit).err()),
-            Err(failure) => Some(failure),
-        }
+        let failure =
+            input.command()?.runs(Self::COMMIT).and_then(|()| project.push_current_branch()).and_then(Result::err);
+        failure.or(input.session().and_then(|session| Watcher::watch_all(project, session).err()))
     }
 }

@@ -2,7 +2,7 @@ mod log_window;
 mod millis;
 mod program_name;
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::Deserialize;
 
@@ -16,6 +16,7 @@ pub struct CiSettings {
     poll_millis: Millis,
     timeout_millis: Millis,
     appear_millis: Millis,
+    remote_millis: Millis,
     #[serde(flatten)]
     log_window: LogWindow,
 }
@@ -39,7 +40,25 @@ impl CiSettings {
         self.timeout_millis.duration().checked_sub(waited).filter(|left| !left.is_zero())
     }
 
+    pub fn remote_deadline(&self) -> Instant {
+        Instant::now() + self.remote_millis.duration()
+    }
+
     pub fn log_window(&self) -> &LogWindow {
         &self.log_window
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Duration;
+    use crate::request::project::config::Config;
+
+    const CONFIGURED: &str = "[ci]\npoll_millis = 7";
+
+    #[test]
+    fn the_poll_interval_is_the_configured_poll_millis() {
+        let config: Config = toml::from_str(CONFIGURED).unwrap();
+        assert_eq!(config.ci_settings().poll_interval().duration(), Duration::from_millis(7));
     }
 }

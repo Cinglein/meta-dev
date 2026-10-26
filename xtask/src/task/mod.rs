@@ -13,10 +13,10 @@ mod test;
 mod usage;
 
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use strum::{EnumString, IntoStaticStr, VariantNames};
-use task::{Branch, Policy, Program, Selection, Workspace};
+use task::{Branch, Interval, Policy, Program, Selection, Workspace};
 
 use crate::task::clippy::Clippy;
 use crate::task::coverage::Coverage;
@@ -112,8 +112,21 @@ impl Task {
             Task::Clippy => Ok(Clippy::run(&workspace, &selection, &policy)?),
             Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
             Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy),
-            Task::MutantCosts => Ok(MutantCosts::measure(Path::new(&flags.next().ok_or_else(Self::usage)?))
-                .map(|costs| println!("{costs}"))?),
+            Task::MutantCosts => Ok(MutantCosts::measure(
+                &Some(flags.map(PathBuf::from).collect::<Vec<PathBuf>>())
+                    .filter(|runs| !runs.is_empty())
+                    .ok_or_else(Self::usage)?,
+                &policy,
+            )
+            .inspect(|costs| println!("{costs}"))
+            .inspect(|costs| eprintln!("below the sample floor, not priced: {}", costs.below_sample_floor()))?
+            .priced_within(
+                &policy,
+                match TriggerEvent::current() {
+                    Some(TriggerEvent::PullRequest) => Interval::DiffJob,
+                    _ => Interval::FullJob,
+                },
+            )?),
             Task::Mutants => Ok(Mutants::run(&workspace, Scope::ChangedLines, &policy)?),
             Task::MutantsFull => Ok(Mutants::run(&workspace, Scope::Workspace, &policy)?),
             Task::MutantsPlan => Ok(ShardPlan::full(
