@@ -28,19 +28,22 @@ impl TestTime {
         selection: &Selection,
         policy: &Policy,
     ) -> Result<(), Failure> {
-        if selection.is_empty() {
-            println!("test time: no crate affected");
-            Ok(())
-        } else {
-            let timings = TestBinary::discover(workspace, selection, policy)?
-                .iter()
-                .map(TestBinary::timings)
-                .collect::<Result<Vec<Vec<TestTiming>>, Failure>>()?
-                .into_iter()
-                .flatten()
-                .collect();
-            TestTime { timings }.report(policy).verdict()
-        }
+        selection.reaching().map_or_else(
+            || {
+                println!("test time: no crate affected");
+                Ok(())
+            },
+            |selection| {
+                let timings = TestBinary::discover(workspace, selection, policy)?
+                    .iter()
+                    .map(TestBinary::timings)
+                    .collect::<Result<Vec<Vec<TestTiming>>, Failure>>()?
+                    .into_iter()
+                    .flatten()
+                    .collect();
+                TestTime { timings }.report(policy).verdict()
+            },
+        )
     }
 
     fn report(mut self, policy: &Policy) -> Report {

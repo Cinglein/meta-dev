@@ -20,7 +20,7 @@ pub use baseline_file::BaselineFile;
 pub use floor::Floor;
 pub use interval::Interval;
 pub use limit::Limit;
-pub use millis::Millis;
+
 pub use most::Most;
 pub use share::Share;
 pub use surface::Surface;
@@ -32,6 +32,7 @@ use compiler_tasks::CompilerTasks;
 use enum_map::EnumMap;
 use least::Least;
 use memory_share::MemoryShare;
+use millis::Millis;
 use percent::Percent;
 use serde::{Deserialize, Serialize};
 use settings::EmbeddedDefaults;

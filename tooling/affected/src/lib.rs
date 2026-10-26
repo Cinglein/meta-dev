@@ -52,7 +52,7 @@ mod tests {
         let board = Affected::reached(&graph, &[Reach::Package(BOARD.parse().unwrap()), NOTHING]);
         let reached = BTreeSet::from([BOARD.parse().unwrap(), EVAL.parse().unwrap()]);
         assert_eq!(board, Selection::Crates(reached));
-        assert!(Affected::reached(&graph, &[NOTHING]).is_empty());
+        assert!(Affected::reached(&graph, &[NOTHING]).reaching().is_none());
         assert_eq!(
             Affected::reached(&graph, &[NOTHING, EVERYTHING]),
             Selection::Workspace

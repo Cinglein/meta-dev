@@ -32,18 +32,10 @@ impl Selection {
     }
 
     #[must_use]
-    pub fn includes(&self, crate_name: &CrateName) -> bool {
+    pub fn reaching(&self) -> Option<&Selection> {
         match self {
-            Selection::Workspace => true,
-            Selection::Crates(crates) => crates.contains(crate_name),
-        }
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        match self {
-            Selection::Workspace => false,
-            Selection::Crates(crates) => crates.is_empty(),
+            Selection::Crates(crates) if crates.is_empty() => None,
+            Selection::Workspace | Selection::Crates(_) => Some(self),
         }
     }
 }
@@ -74,7 +66,6 @@ mod tests {
     use std::collections::BTreeSet;
     const EVAL: &str = "eval";
     const SEARCH: &str = "search";
-    const BOARD: &str = "board";
     const PACKAGES: [&str; 4] = ["--package", EVAL, "--package", SEARCH];
     const WORKSPACE: [&str; 1] = ["--workspace"];
     const SHOWN: [&str; 3] = ["the whole workspace", "no crate", "eval, search"];
@@ -97,8 +88,6 @@ mod tests {
                 SHOWN.map(String::from)
             )
         );
-        assert!(
-            crates.includes(&EVAL.parse().unwrap()) && !crates.includes(&BOARD.parse().unwrap())
-        );
+        assert!(empty.reaching().is_none() && crates.reaching() == Some(&crates));
     }
 }

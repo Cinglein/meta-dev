@@ -8,18 +8,21 @@ pub struct Test;
 
 impl Test {
     pub fn run(workspace: &Workspace, selection: &Selection, policy: &Policy) -> Result<(), Failure> {
-        if selection.is_empty() {
-            println!("test: no crate affected");
-            Ok(())
-        } else {
-            workspace
-                .line(Program::Cargo)
-                .argument(CargoArgument::Test)
-                .arguments(selection.arguments::<CargoTool>())
-                .argument(CargoArgument::AllFeatures)
-                .argument(CargoArgument::Jobs)
-                .argument(policy.compiler_tasks())
-                .run()
-        }
+        selection.reaching().map_or_else(
+            || {
+                println!("test: no crate affected");
+                Ok(())
+            },
+            |selection| {
+                workspace
+                    .line(Program::Cargo)
+                    .argument(CargoArgument::Test)
+                    .arguments(selection.arguments::<CargoTool>())
+                    .argument(CargoArgument::AllFeatures)
+                    .argument(CargoArgument::Jobs)
+                    .argument(policy.compiler_tasks())
+                    .run()
+            },
+        )
     }
 }
