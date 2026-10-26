@@ -81,6 +81,7 @@ mod tests {
         let rendered = SpecView::over(PROSE, SECTION).to_string();
         assert_eq!(rendered.strip_prefix(SpecView::HEADER), Some(SHOWN));
         assert_eq!(SpecView::over(&rendered, SECTION).to_string(), rendered);
+        assert_eq!(SECTION.iter().flat_map(Section::rules).count(), RULES.len());
     }
 
     #[test]
