@@ -41,7 +41,7 @@ impl fmt::Display for StatusArgument<'_> {
             StatusArgument::Description { version, state, toolchain, times, surfaces, passed } => {
                 let names: Vec<&str> = passed.iter().map(GateEnvName::as_str).collect();
                 let surfaced = if surfaces.is_empty() { "" } else { Self::SURFACES };
-                let description = StatusDescription::of(&version.to_string(), &toolchain.to_string())
+                let description = StatusDescription::describing(&version.to_string(), &toolchain.to_string())
                     .after(*state, &times.to_string())
                     .surfacing(surfaced)
                     .passing(&names);

@@ -18,9 +18,11 @@ impl StatusDescription {
     const FAILED: &str = "; failed ";
     const FAILED_SUFFIX: &str = " failed";
     const SEPARATOR: &str = ", ";
-    const STEP_END: char = ' ';
+    const INCOMPLETE: &str = "incomplete";
+    const ELLIPSIS: &str = "...";
+    const MIN_TOOLCHAIN_LEN: usize = 12;
 
-    pub fn of(version: &str, toolchain: &str) -> StatusDescription {
+    pub fn describing(version: &str, toolchain: &str) -> StatusDescription {
         StatusDescription {
             version: version.to_owned(),
             toolchain: toolchain.to_owned(),
@@ -47,23 +49,44 @@ impl StatusDescription {
     }
 
     fn fitted(&self) -> String {
-        let head = format!("meta-dev {} on {}", self.version, self.toolchain);
-        let (times, surfaced) = (&self.times, &self.surfaced);
+        let lead = format!("meta-dev {} on ", self.version);
+        let marks = format!("{}{}", self.failure().unwrap_or_default(), self.surfaced);
         let names: Vec<&str> = self.names.iter().map(String::as_str).collect();
-        let failed = times
-            .split(Self::SEPARATOR)
-            .find_map(|entry| entry.strip_suffix(Self::FAILED_SUFFIX).and_then(|_| entry.split(Self::STEP_END).next()))
-            .map(|step| format!("{}{step}", Self::FAILED))
-            .unwrap_or_default();
-        let whole = format!("{head}: {times}{surfaced}{}", Self::listed(&names, &[]));
-        let without = |kept_len: usize| {
-            let (shown, hidden) = names.split_at(kept_len);
-            format!("{head}{failed}{surfaced}{}", Self::listed(shown, hidden))
-        };
+        let whole = format!("{lead}{}: {}{marks}{}", self.toolchain, self.times, Self::listed(&names, &[]));
         std::iter::once(whole)
-            .chain((0..=names.len()).rev().map(without))
-            .find(|text| text.chars().count() <= Self::MAX_LENGTH)
-            .unwrap_or_else(|| without(0).chars().take(Self::MAX_LENGTH).collect())
+            .filter(|text| text.chars().count() <= Self::MAX_LENGTH)
+            .chain((0..=names.len()).rev().filter_map(|kept_len| {
+                let (shown, hidden) = names.split_at(kept_len);
+                self.shortened(&lead, &marks, shown, hidden)
+            }))
+            .next()
+            .unwrap_or_else(|| format!("{lead}{}{marks}{}", Self::ELLIPSIS, Self::listed(&[], &names)))
+    }
+
+    fn shortened(&self, lead: &str, marks: &str, shown: &[&str], hidden: &[&str]) -> Option<String> {
+        let tail = format!("{marks}{}", Self::listed(shown, hidden));
+        let room = Self::MAX_LENGTH.saturating_sub(lead.chars().count() + tail.chars().count());
+        let toolchain = match self.toolchain.chars().count() {
+            full if full <= room => Some(self.toolchain.clone()),
+            _ if room >= Self::MIN_TOOLCHAIN_LEN => {
+                let kept: String = self.toolchain.chars().take(room - Self::ELLIPSIS.len()).collect();
+                Some(format!("{kept}{}", Self::ELLIPSIS))
+            }
+            _ => None,
+        };
+        toolchain.map(|toolchain| format!("{lead}{toolchain}{tail}"))
+    }
+
+    fn failure(&self) -> Option<String> {
+        let step = self
+            .times
+            .split(Self::SEPARATOR)
+            .find_map(|entry| entry.strip_suffix(Self::FAILED_SUFFIX))
+            .unwrap_or(Self::INCOMPLETE);
+        match self.state {
+            GateState::Success => None,
+            GateState::Failure => Some(format!("{}{step}", Self::FAILED)),
+        }
     }
 
     fn listed(shown: &[&str], hidden: &[&str]) -> String {
@@ -93,20 +116,26 @@ mod tests {
     const NOTHING: &str = "";
     const SURFACED: &str = "; surfaces changed";
     const FAILURE: &str = "; failed ";
-    const INCOMPLETE: &str = "; failed incomplete";
-    const ELLIPSIS: &str = "...";
+    const LONG: &str = "stable-aarch64-apple-darwinstable-aarch64-apple-darwinstable-aarch64-apple-darwinstable-aarch64-apple-darwinstable-aarch64-apple-darwin";
+    const EXPECT_TIMED: &str = "meta-dev be728d0 on stable-aarch64-apple-darwin: fmt 160.5ms, clippy 1.8s, test failed; failed test; surfaces changed; env passed: CHROME";
+    const EXPECT_DROPPED: &str = "meta-dev be728d0 on stable-aarch64-apple-darwin; surfaces changed";
+    const EXPECT_EMPTY: &str = "meta-dev be728d0 on stable-aarch64-apple-darwin: ; failed incomplete; surfaces changed";
+    const EXPECT_PAIR: &str = "meta-dev be728d0 on stable-aarch64-apple-darwinstable-aarch64-apple-darwin...; failed incomplete; surfaces changed; env passed: CHROME, TERM";
+    const EXPECT_WIDE: &str = "meta-dev be728d0 on stable-aarch64-apple-darwinstable-...; failed incomplete; surfaces changed; env passed: A234567890123456789012345678, +2";
     const NAMES: [&str; 4] = ["CHROME", "TERM", "DISPLAY_NAME", "SSH_AUTH_SOCK"];
     const WIDE: [&str; 3] =
         ["A234567890123456789012345678", "B234567890123456789012345678", "C234567890123456789012345678"];
-    const PAIR: &str = "; env passed: CHROME, TERM";
 
     #[test]
     fn every_description_fits_and_keeps_the_rev_the_failure_and_the_surfaces() {
         let describe = |toolchain: &str, state, times: &str, names: &[&str]| {
-            StatusDescription::of(VERSION, toolchain).after(state, times).surfacing(SURFACED).passing(names).to_string()
+            StatusDescription::describing(VERSION, toolchain)
+                .after(state, times)
+                .surfacing(SURFACED)
+                .passing(names)
+                .to_string()
         };
-        let long = APPLE.repeat(NAMES.len() + 1);
-        let cases: Vec<(GateState, String)> = [APPLE, long.as_str()]
+        let cases: Vec<(GateState, String)> = [APPLE, LONG]
             .into_iter()
             .flat_map(|toolchain| [ALL_TIMES, FAILED_TIMES, PARTIAL_TIMES, NOTHING].map(|times| (toolchain, times)))
             .flat_map(|(toolchain, times)| {
@@ -124,28 +153,27 @@ mod tests {
     #[test]
     fn times_go_first_and_a_failure_names_its_step_or_says_incomplete() {
         let stated = |state, times: &str, names: &[&str]| {
-            StatusDescription::of(VERSION, APPLE).after(state, times).surfacing(SURFACED).passing(names).to_string()
+            StatusDescription::describing(VERSION, APPLE)
+                .after(state, times)
+                .surfacing(SURFACED)
+                .passing(names)
+                .to_string()
         };
-        let timed = format!("{PREFIX}{APPLE}: {FAILED_TIMES}{FAILURE}test{SURFACED}; env passed: CHROME");
-        assert_eq!(stated(GateState::Failure, FAILED_TIMES, &NAMES[..1]), timed);
-        assert_eq!(stated(GateState::Success, ALL_TIMES, &[]), format!("{PREFIX}{APPLE}{SURFACED}"));
-        assert_eq!(stated(GateState::Failure, NOTHING, &[]), format!("{PREFIX}{APPLE}: {INCOMPLETE}{SURFACED}"));
+        assert_eq!(stated(GateState::Failure, FAILED_TIMES, &NAMES[..1]), EXPECT_TIMED);
+        assert_eq!(stated(GateState::Success, ALL_TIMES, &[]), EXPECT_DROPPED);
+        assert_eq!(stated(GateState::Failure, NOTHING, &[]), EXPECT_EMPTY);
     }
 
     #[test]
     fn the_toolchain_shortens_first_then_the_env_list_and_the_markers_stay() {
-        let long = APPLE.repeat(NAMES.len() + 1);
         let describe = |names: &[&str]| {
-            StatusDescription::of(VERSION, &long)
+            StatusDescription::describing(VERSION, LONG)
                 .after(GateState::Failure, PARTIAL_TIMES)
                 .surfacing(SURFACED)
                 .passing(names)
                 .to_string()
         };
-        let pair = describe(&NAMES[..2]);
-        assert_eq!(pair, format!("{PREFIX}{}{ELLIPSIS}{INCOMPLETE}{SURFACED}{PAIR}", &long[..54]));
-        let wide = describe(&WIDE);
-        let tail = format!("{INCOMPLETE}{SURFACED}; env passed: {}, +2", WIDE[0]);
-        assert_eq!(wide, format!("{PREFIX}{}{ELLIPSIS}{tail}", &long[..34]));
+        assert_eq!(describe(&NAMES[..2]), EXPECT_PAIR);
+        assert_eq!(describe(&WIDE), EXPECT_WIDE);
     }
 }
