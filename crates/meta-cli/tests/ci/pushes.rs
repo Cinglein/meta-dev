@@ -1,4 +1,6 @@
-use super::{BLOCK, COMMIT, FAILED_EVENT, FAILURE, Git, NEXT_COMMIT, POST, Planted, Repo, STOP, SUCCESS};
+use super::{
+    BLOCK, CI_WAIT, COMMIT, FAILED_EVENT, FAILURE, Git, JOB_FAILED, NEXT_COMMIT, POST, Planted, Repo, STOP, SUCCESS,
+};
 
 const STATUS: &str = "git status";
 const ELSEWHERE: [&str; 4] = ["push", "-q", "origin", "HEAD:elsewhere"];
@@ -16,6 +18,7 @@ fn stop_judges_every_pushed_commit_and_a_dead_watcher_restarts() {
     Git::run(repo.clone.path(), &ELSEWHERE);
     Git::run(repo.clone.path(), &DETACH);
     let detached = repo.hook(STOP, STATUS);
+    let waited = repo.session_command(CI_WAIT).0;
     Planted::refusal(repo.origin.path());
     Git::run(repo.clone.path(), &BACK);
     Git::run(repo.clone.path(), &NEXT_COMMIT);
@@ -26,6 +29,7 @@ fn stop_judges_every_pushed_commit_and_a_dead_watcher_restarts() {
     std::fs::set_permissions(repo.clone.path().join(SESSION_DIR), open).unwrap();
     assert!(
         detached.contains(BLOCK)
+            && waited.contains(JOB_FAILED)
             && rejected.contains(NOT_PUSHED)
             && unwritable.contains(UNWRITABLE)
             && repo.settled().contains(FAILED_EVENT)

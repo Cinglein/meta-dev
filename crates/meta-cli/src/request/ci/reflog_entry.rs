@@ -27,14 +27,18 @@ impl ReflogEntry {
 }
 
 impl FromStr for ReflogEntry {
-    type Err = std::num::ParseIntError;
+    type Err = ();
 
-    fn from_str(line: &str) -> Result<Self, Self::Err> {
-        let mut fields = line.split(Self::SEPARATOR);
-        let Ok(commit) = fields.next().unwrap_or_default().parse();
-        let committed = fields.next().unwrap_or_default().parse()?;
-        let moved = fields.next().unwrap_or_default().parse()?;
-        let Ok(subject) = fields.next().unwrap_or_default().parse();
-        Ok(Self { commit, committed, moved, subject })
+    fn from_str(line: &str) -> Result<Self, ()> {
+        let fields: Vec<&str> = line.split(Self::SEPARATOR).collect();
+        match fields.as_slice() {
+            [sha, committed, moved, subject] => Ok(Self {
+                commit: sha.parse().map_err(drop)?,
+                committed: committed.parse().map_err(drop)?,
+                moved: moved.parse().map_err(drop)?,
+                subject: subject.parse().map_err(drop)?,
+            }),
+            _ => Err(()),
+        }
     }
 }

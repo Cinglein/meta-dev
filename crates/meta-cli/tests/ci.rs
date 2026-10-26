@@ -146,10 +146,22 @@ impl Stale {
     }
 }
 
+struct Started;
+
+impl Started {
+    fn building(scenario: &'static str) -> std::thread::JoinHandle<Repo> {
+        std::thread::spawn(move || {
+            let repo = Repo::new(scenario);
+            repo.hook(POST, COMMIT);
+            repo
+        })
+    }
+}
+
 struct FailingHead;
 
 impl FailingHead {
-    fn set(repo: &Repo, dir: &Path) {
+    fn copy_from(repo: &Repo, dir: &Path) {
         std::fs::write(repo.clone.path().join("bin/head"), Git::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap();
     }
 }
@@ -252,7 +264,7 @@ impl Repo {
         std::fs::create_dir_all(clone.path().join(Planted::SESSION_DIR)).unwrap();
         std::fs::write(clone.path().join(Planted::SESSION_DIR).join("started"), "0").unwrap();
         let repo = Self { origin, clone, scenario };
-        FailingHead::set(&repo, repo.clone.path());
+        FailingHead::copy_from(&repo, repo.clone.path());
         repo
     }
 
@@ -311,6 +323,7 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
 
 #[test]
 fn passing_or_unstarted_runs_let_the_agent_stop() {
+    let unstarted = Started::building(UNSTARTED);
     let repo = Repo::new(SUCCESS);
     Git::run(repo.clone.path(), &PUSH_WORDS);
     repo.hook(POST, PLAIN_PUSH);
@@ -321,8 +334,7 @@ fn passing_or_unstarted_runs_let_the_agent_stop() {
     Stale::plant(&repo);
     Git::run(repo.clone.path(), &PUSH_WORDS);
     repo.hook(POST, PLAIN_PUSH);
-    let unstarted = Repo::new(UNSTARTED);
-    unstarted.hook(POST, COMMIT);
+    let unstarted = unstarted.join().unwrap();
     let settled = unstarted.settled();
     let wait = unstarted.session_command(CI_WAIT).1;
     let unwatched = repo.hook(STOP, COMMIT);
@@ -336,8 +348,7 @@ fn passing_or_unstarted_runs_let_the_agent_stop() {
 
 #[test]
 fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
-    let repos = [NONE, LATE, BROKEN, MIXED, HANG].map(Repo::new);
-    let _: Vec<String> = repos.iter().map(|repo| repo.hook(POST, COMMIT)).collect();
+    let repos = [NONE, LATE, BROKEN, MIXED, HANG].map(Started::building).map(|started| started.join().unwrap());
     let [absent, late, broken, mixed, hung] = repos.each_ref().map(Repo::settled);
     let [none, ..] = &repos;
     assert!(

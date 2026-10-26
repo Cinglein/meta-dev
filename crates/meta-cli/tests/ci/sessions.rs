@@ -1,19 +1,20 @@
 use std::path::Path;
 
 use super::{
-    BLOCK, CI_WAIT, COMMIT, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSH_WORDS, Planted, Repo, STOP, Session,
+    BLOCK, COMMIT, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSH_WORDS, Planted, Repo, STOP, Session,
 };
 
 const MINE: &str = "MINE1";
 const THEIRS: &str = "THEIRS2";
 const READER: &str = "READER3";
+const PULLER: &str = "PULLER4";
 const BUILD: &str = "cargo xtask ci";
 const PULL: &str = "git pull";
 const CONFIG_FILE: &str = "meta.toml";
 const WORKTREE: &str = "other";
 const ADD_WORKTREE: [&str; 6] = ["worktree", "add", "-q", WORKTREE, "-b", WORKTREE];
 const FEATURE: &str = "feature";
-const PULL_WORDS: [&str; 2] = ["pull", "-q"];
+const PULL_WORDS: [&str; 4] = ["pull", "-q", "origin", WORKTREE];
 const STATE_ROOT: &str = ".git/meta-ci";
 
 struct Reviewer;
@@ -36,46 +37,25 @@ impl Reviewer {
 }
 
 #[test]
-fn a_push_no_hook_saw_is_still_judged() {
-    let repo = Repo::new(FAILURE);
-    Git::run(repo.clone.path(), &PUSH_WORDS);
-    let stop = repo.hook(STOP, BUILD);
-    let waited = repo.session_command(CI_WAIT);
-    repo.settled();
-    assert!(stop.contains(BLOCK) && !waited.1.success());
-}
-
-#[test]
-fn another_worktrees_commit_and_a_read_only_state_dir_never_block() {
+fn other_sessions_commits_and_a_read_only_state_dir_never_block() {
     let repo = Repo::new(FAILURE);
     let other = Reviewer::worktree(&repo);
+    Git::run(repo.clone.path(), &PUSH_WORDS);
+    let reviewer = Reviewer::clone_of(&repo);
     let clone: &Path = repo.clone.path();
-    let [mine, theirs, reader] =
-        [(clone, MINE), (&other, THEIRS), (clone, READER)].map(|(cwd, id)| Session { repo: &repo, cwd, id });
-    mine.hook(PRE, BUILD);
-    theirs.hook(PRE, COMMIT);
+    let cwds = [(clone, MINE), (&other, THEIRS), (clone, READER), (reviewer.path(), PULLER)];
+    let [mine, theirs, reader, puller] = cwds.map(|(cwd, id)| Session { repo: &repo, cwd, id });
+    let _: [String; 3] = [&mine, &theirs, &puller].map(|session| session.hook(PRE, COMMIT));
     Git::run(&other, &NEXT_COMMIT);
-    FailingHead::set(&repo, &other);
-    theirs.hook(POST, COMMIT);
-    mine.hook(POST, BUILD);
-    let [mine, theirs] = [mine.hook(STOP, BUILD), theirs.hook(STOP, COMMIT)];
+    FailingHead::copy_from(&repo, &other);
+    let _: [String; 2] = [&theirs, &mine].map(|session| session.hook(POST, COMMIT));
+    Git::run(reviewer.path(), &PULL_WORDS);
+    puller.hook(POST, PULL);
+    let passed = [mine.hook(STOP, BUILD), puller.hook(STOP, PULL)];
     let open = Planted::locked(&clone.join(STATE_ROOT));
     let locked = reader.hook(STOP, BUILD);
     std::fs::set_permissions(clone.join(STATE_ROOT), open).unwrap();
-    assert!(!mine.contains(BLOCK) && theirs.contains(BLOCK) && !locked.contains(BLOCK));
-}
-
-#[test]
-fn a_reviewers_pull_of_a_red_branch_never_blocks() {
-    let repo = Repo::new(FAILURE);
-    Git::run(repo.clone.path(), &PUSH_WORDS);
-    let reviewer = Reviewer::clone_of(&repo);
-    let session = Session { repo: &repo, cwd: reviewer.path(), id: READER };
-    session.hook(PRE, PULL);
-    Git::run(repo.clone.path(), &NEXT_COMMIT);
-    Git::run(repo.clone.path(), &PUSH_WORDS);
-    FailingHead::set(&repo, repo.clone.path());
-    Git::run(reviewer.path(), &PULL_WORDS);
-    session.hook(POST, PULL);
-    assert!(!session.hook(STOP, PULL).contains(BLOCK));
+    assert!(
+        theirs.hook(STOP, COMMIT).contains(BLOCK) && !passed.iter().chain([&locked]).any(|stop| stop.contains(BLOCK))
+    );
 }

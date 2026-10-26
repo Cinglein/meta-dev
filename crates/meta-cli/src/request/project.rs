@@ -73,7 +73,8 @@ impl Project {
     }
 
     pub fn on_remote(&self, commits: &[Commit]) -> Vec<Commit> {
-        let unpushed = self.config.remote().ok().and_then(|remote| self.unpushed_of(commits, &remote.to_string()));
+        let remote = commits.first().and_then(|_| self.config.remote().ok());
+        let unpushed = remote.and_then(|remote| self.unpushed_of(commits, &remote.to_string()));
         unpushed.map_or_else(Vec::new, |unpushed| {
             commits.iter().filter(|commit| !unpushed.contains(commit)).cloned().collect()
         })
