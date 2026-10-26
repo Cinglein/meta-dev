@@ -131,6 +131,7 @@ impl Project {
     fn seeded(worktrees: &Path) -> Self {
         let project = Self::new();
         assert!(SEED.iter().all(|words| Git::run(project.clone.path(), words).status.success()));
+        std::fs::create_dir(project.clone.path().join(".git/info")).unwrap();
         std::fs::write(project.clone.path().join(EXCLUDE), LOCAL_SETTINGS_RULE).unwrap();
         Git::appended(&project.clone.path().join(".git/config"), FOREIGN_IDENTITY);
         Settings::written(project.clone.path(), worktrees);
