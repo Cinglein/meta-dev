@@ -33,7 +33,7 @@ impl HookInput {
     }
 
     pub fn foreign_commit(&self, project: &Project) -> Option<Listed> {
-        self.command()?.writes_commits()?;
+        self.command()?.commit_directory(&self.cwd())?;
         project.identity_refusal()
     }
 
