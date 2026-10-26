@@ -16,7 +16,7 @@ use std::env;
 use std::path::PathBuf;
 
 use strum::{EnumString, IntoStaticStr, VariantNames};
-use task::{Branch, Interval, Policy, Program, Selection, Workspace};
+use task::{Branch, Policy, Program, Selection, Workspace};
 
 use crate::task::clippy::Clippy;
 use crate::task::coverage::Coverage;
@@ -86,13 +86,6 @@ impl Task {
         Failure::from(task::Failure::from(Usage))
     }
 
-    fn priced_job() -> Interval {
-        match TriggerEvent::current() {
-            Some(TriggerEvent::PullRequest) => Interval::DiffJob,
-            _ => Interval::FullJob,
-        }
-    }
-
     pub fn run(self, mut flags: impl Iterator<Item = String>) -> Result<(), Failure> {
         let workspace = Workspace::locate()?;
         let policy = Policy::read(workspace.root())?;
@@ -128,9 +121,9 @@ impl Task {
             .inspect(|costs| println!("{costs}"))
             .inspect(|costs| {
                 eprintln!("below the sample floor, not priced: {}", costs.below_sample_floor());
-                eprintln!("{}", costs.within_tolerance(&policy, Self::priced_job()));
+                eprintln!("{}", costs.within_tolerance(&policy, TriggerEvent::priced_job(TriggerEvent::current())));
             })?
-            .priced_within(&policy, Self::priced_job())?),
+            .priced_within(&policy, TriggerEvent::priced_job(TriggerEvent::current()))?),
             Task::Mutants => Ok(Mutants::run(&workspace, Scope::ChangedLines, &policy)?),
             Task::MutantsFull => Ok(Mutants::run(&workspace, Scope::Workspace, &policy)?),
             Task::MutantsPlan => Ok(ShardPlan::full(

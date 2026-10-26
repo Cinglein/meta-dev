@@ -3,6 +3,7 @@ use std::env;
 use strum::EnumString;
 
 use task::FullRun;
+use task::Interval;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString)]
 #[strum(serialize_all = "snake_case")]
@@ -37,11 +38,19 @@ impl TriggerEvent {
             TriggerEvent::PullRequest => None,
         }
     }
+
+    #[must_use]
+    pub fn priced_job(current: Option<TriggerEvent>) -> Interval {
+        match current {
+            Some(TriggerEvent::PullRequest) => Interval::DiffJob,
+            _ => Interval::FullJob,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{FullRun, TriggerEvent};
+    use super::{FullRun, Interval, TriggerEvent};
     const NAMES: [&str; 4] = ["push", "schedule", "workflow_dispatch", "pull_request"];
     const RUNS: [Option<FullRun>; 4] =
         [Some(FullRun::EveryMainPush), Some(FullRun::Weekly), Some(FullRun::OnDemand), None];
@@ -50,6 +59,8 @@ mod tests {
     fn each_github_event_names_the_full_run_cadence_it_stands_for() {
         let runs = NAMES.map(|name| name.parse::<TriggerEvent>().ok().and_then(TriggerEvent::full_run));
         assert_eq!(runs, RUNS);
+        let jobs = [Some(TriggerEvent::PullRequest), Some(TriggerEvent::Push), None].map(TriggerEvent::priced_job);
+        assert_eq!(jobs, [Interval::DiffJob, Interval::FullJob, Interval::FullJob]);
         assert!("release".parse::<TriggerEvent>().is_err());
         assert_eq!([None, Some(String::from("release"))].map(TriggerEvent::named), [Some(TriggerEvent::Local), None]);
     }
