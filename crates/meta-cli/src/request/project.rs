@@ -73,22 +73,7 @@ impl Project {
     }
 
     pub fn on_remote(&self, commits: &[Commit]) -> Vec<Commit> {
-        let Some(remotes) = self.config.remote().ok().map(|remote| format!("--remotes={remote}")) else {
-            return Vec::new();
-        };
-        let ahead = Command::new("git")
-            .arg("-C")
-            .arg(&self.root)
-            .args(["rev-list", "--ignore-missing"])
-            .args(commits.iter().map(Commit::argument))
-            .args(["--not", &remotes])
-            .output();
-        let unpushed: Option<Vec<Commit>> = ahead.ok().filter(|ahead| ahead.status.success()).map(|ahead| {
-            String::from_utf8_lossy(&ahead.stdout)
-                .lines()
-                .map(|line| line.parse().unwrap_or_else(|never| match never {}))
-                .collect()
-        });
+        let unpushed = self.config.remote().ok().and_then(|remote| self.unpushed_of(commits, &remote.to_string()));
         unpushed.map_or_else(Vec::new, |unpushed| {
             commits.iter().filter(|commit| !unpushed.contains(commit)).cloned().collect()
         })
@@ -105,6 +90,20 @@ impl Project {
         let text = String::from_utf8_lossy(&ahead.stdout);
         let Ok(commit) = text.parse();
         (ahead.status.success() && !text.trim().is_empty()).then_some(commit)
+    }
+
+    fn unpushed_of(&self, commits: &[Commit], remote: &str) -> Option<Vec<Commit>> {
+        let ahead = Command::new("git")
+            .arg("-C")
+            .arg(&self.root)
+            .args(["rev-list", "--ignore-missing"])
+            .args(commits.iter().map(Commit::argument))
+            .args(["--not", &format!("--remotes={remote}")])
+            .output()
+            .ok()
+            .filter(|ahead| ahead.status.success())?;
+        let Ok(unpushed) = String::from_utf8_lossy(&ahead.stdout).lines().map(str::parse).collect();
+        Some(unpushed)
     }
 
     fn unprotected_branch(&self) -> Option<BranchName> {

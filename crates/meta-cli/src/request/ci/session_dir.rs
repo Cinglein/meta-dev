@@ -71,9 +71,11 @@ impl SessionDir {
         state.matching(commit).map(WatchState::status)
     }
 
-    pub fn begin(&self) -> std::io::Result<()> {
+    pub fn begin(&self) -> std::io::Result<UnixSeconds> {
         std::fs::create_dir_all(&self.0)?;
-        write!(std::fs::File::create_new(self.0.join(Self::STARTED))?, "{}", UnixSeconds::now())
+        let start = UnixSeconds::now();
+        write!(std::fs::File::create_new(self.0.join(Self::STARTED))?, "{start}")?;
+        Ok(start)
     }
 
     pub fn created(&self, project: &Project) -> Vec<Commit> {

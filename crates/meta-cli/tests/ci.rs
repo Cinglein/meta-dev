@@ -112,12 +112,12 @@ impl Git {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
     }
 
-    fn run_long_ago(dir: &Path, words: &[&str]) -> Output {
+    fn commit_long_ago(dir: &Path) -> Output {
         Command::new("git")
             .arg("-C")
             .arg(dir)
             .args(Self::IDENTITY)
-            .args(words)
+            .args(["commit", "-q", "--allow-empty", "-m", "change"])
             .env("GIT_COMMITTER_DATE", Self::LONG_AGO)
             .output()
             .unwrap()
@@ -143,6 +143,14 @@ impl Stale {
         let head = String::from_utf8(Git::run(repo.clone.path(), &["rev-parse", "HEAD"]).stdout).unwrap();
         let states = repo.clone.path().join(".git/meta-ci/ABCDEF1234/states");
         std::fs::create_dir_all(states.join(head.trim())).unwrap();
+    }
+}
+
+struct FailingHead;
+
+impl FailingHead {
+    fn set(repo: &Repo, dir: &Path) {
+        std::fs::write(repo.clone.path().join("bin/head"), Git::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap();
     }
 }
 
@@ -192,6 +200,36 @@ impl Planted {
     }
 }
 
+struct Session<'repo> {
+    repo: &'repo Repo,
+    cwd: &'repo Path,
+    id: &'repo str,
+}
+
+impl Session<'_> {
+    fn hook(&self, event: &str, command: &str) -> String {
+        let input = format!(
+            r#"{{"session_id":{},"cwd":{},"tool_input":{{"command":{}}}}}"#,
+            serde_json::to_string(self.id).unwrap(),
+            serde_json::to_string(self.cwd).unwrap(),
+            serde_json::to_string(command).unwrap()
+        );
+        let bin = self.repo.clone.path().join("bin");
+        let path = format!("{}:{}", bin.display(), std::env::var("PATH").unwrap_or_default());
+        let mut child = Command::new(META)
+            .args(["hook", event])
+            .env("PATH", path)
+            .env("FAKE_GH_DIR", self.repo.clone.path())
+            .env("FAKE_GH_SCENARIO", self.repo.scenario)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
+        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
+    }
+}
+
 struct Repo {
     origin: tempfile::TempDir,
     clone: tempfile::TempDir,
@@ -210,41 +248,16 @@ impl Repo {
         std::fs::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
         std::fs::write(clone.path().join("bin/failed.log"), FAILED_LOG).unwrap();
         std::fs::set_permissions(clone.path().join("bin/gh"), std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
-        Git::run_long_ago(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"]);
+        Git::commit_long_ago(clone.path());
         std::fs::create_dir_all(clone.path().join(Planted::SESSION_DIR)).unwrap();
         std::fs::write(clone.path().join(Planted::SESSION_DIR).join("started"), "0").unwrap();
         let repo = Self { origin, clone, scenario };
-        repo.fail_at(repo.clone.path());
+        FailingHead::set(&repo, repo.clone.path());
         repo
     }
 
-    fn fail_at(&self, dir: &Path) {
-        std::fs::write(self.clone.path().join("bin/head"), Git::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap();
-    }
-
     fn hook(&self, event: &str, command: &str) -> String {
-        self.hook_as(self.clone.path(), SESSION, event, command)
-    }
-
-    fn hook_as(&self, cwd: &Path, session: &str, event: &str, command: &str) -> String {
-        let input = format!(
-            r#"{{"session_id":{},"cwd":{},"tool_input":{{"command":{}}}}}"#,
-            serde_json::to_string(session).unwrap(),
-            serde_json::to_string(cwd).unwrap(),
-            serde_json::to_string(command).unwrap()
-        );
-        let path = format!("{}:{}", self.clone.path().join("bin").display(), std::env::var("PATH").unwrap_or_default());
-        let mut child = Command::new(META)
-            .args(["hook", event])
-            .env("PATH", path)
-            .env("FAKE_GH_DIR", self.clone.path())
-            .env("FAKE_GH_SCENARIO", self.scenario)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()
-            .unwrap();
-        child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
-        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
+        Session { repo: self, cwd: self.clone.path(), id: SESSION }.hook(event, command)
     }
 
     fn session_command(&self, command: &str) -> Waited {

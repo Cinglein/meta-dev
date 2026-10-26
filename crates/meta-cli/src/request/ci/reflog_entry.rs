@@ -17,27 +17,24 @@ pub struct ReflogEntry {
 }
 
 impl ReflogEntry {
-    pub const FORMAT: &'static str = "--format=%H%x1f%cn <%ce>%x1f%ct%x1f%gn <%ge>%x1f%gd%x1f%gs";
+    pub const FORMAT: &'static str = "--format=%H%x1f%cn <%ce> %ct%x1f%gn <%ge> %gd%x1f%gs";
     const SEPARATOR: char = '\u{1f}';
 
     pub fn created_since(&self, start: UnixSeconds) -> Option<&Commit> {
-        let here = self.committed == self.moved && self.subject.creates();
-        (here && self.committed.at().is_some_and(|at| at >= start)).then_some(&self.commit)
+        (self.committed == self.moved && self.subject.creates() && self.committed.not_before(start))
+            .then_some(&self.commit)
     }
 }
 
 impl FromStr for ReflogEntry {
-    type Err = ();
+    type Err = std::num::ParseIntError;
 
-    fn from_str(line: &str) -> Result<Self, ()> {
-        let fields: Vec<&str> = line.split(Self::SEPARATOR).collect();
-        let [sha, committer, committed_at, mover, selector, subject] = fields.as_slice() else { return Err(()) };
-        let Ok(commit) = sha.parse();
-        Ok(Self {
-            commit,
-            committed: Stamp::new(committer, committed_at),
-            moved: Stamp::from_selector(mover, selector),
-            subject: MoveSubject::new(subject),
-        })
+    fn from_str(line: &str) -> Result<Self, Self::Err> {
+        let mut fields = line.split(Self::SEPARATOR);
+        let Ok(commit) = fields.next().unwrap_or_default().parse();
+        let committed = fields.next().unwrap_or_default().parse()?;
+        let moved = fields.next().unwrap_or_default().parse()?;
+        let Ok(subject) = fields.next().unwrap_or_default().parse();
+        Ok(Self { commit, committed, moved, subject })
     }
 }

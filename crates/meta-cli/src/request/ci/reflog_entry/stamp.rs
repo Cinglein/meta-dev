@@ -1,22 +1,32 @@
+mod identity;
+
+use std::str::FromStr;
+
 use super::UnixSeconds;
+use identity::Identity;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Stamp(String);
+pub struct Stamp {
+    identity: Identity,
+    moment: UnixSeconds,
+}
 
 impl Stamp {
-    const OPEN: char = '{';
-    const CLOSE: char = '}';
+    const SELECTOR_OPEN: char = '{';
+    const SELECTOR_CLOSE: char = '}';
 
-    pub fn new(identity: &str, at: &str) -> Self {
-        Self(format!("{identity} {at}"))
+    pub fn not_before(&self, start: UnixSeconds) -> bool {
+        self.moment >= start
     }
+}
 
-    pub fn from_selector(identity: &str, selector: &str) -> Self {
-        let at = selector.split_once(Self::OPEN).map_or(selector, |(_, at)| at.trim_end_matches(Self::CLOSE));
-        Self::new(identity, at)
-    }
+impl FromStr for Stamp {
+    type Err = std::num::ParseIntError;
 
-    pub fn at(&self) -> Option<UnixSeconds> {
-        self.0.rsplit_once(' ').and_then(|(_, at)| at.parse().ok())
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let (identity, moment) = text.rsplit_once(' ').unwrap_or_default();
+        let moment = moment.split_once(Self::SELECTOR_OPEN).map_or(moment, |(_, inner)| inner);
+        let Ok(identity) = identity.parse();
+        Ok(Self { identity, moment: moment.trim_end_matches(Self::SELECTOR_CLOSE).parse()? })
     }
 }
