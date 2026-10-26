@@ -7,9 +7,10 @@ use serde::{Deserialize, Serialize};
 pub struct GateEnvName(String);
 
 impl GateEnvName {
-    const EXACT: [&str; 3] = ["HOME", "PATH", "RUSTFLAGS"];
-    const PREFIXES: [&str; 7] = [
-        "CARGO_", "RUSTC", "RUSTUP_", "RUSTDOC", "XDG_", "LD_", "DYLD_",
+    const EXACT: [&str; 4] = ["HOME", "PATH", "RUSTFLAGS", "CARGO"];
+    const PREFIXES: [&str; 10] = [
+        "CARGO_", "RUSTC", "RUSTUP_", "RUSTDOC", "RUST_", "RUSTFMT", "CLIPPY", "XDG_", "LD_",
+        "DYLD_",
     ];
 
     fn changes_build(upper: &str) -> bool {

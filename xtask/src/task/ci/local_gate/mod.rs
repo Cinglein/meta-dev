@@ -98,8 +98,14 @@ impl LocalGate {
         let lock = GateLock::guarding(&target, policy.gate_wait()?)?;
         let checkout = self.checkout(&parent)?;
         let toolchain = checkout.toolchain()?;
-        let child = GateChild::new(&parent, target, checkout.times().path().to_path_buf(), toolchain.clone())?
-            .passing(&self.passed);
+        let child = GateChild::new(
+            &parent,
+            target,
+            checkout.times().path().to_path_buf(),
+            toolchain.clone(),
+            CommandLine::ambient(),
+        )?
+        .passing(&self.passed);
         let cargo = || child.line(Program::Executable(PathBuf::from(Self::CARGO)), checkout.root());
         let metadata: CargoMetadata = cargo().arguments(Self::METADATA).captured::<Stdout>()?.parse()?;
         OutsideConfig::around(checkout.above().unwrap_or(&parent), child.cargo_home())

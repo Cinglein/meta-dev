@@ -1,4 +1,6 @@
+use std::collections::BTreeMap;
 use std::env;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use task::{CommandLine, GateEnvName, Program, Site};
@@ -16,6 +18,7 @@ pub struct GateChild {
     times: PathBuf,
     toolchain: Toolchain,
     passed: Vec<GateEnvName>,
+    ambient: BTreeMap<String, OsString>,
 }
 
 impl GateChild {
@@ -29,7 +32,13 @@ impl GateChild {
     const TARGET: &str = "CARGO_TARGET_DIR";
     const BUILD_DIR: &str = "CARGO_BUILD_BUILD_DIR";
 
-    pub fn new(parent: &Path, target: PathBuf, times: PathBuf, toolchain: Toolchain) -> Result<GateChild, Failure> {
+    pub fn new(
+        parent: &Path,
+        target: PathBuf,
+        times: PathBuf,
+        toolchain: Toolchain,
+        ambient: BTreeMap<String, OsString>,
+    ) -> Result<GateChild, Failure> {
         let home = TempDir::new_in(parent)
             .map_err(|error| task::Failure::Io { site: Site::File(parent.to_path_buf()), error })?;
         let real_home = env::home_dir().unwrap_or_default();
@@ -43,6 +52,7 @@ impl GateChild {
             times,
             toolchain,
             passed: Vec::new(),
+            ambient,
         })
     }
 
@@ -58,7 +68,10 @@ impl GateChild {
     pub fn line(&self, program: Program, directory: PathBuf) -> CommandLine {
         CommandLine::new(program)
             .in_directory(directory)
-            .inheriting_only(Self::INHERITED.into_iter().chain(self.passed.iter().map(GateEnvName::as_str)))
+            .inheriting_only_from(
+                &self.ambient,
+                Self::INHERITED.into_iter().chain(self.passed.iter().map(GateEnvName::as_str)),
+            )
             .environment(Self::HOME, self.home.path())
             .environment(Self::CARGO_HOME, &self.cargo_home)
             .environment(Self::RUSTUP_HOME, &self.rustup_home)
@@ -71,11 +84,13 @@ impl GateChild {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::env;
+    use std::ffi::OsString;
     use std::fs;
     use std::path::PathBuf;
 
-    use task::{GateEnvName, Program, Stdout};
+    use task::{CommandLine, GateEnvName, Program, Stdout};
 
     use super::GateChild;
     use crate::task::fixture::Fixture;
@@ -85,13 +100,18 @@ mod tests {
     const PRINT: [&str; 2] = ["-c", "printf %s \"$(printenv \"$0\")\""];
     const TOOLCHAIN: &str = "1.90-x86_64-unknown-linux-gnu";
     const TARGET: &str = "gate-target";
+    const PATH: &str = "PATH";
+    const KNOWN: &str = "GATE_KNOWN_NAME";
+    const KNOWN_VALUE: &str = "known7value";
 
     #[test]
     fn the_child_gets_an_empty_home_of_its_own_and_no_config_home() {
         let fixture = Fixture::new();
         fs::create_dir_all(fixture.beside()).unwrap();
         let toolchain = TOOLCHAIN.parse().unwrap();
-        let child = GateChild::new(&fixture.beside(), PathBuf::from(TARGET), PathBuf::new(), toolchain).unwrap();
+        let child =
+            GateChild::new(&fixture.beside(), PathBuf::from(TARGET), PathBuf::new(), toolchain, CommandLine::ambient())
+                .unwrap();
         let shown =
             child.line(Program::Executable(SHELL.into()), fixture.beside()).arguments(SHOWN).captured::<Stdout>();
         let home = child.home.path();
@@ -104,20 +124,22 @@ mod tests {
     fn an_allowed_name_reaches_the_child_with_the_callers_value_and_others_stay_out() {
         let fixture = Fixture::new();
         fs::create_dir_all(fixture.beside()).unwrap();
-        let (name, value) = env::vars()
-            .filter(|(name, value)| {
-                !value.is_empty()
-                    && value.chars().all(char::is_alphanumeric)
-                    && !GateChild::INHERITED.contains(&name.as_str())
-            })
-            .find_map(|(name, value)| GateEnvName::try_from(name).ok().map(|name| (name, value)))
-            .unwrap();
+        let name = GateEnvName::try_from(KNOWN.to_owned()).unwrap();
+        let value = KNOWN_VALUE.to_owned();
+        let ambient: BTreeMap<String, OsString> = CommandLine::ambient()
+            .into_iter()
+            .filter(|(name, _)| name == PATH)
+            .chain([(KNOWN.to_owned(), OsString::from(KNOWN_VALUE))])
+            .collect();
         let shown = |child: GateChild| {
             let line = child.line(Program::Executable(SHELL.into()), fixture.beside());
             line.arguments(PRINT).argument(&name).captured::<Stdout>()
         };
         let toolchain = || TOOLCHAIN.parse().unwrap();
-        let child = || GateChild::new(&fixture.beside(), PathBuf::from(TARGET), PathBuf::new(), toolchain()).unwrap();
+        let child = || {
+            GateChild::new(&fixture.beside(), PathBuf::from(TARGET), PathBuf::new(), toolchain(), ambient.clone())
+                .unwrap()
+        };
         assert_eq!(shown(child().passing(std::slice::from_ref(&name))).ok(), Some(value));
         assert_eq!(shown(child()).ok(), Some(String::new()));
     }

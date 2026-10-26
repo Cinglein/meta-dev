@@ -39,14 +39,42 @@ impl fmt::Display for StatusArgument<'_> {
             }
             StatusArgument::Context { status, scope } => write!(formatter, "context={status}/{}", scope.display()),
             StatusArgument::Description { version, toolchain, times, surfaces, passed } => {
-                write!(formatter, "description=meta-dev {version} on {toolchain}: {times}")?;
-                formatter.write_str(if surfaces.is_empty() { "" } else { Self::SURFACES })?;
+                let head = format!("meta-dev {version} on {toolchain}");
                 let names: Vec<&str> = passed.iter().map(GateEnvName::as_str).collect();
-                formatter.write_str(
-                    &names.first().map(|_| format!("{}{}", Self::PASSED, names.join(", "))).unwrap_or_default(),
-                )
+                let surfaced = if surfaces.is_empty() { "" } else { Self::SURFACES };
+                write!(formatter, "description={}", Self::fitted(&head, &times.to_string(), surfaced, &names))
             }
         }
+    }
+}
+
+impl StatusArgument<'_> {
+    const LIMIT: usize = 140;
+    const FAILED: &str = "; failed ";
+    const FAILED_SUFFIX: &str = " failed";
+    const SEPARATOR: &str = ", ";
+
+    fn listed(names: &[&str], hidden: usize) -> String {
+        let more = (hidden > 0).then(|| format!("+{hidden}"));
+        let items: Vec<&str> = names.iter().copied().chain(more.as_deref()).collect();
+        if items.is_empty() { String::new() } else { format!("{}{}", Self::PASSED, items.join(Self::SEPARATOR)) }
+    }
+
+    fn fitted(head: &str, times: &str, surfaced: &str, names: &[&str]) -> String {
+        let failed = times
+            .split(Self::SEPARATOR)
+            .find_map(|entry| entry.strip_suffix(Self::FAILED_SUFFIX).and_then(|_| entry.split(' ').next()))
+            .map(|step| format!("{}{step}", Self::FAILED))
+            .unwrap_or_default();
+        let whole = format!("{head}: {times}{surfaced}{}", Self::listed(names, 0));
+        let without = |kept: usize| {
+            let (shown, hidden) = names.split_at(kept);
+            format!("{head}{failed}{surfaced}{}", Self::listed(shown, hidden.len()))
+        };
+        std::iter::once(whole)
+            .chain((0..=names.len()).rev().map(without))
+            .find(|text| text.chars().count() <= Self::LIMIT)
+            .unwrap_or_else(|| without(0).chars().take(Self::LIMIT).collect())
     }
 }
 
