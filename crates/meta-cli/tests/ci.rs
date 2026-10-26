@@ -51,7 +51,6 @@ ci\tcargo xtask ci\t2026-10-25T06:40:09.3000000Z  right: Some(task-0123456789abc
 ci\tcargo xtask ci\t2026-10-25T06:40:09.4000000Z test result: FAILED. 2 passed; 1 failed; 0 ignored
 ci\tcargo xtask ci\t2026-10-25T06:40:09.5000000Z ##[error]Process completed with exit code 101.
 ";
-const QUIET: &str = "[maintenance]\n\tauto = false\n";
 const SHELL: &str = "/bin/sh";
 const SETTLE_POLL: Duration = Duration::from_millis(2);
 const SETTLE_LENGTH: usize = 1500;
@@ -97,6 +96,9 @@ const FAILED_EVENT: &str = ": failed after";
 const COMPLETIONS: [&str; 5] =
     [": passed after", ": failed after", ": timed-out after", ": unavailable after", ": absent after"];
 
+#[path = "support/skeleton.rs"]
+mod skeleton;
+use skeleton::Skeleton;
 #[path = "ci/merges.rs"]
 mod merges;
 #[path = "ci/pushes.rs"]
@@ -137,9 +139,20 @@ impl Git {
             .unwrap()
     }
 
+    fn head(dir: &Path) -> String {
+        let git_dir = dir.join(".git");
+        let text = std::fs::read_to_string(git_dir.join("HEAD")).ok().filter(|_| git_dir.is_dir());
+        let read = text.and_then(|text| match text.trim().strip_prefix("ref: ") {
+            Some(name) => std::fs::read_to_string(git_dir.join(name)).ok(),
+            None => Some(text),
+        });
+        read.unwrap_or_else(|| String::from_utf8(Self::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap())
+            .trim()
+            .to_owned()
+    }
+
     fn link_origin(dir: &Path, url: &str) {
-        let remote =
-            format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n{QUIET}");
+        let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
         std::fs::OpenOptions::new()
             .append(true)
             .open(dir.join(".git/config"))
@@ -155,7 +168,7 @@ struct Stale;
 
 impl Stale {
     fn plant(repo: &Repo) {
-        let head = String::from_utf8(Git::run(repo.clone.path(), &["rev-parse", "HEAD"]).stdout).unwrap();
+        let head = Git::head(repo.clone.path());
         let states = repo.clone.path().join(".git/meta-ci/ABCDEF1234/states");
         std::fs::create_dir_all(states.join(head.trim())).unwrap();
     }
@@ -198,7 +211,7 @@ struct FailingHead;
 
 impl FailingHead {
     fn copy_from(repo: &Repo, dir: &Path) {
-        std::fs::write(repo.clone.path().join("bin/head"), Git::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap();
+        std::fs::write(repo.clone.path().join("bin/head"), format!("{}\n", Git::head(dir))).unwrap();
     }
 }
 
@@ -211,7 +224,7 @@ impl Planted {
     const RUNNING: &'static str = "running";
 
     fn running(repo: &Repo) {
-        let head = String::from_utf8(Git::run(repo.clone.path(), &["rev-parse", "HEAD"]).stdout).unwrap();
+        let head = Git::head(repo.clone.path());
         let states = repo.clone.path().join(Self::STATES);
         std::fs::create_dir_all(&states).unwrap();
         std::fs::write(states.join(head.trim()), format!("{} {}", head.trim(), Self::RUNNING)).unwrap();
@@ -295,14 +308,8 @@ impl Repo {
     pub fn limited(scenario: &'static str, limits: &str) -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Git::run(origin.path(), &["init", "-q", "--template=", "--bare"]);
-        Git::run(clone.path(), &["init", "-q", "--template=", "-b", "feature"]);
-        std::fs::OpenOptions::new()
-            .append(true)
-            .open(origin.path().join("config"))
-            .unwrap()
-            .write_all(QUIET.as_bytes())
-            .unwrap();
+        Skeleton::bare(origin.path(), "main");
+        Skeleton::working(clone.path(), "feature");
         Git::link_origin(clone.path(), origin.path().to_str().unwrap());
         std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{limits}")).unwrap();
         std::fs::create_dir(clone.path().join("bin")).unwrap();

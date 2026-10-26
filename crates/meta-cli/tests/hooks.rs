@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
-const QUIET: &str = "[maintenance]\n\tauto = false\n";
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n";
 const MERGE: &str = "gh pr merge 1";
 const PUSH: &str = "git push --force origin feature";
@@ -43,6 +42,10 @@ const NO_TASKS: &str = "Tasks: 0 unfinished";
 const SESSION_ACTOR: &str = "claude-abcdef1234";
 const SESSION_STARTED: &str = "meta-sessions/ABCDEF1234/started";
 const ENV_LINE: &str = "export META_ACTOR=claude-abcdef1234\nexport META_SESSION=ABCDEF12-34\n";
+
+#[path = "support/skeleton.rs"]
+mod skeleton;
+use skeleton::Skeleton;
 
 struct Git;
 
@@ -91,11 +94,9 @@ impl Repo {
     fn new() -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Git::run(origin.path(), &["init", "-q", "--template=", "--bare"]);
-        Git::run(clone.path(), &["init", "-q", "--template="]);
+        Skeleton::bare(origin.path(), "main");
+        Skeleton::working(clone.path(), "main");
         Git::link_origin(clone.path(), origin.path());
-        Git::configure(&origin.path().join(BARE_CONFIG), QUIET);
-        Git::configure(&clone.path().join(GIT_CONFIG), QUIET);
         std::fs::write(clone.path().join("meta.toml"), CONFIG).unwrap();
         Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "start"]);
         Self { origin, clone }

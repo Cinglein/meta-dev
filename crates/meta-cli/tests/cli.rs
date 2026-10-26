@@ -5,7 +5,6 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
-const QUIET: &str = "[maintenance]\n\tauto = false\n";
 const OWNER: &str = "owner";
 const WRITER: &str = "writer";
 const NOWHERE: [&str; 4] = ["remote", "set-url", "origin", "/nonexistent/origin.git"];
@@ -41,6 +40,10 @@ const LOCAL_SETTINGS_RULE: &str = "/meta.local.toml\n";
 const NOT_A_DIRECTORY: &str = "/dev/null";
 const IGNORED: &str = "not gitignored";
 const GIT_CALL: &str = "git -C /";
+
+#[path = "support/skeleton.rs"]
+mod skeleton;
+use skeleton::Skeleton;
 
 struct Git;
 
@@ -122,11 +125,9 @@ impl Project {
     fn new() -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Git::run(origin.path(), &["init", "-q", "--template=", "--bare"]);
-        Git::run(clone.path(), &["init", "-q", "--template="]);
+        Skeleton::bare(origin.path(), "main");
+        Skeleton::working(clone.path(), "main");
         Git::link_origin(clone.path(), origin.path().to_str().unwrap());
-        Git::appended(&origin.path().join("config"), QUIET);
-        Git::appended(&clone.path().join(".git/config"), QUIET);
         std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
         Self { origin, clone }
     }
