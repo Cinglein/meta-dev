@@ -29,7 +29,7 @@ const NO_BRANCH: &str = "task branch missing";
 const SHARED: &str = "branch checked out elsewhere";
 const STRANGER: &str = "a different worktree at the recorded path";
 const OWN_CHECKOUTS: &str = "worktree /clone\nHEAD c0\nbranch refs/heads/main\n\nworktree /trees/task-00000000000000b1\nHEAD c1\nbranch refs/heads/task-00000000000000b1\n";
-const REFUSED: [Case; 60] = [
+const REFUSED: [Case; 61] = [
     Case("symlink", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::Symlink)),
     Case("not found", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::Missing)),
     Case("unreadable entry", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::File)),
@@ -88,6 +88,7 @@ const REFUSED: [Case; 60] = [
     Case("remote unreachable: offline", |host| host.fails("ls-remote")),
     Case("commits not on the remote", |host| host.holds(&["ORIG_HEAD"])),
     Case("commits not on the remote", |host| host.holds(&["WIP"])),
+    Case("commits not on the remote", |host| host.holds(&["MY-WIP"])),
     Case("per-worktree refs cannot be listed (reftable)", |host| {
         host.entry_is("/clone/.git/worktrees/task-00000000000000b1/reftable", EntryKind::Dir);
     }),

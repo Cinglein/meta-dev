@@ -222,7 +222,7 @@ impl FakeHost {
             let name = name.strip_suffix(PEELED).unwrap_or(&name).to_owned();
             (name != ROOT_HEAD
                 && !name.is_empty()
-                && name.chars().all(|letter| letter.is_ascii_uppercase() || letter == '_'))
+                && name.chars().all(|letter| letter.is_ascii_uppercase() || letter == '_' || letter == '-'))
             .then_some(name)
         };
         let named = arguments.iter().find_map(root)?;

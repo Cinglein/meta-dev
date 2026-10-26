@@ -14,9 +14,9 @@ const RECORDED: &str = r#""gc":{"Planned":"would free /trees/task-00000000000000
 const ZERO: TimeDelta = TimeDelta::seconds(0);
 
 #[test]
-fn the_heartbeat_gc_switch_takes_dry_run_or_free_and_nothing_else() {
+fn an_unknown_gc_switch_still_reads_so_the_tick_runs() {
     let read = [FREE, DRY_RUN, UNKNOWN].map(|text| Beat::settings(text).is_ok());
-    assert_eq!(read, [true, true, false]);
+    assert_eq!(read, [true, true, true]);
 }
 
 #[test]
