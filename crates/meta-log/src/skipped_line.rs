@@ -2,18 +2,21 @@ mod line_number;
 
 use std::fmt;
 
-use crate::detail::Detail;
 pub use line_number::LineNumber;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct SkippedLine {
     line: LineNumber,
-    reason: Detail,
+    reason: serde_json::Error,
 }
 
 impl SkippedLine {
-    pub fn new(line: LineNumber, reason: Detail) -> Self {
+    pub fn new(line: LineNumber, reason: serde_json::Error) -> Self {
         Self { line, reason }
+    }
+
+    pub fn line(&self) -> LineNumber {
+        self.line
     }
 }
 

@@ -1,13 +1,12 @@
 mod branch_name;
 mod ci_settings;
-mod remote_name;
 
+use meta_log::RemoteName;
 use serde::Deserialize;
 
 use crate::request::cli_failure::{CliFailure, Setup};
 pub use branch_name::BranchName;
 pub use ci_settings::{CiSettings, LogWindow, ProgramName};
-use remote_name::RemoteName;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct Config {

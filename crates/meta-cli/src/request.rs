@@ -6,7 +6,7 @@ mod parsed;
 mod project;
 
 use meta_listing::{Kind, Scope};
-use meta_log::{LogFailure, LogStore};
+use meta_log::LogStore;
 use meta_schema::{Actor, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, Record, TaskRef};
 use meta_state::State;
 
@@ -92,9 +92,9 @@ impl Request {
             Self::CiLog(session) => FailureLog::excerpt(project, &session),
             Self::Write(event) => {
                 let actor = Self::actor()?;
-                let record = log.append(&mut |snapshot| {
+                let record = log.append::<CliFailure>(&mut |snapshot| {
                     let record = Record::new(actor.clone(), event.clone());
-                    State::fold(snapshot.complete()?).vet(&record).map_err(LogFailure::refused)?;
+                    State::fold(snapshot.complete()?).vet(&record)?;
                     Ok(record)
                 })?;
                 Ok(Output::Written(record))

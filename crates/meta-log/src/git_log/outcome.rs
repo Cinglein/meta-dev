@@ -3,7 +3,6 @@ use std::ops::ControlFlow;
 use meta_schema::Record;
 
 use super::attempt::Attempt;
-use crate::log_failure::LogFailure;
 
 #[derive(Debug)]
 pub enum Outcome {
@@ -12,7 +11,7 @@ pub enum Outcome {
 }
 
 impl Outcome {
-    pub fn step(result: Result<Self, LogFailure>, attempt: Attempt) -> ControlFlow<Result<Record, LogFailure>> {
+    pub fn step<Failure>(result: Result<Self, Failure>, attempt: Attempt) -> ControlFlow<Result<Record, Failure>> {
         match result {
             Ok(Self::Appended(record)) => ControlFlow::Break(Ok(record)),
             Ok(Self::Raced) => {

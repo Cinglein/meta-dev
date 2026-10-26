@@ -5,7 +5,7 @@ use std::time::Duration;
 pub struct Attempt(u32);
 
 impl Attempt {
-    pub const LIMIT: u32 = 16;
+    const LIMIT: u32 = 16;
     const BASE_WINDOW: Duration = Duration::from_millis(50);
     const MAX_WINDOW: Duration = Duration::from_secs(2);
     const RESOLUTION: u32 = 1000;

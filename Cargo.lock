@@ -430,6 +430,7 @@ version = "0.0.0"
 dependencies = [
  "chrono",
  "meta-schema",
+ "serde",
  "serde_json",
  "tempfile",
  "thiserror",

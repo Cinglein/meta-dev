@@ -1,32 +1,31 @@
 use std::io;
+use std::time::Duration;
 
 use thiserror::Error;
 
-use crate::detail::Detail;
+use crate::command_line::CommandLine;
+use crate::remote_name::RemoteName;
+use crate::skipped_line::LineNumber;
+use crate::stderr::Stderr;
 
 #[derive(Debug, Error)]
 pub enum LogFailure {
-    #[error("refused: {0}")]
-    Refused(Detail),
-    #[error("offline: cannot fetch meta/log from {0}; nothing written")]
-    Offline(Detail),
-    #[error("meta/log has {0} line(s) this meta cannot read; upgrade meta before writing")]
-    Unreadable(Detail),
-    #[error("git: {0}")]
-    Git(Detail),
+    #[error("offline: cannot fetch meta/log from {remote}: \"{stderr}\"; nothing written")]
+    Offline { remote: RemoteName, stderr: Stderr },
+    #[error("offline: `{command}` timed out after {after:?}; nothing written")]
+    TimedOut { command: CommandLine, after: Duration },
+    #[error("meta/log {0} is unreadable by this meta; upgrade meta before writing")]
+    Unreadable(LineNumber),
+    #[error("meta/log on {0} must hold only events.jsonl; nothing written")]
+    Malformed(RemoteName),
+    #[error("git: {command}: {stderr}")]
+    Git { command: CommandLine, stderr: Stderr },
     #[error("meta/log push rejected: {0}")]
-    Rejected(Detail),
-    #[error("meta/log kept moving; gave up after {0} attempts")]
-    Contended(Detail),
+    Rejected(Stderr),
+    #[error("meta/log kept moving; gave up")]
+    Contended,
     #[error("{0}")]
     Io(#[from] io::Error),
     #[error("{0}")]
     Encode(#[from] serde_json::Error),
-}
-
-impl LogFailure {
-    #[expect(clippy::needless_pass_by_value, reason = "map_err hands the refusal over by value")]
-    pub fn refused(reason: impl ToString) -> Self {
-        Self::Refused(Detail::from_reason(&reason))
-    }
 }

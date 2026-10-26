@@ -23,7 +23,7 @@ impl Project {
     const CONFIG_FILE: &'static str = "meta.toml";
 
     pub fn log(&self) -> Result<GitLog, CliFailure> {
-        self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote))
+        self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote.clone()))
     }
 
     pub fn listed(&self, kind: Option<Kind>, scope: Scope) -> Result<Listed, CliFailure> {
