@@ -1,0 +1,18 @@
+[package]
+name = "meta-pull-query"
+description = "One batched `gh api graphql` query for a project's open and linked pull requests, and its typed reply."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+meta-schema.workspace = true
+meta-pulls.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

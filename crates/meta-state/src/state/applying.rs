@@ -54,7 +54,7 @@ impl EventVisitor for Applying<'_> {
     }
 
     fn task_linked(self, link: TaskLink) -> Self::Output {
-        self.state.task_mut(link.task())?.linked(link.pull_request())
+        self.state.task_mut(link.task()).map(|task| task.linked(link.pull_request()))
     }
 
     fn task_done(self, task: TaskRef) -> Self::Output {

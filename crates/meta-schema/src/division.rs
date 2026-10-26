@@ -25,6 +25,14 @@ impl Division {
     }
 
     #[must_use]
+    pub fn lineage(&self) -> Vec<Division> {
+        (0..=self.below.len())
+            .filter_map(|depth| self.below.get(..depth))
+            .map(|below| Division { top: self.top, below: below.to_vec() })
+            .collect()
+    }
+
+    #[must_use]
     pub fn is_nested(&self) -> bool {
         !self.below.is_empty()
     }

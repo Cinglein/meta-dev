@@ -7,7 +7,9 @@ mod vetting;
 
 use std::collections::HashMap;
 
-use meta_schema::{Actor, Block, Entry, EntryNote, Id, Record, SchemaVersion, Target, Task, Text};
+use meta_schema::{
+    Actor, Block, Entry, EntryNote, Id, PullRequest, Record, SchemaVersion, Target, Task, TaskLink, Text,
+};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
@@ -44,6 +46,11 @@ impl State {
         self.schema
             .filter(|marked| *marked > SchemaVersion::current())
             .map_or(Ok(()), |marked| Err(Refusal::NewerSchema(marked)))?;
+        let linked = |link: &TaskLink| {
+            self.task(link.task()).is_some_and(|task| task.pull_requests().contains(&link.pull_request()))
+        };
+        let known = record.event().task_link().filter(linked);
+        known.map_or(Ok(()), |link| Err(Refusal::AlreadyLinked(link.pull_request())))?;
         let mut next = self.clone();
         record.event().visit(Applying::new(&mut next, Stamp::from_record(record))).map(|()| next.swept())
     }
@@ -79,6 +86,17 @@ impl State {
     pub fn holders(&self, task: Id<Task>) -> Vec<Actor> {
         self.task(task)
             .map(|task| task.progress().assignments().iter().map(|stamp| stamp.actor().clone()).collect())
+            .unwrap_or_default()
+    }
+
+    #[must_use]
+    pub fn unlinked(&self, task: Id<Task>, pull_requests: &[PullRequest]) -> Vec<TaskLink> {
+        self.task(task)
+            .filter(|held| !held.progress().assignments().is_empty())
+            .map(|held| {
+                let fresh = pull_requests.iter().filter(|pull_request| !held.pull_requests().contains(pull_request));
+                fresh.map(|pull_request| TaskLink::new(task, *pull_request)).collect()
+            })
             .unwrap_or_default()
     }
 

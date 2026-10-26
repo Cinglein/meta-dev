@@ -6,9 +6,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::unrecognised::Unrecognised;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct PullRequest(NonZeroU64);
+
+impl PullRequest {
+    #[must_use]
+    pub fn number(self) -> NonZeroU64 {
+        self.0
+    }
+}
 
 impl FromStr for PullRequest {
     type Err = Unrecognised;

@@ -43,6 +43,14 @@ impl Event {
     }
 
     #[must_use]
+    pub fn task_link(&self) -> Option<TaskLink> {
+        match self {
+            Self::TaskLinked(link) => Some(*link),
+            _ => None,
+        }
+    }
+
+    #[must_use]
     pub fn schema_version(&self) -> Option<SchemaVersion> {
         match self {
             Self::SchemaVersion(version) => Some(*version),
