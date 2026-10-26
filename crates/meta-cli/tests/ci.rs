@@ -7,9 +7,10 @@ use std::process::{Command, ExitStatus, Output, Stdio};
 use std::time::Duration;
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
-const CONFIG: &str =
-    "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\nappear_millis = 60\n";
-const PATIENT: &str = "timeout_millis = 300\nremote_millis = 300\n";
+const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 2\n";
+const PATIENT: &str = "appear_millis = 60\ntimeout_millis = 300\nremote_millis = 300\n";
+const STALLED: &str = "appear_millis = 60\ntimeout_millis = 300\nremote_millis = 40\n";
+const QUICK: &str = "appear_millis = 30\ntimeout_millis = 120\nremote_millis = 120\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 [ "$FAKE_GH_SCENARIO" = hang ] && exec sleep 5
 count="$FAKE_GH_DIR/count"
@@ -52,8 +53,8 @@ ci\tcargo xtask ci\t2026-10-25T06:40:09.4000000Z test result: FAILED. 2 passed; 
 ci\tcargo xtask ci\t2026-10-25T06:40:09.5000000Z ##[error]Process completed with exit code 101.
 ";
 const SHELL: &str = "/bin/sh";
-const SETTLE_POLL: Duration = Duration::from_millis(10);
-const SETTLE_LENGTH: usize = 300;
+const SETTLE_POLL: Duration = Duration::from_millis(2);
+const SETTLE_LENGTH: usize = 1500;
 const SESSION: &str = "ABCDEF12-34";
 const SESSION_FILE: &str = "ABCDEF1234";
 const FAILURE: &str = "failure";
@@ -96,6 +97,9 @@ const FAILED_EVENT: &str = ": failed after";
 const COMPLETIONS: [&str; 5] =
     [": passed after", ": failed after", ": timed-out after", ": unavailable after", ": absent after"];
 
+#[path = "support/skeleton.rs"]
+mod skeleton;
+use skeleton::Skeleton;
 #[path = "ci/merges.rs"]
 mod merges;
 #[path = "ci/pushes.rs"]
@@ -108,8 +112,16 @@ mod sessions;
 struct Git;
 
 impl Git {
-    const IDENTITY: [&'static str; 6] =
-        ["-c", "user.name=t", "-c", "user.email=t@meta.invalid", "-c", "init.defaultBranch=main"];
+    const IDENTITY: [&'static str; 8] = [
+        "-c",
+        "user.name=t",
+        "-c",
+        "user.email=t@meta.invalid",
+        "-c",
+        "init.defaultBranch=main",
+        "-c",
+        "maintenance.auto=false",
+    ];
 
     const LONG_AGO: &'static str = "@1000000000 +0000";
 
@@ -126,6 +138,18 @@ impl Git {
             .env("GIT_COMMITTER_DATE", date)
             .output()
             .unwrap()
+    }
+
+    fn head(dir: &Path) -> String {
+        let git_dir = dir.join(".git");
+        let text = std::fs::read_to_string(git_dir.join("HEAD")).ok().filter(|_| git_dir.is_dir());
+        let read = text.and_then(|text| match text.trim().strip_prefix("ref: ") {
+            Some(name) => std::fs::read_to_string(git_dir.join(name)).ok(),
+            None => Some(text),
+        });
+        read.unwrap_or_else(|| String::from_utf8(Self::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap())
+            .trim()
+            .to_owned()
     }
 
     fn link_origin(dir: &Path, url: &str) {
@@ -145,7 +169,7 @@ struct Stale;
 
 impl Stale {
     fn plant(repo: &Repo) {
-        let head = String::from_utf8(Git::run(repo.clone.path(), &["rev-parse", "HEAD"]).stdout).unwrap();
+        let head = Git::head(repo.clone.path());
         let states = repo.clone.path().join(".git/meta-ci/ABCDEF1234/states");
         std::fs::create_dir_all(states.join(head.trim())).unwrap();
     }
@@ -154,9 +178,9 @@ impl Stale {
 struct Started;
 
 impl Started {
-    fn building(scenario: &'static str) -> std::thread::JoinHandle<Repo> {
+    fn building(scenario: &'static str, limits: &'static str) -> std::thread::JoinHandle<Repo> {
         std::thread::spawn(move || {
-            let repo = Repo::new(scenario);
+            let repo = Repo::limited(scenario, limits);
             repo.hook(POST, COMMIT);
             repo
         })
@@ -188,7 +212,7 @@ struct FailingHead;
 
 impl FailingHead {
     fn copy_from(repo: &Repo, dir: &Path) {
-        std::fs::write(repo.clone.path().join("bin/head"), Git::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap();
+        std::fs::write(repo.clone.path().join("bin/head"), format!("{}\n", Git::head(dir))).unwrap();
     }
 }
 
@@ -201,13 +225,14 @@ impl Planted {
     const RUNNING: &'static str = "running";
 
     fn running(repo: &Repo) {
-        let head = String::from_utf8(Git::run(repo.clone.path(), &["rev-parse", "HEAD"]).stdout).unwrap();
+        let head = Git::head(repo.clone.path());
         let states = repo.clone.path().join(Self::STATES);
         std::fs::create_dir_all(&states).unwrap();
         std::fs::write(states.join(head.trim()), format!("{} {}", head.trim(), Self::RUNNING)).unwrap();
     }
 
     fn refusal(origin: &Path) {
+        std::fs::create_dir_all(origin.join("hooks")).unwrap();
         let hook = origin.join(Self::PRE_RECEIVE);
         std::fs::write(&hook, Self::REFUSE).unwrap();
         std::fs::set_permissions(hook, std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
@@ -278,12 +303,16 @@ struct Repo {
 
 impl Repo {
     fn new(scenario: &'static str) -> Self {
+        Self::limited(scenario, PATIENT)
+    }
+
+    pub fn limited(scenario: &'static str, limits: &str) -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Git::run(origin.path(), &["init", "-q", "--bare"]);
-        Git::run(clone.path(), &["init", "-q", "-b", "feature"]);
+        Skeleton::Bare.lay(origin.path(), "main");
+        Skeleton::Working.lay(clone.path(), "feature");
         Git::link_origin(clone.path(), origin.path().to_str().unwrap());
-        std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{PATIENT}")).unwrap();
+        std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{limits}")).unwrap();
         std::fs::create_dir(clone.path().join("bin")).unwrap();
         std::fs::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
         std::fs::write(clone.path().join("bin/failed.log"), FAILED_LOG).unwrap();
@@ -357,7 +386,7 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_pus
 
 #[test]
 fn passing_or_unstarted_runs_let_the_agent_stop() {
-    let unstarted = Started::building(UNSTARTED);
+    let unstarted = Started::building(UNSTARTED, PATIENT);
     let repo = Repo::new(SUCCESS);
     Git::run(repo.clone.path(), &PUSH_WORDS);
     repo.hook(POST, PLAIN_PUSH);
@@ -382,7 +411,9 @@ fn passing_or_unstarted_runs_let_the_agent_stop() {
 
 #[test]
 fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
-    let repos = [NONE, LATE, BROKEN, MIXED, HANG].map(Started::building).map(|started| started.join().unwrap());
+    let repos = [(NONE, QUICK), (LATE, QUICK), (BROKEN, PATIENT), (MIXED, PATIENT), (HANG, QUICK)]
+        .map(|(scenario, limits)| Started::building(scenario, limits))
+        .map(|started| started.join().unwrap());
     let [absent, late, broken, mixed, hung] = repos.each_ref().map(Repo::settled);
     let [none, ..] = &repos;
     assert!(
