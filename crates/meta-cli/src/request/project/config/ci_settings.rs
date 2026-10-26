@@ -43,3 +43,17 @@ impl CiSettings {
         &self.log_window
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Duration;
+    use crate::request::project::config::Config;
+
+    const CONFIGURED: &str = "[ci]\npoll_millis = 7";
+
+    #[test]
+    fn the_poll_interval_is_the_configured_poll_millis() {
+        let config: Config = toml::from_str(CONFIGURED).unwrap();
+        assert_eq!(config.ci_settings().poll_interval().duration(), Duration::from_millis(7));
+    }
+}
