@@ -14,6 +14,7 @@ pub enum OptionName {
     Effort,
     Due,
     On,
+    Worktree,
 }
 
 impl FromStr for OptionName {
@@ -30,6 +31,7 @@ impl FromStr for OptionName {
             "--effort" => Ok(Self::Effort),
             "--due" => Ok(Self::Due),
             "--on" => Ok(Self::On),
+            "--worktree" => Ok(Self::Worktree),
             other => Err(CliFailure::raised::<Misuse>(format!(
                 "unknown option {other}; put text starting with -- after a bare --"
             ))),
@@ -49,6 +51,7 @@ impl fmt::Display for OptionName {
             Self::Effort => "--effort",
             Self::Due => "--due",
             Self::On => "--on",
+            Self::Worktree => "--worktree",
         };
         formatter.write_str(name)
     }

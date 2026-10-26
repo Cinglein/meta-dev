@@ -10,7 +10,8 @@ impl fmt::Display for Usage {
              \x20 concern <text> --division <path> [--source <text>] [--tag acceptance-candidate]\n\
              \x20 issue <text> --division <path>\n\
              \x20 open <text> --division <path> [--addresses <concern-id|issue-id>]... [--effort <tokens>] [--due <rfc3339>]\n\
-             \x20 claim <task-id> [--from <actor>]   (assigns you; several may hold a task)\n\
+             \x20 claim <task-id> [--from <actor>] [--worktree]   (assigns you; several may hold a task; --worktree: new worktree on branch <task-id>, prints its path)\n\
+             \x20 worktrees   (this clone's worktrees: task status, missing, unrecorded)\n\
              \x20 release <task-id>   (unassigns you)\n\
              \x20 done|reopen <task-id>\n\
              \x20 wait <task-id> --on <issue-id|task-id|review|ci|merge> | resume <task-id>\n\
