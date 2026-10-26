@@ -185,3 +185,4 @@
 {"at":"2026-10-26T05:11:13.418457Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-817a03af306f13cb","text":"Stage 1: runs and timings recorded for every check; flakiness budget; complexity and vagueness budgets as counts"}
 {"at":"2026-10-26T05:11:15.046274Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-ed92ee5f1c56d6ec","text":"demoted to concern-817a03af306f13cb (not scheduled; WIP cap)"}
 {"at":"2026-10-26T05:11:16.613711Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-2f5016d52fd8b380","text":"Stage 2: meta run trail recorder; first procedure (Playwright lookup); researcher and tester roles"}
+{"at":"2026-10-26T05:11:18.093371Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-66e3dcd63a2f84df","text":"demoted to concern-2f5016d52fd8b380 (not scheduled; WIP cap)"}
