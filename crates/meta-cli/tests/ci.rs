@@ -220,7 +220,11 @@ fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
     let _: Vec<String> = repos.iter().map(|repo| repo.hook(POST, COMMIT)).collect();
     let [absent, late, broken, mixed] = repos.each_ref().map(Repo::settled);
     let [none, ..] = &repos;
-    assert!(absent.contains(ABSENT) && !none.hook(STOP, COMMIT).contains(BLOCK));
+    assert!(
+        absent.contains(ABSENT)
+            && absent.split_once(NO_RUN_YET).is_some_and(|(_, after)| !after.contains(NO_RUN_YET))
+            && !none.hook(STOP, COMMIT).contains(BLOCK)
+    );
     assert!(late.contains(NO_RUN_YET) && late.contains(RUN_APPEARED) && late.contains(TIMED_OUT));
     assert!(broken.contains(LIST_ERROR) && broken.contains(VIEW_ERROR) && mixed.contains(FAILED_EVENT));
 }
