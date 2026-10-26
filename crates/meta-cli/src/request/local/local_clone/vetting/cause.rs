@@ -5,7 +5,7 @@ pub struct Cause(String);
 
 impl Cause {
     pub fn new(cause: impl fmt::Display) -> Self {
-        Self(cause.to_string().trim().to_owned())
+        Self(cause.to_string().lines().map(str::trim).find(|line| !line.is_empty()).unwrap_or_default().to_owned())
     }
 }
 
