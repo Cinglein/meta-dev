@@ -29,11 +29,16 @@ use settings::EmbeddedDefaults;
 use vague::Vague;
 use vocabulary::Vocabulary;
 
+use std::fs;
+use std::path::Path;
+
 use crate::branches::{Branch, BranchName};
 use crate::budget::{
     AvailableGib, CompilerTasks, Interval, MemoryShare, Millis, MutantMillis, MutationCadence,
 };
+use crate::failure::Failure;
 use crate::name::Name;
+use crate::site::Site;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -58,6 +63,20 @@ impl EmbeddedDefaults for Policy {
 }
 
 impl Policy {
+    const FILE: &str = "tooling/policy.toml";
+
+    pub fn read(root: &Path) -> Result<Policy, Failure> {
+        let path = root.join(Self::FILE);
+        let text = fs::read_to_string(&path).map_err(|error| Failure::Io {
+            site: Site::File(path.clone()),
+            error,
+        })?;
+        toml::from_str(&text).map_err(|error| Failure::Policy {
+            site: Site::File(path),
+            error,
+        })
+    }
+
     #[must_use]
     pub fn limit(&self, limit: Limit) -> Most {
         self.limits[limit]
@@ -136,8 +155,11 @@ impl Policy {
 mod tests {
     use super::{Limit, Name, Policy};
     use settings::EmbeddedDefaults;
+    use std::path::Path;
     const CHECK: &str = "check";
     const LONG_ENOUGH: &str = "report";
+    const ROOT: &str = "../..";
+    const NO_POLICY: &str = "src";
 
     #[test]
     fn the_checked_in_policy_round_trips_and_knows_a_vague_name_from_a_said_one() {
@@ -149,5 +171,15 @@ mod tests {
             read.limit(Limit::Parameters)
                 .allows(read.limit(Limit::Parameters).count())
         );
+    }
+
+    #[test]
+    fn a_workspace_policy_is_read_from_its_root_and_a_root_without_one_fails() {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+        assert_eq!(
+            Policy::read(&manifest.join(ROOT)).ok(),
+            Some(Policy::defaults())
+        );
+        assert!(Policy::read(&manifest.join(NO_POLICY)).is_err());
     }
 }

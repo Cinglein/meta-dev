@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::env;
 use std::fs::{self, DirEntry};
 use std::path::{Path, PathBuf};
 
@@ -21,7 +22,11 @@ impl Workspace {
     const WORKSPACE_TABLE: &str = "[workspace]";
 
     pub fn locate(tool: CrateName) -> Result<Workspace, Failure> {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        let current = env::current_dir().map_err(|error| Failure::Io {
+            site: Site::Workspace,
+            error,
+        })?;
+        let root = current
             .ancestors()
             .find(|directory| {
                 fs::read_to_string(directory.join(Self::MANIFEST))
