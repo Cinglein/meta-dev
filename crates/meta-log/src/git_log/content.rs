@@ -75,5 +75,6 @@ mod tests {
         let appended = Content::from(UNTERMINATED.to_owned()).appended(&record).unwrap();
         assert!(appended.as_ref().starts_with(&[UNTERMINATED, TERMINATOR].concat()));
         assert_eq!(appended.snapshot().records(), [record]);
+        assert_eq!(appended.to_string(), appended.as_ref());
     }
 }

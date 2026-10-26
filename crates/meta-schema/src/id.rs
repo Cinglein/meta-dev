@@ -2,7 +2,6 @@ mod id_failure;
 mod raw_id;
 
 use std::fmt;
-use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::str::FromStr;
 
@@ -14,7 +13,7 @@ use crate::unparsed::Unparsed;
 use id_failure::IdFailure;
 use raw_id::RawId;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Id<Kind: Entity> {
     raw: RawId,
     kind: PhantomData<fn() -> Kind>,
@@ -45,28 +44,6 @@ impl<Kind: Entity> fmt::Display for Id<Kind> {
     }
 }
 
-impl<Kind: Entity> Clone for Id<Kind> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<Kind: Entity> Copy for Id<Kind> {}
-
-impl<Kind: Entity> PartialEq for Id<Kind> {
-    fn eq(&self, other: &Self) -> bool {
-        self.raw == other.raw
-    }
-}
-
-impl<Kind: Entity> Eq for Id<Kind> {}
-
-impl<Kind: Entity> Hash for Id<Kind> {
-    fn hash<Into: Hasher>(&self, state: &mut Into) {
-        self.raw.hash(state);
-    }
-}
-
 impl<Kind: Entity> Serialize for Id<Kind> {
     fn serialize<Out: Serializer>(&self, serializer: Out) -> Result<Out::Ok, Out::Error> {
         serializer.collect_str(self)
@@ -90,7 +67,8 @@ mod tests {
     fn ids_round_trip_and_never_cross_kinds() {
         let task = Id::<Task>::generate();
         assert_eq!(task.to_string().parse::<Id<Task>>().ok(), Some(task));
-        assert!(task.to_string().parse::<Id<Concern>>().is_err());
+        let text = task.to_string();
+        assert!(text.parse::<Id<Concern>>().is_err_and(|failure| failure.to_string().contains(&text)));
     }
 
     #[test]
