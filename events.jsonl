@@ -221,3 +221,4 @@
 {"at":"2026-10-26T06:09:51.475139Z","actor":"claude-mutants-graph","kind":"TaskOpened","task":"task-8db452f8fc1d6f70","text":"Restore cargo xtask graph"}
 {"at":"2026-10-26T06:09:55.923218Z","actor":"claude-mutants-graph","kind":"EntryRetired","entry":"task-8db452f8fc1d6f70","text":"duplicate of task-cf9c88d496fd7589"}
 {"at":"2026-10-26T06:09:57.506747Z","actor":"claude-mutants-graph","kind":"TaskClaimed","task":"task-cf9c88d496fd7589"}
+{"at":"2026-10-26T06:14:10.207467Z","actor":"claude-mutants-graph","kind":"IssueReported","issue":"issue-5334f65248db4150","text":"GitHub Actions will not start jobs (billing failed or spending limit reached); PR #32 ci never ran. Repo also now redirects to Cinglein/meta-development-archive"}
