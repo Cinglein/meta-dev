@@ -22,7 +22,13 @@ impl Flags {
 
     #[must_use]
     pub fn since(&self, previous: &Self) -> Self {
-        Self(self.0.iter().filter(|flag| !previous.0.contains(flag)).cloned().collect())
+        Self(
+            self.0
+                .iter()
+                .filter(|flag| !previous.0.iter().any(|earlier| flag.repeats(earlier).is_some()))
+                .cloned()
+                .collect(),
+        )
     }
 
     #[must_use]

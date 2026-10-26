@@ -5,6 +5,7 @@ use std::time::Duration;
 pub enum HeartbeatFlag {
     NeverTicked,
     Stale { age: Duration, limit: Duration },
+    ClockSkew { ahead: Duration, limit: Duration },
 }
 
 impl fmt::Display for HeartbeatFlag {
@@ -15,6 +16,12 @@ impl fmt::Display for HeartbeatFlag {
                 formatter,
                 "heartbeat stale: {}s since the last tick, limit {}s",
                 age.as_secs(),
+                limit.as_secs()
+            ),
+            Self::ClockSkew { ahead, limit } => writeln!(
+                formatter,
+                "heartbeat clock skew: snapshot is {}s in the future, limit {}s",
+                ahead.as_secs(),
                 limit.as_secs()
             ),
         }

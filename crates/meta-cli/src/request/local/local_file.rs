@@ -1,15 +1,19 @@
+mod renaming;
+mod staged_name;
+
 use std::fmt;
 use std::io::{ErrorKind, Write as _};
 use std::path::PathBuf;
 
 use crate::request::cli_failure::{CliFailure, Setup};
+use renaming::Renaming;
+use staged_name::StagedName;
 
 #[derive(Debug)]
 pub struct LocalFile(PathBuf);
 
 impl LocalFile {
     const NEWLINE: char = '\n';
-    const STAGED_EXTENSION: &'static str = "staged";
 
     pub fn new(path: PathBuf) -> Self {
         Self(path)
@@ -33,11 +37,17 @@ impl LocalFile {
     }
 
     pub fn replaced(&self, text: &str) -> Result<(), CliFailure> {
-        let staged = self.0.with_extension(Self::STAGED_EXTENSION);
+        let staged = Self::new(self.staging());
         self.0.parent().map_or(Ok(()), std::fs::create_dir_all).map_err(|failure| self.failure(failure))?;
-        std::fs::write(&staged, text)
-            .and_then(|()| std::fs::rename(&staged, &self.0))
-            .map_err(|failure| self.failure(failure))
+        std::fs::write(&staged.0, text).map_err(|failure| staged.failure(failure))?;
+        std::fs::rename(&staged.0, &self.0).map_err(|failure| {
+            std::fs::remove_file(&staged.0).ok();
+            staged.failure(Renaming::failed_onto(&self.0, failure))
+        })
+    }
+
+    pub fn staging(&self) -> PathBuf {
+        self.0.with_file_name(StagedName::for_file(self.0.file_name().unwrap_or_default()).to_string())
     }
 
     pub fn failure(&self, failure: impl fmt::Display) -> CliFailure {

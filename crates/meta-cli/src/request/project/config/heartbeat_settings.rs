@@ -1,4 +1,5 @@
 mod seconds;
+mod skew_limit;
 mod stale_limit;
 mod tick_limit;
 
@@ -8,6 +9,7 @@ use serde::{Deserialize, Deserializer};
 use super::Config;
 use crate::request::cli_failure::{CliFailure, Setup};
 pub use seconds::Seconds;
+pub use skew_limit::SkewLimit;
 pub use stale_limit::StaleLimit;
 pub use tick_limit::TickLimit;
 
@@ -16,6 +18,7 @@ pub struct HeartbeatSettings {
     interval: Seconds,
     tick: TickLimit,
     stale: StaleLimit,
+    skew: SkewLimit,
 }
 
 impl HeartbeatSettings {
@@ -32,6 +35,10 @@ impl HeartbeatSettings {
 
     pub fn stale_limit(&self) -> StaleLimit {
         self.stale
+    }
+
+    pub fn skew_limit(&self) -> SkewLimit {
+        self.skew
     }
 }
 
@@ -58,11 +65,13 @@ impl<'de> Deserialize<'de> for HeartbeatSettings {
             tick: TickLimit,
             #[serde(rename = "stale_seconds")]
             stale: StaleLimit,
+            #[serde(rename = "skew_seconds")]
+            skew: SkewLimit,
         }
-        let Fields { interval, tick, stale } = Fields::deserialize(source)?;
+        let Fields { interval, tick, stale, skew } = Fields::deserialize(source)?;
         tick.under(interval)
             .and(stale.over(interval))
-            .map(|()| Self { interval, tick, stale })
+            .map(|()| Self { interval, tick, stale, skew })
             .ok_or_else(|| Source::Error::custom(Self::UNORDERED))
     }
 }

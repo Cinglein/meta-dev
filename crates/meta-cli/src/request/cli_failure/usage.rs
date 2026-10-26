@@ -21,7 +21,7 @@ impl fmt::Display for Usage {
              \x20 list [tasks|issues|concerns] [--all]\n\
              \x20 status [--flags]   (divisions down to tasks, live PR and CI; --flags: flags only, exit 1 if any)\n\
              \x20 heartbeat tick|flags|plist   (tick: one timed run of status, writes the local snapshot, prints new flags, exit 1 if any needs judgement | flags: latest snapshot and age, stale is a flag | plist: launchd job for this clone, printed only)\n\
-             \x20 hooksession-start|pre-tool-use|post-tool-use|stop   (Claude Code hook JSON on stdin)\n\
+             \x20 hook session-start|pre-tool-use|post-tool-use|stop   (Claude Code hook JSON on stdin)\n\
              \x20 ci-wait | ci-log   (this session's CI: wait for failure or completion | failed step output)\n\
              actor: $META_ACTOR, else owner",
         )

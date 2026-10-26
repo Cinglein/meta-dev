@@ -1,6 +1,7 @@
 mod gave_up;
 
 use std::path::Path;
+use std::process::Command;
 
 use chrono::{DateTime, Utc};
 use meta_log::LogStore;
@@ -16,6 +17,7 @@ use crate::request::local::LocalClone;
 use crate::request::output::{Listed, Output};
 use crate::request::project::{Project, TickLimit};
 use crate::request::status_view::StatusView;
+use crate::request::timed_command::TimedCommand;
 use gave_up::GaveUp;
 
 #[derive(Debug)]
@@ -40,17 +42,15 @@ impl Tick {
         })
     }
 
-    pub fn within(project: &Project, clone: &LocalClone, limit: TickLimit) -> Result<Output, CliFailure> {
-        let root = project.root().to_path_buf();
-        let git_dir = clone.git_dir().as_ref().to_path_buf();
-        limit
-            .within(move || Self::live(&root, &git_dir))
-            .unwrap_or_else(|| Err(CliFailure::raised::<Setup>(GaveUp::after(limit))))
+    pub fn supervised(command: Command, limit: TickLimit) -> Result<Output, CliFailure> {
+        let finished = TimedCommand::new(command, limit.deadline())
+            .finished()
+            .map_err(|reason| CliFailure::raised::<Setup>(GaveUp::after(limit, reason)))?;
+        finished.verdict().answered(&finished)
     }
 
-    fn live(root: &Path, git_dir: &Path) -> Result<Output, CliFailure> {
-        let project = Project::try_from(root)?;
-        let github = |query: &LiveQuery| LiveGithub::for_project(&project).read(query);
-        Self::answer(git_dir, &project.log()?, github, Utc::now())
+    pub fn live(project: &Project, clone: &LocalClone) -> Result<Output, CliFailure> {
+        let github = |query: &LiveQuery| LiveGithub::for_project(project).read(query);
+        Self::answer(clone.git_dir().as_ref(), &project.log()?, github, Utc::now())
     }
 }

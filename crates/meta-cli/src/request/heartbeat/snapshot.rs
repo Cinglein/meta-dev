@@ -26,6 +26,10 @@ impl Snapshot {
         &self.flags
     }
 
+    pub fn ahead(&self, now: DateTime<Utc>) -> Option<Duration> {
+        (self.taken - now).to_std().ok()
+    }
+
     pub fn age(&self, now: DateTime<Utc>) -> Duration {
         (now - self.taken).to_std().unwrap_or_default()
     }

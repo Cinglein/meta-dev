@@ -49,3 +49,12 @@ impl Flag {
         }
     }
 }
+
+impl Flag {
+    pub fn repeats(&self, earlier: &Self) -> Option<()> {
+        match (self, earlier) {
+            (Self::Unreached(_), Self::Unreached(_)) => Some(()),
+            _ => (self == earlier).then_some(()),
+        }
+    }
+}

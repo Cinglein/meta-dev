@@ -12,6 +12,9 @@ const CLEAN: &str = "echo clean";
 const RAISED: &str = "echo raised; exit 1";
 const FAILED: &str = "echo oops >&2; exit 1";
 const HANGS: &str = "sleep 30 & wait";
+const OOPS: &str = "oops";
+const GAVE_UP: &str = "tick gave up after";
+const TIMED_OUT: &str = "timed out";
 
 struct Shell;
 
@@ -33,7 +36,8 @@ fn a_supervised_tick_passes_on_the_output_and_the_verdict_of_the_inner_run() {
 
 #[test]
 fn an_inner_failure_and_a_run_past_the_limit_are_both_refused() {
-    let failed = Tick::supervised(Shell::running(FAILED), TickLimit::from(PATIENT)).unwrap_err().to_string();
-    let hung = Tick::supervised(Shell::running(HANGS), TickLimit::from(IMPATIENT)).unwrap_err().to_string();
-    assert!(failed.contains("oops") && hung.contains("tick gave up after") && hung.contains("timed out"));
+    let failed = Tick::supervised(Shell::running(FAILED), TickLimit::from(PATIENT)).unwrap_err();
+    let hung = Tick::supervised(Shell::running(HANGS), TickLimit::from(IMPATIENT)).unwrap_err();
+    assert!(failed.to_string().contains(OOPS) && hung.to_string().contains(GAVE_UP));
+    assert!(hung.to_string().contains(TIMED_OUT));
 }

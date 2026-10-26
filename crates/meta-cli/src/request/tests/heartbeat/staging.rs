@@ -17,6 +17,6 @@ fn a_failed_replacement_names_the_staging_path_and_the_target() {
     let dir = tempfile::tempdir().unwrap();
     let target = dir.path().join(FILE);
     std::fs::create_dir(&target).unwrap();
-    let failure = LocalFile::new(target.clone()).replaced(TEXT).unwrap_err().to_string();
-    assert!(failure.contains(STAGED) && failure.contains(&target.display().to_string()));
+    let failure = LocalFile::new(target.clone()).replaced(TEXT).unwrap_err();
+    assert!(failure.to_string().contains(STAGED) && failure.to_string().contains(&*target.to_string_lossy()));
 }

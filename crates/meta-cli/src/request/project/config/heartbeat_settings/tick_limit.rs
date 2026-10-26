@@ -1,6 +1,5 @@
 use std::fmt;
-use std::sync::mpsc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::Deserialize;
 
@@ -11,10 +10,8 @@ use super::seconds::Seconds;
 pub struct TickLimit(Duration);
 
 impl TickLimit {
-    pub fn within<Done: Send + 'static>(self, work: impl FnOnce() -> Done + Send + 'static) -> Option<Done> {
-        let (sender, receiver) = mpsc::channel();
-        std::thread::spawn(move || sender.send(work()).ok());
-        receiver.recv_timeout(self.0).ok()
+    pub fn deadline(self) -> Instant {
+        Instant::now() + self.0
     }
 
     pub fn under(self, interval: Seconds) -> Option<()> {
