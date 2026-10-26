@@ -10,7 +10,8 @@ Principles, ladder and design: `context/SPEC.md`. Build stages: `context/BOOTSTR
 - `tooling/`: one crate per lint or task; `tooling/policy.toml` holds every limit and budget.
 - `xtask/`: `cargo xtask ci` (fmt, clippy, lints, tests, test-time budget); CI runs it with `--affected`.
 - `plugin/`: Claude Code hooks that call `meta hook`. `self/`: lint baseline and log seed scripts.
-- `context/`: agent context. `docs/`: STE100 documentation only; absent until there is some.
+- `context/` and this file: agent context (prose category 1). `docs/`: STE100 documentation
+  only (category 2); absent until there is some.
 
 ## Privacy
 
@@ -46,7 +47,7 @@ Principles, ladder and design: `context/SPEC.md`. Build stages: `context/BOOTSTR
 - Policy values (limits, budgets, word lists) live in `tooling/policy.toml`, per project (principle 5).
 - Complexity is budgeted: a new type, rule, or hook names the concern it moves up the ladder.
   Prefer deleting code.
-- Strings are terse: errors, help, commit messages, PR titles and bodies.
+- Strings are terse (category 3): errors, help, commit messages, PR titles and bodies.
 
 ## Threat model
 
