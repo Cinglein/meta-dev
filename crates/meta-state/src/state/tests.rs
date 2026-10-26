@@ -1,11 +1,17 @@
-use meta_schema::{Actor, Claim, Event, Id, NewConcern, NewTask, Record, Target, Task, TaskRef};
+mod assignments;
+mod blocking;
+mod links;
+
+use meta_schema::{Actor, Claim, Division, Event, Id, NewConcern, NewIssue, NewTask, Record, Target, Task, TaskRef};
 
 use super::State;
 use crate::refusal::Refusal;
+use crate::task_state::TaskStatus;
 
 const OWNER: &str = "owner";
 const ALICE: &str = "alice";
 const BOB: &str = "bob";
+const DIVISION: &str = "features-and-maintenance";
 
 struct Events;
 
@@ -14,8 +20,12 @@ impl Events {
         name.parse().unwrap()
     }
 
+    fn division() -> Division {
+        DIVISION.parse().unwrap()
+    }
+
     fn task(targets: Vec<Target>) -> NewTask {
-        NewTask::new(OWNER.parse().unwrap(), targets)
+        NewTask::new(Self::division(), OWNER.parse().unwrap(), targets)
     }
 
     fn claim(task: Id<Task>, from: Option<&str>) -> Event {
@@ -23,7 +33,11 @@ impl Events {
     }
 
     fn concern() -> NewConcern {
-        NewConcern::new(OWNER.parse().unwrap(), None, vec![])
+        NewConcern::new(Self::division(), OWNER.parse().unwrap(), None, vec![])
+    }
+
+    fn issue() -> NewIssue {
+        NewIssue::new(Self::division(), OWNER.parse().unwrap())
     }
 }
 
@@ -64,6 +78,15 @@ impl Script {
         self.records.push(Record::new(Events::actor(actor), event));
         self
     }
+
+    fn refused(&self) -> Vec<String> {
+        State::fold(&self.records).anomalies().iter().map(ToString::to_string).collect()
+    }
+
+    fn status(&self) -> TaskStatus {
+        let state = State::fold(&self.records);
+        state.tasks().first().map(|task| state.status_of(task)).unwrap()
+    }
 }
 
 #[test]
@@ -77,25 +100,21 @@ fn done_addresses_targets_and_reopen_undoes_it() {
         .then(ALICE, Events::claim(task.task(), None))
         .then(ALICE, Lifecycle::event(&task, DONE));
     assert_eq!(State::fold(&done.records).addressed_by(target), Some(task.task()));
-    assert_eq!(State::fold(&done.then(BOB, Lifecycle::event(&task, REOPENED)).records).addressed_by(target), None);
+    let reopened = done.then(BOB, Lifecycle::event(&task, REOPENED));
+    assert_eq!(State::fold(&reopened.records).addressed_by(target), None);
 }
 
 #[test]
-fn claims_are_taken_over_only_by_naming_the_claimant_and_finished_only_by_them() {
+fn only_assignees_finish_or_release_and_every_refusal_names_the_actor() {
     let task = Events::task(vec![]);
     let script = Script::default()
         .then(OWNER, Lifecycle::event(&task, OPENED))
-        .then(ALICE, Events::claim(task.task(), None))
-        .then(BOB, Events::claim(task.task(), None))
         .then(BOB, Lifecycle::event(&task, DONE))
-        .then(BOB, Events::claim(task.task(), Some(ALICE)))
-        .then(ALICE, Lifecycle::event(&task, RELEASED));
-    let refused: Vec<String> = State::fold(&script.records).anomalies().iter().map(ToString::to_string).collect();
-    let expected = [
-        Refusal::ClaimedBy(Events::actor(ALICE)),
-        Refusal::HeldBy(Events::actor(ALICE)),
-        Refusal::HeldBy(Events::actor(BOB)),
-    ];
+        .then(ALICE, Events::claim(task.task(), None))
+        .then(BOB, Lifecycle::event(&task, DONE))
+        .then(BOB, Lifecycle::event(&task, RELEASED));
+    let expected = [Refusal::NotAssigned(Events::actor(BOB)), Refusal::NotAssigned(Events::actor(BOB)), Refusal::NotAssigned(Events::actor(BOB))];
+    let refused = script.refused();
     assert!(refused.iter().zip(&expected).all(|(found, refusal)| found.ends_with(&refusal.to_string())));
     assert_eq!(refused.len(), expected.len());
 }

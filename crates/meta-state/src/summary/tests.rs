@@ -18,16 +18,18 @@ const LOG: &str = r#"{"at":"2026-10-25T00:00:00Z","actor":"owner","kind":"Concer
 {"at":"2026-10-25T00:00:00Z","actor":"owner","kind":"EntryCorrected","entry":"issue-00000000000000a1","text":"crash on start"}
 {"at":"2026-10-25T00:00:00Z","actor":"owner","kind":"EntryCorrected","entry":"concern-00000000000000c1","text":"ci is slow"}
 {"at":"2026-10-25T00:00:00Z","actor":"owner","kind":"EntryRetired","entry":"issue-00000000000000a2","text":"dup"}
-{"at":"2026-10-25T00:00:00Z","actor":"owner","kind":"EntryCorrected","entry":"task-00000000000000b9","text":"x"}"#;
+{"at":"2026-10-25T00:00:00Z","actor":"owner","kind":"EntryCorrected","entry":"task-00000000000000b9","text":"x"}
+{"at":"2026-10-25T00:00:00Z","actor":"owner","kind":"TaskOpened","task":"task-00000000000000b4","text":"speed up","division":"performance-and-cost/ci","effort":50000,"due":"2026-11-01T00:00:00Z"}"#;
 
-const SUMMARY: &str = "Tasks: 2 unfinished, 1 done, 0 retired
-  [claimed by bob 2026-10-25 00:00Z] task-00000000000000b3 fix crash — opened by owner 2026-10-25 00:00Z
+const SUMMARY: &str = "Tasks: 3 unfinished, 1 done, 0 retired
+  [assigned to bob 2026-10-25 00:00Z] task-00000000000000b3 fix crash — opened by owner 2026-10-25 00:00Z
   [open] task-00000000000000b2 triage >issue-00000000000000a1 — opened by owner 2026-10-25 00:00Z
+  [open] task-00000000000000b4 speed up @performance-and-cost/ci effort 50000 tokens due 2026-11-01 00:00Z — opened by owner 2026-10-25 00:00Z
 Issues: 1 open
   issue-00000000000000a1 crash on start — owner 2026-10-25 00:00Z
 Concerns: 1 open, 1 #acceptance-candidate (meta list concerns)
-Refused: 2026-10-25 00:00Z carol TaskClaimed task-00000000000000b3 from alice: alice does not hold the task
-Refused: 2026-10-25 00:00Z carol TaskDone task-00000000000000b3: the task is held by bob, not by you
+Refused: 2026-10-25 00:00Z carol TaskClaimed task-00000000000000b3 from alice: alice is not assigned to the task
+Refused: 2026-10-25 00:00Z carol TaskDone task-00000000000000b3: carol is not assigned to the task
 Refused: 2026-10-25 00:00Z owner EntryCorrected task-00000000000000b9: x: there is no entry task-00000000000000b9
 ";
 
@@ -36,7 +38,7 @@ const CONCERNS: [&str; 2] = [
     "concern-00000000000000c2 flaky — owner 2026-10-25 00:00Z",
 ];
 
-const CLOSED: [Option<()>; 3] = [Some(()), None, None];
+const CLOSED: [Option<()>; 4] = [Some(()), None, None, None];
 
 #[test]
 fn the_summary_shows_what_is_left_after_work_corrections_and_refusals() {

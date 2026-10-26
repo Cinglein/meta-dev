@@ -7,6 +7,7 @@ use crate::listing::Listing;
 use crate::scope::Scope;
 
 const OWNER: &str = "owner";
+const DIVISION: &str = "features-and-maintenance";
 const ORIGINAL: &str = "wrong id task-3afc044494f2045f";
 const CORRECTED: &str = "right id task-0351e1866c684d95";
 const REASON: &str = "owner kept early stop";
@@ -35,7 +36,7 @@ impl Script {
 
 #[test]
 fn a_retired_task_is_kept_corrected_and_closed_to_further_work() {
-    let task = NewTask::new(Script::text(ORIGINAL), vec![]);
+    let task = NewTask::new(DIVISION.parse().unwrap(), Script::text(ORIGINAL), vec![]);
     let records: Vec<Record> = Script::retired_and_corrected(&task).into_iter().map(Script::record).collect();
     let state = State::fold(&records);
     let listed = Listing::new(&state, Kind::Tasks, Scope::All).to_string();
