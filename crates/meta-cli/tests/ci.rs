@@ -169,6 +169,11 @@ impl StartFile {
     const WRITES: &'static str = "writes";
     const NANOS: &'static str = "000000000";
 
+    fn second_of(sessions: &Path, session: &str) -> String {
+        let nanos = std::fs::read_to_string(sessions.join(Self::ROOT).join(session).join(Self::NAME)).unwrap();
+        nanos.split_at(nanos.len() - Self::NANOS.len()).0.to_owned()
+    }
+
     fn plant(sessions: &Path, session: &str, seconds: &str) {
         let folder = sessions.join(Self::ROOT).join(session);
         std::fs::create_dir_all(&folder).unwrap();

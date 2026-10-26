@@ -1,4 +1,3 @@
-use std::fmt;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -16,11 +15,5 @@ impl FromStr for UnixSeconds {
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         text.trim().parse().map(Self)
-    }
-}
-
-impl fmt::Display for UnixSeconds {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{}", self.0)
     }
 }

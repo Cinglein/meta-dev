@@ -20,6 +20,7 @@ const STATE_ROOT: &str = ".git/meta-ci";
 const FUTURE: &str = "@4000000001 +0000";
 const FUTURE_START: &str = "4000000000";
 const SAME: &str = "SAME5";
+const NOW: &str = "NOW6";
 const SAME_AT: &str = "4000000500";
 const SLOW_REMOTE: [&str; 3] = ["config", "remote.origin.uploadpack", "sleep 5; git-upload-pack"];
 const SLOW: std::time::Duration = std::time::Duration::from_secs(3);
@@ -61,6 +62,18 @@ fn a_slow_remote_fails_closed_in_time_and_a_commit_in_the_start_second_is_not_th
     let took = started.elapsed();
     let same = Session { repo: &repo, cwd: clone, id: SAME }.hook(STOP, COMMIT);
     assert!(slow.contains(UNREACHABLE) && took < SLOW && !same.contains(BLOCK));
+}
+
+#[test]
+fn a_commit_in_the_start_second_counts_when_its_object_is_newer() {
+    let repo = Repo::new(FAILURE);
+    let clone: &Path = repo.clone.path();
+    let now = Session { repo: &repo, cwd: clone, id: NOW };
+    now.hook(PRE, COMMIT);
+    let second = StartFile::second_of(repo.sessions.path(), NOW);
+    Git::run_at(clone, &NEXT_COMMIT, &second);
+    Git::run(clone, &PUSH_WORDS);
+    assert!(now.hook(STOP, COMMIT).contains(BLOCK));
 }
 
 #[test]

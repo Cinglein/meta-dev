@@ -33,3 +33,18 @@ impl fmt::Display for Commit {
         formatter.write_str(&self.0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Commit;
+    use std::path::Path;
+
+    const LISTED: &str = "abcdef0123\trefs/heads/x";
+    const LOOSE: &str = "objects/ab/cdef0123";
+
+    #[test]
+    fn a_listed_commit_is_its_first_word_and_its_loose_object_fans_out_by_two() {
+        let Ok(commit) = LISTED.parse::<Commit>();
+        assert_eq!(commit.loose_object(), Path::new(LOOSE));
+    }
+}

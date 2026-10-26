@@ -17,7 +17,7 @@ impl StartMoment {
     }
 
     pub fn precedes(&self, time: SystemTime) -> bool {
-        time.duration_since(SystemTime::UNIX_EPOCH).is_ok_and(|since| since > self.0)
+        time.duration_since(SystemTime::UNIX_EPOCH).is_ok_and(|since| self.0.lt(&since))
     }
 }
 
