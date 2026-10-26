@@ -153,7 +153,14 @@ impl<'ast> Visit<'ast> for Flows<'_> {
     }
 
     fn visit_expr_if(&mut self, expr: &'ast ExprIf) {
-        () /* ~ changed by cargo-mutants ~ */
+        self.violations.extend(Self::lonely_if(expr).map(|span| {
+            Self::found(
+                self.path,
+                span,
+                "if without else yields nothing; use then_some, filter, or an else branch that produces the value",
+            )
+        }));
+        syn::visit::visit_expr_if(self, expr);
     }
 
     fn visit_expr_return(&mut self, expr: &'ast ExprReturn) {
