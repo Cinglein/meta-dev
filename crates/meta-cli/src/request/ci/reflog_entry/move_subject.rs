@@ -4,7 +4,7 @@ use std::str::FromStr;
 pub struct MoveSubject(String);
 
 impl MoveSubject {
-    const ONLY_MOVES_FIRST: [&'static str; 2] = ["checkout:", "reset:"];
+    const ONLY_MOVES_FIRST: [&'static str; 3] = ["checkout:", "reset:", "clone:"];
     const ONLY_MOVES_ANYWHERE: [&'static str; 4] = ["Fast-forward", "(start)", "(finish)", "(abort)"];
 
     pub fn creates(&self) -> bool {

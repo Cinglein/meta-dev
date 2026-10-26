@@ -16,6 +16,9 @@ const ADD_WORKTREE: [&str; 6] = ["worktree", "add", "-q", WORKTREE, "-b", WORKTR
 const FEATURE: &str = "feature";
 const PULL_WORDS: [&str; 4] = ["pull", "-q", "origin", WORKTREE];
 const STATE_ROOT: &str = ".git/meta-ci";
+const FUTURE: &str = "@4000000000 +0000";
+const FUTURE_START: &str = "4000000000";
+const THEIRS_START: &str = ".git/meta-ci/THEIRS2/started";
 
 struct Reviewer;
 
@@ -26,6 +29,12 @@ impl Reviewer {
         Git::run(reviewer.path(), &["clone", "-q", "-b", FEATURE, origin, "."]);
         std::fs::copy(repo.clone.path().join(CONFIG_FILE), reviewer.path().join(CONFIG_FILE)).unwrap();
         reviewer
+    }
+
+    fn plant_future_start(repo: &Repo) {
+        let started = repo.clone.path().join(THEIRS_START);
+        std::fs::create_dir_all(started.parent().unwrap()).unwrap();
+        std::fs::write(started, FUTURE_START).unwrap();
     }
 
     fn worktree(repo: &Repo) -> std::path::PathBuf {
@@ -42,14 +51,15 @@ fn other_sessions_commits_and_a_read_only_state_dir_never_block() {
     let other = Reviewer::worktree(&repo);
     Git::run(repo.clone.path(), &PUSH_WORDS);
     let reviewer = Reviewer::clone_of(&repo);
+    Reviewer::plant_future_start(&repo);
     let clone: &Path = repo.clone.path();
     let cwds = [(clone, MINE), (&other, THEIRS), (clone, READER), (reviewer.path(), PULLER)];
     let [mine, theirs, reader, puller] = cwds.map(|(cwd, id)| Session { repo: &repo, cwd, id });
     let _: Vec<String> = [&mine, &theirs, &puller].iter().map(|session| session.hook(PRE, COMMIT)).collect();
-    Git::run(&other, &NEXT_COMMIT);
+    Git::run_at(&other, &NEXT_COMMIT, FUTURE);
     FailingHead::copy_from(&repo, &other);
     let _: Vec<String> = [&theirs, &mine].iter().map(|session| session.hook(POST, COMMIT)).collect();
-    Git::run(reviewer.path(), &PULL_WORDS);
+    Git::run_at(reviewer.path(), &PULL_WORDS, FUTURE);
     puller.hook(POST, PULL);
     let passed = [mine.hook(STOP, BUILD), puller.hook(STOP, PULL)];
     let open = Planted::locked(&clone.join(STATE_ROOT));

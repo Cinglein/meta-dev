@@ -112,13 +112,13 @@ impl Git {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
     }
 
-    fn commit_long_ago(dir: &Path) -> Output {
+    fn run_at(dir: &Path, words: &[&str], date: &str) -> Output {
         Command::new("git")
             .arg("-C")
             .arg(dir)
             .args(Self::IDENTITY)
-            .args(["commit", "-q", "--allow-empty", "-m", "change"])
-            .env("GIT_COMMITTER_DATE", Self::LONG_AGO)
+            .args(words)
+            .env("GIT_COMMITTER_DATE", date)
             .output()
             .unwrap()
     }
@@ -260,7 +260,7 @@ impl Repo {
         std::fs::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
         std::fs::write(clone.path().join("bin/failed.log"), FAILED_LOG).unwrap();
         std::fs::set_permissions(clone.path().join("bin/gh"), std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
-        Git::commit_long_ago(clone.path());
+        Git::run_at(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"], Git::LONG_AGO);
         std::fs::create_dir_all(clone.path().join(Planted::SESSION_DIR)).unwrap();
         std::fs::write(clone.path().join(Planted::SESSION_DIR).join("started"), "0").unwrap();
         let repo = Self { origin, clone, scenario };
