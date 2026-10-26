@@ -26,7 +26,7 @@ impl LiveGithub {
         ["--jq", "[.[] | select(.type == \"required_status_checks\") | .parameters.required_status_checks[].context]"];
     const HEADED: [&'static str; 3] = ["pr", "list", "--head"];
     const SAME_REPOSITORY: [&'static str; 4] =
-        ["--json", "number,isCrossRepository", "--jq", ".[] | .number"];
+        ["--json", "number,isCrossRepository", "--jq", ".[] | select(.isCrossRepository | not) | .number"];
     const UNRULED: &'static str = "a base branch's rules were not read";
 
     pub fn new(program: ProgramName, root: PathBuf, deadline: Instant) -> Self {

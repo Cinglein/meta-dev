@@ -47,7 +47,7 @@ impl HookInput {
     }
 
     pub fn publishing(&self) -> Option<PathBuf> {
-        self.command()?.publishing_directory(&self.cwd()).map(|_| self.cwd())
+        self.command()?.publishing_directory(&self.cwd())
     }
 
     pub fn session(&self) -> Option<&SessionId> {

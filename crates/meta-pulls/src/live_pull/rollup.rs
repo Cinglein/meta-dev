@@ -23,7 +23,7 @@ impl Rollup {
             .page_info()
             .truncated()
             .map(|()| Checks::Truncated)
-            .or_else(|| required.verdict(named).filter(|_| any.is_none()).map(Checks::Required))
+            .or_else(|| required.verdict(named).map(Checks::Required))
             .or_else(|| any.map(Checks::Unrequired))
             .unwrap_or(Checks::Absent)
     }

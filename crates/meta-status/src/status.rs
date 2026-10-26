@@ -47,7 +47,7 @@ impl<'view> Status<'view> {
     fn shown(&self) -> impl Iterator<Item = &'view TaskState> {
         let state = self.state;
         let status = *self;
-        state.tasks().iter().filter(move |task| state.closed(task.entry()).is_none() && !status.pulls(task).is_empty())
+        state.tasks().iter().filter(move |task| state.closed(task.entry()).is_none() || !status.pulls(task).is_empty())
     }
 
     fn pulls(&self, task: &TaskState) -> Vec<PullRequest> {
@@ -64,7 +64,7 @@ impl<'view> Status<'view> {
         let unheld = held.map_or(Some(()), |()| None);
         let overdue = planned.due_time().filter(|due| *due < self.now);
         let stalled = possible.and(unheld).and(overdue).map(|due| Flag::Stalled(id, due));
-        let past_due = held.and(overdue).map(|due| Flag::PastDue(id, due)).filter(|_| held.is_none());
+        let past_due = held.and(overdue).map(|due| Flag::PastDue(id, due));
         let spent = possible.and(planned.effort_allowance()).and(match EffortSpend::measured_for(task) {
             EffortSpend::Unmeasured => None,
         });

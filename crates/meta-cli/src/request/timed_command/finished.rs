@@ -39,7 +39,7 @@ impl fmt::Display for Finished {
             .lines()
             .next()
             .filter(|line| !line.is_empty())
-            .map_or_else(|| shown.trim().chars().take(0).collect(), str::to_owned);
+            .map_or_else(|| format!("reply not JSON: {}", shown.trim()), str::to_owned);
         formatter.write_str(&reason)
     }
 }

@@ -49,7 +49,7 @@ impl State {
         let linked = |link: &TaskLink| {
             self.task(link.task()).is_some_and(|task| task.pull_requests().contains(&link.pull_request()))
         };
-        let known = record.event().task_link().filter(linked).filter(|_| self.schema.is_none());
+        let known = record.event().task_link().filter(linked);
         known.map_or(Ok(()), |link| Err(Refusal::AlreadyLinked(link.pull_request())))?;
         let mut next = self.clone();
         record.event().visit(Applying::new(&mut next, Stamp::from_record(record))).map(|()| next.swept())
