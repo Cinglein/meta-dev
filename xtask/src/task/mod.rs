@@ -24,6 +24,7 @@ use ci::Ci;
 use const_shape::ConstShape;
 use crate_graph::CrateGraph;
 use distinct_signatures::DistinctSignatures;
+use enum_predicates::EnumPredicates;
 use expression_flow::ExpressionFlow;
 use failure::Failure;
 use fn_shape::FnShape;
@@ -43,7 +44,9 @@ use public_surface::PublicSurface;
 use settings_shape::SettingsShape;
 use state_graph::StateGraph;
 use test_budget::TestBudget;
+use thin_main::ThinMain;
 use type_shape::TypeShape;
+use vec_out_params::VecOutParams;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, EnumIter, EnumString, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "kebab-case")]
@@ -54,6 +57,7 @@ pub enum Task {
     ConstShape,
     CrateGraph,
     DistinctSignatures,
+    EnumPredicates,
     ExpressionFlow,
     FnShape,
     Graph,
@@ -76,7 +80,9 @@ pub enum Task {
     Surfaces,
     Test,
     TestBudget,
+    ThinMain,
     TypeShape,
+    VecOutParams,
 }
 
 impl Task {
@@ -107,6 +113,9 @@ impl Task {
             Task::ConstShape => Some(ConstShape::report(files, policy)),
             Task::CrateGraph => Some(CrateGraph::report(files, policy)),
             Task::DistinctSignatures => Some(DistinctSignatures::report(files)),
+            Task::EnumPredicates => Some(EnumPredicates::report(files)),
+            Task::ThinMain => Some(ThinMain::report(files)),
+            Task::VecOutParams => Some(VecOutParams::report(files)),
             Task::ExpressionFlow => Some(ExpressionFlow::report(files)),
             Task::FnShape => Some(FnShape::report(files, policy)),
             Task::LiteralNames => Some(LiteralNames::report(files, policy)),

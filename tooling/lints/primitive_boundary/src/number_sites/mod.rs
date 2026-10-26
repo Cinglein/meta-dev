@@ -1,9 +1,13 @@
+mod rank;
 mod sighting;
+mod sightings;
 mod use_aliases;
 
 use std::path::PathBuf;
 
+use rank::Rank;
 use sighting::Sighting;
+use sightings::Sightings;
 use use_aliases::UseAliases;
 
 use syn::spanned::Spanned;
@@ -29,8 +33,7 @@ pub struct NumberSites<'scan> {
     aliases: UseAliases,
     context: Name,
     newtypes: Vec<Name>,
-    numbers: Vec<Violation>,
-    sizes: Vec<Violation>,
+    sightings: Sightings,
 }
 
 impl<'scan> NumberSites<'scan> {
@@ -50,12 +53,11 @@ impl<'scan> NumberSites<'scan> {
                 aliases: UseAliases::in_file(file.syntax()),
                 context: Name::default(),
                 newtypes: Vec::new(),
-                numbers: Vec::new(),
-                sizes: Vec::new(),
+                sightings: Sightings::default(),
             };
             sites.visit_file(file.syntax());
             if sites.newtypes.is_empty() {
-                sites.numbers.into_iter().chain(sites.sizes).collect()
+                sites.sightings.into_violations()
             } else {
                 Vec::new()
             }
@@ -81,36 +83,45 @@ impl<'scan> NumberSites<'scan> {
         }
     }
 
-    fn sighting(&self, path: &TypePath) -> Sighting {
+    fn sighting(&self, path: &TypePath) -> Option<Sighting> {
         let wire = self.aliases.resolve(&path.path);
         let site = Site::Line(self.path.clone(), LineNumber::from(path.path.span()));
         if Self::is_named(path, &Self::PRIMITIVES) {
-            Sighting::Number(Violation::new(
-                site,
-                Finding::BarePrimitive {
-                    primitive: path.path.get_ident().map(Name::from).unwrap_or_default(),
-                    context: self.context.clone(),
-                },
+            Some(Sighting::new(
+                Rank::Number,
+                Violation::new(
+                    site,
+                    Finding::BarePrimitive {
+                        primitive: path.path.get_ident().map(Name::from).unwrap_or_default(),
+                        context: self.context.clone(),
+                    },
+                ),
             ))
         } else if self.policy.lists::<WireType>(&wire) {
-            Sighting::Number(Violation::new(
-                site,
-                Finding::WireForm {
-                    wire,
-                    context: self.context.clone(),
-                },
+            Some(Sighting::new(
+                Rank::Number,
+                Violation::new(
+                    site,
+                    Finding::WireForm {
+                        wire,
+                        context: self.context.clone(),
+                    },
+                ),
             ))
         } else if Self::is_named(path, &Self::SIZES)
             && !self.context.matches::<LoweredInfix>(&Self::SIZE_WORDS)
         {
-            Sighting::Size(Violation::new(
-                site,
-                Finding::UnnamedSize {
-                    context: self.context.clone(),
-                },
+            Some(Sighting::new(
+                Rank::Size,
+                Violation::new(
+                    site,
+                    Finding::UnnamedSize {
+                        context: self.context.clone(),
+                    },
+                ),
             ))
         } else {
-            Sighting::Nothing
+            None
         }
     }
 }
@@ -179,8 +190,8 @@ impl<'ast> Visit<'ast> for NumberSites<'_> {
     }
 
     fn visit_type_path(&mut self, path: &'ast TypePath) {
-        self.sighting(path)
-            .filed(&mut self.numbers, &mut self.sizes);
+        let sighting = self.sighting(path);
+        self.sightings.file(sighting);
         syn::visit::visit_type_path(self, path);
     }
 }

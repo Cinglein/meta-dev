@@ -28,10 +28,6 @@ impl Returns {
         }
     }
 
-    pub fn holds_vertex_in_tuple(&self) -> bool {
-        matches!(self, Returns::TupleHoldingVertex)
-    }
-
     fn of_tuple(tuple: &TypeTuple, vertex: impl Fn(&Type) -> Option<TypeName>) -> Returns {
         if tuple.elems.iter().any(|element| vertex(element).is_some()) {
             Returns::TupleHoldingVertex

@@ -18,26 +18,28 @@ impl Walk {
 
     #[must_use]
     pub fn outside_tests(attributes: &[Attribute]) -> Walk {
-        if attributes.iter().any(Self::is_cfg_mentioning_test) {
-            Walk::Skipped
-        } else {
-            Walk::Entered
+        Self::skipped_by_any(attributes.iter().map(Self::of_attribute))
+    }
+
+    fn of_attribute(attribute: &Attribute) -> Walk {
+        match attribute.meta.require_list() {
+            Ok(list) if attribute.path().is_ident("cfg") => Self::of_tokens(list.tokens.clone()),
+            _ => Walk::Entered,
         }
     }
 
-    fn is_cfg_mentioning_test(attribute: &Attribute) -> bool {
-        attribute.path().is_ident("cfg")
-            && attribute
-                .meta
-                .require_list()
-                .is_ok_and(|list| Self::mentions_test(list.tokens.clone()))
+    fn of_tokens(tokens: TokenStream) -> Walk {
+        Self::skipped_by_any(tokens.into_iter().map(|token| match token {
+            TokenTree::Ident(ident) if ident == "test" => Walk::Skipped,
+            TokenTree::Group(group) => Self::of_tokens(group.stream()),
+            TokenTree::Ident(_) | TokenTree::Punct(_) | TokenTree::Literal(_) => Walk::Entered,
+        }))
     }
 
-    fn mentions_test(tokens: TokenStream) -> bool {
-        tokens.into_iter().any(|token| match token {
-            TokenTree::Ident(ident) => ident == "test",
-            TokenTree::Group(group) => Self::mentions_test(group.stream()),
-            TokenTree::Punct(_) | TokenTree::Literal(_) => false,
-        })
+    fn skipped_by_any(walks: impl Iterator<Item = Walk>) -> Walk {
+        walks
+            .into_iter()
+            .find(|walk| *walk == Walk::Skipped)
+            .unwrap_or(Walk::Entered)
     }
 }

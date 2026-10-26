@@ -1,8 +1,8 @@
 mod body;
 mod returns;
 
-use body::Body;
-use returns::Returns;
+pub use body::Body;
+pub use returns::Returns;
 
 use std::path::Path;
 
