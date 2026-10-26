@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -14,9 +14,17 @@ pub enum TrailEntry {
 
 impl TrailEntry {
     pub fn applied<'trail>(&'trail self, current: Vec<&'trail RecordedWorktree>) -> Vec<&'trail RecordedWorktree> {
+        let kept = current.into_iter().filter(|worktree| worktree.path() != self.path());
         match self {
-            Self::Created(worktree) => [current, vec![worktree]].concat(),
-            Self::Removed { path, .. } => current.into_iter().filter(|worktree| worktree.path() != path).collect(),
+            Self::Created(worktree) => kept.chain([worktree]).collect(),
+            Self::Removed { .. } => kept.collect(),
+        }
+    }
+
+    fn path(&self) -> &Path {
+        match self {
+            Self::Created(worktree) => worktree.path(),
+            Self::Removed { path, .. } => path,
         }
     }
 }

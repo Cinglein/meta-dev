@@ -19,7 +19,7 @@ pub struct LocalSettings {
 }
 
 impl LocalSettings {
-    const FILE: &'static str = "meta.local.toml";
+    pub const FILE: &'static str = "meta.local.toml";
     const SIBLING_SUFFIX: &'static str = "-worktrees";
 
     pub fn read(checkout: &Path) -> Result<Self, CliFailure> {

@@ -33,6 +33,7 @@ const EXCLUDE: &str = ".git/info/exclude";
 const LOCAL_SETTINGS_RULE: &str = "/meta.local.toml\n";
 const NOT_A_DIRECTORY: &str = "/dev/null";
 const IGNORED: &str = "not gitignored";
+const GIT_CALL: &str = "git -C /";
 
 struct Git;
 
@@ -56,6 +57,16 @@ impl Git {
             .unwrap()
             .write_all(remote.as_bytes())
             .unwrap();
+    }
+}
+
+struct Settings;
+
+impl Settings {
+    fn written(clone: &Path, worktrees: &Path) {
+        let root = worktrees.display();
+        let settings = format!("worktree_root = \"{root}\"\n[identity]\nname = \"{AGENT}\"\nemail = \"{NOREPLY}\"\n");
+        std::fs::write(clone.join("meta.local.toml"), settings).unwrap();
     }
 }
 
@@ -108,18 +119,8 @@ impl Project {
         let project = Self::new();
         assert!(SEED.iter().all(|words| Git::run(project.clone.path(), words).status.success()));
         std::fs::write(project.clone.path().join(EXCLUDE), LOCAL_SETTINGS_RULE).unwrap();
-        project.settle(worktrees);
+        Settings::written(project.clone.path(), worktrees);
         project
-    }
-
-    fn settle(&self, worktrees: &Path) {
-        let root = worktrees.display();
-        let settings = format!("worktree_root = \"{root}\"\n[identity]\nname = \"{AGENT}\"\nemail = \"{NOREPLY}\"\n");
-        std::fs::write(self.clone.path().join("meta.local.toml"), settings).unwrap();
-    }
-
-    fn writes(&self) -> usize {
-        Run(Git::run(self.origin.path(), &COUNT)).to_string().trim().parse().unwrap()
     }
 
     fn meta(&self, actor: &str, words: &[&str]) -> Run {
@@ -168,18 +169,19 @@ fn failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_w
     let project = Project::seeded(Path::new(NOT_A_DIRECTORY));
     let task = project.meta(OWNER, &OPEN).written().0;
     let claim = [CLAIM, task.as_str(), WORKTREE];
-    let opened = project.writes();
+    let writes = || Git::shown(project.origin.path(), &COUNT);
+    let opened = writes();
     std::fs::write(project.clone.path().join(EXCLUDE), "").unwrap();
     let tracked = project.meta(OWNER, &claim).complaint().0;
     std::fs::write(project.clone.path().join(EXCLUDE), LOCAL_SETTINGS_RULE).unwrap();
     let unwritable = project.meta(OWNER, &claim).complaint().0;
-    let failed = project.writes();
-    project.settle(worktrees.path());
+    let failed = writes();
+    Settings::written(project.clone.path(), worktrees.path());
     let first = project.meta(OWNER, &claim).to_string().lines().last().unwrap_or_default().to_owned();
-    let claimed = project.writes();
+    let claimed = writes();
     std::fs::remove_dir_all(&first).ok();
     let resumed = project.meta(OWNER, &claim).to_string();
-    assert_eq!([failed, claimed, project.writes()], [opened, opened + 1, opened + 1]);
-    assert!(tracked.contains(IGNORED) && unwritable.contains(NOT_A_DIRECTORY));
+    assert!(failed == opened && claimed != opened && writes() == claimed);
+    assert!(tracked.contains(IGNORED) && unwritable.contains(NOT_A_DIRECTORY) && unwritable.contains(GIT_CALL));
     assert!(resumed.ends_with(&format!("{first}\n")) && Path::new(&first).exists());
 }

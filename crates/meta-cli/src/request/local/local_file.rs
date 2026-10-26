@@ -8,6 +8,8 @@ use crate::request::cli_failure::{CliFailure, Setup};
 pub struct LocalFile(PathBuf);
 
 impl LocalFile {
+    const NEWLINE: char = '\n';
+
     pub fn new(path: PathBuf) -> Self {
         Self(path)
     }
@@ -20,11 +22,12 @@ impl LocalFile {
 
     pub fn appended(&self, line: impl fmt::Display) -> Result<(), CliFailure> {
         self.0.parent().map_or(Ok(()), std::fs::create_dir_all).map_err(|failure| self.failure(failure))?;
+        let torn = self.text()?.chars().last().filter(|last| *last != Self::NEWLINE).map_or("", |_| "\n");
         std::fs::OpenOptions::new()
             .create(true)
             .append(true)
             .open(&self.0)
-            .and_then(|mut file| writeln!(file, "{line}"))
+            .and_then(|mut file| writeln!(file, "{torn}{line}"))
             .map_err(|failure| self.failure(failure))
     }
 

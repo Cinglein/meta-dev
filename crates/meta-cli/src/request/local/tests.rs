@@ -23,6 +23,10 @@ const DROPPED: &str = "/nonexistent/dropped";
 const STRAY: &str = "/nonexistent/stray";
 const MISSING: &str = " missing";
 const UNRECORDED: &str = "unrecorded ";
+const TRAIL_DIR: &str = "meta-local";
+const TRAIL: &str = "meta-local/worktrees.jsonl";
+const TORN: &str = "{\"change\":\"Crea";
+const WARNING: &str = "warning: skipped a torn record line";
 
 struct Fixture {
     state: State,
@@ -51,7 +55,7 @@ fn settings_default_to_a_sibling_root_resolve_relative_roots_and_refuse_foreign_
     let relative: LocalSettings = RELATIVE.parse().unwrap();
     let roots = [absent.worktree_root(checkout), relative.worktree_root(checkout)];
     assert_eq!(roots, [PathBuf::from(SIBLING), PathBuf::from(NESTED)]);
-    assert!(absent.identity().is_err() && LocalTrail::read(Path::new(NOWHERE)).unwrap() == LocalTrail::default());
+    assert!(absent.identity().is_err() && LocalTrail::read(Path::new(NOWHERE)).unwrap().current().is_empty());
     let unreadable = LocalSettings::read(Path::new(NOT_A_DIRECTORY)).unwrap_err().to_string();
     assert!(REFUSED.iter().all(|text| text.parse::<LocalSettings>().is_err()) && unreadable.contains(NOT_A_DIRECTORY));
 }
@@ -66,9 +70,24 @@ fn worktrees_join_the_current_trail_to_task_status_and_flag_missing_and_unrecord
         TrailEntry::Created(RecordedWorktree::new(PathBuf::from(DROPPED), task)),
         TrailEntry::Created(gone.clone()),
         TrailEntry::Removed { path: PathBuf::from(DROPPED), at: chrono::Utc::now() },
+        TrailEntry::Created(RecordedWorktree::new(here.clone(), task)),
     ]);
-    let shown = Worktrees::joined(&trail, &[here.clone(), PathBuf::from(STRAY)], &state).to_string();
-    assert!(shown.contains(&format!("{task} assigned {task} {} created", here.display())) && !shown.contains(DROPPED));
+    let shown = Worktrees::joined(trail, &[here.clone(), PathBuf::from(STRAY)], &state).to_string();
+    let kept = format!("{task} assigned {task} {} created", here.display());
+    assert!(shown.matches(&kept).count() == 1 && !shown.contains(DROPPED));
     assert!(shown.contains(&format!("{} not in the log", gone.task())) && shown.matches(MISSING).count() == 1);
     assert!(shown.ends_with(&format!("{UNRECORDED}{STRAY}\n")) && shown.matches(UNRECORDED).count() == 1);
+}
+
+#[test]
+fn appends_after_a_torn_line_start_a_new_line_and_reads_skip_the_torn_line_with_a_warning() {
+    let git_dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir(git_dir.path().join(TRAIL_DIR)).unwrap();
+    std::fs::write(git_dir.path().join(TRAIL), TORN).unwrap();
+    let created =
+        [GONE, STRAY].map(|path| TrailEntry::Created(RecordedWorktree::new(PathBuf::from(path), Id::generate())));
+    assert!(created.iter().all(|entry| LocalTrail::append(git_dir.path(), entry).is_ok()));
+    let trail = LocalTrail::read(git_dir.path()).unwrap();
+    let shown = Worktrees::joined(trail, &[], &Fixture::assigned().state).to_string();
+    assert!(shown.starts_with(WARNING) && shown.lines().count() == created.len() + 1);
 }
