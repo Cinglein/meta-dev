@@ -6,6 +6,7 @@ use std::process::{Command, Output};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const OWNER: &str = "owner";
+const WRITER: &str = "writer";
 const NOWHERE: [&str; 4] = ["remote", "set-url", "origin", "/nonexistent/origin.git"];
 const COUNT: [&str; 3] = ["rev-list", "--count", "meta/log"];
 const ISSUE: [&str; 2] = ["issue", "text"];
@@ -92,12 +93,13 @@ impl Project {
 }
 
 #[test]
-fn an_unset_actor_writes_as_owner_to_the_remote_and_offline_writes_are_refused() {
+fn writes_go_to_the_remote_as_meta_actor_else_owner_and_offline_writes_are_refused() {
     let project = Project::new();
     let opened = project.meta_unset(&ISSUE);
     let listed = project.meta(OWNER, &LIST_ISSUES).to_string();
     assert!(opened.actor().as_deref() == Some(OWNER) && listed.contains(&opened.written().0));
     assert!(Run(Git::run(project.origin.path(), &COUNT)).to_string().starts_with(WRITES));
+    assert_eq!(project.meta(WRITER, &ISSUE).actor().as_deref(), Some(WRITER));
     Git::run(project.clone.path(), &NOWHERE);
     assert!(project.meta(OWNER, &ISSUE).complaint().0.contains(OFFLINE));
 }

@@ -13,11 +13,11 @@ mod test;
 mod usage;
 
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use settings::EmbeddedDefaults;
 use strum::{EnumString, IntoStaticStr, VariantNames};
-use task::{CrateName, Policy, Workspace};
+use task::{CrateName, Policy, Program, Selection, Workspace};
 
 use crate::task::clippy::Clippy;
 use crate::task::coverage::Coverage;
@@ -30,6 +30,9 @@ use ci::Ci;
 use corpus_check::LintName;
 use crate_graph::CrateGraph;
 use failure::Failure;
+use mutant_costs::MutantCosts;
+use mutation::{Mutants, Scope, ShardPlan, TriggerEvent};
+use stacked::Stacked;
 use test_time::TestTime;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, IntoStaticStr, VariantNames)]
@@ -50,6 +53,11 @@ pub enum Task {
     LiteralNames,
     ManualIteration,
     ModuleNesting,
+    MutantCosts,
+    Mutants,
+    MutantsFull,
+    MutantsDiffPlan,
+    MutantsPlan,
     NamedLifetimes,
     NamedNumbers,
     NoComments,
@@ -61,6 +69,7 @@ pub enum Task {
     PrivateFns,
     PublicSurface,
     SettingsShape,
+    Stacked,
     StateGraph,
     Surfaces,
     Test,
@@ -77,11 +86,14 @@ impl Task {
         Failure::from(task::Failure::from(Usage))
     }
 
-    pub fn run(self, flags: impl Iterator<Item = String>) -> Result<(), Failure> {
+    pub fn run(self, mut flags: impl Iterator<Item = String>) -> Result<(), Failure> {
         let Ok(tool) = env!("CARGO_PKG_NAME").parse::<CrateName>();
         let workspace = Workspace::locate(tool)?;
         let policy = Policy::defaults();
-        let selection = Affected::selection(&workspace, Coverage::from_flags(flags)?)?;
+        let selection = match self {
+            Task::MutantCosts => Selection::Workspace,
+            _ => Affected::selection(&workspace, Coverage::from_flags(flags.by_ref())?)?,
+        };
         let summary = env::var_os(Surfaces::SUMMARY).map(PathBuf::from);
         match self {
             Task::Affected => {
@@ -93,6 +105,18 @@ impl Task {
             Task::Clippy => Ok(Clippy::run(&workspace, &selection, &policy)?),
             Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
             Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy),
+            Task::MutantCosts => Ok(MutantCosts::measure(Path::new(&flags.next().ok_or_else(Self::usage)?))
+                .map(|costs| println!("{costs}"))?),
+            Task::Mutants => Ok(Mutants::run(&workspace, Scope::ChangedLines, &policy)?),
+            Task::MutantsFull => Ok(Mutants::run(&workspace, Scope::Workspace, &policy)?),
+            Task::MutantsPlan => Ok(ShardPlan::full(
+                workspace.line(Program::Cargo),
+                &policy,
+                TriggerEvent::current().and_then(TriggerEvent::full_run),
+            )
+            .map(|plan| println!("{plan}"))?),
+            Task::MutantsDiffPlan => Ok(ShardPlan::changed_lines(&workspace, &policy).map(|plan| println!("{plan}"))?),
+            Task::Stacked => Ok(Stacked::run(&policy)?),
             Task::Surfaces => Surfaces::announce(workspace.root(), &policy, summary.as_deref()),
             Task::Test => Ok(Test::run(&workspace, &selection, &policy)?),
             Task::TestTime => Ok(TestTime::run(&workspace, &selection, &policy)?),

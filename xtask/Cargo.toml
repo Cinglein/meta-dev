@@ -9,8 +9,11 @@ publish.workspace = true
 affected = { path = "../tooling/affected" }
 corpus_check = { path = "../tooling/corpus_check" }
 crate_graph = { path = "../tooling/lints/crate_graph" }
+mutant_costs = { path = "../tooling/mutant_costs" }
+mutation = { path = "../tooling/mutation" }
 settings = { path = "../tooling/settings" }
 serde = { version = "1", features = ["derive"] }
+stacked = { path = "../tooling/stacked" }
 strum = { version = "0.28", features = ["derive"] }
 thiserror = "2"
 task = { path = "../tooling/task" }
