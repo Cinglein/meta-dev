@@ -258,3 +258,4 @@
 {"at":"2026-10-26T07:32:30.999199Z","actor":"claude-superset","kind":"TaskDone","task":"task-d3fa995600f58f8f"}
 {"at":"2026-10-26T07:33:18.723099Z","actor":"claude-superset","kind":"EntryRetired","entry":"issue-7832bfac937521d2","text":"duplicate of issue-98555e731a32d5d4; chess evidence (8 missing keys) in context/superset-check.md"}
 {"at":"2026-10-26T07:41:53.004836Z","actor":"claude-lead","kind":"IssueReported","issue":"issue-ef3a10afd8f86e3c","text":"Merged meta-dev #4 (minimally shippable: git dependency, policy per workspace, subdirectory consumers, base branch from policy) after two independent reviews; tagged v0.1.0"}
+{"at":"2026-10-26T07:41:54.786843Z","actor":"owner","kind":"EntryRetired","entry":"issue-ef3a10afd8f86e3c","text":"record only (merge log)"}
