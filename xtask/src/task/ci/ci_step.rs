@@ -36,7 +36,10 @@ impl CiStep {
             CiStep::Clippy => Clippy::run(workspace, selection, policy).map_err(Failure::from),
             CiStep::Test => Test::run(workspace, selection, policy).map_err(Failure::from),
             CiStep::TestTime => TestTime::run(workspace, selection, policy).map_err(Failure::from),
-            CiStep::Lint => Lint::run(workspace, policy),
+            CiStep::Lint => workspace
+                .source_files()
+                .map_err(Failure::from)
+                .and_then(|files| Lint::run(workspace.root(), &files, policy)),
         };
         println!("ci: {self} {:.1?}", started.elapsed());
         outcome

@@ -2,8 +2,7 @@ mod changed;
 
 pub use changed::Changed;
 
-use std::env;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use task::{Policy, Surface};
 
@@ -15,11 +14,10 @@ use crate::task::revision::Revision;
 pub struct Surfaces;
 
 impl Surfaces {
-    const SUMMARY: &str = "GITHUB_STEP_SUMMARY";
+    pub const SUMMARY: &str = "GITHUB_STEP_SUMMARY";
 
-    pub fn announce(root: &Path, policy: &Policy) -> Result<(), Failure> {
-        let summary = env::var_os(Self::SUMMARY).map(PathBuf::from);
-        Self::changed(root, policy.surfaces())?.announce(summary.as_deref())
+    pub fn announce(root: &Path, policy: &Policy, summary: Option<&Path>) -> Result<(), Failure> {
+        Self::changed(root, policy.surfaces())?.announce(summary)
     }
 
     pub fn changed(root: &Path, current: &[Surface]) -> Result<Changed, Failure> {
@@ -35,9 +33,11 @@ impl Surfaces {
 mod tests {
     use std::fs;
 
+    use settings::EmbeddedDefaults;
+
     use super::Surfaces;
     use crate::task::fixture::Fixture;
-    use task::Surface;
+    use task::{Policy, Surface};
 
     const POLICY: &str = "tooling/policy.toml";
     const POLICY_TEXT: &str = "surfaces = [\"tooling/policy.toml\", \"lint-baseline.toml\"]\n";
@@ -63,13 +63,12 @@ mod tests {
     }
 
     #[test]
-    fn changed_and_untracked_surfaces_are_listed_and_written_to_the_step_summary() {
+    fn changed_and_untracked_surfaces_are_written_to_the_step_summary() {
         let fixture = Fixture::surfaced();
         fixture.write(BASELINE, RAISED).write(UNTRACKED, RAISED);
-        let changed = Surfaces::changed(fixture.root(), &[Surface::from(BASELINE), Surface::from(UNTRACKED)]).unwrap();
-        changed.announce(Some(&fixture.path(SUMMARY))).unwrap();
-        assert!(changed.to_string().ends_with(&format!("{LISTED}- {UNTRACKED}\n")));
-        assert_eq!(fs::read_to_string(fixture.path(SUMMARY)).ok(), Some(changed.to_string()));
+        Surfaces::announce(fixture.root(), &Policy::defaults(), Some(&fixture.path(SUMMARY))).unwrap();
+        let written = fs::read_to_string(fixture.path(SUMMARY)).unwrap_or_default();
+        assert!(written.ends_with(&format!("{LISTED}- {UNTRACKED}\n")));
     }
 
     #[test]

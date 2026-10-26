@@ -100,11 +100,13 @@ impl fmt::Display for CommandLine {
 
 #[cfg(test)]
 mod tests {
-    use super::{CargoArgument, CommandLine, Program, Stdout};
+    use super::{CargoArgument, CommandLine, Program, Stderr, Stdout};
     use std::path::PathBuf;
     const GIT: &str = "git";
     const SHOWN: &str = "git fmt --all";
-    const PROGRAMS: [&str; 3] = ["pwd", "true", "false"];
+    const PROGRAMS: [&str; 4] = ["pwd", "true", "false", "sh"];
+    const TO_STDERR: [&str; 2] = ["-c", "echo said >&2"];
+    const SAID: &str = "said\n";
 
     #[test]
     fn a_command_line_prints_its_program_and_arguments_in_order() {
@@ -116,7 +118,7 @@ mod tests {
 
     #[test]
     fn a_command_runs_in_its_directory_and_its_output_is_captured() {
-        let [pwd, succeeds, fails] = PROGRAMS;
+        let [pwd, succeeds, fails, shell] = PROGRAMS;
         let executable = |name: &str| CommandLine::new(Program::Executable(name.into()));
         let directory = std::env::temp_dir();
         let shown = executable(pwd)
@@ -128,5 +130,7 @@ mod tests {
             directory.canonicalize().ok()
         );
         assert!(executable(succeeds).run().is_ok() && executable(fails).run().is_err());
+        let complained = executable(shell).arguments(TO_STDERR).captured::<Stderr>();
+        assert_eq!(complained.ok().as_deref(), Some(SAID));
     }
 }

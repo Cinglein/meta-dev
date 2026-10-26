@@ -29,3 +29,18 @@ impl fmt::Display for Commit {
         formatter.write_str(&self.0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Commit;
+
+    const HEX: &str = "0a1b2c\n";
+    const EMPTY: &str = "\n";
+    const WORD: &str = "main";
+
+    #[test]
+    fn only_a_nonempty_hex_id_is_a_commit() {
+        assert!(HEX.parse::<Commit>().is_ok());
+        assert!(EMPTY.parse::<Commit>().is_err() && WORD.parse::<Commit>().is_err());
+    }
+}
