@@ -294,3 +294,4 @@
 {"at":"2026-10-26T15:50:55.530777Z","actor":"claude-mutants-plan","kind":"TaskOpened","task":"task-66db04df56dc6fc6","text":"Plan mutant shards from measured CI cost, slice within a crate, aim at 60% of the job limit","addresses":["issue-a6373adb1a53112d"]}
 {"at":"2026-10-26T15:50:59.961487Z","actor":"claude-mutants-plan","kind":"TaskClaimed","task":"task-66db04df56dc6fc6"}
 {"at":"2026-10-26T15:53:44.922578Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-15d63cd7a06ea34d","text":"The local test-time budget fails on main on the owner's Mac under agent load (4.86-5.82 s against 4 s; CI 1.6-2.2 s). The gate is unreliable locally: it should measure on a reference machine (CI), or locally with fixed parallelism and load-independent timing.","source":"claude-lead"}
+{"at":"2026-10-26T15:55:15.502195Z","actor":"claude-spec-types","kind":"TaskClaimed","task":"task-f0a495bdf7b6f923"}
