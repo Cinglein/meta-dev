@@ -15,6 +15,7 @@ settings = { path = "../tooling/settings" }
 serde = { version = "1", features = ["derive"] }
 stacked = { path = "../tooling/stacked" }
 strum = { version = "0.28", features = ["derive"] }
+tempfile = "3"
 thiserror = "2"
 task = { path = "../tooling/task" }
 test_time = { path = "../tooling/test_time" }
@@ -25,4 +26,3 @@ workspace = true
 
 [dev-dependencies]
 task = { path = "../tooling/task", features = ["test-policy"] }
-tempfile = "3"

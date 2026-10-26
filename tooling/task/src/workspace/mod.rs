@@ -19,7 +19,6 @@ pub struct Workspace {
     root: PathBuf,
     target: TargetDirectory,
     packages: PackageGraph,
-    shared_target: Option<TargetDirectory>,
 }
 
 impl Workspace {
@@ -27,21 +26,10 @@ impl Workspace {
     const WORKSPACE_TABLE: &str = "[workspace]";
 
     pub fn locate() -> Result<Workspace, Failure> {
-        Self::above(&env::current_dir().map_err(|error| Failure::Io {
+        let here = env::current_dir().map_err(|error| Failure::Io {
             site: Site::Workspace,
             error,
-        })?)
-    }
-
-    pub fn checked_out(&self, root: &Path) -> Result<Workspace, Failure> {
-        Ok(Workspace {
-            target: self.target.clone(),
-            shared_target: Some(self.target.clone()),
-            ..Self::above(root)?
-        })
-    }
-
-    fn above(here: &Path) -> Result<Workspace, Failure> {
+        })?;
         let root = here
             .ancestors()
             .find(|directory| {
@@ -60,7 +48,6 @@ impl Workspace {
             root,
             target: TargetDirectory::from_metadata(&metadata)?,
             packages: PackageGraph::from_metadata(&metadata)?,
-            shared_target: None,
         })
     }
 
@@ -81,10 +68,7 @@ impl Workspace {
 
     #[must_use]
     pub fn line(&self, program: Program) -> CommandLine {
-        let line = CommandLine::new(program).in_directory(self.root.clone());
-        self.shared_target
-            .iter()
-            .fold(line, CommandLine::building_into)
+        CommandLine::new(program).in_directory(self.root.clone())
     }
 
     pub fn source_files(&self) -> Result<Vec<SourceFile>, Failure> {
@@ -143,15 +127,8 @@ impl Workspace {
 
 #[cfg(test)]
 mod tests {
-    use super::{PackageGraph, Program, Stdout, TargetDirectory, Workspace};
+    use super::{PackageGraph, TargetDirectory, Workspace};
     use std::fs;
-    use std::path::{Path, PathBuf};
-    const SHARED: &str = r#"{"target_directory": "shared/target"}"#;
-    const EMPTY: &str = r#"{"workspace_root": "/", "packages": []}"#;
-    const TARGET: &str = "shared/target";
-    const UP: &str = "../..";
-    const SHELL: &str = "sh";
-    const SHOW_TARGET: [&str; 2] = ["-c", "printf %s \"$CARGO_TARGET_DIR\""];
     const TREE: [&str; 4] = ["a/src/a.rs", "b/b.rs", "target/skipped.rs", "a/notes.txt"];
     const FOUND: [&str; 2] = ["a:a/src/a.rs", "b:b/b.rs"];
     const TEXT: &str = "pub struct Found;";
@@ -175,7 +152,6 @@ mod tests {
             root,
             target,
             packages,
-            shared_target: None,
         };
         let files = workspace.source_files().unwrap();
         let found = files
@@ -183,25 +159,5 @@ mod tests {
             .map(|file| format!("{}:{}", file.crate_name().unwrap(), file.path().display()));
         assert!(found.eq(FOUND.map(String::from)) && workspace.target().path().ends_with("built"));
         fs::remove_dir_all(workspace.root()).unwrap();
-    }
-
-    #[test]
-    fn a_checked_out_workspace_builds_into_the_original_target() {
-        let original = Workspace {
-            root: PathBuf::new(),
-            target: TargetDirectory::from_metadata(SHARED).unwrap(),
-            packages: PackageGraph::from_metadata(EMPTY).unwrap(),
-            shared_target: None,
-        };
-        let checked = original
-            .checked_out(&Path::new(env!("CARGO_MANIFEST_DIR")).join(UP))
-            .unwrap();
-        let shown = checked
-            .line(Program::Executable(SHELL.into()))
-            .arguments(SHOW_TARGET)
-            .captured::<Stdout>();
-        assert!(
-            checked.target().path() == Path::new(TARGET) && shown.ok().as_deref() == Some(TARGET)
-        );
     }
 }

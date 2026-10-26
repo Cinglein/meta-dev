@@ -4,7 +4,6 @@ use std::fmt;
 use std::time::Duration;
 
 use crate::task::ci::ci_step::CiStep;
-use crate::task::ci::local_gate::GateState;
 use crate::task::failure::Failure;
 use step_time::StepTime;
 
@@ -27,10 +26,6 @@ impl StepTimes {
             }
         }
     }
-
-    pub fn state(&self) -> GateState {
-        self.failed.map_or(GateState::Success, |_| GateState::Failure)
-    }
 }
 
 impl fmt::Display for StepTimes {
@@ -47,7 +42,6 @@ mod tests {
 
     use super::StepTimes;
     use crate::task::ci::ci_step::CiStep;
-    use crate::task::ci::local_gate::GateState;
     use crate::task::failure::Failure;
 
     const SECOND: Duration = Duration::from_secs(1);
@@ -62,8 +56,8 @@ mod tests {
     #[test]
     fn passed_steps_show_their_time_and_a_failed_step_fails_the_gate() {
         let mut times = StepTimes::default();
-        assert!(times.record(CiStep::Fmt, Ok(SECOND)).is_ok() && times.state() == GateState::Success);
-        assert!(times.failing(CiStep::Clippy).is_err() && times.state() == GateState::Failure);
+        assert!(times.record(CiStep::Fmt, Ok(SECOND)).is_ok());
+        assert!(times.failing(CiStep::Clippy).is_err());
         assert_eq!(times.to_string(), SHOWN);
     }
 }

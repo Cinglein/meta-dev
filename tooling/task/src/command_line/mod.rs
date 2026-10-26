@@ -14,6 +14,7 @@ pub use stderr::Stderr;
 pub use stdout::Stdout;
 pub use stream::Stream;
 
+use std::collections::BTreeMap;
 use std::fmt;
 use std::path::PathBuf;
 use std::process::{Child, Command, Output};
@@ -26,7 +27,7 @@ pub struct CommandLine {
     program: Program,
     arguments: Vec<String>,
     directory: Option<PathBuf>,
-    target: Option<PathBuf>,
+    variables: BTreeMap<&'static str, PathBuf>,
 }
 
 impl CommandLine {
@@ -38,16 +39,19 @@ impl CommandLine {
             program,
             arguments: Vec::new(),
             directory: None,
-            target: None,
+            variables: BTreeMap::new(),
         }
     }
 
     #[must_use]
     pub fn building_into(self, target: &TargetDirectory) -> CommandLine {
-        CommandLine {
-            target: Some(target.path().to_path_buf()),
-            ..self
-        }
+        self.environment(Self::TARGET, target.path().to_path_buf())
+    }
+
+    #[must_use]
+    pub fn environment(mut self, name: &'static str, value: PathBuf) -> CommandLine {
+        self.variables.insert(name, value);
+        self
     }
 
     #[must_use]
@@ -109,9 +113,7 @@ impl CommandLine {
         self.directory.iter().for_each(|directory| {
             command.current_dir(directory);
         });
-        self.target.iter().for_each(|target| {
-            command.env(Self::TARGET, target);
-        });
+        command.envs(&self.variables);
         command
     }
 }

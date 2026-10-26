@@ -8,4 +8,8 @@ pub enum Unready {
     Unpushed,
     #[error("HEAD moved during the run")]
     Moved,
+    #[error("gate checkout changed during the run")]
+    Tampered,
+    #[error("no meta-dev rev")]
+    Unversioned,
 }

@@ -3,8 +3,7 @@ use std::path::Path;
 
 use task::GateStatus;
 
-use crate::task::ci::local_gate::GateState;
-use crate::task::ci::step_times::StepTimes;
+use crate::task::ci::local_gate::{GateState, MetaRev, RecordedTimes};
 use crate::task::revision::Commit;
 use crate::task::surfaces::Changed;
 
@@ -13,7 +12,7 @@ pub enum StatusArgument<'post> {
     Endpoint(&'post Commit),
     State(GateState),
     Context { status: &'post GateStatus, scope: &'post Path },
-    Description { version: Commit, times: &'post StepTimes, surfaces: &'post Changed },
+    Description { version: MetaRev, times: &'post RecordedTimes, surfaces: &'post Changed },
 }
 
 impl StatusArgument<'_> {
@@ -39,14 +38,13 @@ impl fmt::Display for StatusArgument<'_> {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     use settings::EmbeddedDefaults;
     use task::Policy;
 
     use super::StatusArgument;
-    use crate::task::ci::step_times::StepTimes;
-    use crate::task::revision::Commit;
+    use crate::task::ci::local_gate::{MetaRev, RecordedTimes};
     use crate::task::surfaces::Changed;
 
     const VERSION: &str = "0a1b2c";
@@ -57,8 +55,8 @@ mod tests {
     fn the_root_workspace_keeps_the_bare_status_and_unchanged_surfaces_add_no_note() {
         let policy = Policy::defaults();
         let context = StatusArgument::Context { status: policy.gate().unwrap(), scope: Path::new("") };
-        let (times, unchanged) = (StepTimes::default(), Changed::new(Vec::new()));
-        let version: Commit = VERSION.parse().unwrap();
+        let (times, unchanged) = (RecordedTimes::new(PathBuf::new()), Changed::new(Vec::new()));
+        let version: MetaRev = VERSION.parse().unwrap();
         let description = StatusArgument::Description { version, times: &times, surfaces: &unchanged };
         assert_eq!(context.to_string(), ROOT_CONTEXT);
         assert_eq!(description.to_string(), UNNOTED);

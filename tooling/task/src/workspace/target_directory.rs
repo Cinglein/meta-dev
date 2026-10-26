@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::failure::Failure;
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct TargetDirectory {
     target_directory: PathBuf,
 }
