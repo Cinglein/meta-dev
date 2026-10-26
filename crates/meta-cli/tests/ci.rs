@@ -131,8 +131,53 @@ impl Stale {
     }
 }
 
+struct Planted;
+
+impl Planted {
+    const STATES: &'static str = ".git/meta-ci/ABCDEF1234/states";
+    const PRE_RECEIVE: &'static str = "hooks/pre-receive";
+    const REFUSE: &'static str = "#!/bin/sh\nexit 1\n";
+    const RUNNING: &'static str = "running";
+
+    fn running(repo: &Repo) {
+        let head = String::from_utf8(Git::run(repo.clone.path(), &["rev-parse", "HEAD"]).stdout).unwrap();
+        let states = repo.clone.path().join(Self::STATES);
+        std::fs::create_dir_all(&states).unwrap();
+        std::fs::write(states.join(head.trim()), format!("{} {}", head.trim(), Self::RUNNING)).unwrap();
+    }
+
+    fn refusal(origin: &Path) {
+        let hook = origin.join(Self::PRE_RECEIVE);
+        std::fs::write(&hook, Self::REFUSE).unwrap();
+        std::fs::set_permissions(hook, std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
+    }
+
+    fn locked(dir: &Path) -> std::fs::Permissions {
+        let open = std::fs::metadata(dir).unwrap().permissions();
+        let mut locked = open.clone();
+        locked.set_readonly(true);
+        std::fs::set_permissions(dir, locked).unwrap();
+        open
+    }
+
+    fn twin(repo: &Repo) -> std::process::Child {
+        let head = std::fs::read_to_string(repo.clone.path().join("bin/head")).unwrap();
+        let path = format!("{}:{}", repo.clone.path().join("bin").display(), std::env::var("PATH").unwrap_or_default());
+        Command::new(META)
+            .args(["ci-watch", SESSION, head.trim()])
+            .current_dir(repo.clone.path())
+            .env("PATH", path)
+            .env("FAKE_GH_DIR", repo.clone.path())
+            .env("FAKE_GH_SCENARIO", repo.scenario)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap()
+    }
+}
+
 struct Repo {
-    _origin: tempfile::TempDir,
+    origin: tempfile::TempDir,
     clone: tempfile::TempDir,
     scenario: &'static str,
 }
@@ -151,7 +196,7 @@ impl Repo {
         std::fs::set_permissions(clone.path().join("bin/gh"), std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
         Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"]);
         std::fs::write(clone.path().join("bin/head"), Git::run(clone.path(), &["rev-parse", "HEAD"]).stdout).unwrap();
-        Self { _origin: origin, clone, scenario }
+        Self { origin, clone, scenario }
     }
 
     fn hook(&self, event: &str, command: &str) -> String {

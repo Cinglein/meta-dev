@@ -5,7 +5,7 @@ use std::process::Command;
 
 use meta_log::GitLog;
 
-use crate::request::ci::Commit;
+use crate::request::ci::{Commit, RefTips};
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
 pub use config::{BranchName, CiSettings, Config, LogWindow, ProgramName};
@@ -52,16 +52,30 @@ impl Project {
         })
     }
 
-    pub fn pushed_head(&self) -> Option<Commit> {
-        let tracking = format!("refs/remotes/{}/{}", self.config.remote().ok()?, self.unprotected_branch()?);
-        let head = Command::new("git")
+    pub fn ref_tips(&self) -> Option<RefTips> {
+        let remote = format!("refs/remotes/{}", self.config.remote().ok()?);
+        let format = "--format=%(refname) %(objectname)";
+        let listed = Command::new("git")
             .arg("-C")
             .arg(&self.root)
-            .args(["rev-parse", "--verify", "-q", &tracking])
+            .args(["for-each-ref", format, "refs/heads", &remote])
             .output()
             .ok()?;
-        let Ok(commit) = String::from_utf8_lossy(&head.stdout).parse();
-        head.status.success().then_some(commit)
+        let Ok(tips) = String::from_utf8_lossy(&listed.stdout).parse();
+        listed.status.success().then_some(tips)
+    }
+
+    pub fn unpushed(&self) -> Option<Commit> {
+        let remotes = format!("--remotes={}", self.config.remote().ok()?);
+        let ahead = Command::new("git")
+            .arg("-C")
+            .arg(&self.root)
+            .args(["rev-list", "-1", "HEAD", "--not", &remotes])
+            .output()
+            .ok()?;
+        let text = String::from_utf8_lossy(&ahead.stdout);
+        let Ok(commit) = text.parse();
+        (ahead.status.success() && !text.trim().is_empty()).then_some(commit)
     }
 
     fn unprotected_branch(&self) -> Option<BranchName> {

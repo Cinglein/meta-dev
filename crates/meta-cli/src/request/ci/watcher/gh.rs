@@ -1,10 +1,13 @@
 mod gh_jobs;
 mod observation;
+mod process_group;
 mod raw_log;
 
 use std::ffi::OsString;
+use std::os::unix::process::CommandExt as _;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::time::Instant;
 
 use crate::request::ci::ci_status::CiStatus;
 use crate::request::ci::commit::Commit;
@@ -13,12 +16,14 @@ use crate::request::project::ProgramName;
 use gh_jobs::GhJobs;
 use meta_gh::GhRun;
 pub use observation::Observation;
+use process_group::ProcessGroup;
 pub use raw_log::RawLog;
 
 #[derive(Clone, Debug)]
 pub struct Gh {
     program: ProgramName,
     root: PathBuf,
+    deadline: Instant,
 }
 
 impl Gh {
@@ -32,8 +37,8 @@ impl Gh {
     const JOB: &'static str = "--job";
     const LOG_FAILED: &'static str = "--log-failed";
 
-    pub fn new(program: ProgramName, root: PathBuf) -> Self {
-        Self { program, root }
+    pub fn new(program: ProgramName, root: PathBuf, deadline: Instant) -> Self {
+        Self { program, root, deadline }
     }
 
     pub fn observe(&self, commit: &Commit) -> Result<Observation, Listed> {
@@ -73,7 +78,25 @@ impl Gh {
     }
 
     fn text(&self, words: impl Iterator<Item = OsString>) -> Result<String, Listed> {
-        let output = Command::new(&self.program).args(words).current_dir(&self.root).output().map_err(Listed::new)?;
+        let child = Command::new(&self.program)
+            .args(words)
+            .current_dir(&self.root)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .process_group(i32::default())
+            .spawn()
+            .map_err(Listed::new)?;
+        let group = ProcessGroup::led_by(&child);
+        let (sender, receiver) = std::sync::mpsc::channel();
+        std::thread::spawn(move || sender.send(child.wait_with_output()).ok());
+        let output = receiver
+            .recv_timeout(self.deadline.saturating_duration_since(Instant::now()))
+            .map_err(|_| {
+                group.kill();
+                Listed::new("timed out")
+            })?
+            .map_err(Listed::new)?;
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).into_owned())
         } else {

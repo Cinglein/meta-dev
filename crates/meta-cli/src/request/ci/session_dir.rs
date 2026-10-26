@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use super::ci_status::CiStatus;
 use super::commit::Commit;
+use super::ref_tips::RefTips;
 use super::session_id::SessionId;
 use crate::request::output::Listed;
 use crate::request::project::Project;
@@ -22,6 +23,10 @@ impl SessionDir {
     const SEEN: &'static str = "seen";
     const STATES: &'static str = "states";
     const PARTIAL: &'static str = "partial";
+    const TIPS: &'static str = "tips";
+    const PUSHED: &'static str = "pushed";
+    const LOCKS: &'static str = "locks";
+    const PROBE: &'static str = "probe";
 
     pub fn for_session(project: &Project, session: &SessionId) -> Option<Self> {
         GitLink::common_dir(project.root()).map(|base| Self(base.join(Self::ROOT).join(session.file_name())))
@@ -67,7 +72,36 @@ impl SessionDir {
         state.matching(commit).map(WatchState::status)
     }
 
-    pub fn watched(&self) -> Option<&Self> {
-        std::fs::read_dir(self.0.join(Self::STATES)).ok()?.next().map(|_| self)
+    pub fn remember(&self, tips: &RefTips) -> std::io::Result<()> {
+        std::fs::create_dir_all(&self.0)?;
+        write!(std::fs::File::create(self.0.join(Self::TIPS))?, "{tips}")
+    }
+
+    pub fn record_pushes(&self, tips: &RefTips) -> std::io::Result<RefTips> {
+        let Ok(before) = std::fs::read_to_string(self.0.join(Self::TIPS)).unwrap_or_default().parse::<RefTips>();
+        let pushed = tips.pushed_since(&before);
+        write!(self.pushed_file()?, "{pushed}")?;
+        self.remember(tips)?;
+        Ok(pushed)
+    }
+
+    pub fn pushed(&self) -> std::io::Result<RefTips> {
+        self.pushed_file()?;
+        std::fs::File::create(self.0.join(Self::PROBE))?;
+        std::fs::remove_file(self.0.join(Self::PROBE))?;
+        let Ok(pushed) = std::fs::read_to_string(self.0.join(Self::PUSHED))?.parse();
+        Ok(pushed)
+    }
+
+    pub fn claim(&self, commit: &Commit) -> Option<std::fs::File> {
+        let folder = self.0.join(Self::LOCKS);
+        std::fs::create_dir_all(&folder).ok()?;
+        let lock = std::fs::File::options().create(true).append(true).open(folder.join(commit.argument())).ok()?;
+        lock.try_lock().ok().map(|()| lock)
+    }
+
+    fn pushed_file(&self) -> std::io::Result<std::fs::File> {
+        std::fs::create_dir_all(&self.0)?;
+        std::fs::OpenOptions::new().create(true).append(true).open(self.0.join(Self::PUSHED))
     }
 }
