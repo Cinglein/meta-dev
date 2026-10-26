@@ -260,3 +260,4 @@
 {"at":"2026-10-26T07:41:53.004836Z","actor":"claude-lead","kind":"IssueReported","issue":"issue-ef3a10afd8f86e3c","text":"Merged meta-dev #4 (minimally shippable: git dependency, policy per workspace, subdirectory consumers, base branch from policy) after two independent reviews; tagged v0.1.0"}
 {"at":"2026-10-26T07:41:54.786843Z","actor":"owner","kind":"EntryRetired","entry":"issue-ef3a10afd8f86e3c","text":"record only (merge log)"}
 {"at":"2026-10-26T07:42:02.106675Z","actor":"claude-lead","kind":"IssueReported","issue":"issue-78074f564ab4504d","text":"Note: retire of issue-ef3a10afd8f86e3c at 07:41Z is attributed to 'owner' by mistake; it was claude-lead (META_ACTOR not passed through xargs)"}
+{"at":"2026-10-26T07:42:57.192799Z","actor":"claude-chess-switch","kind":"TaskClaimed","task":"task-8a8aa9478bb018ea"}
