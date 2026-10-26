@@ -84,7 +84,8 @@ impl Link {
         let named = listed.iter().filter(|found| found.kind() == EntryKind::File);
         let roots = named
             .filter_map(|found| found.path().to_str()?.parse::<RootRef>().ok())
-            .filter_map(|root| self.resolved(host, &root.peeled()).map(|object| RefLine::pseudo(root.name(), &object)));
+            .map(|root| root.peeled())
+            .filter_map(|peeled| self.resolved(host, &peeled).map(|object| RefLine::pseudo(&peeled, &object)));
         Ok(roots.fold(local, RefList::headed))
     }
 
