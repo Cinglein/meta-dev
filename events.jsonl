@@ -193,3 +193,4 @@
 {"at":"2026-10-26T05:11:25.855911Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-1a4e5a9815c24384","text":"Migrate agent context (context/) into the log as concerns/tasks, so context/ shrinks"}
 {"at":"2026-10-26T05:11:27.336368Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-c5cbeff552c5009e","text":"demoted to concern-1a4e5a9815c24384 (not scheduled; WIP cap)"}
 {"at":"2026-10-26T05:11:28.843627Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-f8569de5dc3a2c96","text":"Record CI results as run events with timings in meta/log"}
+{"at":"2026-10-26T05:11:30.268292Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-5f05a3bb927a8d24","text":"demoted to concern-f8569de5dc3a2c96 (not scheduled; WIP cap)"}
