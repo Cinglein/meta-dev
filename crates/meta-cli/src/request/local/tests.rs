@@ -89,5 +89,6 @@ fn appends_after_a_torn_line_start_a_new_line_and_reads_skip_the_torn_line_with_
     assert!(created.iter().all(|entry| LocalTrail::append(git_dir.path(), entry).is_ok()));
     let trail = LocalTrail::read(git_dir.path()).unwrap();
     let shown = Worktrees::joined(trail, &[], &Fixture::assigned().state).to_string();
-    assert!(shown.starts_with(WARNING) && shown.lines().count() == created.len() + 1);
+    assert!(shown.starts_with(WARNING) && shown.matches(WARNING).count() == 1);
+    assert_eq!(shown.lines().count(), created.len() + 1);
 }
