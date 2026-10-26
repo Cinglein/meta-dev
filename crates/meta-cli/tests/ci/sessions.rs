@@ -45,10 +45,10 @@ fn other_sessions_commits_and_a_read_only_state_dir_never_block() {
     let clone: &Path = repo.clone.path();
     let cwds = [(clone, MINE), (&other, THEIRS), (clone, READER), (reviewer.path(), PULLER)];
     let [mine, theirs, reader, puller] = cwds.map(|(cwd, id)| Session { repo: &repo, cwd, id });
-    let _: [String; 3] = [&mine, &theirs, &puller].map(|session| session.hook(PRE, COMMIT));
+    let _: Vec<String> = [&mine, &theirs, &puller].iter().map(|session| session.hook(PRE, COMMIT)).collect();
     Git::run(&other, &NEXT_COMMIT);
     FailingHead::copy_from(&repo, &other);
-    let _: [String; 2] = [&theirs, &mine].map(|session| session.hook(POST, COMMIT));
+    let _: Vec<String> = [&theirs, &mine].iter().map(|session| session.hook(POST, COMMIT)).collect();
     Git::run(reviewer.path(), &PULL_WORDS);
     puller.hook(POST, PULL);
     let passed = [mine.hook(STOP, BUILD), puller.hook(STOP, PULL)];
