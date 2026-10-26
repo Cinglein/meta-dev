@@ -14,6 +14,18 @@ const OFFLINE: &str = "offline";
 const WRITES: &str = "2";
 const LIST_ISSUES: [&str; 2] = ["list", "issues"];
 const LOCAL_NAME: &str = "localname";
+const OPEN: [&str; 4] = ["open", "--division", "features-and-maintenance", "text"];
+const SEED: [[&str; 5]; 3] = [
+    ["commit", "-q", "--allow-empty", "-m", "seed"],
+    ["push", "-q", "origin", "HEAD:main", "--no-verify"],
+    ["remote", "set-head", "origin", "main", "--"],
+];
+const NOREPLY: &str = "1+agent@users.noreply.github.com";
+const CLAIM: &str = "claim";
+const WORKTREE: &str = "--worktree";
+const WORKTREES: [&str; 1] = ["worktrees"];
+const SHOWN_BY_GIT: [[&str; 2]; 2] = [["config", "user.email"], ["branch", "--show-current"]];
+const MISSING: &str = "missing";
 
 struct Git;
 
@@ -23,6 +35,10 @@ impl Git {
 
     fn run(dir: &Path, words: &[&str]) -> Output {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
+    }
+
+    fn shown(dir: &Path, words: &[&str]) -> String {
+        Run(Command::new("git").arg("-C").arg(dir).args(words).output().unwrap()).to_string()
     }
 
     fn link_origin(dir: &Path, url: &str) {
@@ -81,6 +97,14 @@ impl Project {
         Self { origin, clone }
     }
 
+    fn seeded(worktrees: &Path) -> Self {
+        let project = Self::new();
+        SEED.iter().for_each(|words| assert!(Git::run(project.clone.path(), words).status.success()));
+        let settings = format!("worktree_root = {worktrees:?}\n[identity]\nname = \"agent\"\nemail = \"{NOREPLY}\"\n");
+        std::fs::write(project.clone.path().join("meta.local.toml"), settings).unwrap();
+        project
+    }
+
     fn meta(&self, actor: &str, words: &[&str]) -> Run {
         Run(Command::new(META).current_dir(self.clone.path()).args(words).env("META_ACTOR", actor).output().unwrap())
     }
@@ -102,4 +126,17 @@ fn writes_go_to_the_remote_as_meta_actor_else_owner_and_offline_writes_are_refus
     assert_eq!(project.meta(WRITER, &ISSUE).actor().as_deref(), Some(WRITER));
     Git::run(project.clone.path(), &NOWHERE);
     assert!(project.meta(OWNER, &ISSUE).complaint().0.contains(OFFLINE));
+}
+
+#[test]
+fn claim_with_worktree_makes_a_noreply_worktree_on_the_task_branch_that_worktrees_lists() {
+    let worktrees = tempfile::tempdir().unwrap();
+    let project = Project::seeded(worktrees.path());
+    let task = project.meta(OWNER, &OPEN).written().0;
+    let claimed = project.meta(OWNER, &[CLAIM, &task, WORKTREE]).to_string();
+    let path = Path::new(claimed.lines().last().unwrap_or_default());
+    let shown = SHOWN_BY_GIT.map(|words| Git::shown(path, &words));
+    assert_eq!(shown, [format!("{NOREPLY}\n"), format!("{task}\n")]);
+    let listed = project.meta(OWNER, &WORKTREES).to_string();
+    assert!(listed.contains(&format!("{task} assigned {task} ")) && !listed.contains(MISSING));
 }
