@@ -19,3 +19,13 @@ impl fmt::Display for Site {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{LineNumber, PathBuf, Site};
+    #[test]
+    fn a_line_site_prints_as_its_path_and_line_number() {
+        let line = Site::Line(PathBuf::from("a.rs"), LineNumber::new(3));
+        assert_eq!(line.to_string(), "a.rs:3");
+    }
+}
