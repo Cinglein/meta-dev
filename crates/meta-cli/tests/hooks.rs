@@ -44,10 +44,6 @@ const SESSION_ACTOR: &str = "claude-abcdef1234";
 const SESSION_STARTED: &str = "meta-sessions/ABCDEF1234/started";
 const ENV_LINE: &str = "export META_ACTOR=claude-abcdef1234\nexport META_SESSION=ABCDEF12-34\n";
 
-use scenario::Scenario;
-
-#[path = "support/scenario.rs"]
-mod scenario;
 #[path = "support/side_by_side.rs"]
 mod side_by_side;
 
@@ -133,56 +129,42 @@ impl Repo {
     }
 }
 
-#[derive(Debug)]
-pub struct PreToolUse;
-
-impl Scenario for PreToolUse {
-    fn run() {
-        let repo = Repo::new();
-        let home = repo.clone.path();
-        let elsewhere = repo.origin.path();
-        Git::configure(&home.join(GIT_CONFIG), NOREPLY_IDENTITY);
-        Git::configure(&elsewhere.join(BARE_CONFIG), FOREIGN_IDENTITY);
-        let push = repo.hook(PRE, PUSH, home);
-        assert!(repo.hook(PRE, MERGE, home).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
-        let commits = REFUSED_COMMITS.into_iter().zip([home, elsewhere, home, home]);
-        let shown = commits.map(|((command, reason), cwd)| (repo.hook(PRE, command, cwd), format!("{DENY}{reason}")));
-        assert!(shown.into_iter().all(|(shown, refused)| shown.contains(&refused)));
-        assert_eq!(repo.hook(PRE, ALLOWED, home), "");
-    }
+pub fn pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_wherever_they_run() {
+    let repo = Repo::new();
+    let home = repo.clone.path();
+    let elsewhere = repo.origin.path();
+    Git::configure(&home.join(GIT_CONFIG), NOREPLY_IDENTITY);
+    Git::configure(&elsewhere.join(BARE_CONFIG), FOREIGN_IDENTITY);
+    let push = repo.hook(PRE, PUSH, home);
+    assert!(repo.hook(PRE, MERGE, home).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
+    let commits = REFUSED_COMMITS.into_iter().zip([home, elsewhere, home, home]);
+    let shown = commits.map(|((command, reason), cwd)| (repo.hook(PRE, command, cwd), format!("{DENY}{reason}")));
+    assert!(shown.into_iter().all(|(shown, refused)| shown.contains(&refused)));
+    assert_eq!(repo.hook(PRE, ALLOWED, home), "");
 }
 
-#[derive(Debug)]
-pub struct PostToolUse;
-
-impl Scenario for PostToolUse {
-    fn run() {
-        let repo = Repo::new();
-        let home = repo.clone.path();
-        repo.hook(POST, COMMIT, home);
-        Git::run(repo.clone.path(), &NEW_FEATURE);
-        repo.hook(POST, STATUS, home);
-        assert_eq!(Git::head(repo.origin.path(), ALL_REFS), Revision(String::new()));
-        repo.hook(POST, COMMIT, home);
-        assert_eq!(Git::head(repo.origin.path(), FEATURE_BRANCH), Git::head(repo.clone.path(), HEAD));
-        Git::run(repo.clone.path(), &AMEND);
-        assert!(repo.hook(POST, COMMIT, home).contains(REJECTED) && !repo.clone.path().join(WATCHERS).exists());
-    }
+pub fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
+    let repo = Repo::new();
+    let home = repo.clone.path();
+    repo.hook(POST, COMMIT, home);
+    Git::run(repo.clone.path(), &NEW_FEATURE);
+    repo.hook(POST, STATUS, home);
+    assert_eq!(Git::head(repo.origin.path(), ALL_REFS), Revision(String::new()));
+    repo.hook(POST, COMMIT, home);
+    assert_eq!(Git::head(repo.origin.path(), FEATURE_BRANCH), Git::head(repo.clone.path(), HEAD));
+    Git::run(repo.clone.path(), &AMEND);
+    assert!(repo.hook(POST, COMMIT, home).contains(REJECTED) && !repo.clone.path().join(WATCHERS).exists());
 }
 
-#[derive(Debug)]
-pub struct SessionStart;
-
-impl Scenario for SessionStart {
-    fn run() {
-        let repo = Repo::new();
-        let home = repo.clone.path();
-        let shown = repo.hook(SESSION_START, COMMIT, home);
-        assert!(shown.contains(NO_TASKS) && shown.contains(SESSION_ACTOR));
-        assert_eq!(std::fs::read_to_string(repo.env_file()).unwrap(), ENV_LINE);
-        assert!(home.join(SESSION_STARTED).exists());
-    }
+pub fn session_start_shows_state_and_names_the_session_actor() {
+    let repo = Repo::new();
+    let home = repo.clone.path();
+    let shown = repo.hook(SESSION_START, COMMIT, home);
+    assert!(shown.contains(NO_TASKS) && shown.contains(SESSION_ACTOR));
+    assert_eq!(std::fs::read_to_string(repo.env_file()).unwrap(), ENV_LINE);
+    assert!(home.join(SESSION_STARTED).exists());
 }
+
 impl fmt::Display for Repo {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{}", self.clone.path().display())
@@ -191,5 +173,9 @@ impl fmt::Display for Repo {
 
 #[test]
 fn every_hook_scenario_holds_when_run_side_by_side() {
-    side_by_side::SideBySide::run(&[PreToolUse::run, PostToolUse::run, SessionStart::run]);
+    side_by_side::SideBySide::run(&[
+        ("pre", pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_wherever_they_run),
+        ("post", post_tool_use_pushes_unprotected_branches_and_reports_git_errors),
+        ("start", session_start_shows_state_and_names_the_session_actor),
+    ]);
 }

@@ -42,10 +42,6 @@ const NOT_A_DIRECTORY: &str = "/dev/null";
 const IGNORED: &str = "not gitignored";
 const GIT_CALL: &str = "git -C /";
 
-use scenario::Scenario;
-
-#[path = "support/scenario.rs"]
-mod scenario;
 #[path = "support/side_by_side.rs"]
 mod side_by_side;
 
@@ -159,78 +155,68 @@ impl Project {
     }
 }
 
-#[derive(Debug)]
-pub struct RemoteWrites;
-
-impl Scenario for RemoteWrites {
-    fn run() {
-        let project = Project::new();
-        let opened = project.meta_unset(&ISSUE);
-        let listed = project.meta(OWNER, &LIST_ISSUES).to_string();
-        assert!(opened.actor().as_deref() == Some(OWNER) && listed.contains(&opened.written().0));
-        assert!(Run(Git::run(project.origin.path(), &COUNT)).to_string().starts_with(WRITES));
-        assert_eq!(project.meta(WRITER, &ISSUE).actor().as_deref(), Some(WRITER));
-        Git::run(project.clone.path(), &NOWHERE);
-        assert!(project.meta(OWNER, &ISSUE).complaint().0.contains(OFFLINE));
-    }
+pub fn writes_go_to_the_remote_as_meta_actor_else_owner_and_offline_writes_are_refused() {
+    let project = Project::new();
+    let opened = project.meta_unset(&ISSUE);
+    let listed = project.meta(OWNER, &LIST_ISSUES).to_string();
+    assert!(opened.actor().as_deref() == Some(OWNER) && listed.contains(&opened.written().0));
+    assert!(Run(Git::run(project.origin.path(), &COUNT)).to_string().starts_with(WRITES));
+    assert_eq!(project.meta(WRITER, &ISSUE).actor().as_deref(), Some(WRITER));
+    Git::run(project.clone.path(), &NOWHERE);
+    assert!(project.meta(OWNER, &ISSUE).complaint().0.contains(OFFLINE));
 }
 
-#[derive(Debug)]
-pub struct ClaimWorktree;
-
-impl Scenario for ClaimWorktree {
-    fn run() {
-        let worktrees = tempfile::tempdir().unwrap();
-        let project = Project::seeded(worktrees.path());
-        let task = project.meta(OWNER, &OPEN).written().0;
-        let claimed = project.meta(OWNER, &[CLAIM, &task, WORKTREE]).to_string();
-        let path = Path::new(claimed.lines().last().unwrap_or_default());
-        let shown = SHOWN_BY_GIT.map(|words| Git::shown(path, &words));
-        assert_eq!(shown, [NOREPLY, NOREPLY, AGENT, &task].map(|line| format!("{line}\n")));
-        let stray = worktrees.path().join(AGENT);
-        Git::run(project.clone.path(), &[&STRAY[..], &[stray.to_str().unwrap()]].concat());
-        Git::appended(&project.clone.path().join(RECORD), TORN);
-        let run = project.meta(OWNER, &WORKTREES);
-        let listed = run.to_string();
-        assert!(listed.contains(&format!("{task} assigned {task} ")) && !listed.contains(MISSING));
-        let named = format!("{UNRECORDED} {}\n", std::fs::canonicalize(stray).unwrap().display());
-        assert!(
-            listed.ends_with(&named) && listed.matches(UNRECORDED).count() == 1 && run.complaint().0.contains(LINE_2)
-        );
-    }
+pub fn claim_with_worktree_makes_a_noreply_worktree_on_the_task_branch_that_worktrees_lists() {
+    let worktrees = tempfile::tempdir().unwrap();
+    let project = Project::seeded(worktrees.path());
+    let task = project.meta(OWNER, &OPEN).written().0;
+    let claimed = project.meta(OWNER, &[CLAIM, &task, WORKTREE]).to_string();
+    let path = Path::new(claimed.lines().last().unwrap_or_default());
+    let shown = SHOWN_BY_GIT.map(|words| Git::shown(path, &words));
+    assert_eq!(shown, [NOREPLY, NOREPLY, AGENT, &task].map(|line| format!("{line}\n")));
+    let stray = worktrees.path().join(AGENT);
+    Git::run(project.clone.path(), &[&STRAY[..], &[stray.to_str().unwrap()]].concat());
+    Git::appended(&project.clone.path().join(RECORD), TORN);
+    let run = project.meta(OWNER, &WORKTREES);
+    let listed = run.to_string();
+    assert!(listed.contains(&format!("{task} assigned {task} ")) && !listed.contains(MISSING));
+    let named = format!("{UNRECORDED} {}\n", std::fs::canonicalize(stray).unwrap().display());
+    assert!(listed.ends_with(&named) && listed.matches(UNRECORDED).count() == 1 && run.complaint().0.contains(LINE_2));
 }
 
-#[derive(Debug)]
-pub struct FailedWorktrees;
-
-impl Scenario for FailedWorktrees {
-    fn run() {
-        let worktrees = tempfile::tempdir().unwrap();
-        let project = Project::seeded(Path::new(NOT_A_DIRECTORY));
-        let task = project.meta(OWNER, &OPEN).written().0;
-        let claim = [CLAIM, task.as_str(), WORKTREE];
-        let writes = || Git::shown(project.origin.path(), &COUNT);
-        let opened = writes();
-        std::fs::write(project.clone.path().join(EXCLUDE), "").unwrap();
-        let tracked = project.meta(OWNER, &claim).complaint().0;
-        std::fs::write(project.clone.path().join(EXCLUDE), LOCAL_SETTINGS_RULE).unwrap();
-        let unwritable = project.meta(OWNER, &claim).complaint().0;
-        Settings::written(project.clone.path(), worktrees.path());
-        std::fs::write(project.clone.path().join(RECORD_DIR), "").unwrap();
-        project.meta(OWNER, &claim);
-        std::fs::remove_file(project.clone.path().join(RECORD_DIR)).unwrap();
-        let failed = writes();
-        let first = project.meta(OWNER, &claim).to_string().lines().last().unwrap_or_default().to_owned();
-        let claimed = writes();
-        std::fs::remove_dir_all(&first).ok();
-        let resumed = project.meta(OWNER, &claim).to_string();
-        assert!(failed == opened && claimed != opened && writes() == claimed);
-        assert!(tracked.contains(IGNORED) && unwritable.contains(NOT_A_DIRECTORY) && unwritable.contains(GIT_CALL));
-        assert!(resumed.ends_with(&format!("{first}\n")) && Path::new(&first).exists());
-    }
+pub fn failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_without_a_new_claim() {
+    let worktrees = tempfile::tempdir().unwrap();
+    let project = Project::seeded(Path::new(NOT_A_DIRECTORY));
+    let task = project.meta(OWNER, &OPEN).written().0;
+    let claim = [CLAIM, task.as_str(), WORKTREE];
+    let writes = || Git::shown(project.origin.path(), &COUNT);
+    let opened = writes();
+    std::fs::write(project.clone.path().join(EXCLUDE), "").unwrap();
+    let tracked = project.meta(OWNER, &claim).complaint().0;
+    std::fs::write(project.clone.path().join(EXCLUDE), LOCAL_SETTINGS_RULE).unwrap();
+    let unwritable = project.meta(OWNER, &claim).complaint().0;
+    Settings::written(project.clone.path(), worktrees.path());
+    std::fs::write(project.clone.path().join(RECORD_DIR), "").unwrap();
+    project.meta(OWNER, &claim);
+    std::fs::remove_file(project.clone.path().join(RECORD_DIR)).unwrap();
+    let failed = writes();
+    let first = project.meta(OWNER, &claim).to_string().lines().last().unwrap_or_default().to_owned();
+    let claimed = writes();
+    std::fs::remove_dir_all(&first).ok();
+    let resumed = project.meta(OWNER, &claim).to_string();
+    assert!(failed == opened && claimed != opened && writes() == claimed);
+    assert!(tracked.contains(IGNORED) && unwritable.contains(NOT_A_DIRECTORY) && unwritable.contains(GIT_CALL));
+    assert!(resumed.ends_with(&format!("{first}\n")) && Path::new(&first).exists());
 }
 
 #[test]
 fn every_cli_scenario_holds_when_run_side_by_side() {
-    side_by_side::SideBySide::run(&[RemoteWrites::run, ClaimWorktree::run, FailedWorktrees::run]);
+    side_by_side::SideBySide::run(&[
+        ("writes", writes_go_to_the_remote_as_meta_actor_else_owner_and_offline_writes_are_refused),
+        ("worktrees", claim_with_worktree_makes_a_noreply_worktree_on_the_task_branch_that_worktrees_lists),
+        (
+            "failed_worktrees",
+            failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_without_a_new_claim,
+        ),
+    ]);
 }

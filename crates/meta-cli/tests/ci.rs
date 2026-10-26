@@ -106,10 +106,6 @@ mod review;
 #[path = "ci/sessions.rs"]
 mod sessions;
 
-use scenario::Scenario;
-
-#[path = "support/scenario.rs"]
-mod scenario;
 #[path = "support/side_by_side.rs"]
 mod side_by_side;
 
@@ -364,102 +360,90 @@ impl fmt::Display for Repo {
     }
 }
 
-#[derive(Debug)]
-pub struct CiWait;
-
-impl Scenario for CiWait {
-    fn run() {
-        let repo = Repo::new(FAILURE);
-        repo.hook(POST, COMMIT);
-        let waited = repo.session_command(CI_WAIT);
-        let stop = repo.hook(STOP, COMMIT);
-        let settled = repo.settled();
-        let shown = format!("{}{stop}{}", waited.0, repo.hook(PRE, COMMIT));
-        assert!(waited.0.contains(JOB_FAILED) && !waited.1.success() && stop.contains(BLOCK_REASON));
-        assert!(settled.contains(STEP_LISTED) && shown.contains(STEP_LISTED) && shown.contains(CI_LOG_HINT));
-        Git::run(repo.clone.path(), &NEXT_COMMIT);
-        let log = repo.session_command(CI_LOG).0;
-        Git::run(repo.clone.path(), &NEXT_COMMIT);
-        repo.hook(POST, COMMIT);
-        repo.session_command(CI_WAIT);
-        let fixed = repo.hook(STOP, COMMIT);
-        assert!(log.contains(PANIC_BLOCK) && !log.contains(COMPILING) && !fixed.contains(BLOCK));
-    }
+pub fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push() {
+    let repo = Repo::new(FAILURE);
+    repo.hook(POST, COMMIT);
+    let waited = repo.session_command(CI_WAIT);
+    let stop = repo.hook(STOP, COMMIT);
+    let settled = repo.settled();
+    let shown = format!("{}{stop}{}", waited.0, repo.hook(PRE, COMMIT));
+    assert!(waited.0.contains(JOB_FAILED) && !waited.1.success() && stop.contains(BLOCK_REASON));
+    assert!(settled.contains(STEP_LISTED) && shown.contains(STEP_LISTED) && shown.contains(CI_LOG_HINT));
+    Git::run(repo.clone.path(), &NEXT_COMMIT);
+    let log = repo.session_command(CI_LOG).0;
+    Git::run(repo.clone.path(), &NEXT_COMMIT);
+    repo.hook(POST, COMMIT);
+    repo.session_command(CI_WAIT);
+    let fixed = repo.hook(STOP, COMMIT);
+    assert!(log.contains(PANIC_BLOCK) && !log.contains(COMPILING) && !fixed.contains(BLOCK));
 }
 
-#[derive(Debug)]
-pub struct Passing;
-
-impl Scenario for Passing {
-    fn run() {
-        let unstarted = Started::building(UNSTARTED, PATIENT);
-        let repo = Repo::new(SUCCESS);
-        Git::run(repo.clone.path(), &PUSH_WORDS);
-        repo.hook(POST, PLAIN_PUSH);
-        let waited = repo.session_command(CI_WAIT);
-        assert!(waited.0.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
-        assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
-        Git::run(repo.clone.path(), &NEXT_COMMIT);
-        Stale::plant(&repo);
-        Git::run(repo.clone.path(), &PUSH_WORDS);
-        repo.hook(POST, PLAIN_PUSH);
-        let unstarted = unstarted.join().unwrap();
-        let settled = unstarted.settled();
-        let wait = unstarted.session_command(CI_WAIT).1;
-        let unwatched = repo.hook(STOP, COMMIT);
-        assert!(
-            settled.contains(UNAVAILABLE)
-                && !unstarted.hook(STOP, COMMIT).contains(BLOCK)
-                && !wait.success()
-                && unwatched.contains(NOT_WATCHED)
-        );
-    }
+pub fn passing_or_unstarted_runs_let_the_agent_stop() {
+    let unstarted = Started::building(UNSTARTED, PATIENT);
+    let repo = Repo::new(SUCCESS);
+    Git::run(repo.clone.path(), &PUSH_WORDS);
+    repo.hook(POST, PLAIN_PUSH);
+    let waited = repo.session_command(CI_WAIT);
+    assert!(waited.0.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
+    assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
+    Git::run(repo.clone.path(), &NEXT_COMMIT);
+    Stale::plant(&repo);
+    Git::run(repo.clone.path(), &PUSH_WORDS);
+    repo.hook(POST, PLAIN_PUSH);
+    let unstarted = unstarted.join().unwrap();
+    let settled = unstarted.settled();
+    let wait = unstarted.session_command(CI_WAIT).1;
+    let unwatched = repo.hook(STOP, COMMIT);
+    assert!(
+        settled.contains(UNAVAILABLE)
+            && !unstarted.hook(STOP, COMMIT).contains(BLOCK)
+            && !wait.success()
+            && unwatched.contains(NOT_WATCHED)
+    );
 }
 
-#[derive(Debug)]
-pub struct NeverAppears;
-
-impl Scenario for NeverAppears {
-    fn run() {
-        let repos = [(NONE, QUICK), (LATE, QUICK), (BROKEN, PATIENT), (MIXED, PATIENT), (HANG, QUICK)]
-            .map(|(scenario, limits)| Started::building(scenario, limits))
-            .map(|started| started.join().unwrap());
-        let [absent, late, broken, mixed, hung] = repos.each_ref().map(Repo::settled);
-        let [none, ..] = &repos;
-        assert!(
-            absent.contains(ABSENT)
-                && absent.split_once(NO_RUN_YET).is_some_and(|(_, after)| !after.contains(NO_RUN_YET))
-                && !none.hook(STOP, COMMIT).contains(BLOCK)
-                && !none.session_command(CI_WAIT).1.success()
-        );
-        assert!(
-            [&late, &hung].iter().all(|settled| settled.contains(TIMED_OUT))
-                && late.contains(NO_RUN_YET)
-                && late.contains(RUN_APPEARED)
-        );
-        assert!(
-            broken.contains(LIST_ERROR)
-                && broken.contains(VIEW_ERROR)
-                && [broken, mixed].iter().all(|settled| settled.contains(FAILED_EVENT))
-        );
-    }
+pub fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
+    let repos = [(NONE, QUICK), (LATE, QUICK), (BROKEN, PATIENT), (MIXED, PATIENT), (HANG, QUICK)]
+        .map(|(scenario, limits)| Started::building(scenario, limits))
+        .map(|started| started.join().unwrap());
+    let [absent, late, broken, mixed, hung] = repos.each_ref().map(Repo::settled);
+    let [none, ..] = &repos;
+    assert!(
+        absent.contains(ABSENT)
+            && absent.split_once(NO_RUN_YET).is_some_and(|(_, after)| !after.contains(NO_RUN_YET))
+            && !none.hook(STOP, COMMIT).contains(BLOCK)
+            && !none.session_command(CI_WAIT).1.success()
+    );
+    assert!(
+        [&late, &hung].iter().all(|settled| settled.contains(TIMED_OUT))
+            && late.contains(NO_RUN_YET)
+            && late.contains(RUN_APPEARED)
+    );
+    assert!(
+        broken.contains(LIST_ERROR)
+            && broken.contains(VIEW_ERROR)
+            && [broken, mixed].iter().all(|settled| settled.contains(FAILED_EVENT))
+    );
 }
 
 #[test]
 fn every_ci_scenario_holds_when_run_side_by_side() {
     side_by_side::SideBySide::run(&[
-        CiWait::run,
-        Passing::run,
-        NeverAppears::run,
-        merges::Merged::run,
-        pushes::OneWatcher::run,
-        pushes::WatcherRestarts::run,
-        pushes::UnwritableStart::run,
-        review::HiddenCommits::run,
-        review::RemoteJudged::run,
-        review::FailsClosed::run,
-        sessions::SlowRemote::run,
-        sessions::StartSecond::run,
-        sessions::OtherSessions::run,
+        ("ci_wait", ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push),
+        ("passing", passing_or_unstarted_runs_let_the_agent_stop),
+        ("never_appears", only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do),
+        ("merges", merges::a_merge_made_here_counts_by_its_parents_not_its_message),
+        ("one_watcher", pushes::one_commit_gets_one_watcher),
+        ("watcher_restarts", pushes::stop_judges_every_pushed_commit_and_a_dead_watcher_restarts),
+        ("unwritable_start", pushes::an_unwritable_session_start_refuses_the_writing_command),
+        ("review_dates", review::commit_text_commit_dates_and_a_cd_first_never_hide_a_commit),
+        ("review_readers", review::readers_and_single_branch_clones_are_judged_by_what_the_remote_holds),
+        ("review_reflog", review::a_reflog_that_is_off_or_an_unwritable_state_dir_fails_closed),
+        (
+            "slow_remote",
+            sessions::a_slow_remote_fails_closed_in_time_and_a_commit_in_the_start_second_is_not_the_sessions,
+        ),
+        ("start_second", sessions::a_commit_in_the_start_second_counts_when_its_object_is_newer),
+        ("other_sessions", sessions::other_sessions_commits_and_a_read_only_state_dir_never_block),
     ]);
 }

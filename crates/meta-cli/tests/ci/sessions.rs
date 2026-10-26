@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use super::{
-    BLOCK, COMMIT, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSH_WORDS, Planted, QUICK, Repo, STOP, Scenario,
-    Session, StartFile,
+    BLOCK, COMMIT, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSH_WORDS, Planted, QUICK, Repo, STOP, Session,
+    StartFile,
 };
 
 const MINE: &str = "MINE1";
@@ -49,67 +49,51 @@ impl Reviewer {
     }
 }
 
-#[derive(Debug)]
-pub struct SlowRemote;
-
-impl Scenario for SlowRemote {
-    fn run() {
-        let repo = Repo::limited(FAILURE, QUICK);
-        let clone: &Path = repo.clone.path();
-        StartFile::plant(repo.sessions.path(), SAME, SAME_AT);
-        Git::run_at(clone, &NEXT_COMMIT, SAME_AT);
-        Git::run(clone, &PUSH_WORDS);
-        Git::run(clone, &SLOW_REMOTE);
-        let started = std::time::Instant::now();
-        let slow = repo.hook(STOP, COMMIT);
-        let took = started.elapsed();
-        let same = Session { repo: &repo, cwd: clone, id: SAME }.hook(STOP, COMMIT);
-        assert!(slow.contains(UNREACHABLE) && took < SLOW && !same.contains(BLOCK));
-    }
+pub fn a_slow_remote_fails_closed_in_time_and_a_commit_in_the_start_second_is_not_the_sessions() {
+    let repo = Repo::limited(FAILURE, QUICK);
+    let clone: &Path = repo.clone.path();
+    StartFile::plant(repo.sessions.path(), SAME, SAME_AT);
+    Git::run_at(clone, &NEXT_COMMIT, SAME_AT);
+    Git::run(clone, &PUSH_WORDS);
+    Git::run(clone, &SLOW_REMOTE);
+    let started = std::time::Instant::now();
+    let slow = repo.hook(STOP, COMMIT);
+    let took = started.elapsed();
+    let same = Session { repo: &repo, cwd: clone, id: SAME }.hook(STOP, COMMIT);
+    assert!(slow.contains(UNREACHABLE) && took < SLOW && !same.contains(BLOCK));
 }
 
-#[derive(Debug)]
-pub struct StartSecond;
-
-impl Scenario for StartSecond {
-    fn run() {
-        let repo = Repo::new(FAILURE);
-        let clone: &Path = repo.clone.path();
-        let now = Session { repo: &repo, cwd: clone, id: NOW };
-        now.hook(PRE, COMMIT);
-        let second = StartFile::second_of(repo.sessions.path(), NOW);
-        Git::run_at(clone, &NEXT_COMMIT, &second);
-        Git::run(clone, &PUSH_WORDS);
-        assert!(now.hook(STOP, COMMIT).contains(BLOCK));
-    }
+pub fn a_commit_in_the_start_second_counts_when_its_object_is_newer() {
+    let repo = Repo::new(FAILURE);
+    let clone: &Path = repo.clone.path();
+    let now = Session { repo: &repo, cwd: clone, id: NOW };
+    now.hook(PRE, COMMIT);
+    let second = StartFile::second_of(repo.sessions.path(), NOW);
+    Git::run_at(clone, &NEXT_COMMIT, &second);
+    Git::run(clone, &PUSH_WORDS);
+    assert!(now.hook(STOP, COMMIT).contains(BLOCK));
 }
 
-#[derive(Debug)]
-pub struct OtherSessions;
-
-impl Scenario for OtherSessions {
-    fn run() {
-        let repo = Repo::new(FAILURE);
-        let other = Reviewer::worktree(&repo);
-        Git::run(repo.clone.path(), &PUSH_WORDS);
-        let reviewer = Reviewer::clone_of(&repo);
-        Reviewer::plant_future_start(&repo);
-        let clone: &Path = repo.clone.path();
-        let cwds = [(clone, MINE), (&other, THEIRS), (clone, READER), (reviewer.path(), PULLER)];
-        let [mine, theirs, reader, puller] = cwds.map(|(cwd, id)| Session { repo: &repo, cwd, id });
-        let _: Vec<String> = [&mine, &theirs, &puller].iter().map(|session| session.hook(PRE, COMMIT)).collect();
-        Git::run_at(&other, &NEXT_COMMIT, FUTURE);
-        FailingHead::copy_from(&repo, &other);
-        let _: Vec<String> = [&theirs, &mine].iter().map(|session| session.hook(POST, COMMIT)).collect();
-        Git::run_at(reviewer.path(), &PULL_WORDS, FUTURE);
-        puller.hook(POST, PULL);
-        let passed = [mine.hook(STOP, BUILD), puller.hook(STOP, PULL)];
-        let open = Planted::locked(&clone.join(STATE_ROOT));
-        let locked = reader.hook(STOP, BUILD);
-        std::fs::set_permissions(clone.join(STATE_ROOT), open).unwrap();
-        assert!(
-            theirs.hook(STOP, COMMIT).contains(BLOCK)
-                && !passed.iter().chain([&locked]).any(|stop| stop.contains(BLOCK))
-        );
-    }
+pub fn other_sessions_commits_and_a_read_only_state_dir_never_block() {
+    let repo = Repo::new(FAILURE);
+    let other = Reviewer::worktree(&repo);
+    Git::run(repo.clone.path(), &PUSH_WORDS);
+    let reviewer = Reviewer::clone_of(&repo);
+    Reviewer::plant_future_start(&repo);
+    let clone: &Path = repo.clone.path();
+    let cwds = [(clone, MINE), (&other, THEIRS), (clone, READER), (reviewer.path(), PULLER)];
+    let [mine, theirs, reader, puller] = cwds.map(|(cwd, id)| Session { repo: &repo, cwd, id });
+    let _: Vec<String> = [&mine, &theirs, &puller].iter().map(|session| session.hook(PRE, COMMIT)).collect();
+    Git::run_at(&other, &NEXT_COMMIT, FUTURE);
+    FailingHead::copy_from(&repo, &other);
+    let _: Vec<String> = [&theirs, &mine].iter().map(|session| session.hook(POST, COMMIT)).collect();
+    Git::run_at(reviewer.path(), &PULL_WORDS, FUTURE);
+    puller.hook(POST, PULL);
+    let passed = [mine.hook(STOP, BUILD), puller.hook(STOP, PULL)];
+    let open = Planted::locked(&clone.join(STATE_ROOT));
+    let locked = reader.hook(STOP, BUILD);
+    std::fs::set_permissions(clone.join(STATE_ROOT), open).unwrap();
+    assert!(
+        theirs.hook(STOP, COMMIT).contains(BLOCK) && !passed.iter().chain([&locked]).any(|stop| stop.contains(BLOCK))
+    );
 }
