@@ -21,6 +21,11 @@ impl Tally {
     }
 
     #[must_use]
+    pub fn count(self) -> MutantCount {
+        self.count
+    }
+
+    #[must_use]
     pub fn mean(self) -> Millis {
         NonZeroUsize::new(self.count.into()).map_or(Millis::default(), |count| self.millis.divided_by(count))
     }

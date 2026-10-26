@@ -61,11 +61,14 @@ slowest_shown = 5
 fn_name = 3
 lifetime_name = 2
 cut_side = 5
+price_sample = 30
+diff_factor = 3
 
 [shares]
 tests_per_hundred_files = 40
 test_line_percent = 18
 cut_conductance = 19
+shard_headroom = 60
 
 [memory_gib]
 granted = 5
@@ -78,55 +81,34 @@ per_test = 1000
 total = 4000
 sample_every = 20
 discover_every = 100
-per_shard = 220000
 per_crate = 15000
-per_slice = 150000
 test_timeout = 30000
+full_job = 480000
+diff_job = 360000
+job_setup = 90000
 
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]
 
 [mutant_millis]
-default = 2100
+default = 3700
 
 [mutant_millis.crates]
 affected = 1300
-const_shape = 1000
-corpus_check = 600
-crate_graph = 1900
-distinct_signatures = 1000
-enum_predicates = 1500
+crate_graph = 1500
 expression_flow = 1400
-fn_shape = 1100
-literal_names = 1600
-manual_iteration = 1100
-meta-cli = 1600
-meta-gh = 2200
-meta-listing = 3200
-meta-log = 2500
-meta-schema = 1100
-meta-state = 1800
-module_nesting = 1400
-mutant_costs = 700
-mutation = 700
-named_lifetimes = 1400
-named_numbers = 1100
-no_comments = 1500
-no_forwarders = 1600
-no_free_fns = 1000
-no_numbers_in_binaries = 1500
-no_parameter_bags = 1100
-primitive_boundary = 1500
-private_fns = 1300
-public_surface = 1100
-settings = 200
-settings_shape = 1200
-stacked = 1100
-state_graph = 1400
-task = 5400
-test_budget = 1700
-test_time = 1100
-thin_main = 1000
-type_shape = 1100
-vec_out_params = 1100
+fn_shape = 1400
+meta-cli = 2000
+meta-log = 2100
+meta-schema = 1300
+meta-state = 1100
 meta-xtask = 900
+module_nesting = 1300
+mutation = 900
+no_forwarders = 1400
+no_parameter_bags = 1200
+primitive_boundary = 1300
+settings_shape = 1300
+state_graph = 1400
+task = 3700
+test_budget = 1500

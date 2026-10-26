@@ -10,6 +10,8 @@ pub enum Floor {
     FnName,
     LifetimeName,
     CutSide,
+    PriceSample,
+    DiffFactor,
 }
 
 impl Floor {
@@ -19,6 +21,7 @@ impl Floor {
             Floor::FnName | Floor::LifetimeName | Floor::CutSide => {
                 TopDivision::FeaturesAndMaintenance
             }
+            Floor::PriceSample | Floor::DiffFactor => TopDivision::PerformanceAndCost,
         }
     }
 }
