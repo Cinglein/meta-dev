@@ -23,8 +23,14 @@ pub struct GhJob {
 }
 
 impl GhJob {
+    #[must_use]
     pub fn failure(&self) -> Option<&Self> {
-        self.conclusion.map(Conclusion::outcome).filter(|outcome| *outcome == Outcome::Failing).map(|_| self)
+        self.failing().filter(|steps| !steps.is_empty()).map(|_| self)
+    }
+
+    #[must_use]
+    pub fn unstarted(&self) -> Option<DatabaseId> {
+        self.failing().filter(|steps| steps.is_empty()).map(|_| self.database_id)
     }
 
     #[must_use]
@@ -36,6 +42,13 @@ impl GhJob {
         let steps: Vec<String> =
             self.steps.iter().filter_map(GhStep::failure).map(|step| format!("{self} / {step}")).collect();
         self.failure().map_or_else(Vec::new, |_| if steps.is_empty() { vec![self.to_string()] } else { steps })
+    }
+
+    fn failing(&self) -> Option<&[GhStep]> {
+        self.conclusion
+            .map(Conclusion::outcome)
+            .filter(|outcome| *outcome == Outcome::Failing)
+            .map(|_| self.steps.as_slice())
     }
 }
 

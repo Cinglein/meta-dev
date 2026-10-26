@@ -8,7 +8,7 @@ use meta_log::GitLog;
 use crate::request::ci::Commit;
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
-pub use config::{BranchName, Config, LogWindow, ProgramName};
+pub use config::{BranchName, CiSettings, Config, LogWindow, ProgramName};
 
 #[derive(Debug)]
 pub struct Project {

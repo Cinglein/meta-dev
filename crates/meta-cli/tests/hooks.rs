@@ -23,6 +23,7 @@ const HEAD: &str = "HEAD";
 const FEATURE_BRANCH: &str = "feature";
 const REJECTED: &str = "rejected";
 const SESSION_START: &str = "session-start";
+const SESSION_FIELD: &str = r#""session_id":"ABCDEF12-34","#;
 const WATCHERS: &str = ".git/meta-ci";
 const NO_TASKS: &str = "Tasks: 0 unfinished";
 const SESSION_ACTOR: &str = "claude-abcdef1234";
@@ -74,8 +75,9 @@ impl Repo {
     }
 
     fn hook(&self, event: &str, command: &str, env_file: &Path) -> String {
+        let session = if event == SESSION_START { SESSION_FIELD } else { "" };
         let input = format!(
-            r#"{{"session_id":"ABCDEF12-34","cwd":{},"tool_input":{{"command":{}}}}}"#,
+            r#"{{{session}"cwd":{},"tool_input":{{"command":{}}}}}"#,
             serde_json::to_string(self.clone.path()).unwrap(),
             serde_json::to_string(command).unwrap()
         );

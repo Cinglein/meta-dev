@@ -25,12 +25,14 @@ impl GitCall {
         let args = self.words.split_first().filter(|(subcommand, _)| *subcommand == "push").map(|(_, args)| args)?;
         args.iter()
             .find(|word| Self::forces(word).is_some())
-            .map(|word| Listed::new(format!("{self}: {word} forces; use --force-with-lease on your own branch")))
-            .or_else(|| {
-                Self::targets(args)
-                    .find_map(|branch| config.protects(&branch).cloned())
-                    .map(|branch| Listed::new(format!("{self}: {branch} is protected; open a PR")))
-            })
+            .map(|word| Listed::new(format!("{self}: {word} forces; merge instead of rewriting history")))
+            .or_else(|| self.protected(args, config))
+    }
+
+    fn protected(&self, args: &[String], config: &Config) -> Option<Listed> {
+        let branch = Self::targets(args).find_map(|branch| config.protects(&branch).cloned())?;
+        let fix = branch.log().map_or("open a PR", |_| "only `meta` writes it");
+        Some(Listed::new(format!("{self}: {branch} is protected; {fix}")))
     }
 
     fn after_options(words: &[String]) -> &[String] {

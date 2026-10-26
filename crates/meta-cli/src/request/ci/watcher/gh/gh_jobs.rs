@@ -1,6 +1,6 @@
 use std::ffi::OsString;
 
-use meta_gh::GhJob;
+use meta_gh::{DatabaseId, GhJob};
 use serde::Deserialize;
 
 use crate::request::output::Listed;
@@ -14,6 +14,10 @@ pub struct GhJobs {
 impl GhJobs {
     pub fn first_failure(&self) -> Option<Listed> {
         self.jobs.iter().find_map(GhJob::failure).map(Listed::new)
+    }
+
+    pub fn first_unstarted(&self) -> Option<DatabaseId> {
+        self.jobs.iter().find_map(GhJob::unstarted)
     }
 
     pub fn failed_steps(&self) -> Vec<Listed> {

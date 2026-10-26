@@ -13,7 +13,7 @@ use super::session_dir::SessionDir;
 use super::session_id::SessionId;
 use crate::request::cli_failure::{CliFailure, Invalid, Setup};
 use crate::request::output::{Listed, Output};
-use crate::request::project::Project;
+use crate::request::project::{CiSettings, Project};
 use elapsed::Elapsed;
 pub use failure_log::FailureLog;
 use gh::{Gh, Observation};
@@ -24,6 +24,7 @@ pub struct Watcher {
     commit: Commit,
     gh: Gh,
     started: Instant,
+    settings: CiSettings,
 }
 
 impl Watcher {
@@ -46,7 +47,7 @@ impl Watcher {
             SessionDir::for_session(project, session).ok_or_else(|| CliFailure::raised::<Setup>("no git directory"))?;
         let settings = project.config().ci_settings();
         let gh = Gh::new(settings.program().clone(), project.root().to_path_buf());
-        let watcher = Self { dir, commit, gh, started: Instant::now() };
+        let watcher = Self { dir, commit, gh, started: Instant::now(), settings: settings.clone() };
         let interval = settings.poll_interval();
         let finished = std::iter::repeat_with(|| {
             std::thread::sleep(interval.duration());
@@ -90,20 +91,22 @@ impl Watcher {
                 })
                 .map(Listed::new)
         });
-        match observed.finished() {
-            Some(_) => ControlFlow::Break(observed),
+        let overdue = self.settings.run_overdue(self.started.elapsed()).and_then(|()| observed.absent());
+        match observed.finished().map(|_| ()).or(overdue.map(|_| ())) {
+            Some(()) => ControlFlow::Break(observed),
             None => ControlFlow::Continue(carried),
         }
     }
 
     fn conclude(&self, last: Option<&Observation>) -> Output {
-        let status = last.and_then(Observation::finished).unwrap_or(CiStatus::TimedOut);
+        let status = last.map_or(CiStatus::TimedOut, Observation::settled);
         let steps: Vec<String> =
             last.iter().flat_map(|observed| observed.failed_steps()).map(ToString::to_string).collect();
         let failed = Some(steps.join(", "))
             .filter(|joined| !joined.is_empty())
             .map(|joined| format!(": {joined}; run `meta ci-log`"));
-        self.note(&format!("{status} after {}{}", self.elapsed(), failed.unwrap_or_default()), status);
+        let detail = status.detail();
+        self.note(&format!("{status} after {}{detail}{}", self.elapsed(), failed.unwrap_or_default()), status);
         Output::Listed(Listed::new(status))
     }
 

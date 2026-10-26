@@ -7,6 +7,14 @@ use serde::Deserialize;
 #[serde(transparent)]
 pub struct BranchName(String);
 
+impl BranchName {
+    const LOG: &'static str = "meta/log";
+
+    pub fn log(&self) -> Option<&Self> {
+        self.0.starts_with(Self::LOG).then_some(self)
+    }
+}
+
 impl FromStr for BranchName {
     type Err = std::convert::Infallible;
 

@@ -39,7 +39,10 @@ impl Gh {
         let runs = self.runs(commit);
         let jobs: Vec<GhJobs> = runs.iter().filter_map(|run| self.jobs(run)).collect();
         let failed_job = jobs.iter().find_map(GhJobs::first_failure);
-        Observation::new(jobs.iter().flat_map(GhJobs::failed_steps).collect(), failed_job, CiStatus::of_runs(&runs))
+        let unstarted = jobs.iter().find_map(GhJobs::first_unstarted).filter(|_| failed_job.is_none());
+        let status = CiStatus::of_runs(&runs);
+        let status = unstarted.and(status).map(CiStatus::unstarted).or(status);
+        Observation::new(jobs.iter().flat_map(GhJobs::failed_steps).collect(), failed_job, status)
     }
 
     pub fn failed_logs(&self, commit: &Commit) -> RawLog {
