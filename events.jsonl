@@ -248,3 +248,4 @@
 {"at":"2026-10-26T07:18:49.792001Z","actor":"claude-lead","kind":"EntryRetired","entry":"issue-35692b312f55517a","text":"record only (merge log)"}
 {"at":"2026-10-26T07:18:51.180978Z","actor":"claude-lead","kind":"TaskDone","task":"task-eec45aca42cdb6ba"}
 {"at":"2026-10-26T07:18:52.576994Z","actor":"claude-lead","kind":"TaskOpened","task":"task-b6d7dc069566a530","text":"Onboard Basho, part 2: replace Basho's own xtask lints/CI with meta-dev tooling as a git dependency (after meta-dev v0.1.0), Basho-only tasks (trip data, map build, TestFlight, UI check) stay in Basho's xtask"}
+{"at":"2026-10-26T07:19:19.190111Z","actor":"claude-watcher-fixes","kind":"TaskOpened","task":"task-1a71dd370a3d4e71","text":"CI watcher fixes: not-started jobs are unavailable, no run for a push means no CI, protected-branch denial texts, tests spawn no watchers","addresses":["issue-63a4fe84bc035a99","issue-cec4e45aafb0ab3b","issue-4d25ac8346d9786c","issue-2ed8a9570205fff0"]}
