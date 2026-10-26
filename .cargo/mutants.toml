@@ -1,0 +1,24 @@
+exclude_globs = ["xtask/src/main.rs"]
+exclude_re = [
+    "MutantCosts::measure",
+    "Task::run",
+    "CiStep::timed",
+    "Ci::run",
+    "Clippy::run",
+    "Test::run",
+    "TestTime::run",
+    "TestBinary::(discover|timings|tests)",
+    "Changes::(reaches|since_main)",
+    "Stacked::",
+    "Scope::(applied|changed_shards|shard_runs|write_diff)",
+    "CrateLoad::listed",
+    "ShardPlan::changed_lines",
+    "TriggerEvent::current",
+    "Mutants::run",
+    "Mutants::refuse_if_another_run_exists",
+    "Mutants::refuse_if_memory_is_short",
+    "MutantsRun::accepted",
+    "MemoryWatch<'policy>::(sample|enforce|grown|children_outside)",
+]
+minimum_test_timeout = 10.0
+cap_lints = false
