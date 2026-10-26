@@ -450,6 +450,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "meta-spec"
+version = "0.1.0"
+dependencies = [
+ "corpus_check",
+ "meta-xtask",
+ "strum",
+ "tempfile",
+]
+
+[[package]]
 name = "meta-state"
 version = "0.1.0"
 dependencies = [
