@@ -29,3 +29,45 @@ impl FromStr for MoveSubject {
         Ok(Self(text.to_owned()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::MoveSubject;
+
+    const CREATING: [&str; 17] = [
+        "commit: x",
+        "commit (initial): x",
+        "commit (amend): x",
+        "commit (merge): x",
+        "commit (cherry-pick): x",
+        "cherry-pick: x",
+        "revert: Revert \"x\"",
+        "rebase (pick): x",
+        "rebase (reword): x",
+        "rebase (edit): x",
+        "rebase (squash): x",
+        "rebase (fixup): x",
+        "rebase (continue): x",
+        "rebase -i (pick): x",
+        "am: x",
+        "merge main: Merge made by the 'ort' strategy.",
+        "pull: Merge made by the 'ort' strategy.",
+    ];
+    const MOVING: [&str; 9] = [
+        "checkout: moving from main to x",
+        "reset: moving to HEAD",
+        "pull: Fast-forward",
+        "merge x: Fast-forward",
+        "rebase (start): checkout main",
+        "rebase (finish): returning to refs/heads/x",
+        "rebase (abort): returning to refs/heads/x",
+        "clone: from /x",
+        "branch: Created from HEAD",
+    ];
+
+    #[test]
+    fn every_commit_creating_subject_git_writes_creates_and_no_move_does() {
+        let creates = |subject: &&str| subject.parse::<MoveSubject>().is_ok_and(|subject| subject.creates());
+        assert!(CREATING.iter().all(creates) && !MOVING.iter().any(creates));
+    }
+}

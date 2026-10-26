@@ -19,6 +19,11 @@ const PULL_WORDS: [&str; 4] = ["pull", "-q", "origin", WORKTREE];
 const STATE_ROOT: &str = ".git/meta-ci";
 const FUTURE: &str = "@4000000000 +0000";
 const FUTURE_START: &str = "4000000000";
+const SAME: &str = "SAME5";
+const SAME_AT: &str = "4000000500";
+const SLOW_REMOTE: [&str; 3] = ["config", "remote.origin.uploadpack", "sleep 5; git-upload-pack"];
+const SLOW: std::time::Duration = std::time::Duration::from_secs(3);
+const UNREACHABLE: &str = "remote unreachable";
 
 struct Reviewer;
 
@@ -41,6 +46,21 @@ impl Reviewer {
         std::fs::copy(repo.clone.path().join(CONFIG_FILE), other.join(CONFIG_FILE)).unwrap();
         other
     }
+}
+
+#[test]
+fn a_slow_remote_fails_closed_in_time_and_a_commit_in_the_start_second_is_not_the_sessions() {
+    let repo = Repo::new(FAILURE);
+    let clone: &Path = repo.clone.path();
+    StartFile::plant(repo.sessions.path(), SAME, SAME_AT);
+    Git::run_at(clone, &NEXT_COMMIT, SAME_AT);
+    Git::run(clone, &PUSH_WORDS);
+    Git::run(clone, &SLOW_REMOTE);
+    let started = std::time::Instant::now();
+    let slow = repo.hook(STOP, COMMIT);
+    let took = started.elapsed();
+    let same = Session { repo: &repo, cwd: clone, id: SAME }.hook(STOP, COMMIT);
+    assert!(slow.contains(UNREACHABLE) && took < SLOW && !same.contains(BLOCK));
 }
 
 #[test]

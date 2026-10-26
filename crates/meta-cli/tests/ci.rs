@@ -9,7 +9,7 @@ use std::time::Duration;
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str =
     "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\nappear_millis = 60\n";
-const PATIENT: &str = "timeout_millis = 300\n";
+const PATIENT: &str = "timeout_millis = 300\nremote_millis = 300\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 [ "$FAKE_GH_SCENARIO" = hang ] && exec sleep 5
 count="$FAKE_GH_DIR/count"
