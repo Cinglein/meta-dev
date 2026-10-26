@@ -3,7 +3,7 @@ use std::path::Path;
 
 use corpus_check::LintName;
 use strum::IntoEnumIterator;
-use task::{Policy, Report, SourceFile};
+use task::{Branch, Policy, Report, SourceFile};
 
 use crate::task::failure::Failure;
 use crate::task::ratchet::{Baseline, Drift, Ratchet, ViolationCount};
@@ -15,7 +15,7 @@ pub struct Lint {
 
 impl Lint {
     pub fn run(root: &Path, files: &[SourceFile], policy: &Policy) -> Result<(), Failure> {
-        let allowed = Baseline::admitted(root, policy.baseline())?;
+        let allowed = Baseline::admitted(root, policy.baseline(), policy.branch(Branch::Base))?;
         let observed = Self::gathered(files, policy).ratchet(&allowed, |_| true)?;
         println!("lint: {} rust files, {} baselined violations", files.len(), observed.total());
         Ok(())

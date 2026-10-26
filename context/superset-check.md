@@ -1,15 +1,14 @@
 # Superset check: meta-development tooling on chess
 
 Task: task-d3fa995600f58f8f. Checked 2026-10-26 against chess `main` at 0868628 and
-meta-development `main` at 317d586 plus this PR.
+meta-development `main` after PR #4.
 
 ## How to run it on another workspace
 
-Build xtask here, then run the binary with the other workspace as the current directory:
-`cargo build -p xtask` and, from the other repository, `<this checkout>/target/debug/xtask lint`.
-The workspace is the first directory above the current one whose `Cargo.toml` has `[workspace]`;
-the policy is that workspace's `tooling/policy.toml`. Before this PR both were fixed at compile
-time to meta-development itself.
+PR #4 made the workspace and the policy come from the current directory. For this check: build
+here with `cargo build -p meta-xtask`, then run `<this checkout>/target/debug/meta-xtask <task>`
+from the chess clone. Results were rechecked on `main` after PR #4: identical. A real adopter uses
+the git dependency described in README.md instead.
 
 ## Policy delta
 
@@ -17,7 +16,7 @@ chess's `tooling/policy.toml` does not parse as is: meta-development's `Policy` 
 `bit_boundary` (chess keeps it in code, `tooling/task/src/bit_boundary.rs`; copied verbatim),
 `baseline`, `surfaces`, `[branches]`, `[mutation]`, `limits.scc_items`, `floors.cut_side` and
 `shares.cut_conductance`. The last three feed only the new crate-graph lint; they took
-meta-development's values. Every shared limit kept chess's value.
+meta-development's values. Every shared limit kept chess's value. Open question: issue-98555e731a32d5d4 (DISCUSS).
 
 ## Per-lint comparison
 
@@ -67,7 +66,7 @@ No chess finding is missed. The state-graph and test-budget summary lines also m
   per `&mut Vec` parameter.
 - thin-main (5): the `mod` lines of `crates/arena`, `crates/chess` (2), `crates/datagen` and
   `crates/trainer` `main.rs`. chess's rules let a binary keep a `command_line` module beside
-  `main.rs`; thin-main wants it in the library.
+  `main.rs`; thin-main wants it in the library. Open question: issue-1bbf114476831ef8 (DISCUSS).
 
 ## Non-lint tasks
 

@@ -36,5 +36,8 @@ thin_main = { path = "../lints/thin_main" }
 type_shape = { path = "../lints/type_shape" }
 vec_out_params = { path = "../lints/vec_out_params" }
 
+[dev-dependencies]
+task = { path = "../task", features = ["test-policy"] }
+
 [lints]
 workspace = true

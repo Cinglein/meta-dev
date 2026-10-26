@@ -20,17 +20,18 @@ pub use share::Share;
 pub use surface::Surface;
 pub use wire_type::WireType;
 
+use std::fs;
+use std::path::Path;
+
 use bit_boundary::BitBoundary;
 use enum_map::EnumMap;
 use least::Least;
 use percent::Percent;
 use serde::{Deserialize, Serialize};
+#[cfg(any(test, feature = "test-policy"))]
 use settings::EmbeddedDefaults;
 use vague::Vague;
 use vocabulary::Vocabulary;
-
-use std::fs;
-use std::path::Path;
 
 use crate::branches::{Branch, BranchName};
 use crate::budget::{
@@ -58,15 +59,16 @@ pub struct Policy {
     mutation: MutationCadence,
 }
 
+#[cfg(any(test, feature = "test-policy"))]
 impl EmbeddedDefaults for Policy {
     const DEFAULTS: &str = include_str!("../../../policy.toml");
 }
 
 impl Policy {
-    const FILE: &str = "tooling/policy.toml";
+    const PATH: &str = "tooling/policy.toml";
 
     pub fn read(root: &Path) -> Result<Policy, Failure> {
-        let path = root.join(Self::FILE);
+        let path = root.join(Self::PATH);
         let text = fs::read_to_string(&path).map_err(|error| Failure::Io {
             site: Site::File(path.clone()),
             error,
@@ -158,8 +160,6 @@ mod tests {
     use std::path::Path;
     const CHECK: &str = "check";
     const LONG_ENOUGH: &str = "report";
-    const ROOT: &str = "../..";
-    const NO_POLICY: &str = "src";
 
     #[test]
     fn the_checked_in_policy_round_trips_and_knows_a_vague_name_from_a_said_one() {
@@ -174,12 +174,9 @@ mod tests {
     }
 
     #[test]
-    fn a_workspace_policy_is_read_from_its_root_and_a_root_without_one_fails() {
-        let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
-        assert_eq!(
-            Policy::read(&manifest.join(ROOT)).ok(),
-            Some(Policy::defaults())
-        );
-        assert!(Policy::read(&manifest.join(NO_POLICY)).is_err());
+    fn the_policy_is_read_from_the_tooling_directory_of_a_workspace_root() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        assert_eq!(Policy::read(&root).unwrap(), Policy::defaults());
+        assert!(Policy::read(&root.join("tooling")).is_err());
     }
 }

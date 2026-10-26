@@ -8,6 +8,7 @@ publish.workspace = true
 [dependencies]
 task = { path = "../../task" }
 rustc_lexer = { package = "ra-ap-rustc_lexer", version = "0.174.0" }
+unicode-ident = "=1.0.24"
 
 [lints]
 workspace = true

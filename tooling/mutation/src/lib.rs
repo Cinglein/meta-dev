@@ -22,7 +22,7 @@ use task::{Interval, MemoryShare, Policy};
 pub struct Mutants;
 
 impl Mutants {
-    const LOCK_FILE: &str = "target/mutants.lock";
+    const LOCK_FILE: &str = "mutants.lock";
     const PROCESS_NAME: &str = "cargo-mutants";
 
     pub fn run(workspace: &Workspace, scope: Scope, policy: &Policy) -> Result<(), Failure> {
@@ -50,11 +50,11 @@ impl Mutants {
     }
 
     fn exclusive_lock(workspace: &Workspace) -> Result<File, Failure> {
-        let io = |error| Failure::Io { site: Site::File(Self::LOCK_FILE.into()), error };
-        let path = workspace.root().join(Self::LOCK_FILE);
-        fs::create_dir_all(path.parent().unwrap_or(workspace.root())).map_err(io)?;
-        let lock = File::create(path).map_err(io)?;
-        lock.try_lock().map_err(|_| Failure::LockHeld(Self::LOCK_FILE.into()))?;
+        let path = workspace.target().path().join(Self::LOCK_FILE);
+        let io = |error| Failure::Io { site: Site::File(path.clone()), error };
+        fs::create_dir_all(workspace.target().path()).map_err(io)?;
+        let lock = File::create(&path).map_err(io)?;
+        lock.try_lock().map_err(|_| Failure::LockHeld(path.clone()))?;
         Ok(lock)
     }
 

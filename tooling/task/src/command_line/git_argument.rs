@@ -7,6 +7,8 @@ pub enum GitArgument {
     Diff,
     #[strum(serialize = "--name-only")]
     NameOnly,
+    #[strum(serialize = "--relative")]
+    Relative,
     #[strum(serialize = "--merge-base")]
     MergeBase,
 }

@@ -9,7 +9,7 @@ pub struct Commit(String);
 
 impl Commit {
     pub fn object(&self, path: &Path) -> String {
-        format!("{}:{}", self.0, path.display())
+        format!("{}:./{}", self.0, path.display())
     }
 }
 
@@ -20,7 +20,7 @@ impl FromStr for Commit {
         let id = text.trim();
         (!id.is_empty() && id.chars().all(|digit| digit.is_ascii_hexdigit()))
             .then(|| Commit(id.to_owned()))
-            .ok_or(Failure::NoDefaultBranch)
+            .ok_or(Failure::Task(task::Failure::NoMergeBase))
     }
 }
 

@@ -1,5 +1,5 @@
 [package]
-name = "xtask"
+name = "meta-xtask"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -24,4 +24,5 @@ toml = "0.9"
 workspace = true
 
 [dev-dependencies]
+task = { path = "../tooling/task", features = ["test-policy"] }
 tempfile = "3"

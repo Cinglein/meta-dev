@@ -10,6 +10,7 @@ task = { path = "../task" }
 strum = { version = "0.28", features = ["derive"] }
 
 [dev-dependencies]
+task = { path = "../task", features = ["test-policy"] }
 settings = { path = "../settings" }
 
 [lints]

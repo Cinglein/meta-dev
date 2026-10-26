@@ -1,3 +1,7 @@
+mod target_directory;
+
+pub use target_directory::TargetDirectory;
+
 use std::collections::BTreeMap;
 use std::env;
 use std::fs::{self, DirEntry};
@@ -13,7 +17,7 @@ use crate::source_file::SourceFile;
 #[derive(Debug)]
 pub struct Workspace {
     root: PathBuf,
-    tool: CrateName,
+    target: TargetDirectory,
     packages: PackageGraph,
 }
 
@@ -21,12 +25,12 @@ impl Workspace {
     const MANIFEST: &str = "Cargo.toml";
     const WORKSPACE_TABLE: &str = "[workspace]";
 
-    pub fn locate(tool: CrateName) -> Result<Workspace, Failure> {
-        let current = env::current_dir().map_err(|error| Failure::Io {
+    pub fn locate() -> Result<Workspace, Failure> {
+        let here = env::current_dir().map_err(|error| Failure::Io {
             site: Site::Workspace,
             error,
         })?;
-        let root = current
+        let root = here
             .ancestors()
             .find(|directory| {
                 fs::read_to_string(directory.join(Self::MANIFEST))
@@ -42,14 +46,14 @@ impl Workspace {
             .captured::<Stdout>()?;
         Ok(Workspace {
             root,
-            tool,
+            target: TargetDirectory::from_metadata(&metadata)?,
             packages: PackageGraph::from_metadata(&metadata)?,
         })
     }
 
     #[must_use]
-    pub fn tool(&self) -> &CrateName {
-        &self.tool
+    pub fn target(&self) -> &TargetDirectory {
+        &self.target
     }
 
     #[must_use]
@@ -123,14 +127,13 @@ impl Workspace {
 
 #[cfg(test)]
 mod tests {
-    use super::{PackageGraph, Workspace};
+    use super::{PackageGraph, TargetDirectory, Workspace};
     use std::fs;
     const TREE: [&str; 4] = ["a/src/a.rs", "b/b.rs", "target/skipped.rs", "a/notes.txt"];
     const FOUND: [&str; 2] = ["a:a/src/a.rs", "b:b/b.rs"];
-    const TOOL: &str = "a";
     const TEXT: &str = "pub struct Found;";
     const ROOT_MARK: &str = "ROOT";
-    const METADATA: &str = r#"{"workspace_root": "ROOT", "packages": [
+    const METADATA: &str = r#"{"workspace_root": "ROOT", "target_directory": "ROOT/built", "packages": [
         {"name": "a", "manifest_path": "ROOT/a/Cargo.toml", "dependencies": []},
         {"name": "b", "manifest_path": "ROOT/b/Cargo.toml", "dependencies": []}
     ]}"#;
@@ -144,16 +147,17 @@ mod tests {
         });
         let metadata = METADATA.replace(ROOT_MARK, &root.display().to_string());
         let packages = PackageGraph::from_metadata(&metadata).unwrap();
+        let target = TargetDirectory::from_metadata(&metadata).unwrap();
         let workspace = Workspace {
             root,
-            tool: TOOL.parse().unwrap(),
+            target,
             packages,
         };
         let files = workspace.source_files().unwrap();
         let found = files
             .iter()
             .map(|file| format!("{}:{}", file.crate_name().unwrap(), file.path().display()));
-        assert!(found.eq(FOUND.map(String::from)));
+        assert!(found.eq(FOUND.map(String::from)) && workspace.target().path().ends_with("built"));
         fs::remove_dir_all(workspace.root()).unwrap();
     }
 }

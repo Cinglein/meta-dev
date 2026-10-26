@@ -16,7 +16,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 use strum::{EnumString, IntoStaticStr, VariantNames};
-use task::{CrateName, Policy, Program, Selection, Workspace};
+use task::{Branch, Policy, Program, Selection, Workspace};
 
 use crate::task::clippy::Clippy;
 use crate::task::coverage::Coverage;
@@ -86,18 +86,16 @@ impl Task {
     }
 
     pub fn run(self, mut flags: impl Iterator<Item = String>) -> Result<(), Failure> {
-        let Ok(tool) = env!("CARGO_PKG_NAME").parse::<CrateName>();
-        let workspace = Workspace::locate(tool)?;
+        let workspace = Workspace::locate()?;
         let policy = Policy::read(workspace.root())?;
         let selection = match self {
             Task::MutantCosts => Selection::Workspace,
-            _ => Affected::selection(&workspace, Coverage::from_flags(flags.by_ref())?)?,
+            _ => Affected::selection(&workspace, Coverage::from_flags(flags.by_ref())?, policy.branch(Branch::Base))?,
         };
         let summary = env::var_os(Surfaces::SUMMARY).map(PathBuf::from);
         match self {
-            Task::Affected => {
-                Ok(Affected::selection(&workspace, Changes::SinceMain).map(|reached| println!("{reached}"))?)
-            }
+            Task::Affected => Ok(Affected::selection(&workspace, Changes::SinceMain, policy.branch(Branch::Base))
+                .map(|reached| println!("{reached}"))?),
             Task::Baseline => Lint::shrink(workspace.root(), &workspace.source_files()?, &policy)
                 .map(|kept| println!("baseline: {} violations", kept.total())),
             Task::Ci => Ci::run(&workspace, &selection, &policy, summary.as_deref()),

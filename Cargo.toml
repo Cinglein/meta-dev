@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*", "tooling/affected", "tooling/corpus_check", "tooling/lints/*", "tooling/mutant_costs", "tooling/mutation", "tooling/settings", "tooling/stacked", "tooling/task", "tooling/test_time", "xtask"]
 
 [workspace.package]
-version = "0.0.0"
+version = "0.1.0"
 edition = "2024"
 publish = false
 license = "UNLICENSED"
