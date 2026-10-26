@@ -21,7 +21,7 @@ impl Lint {
     pub fn run(root: &Path, files: &[SourceFile], policy: &Policy) -> Result<(), Failure> {
         let allowed = Baseline::admitted(root, policy.baseline(), policy.branch(Branch::Base))?;
         let base = || Revision::merge_base(root, policy.branch(Branch::Base));
-        let spec = policy.spec().map(|spec| base().map(|base| SpecProse::since(root, spec, &base))).transpose()?;
+        let spec = policy.spec().map(|spec| base().and_then(|base| SpecProse::since(root, spec, &base))).transpose()?;
         let observed = Self::gathered(files, policy, spec).ratchet(&allowed, |_| true)?;
         println!("lint: {} rust files, {} baselined violations", files.len(), observed.total());
         Ok(())

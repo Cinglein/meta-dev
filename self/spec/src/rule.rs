@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::enforcement::Enforcement;
 use crate::wording::Wording;
-use rule_id::RuleId;
+pub use rule_id::RuleId;
 use task::{SpecSettings, TopDivision};
 
 #[derive(Clone, Copy, Debug)]
@@ -17,18 +17,13 @@ pub struct Rule {
 
 impl Rule {
     #[must_use]
-    pub const fn new(id: &'static str, division: TopDivision, wording: &'static str, enforcement: Enforcement) -> Rule {
-        Rule { id: RuleId::new(id), division, wording: Wording::new(wording), enforcement }
+    pub const fn new(id: RuleId, division: TopDivision, wording: Wording, enforcement: Enforcement) -> Rule {
+        Rule { id, division, wording, enforcement }
     }
 
     #[must_use]
     pub fn rule_id(&self) -> RuleId {
         self.id
-    }
-
-    #[must_use]
-    pub fn enforcement(&self) -> &Enforcement {
-        &self.enforcement
     }
 }
 

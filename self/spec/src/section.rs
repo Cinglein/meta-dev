@@ -11,8 +11,8 @@ pub struct Section {
 
 impl Section {
     #[must_use]
-    pub const fn new(heading: &'static str, rules: &'static [Rule]) -> Section {
-        Section { heading: Wording::new(heading), rules }
+    pub const fn new(heading: Wording, rules: &'static [Rule]) -> Section {
+        Section { heading, rules }
     }
 
     #[must_use]

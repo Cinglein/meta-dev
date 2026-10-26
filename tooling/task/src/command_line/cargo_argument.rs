@@ -11,10 +11,6 @@ pub enum CargoArgument {
     Test,
     #[strum(serialize = "run")]
     Run,
-    #[strum(serialize = "--list")]
-    List,
-    #[strum(serialize = "--ignored")]
-    Ignored,
     #[strum(serialize = "mutants")]
     Mutants,
     #[strum(serialize = "metadata")]

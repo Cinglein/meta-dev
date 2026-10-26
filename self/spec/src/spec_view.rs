@@ -5,11 +5,10 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use task::Policy;
+use task::{Policy, SpecSettings};
 
 use crate::section::Section;
 use crate::sections::SECTIONS;
-use crate::test_fn::TestFn;
 use unconverted::Unconverted;
 
 #[derive(Debug)]
@@ -37,16 +36,18 @@ impl SpecView {
         fs::read_to_string(file)
     }
 
+    pub fn follow(file: &Path, argument: Option<&str>) -> io::Result<()> {
+        match argument {
+            Some(argument) if argument == SpecSettings::CHECK => Self::ensure_rendered(file),
+            _ => Self::rewrite(file).map(drop),
+        }
+    }
+
     pub fn ensure_rendered(file: &Path) -> io::Result<()> {
         let written = Self::written(file)?;
         (Self::over(&written, SECTIONS).to_string() == written)
             .then_some(())
-            .ok_or_else(|| io::Error::other(Self::STALE))?;
-        SECTIONS
-            .iter()
-            .flat_map(Section::rules)
-            .filter_map(|rule| rule.enforcement().test())
-            .try_for_each(TestFn::ensure_runs)
+            .ok_or_else(|| io::Error::other(Self::STALE))
     }
 
     pub fn rewrite(file: &Path) -> io::Result<SpecView> {
@@ -75,14 +76,16 @@ mod tests {
 
     use tempfile::TempDir;
 
-    use super::{SECTIONS, Section, SpecView};
+    use super::{SECTIONS, Section, SpecSettings, SpecView};
     use crate::enforcement::Enforcement::Tracked;
-    use crate::rule::Rule;
+    use crate::rule::{Rule, RuleId};
+    use crate::wording::Wording;
     use task::TopDivision::PerformanceAndCost;
 
     const PROSE: &str = "\n## Old\n- kept\n";
-    const RULES: &[Rule] = &[Rule::new("an-id", PerformanceAndCost, "Says.", Tracked)];
-    const SECTION: &[Section] = &[Section::new("New", RULES)];
+    const RULES: &[Rule] = &[Rule::new(RuleId::new("an-id"), PerformanceAndCost, Wording::new("Says."), Tracked)];
+    const SECTION: &[Section] = &[Section::new(Wording::new("New"), RULES)];
+    const CHECK: Option<&str> = Some(SpecSettings::CHECK);
     const SHOWN: &str = "## New\n- `an-id` (performance-and-cost, rung 1, no enforcer): Says.\n\n# Not yet converted: hand-written prose, 4 words\n\n## Old\n- kept\n";
     const SPEC: &str = "SPEC.md";
 
@@ -102,13 +105,13 @@ mod tests {
     }
 
     #[test]
-    fn a_rewrite_renders_the_records_over_the_kept_prose_and_a_missing_spec_fails() {
+    fn check_refuses_a_stale_spec_and_any_other_argument_rewrites_it() {
         let root = TempDir::new().unwrap();
         let file = root.path().join(SPEC);
-        assert!(SpecView::rewrite(&file).is_err());
+        assert!(SpecView::follow(&file, None).is_err());
         fs::write(&file, PROSE).unwrap();
-        assert!(SpecView::ensure_rendered(&file).is_err());
-        SpecView::rewrite(&file).unwrap();
-        assert!(SpecView::ensure_rendered(&file).is_ok());
+        assert!(SpecView::follow(&file, CHECK).is_err());
+        SpecView::follow(&file, None).unwrap();
+        assert!(SpecView::follow(&file, CHECK).is_ok());
     }
 }

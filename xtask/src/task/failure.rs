@@ -1,4 +1,5 @@
 use std::io;
+use std::path::PathBuf;
 
 use thiserror::Error;
 
@@ -18,4 +19,8 @@ pub enum Failure {
     Written(#[from] toml::ser::Error),
     #[error("step summary: {0}")]
     Summary(io::Error),
+    #[error("merge-base [spec] in tooling/policy.toml: {0}")]
+    PriorSpec(toml::de::Error),
+    #[error("merge-base spec file {} is unreadable", .0.display())]
+    PriorSpecFile(PathBuf),
 }
