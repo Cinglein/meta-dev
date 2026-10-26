@@ -15,7 +15,7 @@ impl CargoMetadata {
         self.packages
             .iter()
             .filter_map(MetadataPackage::local_manifest)
-            .filter(|manifest| inside(manifest))
+            .filter(|manifest| !inside(manifest))
             .map(Path::to_path_buf)
             .collect()
     }

@@ -52,7 +52,7 @@ impl GateChild {
         CommandLine::new(program)
             .in_directory(directory)
             .inheriting_only(&Self::INHERITED)
-            .environment(Self::HOME, self.home.path().parent().unwrap_or(self.home.path()))
+            .environment(Self::HOME, self.home.path())
             .environment(Self::CARGO_HOME, &self.cargo_home)
             .environment(Self::RUSTUP_HOME, &self.rustup_home)
             .environment(Self::TOOLCHAIN, &self.toolchain)
