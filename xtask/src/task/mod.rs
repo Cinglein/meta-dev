@@ -16,7 +16,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 use strum::{EnumString, IntoStaticStr, VariantNames};
-use task::{Branch, CrateName, Policy, Program, Selection, Workspace};
+use task::{Branch, Policy, Program, Selection, Workspace};
 
 use crate::task::clippy::Clippy;
 use crate::task::coverage::Coverage;
@@ -86,8 +86,7 @@ impl Task {
     }
 
     pub fn run(self, mut flags: impl Iterator<Item = String>) -> Result<(), Failure> {
-        let Ok(tool) = env!("CARGO_PKG_NAME").parse::<CrateName>();
-        let workspace = Workspace::locate(tool)?;
+        let workspace = Workspace::locate()?;
         let policy = Policy::read(workspace.root())?;
         let selection = match self {
             Task::MutantCosts => Selection::Workspace,

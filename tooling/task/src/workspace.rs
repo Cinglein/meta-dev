@@ -13,7 +13,6 @@ use crate::source_file::SourceFile;
 #[derive(Debug)]
 pub struct Workspace {
     root: PathBuf,
-    tool: CrateName,
     packages: PackageGraph,
 }
 
@@ -21,7 +20,7 @@ impl Workspace {
     const MANIFEST: &str = "Cargo.toml";
     const WORKSPACE_TABLE: &str = "[workspace]";
 
-    pub fn locate(tool: CrateName) -> Result<Workspace, Failure> {
+    pub fn locate() -> Result<Workspace, Failure> {
         let here = env::current_dir().map_err(|error| Failure::Io {
             site: Site::Workspace,
             error,
@@ -42,14 +41,8 @@ impl Workspace {
             .captured::<Stdout>()?;
         Ok(Workspace {
             root,
-            tool,
             packages: PackageGraph::from_metadata(&metadata)?,
         })
-    }
-
-    #[must_use]
-    pub fn tool(&self) -> &CrateName {
-        &self.tool
     }
 
     #[must_use]
@@ -127,7 +120,6 @@ mod tests {
     use std::fs;
     const TREE: [&str; 4] = ["a/src/a.rs", "b/b.rs", "target/skipped.rs", "a/notes.txt"];
     const FOUND: [&str; 2] = ["a:a/src/a.rs", "b:b/b.rs"];
-    const TOOL: &str = "a";
     const TEXT: &str = "pub struct Found;";
     const ROOT_MARK: &str = "ROOT";
     const METADATA: &str = r#"{"workspace_root": "ROOT", "packages": [
@@ -144,11 +136,7 @@ mod tests {
         });
         let metadata = METADATA.replace(ROOT_MARK, &root.display().to_string());
         let packages = PackageGraph::from_metadata(&metadata).unwrap();
-        let workspace = Workspace {
-            root,
-            tool: TOOL.parse().unwrap(),
-            packages,
-        };
+        let workspace = Workspace { root, packages };
         let files = workspace.source_files().unwrap();
         let found = files
             .iter()
