@@ -13,7 +13,7 @@ use meta_state::State;
 use ci::{Commit, FailureLog, SessionId, Watcher};
 use cli_failure::{CliFailure, Invalid, Misuse, Setup};
 use hook::HookEvent;
-use output::Output;
+use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
 use project::Project;
 
@@ -84,14 +84,23 @@ impl Request {
     }
 
     pub fn answer_in(self, project: &Project) -> Result<Output, CliFailure> {
-        let log = project.log()?;
         match self {
             Self::Hook(event) => event.respond(),
             Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
             Self::WaitCi(session) => Watcher::wait(project, &session),
             Self::CiLog(session) => FailureLog::excerpt(project, &session),
+            logged => logged.answer_from(&project.log()?, Self::actor),
+        }
+    }
+
+    fn answer_from(
+        self,
+        log: &impl LogStore,
+        actor: impl FnOnce() -> Result<Actor, CliFailure>,
+    ) -> Result<Output, CliFailure> {
+        match self {
             Self::Write(event) => {
-                let actor = Self::actor()?;
+                let actor = actor()?;
                 let record = log.append(&mut |snapshot| {
                     let record = Record::new(actor.clone(), event.clone());
                     State::fold(snapshot.complete()?).vet(&record).map_err(LogFailure::refused)?;
@@ -99,7 +108,10 @@ impl Request {
                 })?;
                 Ok(Output::Written(record))
             }
-            Self::List(kind, scope) => project.listed(kind, scope).map(Output::Listed),
+            Self::List(kind, scope) => Listed::from_log(log, kind, scope).map(Output::Listed),
+            Self::Hook(_) | Self::WatchCi(..) | Self::WaitCi(_) | Self::CiLog(_) => {
+                Err(CliFailure::raised::<Misuse>("not a meta/log request"))
+            }
         }
     }
 
@@ -123,3 +135,6 @@ impl Request {
             .map_err(CliFailure::raised::<Invalid>)
     }
 }
+
+#[cfg(test)]
+mod tests;

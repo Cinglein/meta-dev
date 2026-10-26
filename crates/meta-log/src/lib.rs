@@ -1,11 +1,13 @@
 mod detail;
 mod git_log;
 mod log_failure;
+mod memory_log;
 mod skipped_line;
 mod snapshot;
 
 pub use git_log::GitLog;
 pub use log_failure::LogFailure;
+pub use memory_log::MemoryLog;
 
 use meta_schema::Record;
 use snapshot::Snapshot;

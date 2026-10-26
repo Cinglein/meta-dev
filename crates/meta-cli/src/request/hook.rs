@@ -64,7 +64,8 @@ impl HookEvent {
                     .announced_actor()
                     .map_or_else(|| "$USER (META_ACTOR unset)".to_owned(), |actor| actor.to_string());
                 let state = project
-                    .listed(None, Scope::Open)
+                    .log()
+                    .and_then(|log| Listed::from_log(&log, None, Scope::Open))
                     .map_or_else(|failure| format!("meta/log unreadable: {failure}\n"), |listed| listed.to_string());
                 let shown = format!(
                     "state of meta/log. actor: {actor}. meta list | claim | done | release | issue | concern | open\n{state}"
@@ -75,7 +76,7 @@ impl HookEvent {
                 self,
                 input
                     .command()
-                    .and_then(|command| command.refusal(project))
+                    .and_then(|command| command.refusal(project.config()))
                     .map(Denial::from)
                     .map_or(Verdict::Allow, Verdict::Deny),
                 None,
