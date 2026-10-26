@@ -1,22 +1,18 @@
+use task::{CargoArgument, Policy, Program, Workspace};
+
 use crate::task::clippy::Clippy;
 use crate::task::failure::Failure;
 use crate::task::lint::Lint;
+use crate::task::surfaces::Surfaces;
 use crate::task::test::Test;
-use meta_lints::Project;
-use task::Policy;
-use task::Workspace;
-use task::{CargoArgument, Program};
 
+#[derive(Debug)]
 pub struct Ci;
 
 impl Ci {
-    pub fn run(workspace: &Workspace, policy: &Policy, project: &Project) -> Result<(), Failure> {
-        let outcome =
-            Self::checks(workspace).map_err(Failure::from).and_then(|()| Lint::run(workspace, policy, project));
-        project
-            .changed_surfaces()
-            .and_then(|changed| changed.announce())
-            .unwrap_or_else(|failure| eprintln!("surfaces: {failure}"));
+    pub fn run(workspace: &Workspace, policy: &Policy) -> Result<(), Failure> {
+        let outcome = Self::checks(workspace).map_err(Failure::from).and_then(|()| Lint::run(workspace, policy));
+        Surfaces::announce(workspace.root(), policy).unwrap_or_else(|failure| eprintln!("surfaces: {failure}"));
         outcome
     }
 
