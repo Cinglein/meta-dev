@@ -1,4 +1,4 @@
-use meta_schema::{Claim, EntryNote, EventVisitor, NewConcern, NewIssue, NewTask, TaskRef};
+use meta_schema::{Claim, EntryNote, EventVisitor, NewConcern, NewIssue, NewTask, Removal, TaskRef};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
@@ -55,6 +55,10 @@ impl EventVisitor for Applying<'_> {
 
     fn entry_corrected(self, note: &EntryNote) -> Self::Output {
         self.state.correct(note)
+    }
+
+    fn path_removed(self, _removal: &Removal) -> Self::Output {
+        Ok(())
     }
 
     fn task_reopened(self, task: TaskRef) -> Self::Output {

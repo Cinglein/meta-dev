@@ -12,10 +12,10 @@ use meta_state::Refusal;
 use thiserror::Error;
 
 use failure_kind::FailureKind;
-use message::Message;
 use usage::Usage;
 
 pub use invalid::Invalid;
+pub use message::Message;
 pub use misuse::Misuse;
 pub use setup::Setup;
 

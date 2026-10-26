@@ -1,5 +1,6 @@
 mod ci;
 mod cli_failure;
+mod deletion;
 mod hook;
 mod output;
 mod parsed;
@@ -12,6 +13,7 @@ use meta_state::State;
 
 use ci::{Commit, FailureLog, SessionId, Watcher};
 use cli_failure::{CliFailure, Invalid, Misuse, Setup};
+use deletion::Deletion;
 use hook::HookEvent;
 use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
@@ -25,6 +27,7 @@ pub enum Request {
     WatchCi(SessionId, Commit),
     WaitCi(SessionId),
     CiLog(SessionId),
+    Remove(Deletion),
 }
 
 impl TryFrom<Vec<String>> for Request {
@@ -68,6 +71,7 @@ impl TryFrom<Vec<String>> for Request {
             "ci-watch" => parsed.allowing(&[])?.session_and_commit(Self::WatchCi),
             "ci-wait" => Self::session().map(Self::WaitCi),
             "ci-log" => Self::session().map(Self::CiLog),
+            "rm" => parsed.allowing(&[])?.paths().map(|paths| Self::Remove(Deletion::new(paths))),
             other => Err(CliFailure::raised::<Misuse>(format!("unknown command `{other}`"))),
         }
     }
@@ -89,6 +93,10 @@ impl Request {
             Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
             Self::WaitCi(session) => Watcher::wait(project, &session),
             Self::CiLog(session) => FailureLog::excerpt(project, &session),
+            Self::Remove(deletion) => {
+                let log = project.log()?;
+                deletion.carry_out(project.root(), |event| Self::Write(event).answer_from(&log, Self::actor))
+            }
             logged => logged.answer_from(&project.log()?, Self::actor),
         }
     }
@@ -109,7 +117,7 @@ impl Request {
                 Ok(Output::Written(record))
             }
             Self::List(kind, scope) => Listed::from_log(log, kind, scope).map(Output::Listed),
-            Self::Hook(_) | Self::WatchCi(..) | Self::WaitCi(_) | Self::CiLog(_) => {
+            Self::Hook(_) | Self::WatchCi(..) | Self::WaitCi(_) | Self::CiLog(_) | Self::Remove(_) => {
                 Err(CliFailure::raised::<Misuse>("not a meta/log request"))
             }
         }

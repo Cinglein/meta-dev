@@ -3,6 +3,7 @@ use crate::entry_note::EntryNote;
 use crate::new_concern::NewConcern;
 use crate::new_issue::NewIssue;
 use crate::new_task::NewTask;
+use crate::removal::Removal;
 use crate::task_ref::TaskRef;
 
 pub trait EventVisitor {
@@ -17,4 +18,5 @@ pub trait EventVisitor {
     fn task_reopened(self, task: TaskRef) -> Self::Output;
     fn entry_retired(self, note: &EntryNote) -> Self::Output;
     fn entry_corrected(self, note: &EntryNote) -> Self::Output;
+    fn path_removed(self, removal: &Removal) -> Self::Output;
 }

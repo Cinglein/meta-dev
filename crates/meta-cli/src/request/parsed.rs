@@ -1,6 +1,8 @@
 mod option_name;
 mod word;
 
+use std::path::PathBuf;
+
 use meta_listing::{Kind, Scope};
 use meta_schema::{Actor, Entry, Id, Tag, Target, Task, Text};
 
@@ -95,6 +97,13 @@ impl Parsed {
             entry.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
             joined.join(" ").parse().map_err(CliFailure::raised::<Invalid>)?,
         ))
+    }
+
+    pub fn paths(&self) -> Result<Vec<PathBuf>, CliFailure> {
+        match self.words.as_slice() {
+            [] => Err(CliFailure::raised::<Misuse>("expected at least one path")),
+            words => Ok(words.iter().map(|word| PathBuf::from(word.to_string())).collect()),
+        }
     }
 
     pub fn kind(&self) -> Result<Option<Kind>, CliFailure> {

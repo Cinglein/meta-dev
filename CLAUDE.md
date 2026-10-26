@@ -29,6 +29,7 @@ Principles, ladder and design: `context/SPEC.md`. Build stages: `context/BOOTSTR
 - One task, one small PR off `main`. Stack only a truly atomic sequence, and then only with
   `gh stack`, never `--base <branch>`. A small good PR never waits on a large one.
 - Push your own branch right after every commit so CI runs.
+- Delete only with `meta rm <path>...` (cargo target dirs, fully pushed worktrees and clones), never `rm`.
 - Never merge, approve, or push to `main`; the owner merges. Hooks deny merges, force pushes,
   and pushes to protected branches. Only `meta` writes `meta/log`.
 - Merge conflicts are expected; merge `main` in and fix them. No hand rebase or force push;

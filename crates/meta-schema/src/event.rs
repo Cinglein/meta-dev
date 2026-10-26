@@ -8,6 +8,7 @@ use crate::event_visitor::EventVisitor;
 use crate::new_concern::NewConcern;
 use crate::new_issue::NewIssue;
 use crate::new_task::NewTask;
+use crate::removal::Removal;
 use crate::task_ref::TaskRef;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -22,6 +23,7 @@ pub enum Event {
     TaskReopened(TaskRef),
     EntryRetired(EntryNote),
     EntryCorrected(EntryNote),
+    PathRemoved(Removal),
 }
 
 impl Event {
@@ -36,6 +38,7 @@ impl Event {
             Self::TaskReopened(task) => visitor.task_reopened(*task),
             Self::EntryRetired(note) => visitor.entry_retired(note),
             Self::EntryCorrected(note) => visitor.entry_corrected(note),
+            Self::PathRemoved(removal) => visitor.path_removed(removal),
         }
     }
 }
@@ -52,6 +55,7 @@ impl fmt::Display for Event {
             Self::TaskReopened(task) => write!(formatter, "TaskReopened {task}"),
             Self::EntryRetired(note) => write!(formatter, "EntryRetired {note}"),
             Self::EntryCorrected(note) => write!(formatter, "EntryCorrected {note}"),
+            Self::PathRemoved(removal) => write!(formatter, "PathRemoved {removal}"),
         }
     }
 }
