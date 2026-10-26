@@ -6,6 +6,105 @@ use task::TopDivision::ArchitectureAndPlanning;
 
 pub const SECTIONS: &[Section] = &[
     Section::new(
+        Wording::new("Budgets (owner, 2026-10-26)"),
+        &[
+            Rule::new(
+                RuleId::new("budget-definition"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "A budget is a typed definition with an id, in tooling/policy.toml. Spend events in the log point at it.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-unit"),
+                ArchitectureAndPlanning,
+                Wording::new("Unit, exactly one per budget: Count, Duration, Share (later maybe Money or CI minutes)."),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-window"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Window: per change (ratchet against the merge base), rolling per period, or standing (open items at any time).",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-overspend"),
+                ArchitectureAndPlanning,
+                Wording::new("Overspend action is part of the definition: block (default) or escalate to DISCUSS."),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-measured-spend"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Spend is recorded by measurement only (CI and tools). Severity is the judged exception, checked later by calibration.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-raise"),
+                ArchitectureAndPlanning,
+                Wording::new("Raising a budget is owner-only."),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-waivers"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Waivers are spend from the waiver budget of the division whose rule they bend. They replace raw lint baselines.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-enforce-ci"),
+                ArchitectureAndPlanning,
+                Wording::new("Budgets are enforced in CI (the local gate where Actions can't run)."),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-enforce-per-change"),
+                ArchitectureAndPlanning,
+                Wording::new("Per-change budgets: measured fresh by CI."),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-enforce-standing"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Standing budgets are derived from the log (open Criticals, waivers in force, concern backlog): CI folds meta/log read-only on every run. An over-budget standing budget blocks only PRs in its division, but a division whose property all code affects (for example CI performance) blocks every PR that could affect it.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-enforce-per-task"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Per-task budgets (effort, due): CI finds the PR's task via TaskLinked or the branch, and fails on overspend with no recorded extension; a PR with no task fails.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-enforce-spend-source"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Spend comes from local measurement (heartbeat from transcripts) written to the log; CI trusts it under the honest-mistakes threat model.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-enforce-machine-timing"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Machine budgets (CPU, memory, agents, disk) are runtime controls enforced by hooks and leases, not CI. Timing budgets are measured only on CI or in the local gate's clean run.",
+                ),
+                Tracked,
+            ),
+        ],
+    ),
+    Section::new(
         Wording::new("Divisions (owner, 2026-10-26)"),
         &[
             Rule::new(
@@ -68,115 +167,6 @@ pub const SECTIONS: &[Section] = &[
                 ),
                 Tracked,
             ),
-        ],
-    ),
-    Section::new(
-        Wording::new("Budgets (owner, 2026-10-26)"),
-        &[
-            Rule::new(
-                RuleId::new("budget-definition"),
-                ArchitectureAndPlanning,
-                Wording::new(
-                    "A budget is a typed definition with an id, in tooling/policy.toml. Spend events in the log point at it.",
-                ),
-                Tracked,
-            ),
-            Rule::new(
-                RuleId::new("budget-unit"),
-                ArchitectureAndPlanning,
-                Wording::new("Unit, exactly one per budget: Count, Duration, Share (later maybe Money or CI minutes)."),
-                Tracked,
-            ),
-            Rule::new(
-                RuleId::new("budget-window"),
-                ArchitectureAndPlanning,
-                Wording::new(
-                    "Window: per change (ratchet against the merge base), rolling per period, or standing (open items at any time).",
-                ),
-                Tracked,
-            ),
-            Rule::new(
-                RuleId::new("budget-overspend"),
-                ArchitectureAndPlanning,
-                Wording::new("Overspend action is part of the definition: block (default) or escalate to DISCUSS."),
-                Tracked,
-            ),
-            Rule::new(
-                RuleId::new("budget-measured-spend"),
-                ArchitectureAndPlanning,
-                Wording::new(
-                    "Spend is recorded by measurement only (CI and tools). Severity is the judged exception, checked later by calibration.",
-                ),
-                Tracked,
-            ),
-            Rule::new(
-                RuleId::new("budget-raise"),
-                ArchitectureAndPlanning,
-                Wording::new("Raising a budget is owner-only."),
-                Tracked,
-            ),
-            Rule::new(
-                RuleId::new("budget-waivers"),
-                ArchitectureAndPlanning,
-                Wording::new(
-                    "Waivers are spend from the waiver budget of the division whose rule they bend. They replace raw lint baselines.",
-                ),
-                Tracked,
-            ),
-        ],
-    ),
-    Section::new(
-        Wording::new("Budget enforcement (owner, 2026-10-26)"),
-        &[
-            Rule::new(
-                RuleId::new("budget-enforce-ci"),
-                ArchitectureAndPlanning,
-                Wording::new("Budgets are enforced in CI (the local gate where Actions can't run)."),
-                Tracked,
-            ),
-            Rule::new(
-                RuleId::new("budget-enforce-per-change"),
-                ArchitectureAndPlanning,
-                Wording::new("Per-change budgets: measured fresh by CI."),
-                Tracked,
-            ),
-            Rule::new(
-                RuleId::new("budget-enforce-standing"),
-                ArchitectureAndPlanning,
-                Wording::new(
-                    "Standing budgets are derived from the log (open Criticals, waivers in force, concern backlog): CI folds meta/log read-only on every run. An over-budget standing budget blocks only PRs in its division, but a division whose property all code affects (for example CI performance) blocks every PR that could affect it.",
-                ),
-                Tracked,
-            ),
-            Rule::new(
-                RuleId::new("budget-enforce-per-task"),
-                ArchitectureAndPlanning,
-                Wording::new(
-                    "Per-task budgets (effort, due): CI finds the PR's task via TaskLinked or the branch, and fails on overspend with no recorded extension; a PR with no task fails.",
-                ),
-                Tracked,
-            ),
-            Rule::new(
-                RuleId::new("budget-enforce-spend-source"),
-                ArchitectureAndPlanning,
-                Wording::new(
-                    "Spend comes from local measurement (heartbeat from transcripts) written to the log; CI trusts it under the honest-mistakes threat model.",
-                ),
-                Tracked,
-            ),
-            Rule::new(
-                RuleId::new("budget-enforce-machine-timing"),
-                ArchitectureAndPlanning,
-                Wording::new(
-                    "Machine budgets (CPU, memory, agents, disk) are runtime controls enforced by hooks and leases, not CI. Timing budgets are measured only on CI or in the local gate's clean run.",
-                ),
-                Tracked,
-            ),
-        ],
-    ),
-    Section::new(
-        Wording::new("Division domains (owner, 2026-10-26)"),
-        &[
             Rule::new(
                 RuleId::new("domain-declared"),
                 ArchitectureAndPlanning,
@@ -223,11 +213,6 @@ pub const SECTIONS: &[Section] = &[
                 ),
                 Tracked,
             ),
-        ],
-    ),
-    Section::new(
-        Wording::new("Entity model (owner, 2026-10-26)"),
-        &[
             Rule::new(
                 RuleId::new("concern-definition"),
                 ArchitectureAndPlanning,

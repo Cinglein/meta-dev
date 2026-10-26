@@ -2,6 +2,21 @@
 
 Sections down to the next top-level heading are rendered from the rule records in `self/spec`; edit those, then run `cargo run -p meta-spec`. Each rule shows its id, division, ladder rung and enforcer.
 
+## Budgets (owner, 2026-10-26)
+- `budget-definition` (architecture-and-planning, rung 1, no enforcer): A budget is a typed definition with an id, in tooling/policy.toml. Spend events in the log point at it.
+- `budget-unit` (architecture-and-planning, rung 1, no enforcer): Unit, exactly one per budget: Count, Duration, Share (later maybe Money or CI minutes).
+- `budget-window` (architecture-and-planning, rung 1, no enforcer): Window: per change (ratchet against the merge base), rolling per period, or standing (open items at any time).
+- `budget-overspend` (architecture-and-planning, rung 1, no enforcer): Overspend action is part of the definition: block (default) or escalate to DISCUSS.
+- `budget-measured-spend` (architecture-and-planning, rung 1, no enforcer): Spend is recorded by measurement only (CI and tools). Severity is the judged exception, checked later by calibration.
+- `budget-raise` (architecture-and-planning, rung 1, no enforcer): Raising a budget is owner-only.
+- `budget-waivers` (architecture-and-planning, rung 1, no enforcer): Waivers are spend from the waiver budget of the division whose rule they bend. They replace raw lint baselines.
+- `budget-enforce-ci` (architecture-and-planning, rung 1, no enforcer): Budgets are enforced in CI (the local gate where Actions can't run).
+- `budget-enforce-per-change` (architecture-and-planning, rung 1, no enforcer): Per-change budgets: measured fresh by CI.
+- `budget-enforce-standing` (architecture-and-planning, rung 1, no enforcer): Standing budgets are derived from the log (open Criticals, waivers in force, concern backlog): CI folds meta/log read-only on every run. An over-budget standing budget blocks only PRs in its division, but a division whose property all code affects (for example CI performance) blocks every PR that could affect it.
+- `budget-enforce-per-task` (architecture-and-planning, rung 1, no enforcer): Per-task budgets (effort, due): CI finds the PR's task via TaskLinked or the branch, and fails on overspend with no recorded extension; a PR with no task fails.
+- `budget-enforce-spend-source` (architecture-and-planning, rung 1, no enforcer): Spend comes from local measurement (heartbeat from transcripts) written to the log; CI trusts it under the honest-mistakes threat model.
+- `budget-enforce-machine-timing` (architecture-and-planning, rung 1, no enforcer): Machine budgets (CPU, memory, agents, disk) are runtime controls enforced by hooks and leases, not CI. Timing budgets are measured only on CI or in the local gate's clean run.
+
 ## Divisions (owner, 2026-10-26)
 - `division-is-a-property` (architecture-and-planning, rung 1, no enforcer): A division is any behaviour or invariant made first class (e.g. Basho navigation). It is a named property, not a code area: divisions overlap freely in code and are isolated by tracking (own items, budgets, checks, status).
 - `division-context` (architecture-and-planning, rung 1, no enforcer): An agent on a division sees only that division's context.
@@ -11,33 +26,12 @@ Sections down to the next top-level heading are rendered from the rule records i
 - `division-ownership` (architecture-and-planning, rung 1, no enforcer): Each top-level division owns its status tracking and metrics, and controls its own soundness, testing and measurability.
 - `division-dogfood` (architecture-and-planning, rung 1, no enforcer): meta-dev is an ordinary project with the same three divisions (principle 4). The steward and triage sit in its architecture and planning division.
 - `division-promotion` (architecture-and-planning, rung 1, no enforcer): Promotion: a concern that reaches ladder rung 2 (a precise property) may become a division; architecture and planning does the typing.
-
-## Budgets (owner, 2026-10-26)
-- `budget-definition` (architecture-and-planning, rung 1, no enforcer): A budget is a typed definition with an id, in tooling/policy.toml. Spend events in the log point at it.
-- `budget-unit` (architecture-and-planning, rung 1, no enforcer): Unit, exactly one per budget: Count, Duration, Share (later maybe Money or CI minutes).
-- `budget-window` (architecture-and-planning, rung 1, no enforcer): Window: per change (ratchet against the merge base), rolling per period, or standing (open items at any time).
-- `budget-overspend` (architecture-and-planning, rung 1, no enforcer): Overspend action is part of the definition: block (default) or escalate to DISCUSS.
-- `budget-measured-spend` (architecture-and-planning, rung 1, no enforcer): Spend is recorded by measurement only (CI and tools). Severity is the judged exception, checked later by calibration.
-- `budget-raise` (architecture-and-planning, rung 1, no enforcer): Raising a budget is owner-only.
-- `budget-waivers` (architecture-and-planning, rung 1, no enforcer): Waivers are spend from the waiver budget of the division whose rule they bend. They replace raw lint baselines.
-
-## Budget enforcement (owner, 2026-10-26)
-- `budget-enforce-ci` (architecture-and-planning, rung 1, no enforcer): Budgets are enforced in CI (the local gate where Actions can't run).
-- `budget-enforce-per-change` (architecture-and-planning, rung 1, no enforcer): Per-change budgets: measured fresh by CI.
-- `budget-enforce-standing` (architecture-and-planning, rung 1, no enforcer): Standing budgets are derived from the log (open Criticals, waivers in force, concern backlog): CI folds meta/log read-only on every run. An over-budget standing budget blocks only PRs in its division, but a division whose property all code affects (for example CI performance) blocks every PR that could affect it.
-- `budget-enforce-per-task` (architecture-and-planning, rung 1, no enforcer): Per-task budgets (effort, due): CI finds the PR's task via TaskLinked or the branch, and fails on overspend with no recorded extension; a PR with no task fails.
-- `budget-enforce-spend-source` (architecture-and-planning, rung 1, no enforcer): Spend comes from local measurement (heartbeat from transcripts) written to the log; CI trusts it under the honest-mistakes threat model.
-- `budget-enforce-machine-timing` (architecture-and-planning, rung 1, no enforcer): Machine budgets (CPU, memory, agents, disk) are runtime controls enforced by hooks and leases, not CI. Timing budgets are measured only on CI or in the local gate's clean run.
-
-## Division domains (owner, 2026-10-26)
 - `domain-declared` (architecture-and-planning, rung 1, no enforcer): Only what is measured can be budgeted, so every division declares its domain as typed scopes in policy: crates, paths, CI workflows, tests, plus its implicit items (log entries labelled with it).
 - `domain-subset` (architecture-and-planning, rung 1, no enforcer): A child's domain is a strict subset of its parent's.
 - `domain-defaults` (architecture-and-planning, rung 1, no enforcer): Defaults: all code belongs to features-and-maintenance and, through CI performance (which is always measured, unlike app performance), to performance-and-cost. Architecture-and-planning has no code.
 - `domain-budget-measure` (architecture-and-planning, rung 1, no enforcer): A budget is a measure over its division's domain (test or workflow wall time, lint findings over crates or paths, open Criticals over items). A budget whose measure needs a scope the division doesn't declare is refused when the policy is read.
 - `domain-reach` (architecture-and-planning, rung 1, no enforcer): A PR is within a budget's reach when its diff touches the domain or its linked task is in the division.
 - `domain-scope-kinds` (architecture-and-planning, rung 1, no enforcer): Which scope kinds a budget needs depends on the budget; wall-time budgets on tests and workflows are the easiest first case.
-
-## Entity model (owner, 2026-10-26)
 - `concern-definition` (architecture-and-planning, rung 1, no enforcer): A concern is anything noticed that might matter, vague or precise, and is the only entity that carries a ladder rung.
 - `concern-rungs` (architecture-and-planning, rung 1, no enforcer): Rungs: 1 identified (text); 2 defined (points at a spec rule); 3 checked or budgeted (a named enforcer: lint, test or CI step); 4 impossible by construction (a type).
 - `concern-moves` (architecture-and-planning, rung 1, no enforcer): Moves up and down are events with evidence; a concern never claims a rung its evidence no longer supports.
