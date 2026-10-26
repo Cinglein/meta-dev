@@ -11,6 +11,7 @@ meta-schema.workspace = true
 meta-state.workspace = true
 meta-pulls.workspace = true
 meta-pull-query.workspace = true
+serde.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

@@ -7,6 +7,7 @@ mod trail_entry;
 mod worktrees;
 
 pub use local_clone::LocalClone;
+pub use local_file::LocalFile;
 
 #[cfg(test)]
 mod tests;

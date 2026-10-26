@@ -2,6 +2,7 @@ mod flag;
 mod flags;
 mod github;
 mod github_failure;
+mod judgement;
 mod status;
 
 pub use flags::Flags;
