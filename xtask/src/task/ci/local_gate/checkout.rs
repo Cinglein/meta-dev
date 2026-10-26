@@ -48,7 +48,7 @@ impl Drop for Checkout {
     fn drop(&mut self) {
         CommandLine::new(Program::Git)
             .in_directory(self.repository.clone())
-            .arguments(Self::ADD)
+            .arguments(Self::REMOVE)
             .argument(self.place.display())
             .run()
             .unwrap_or_else(|failure| eprintln!("{failure}"));

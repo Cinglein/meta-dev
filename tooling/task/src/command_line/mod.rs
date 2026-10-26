@@ -30,7 +30,7 @@ pub struct CommandLine {
 }
 
 impl CommandLine {
-    const TARGET: &str = "CARGO_TARGET";
+    const TARGET: &str = "CARGO_TARGET_DIR";
 
     #[must_use]
     pub fn new(program: Program) -> CommandLine {

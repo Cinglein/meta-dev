@@ -28,7 +28,7 @@ impl Coverage {
                 _ => Err(task::Failure::UnknownFlag { flag, known: Self::KNOWN }),
             })
             .and_then(|coverage| match coverage {
-                Coverage { changes: Changes::Everything, posting: Posting::Requested } => {
+                Coverage { changes: Changes::SinceMain, posting: Posting::Requested } => {
                     Err(task::Failure::Refused(Self::PARTIAL.to_owned()))
                 }
                 whole => Ok(whole),

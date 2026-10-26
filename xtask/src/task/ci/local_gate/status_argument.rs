@@ -25,13 +25,13 @@ impl fmt::Display for StatusArgument<'_> {
         match self {
             StatusArgument::Endpoint(commit) => write!(formatter, "repos/{{owner}}/{{repo}}/statuses/{commit}"),
             StatusArgument::State(state) => write!(formatter, "state={state}"),
-            StatusArgument::Context { status, scope } if !scope.as_os_str().is_empty() => {
+            StatusArgument::Context { status, scope } if scope.as_os_str().is_empty() => {
                 write!(formatter, "context={status}")
             }
             StatusArgument::Context { status, scope } => write!(formatter, "context={status}/{}", scope.display()),
             StatusArgument::Description { version, times, surfaces } => {
                 write!(formatter, "description=meta-dev {version}: {times}")?;
-                formatter.write_str(if surfaces.is_empty() { Self::SURFACES } else { "" })
+                formatter.write_str(if surfaces.is_empty() { "" } else { Self::SURFACES })
             }
         }
     }
