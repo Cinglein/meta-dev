@@ -129,6 +129,7 @@ mod tests {
     const SCRATCH: &str = "meta-costs";
     const NESTED: [&str; 3] = ["a", "b", "outcomes.json"];
     const DECOY: &str = "other.json";
+    const EMPTY_RUN: &str = r#"{"outcomes": []}"#;
 
     #[test]
     fn each_sampled_crate_is_priced_at_its_costliest_run_rounded_up_and_small_runs_are_only_reported() {
@@ -164,14 +165,16 @@ mod tests {
     }
 
     #[test]
-    fn outcome_files_are_found_under_nested_directories_and_other_files_are_skipped() {
+    fn outcome_files_under_nested_directories_make_one_run_and_other_files_are_skipped() {
         let root = env::temp_dir().join(format!("{SCRATCH}-{}", process::id()));
         let file = NESTED.iter().fold(root.clone(), |path, part| path.join(part));
         fs::create_dir_all(file.parent().unwrap()).unwrap();
-        fs::write(&file, SCRATCH).unwrap();
+        fs::write(&file, EMPTY_RUN).unwrap();
         fs::write(root.join(DECOY), SCRATCH).unwrap();
         let found = MutantCosts::outcome_files(&root);
+        let run = MutantCosts::read_run(&root);
         fs::remove_dir_all(&root).unwrap();
         assert_eq!(found.unwrap(), vec![file]);
+        assert_eq!(run.unwrap().len(), 1);
     }
 }
