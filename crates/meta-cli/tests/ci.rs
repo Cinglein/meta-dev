@@ -12,25 +12,25 @@ const CONFIG: &str =
 const PATIENT: &str = "timeout_millis = 120\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 count="$FAKE_GH_DIR/count"
-n=$(cat "$count" 2>/dev/null || echo 0)
+read -r n < "$count" 2>/dev/null || n=0
+read -r head < "$FAKE_GH_DIR/bin/head"
 s="$FAKE_GH_SCENARIO"
 case "$1 $2" in
 "run list")
   n=$((n + 1)); echo "$n" > "$count"
-  if { [ "$s" = broken ] && [ "$n" -lt 3 ]; } || { [ "$s" = partial ] && [ "$n" -gt 5 ]; }; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
-  elif [ "$s" = none ] || [ "$4" != "$(git rev-parse HEAD)" ]; then echo '[]'
-  elif [ "$n" -lt 2 ] || { [ "$s" = late ] && [ "$n" -lt 8 ]; }; then echo '[]'
-  elif [ "$s" = vanish ] && [ "$n" -gt 3 ]; then echo '[]'
-  elif [ "$s" = late ] || [ "$s" = partial ] || [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
-  elif [ "$s" = success ] || [ "$s" = broken ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"success"}]'
+  if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
+  elif [ "$s" = none ] || [ "$4" != "$head" ]; then echo '[]'
+  elif [ "$n" -lt 2 ] || { [ "$s" = late ] && { [ "$n" -lt 8 ] || [ "$n" -gt 9 ]; }; }; then echo '[]'
+  elif [ "$s" = late ] || [ "$s" = broken ] || [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
+  elif [ "$s" = success ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"success"}]'
   elif [ "$s" = mixed ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"failure"},{"databaseId":8,"status":"completed","conclusion":"failure"}]'
   else echo '[{"databaseId":7,"status":"completed","conclusion":"failure"}]'; fi ;;
 "run view")
-  if [ "$s" = broken ]; then echo 'HTTP 401: Bad credentials' >&2; exit 1
+  if [ "$s" = broken ] && [ "$n" -gt 5 ]; then echo 'HTTP 401: Bad credentials' >&2; exit 1
   elif [ "$3 $4" = "--job 11" ]; then cat "$FAKE_GH_DIR/bin/failed.log"
   elif [ "$3" = 8 ]; then echo '{"jobs":[{"databaseId":13,"name":"lint","conclusion":"failure","steps":[{"name":"clippy","conclusion":"failure"}]}]}'
   elif [ "$3" != 7 ]; then echo '{"jobs":[]}'
-  elif [ "$s" = failure ] || [ "$s" = partial ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[{"name":"Checkout","conclusion":"success"},{"name":"cargo xtask ci","conclusion":"failure"}]},{"databaseId":12,"name":"docs","conclusion":""}]}'
+  elif [ "$s" = failure ] || [ "$s" = broken ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[{"name":"Checkout","conclusion":"success"},{"name":"cargo xtask ci","conclusion":"failure"}]},{"databaseId":12,"name":"docs","conclusion":""}]}'
   elif [ "$s" = unstarted ] || [ "$s" = mixed ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[]}]}'
   else echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"success"}]}'; fi ;;
 esac
@@ -58,8 +58,6 @@ const NONE: &str = "none";
 const LATE: &str = "late";
 const BROKEN: &str = "broken";
 const MIXED: &str = "mixed";
-const PARTIAL: &str = "partial";
-const VANISH: &str = "vanish";
 const STALE: &str = "0000000000000000000000000000000000000000 passed";
 const UNSTARTED: &str = "unstarted";
 const POST: &str = "post-tool-use";
@@ -132,6 +130,13 @@ impl Repo {
         std::fs::write(clone.path().join("bin/failed.log"), FAILED_LOG).unwrap();
         std::fs::set_permissions(clone.path().join("bin/gh"), std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
         Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"]);
+        std::fs::write(clone.path().join("bin/head"), Git::run(clone.path(), &["rev-parse", "HEAD"]).stdout).unwrap();
+        let state = clone.path().join(".git/meta-ci/ABCDEF1234/state");
+        std::fs::create_dir_all(state.parent().unwrap()).unwrap();
+        std::fs::write(&state, STALE).unwrap();
+        let mut permissions = std::fs::metadata(&state).unwrap().permissions();
+        permissions.set_readonly(true);
+        std::fs::set_permissions(&state, permissions).unwrap();
         Self { _origin: origin, clone, scenario }
     }
 
@@ -172,15 +177,6 @@ impl Repo {
         Waited(text, output.status)
     }
 
-    fn stale(&self) {
-        let dir = self.clone.path().join(".git/meta-ci/ABCDEF1234");
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("state"), STALE).unwrap();
-        let mut permissions = std::fs::metadata(dir.join("state")).unwrap().permissions();
-        permissions.set_readonly(true);
-        std::fs::set_permissions(dir.join("state"), permissions).unwrap();
-    }
-
     fn settled(&self) -> String {
         let events = self.clone.path().join(".git/meta-ci/ABCDEF1234/events");
         std::iter::repeat_with(|| {
@@ -202,7 +198,6 @@ impl fmt::Display for Repo {
 #[test]
 fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
     let repo = Repo::new(FAILURE);
-    repo.stale();
     repo.hook(POST, COMMIT);
     let waited = repo.session_command(CI_WAIT);
     let stop = repo.hook(STOP, COMMIT);
@@ -230,9 +225,9 @@ fn passing_or_unstarted_runs_let_the_agent_stop() {
 
 #[test]
 fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
-    let repos = [NONE, LATE, BROKEN, MIXED, PARTIAL, VANISH].map(Repo::new);
+    let repos = [NONE, LATE, BROKEN, MIXED].map(Repo::new);
     let _: Vec<String> = repos.iter().map(|repo| repo.hook(POST, COMMIT)).collect();
-    let [absent, late, broken, mixed, partial, vanish] = repos.each_ref().map(Repo::settled);
+    let [absent, late, broken, mixed] = repos.each_ref().map(Repo::settled);
     let [none, ..] = &repos;
     assert!(
         absent.contains(ABSENT)
@@ -244,7 +239,6 @@ fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
     assert!(
         broken.contains(LIST_ERROR)
             && broken.contains(VIEW_ERROR)
-            && [mixed, partial].iter().all(|settled| settled.contains(FAILED_EVENT))
-            && vanish.contains(TIMED_OUT)
+            && [broken, mixed].iter().all(|settled| settled.contains(FAILED_EVENT))
     );
 }

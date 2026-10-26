@@ -49,6 +49,8 @@ impl SessionDir {
 
     pub fn watch(&self, commit: &Commit) -> std::io::Result<()> {
         std::fs::create_dir_all(&self.0)?;
+        std::fs::remove_file(self.0.join(Self::STATE))
+            .or_else(|error| if error.kind() == std::io::ErrorKind::NotFound { Ok(()) } else { Err(error) })?;
         self.save(&WatchState::new(commit.clone(), CiStatus::Running))
     }
 
@@ -60,6 +62,10 @@ impl SessionDir {
 
     pub fn tracked(&self) -> Option<Commit> {
         self.state().map(|state| state.commit().clone())
+    }
+
+    pub fn status_of(&self, commit: &Commit) -> Option<CiStatus> {
+        self.state().as_ref().and_then(|state| state.matching(commit)).map(WatchState::status)
     }
 
     pub fn status(&self) -> Option<CiStatus> {

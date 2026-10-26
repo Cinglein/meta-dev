@@ -13,7 +13,7 @@ pub struct GhJobs {
 
 impl GhJobs {
     pub fn first_failure(&self) -> Option<Listed> {
-        self.jobs.iter().find_map(GhJob::failure).map(Listed::new)
+        self.jobs.iter().filter(|job| job.unstarted().is_none()).find_map(GhJob::failure).map(Listed::new)
     }
 
     pub fn unstarted(&self) -> Option<&Self> {

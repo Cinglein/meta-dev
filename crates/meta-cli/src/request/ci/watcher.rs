@@ -2,6 +2,7 @@ mod elapsed;
 mod failure_log;
 mod gh;
 
+use std::cell::OnceCell;
 use std::ops::ControlFlow;
 use std::os::unix::process::CommandExt as _;
 use std::process::{Command, Stdio};
@@ -25,15 +26,19 @@ pub struct Watcher {
     gh: Gh,
     started: Instant,
     settings: CiSettings,
+    appeared: OnceCell<()>,
 }
 
 impl Watcher {
     const NO_RUN_YET: &'static str = "no run yet; Stop passes until one appears";
     const RUN_APPEARED: &'static str = "run appeared";
 
-    pub fn spawn(project: &Project, session: &SessionId, commit: &Commit) -> Option<()> {
-        SessionDir::for_session(project, session)?.watch(commit).ok()?;
-        Command::new(std::env::current_exe().ok()?)
+    pub fn spawn(project: &Project, session: &SessionId, commit: &Commit) -> Result<(), Listed> {
+        let unwatched = |error: std::io::Error| Listed::new(format!("CI not watched: {error}"));
+        let dir =
+            SessionDir::for_session(project, session).ok_or_else(|| Listed::new("CI not watched: no git directory"))?;
+        dir.watch(commit).map_err(unwatched)?;
+        Command::new(std::env::current_exe().map_err(unwatched)?)
             .args(["ci-watch", &session.to_string(), &commit.to_string()])
             .current_dir(project.root())
             .stdin(Stdio::null())
@@ -41,8 +46,8 @@ impl Watcher {
             .stderr(Stdio::null())
             .process_group(i32::default())
             .spawn()
-            .ok()
             .map(|_| ())
+            .map_err(unwatched)
     }
 
     pub fn watch(project: &Project, session: &SessionId, commit: Commit) -> Result<Output, CliFailure> {
@@ -50,7 +55,8 @@ impl Watcher {
             SessionDir::for_session(project, session).ok_or_else(|| CliFailure::raised::<Setup>("no git directory"))?;
         let settings = project.config().ci_settings();
         let gh = Gh::new(settings.program().clone(), project.root().to_path_buf());
-        let watcher = Self { dir, commit, gh, started: Instant::now(), settings: settings.clone() };
+        let watcher =
+            Self { dir, commit, gh, started: Instant::now(), settings: settings.clone(), appeared: OnceCell::new() };
         let interval = settings.poll_interval();
         let finished = std::iter::repeat_with(|| {
             std::thread::sleep(interval.duration());
@@ -73,16 +79,11 @@ impl Watcher {
                 dir.status().and_then(CiStatus::finished)
             });
         let news = dir.news().map(|news| news.to_string()).unwrap_or_default();
-        settled.map_or_else(
-            || Ok(Output::Listed(Listed::new(format!("{news}\nCI still running; stopped waiting")))),
-            |status| {
-                if matches!(status, CiStatus::Failed | CiStatus::Unavailable) {
-                    Err(CliFailure::raised::<Invalid>(&news))
-                } else {
-                    Ok(Output::Listed(Listed::new(format!("{news}\n"))))
-                }
-            },
-        )
+        match settled {
+            Some(CiStatus::Passed) => Ok(Output::Listed(Listed::new(format!("{news}\n")))),
+            Some(status) => Err(CliFailure::raised::<Invalid>(format!("{news}\nCI {status}"))),
+            None => Err(CliFailure::raised::<Invalid>(format!("{news}\nCI still running; stopped waiting"))),
+        }
     }
 
     fn step(
@@ -99,15 +100,21 @@ impl Watcher {
 
     fn news(&self, reported: Option<Listed>, observed: &Result<Observation, Listed>) -> Option<Listed> {
         let overdue = self.settings.run_overdue(self.started.elapsed());
-        let absent = self.dir.status().filter(|status| *status == CiStatus::Absent);
+        let seen = observed
+            .as_ref()
+            .ok()
+            .and_then(Observation::appeared)
+            .and_then(|_| self.appeared.set(()).ok())
+            .or(self.appeared.get().copied());
+        let current = self.dir.status_of(&self.commit);
+        let absent = current.filter(|status| *status == CiStatus::Absent);
+        let held = current.filter(|status| *status == CiStatus::Failed).unwrap_or(CiStatus::Running);
         let event = match observed {
-            Err(trouble) => Some((format!("gh failed: {trouble}"), CiStatus::Running)),
+            Err(trouble) => Some((format!("gh failed: {trouble}"), held)),
             Ok(observed) => observed
                 .failed_job()
                 .map(|job| (format!("{job} failed; run `meta ci-log`"), CiStatus::Failed))
-                .or(overdue
-                    .filter(|()| observed.appeared().is_none())
-                    .map(|()| (Self::NO_RUN_YET.to_owned(), CiStatus::Absent)))
+                .or(overdue.filter(|()| seen.is_none()).map(|()| (Self::NO_RUN_YET.to_owned(), CiStatus::Absent)))
                 .or(observed.appeared().and(absent).map(|_| (Self::RUN_APPEARED.to_owned(), CiStatus::Running))),
         };
         match event {
@@ -120,8 +127,10 @@ impl Watcher {
     }
 
     fn conclude(&self, last: Option<&Observation>) -> Output {
-        let absent = self.dir.status().filter(|status| *status == CiStatus::Absent);
-        let status = last.and_then(Observation::finished).or(absent).unwrap_or(CiStatus::TimedOut);
+        let current = self.dir.status_of(&self.commit);
+        let failed = current.filter(|status| *status == CiStatus::Failed);
+        let absent = current.filter(|status| *status == CiStatus::Absent);
+        let status = failed.or(last.and_then(Observation::finished)).or(absent).unwrap_or(CiStatus::TimedOut);
         let steps: Vec<String> =
             last.iter().flat_map(|observed| observed.failed_steps()).map(ToString::to_string).collect();
         let failed = Some(steps.join(", "))

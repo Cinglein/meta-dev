@@ -96,7 +96,7 @@ impl HookEvent {
     fn after_commit(project: &Project, input: &HookInput) -> Option<Listed> {
         input.command().and_then(|command| command.commits())?;
         match project.push_current_branch()? {
-            Ok(commit) => input.session().and_then(|session| Watcher::spawn(project, session, &commit)).and(None),
+            Ok(commit) => input.session().and_then(|session| Watcher::spawn(project, session, &commit).err()),
             Err(failure) => Some(failure),
         }
     }
