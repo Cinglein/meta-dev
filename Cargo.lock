@@ -1293,6 +1293,7 @@ version = "0.0.0"
 dependencies = [
  "affected",
  "corpus_check",
+ "crate_graph",
  "mutant_costs",
  "mutation",
  "serde",

@@ -28,6 +28,7 @@ use crate::task::usage::Usage;
 use affected::{Affected, Changes};
 use ci::Ci;
 use corpus_check::LintName;
+use crate_graph::CrateGraph;
 use failure::Failure;
 use mutant_costs::MutantCosts;
 use mutation::{Mutants, Scope, ShardPlan, TriggerEvent};
@@ -47,6 +48,7 @@ pub enum Task {
     EnumPredicates,
     ExpressionFlow,
     FnShape,
+    Graph,
     Lint,
     LiteralNames,
     ManualIteration,
@@ -101,6 +103,7 @@ impl Task {
                 .map(|kept| println!("baseline: {} violations", kept.total())),
             Task::Ci => Ci::run(&workspace, &selection, &policy, summary.as_deref()),
             Task::Clippy => Ok(Clippy::run(&workspace, &selection, &policy)?),
+            Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
             Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy),
             Task::MutantCosts => Ok(MutantCosts::measure(Path::new(&flags.next().ok_or_else(Self::usage)?))
                 .map(|costs| println!("{costs}"))?),
