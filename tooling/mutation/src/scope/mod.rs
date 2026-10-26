@@ -105,6 +105,7 @@ impl Scope {
         let diff = CommandLine::new(Program::Git)
             .in_directory(root.to_path_buf())
             .argument(GitArgument::Diff)
+            .argument(GitArgument::Relative)
             .argument(GitArgument::MergeBase)
             .argument(base)
             .captured::<Stdout>()?;
@@ -133,9 +134,9 @@ mod tests {
         let repository = env::temp_dir().join(format!("meta-diff-{}", process::id()));
         fs::create_dir_all(repository.join(SOURCE).parent().unwrap()).unwrap();
         fs::write(repository.join(SOURCE), BASE).unwrap();
-        GIT.iter().for_each(|arguments| {
-            Command::new("git").args(*arguments).current_dir(&repository).status().unwrap();
-        });
+        assert!(GIT.iter().all(|arguments| {
+            Command::new("git").args(*arguments).current_dir(&repository).status().unwrap().success()
+        }));
         fs::write(repository.join(SOURCE), SOURCE).unwrap();
         let file = repository.join("mutants.diff");
         let root = repository.join(Path::new(SOURCE).parent().unwrap());
