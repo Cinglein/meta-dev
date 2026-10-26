@@ -37,17 +37,22 @@ impl Watcher {
         let unwatched = |error: std::io::Error| Listed::new(format!("CI not watched: {error}"));
         let dir =
             SessionDir::for_session(project, session).ok_or_else(|| Listed::new("CI not watched: no git directory"))?;
-        dir.watch(commit).map_err(unwatched)?;
-        Command::new(std::env::current_exe().map_err(unwatched)?)
-            .args(["ci-watch", &session.to_string(), &commit.to_string()])
-            .current_dir(project.root())
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .process_group(i32::default())
-            .spawn()
-            .map(|_| ())
-            .map_err(unwatched)
+        dir.status_of(commit).map_or_else(
+            || {
+                dir.watch(commit).map_err(unwatched)?;
+                Command::new(std::env::current_exe().map_err(unwatched)?)
+                    .args(["ci-watch", &session.to_string(), &commit.to_string()])
+                    .current_dir(project.root())
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .process_group(i32::default())
+                    .spawn()
+                    .map(|_| ())
+                    .map_err(unwatched)
+            },
+            |_| Ok(()),
+        )
     }
 
     pub fn watch(project: &Project, session: &SessionId, commit: Commit) -> Result<Output, CliFailure> {
@@ -58,11 +63,11 @@ impl Watcher {
         let watcher =
             Self { dir, commit, gh, started: Instant::now(), settings: settings.clone(), appeared: OnceCell::new() };
         let interval = settings.poll_interval();
-        let finished = std::iter::repeat_with(|| {
+        let finished = std::iter::from_fn(|| {
+            settings.remaining(watcher.started.elapsed())?;
             std::thread::sleep(interval.duration());
-            watcher.gh.observe(&watcher.commit)
+            Some(watcher.gh.observe(&watcher.commit))
         })
-        .take(settings.poll_length())
         .try_fold(None, |reported, observed| watcher.step(reported, observed));
         Ok(watcher.conclude(finished.break_value().as_ref()))
     }
@@ -70,13 +75,16 @@ impl Watcher {
     pub fn wait(project: &Project, session: &SessionId) -> Result<Output, CliFailure> {
         let dir =
             SessionDir::for_session(project, session).ok_or_else(|| CliFailure::raised::<Setup>("no git directory"))?;
-        let interval = project.config().ci_settings().poll_interval();
+        let head = project.pushed_head().ok_or_else(|| CliFailure::raised::<Invalid>("no CI watched for HEAD"))?;
+        dir.status_of(&head).ok_or_else(|| CliFailure::raised::<Invalid>(format!("no CI watched for {head}")))?;
+        let settings = project.config().ci_settings();
+        let started = Instant::now();
         let settled = std::iter::once(Duration::ZERO)
-            .chain(std::iter::repeat(interval.duration()))
-            .take(project.config().ci_settings().poll_length())
+            .chain(std::iter::repeat(settings.poll_interval().duration()))
+            .take_while(|_| settings.remaining(started.elapsed()).is_some())
             .find_map(|pause| {
                 std::thread::sleep(pause);
-                dir.status().and_then(CiStatus::finished)
+                dir.status_of(&head).and_then(CiStatus::finished)
             });
         let news = dir.news().map(|news| news.to_string()).unwrap_or_default();
         match settled {

@@ -17,8 +17,8 @@ impl GitCall {
         Some(Self { words: Self::after_options(rest).to_vec() })
     }
 
-    pub fn commit(&self) -> Option<()> {
-        self.words.first().filter(|word| *word == "commit").map(|_| ())
+    pub fn runs(&self, subcommand: &str) -> Option<()> {
+        self.words.first().filter(|word| *word == subcommand).map(|_| ())
     }
 
     pub fn push_refusal(&self, config: &Config) -> Option<Listed> {

@@ -35,9 +35,8 @@ impl CiSettings {
         (waited >= self.appear_millis.duration()).then_some(())
     }
 
-    pub fn poll_length(&self) -> usize {
-        let polls = self.timeout_millis.duration().as_millis().checked_div(self.poll_millis.duration().as_millis());
-        usize::try_from(polls.unwrap_or_default()).unwrap_or(usize::MAX)
+    pub fn remaining(&self, waited: Duration) -> Option<Duration> {
+        self.timeout_millis.duration().checked_sub(waited).filter(|left| !left.is_zero())
     }
 
     pub fn log_window(&self) -> &LogWindow {

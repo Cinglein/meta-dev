@@ -21,8 +21,8 @@ impl ShellCommand {
             .or_else(|| self.segments().filter_map(GitCall::parse).find_map(|call| call.push_refusal(config)))
     }
 
-    pub fn commits(&self) -> Option<()> {
-        self.segments().filter_map(GitCall::parse).find_map(|call| call.commit())
+    pub fn runs(&self, subcommand: &str) -> Option<()> {
+        self.segments().filter_map(GitCall::parse).find_map(|call| call.runs(subcommand))
     }
 
     fn segments(&self) -> impl Iterator<Item = &[String]> {
