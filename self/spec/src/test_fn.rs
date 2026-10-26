@@ -46,3 +46,24 @@ impl fmt::Display for TestFn {
         write!(formatter, "{} in {}", self.name, self.file)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use tempfile::TempDir;
+
+    use super::TestFn;
+
+    const PROBE: &str = "probe.rs";
+    const SOURCE: &str = "fn helper() {}\nmod checks {\n    #[test]\n    fn holds() {}\n}\n";
+    const NAMES: [&str; 3] = ["holds", "helper", "absent"];
+    const FOUND: [bool; 3] = [true, false, false];
+
+    #[test]
+    fn only_a_test_fn_of_that_name_in_the_file_or_its_inline_modules_counts() {
+        let root = TempDir::new().unwrap();
+        fs::write(root.path().join(PROBE), SOURCE).unwrap();
+        assert_eq!(NAMES.map(|name| TestFn::new(PROBE, name).exists_under(root.path())), FOUND);
+    }
+}
