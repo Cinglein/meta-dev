@@ -170,6 +170,7 @@ mod tests {
     const POSTED: &str =
         "-f\nstate=success\n-f\ncontext=local-gate/consumer\n-f\ndescription=meta-dev local: fmt 1.0s,";
     const FAILED: &str = "state=failure";
+    const SURFACED: &str = "; surfaces changed\n";
 
     impl CiStep {
         fn every_step_passed() -> String {
@@ -212,7 +213,8 @@ mod tests {
         let surfaces = Changed::new(vec![PathBuf::from(IGNORE)]);
         let recorded = || fs::read_to_string(fixture.path(RECORDED)).unwrap_or_default();
         gate.concluded(&checkout, Ok(()), &surfaces).unwrap();
-        assert!(recorded().contains(&format!("/statuses/{}\n{POSTED}", checkout.commit())));
+        let posted = recorded();
+        assert!(posted.contains(&format!("/statuses/{}\n{POSTED}", checkout.commit())) && posted.ends_with(SURFACED));
         let failed = gate.concluded(&checkout, Err(task::Failure::NoWorkspace), &surfaces);
         assert!(failed.is_err() && recorded().contains(FAILED));
         fs::write(checkout.times().path(), TIMED).unwrap();

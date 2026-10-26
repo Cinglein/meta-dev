@@ -184,7 +184,8 @@ mod tests {
         let fixture = Fixture::new();
         let checkout = fixture.checked_out();
         assert!(checkout.root().join("committed.txt").exists() && !checkout.root().join("hello.txt").exists());
-        assert!(checkout.root().ancestors().all(|directory| !directory.join(CARGO_CONFIG).exists()));
+        let outside = checkout.above().is_some_and(|above| checkout.root().starts_with(above));
+        assert!(outside && checkout.root().ancestors().all(|directory| !directory.join(CARGO_CONFIG).exists()));
         let local = checkout.version().is_ok_and(|version| version == MetaRev::local());
         assert!(checkout.scope() == Path::new(SCOPE) && checkout.intact().is_ok() && local);
     }
