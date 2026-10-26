@@ -5,7 +5,7 @@ use std::process::Command;
 
 use meta_log::GitLog;
 
-use crate::request::ci::{Commit, RefTips};
+use crate::request::ci::{Commit, ReflogEntry, UnixSeconds};
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
 pub use config::{BranchName, CiSettings, Config, LogWindow, ProgramName};
@@ -52,17 +52,46 @@ impl Project {
         })
     }
 
-    pub fn ref_tips(&self) -> Option<RefTips> {
-        let remote = format!("refs/remotes/{}", self.config.remote().ok()?);
-        let format = "--format=%(refname) %(objectname)";
-        let listed = Command::new("git")
+    pub fn created_since(&self, start: UnixSeconds) -> Vec<Commit> {
+        let walked = Command::new("git")
             .arg("-C")
             .arg(&self.root)
-            .args(["for-each-ref", format, "refs/heads", &remote])
-            .output()
-            .ok()?;
-        let Ok(tips) = String::from_utf8_lossy(&listed.stdout).parse();
-        listed.status.success().then_some(tips)
+            .args(["log", "--walk-reflogs", "--date=unix", ReflogEntry::FORMAT, "HEAD", "--"])
+            .output();
+        let text = walked.map(|walked| String::from_utf8_lossy(&walked.stdout).into_owned()).unwrap_or_default();
+        let created: Vec<Commit> = text
+            .lines()
+            .filter_map(|line| line.parse::<ReflogEntry>().ok())
+            .filter_map(|entry| entry.created_since(start).cloned())
+            .collect();
+        created
+            .iter()
+            .enumerate()
+            .filter(|(at, commit)| created.iter().position(|other| other == *commit) == Some(*at))
+            .map(|(_, commit)| commit.clone())
+            .collect()
+    }
+
+    pub fn on_remote(&self, commits: &[Commit]) -> Vec<Commit> {
+        let Some(remotes) = self.config.remote().ok().map(|remote| format!("--remotes={remote}")) else {
+            return Vec::new();
+        };
+        let ahead = Command::new("git")
+            .arg("-C")
+            .arg(&self.root)
+            .args(["rev-list", "--ignore-missing"])
+            .args(commits.iter().map(Commit::argument))
+            .args(["--not", &remotes])
+            .output();
+        let unpushed: Option<Vec<Commit>> = ahead.ok().filter(|ahead| ahead.status.success()).map(|ahead| {
+            String::from_utf8_lossy(&ahead.stdout)
+                .lines()
+                .map(|line| line.parse().unwrap_or_else(|never| match never {}))
+                .collect()
+        });
+        unpushed.map_or_else(Vec::new, |unpushed| {
+            commits.iter().filter(|commit| !unpushed.contains(commit)).cloned().collect()
+        })
     }
 
     pub fn unpushed(&self) -> Option<Commit> {

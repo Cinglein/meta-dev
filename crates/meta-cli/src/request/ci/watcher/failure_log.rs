@@ -11,7 +11,7 @@ impl FailureLog {
     pub fn excerpt(project: &Project, session: &SessionId) -> Result<Output, CliFailure> {
         let dir =
             SessionDir::for_session(project, session).ok_or_else(|| CliFailure::raised::<Setup>("no git directory"))?;
-        let pushed = dir.pushed().map_err(CliFailure::raised::<Setup>)?.commits();
+        let pushed = project.on_remote(&dir.created(project));
         pushed.first().ok_or_else(|| CliFailure::raised::<Setup>("no CI tracked for this session"))?;
         let settings = project.config().ci_settings();
         let deadline = std::time::Instant::now() + settings.remaining(std::time::Duration::ZERO).unwrap_or_default();

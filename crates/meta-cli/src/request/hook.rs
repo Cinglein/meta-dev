@@ -55,12 +55,13 @@ impl HookEvent {
         let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
         let reply = Project::try_from(input.cwd().as_path()).ok().map(|project| {
             let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
-            self.reply(&project, &input, session.as_ref()).with_news(session.and_then(|dir| dir.news()))
+            session.as_ref().map(SessionDir::begin);
+            self.reply(&project, &input).with_news(session.and_then(|dir| dir.news()))
         });
         Ok(Output::Listed(Listed::new(reply.map(|reply| reply.to_string()).unwrap_or_default())))
     }
 
-    fn reply(self, project: &Project, input: &HookInput, session: Option<&SessionDir>) -> Reply {
+    fn reply(self, project: &Project, input: &HookInput) -> Reply {
         match self {
             Self::SessionStart => {
                 let actor = input.announced_actor().unwrap_or_else(Actor::owner);
@@ -80,7 +81,7 @@ impl HookEvent {
                     .and_then(|command| command.refusal(project.config()))
                     .map(Denial::from)
                     .map_or(Verdict::Allow, Verdict::Deny),
-                Self::remember(project, session),
+                None,
             ),
             Self::PostToolUse => Reply::new(self, Verdict::Allow, Self::after_push(project, input)),
             Self::Stop => Reply::new(
@@ -95,14 +96,9 @@ impl HookEvent {
         }
     }
 
-    fn remember(project: &Project, session: Option<&SessionDir>) -> Option<Listed> {
-        let (dir, tips) = session.zip(project.ref_tips())?;
-        dir.remember(&tips).err().map(|error| Listed::new(format!("CI state unwritable: {error}")))
-    }
-
     fn after_push(project: &Project, input: &HookInput) -> Option<Listed> {
         let failure =
             input.command()?.runs(Self::COMMIT).and_then(|()| project.push_current_branch()).and_then(Result::err);
-        failure.or(input.session().and_then(|session| Watcher::watch_pushes(project, session).err()))
+        failure.or(input.session().and_then(|session| Watcher::watch_all(project, session).err()))
     }
 }

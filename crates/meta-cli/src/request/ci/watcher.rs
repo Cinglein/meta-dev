@@ -53,23 +53,21 @@ impl Watcher {
         })
     }
 
-    pub fn watch_pushes(project: &Project, session: &SessionId) -> Result<(), Listed> {
+    pub fn watch_all(project: &Project, session: &SessionId) -> Result<(), Listed> {
         let dir =
             SessionDir::for_session(project, session).ok_or_else(|| Listed::new("CI not watched: no git directory"))?;
-        let tips = project.ref_tips().ok_or_else(|| Listed::new("CI not watched: git for-each-ref failed"))?;
-        let pushed = dir.record_pushes(&tips).map_err(|error| Listed::new(format!("CI not watched: {error}")))?;
-        pushed.commits().iter().try_for_each(|commit| Self::spawn(project, session, commit))
+        project.on_remote(&dir.created(project)).iter().try_for_each(|commit| Self::spawn(project, session, commit))
     }
 
     pub fn stop_reason(project: &Project, session: &SessionId) -> Option<Listed> {
         let dir = SessionDir::for_session(project, session)?;
-        let pushed = dir.pushed().map(|pushed| pushed.commits());
-        let unwritable = pushed
-            .as_ref()
-            .err()
+        let created = dir.created(project);
+        let commits = project.on_remote(&created);
+        let unwritable = commits
+            .first()
+            .and(dir.writable().err())
             .map(|error| Listed::new(format!("CI state unwritable: {error}; fix it or ask the owner")));
-        let commits = pushed.unwrap_or_default();
-        let unpushed = commits.first().and(project.unpushed()).map(|commit| {
+        let unpushed = project.unpushed().filter(|head| created.contains(head)).map(|commit| {
             Listed::new(format!("HEAD {commit} is not pushed: push it, then run `meta ci-wait`; or ask the owner"))
         });
         let statuses: Vec<(Commit, Option<CiStatus>)> = commits
@@ -114,7 +112,7 @@ impl Watcher {
     pub fn wait(project: &Project, session: &SessionId) -> Result<Output, CliFailure> {
         let dir =
             SessionDir::for_session(project, session).ok_or_else(|| CliFailure::raised::<Setup>("no git directory"))?;
-        let pushed = dir.pushed().map_err(CliFailure::raised::<Setup>)?.commits();
+        let pushed = project.on_remote(&dir.created(project));
         pushed.first().ok_or_else(|| CliFailure::raised::<Invalid>("no CI watched for this session"))?;
         pushed
             .iter()

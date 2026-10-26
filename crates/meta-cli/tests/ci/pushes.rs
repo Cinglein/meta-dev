@@ -1,6 +1,5 @@
-use super::{BLOCK, COMMIT, FAILURE, Git, NEXT_COMMIT, POST, PRE, PUSH_WORDS, Planted, Repo, STOP, SUCCESS};
+use super::{BLOCK, COMMIT, FAILED_EVENT, FAILURE, Git, NEXT_COMMIT, POST, Planted, Repo, STOP, SUCCESS};
 
-const STACK_PUSH: &str = "gh stack push";
 const STATUS: &str = "git status";
 const ELSEWHERE: [&str; 4] = ["push", "-q", "origin", "HEAD:elsewhere"];
 const DETACH: [&str; 3] = ["checkout", "-q", "--detach"];
@@ -11,17 +10,12 @@ const SESSION_DIR: &str = ".git/meta-ci/ABCDEF1234";
 const PASSED: &str = "passed";
 
 #[test]
-fn stop_judges_every_recorded_push_and_a_dead_watcher_restarts() {
+fn stop_judges_every_pushed_commit_and_a_dead_watcher_restarts() {
     let repo = Repo::new(FAILURE);
     Planted::running(&repo);
-    Git::run(repo.clone.path(), &PUSH_WORDS);
-    repo.hook(PRE, STATUS);
-    repo.hook(POST, STATUS);
-    let quiet = repo.hook(STOP, STATUS);
     Git::run(repo.clone.path(), &ELSEWHERE);
-    repo.hook(POST, STACK_PUSH);
     Git::run(repo.clone.path(), &DETACH);
-    let detached = repo.hook(STOP, COMMIT);
+    let detached = repo.hook(STOP, STATUS);
     Planted::refusal(repo.origin.path());
     Git::run(repo.clone.path(), &BACK);
     Git::run(repo.clone.path(), &NEXT_COMMIT);
@@ -30,12 +24,11 @@ fn stop_judges_every_recorded_push_and_a_dead_watcher_restarts() {
     let open = Planted::locked(&repo.clone.path().join(SESSION_DIR));
     let unwritable = repo.hook(STOP, COMMIT);
     std::fs::set_permissions(repo.clone.path().join(SESSION_DIR), open).unwrap();
-    repo.settled();
     assert!(
-        !quiet.contains(BLOCK)
-            && detached.contains(BLOCK)
+        detached.contains(BLOCK)
             && rejected.contains(NOT_PUSHED)
             && unwritable.contains(UNWRITABLE)
+            && repo.settled().contains(FAILED_EVENT)
     );
 }
 

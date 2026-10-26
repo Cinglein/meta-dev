@@ -4,10 +4,10 @@ mod process_group;
 mod raw_log;
 
 use std::ffi::OsString;
+use std::io::Read;
 use std::os::unix::process::CommandExt as _;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use std::sync::mpsc::RecvTimeoutError;
 use std::time::Instant;
 
 use crate::request::ci::ci_status::CiStatus;
@@ -78,7 +78,7 @@ impl Gh {
     }
 
     fn text(&self, words: impl Iterator<Item = OsString>) -> Result<String, Listed> {
-        let child = Command::new(&self.program)
+        let mut child = Command::new(&self.program)
             .args(words)
             .current_dir(&self.root)
             .stdin(Stdio::null())
@@ -88,18 +88,28 @@ impl Gh {
             .spawn()
             .map_err(Listed::new)?;
         let group = ProcessGroup::led_by(&child);
-        let (done, finished) = std::sync::mpsc::channel::<()>();
-        let left = self.deadline.saturating_duration_since(Instant::now());
+        let (stdout, stderr) = (child.stdout.take(), child.stderr.take());
+        let (sender, drained) = std::sync::mpsc::channel::<(Vec<u8>, Vec<u8>)>();
         std::thread::spawn(move || {
-            (finished.recv_timeout(left) == Err(RecvTimeoutError::Timeout)).then(|| group.kill())
+            let errors = std::thread::spawn(move || Self::drain(stderr));
+            let output = Self::drain(stdout);
+            sender.send((output, errors.join().unwrap_or_default())).ok();
         });
-        let output = child.wait_with_output().map_err(Listed::new)?;
-        done.send(()).ok();
-        if output.status.success() {
-            Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+        let early = drained.recv_timeout(self.deadline.saturating_duration_since(Instant::now()));
+        early.is_err().then(|| group.kill());
+        let (stdout, stderr) = early.or_else(|_| drained.recv()).map_err(Listed::new)?;
+        let status = child.wait().map_err(Listed::new)?;
+        if status.success() {
+            Ok(String::from_utf8_lossy(&stdout).into_owned())
         } else {
-            Err(Listed::new(String::from_utf8_lossy(&output.stderr).lines().next().unwrap_or_default()))
+            Err(Listed::new(String::from_utf8_lossy(&stderr).lines().next().unwrap_or_default()))
         }
+    }
+
+    fn drain(pipe: Option<impl Read>) -> Vec<u8> {
+        let mut drained = Vec::new();
+        pipe.map(|mut pipe| pipe.read_to_end(&mut drained).ok());
+        drained
     }
 
     fn json<Parsed: serde::de::DeserializeOwned>(
