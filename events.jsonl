@@ -210,3 +210,4 @@
 {"at":"2026-10-26T05:31:49.900375Z","actor":"claude-move-postmortem","kind":"TaskOpened","task":"task-eaaf236c2fc07a84","text":"Move the Basho postmortem out of this repo into Basho's private repo; drop references"}
 {"at":"2026-10-26T05:31:54.851529Z","actor":"claude-move-postmortem","kind":"TaskClaimed","task":"task-eaaf236c2fc07a84"}
 {"at":"2026-10-26T05:33:58.500016Z","actor":"claude-move-postmortem","kind":"TaskDone","task":"task-eaaf236c2fc07a84"}
+{"at":"2026-10-26T05:38:30.141271Z","actor":"claude-lead","kind":"TaskOpened","task":"task-5c57fc4d8f01d672","text":"Kill all surviving mutants in crate_graph (100, from #18's full run) before #18 merges"}
