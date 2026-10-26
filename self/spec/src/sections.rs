@@ -126,6 +126,173 @@ pub const SECTIONS: &[Section] = &[
         ],
     ),
     Section::new(
+        Wording::new("Budget enforcement (owner, 2026-10-26)"),
+        &[
+            Rule::new(
+                RuleId::new("budget-enforce-ci"),
+                ArchitectureAndPlanning,
+                Wording::new("Budgets are enforced in CI (the local gate where Actions can't run)."),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-enforce-per-change"),
+                ArchitectureAndPlanning,
+                Wording::new("Per-change budgets: measured fresh by CI."),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-enforce-standing"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Standing budgets are derived from the log (open Criticals, waivers in force, concern backlog): CI folds meta/log read-only on every run. An over-budget standing budget blocks only PRs in its division, but a division whose property all code affects (for example CI performance) blocks every PR that could affect it.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-enforce-per-task"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Per-task budgets (effort, due): CI finds the PR's task via TaskLinked or the branch, and fails on overspend with no recorded extension; a PR with no task fails.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-enforce-spend-source"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Spend comes from local measurement (heartbeat from transcripts) written to the log; CI trusts it under the honest-mistakes threat model.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("budget-enforce-machine-timing"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Machine budgets (CPU, memory, agents, disk) are runtime controls enforced by hooks and leases, not CI. Timing budgets are measured only on CI or in the local gate's clean run.",
+                ),
+                Tracked,
+            ),
+        ],
+    ),
+    Section::new(
+        Wording::new("Division domains (owner, 2026-10-26)"),
+        &[
+            Rule::new(
+                RuleId::new("domain-declared"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Only what is measured can be budgeted, so every division declares its domain as typed scopes in policy: crates, paths, CI workflows, tests, plus its implicit items (log entries labelled with it).",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("domain-subset"),
+                ArchitectureAndPlanning,
+                Wording::new("A child's domain is a strict subset of its parent's."),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("domain-defaults"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Defaults: all code belongs to features-and-maintenance and, through CI performance (which is always measured, unlike app performance), to performance-and-cost. Architecture-and-planning has no code.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("domain-budget-measure"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "A budget is a measure over its division's domain (test or workflow wall time, lint findings over crates or paths, open Criticals over items). A budget whose measure needs a scope the division doesn't declare is refused when the policy is read.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("domain-reach"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "A PR is within a budget's reach when its diff touches the domain or its linked task is in the division.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("domain-scope-kinds"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Which scope kinds a budget needs depends on the budget; wall-time budgets on tests and workflows are the easiest first case.",
+                ),
+                Tracked,
+            ),
+        ],
+    ),
+    Section::new(
+        Wording::new("Entity model (owner, 2026-10-26)"),
+        &[
+            Rule::new(
+                RuleId::new("concern-definition"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "A concern is anything noticed that might matter, vague or precise, and is the only entity that carries a ladder rung.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("concern-rungs"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Rungs: 1 identified (text); 2 defined (points at a spec rule); 3 checked or budgeted (a named enforcer: lint, test or CI step); 4 impossible by construction (a type).",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("concern-moves"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Moves up and down are events with evidence; a concern never claims a rung its evidence no longer supports.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("concern-division"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "A concern's division is architecture-and-planning at rungs 1-2, then the owning division at 3-4.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("concern-resting"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Concerns may rest at any rung, but resting is budgeted with a ratchet (exact shape being decided).",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("concern-rung-only-axis"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Rung is the only typed axis; confidence is not separate, because climbing from rung 1 to 2 already narrows it.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("concern-closing"),
+                ArchitectureAndPlanning,
+                Wording::new("Closing: resolved or retired."),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("rule-decomposition-parked"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "'Spec rule' is decomposed into four things: claim, definition, plan and decision. That work is parked.",
+                ),
+                Tracked,
+            ),
+        ],
+    ),
+    Section::new(
         Wording::new("Severity per division (owner, 2026-10-26)"),
         &[
             Rule::new(
@@ -206,27 +373,57 @@ pub const SECTIONS: &[Section] = &[
                 Tracked,
             ),
             Rule::new(
-                RuleId::new("build-5-machine-and-pool"),
+                RuleId::new("build-5-budget-domains-checker"),
                 ArchitectureAndPlanning,
-                Wording::new("Step 5: machine-layer leases and the agent pool."),
+                Wording::new("Step 5: budget core, first part: division domains plus one checker."),
                 Tracked,
             ),
             Rule::new(
-                RuleId::new("build-6-severity"),
+                RuleId::new("build-6-budget-test-workflow-time"),
                 ArchitectureAndPlanning,
-                Wording::new("Step 6: severity scales, mapping and caps."),
+                Wording::new("Step 6: budget core, then per-test and per-workflow wall time."),
                 Tracked,
             ),
             Rule::new(
-                RuleId::new("build-7-waivers"),
+                RuleId::new("build-7-budget-standing"),
                 ArchitectureAndPlanning,
-                Wording::new("Step 7: waivers replace baselines (this also settles first-baseline seeding)."),
+                Wording::new("Step 7: budget core, then standing budgets from the log."),
                 Tracked,
             ),
             Rule::new(
-                RuleId::new("build-8-rungs"),
+                RuleId::new("build-8-budget-warnings"),
                 ArchitectureAndPlanning,
-                Wording::new("Step 8: ladder rungs on concerns."),
+                Wording::new("Step 8: budget core, then warnings in status."),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("build-9-budget-task-effort"),
+                ArchitectureAndPlanning,
+                Wording::new("Step 9: budget core, then per-task effort."),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("build-10-machine-and-pool"),
+                ArchitectureAndPlanning,
+                Wording::new("Step 10: machine-layer leases and the agent pool."),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("build-11-severity"),
+                ArchitectureAndPlanning,
+                Wording::new("Step 11: severity scales, mapping and caps."),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("build-12-waivers"),
+                ArchitectureAndPlanning,
+                Wording::new("Step 12: waivers replace baselines (this also settles first-baseline seeding)."),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("build-13-rungs"),
+                ArchitectureAndPlanning,
+                Wording::new("Step 13: ladder rungs on concerns."),
                 Tracked,
             ),
         ],

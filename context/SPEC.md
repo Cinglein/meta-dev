@@ -21,6 +21,32 @@ Sections down to the next top-level heading are rendered from the rule records i
 - `budget-raise` (architecture-and-planning, rung 1, no enforcer): Raising a budget is owner-only.
 - `budget-waivers` (architecture-and-planning, rung 1, no enforcer): Waivers are spend from the waiver budget of the division whose rule they bend. They replace raw lint baselines.
 
+## Budget enforcement (owner, 2026-10-26)
+- `budget-enforce-ci` (architecture-and-planning, rung 1, no enforcer): Budgets are enforced in CI (the local gate where Actions can't run).
+- `budget-enforce-per-change` (architecture-and-planning, rung 1, no enforcer): Per-change budgets: measured fresh by CI.
+- `budget-enforce-standing` (architecture-and-planning, rung 1, no enforcer): Standing budgets are derived from the log (open Criticals, waivers in force, concern backlog): CI folds meta/log read-only on every run. An over-budget standing budget blocks only PRs in its division, but a division whose property all code affects (for example CI performance) blocks every PR that could affect it.
+- `budget-enforce-per-task` (architecture-and-planning, rung 1, no enforcer): Per-task budgets (effort, due): CI finds the PR's task via TaskLinked or the branch, and fails on overspend with no recorded extension; a PR with no task fails.
+- `budget-enforce-spend-source` (architecture-and-planning, rung 1, no enforcer): Spend comes from local measurement (heartbeat from transcripts) written to the log; CI trusts it under the honest-mistakes threat model.
+- `budget-enforce-machine-timing` (architecture-and-planning, rung 1, no enforcer): Machine budgets (CPU, memory, agents, disk) are runtime controls enforced by hooks and leases, not CI. Timing budgets are measured only on CI or in the local gate's clean run.
+
+## Division domains (owner, 2026-10-26)
+- `domain-declared` (architecture-and-planning, rung 1, no enforcer): Only what is measured can be budgeted, so every division declares its domain as typed scopes in policy: crates, paths, CI workflows, tests, plus its implicit items (log entries labelled with it).
+- `domain-subset` (architecture-and-planning, rung 1, no enforcer): A child's domain is a strict subset of its parent's.
+- `domain-defaults` (architecture-and-planning, rung 1, no enforcer): Defaults: all code belongs to features-and-maintenance and, through CI performance (which is always measured, unlike app performance), to performance-and-cost. Architecture-and-planning has no code.
+- `domain-budget-measure` (architecture-and-planning, rung 1, no enforcer): A budget is a measure over its division's domain (test or workflow wall time, lint findings over crates or paths, open Criticals over items). A budget whose measure needs a scope the division doesn't declare is refused when the policy is read.
+- `domain-reach` (architecture-and-planning, rung 1, no enforcer): A PR is within a budget's reach when its diff touches the domain or its linked task is in the division.
+- `domain-scope-kinds` (architecture-and-planning, rung 1, no enforcer): Which scope kinds a budget needs depends on the budget; wall-time budgets on tests and workflows are the easiest first case.
+
+## Entity model (owner, 2026-10-26)
+- `concern-definition` (architecture-and-planning, rung 1, no enforcer): A concern is anything noticed that might matter, vague or precise, and is the only entity that carries a ladder rung.
+- `concern-rungs` (architecture-and-planning, rung 1, no enforcer): Rungs: 1 identified (text); 2 defined (points at a spec rule); 3 checked or budgeted (a named enforcer: lint, test or CI step); 4 impossible by construction (a type).
+- `concern-moves` (architecture-and-planning, rung 1, no enforcer): Moves up and down are events with evidence; a concern never claims a rung its evidence no longer supports.
+- `concern-division` (architecture-and-planning, rung 1, no enforcer): A concern's division is architecture-and-planning at rungs 1-2, then the owning division at 3-4.
+- `concern-resting` (architecture-and-planning, rung 1, no enforcer): Concerns may rest at any rung, but resting is budgeted with a ratchet (exact shape being decided).
+- `concern-rung-only-axis` (architecture-and-planning, rung 1, no enforcer): Rung is the only typed axis; confidence is not separate, because climbing from rung 1 to 2 already narrows it.
+- `concern-closing` (architecture-and-planning, rung 1, no enforcer): Closing: resolved or retired.
+- `rule-decomposition-parked` (architecture-and-planning, rung 1, no enforcer): 'Spec rule' is decomposed into four things: claim, definition, plan and decision. That work is parked.
+
 ## Severity per division (owner, 2026-10-26)
 - `severity-scale` (architecture-and-planning, rung 1, no enforcer): Each division owns its severity scale. Deeper divisions have finer scales.
 - `severity-mapping` (architecture-and-planning, rung 1, no enforcer): Each child level maps to exactly one parent level, and the order is kept (a more severe child level never maps below a less severe one). Parent caps count every child item that maps to the level.
@@ -34,10 +60,15 @@ Sections down to the next top-level heading are rendered from the rule records i
 - `build-2-log-divisions` (architecture-and-planning, rung 1, no enforcer): Step 2: every log item carries a division; claims become capacity assignments; typed Discussion status; TaskLinked.
 - `build-3-status` (architecture-and-planning, rung 1, no enforcer): Step 3: `meta status` with the local record; `meta claim` worktrees and identity.
 - `build-4-heartbeat` (architecture-and-planning, rung 1, no enforcer): Step 4: heartbeat timer and `meta gc`.
-- `build-5-machine-and-pool` (architecture-and-planning, rung 1, no enforcer): Step 5: machine-layer leases and the agent pool.
-- `build-6-severity` (architecture-and-planning, rung 1, no enforcer): Step 6: severity scales, mapping and caps.
-- `build-7-waivers` (architecture-and-planning, rung 1, no enforcer): Step 7: waivers replace baselines (this also settles first-baseline seeding).
-- `build-8-rungs` (architecture-and-planning, rung 1, no enforcer): Step 8: ladder rungs on concerns.
+- `build-5-budget-domains-checker` (architecture-and-planning, rung 1, no enforcer): Step 5: budget core, first part: division domains plus one checker.
+- `build-6-budget-test-workflow-time` (architecture-and-planning, rung 1, no enforcer): Step 6: budget core, then per-test and per-workflow wall time.
+- `build-7-budget-standing` (architecture-and-planning, rung 1, no enforcer): Step 7: budget core, then standing budgets from the log.
+- `build-8-budget-warnings` (architecture-and-planning, rung 1, no enforcer): Step 8: budget core, then warnings in status.
+- `build-9-budget-task-effort` (architecture-and-planning, rung 1, no enforcer): Step 9: budget core, then per-task effort.
+- `build-10-machine-and-pool` (architecture-and-planning, rung 1, no enforcer): Step 10: machine-layer leases and the agent pool.
+- `build-11-severity` (architecture-and-planning, rung 1, no enforcer): Step 11: severity scales, mapping and caps.
+- `build-12-waivers` (architecture-and-planning, rung 1, no enforcer): Step 12: waivers replace baselines (this also settles first-baseline seeding).
+- `build-13-rungs` (architecture-and-planning, rung 1, no enforcer): Step 13: ladder rungs on concerns.
 
 ## Agent wall time (owner, 2026-10-26)
 - `wall-time-guard` (architecture-and-planning, rung 1, no enforcer): Wall time is the only reliable guard against silent agent stalls. Activity signals (pushes, log events, idleness) are not: an agent blocked on a watcher that can never fire looks idle while working and busy while stuck.
