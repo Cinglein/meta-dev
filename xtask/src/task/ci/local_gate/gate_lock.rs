@@ -17,7 +17,7 @@ pub struct GateLock {
 }
 
 impl GateLock {
-    const PAUSE: Duration = Duration::from_millis(250);
+    const PAUSE: Duration = Duration::from_millis(20);
     const TARGETS: &str = "targets";
     const LOCK: &str = "lock";
 
