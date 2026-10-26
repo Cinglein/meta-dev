@@ -14,6 +14,7 @@ pub struct Listing<'state> {
 }
 
 impl<'state> Listing<'state> {
+    #[must_use]
     pub fn new(state: &'state State, kind: Kind, scope: Scope) -> Self {
         Self { state, kind, scope }
     }

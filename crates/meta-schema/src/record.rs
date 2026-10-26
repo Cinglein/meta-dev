@@ -15,18 +15,22 @@ pub struct Record {
 }
 
 impl Record {
+    #[must_use]
     pub fn new(actor: Actor, event: Event) -> Self {
         Self { at: Utc::now(), actor, event }
     }
 
+    #[must_use]
     pub fn written_at(&self) -> DateTime<Utc> {
         self.at
     }
 
+    #[must_use]
     pub fn actor(&self) -> &Actor {
         &self.actor
     }
 
+    #[must_use]
     pub fn event(&self) -> &Event {
         &self.event
     }

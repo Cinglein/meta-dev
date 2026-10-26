@@ -1,12 +1,14 @@
-mod task;
-
 use std::env;
 use std::process::ExitCode;
 
-use crate::task::Task;
+use xtask::Task;
 
 fn main() -> ExitCode {
-    match env::args().nth(1).as_deref().map_or(Ok(Task::Usage), str::parse).and_then(Task::run) {
+    let task = env::args()
+        .nth(1)
+        .ok_or_else(Task::usage)
+        .and_then(|argument| argument.parse::<Task>().map_err(|_| Task::usage()));
+    match task.and_then(Task::run) {
         Ok(()) => ExitCode::SUCCESS,
         Err(failure) => {
             eprintln!("{failure}");

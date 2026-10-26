@@ -3,7 +3,7 @@ use std::fmt;
 use meta_schema::Tag;
 
 use crate::state::State;
-use crate::task_state::TaskState;
+use crate::task_state::{TaskState, TaskStatus};
 
 #[derive(Debug)]
 pub struct Summary<'state> {
@@ -11,6 +11,7 @@ pub struct Summary<'state> {
 }
 
 impl<'state> Summary<'state> {
+    #[must_use]
     pub fn new(state: &'state State) -> Self {
         Self { state }
     }
@@ -25,8 +26,8 @@ impl fmt::Display for Summary<'_> {
             .iter()
             .filter(|task| task.status().unfinished().is_some() && state.retirement(task.entry()).is_none())
             .collect();
-        let claimed = unfinished.iter().filter(|task| task.status().claimant().is_some());
-        let open = unfinished.iter().filter(|task| task.status().claimant().is_none());
+        let claimed = unfinished.iter().filter(|task| *task.status() != TaskStatus::Open);
+        let open = unfinished.iter().filter(|task| *task.status() == TaskStatus::Open);
         let done = state.tasks().iter().filter(|task| task.status().done().is_some()).count();
         writeln!(formatter, "Tasks: {} unfinished, {done} done, {retired} retired", unfinished.len())?;
         claimed.chain(open).try_for_each(|task| writeln!(formatter, "  {task}"))?;

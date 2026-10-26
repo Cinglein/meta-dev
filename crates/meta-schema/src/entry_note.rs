@@ -12,14 +12,17 @@ pub struct EntryNote {
 }
 
 impl EntryNote {
+    #[must_use]
     pub fn new(entry: Entry, text: Text) -> Self {
         Self { entry, text }
     }
 
+    #[must_use]
     pub fn entry(&self) -> Entry {
         self.entry
     }
 
+    #[must_use]
     pub fn text(&self) -> &Text {
         &self.text
     }

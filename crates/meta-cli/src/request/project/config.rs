@@ -4,9 +4,9 @@ mod remote_name;
 
 use serde::Deserialize;
 
-use crate::request::cli_failure::CliFailure;
+use crate::request::cli_failure::{CliFailure, Setup};
 pub use branch_name::BranchName;
-pub use ci_settings::{CiSettings, LineCount, ProgramName};
+pub use ci_settings::{CiSettings, LogWindow, ProgramName};
 use remote_name::RemoteName;
 
 #[derive(Debug, Default, Deserialize)]
@@ -21,7 +21,7 @@ pub struct Config {
 
 impl Config {
     pub fn remote(&self) -> Result<&RemoteName, CliFailure> {
-        self.remote.as_ref().ok_or_else(|| CliFailure::config("meta.toml: `remote` is required"))
+        self.remote.as_ref().ok_or_else(|| CliFailure::raised::<Setup>("meta.toml: `remote` is required"))
     }
 
     pub fn ci_settings(&self) -> CiSettings {

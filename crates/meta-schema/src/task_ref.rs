@@ -11,10 +11,12 @@ pub struct TaskRef {
 }
 
 impl TaskRef {
+    #[must_use]
     pub fn new(task: Id<Task>) -> Self {
         Self { task }
     }
 
+    #[must_use]
     pub fn task(&self) -> Id<Task> {
         self.task
     }

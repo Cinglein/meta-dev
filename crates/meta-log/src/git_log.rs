@@ -19,7 +19,7 @@ use crate::snapshot::Snapshot;
 use attempt::Attempt;
 use content::Content;
 use fetched::Fetched;
-use git::Git;
+use git::{Git, GitCommand};
 use outcome::Outcome;
 use remote::Remote;
 use sha::Sha;
@@ -31,7 +31,7 @@ pub struct GitLog {
 }
 
 impl GitLog {
-    pub fn new(repo: PathBuf, remote: impl ToString) -> Self {
+    pub fn new(repo: PathBuf, remote: &impl ToString) -> Self {
         let git = Git::new(repo);
         Self { remote: Remote::new(git.clone(), Detail::from_reason(remote)), git }
     }
@@ -50,7 +50,7 @@ impl GitLog {
             .arg("-m")
             .arg(format!("{actor}: {}", record.event()));
         let commit = parents
-            .fold(base, |command, word| command.arg(word))
+            .fold(base, GitCommand::arg)
             .env("GIT_AUTHOR_NAME", &actor)
             .env("GIT_AUTHOR_EMAIL", &email)
             .env("GIT_COMMITTER_NAME", &actor)
@@ -90,7 +90,7 @@ impl LogStore for GitLog {
         Attempt::sequence()
             .try_for_each(|attempt| Outcome::step(self.attempt(decide), attempt))
             .break_value()
-            .unwrap_or_else(|| Err(LogFailure::Contended(Detail::from_reason(Attempt::last()))))
+            .unwrap_or_else(|| Err(LogFailure::Contended(Detail::from_reason(&Attempt::last()))))
     }
 }
 

@@ -4,7 +4,8 @@ mod session_dir;
 mod session_id;
 mod watcher;
 
+pub use ci_status::CiStatus;
 pub use commit::Commit;
 pub use session_dir::SessionDir;
 pub use session_id::SessionId;
-pub use watcher::Watcher;
+pub use watcher::{FailureLog, Watcher};

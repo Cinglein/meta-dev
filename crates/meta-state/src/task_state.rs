@@ -6,7 +6,7 @@ use meta_schema::{Entry, Id, NewTask, Target, Task, Text};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
-use task_status::TaskStatus;
+pub use task_status::TaskStatus;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TaskState {

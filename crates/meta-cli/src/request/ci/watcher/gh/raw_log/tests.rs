@@ -1,5 +1,5 @@
 use super::RawLog;
-use crate::request::project::LineCount;
+use crate::request::project::LogWindow;
 
 const CLIPPY: &str = "ci\tRun cargo xtask ci\t2026-10-25T06:30:01.1000000Z    Compiling meta-log v0.0.0
 ci\tRun cargo xtask ci\t2026-10-25T06:30:02.1000000Z     Checking meta-cli v0.0.0
@@ -9,23 +9,19 @@ ci\tRun cargo xtask ci\t2026-10-25T06:30:05.2000000Z error: could not compile `m
 ci\tRun cargo xtask ci\t2026-10-25T06:30:05.3000000Z ci: clippy 2.3s
 ci\tRun cargo xtask ci\t2026-10-25T06:30:05.4000000Z ci: clippy failed
 ci\tRun cargo xtask ci\t2026-10-25T06:30:05.5000000Z ##[error]Process completed with exit code 1.";
-const WIDE: &str = "limit = 50\ncontext = 1\n";
-const NARROW: &str = "limit = 3\ncontext = 0\n";
+const WIDE: &str = "log_lines = 50\nlog_context = 1\n";
+const NARROW: &str = "log_lines = 3\nlog_context = 0\n";
 const HEADED_ERROR: &str = "== ci / Run cargo xtask ci ==\nerror: this method chain";
 const LOCATION: &str = "remote.rs:43:9";
 const NOISE: &[&str] = &["Compiling", "2026-10-25T", "\u{1b}"];
-const CAPPED: &str = "[kept 3 of 8 log lines; cut setup, passing output and anything beyond 3 lines]";
+const CAPPED: &str = "[kept 3 of 8 log lines; cut setup, passing output and anything beyond 3 lines]\n";
 
-#[derive(serde::Deserialize)]
-struct Limits {
-    limit: LineCount,
-    context: LineCount,
-}
+struct Limits;
 
 impl Limits {
     fn excerpt(text: &str) -> String {
-        let limits: Self = toml::from_str(text).unwrap();
-        RawLog::new(CLIPPY.to_owned()).excerpt(limits.limit, limits.context).to_string()
+        let window: LogWindow = toml::from_str(text).unwrap();
+        RawLog::new(CLIPPY.to_owned()).excerpt(&window).to_string()
     }
 }
 

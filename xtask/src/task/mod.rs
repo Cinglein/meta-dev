@@ -1,51 +1,114 @@
+mod ci;
+mod clippy;
 mod failure;
-mod project;
+mod lint;
+mod test;
+mod usage;
 
-use std::str::FromStr;
+use settings::EmbeddedDefaults;
+use strum::{EnumString, VariantNames};
 
-use crate::task::failure::Failure;
-use project::Project;
+use crate::task::clippy::Clippy;
+use crate::task::lint::Lint;
+use crate::task::test::Test;
+use crate::task::usage::Usage;
+use ci::Ci;
+use const_shape::ConstShape;
+use distinct_signatures::DistinctSignatures;
+use expression_flow::ExpressionFlow;
+use failure::Failure;
+use fn_shape::FnShape;
+use literal_names::LiteralNames;
+use manual_iteration::ManualIteration;
+use meta_lints::Project;
+use module_nesting::ModuleNesting;
+use named_lifetimes::NamedLifetimes;
+use named_numbers::NamedNumbers;
+use no_comments::NoComments;
+use no_forwarders::NoForwarders;
+use no_free_fns::NoFreeFns;
+use no_numbers_in_binaries::NoNumbersInBinaries;
+use no_parameter_bags::NoParameterBags;
+use primitive_boundary::PrimitiveBoundary;
+use private_fns::PrivateFns;
+use public_surface::PublicSurface;
+use settings_shape::SettingsShape;
+use state_graph::StateGraph;
+use task::Policy;
+use task::Workspace;
+use test_budget::TestBudget;
+use type_shape::TypeShape;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, VariantNames)]
+#[strum(serialize_all = "kebab-case")]
 pub enum Task {
-    Lint,
     Baseline,
     Ci,
+    Clippy,
+    ConstShape,
+    DistinctSignatures,
+    ExpressionFlow,
+    FnShape,
     Graph,
-    Usage,
+    Lint,
+    LiteralNames,
+    ManualIteration,
+    ModuleNesting,
+    NamedLifetimes,
+    NamedNumbers,
+    NoComments,
+    NoForwarders,
+    NoFreeFns,
+    NoNumbersInBinaries,
+    NoParameterBags,
+    PrimitiveBoundary,
+    PrivateFns,
+    PublicSurface,
+    SettingsShape,
+    StateGraph,
+    Test,
+    TestBudget,
+    TypeShape,
 }
 
 impl Task {
-    const USAGE: &str = "usage: cargo xtask <lint|baseline|ci|graph>";
+    #[must_use]
+    pub fn usage() -> Failure {
+        Failure::from(task::Failure::from(Usage))
+    }
 
     pub fn run(self) -> Result<(), Failure> {
-        let project = Project::locate()?;
+        let workspace = Workspace::locate()?;
+        let project = Project::locate(workspace.root())?;
+        let policy = Policy::defaults();
         match self {
-            Task::Lint => Ok(project.lints().lint(&project.prior()?).map(|tally| print!("{tally}"))?),
             Task::Baseline => Ok(project.lints().shrink_baseline().map(|tally| print!("{tally}"))?),
-            Task::Ci => {
-                let outcome = project.run_ci();
-                if let Err(failure) = project.changed_surfaces().and_then(|changed| Ok(changed.announce()?)) {
-                    eprintln!("surfaces: {failure}");
-                }
-                Ok(outcome?)
-            }
+            Task::Ci => Ci::run(&workspace, &policy, &project),
+            Task::Clippy => Ok(Clippy::run(&workspace)?),
             Task::Graph => Ok(project.lints().crate_graphs().map(|report| print!("{report}"))?),
-            Task::Usage => Err(Failure::Usage(Self::USAGE)),
-        }
-    }
-}
-
-impl FromStr for Task {
-    type Err = Failure;
-
-    fn from_str(text: &str) -> Result<Task, Failure> {
-        match text {
-            "lint" => Ok(Task::Lint),
-            "baseline" => Ok(Task::Baseline),
-            "ci" => Ok(Task::Ci),
-            "graph" => Ok(Task::Graph),
-            _ => Err(Failure::Usage(Self::USAGE)),
+            Task::ConstShape => Ok(ConstShape::report(&workspace.source_files()?, &policy).verdict()?),
+            Task::DistinctSignatures => Ok(DistinctSignatures::report(&workspace.source_files()?).verdict()?),
+            Task::ExpressionFlow => Ok(ExpressionFlow::report(&workspace.source_files()?).verdict()?),
+            Task::FnShape => Ok(FnShape::report(&workspace.source_files()?, &policy).verdict()?),
+            Task::Lint => Lint::run(&workspace, &policy, &project),
+            Task::LiteralNames => Ok(LiteralNames::report(&workspace.source_files()?, &policy).verdict()?),
+            Task::ManualIteration => Ok(ManualIteration::report(&workspace.source_files()?).verdict()?),
+            Task::ModuleNesting => Ok(ModuleNesting::report(&workspace.source_files()?, &policy).verdict()?),
+            Task::NamedLifetimes => Ok(NamedLifetimes::report(&workspace.source_files()?, &policy).verdict()?),
+            Task::NamedNumbers => Ok(NamedNumbers::report(&workspace.source_files()?, &policy).verdict()?),
+            Task::NoComments => Ok(NoComments::report(&workspace.source_files()?).verdict()?),
+            Task::NoForwarders => Ok(NoForwarders::report(&workspace.source_files()?).verdict()?),
+            Task::NoFreeFns => Ok(NoFreeFns::report(&workspace.source_files()?).verdict()?),
+            Task::NoNumbersInBinaries => Ok(NoNumbersInBinaries::report(&workspace.source_files()?).verdict()?),
+            Task::NoParameterBags => Ok(NoParameterBags::report(&workspace.source_files()?).verdict()?),
+            Task::PrimitiveBoundary => Ok(PrimitiveBoundary::report(&workspace.source_files()?, &policy).verdict()?),
+            Task::PrivateFns => Ok(PrivateFns::report(&workspace.source_files()?, &policy).verdict()?),
+            Task::PublicSurface => Ok(PublicSurface::report(&workspace.source_files()?).verdict()?),
+            Task::SettingsShape => Ok(SettingsShape::report(&workspace.source_files()?).verdict()?),
+            Task::StateGraph => Ok(StateGraph::report(&workspace.source_files()?, &policy).verdict()?),
+            Task::Test => Ok(Test::run(&workspace)?),
+            Task::TestBudget => Ok(TestBudget::report(&workspace.source_files()?, &policy).verdict()?),
+            Task::TypeShape => Ok(TypeShape::report(&workspace.source_files()?).verdict()?),
         }
     }
 }

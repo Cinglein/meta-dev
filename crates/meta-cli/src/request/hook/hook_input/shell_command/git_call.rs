@@ -11,7 +11,7 @@ pub struct GitCall {
 impl GitCall {
     const VALUED_OPTIONS: &'static [&'static str] = &["-C", "-c"];
 
-    pub fn parse(segment: Vec<String>) -> Option<Self> {
+    pub fn parse(segment: &[String]) -> Option<Self> {
         let start = segment.iter().position(|word| word == "git")?;
         let (_git, rest) = segment.get(start..)?.split_first()?;
         Some(Self { words: Self::after_options(rest).to_vec() })

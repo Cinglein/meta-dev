@@ -27,7 +27,7 @@ impl Content {
             match serde_json::from_str(line) {
                 Ok(record) => snapshot.with_record(record),
                 Err(error) => {
-                    snapshot.with_skipped(SkippedLine::new(LineNumber::from_index(index), Detail::from_reason(error)))
+                    snapshot.with_skipped(SkippedLine::new(LineNumber::from_index(index), Detail::from_reason(&error)))
                 }
             }
         })
@@ -63,7 +63,7 @@ mod tests {
     #[test]
     fn unknown_lines_are_listed_and_block_writes() {
         let snapshot = FUTURE_AND_GARBAGE.parse::<Content>().unwrap().snapshot();
-        assert!(snapshot.records().is_empty());
+        assert_eq!(snapshot.records(), []);
         assert!(snapshot.complete().is_err());
     }
 }

@@ -1,0 +1,37 @@
+vague = [
+    "with", "from", "into", "for", "get", "set", "make", "check", "build", "create", "init",
+    "process", "handle", "helper", "util", "data", "value", "item", "thing", "execute",
+    "perform", "update", "compute", "manage",
+]
+wire_types = [
+    "serde_json::Value",
+    "toml::Value",
+    "serde_yaml::Value",
+    "rust_decimal::Decimal",
+    "bigdecimal::BigDecimal",
+    "num_bigint::BigInt",
+    "num_bigint::BigUint",
+    "std::any::Any",
+    "core::any::Any",
+]
+bit_boundary = []
+
+[limits]
+parameters = 4
+nesting = 2
+reexports = 8
+private_fns_per_type = 4
+edges_per_vertex = 4
+tests_per_file = 3
+assertions_per_test = 3
+lines_per_test = 20
+literals_per_test = 4
+largest_integer = 64
+
+[floors]
+fn_name = 3
+lifetime_name = 2
+
+[shares]
+tests_per_hundred_files = 40
+test_line_percent = 18

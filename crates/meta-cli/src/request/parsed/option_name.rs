@@ -1,7 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use crate::request::cli_failure::CliFailure;
+use crate::request::cli_failure::{CliFailure, Misuse};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OptionName {
@@ -22,9 +22,9 @@ impl FromStr for OptionName {
             "--addresses" => Ok(Self::Addresses),
             "--from" => Ok(Self::From),
             "--all" => Ok(Self::All),
-            other => {
-                Err(CliFailure::usage(format!("unknown option {other}; put text starting with -- after a bare --")))
-            }
+            other => Err(CliFailure::raised::<Misuse>(format!(
+                "unknown option {other}; put text starting with -- after a bare --"
+            ))),
         }
     }
 }

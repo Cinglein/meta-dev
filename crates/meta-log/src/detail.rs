@@ -26,7 +26,7 @@ impl fmt::Display for Detail {
 }
 
 impl Detail {
-    pub fn from_reason(reason: impl ToString) -> Self {
+    pub fn from_reason(reason: &impl ToString) -> Self {
         Self(reason.to_string())
     }
 }

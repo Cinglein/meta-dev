@@ -1,0 +1,16 @@
+[package]
+name = "state_graph"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+task = { path = "../../task" }
+derive_more = { version = "2", features = ["display"] }
+syn = { version = "2", features = ["full", "parsing", "visit"] }
+quote = "1"
+settings = { path = "../../settings" }
+
+[lints]
+workspace = true

@@ -4,6 +4,7 @@ use serde::Deserialize;
 
 use crate::conclusion::Conclusion;
 use crate::database_id::DatabaseId;
+use crate::outcome::Outcome;
 use run_status::RunStatus;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -16,15 +17,13 @@ pub struct GhRun {
 }
 
 impl GhRun {
+    #[must_use]
     pub fn database_id(&self) -> DatabaseId {
         self.database_id
     }
 
-    pub fn completed(&self) -> Option<&Self> {
-        self.status.completed().map(|_| self)
-    }
-
-    pub fn succeeded(&self) -> Option<&Self> {
-        self.conclusion.and_then(Conclusion::succeeded).map(|_| self)
+    #[must_use]
+    pub fn outcome(&self) -> Option<Outcome> {
+        self.status.completed().map(|_| self.conclusion.map_or(Outcome::Undecided, Conclusion::outcome))
     }
 }

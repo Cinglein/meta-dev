@@ -7,6 +7,7 @@ use serde::Deserialize;
 
 use crate::conclusion::Conclusion;
 use crate::database_id::DatabaseId;
+use crate::outcome::Outcome;
 use gh_step::GhStep;
 use job_name::JobName;
 
@@ -23,9 +24,10 @@ pub struct GhJob {
 
 impl GhJob {
     pub fn failure(&self) -> Option<&Self> {
-        self.conclusion.and_then(Conclusion::failing).map(|_| self)
+        self.conclusion.map(Conclusion::outcome).filter(|outcome| *outcome == Outcome::Failing).map(|_| self)
     }
 
+    #[must_use]
     pub fn database_id(&self) -> DatabaseId {
         self.database_id
     }

@@ -11,10 +11,6 @@ impl Millis {
     pub fn duration(self) -> Duration {
         Duration::from_millis(self.0)
     }
-
-    pub fn polls_within(self, timeout: Self) -> usize {
-        usize::try_from(timeout.0.checked_div(self.0).unwrap_or_default()).unwrap_or(usize::MAX)
-    }
 }
 
 impl fmt::Display for Millis {

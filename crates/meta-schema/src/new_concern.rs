@@ -18,18 +18,22 @@ pub struct NewConcern {
 }
 
 impl NewConcern {
+    #[must_use]
     pub fn new(text: Text, source: Option<Text>, tags: Vec<Tag>) -> Self {
         Self { concern: Id::generate(), text, source, tags }
     }
 
+    #[must_use]
     pub fn concern(&self) -> Id<Concern> {
         self.concern
     }
 
+    #[must_use]
     pub fn tags(&self) -> &[Tag] {
         &self.tags
     }
 
+    #[must_use]
     pub fn corrected(&self, text: Text) -> Self {
         Self { text, ..self.clone() }
     }

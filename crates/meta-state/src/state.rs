@@ -108,18 +108,22 @@ impl State {
         addressed.map(|_| ()).or(done.map(|_| ())).or(self.retirement(entry).map(|_| ()))
     }
 
+    #[must_use]
     pub fn retirement(&self, entry: Entry) -> Option<&Retired> {
         self.retired.iter().find(|retired| retired.note().entry() == entry)
     }
 
+    #[must_use]
     pub fn concerns(&self) -> &[ConcernState] {
         &self.concerns
     }
 
+    #[must_use]
     pub fn issues(&self) -> &[IssueState] {
         &self.issues
     }
 
+    #[must_use]
     pub fn tasks(&self) -> &[TaskState] {
         &self.tasks
     }

@@ -1,3 +1,5 @@
+mod blocking;
+mod denial;
 mod verdict;
 
 use std::fmt;
@@ -6,6 +8,8 @@ use serde_json::{Map, Value, json};
 
 use super::HookEvent;
 use crate::request::output::Listed;
+pub use blocking::Blocking;
+pub use denial::Denial;
 pub use verdict::Verdict;
 
 #[derive(Debug)]
@@ -34,10 +38,7 @@ impl fmt::Display for Reply {
             ("hookEventName", Some(json!(self.event.to_string()))),
             ("additionalContext", shown.map(Value::from)),
             ("permissionDecision", self.verdict.denial().map(|_| json!("deny"))),
-            (
-                "permissionDecisionReason",
-                self.verdict.denial().map(|reason| json!(format!("meta-development: {reason}"))),
-            ),
+            ("permissionDecisionReason", self.verdict.denial().map(|reason| json!(reason.to_string()))),
         ]
         .into_iter()
         .filter_map(|(key, value)| value.map(|value| (key.to_owned(), value)))
@@ -45,7 +46,7 @@ impl fmt::Display for Reply {
         let top: Map<String, Value> = [
             ("hookSpecificOutput", Some(Value::Object(specific))),
             ("decision", self.verdict.blocking().map(|_| json!("block"))),
-            ("reason", self.verdict.blocking().map(|reason| json!(format!("meta-development: {reason}")))),
+            ("reason", self.verdict.blocking().map(|reason| json!(reason.to_string()))),
         ]
         .into_iter()
         .filter_map(|(key, value)| value.map(|value| (key.to_owned(), value)))

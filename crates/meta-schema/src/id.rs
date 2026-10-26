@@ -18,6 +18,7 @@ pub struct Id<Kind: Entity> {
 }
 
 impl<Kind: Entity> Id<Kind> {
+    #[must_use]
     pub fn generate() -> Self {
         Self { raw: RawId::generate(), kind: PhantomData }
     }

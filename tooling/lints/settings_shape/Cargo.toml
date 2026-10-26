@@ -1,0 +1,15 @@
+[package]
+name = "settings_shape"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+task = { path = "../../task" }
+syn = { version = "2", features = ["full", "parsing", "visit"] }
+proc-macro2 = "1"
+quote = "1"
+
+[lints]
+workspace = true

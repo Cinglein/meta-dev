@@ -14,14 +14,17 @@ pub struct Claim {
 }
 
 impl Claim {
+    #[must_use]
     pub fn new(task: Id<Task>, from: Option<Actor>) -> Self {
         Self { task, from }
     }
 
+    #[must_use]
     pub fn task(&self) -> Id<Task> {
         self.task
     }
 
+    #[must_use]
     pub fn previous_claimant(&self) -> Option<&Actor> {
         self.from.as_ref()
     }

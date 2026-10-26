@@ -22,6 +22,7 @@ pub enum TargetFailure {
 }
 
 impl Target {
+    #[must_use]
     pub fn concern(&self) -> Option<Id<Concern>> {
         match self {
             Self::Concern(id) => Some(*id),
@@ -29,6 +30,7 @@ impl Target {
         }
     }
 
+    #[must_use]
     pub fn entry(self) -> Entry {
         match self {
             Self::Concern(id) => Entry::Concern(id),
@@ -36,6 +38,7 @@ impl Target {
         }
     }
 
+    #[must_use]
     pub fn issue(&self) -> Option<Id<Issue>> {
         match self {
             Self::Issue(id) => Some(*id),
