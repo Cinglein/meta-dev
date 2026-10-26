@@ -173,3 +173,4 @@
 {"at":"2026-10-26T05:09:20.674182Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-c19db77ac9bb60c3","text":"obsolete: the cloud-CI task is done"}
 {"at":"2026-10-26T05:09:22.170598Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-2dbd94fbcc01be81","text":"obsolete: ids corrected via meta correct where needed"}
 {"at":"2026-10-26T05:09:23.697012Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-fd63c979759bfab1","text":"obsolete: stage 4 delivered by adopting chess tooling (affected selection, lints)"}
+{"at":"2026-10-26T05:09:25.188921Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-01eaeea4e875e965","text":"fixed in PR #24 (self --from re-claims)"}
