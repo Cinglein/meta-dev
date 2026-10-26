@@ -24,6 +24,6 @@ impl Rollup {
 
     fn worst(&self, among: Option<Requirement>) -> Option<Verdict> {
         let counted = |context: &CheckContext| among.is_none_or(|requirement| context.requirement() == requirement);
-        self.contexts.iter().copied().filter(counted).map(CheckContext::verdict).max()
+        self.contexts.nodes().copied().filter(counted).map(CheckContext::verdict).max()
     }
 }

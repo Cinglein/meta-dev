@@ -62,3 +62,21 @@ impl HookInput {
         self.session_id.as_ref().map_or(configured.clone(), |session| session.announce(configured.clone()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::HookInput;
+
+    const PUBLISHING: [&str; 3] = ["git push -u origin x", "cd a && gh pr create --fill", "git commit -m y"];
+    const QUIET: [&str; 3] = ["gh pr list", "git status", "gh pr view 1"];
+
+    #[test]
+    fn pushes_commits_and_pull_request_creation_publish_and_nothing_else() {
+        let publishing = |command: &str| {
+            let input = serde_json::json!({ "tool_input": { "command": command } }).to_string();
+            serde_json::from_str::<HookInput>(&input).unwrap().publishing().is_some()
+        };
+        assert!(PUBLISHING.iter().all(|command| publishing(command)));
+        assert!(QUIET.iter().all(|command| !publishing(command)));
+    }
+}

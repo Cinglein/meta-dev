@@ -15,6 +15,6 @@ pub struct OpenRepository {
 impl OpenRepository {
     #[must_use]
     pub fn orphans(&self, linked: &[PullRequest]) -> Vec<PullRequest> {
-        self.pull_requests.iter().copied().filter_map(|pull| pull.unlinked(linked)).collect()
+        self.pull_requests.nodes().copied().filter_map(|pull| pull.unlinked(linked)).collect()
     }
 }

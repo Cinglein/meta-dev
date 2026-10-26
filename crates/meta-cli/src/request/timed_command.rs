@@ -43,7 +43,7 @@ impl TimedCommand {
         let output = output.within(self.deadline, group);
         let errors = errors.within(self.deadline, group);
         let status = child.wait().map_err(Listed::new)?;
-        (status.success() || Instant::now() < self.deadline)
+        (status.success() || self.deadline.checked_duration_since(Instant::now()).is_some())
             .then(|| Finished::new(status, output, errors))
             .ok_or_else(|| Listed::new(Self::TIMED_OUT))
     }
