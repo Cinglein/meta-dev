@@ -136,3 +136,4 @@
 {"at":"2026-10-26T04:29:17.035195Z","actor":"claude-port-own","kind":"TaskDone","task":"task-358c0320a1babdd6"}
 {"at":"2026-10-26T04:38:55.585265Z","actor":"claude-lead","kind":"TaskOpened","task":"task-a9aca68a10fadf39","text":"Adopt chess #112: one annotated lint corpus (tooling/corpus, corpus_check, LintName table) replacing per-lint test modules; add corpus cases for meta's own lints"}
 {"at":"2026-10-26T04:39:47.625030Z","actor":"claude-adopt-mutation","kind":"TaskDone","task":"task-71d7268b9889c774"}
+{"at":"2026-10-26T04:50:10.990270Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-9b2393496885308a","text":"Halve the codebase per feature, not in total (owner: new tooling adds features, so total LOC rising is not regression). Measure lines per feature/claim like-for-like against the 017aacd baseline (log ~300/claim, CI watching ~200, lints ~250 avg; target ~100). Report per-feature at merges"}
