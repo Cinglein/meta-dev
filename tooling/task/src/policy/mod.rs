@@ -147,6 +147,11 @@ impl Policy {
     }
 
     #[must_use]
+    pub fn tolerated(&self, price: Millis) -> Millis {
+        self.floors[Floor::PriceTolerance].percent_above(price)
+    }
+
+    #[must_use]
     pub fn mutation(&self) -> &MutationCadence {
         &self.mutation
     }

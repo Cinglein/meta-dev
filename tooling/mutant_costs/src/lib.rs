@@ -1,4 +1,5 @@
 mod outcomes;
+mod overrun;
 mod tally;
 
 use std::collections::BTreeMap;
@@ -8,6 +9,7 @@ use std::num::NonZeroU64;
 use std::path::{Path, PathBuf};
 
 use outcomes::Outcomes;
+use overrun::Overrun;
 use tally::Tally;
 
 use task::CrateName;
@@ -58,17 +60,35 @@ impl MutantCosts {
     }
 
     pub fn priced_within(&self, policy: &Policy, job: Interval) -> Result<(), Failure> {
-        let overhead = policy.interval(Interval::PerCrate);
-        let baseline = (self.baseline.rounded_up_to(Self::STEP) > overhead)
-            .then(|| format!("baseline {} > per_crate {overhead}", self.baseline));
         let under: Vec<String> = self
-            .prices
-            .iter()
-            .filter(|(name, price)| price.rounded_up_to(Self::STEP) > policy.mutant_price(name, job))
-            .map(|(name, price)| format!("{name} {price} > {}", policy.mutant_price(name, job)))
-            .chain(baseline)
+            .above_price(policy, job)
+            .filter(|overrun| overrun.is_beyond_tolerance(policy))
+            .map(|overrun| format!("{overrun} beyond tolerance"))
             .collect();
         under.is_empty().then_some(()).ok_or_else(|| Failure::Underpriced(under.join(", ")))
+    }
+
+    #[must_use]
+    pub fn within_tolerance(&self, policy: &Policy, job: Interval) -> String {
+        let spelled: Vec<String> = self
+            .above_price(policy, job)
+            .filter(|overrun| !overrun.is_beyond_tolerance(policy))
+            .map(|overrun| format!("{overrun}, within tolerance"))
+            .collect();
+        spelled.join(", ")
+    }
+
+    fn above_price<'costs>(
+        &'costs self,
+        policy: &'costs Policy,
+        job: Interval,
+    ) -> impl Iterator<Item = Overrun> + 'costs {
+        let baseline = Overrun::new("baseline".to_owned(), self.baseline, policy.interval(Interval::PerCrate));
+        self.prices
+            .iter()
+            .map(move |(name, price)| Overrun::new(name.to_string(), *price, policy.mutant_price(name, job)))
+            .chain([baseline])
+            .filter(Overrun::is_above_price)
     }
 
     fn costliest_run(mut self, run: &[Outcomes], policy: &Policy) -> MutantCosts {
@@ -124,11 +144,17 @@ mod tests {
     const LISTED: &str = "meta-cli";
     const SAMPLE: usize = 30;
     const AFFECTED: &str = "affected";
-    const CASES: [(f64, Interval, bool); 4] = [
-        (2.8, Interval::DiffJob, true),
-        (3.9, Interval::DiffJob, true),
-        (2.8, Interval::FullJob, false),
-        (4.0, Interval::DiffJob, false),
+    const CASES: [(f64, f64, Interval, bool, bool); 10] = [
+        (2.8, 1.0, Interval::DiffJob, true, false),
+        (5.9, 1.0, Interval::DiffJob, true, true),
+        (6.1, 1.0, Interval::DiffJob, false, false),
+        (1.6, 1.0, Interval::FullJob, true, false),
+        (1.76, 1.0, Interval::FullJob, true, true),
+        (2.0, 1.0, Interval::FullJob, true, true),
+        (2.08, 1.0, Interval::FullJob, false, false),
+        (2.8, 1.0, Interval::FullJob, false, false),
+        (1.6, 16.5, Interval::FullJob, true, true),
+        (1.6, 19.5, Interval::FullJob, false, false),
     ];
     const SMALL_DEAR_DIFF: &[(&str, f64, usize)] = &[(AFFECTED, 4.0, BELOW_SAMPLE)];
     const BELOW_SAMPLE: usize = 29;
@@ -165,16 +191,21 @@ mod tests {
     }
 
     #[test]
-    fn a_diff_run_may_cost_the_full_price_times_the_diff_factor_and_a_full_run_only_the_full_price() {
+    fn a_run_may_cost_up_to_price_plus_tolerance_and_a_diff_run_the_price_times_the_diff_factor_and_is_reported_above_price()
+     {
         let policy = Policy::defaults();
-        let measured = |seconds: f64, job| {
+        let judged = |(seconds, baseline, job, _, _): &(f64, f64, Interval, bool, bool)| {
             let one = format!(
                 r#"{{"scenario": {{"Mutant": {{"package": "{AFFECTED}"}}}}, "phase_results": [{{"phase": "Test", "duration": {seconds}}}]}}"#
             );
-            let run = format!(r#"{{"outcomes": [{}]}}"#, vec![one; SAMPLE].join(", "));
-            MutantCosts::across([vec![Outcomes::parse(&run).unwrap()]], &policy).priced_within(&policy, job)
+            let base = format!(
+                r#"{{"scenario": "Baseline", "phase_results": [{{"phase": "Build", "duration": {baseline}}}]}}"#
+            );
+            let run = format!(r#"{{"outcomes": [{base}, {}]}}"#, vec![one; SAMPLE].join(", "));
+            let costs = MutantCosts::across([vec![Outcomes::parse(&run).unwrap()]], &policy);
+            (costs.priced_within(&policy, *job).is_ok(), !costs.within_tolerance(&policy, *job).is_empty())
         };
-        assert!(CASES.iter().all(|(seconds, job, within)| measured(*seconds, *job).is_ok() == *within));
+        assert!(CASES.iter().all(|case| judged(case) == (case.3, case.4)));
     }
 
     #[test]
