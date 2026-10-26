@@ -15,6 +15,20 @@ wire_types = [
     "core::any::Any",
 ]
 bit_boundary = []
+baseline = "self/lint-baseline.toml"
+surfaces = [
+    "xtask",
+    ".cargo",
+    "Cargo.toml",
+    "clippy.toml",
+    "rustfmt.toml",
+    "tooling",
+    "self/lint-baseline.toml",
+    "meta.toml",
+    ".claude",
+    ".github",
+    "plugin",
+]
 
 [limits]
 parameters = 4

@@ -2,6 +2,7 @@ use std::process::Output;
 
 use super::stream::Stream;
 
+#[derive(Debug)]
 pub struct Stdout;
 
 impl Stream for Stdout {

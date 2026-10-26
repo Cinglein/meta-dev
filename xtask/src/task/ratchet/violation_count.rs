@@ -3,16 +3,15 @@ use std::iter::Sum;
 use std::ops::Add;
 
 use serde::{Deserialize, Serialize};
+use task::Report;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct ViolationCount(usize);
 
 impl ViolationCount {
-    pub const ONE: ViolationCount = ViolationCount(1);
-
-    pub fn of_len(len: usize) -> ViolationCount {
-        ViolationCount(len)
+    pub fn in_report(report: &Report) -> ViolationCount {
+        ViolationCount(report.violations().len())
     }
 }
 
@@ -24,15 +23,9 @@ impl Add for ViolationCount {
     }
 }
 
-impl Sum for ViolationCount {
-    fn sum<Counts: Iterator<Item = ViolationCount>>(counts: Counts) -> ViolationCount {
-        counts.fold(ViolationCount::default(), Add::add)
-    }
-}
-
 impl<'count> Sum<&'count ViolationCount> for ViolationCount {
     fn sum<Counts: Iterator<Item = &'count ViolationCount>>(counts: Counts) -> ViolationCount {
-        counts.copied().sum()
+        counts.copied().fold(ViolationCount::default(), Add::add)
     }
 }
 

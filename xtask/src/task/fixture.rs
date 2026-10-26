@@ -2,7 +2,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::project::Project;
 use tempfile::TempDir;
 
 #[derive(Debug)]
@@ -50,8 +49,8 @@ impl Fixture {
         self.work.join(path)
     }
 
-    pub fn project(&self) -> Project {
-        Project::locate(&self.work).expect("configured project")
+    pub fn root(&self) -> &Path {
+        &self.work
     }
 
     fn git(directory: &Path) -> Command {

@@ -6,7 +6,6 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
-meta-lints = { path = "../tooling/meta-lints" }
 crate_graph = { path = "../tooling/lints/crate_graph" }
 const_shape = { path = "../tooling/lints/const_shape" }
 distinct_signatures = { path = "../tooling/lints/distinct_signatures" }
@@ -28,11 +27,16 @@ public_surface = { path = "../tooling/lints/public_surface" }
 settings = { path = "../tooling/settings" }
 settings_shape = { path = "../tooling/lints/settings_shape" }
 state_graph = { path = "../tooling/lints/state_graph" }
+serde = { version = "1", features = ["derive"] }
 strum = { version = "0.28", features = ["derive"] }
 thiserror = "2"
 task = { path = "../tooling/task" }
+toml = "0.9"
 test_budget = { path = "../tooling/lints/test_budget" }
 type_shape = { path = "../tooling/lints/type_shape" }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+tempfile = "3"

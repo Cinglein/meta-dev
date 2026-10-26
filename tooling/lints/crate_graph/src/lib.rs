@@ -4,14 +4,14 @@ mod item_count;
 mod item_graph;
 mod test_files;
 
-pub use graph_report::GraphReport;
-
 use std::collections::BTreeMap;
+use std::fmt;
 use std::path::{Component, Path, PathBuf};
 
 use task::{Policy, Report, SourceFile};
 
 use crate_summary::CrateSummary;
+use graph_report::GraphReport;
 use item_graph::ItemGraph;
 use test_files::TestFiles;
 
@@ -33,7 +33,7 @@ impl CrateGraph {
     }
 
     #[must_use]
-    pub fn graphs(files: &[SourceFile]) -> GraphReport {
+    pub fn graphs(files: &[SourceFile]) -> impl fmt::Display {
         GraphReport::new(Self::summaries(files).into_values().collect())
     }
 
