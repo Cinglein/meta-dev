@@ -121,3 +121,4 @@
 {"at":"2026-10-25T23:06:53.082450Z","actor":"claude-lead","kind":"TaskOpened","task":"task-8a8aa9478bb018ea","text":"Chess PR: replace tooling/ crates with a dependency on meta-development, keeping chess policy.toml and magics"}
 {"at":"2026-10-25T23:08:45.549197Z","actor":"claude-adopt-core","kind":"TaskClaimed","task":"task-816bb7f2039dc478"}
 {"at":"2026-10-25T23:38:02.689723Z","actor":"claude-adopt-core","kind":"TaskDone","task":"task-816bb7f2039dc478"}
+{"at":"2026-10-26T04:11:19.814330Z","actor":"claude-adopt-mutation","kind":"TaskClaimed","task":"task-71d7268b9889c774"}
