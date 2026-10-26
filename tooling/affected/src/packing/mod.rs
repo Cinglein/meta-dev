@@ -58,9 +58,10 @@ mod tests {
     use super::{CrateLoad, Packing};
     use settings::EmbeddedDefaults;
     use std::time::Duration;
-    use task::{CrateName, Interval, Millis, MutantCount, Policy};
+    use task::{CrateName, Interval, Millis, MutantCount, Policy, Share};
     const PR_SEVEN_CRATE: &str = "meta-cli";
-    const PR_SEVEN_SECONDS_PER_MUTANT_ON_CI: f64 = 5.4;
+    const PR_SEVEN_MUTANTS: &str = "67";
+    const PR_SEVEN_SECONDS_PER_MUTANT_ON_CI: f64 = 5.8;
     const LOADS: [(&str, usize, Interval); 4] = [
         ("a", 2, Interval::FullJob),
         ("b", 1, Interval::DiffJob),
@@ -108,19 +109,21 @@ mod tests {
     }
 
     #[test]
-    fn a_meta_cli_diff_the_size_of_pr_7_fits_its_job_limit_at_the_cost_measured_on_ci() {
+    fn a_meta_cli_diff_the_size_of_pr_7_fits_the_headroom_of_its_job_at_the_cost_measured_on_ci() {
         let policy = Policy::defaults();
         let measured = Duration::from_secs_f64(PR_SEVEN_SECONDS_PER_MUTANT_ON_CI).as_millis();
         let measured = Millis::new(u64::try_from(measured).unwrap());
-        let job = policy.interval(Interval::DiffJob);
-        let mutants = job.times_fitting(measured) + 1;
+        let mutants: usize = PR_SEVEN_MUTANTS.parse().unwrap();
         let name: CrateName = PR_SEVEN_CRATE.parse().unwrap();
         let price = policy.mutant_millis().for_crate(&name);
         let load = CrateLoad::new(name, MutantCount::from(mutants), price, &policy);
-        let shards = Packing::shards(&[load], &policy, Interval::DiffJob).len();
+        let job = Interval::DiffJob;
+        let shards = Packing::shards(&[load], &policy, job).len();
         let spent = policy
-            .interval(Interval::PerCrate)
+            .interval(Interval::JobSetup)
+            .plus(policy.interval(Interval::PerCrate))
             .plus(measured.times(mutants.div_ceil(shards)));
-        assert!(spent <= job);
+        let headroom = policy.share(Share::ShardHeadroom);
+        assert!(spent <= headroom.applied_to::<Millis, Millis>(policy.interval(job)));
     }
 }

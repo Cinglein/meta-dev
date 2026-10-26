@@ -98,7 +98,7 @@ mod tests {
     use std::{env, fs, process};
     use task::Policy;
     const LISTED: &str = "meta-cli";
-    const SNIPPET: &str = r#"{"outcomes": [{"scenario": "Baseline", "phase_results": [{"phase": "Build", "duration": 9.0}]}, {"scenario": {"Mutant": {"package": "log", "file": "x"}}, "phase_results": [{"phase": "Build", "duration": 2.56}, {"phase": "Test", "duration": 0.5}]}, {"scenario": {"Mutant": {"package": "state"}}, "phase_results": [{"phase": "Build", "duration": 1.0}]}]}"#;
+    const SNIPPET: &str = r#"{"outcomes": [{"scenario": "Baseline", "phase_results": [{"phase": "Build", "duration": 9.0}]}, {"scenario": {"Mutant": {"package": "log", "file": "x"}}, "phase_results": [{"phase": "Build", "duration": 2.51}, {"phase": "Test", "duration": 0.5}]}, {"scenario": {"Mutant": {"package": "state"}}, "phase_results": [{"phase": "Build", "duration": 1.0}]}]}"#;
     const SLOWER_STATE: &str = r#"{"outcomes": [{"scenario": {"Mutant": {"package": "state"}}, "phase_results": [{"phase": "Test", "duration": 2.0}]}]}"#;
     const TABLE: &str = "[mutant_millis]\ndefault = 3100\n\n[mutant_millis.crates]\nlog = 3100\nstate = 2000\n";
     const SCRATCH: &str = "meta-costs";

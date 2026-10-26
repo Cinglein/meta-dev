@@ -78,6 +78,7 @@ per_crate = 15000
 test_timeout = 30000
 full_job = 480000
 diff_job = 360000
+job_setup = 90000
 
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]

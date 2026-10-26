@@ -15,6 +15,7 @@ pub enum Interval {
     TestTimeout,
     FullJob,
     DiffJob,
+    JobSetup,
 }
 
 impl Interval {
