@@ -8,7 +8,7 @@ use std::time::Duration;
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str =
-    "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 40\ntimeout_millis = 1500\n";
+    "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\ntimeout_millis = 300\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 count="$FAKE_GH_DIR/count"
 n=$(cat "$count" 2>/dev/null || echo 0)

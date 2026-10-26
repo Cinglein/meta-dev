@@ -872,6 +872,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "test_time"
+version = "0.0.0"
+dependencies = [
+ "settings",
+ "strum",
+ "task",
+]
+
+[[package]]
 name = "thiserror"
 version = "2.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1234,6 +1243,7 @@ dependencies = [
  "strum",
  "task",
  "test_budget",
+ "test_time",
  "thiserror",
  "type_shape",
 ]

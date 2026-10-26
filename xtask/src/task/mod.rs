@@ -42,6 +42,7 @@ use task::CrateName;
 use task::Policy;
 use task::Workspace;
 use test_budget::TestBudget;
+use test_time::TestTime;
 use type_shape::TypeShape;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, VariantNames)]
@@ -74,6 +75,7 @@ pub enum Task {
     StateGraph,
     Test,
     TestBudget,
+    TestTime,
     TypeShape,
 }
 
@@ -119,6 +121,7 @@ impl Task {
             Task::StateGraph => Ok(StateGraph::report(&workspace.source_files()?, &policy).verdict()?),
             Task::Test => Ok(Test::run(&workspace, &selection, &policy)?),
             Task::TestBudget => Ok(TestBudget::report(&workspace.source_files()?, &policy).verdict()?),
+            Task::TestTime => Ok(TestTime::run(&workspace, &selection, &policy)?),
             Task::TypeShape => Ok(TypeShape::report(&workspace.source_files()?).verdict()?),
         }
     }

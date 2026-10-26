@@ -31,6 +31,7 @@ state_graph = { path = "../tooling/lints/state_graph" }
 strum = { version = "0.28", features = ["derive"] }
 thiserror = "2"
 task = { path = "../tooling/task" }
+test_time = { path = "../tooling/test_time" }
 test_budget = { path = "../tooling/lints/test_budget" }
 type_shape = { path = "../tooling/lints/type_shape" }
 

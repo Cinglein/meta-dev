@@ -21,14 +21,14 @@ mod walk;
 mod workspace;
 
 pub use binary_files::BinaryFiles;
-pub use command_line::{CargoArgument, GitArgument, Program, Stdout};
+pub use command_line::{CargoArgument, CommandLine, GitArgument, Program, Stderr, Stdout};
 pub use crate_name::CrateName;
 pub use failure::Failure;
 pub use line_number::LineNumber;
 pub use name::{Casing, LoweredInfix, Name, Prefix, Whole};
 pub use nesting_depth::NestingDepth;
 pub use package_graph::PackageGraph;
-pub use policy::{Floor, Limit, Most, Policy, Share, WireType};
+pub use policy::{Floor, Interval, Limit, Most, Policy, Share, WireType};
 pub use reexport_count::ReexportCount;
 pub use report::Report;
 pub use selection::{CargoTool, Selection};

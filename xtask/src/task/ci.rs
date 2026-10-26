@@ -7,6 +7,7 @@ use task::Policy;
 use task::Selection;
 use task::Workspace;
 use task::{CargoArgument, Program};
+use test_time::TestTime;
 
 pub struct Ci;
 
@@ -36,6 +37,7 @@ impl Ci {
             .argument(CargoArgument::Check)
             .run()?;
         Clippy::run(workspace, selection, policy)?;
-        Test::run(workspace, selection, policy)
+        Test::run(workspace, selection, policy)?;
+        TestTime::run(workspace, selection, policy)
     }
 }

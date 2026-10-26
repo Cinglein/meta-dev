@@ -1,0 +1,16 @@
+[package]
+name = "test_time"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+task = { path = "../task" }
+strum = { version = "0.28", features = ["derive"] }
+
+[dev-dependencies]
+settings = { path = "../settings" }
+
+[lints]
+workspace = true
