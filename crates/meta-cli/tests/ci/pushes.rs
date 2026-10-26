@@ -1,5 +1,6 @@
 use super::{
-    BLOCK, CI_WAIT, COMMIT, FAILED_EVENT, FAILURE, Git, JOB_FAILED, NEXT_COMMIT, POST, Planted, Repo, STOP, SUCCESS,
+    BLOCK, CI_WAIT, COMMIT, FAILED_EVENT, FAILURE, Git, JOB_FAILED, NEXT_COMMIT, POST, PRE, Planted, Repo, STOP,
+    SUCCESS, Session,
 };
 
 const STATUS: &str = "git status";
@@ -10,6 +11,9 @@ const NOT_PUSHED: &str = "is not pushed";
 const UNWRITABLE: &str = "CI state unwritable";
 const SESSION_DIR: &str = ".git/meta-ci/ABCDEF1234";
 const PASSED: &str = "passed";
+const STUCK: &str = "STUCK9";
+const START_DIR: &str = "meta-sessions/STUCK9";
+const DENIED: &str = "\"permissionDecision\":\"deny\"";
 
 #[test]
 fn stop_judges_every_pushed_commit_and_a_dead_watcher_restarts() {
@@ -42,4 +46,15 @@ fn one_commit_gets_one_watcher() {
     let twins = [Planted::twin(&repo), Planted::twin(&repo)].map(|child| child.wait_with_output().unwrap());
     let passes = twins.iter().filter(|twin| String::from_utf8_lossy(&twin.stdout).contains(PASSED)).count();
     assert_eq!(passes, 1);
+}
+
+#[test]
+fn an_unwritable_session_start_refuses_the_writing_command() {
+    let repo = Repo::new(SUCCESS);
+    let start = repo.sessions.path().join(START_DIR);
+    std::fs::create_dir_all(&start).unwrap();
+    let open = Planted::locked(&start);
+    let refused = Session { repo: &repo, cwd: repo.clone.path(), id: STUCK }.hook(PRE, COMMIT);
+    std::fs::set_permissions(&start, open).unwrap();
+    assert!(refused.contains(DENIED) && refused.contains(START_DIR));
 }
