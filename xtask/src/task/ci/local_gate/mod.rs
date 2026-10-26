@@ -45,14 +45,14 @@ impl LocalGate {
     pub fn ready(&self) -> Result<Commit, Failure> {
         let git = |arguments: &[&str]| Self::git(&self.root).arguments(arguments).captured::<Stdout>();
         match (git(&Self::CHANGES)?.is_empty(), git(&Self::PUSHED)?.is_empty()) {
-            (false, _) => Err(Unready::Unpushed.into()),
-            (true, true) => Err(Unready::Dirty.into()),
+            (false, _) => Err(Unready::Dirty.into()),
+            (true, true) => Err(Unready::Unpushed.into()),
             (true, false) => git(&Self::HEAD)?.parse(),
         }
     }
 
     pub fn post(&self, checked: &Commit, times: &StepTimes) -> Result<(), Failure> {
-        (self.ready()? != *checked).then_some(()).ok_or(Unready::Moved)?;
+        (self.ready()? == *checked).then_some(()).ok_or(Unready::Moved)?;
         let version = Self::git(&self.source).arguments(Self::VERSION).captured::<Stdout>()?.parse()?;
         let state = times.state();
         let line = self.gh.clone().in_directory(self.root.clone()).arguments(Self::POST);
