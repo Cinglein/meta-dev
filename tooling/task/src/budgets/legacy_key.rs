@@ -115,7 +115,7 @@ mod tests {
 
     use super::super::budget::{Budget, Measure};
     use super::LegacyKey;
-    use crate::budget::Interval;
+    use crate::budget::{Interval, Millis};
     use crate::policy::Policy;
 
     const MILLIS: &str = "[millis]\n";
@@ -124,8 +124,15 @@ mod tests {
     const BOTH: &str = "millis.total: also set as a budget; drop the old key";
     const NEITHER: &str = "millis.total: not set; declare it as a budget";
 
+    const PRICE: &str = "[budgets.mutant-price]\ndivision = \"performance-and-cost\"\nmeasure = \"mutant_price\"\nallowance = { share = 100 }\ntolerance = 25\nwindow = \"per_change\"\nsource = \"ci\"\n";
+    const FLOORS: &str = "[floors]\n";
+    const OLD_FLOORS: &str = "[floors]\nprice_tolerance = 25\n";
+    const NOT_A_TABLE: &str = "millis = 5\n";
+    const SPARE: &str = "[spare]\n";
+    const NOT_A_TABLE_REFUSED: &str = "a table of policy entries";
     const DROPPED: &str = "";
-    const DEPRECATED: [LegacyKey; 1] = [LegacyKey::Total];
+    const DEPRECATED: [LegacyKey; 2] = [LegacyKey::Total, LegacyKey::PriceTolerance];
+    const PRICED: Millis = Millis::new(64);
 
     impl Policy {
         fn refusal(text: &str) -> Option<String> {
@@ -137,14 +144,22 @@ mod tests {
         fn unbudgeted() -> String {
             Policy::DEFAULTS.replace(NEW, DROPPED)
         }
+
+        fn timed_and_priced(&self) -> [Millis; 2] {
+            [self.interval(Interval::Total), self.tolerated(PRICED)]
+        }
     }
 
     #[test]
     fn an_old_key_reads_as_its_budget_did_and_is_noted_as_deprecated() {
-        let old = toml::from_str::<Policy>(&Policy::unbudgeted().replace(MILLIS, OLD)).unwrap();
+        let text = Policy::unbudgeted()
+            .replace(PRICE, DROPPED)
+            .replace(MILLIS, OLD)
+            .replace(FLOORS, OLD_FLOORS);
+        let old = toml::from_str::<Policy>(&text).unwrap();
         assert_eq!(
-            old.interval(Interval::Total),
-            Policy::defaults().interval(Interval::Total)
+            old.timed_and_priced(),
+            Policy::defaults().timed_and_priced()
         );
         assert!(old.deprecated() == DEPRECATED && Policy::defaults().deprecated().is_empty());
         let derived = old
@@ -163,6 +178,15 @@ mod tests {
         assert_eq!(
             Policy::refusal(&Policy::unbudgeted()).as_deref(),
             Some(NEITHER)
+        );
+        let flat = Policy::refusal(&format!(
+            "{NOT_A_TABLE}{}",
+            Policy::DEFAULTS.replace(MILLIS, SPARE)
+        ));
+        assert!(
+            flat.as_ref()
+                .is_some_and(|refusal| refusal.contains(NOT_A_TABLE_REFUSED)),
+            "{flat:?}"
         );
     }
 }

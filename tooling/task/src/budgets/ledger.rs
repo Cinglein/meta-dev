@@ -76,10 +76,16 @@ mod tests {
     const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"meta_*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"local_gate\"\n";
     const STATEMENT: &str = include_str!("ledger/statement.txt");
     const MILLI: Millis = Millis::new(1);
+    const WHOLE_TESTS: &str = "tests = [\"*\"]";
+    const NARROW_TESTS: &str = "tests = [\"meta_*\"]";
 
     impl Ledger {
         fn nested() -> Policy {
             toml::from_str(&format!("{}{NESTED}", Policy::DEFAULTS)).unwrap()
+        }
+
+        fn narrowed() -> Policy {
+            toml::from_str(&Policy::DEFAULTS.replace(WHOLE_TESTS, NARROW_TESTS)).unwrap()
         }
 
         fn overspent(policy: &Policy) -> Ledger {
@@ -107,5 +113,12 @@ mod tests {
             ledger.checked(&policy, &Selection::Workspace).is_err()
                 && ledger.checked(&policy, &unreached).is_ok()
         );
+    }
+
+    #[test]
+    fn a_top_division_with_a_partial_test_domain_leaves_test_time_unmeasured() {
+        let policy = Ledger::narrowed();
+        let ledger = Ledger::overspent(&policy);
+        assert!(ledger.checked(&policy, &Selection::Workspace).is_ok());
     }
 }

@@ -92,3 +92,30 @@ impl fmt::Display for Amount {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::cmp::Ordering;
+
+    use super::Amount;
+    use crate::percent::Percent;
+    use crate::policy::{BaselineFile, Most};
+
+    const FEW: usize = 3;
+    const MANY: usize = 5;
+    const FILE: &str = "baseline.toml";
+    const OTHER_FILE: &str = "other.toml";
+
+    #[test]
+    fn amounts_order_within_a_unit_and_only_an_equal_baseline_compares_across() {
+        let [few, many] = [FEW, MANY].map(|count| Amount::Count(Most::from(count)));
+        let [small, large] = [FEW, MANY].map(|share| Amount::Share(Percent::from(share)));
+        let [file, other] =
+            [FILE, OTHER_FILE].map(|path| Amount::Baseline(BaselineFile::from(path)));
+        assert!(many > few && large > small && few.partial_cmp(&small).is_none());
+        assert_eq!(
+            [file.partial_cmp(&file.clone()), file.partial_cmp(&other)],
+            [Some(Ordering::Equal), None]
+        );
+    }
+}
