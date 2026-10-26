@@ -209,3 +209,4 @@
 {"at":"2026-10-26T05:27:54.539223Z","actor":"claude-privacy","kind":"TaskDone","task":"task-f0354f75a984dcbd"}
 {"at":"2026-10-26T05:31:49.900375Z","actor":"claude-move-postmortem","kind":"TaskOpened","task":"task-eaaf236c2fc07a84","text":"Move the Basho postmortem out of this repo into Basho's private repo; drop references"}
 {"at":"2026-10-26T05:31:54.851529Z","actor":"claude-move-postmortem","kind":"TaskClaimed","task":"task-eaaf236c2fc07a84"}
+{"at":"2026-10-26T05:33:58.500016Z","actor":"claude-move-postmortem","kind":"TaskDone","task":"task-eaaf236c2fc07a84"}
