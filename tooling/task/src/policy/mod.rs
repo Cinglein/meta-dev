@@ -13,6 +13,7 @@ mod vague;
 mod vocabulary;
 mod wire_type;
 
+use crate::gate_status::GateStatus;
 pub use baseline_file::BaselineFile;
 pub use floor::Floor;
 pub use limit::Limit;
@@ -56,6 +57,10 @@ pub struct Policy {
     surfaces: Vec<Surface>,
     branches: EnumMap<Branch, BranchName>,
     baseline: BaselineFile,
+    #[serde(default)]
+    gate: Option<GateStatus>,
+    #[serde(default)]
+    gate_wait: Option<Millis>,
     limits: EnumMap<Limit, Most>,
     floors: EnumMap<Floor, Least>,
     shares: EnumMap<Share, Percent>,
@@ -76,6 +81,8 @@ impl EmbeddedDefaults for Policy {
 
 impl Policy {
     const PATH: &str = "tooling/policy.toml";
+    const GATE: &str = "gate in tooling/policy.toml";
+    const GATE_WAIT: &str = "gate_wait in tooling/policy.toml";
     const PRICE_STEP: NonZeroU64 = NonZeroU64::new(100).unwrap();
 
     pub fn read(root: &Path) -> Result<Policy, Failure> {
@@ -167,6 +174,14 @@ impl Policy {
     #[must_use]
     pub fn baseline(&self) -> &BaselineFile {
         &self.baseline
+    }
+
+    pub fn gate(&self) -> Result<&GateStatus, Failure> {
+        self.gate.as_ref().ok_or(Failure::Unset(Self::GATE))
+    }
+
+    pub fn gate_wait(&self) -> Result<Millis, Failure> {
+        self.gate_wait.ok_or(Failure::Unset(Self::GATE_WAIT))
     }
 
     #[must_use]

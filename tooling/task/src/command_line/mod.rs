@@ -14,7 +14,11 @@ pub use stderr::Stderr;
 pub use stdout::Stdout;
 pub use stream::Stream;
 
+use std::collections::BTreeMap;
+use std::env;
+use std::ffi::OsString;
 use std::fmt;
+use std::fs::File;
 use std::path::PathBuf;
 use std::process::{Child, Command, Output};
 
@@ -25,6 +29,8 @@ pub struct CommandLine {
     program: Program,
     arguments: Vec<String>,
     directory: Option<PathBuf>,
+    variables: BTreeMap<&'static str, OsString>,
+    inherited: Option<BTreeMap<&'static str, OsString>>,
 }
 
 impl CommandLine {
@@ -34,7 +40,28 @@ impl CommandLine {
             program,
             arguments: Vec::new(),
             directory: None,
+            variables: BTreeMap::new(),
+            inherited: None,
         }
+    }
+
+    #[must_use]
+    pub fn inheriting_only(self, names: &[&'static str]) -> CommandLine {
+        CommandLine {
+            inherited: Some(
+                names
+                    .iter()
+                    .filter_map(|name| env::var_os(name).map(|value| (*name, value)))
+                    .collect(),
+            ),
+            ..self
+        }
+    }
+
+    #[must_use]
+    pub fn environment(mut self, name: &'static str, value: impl Into<OsString>) -> CommandLine {
+        self.variables.insert(name, value.into());
+        self
     }
 
     #[must_use]
@@ -57,7 +84,17 @@ impl CommandLine {
     }
 
     pub fn run(&self) -> Result<(), Failure> {
-        self.command()
+        self.finished(self.command())
+    }
+
+    pub fn run_holding(&self, held: File) -> Result<(), Failure> {
+        let mut command = self.command();
+        command.stdin(held);
+        self.finished(command)
+    }
+
+    fn finished(&self, mut command: Command) -> Result<(), Failure> {
+        command
             .status()
             .ok()
             .filter(std::process::ExitStatus::success)
@@ -96,6 +133,10 @@ impl CommandLine {
         self.directory.iter().for_each(|directory| {
             command.current_dir(directory);
         });
+        self.inherited.iter().for_each(|inherited| {
+            command.env_clear().envs(inherited);
+        });
+        command.envs(&self.variables);
         command
     }
 }
@@ -109,12 +150,21 @@ impl fmt::Display for CommandLine {
 #[cfg(test)]
 mod tests {
     use super::{CargoArgument, CommandLine, Program, Stderr, Stdout};
-    use std::path::PathBuf;
+    use std::fs::File;
+    use std::path::{Path, PathBuf};
     const GIT: &str = "git";
     const SHOWN: &str = "git fmt --all";
     const PROGRAMS: [&str; 4] = ["pwd", "true", "false", "sh"];
     const TO_STDERR: [&str; 2] = ["-c", "echo said >&2"];
     const SAID: &str = "said\n";
+    const SHELL: &str = "sh";
+    const SHOW_TARGET: [&str; 2] = ["-c", "printf %s \"$CARGO_TARGET_DIR$HOME\""];
+    const TARGET: &str = "shared/target";
+    const VARIABLE: &str = "CARGO_TARGET_DIR";
+    const INHERITED: &str = "PATH";
+    const MANIFEST: &str = "Cargo.toml";
+    const EMPTY: &str = "/dev/null";
+    const READS_PACKAGE: [&str; 2] = ["-c", "read line && [ \"$line\" = \"[package]\" ]"];
 
     #[test]
     fn a_command_line_prints_its_program_and_arguments_in_order() {
@@ -140,5 +190,20 @@ mod tests {
         assert!(executable(succeeds).run().is_ok() && executable(fails).run().is_err());
         let complained = executable(shell).arguments(TO_STDERR).captured::<Stderr>();
         assert_eq!(complained.ok().as_deref(), Some(SAID));
+    }
+
+    #[test]
+    fn a_command_sees_only_the_environment_it_was_given_and_holds_its_input() {
+        let shell = || CommandLine::new(Program::Executable(SHELL.into()));
+        let shown = shell()
+            .arguments(SHOW_TARGET)
+            .inheriting_only(&[INHERITED])
+            .environment(VARIABLE, PathBuf::from(TARGET))
+            .captured::<Stdout>();
+        assert_eq!(shown.ok().as_deref(), Some(TARGET));
+        let manifest = || File::open(Path::new(env!("CARGO_MANIFEST_DIR")).join(MANIFEST)).unwrap();
+        let reads = shell().arguments(READS_PACKAGE);
+        let empty = File::open(EMPTY).unwrap();
+        assert!(reads.run_holding(manifest()).is_ok() && reads.run_holding(empty).is_err());
     }
 }

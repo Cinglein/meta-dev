@@ -1,6 +1,6 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
-use strum::{Display, EnumIter};
+use strum::{Display, EnumIter, EnumString};
 
 use crate::task::clippy::Clippy;
 use crate::task::failure::Failure;
@@ -13,7 +13,7 @@ use task::Workspace;
 use task::{CargoArgument, Program};
 use test_time::TestTime;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumIter)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumIter, EnumString)]
 #[strum(serialize_all = "kebab-case")]
 pub enum CiStep {
     Fmt,
@@ -25,7 +25,7 @@ pub enum CiStep {
 }
 
 impl CiStep {
-    pub fn timed(self, workspace: &Workspace, selection: &Selection, policy: &Policy) -> Result<(), Failure> {
+    pub fn timed(self, workspace: &Workspace, selection: &Selection, policy: &Policy) -> Result<Duration, Failure> {
         let started = Instant::now();
         let outcome = match self {
             CiStep::Fmt => workspace
@@ -54,7 +54,8 @@ impl CiStep {
                     .map_err(Failure::from)
             }),
         };
-        println!("ci: {self} {:.1?}", started.elapsed());
-        outcome
+        let elapsed = started.elapsed();
+        println!("ci: {self} {elapsed:.1?}");
+        outcome.map(|()| elapsed)
     }
 }

@@ -4,6 +4,7 @@ mod budget;
 mod command_line;
 mod crate_name;
 mod failure;
+mod gate_status;
 mod line_number;
 mod mutant_count;
 mod name;
@@ -32,6 +33,7 @@ pub use command_line::{
 };
 pub use crate_name::CrateName;
 pub use failure::{FailedRuns, Failure, KilledProcess, KilledProcesses};
+pub use gate_status::GateStatus;
 pub use line_number::LineNumber;
 pub use meta_schema::TopDivision;
 pub use mutant_count::MutantCount;

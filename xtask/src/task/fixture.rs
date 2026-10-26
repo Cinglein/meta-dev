@@ -19,6 +19,13 @@ impl Fixture {
     }
 
     pub fn branch(&self) {
+        self.committed();
+        Self::ran(Self::git(&self.work).args(["update-ref", "refs/remotes/origin/main", "HEAD"]));
+        fs::write(self.work.join(".git/refs/remotes/origin/HEAD"), "ref: refs/remotes/origin/main\n")
+            .expect("write origin HEAD");
+    }
+
+    pub fn committed(&self) -> &Fixture {
         Self::ran(Self::git(&self.work).args(["add", "--all"]));
         Self::ran(Self::git(&self.work).args([
             "-c",
@@ -30,9 +37,16 @@ impl Fixture {
             "-m",
             "fixture",
         ]));
-        Self::ran(Self::git(&self.work).args(["update-ref", "refs/remotes/origin/main", "HEAD"]));
-        fs::write(self.work.join(".git/refs/remotes/origin/HEAD"), "ref: refs/remotes/origin/main\n")
-            .expect("write origin HEAD");
+        self
+    }
+
+    pub fn beside(&self) -> PathBuf {
+        self.work.with_file_name("beside")
+    }
+
+    pub fn revision(&self, name: &str) -> String {
+        let output = Self::git(&self.work).args(["rev-parse", name]).output().expect("run git");
+        String::from_utf8_lossy(&output.stdout).into_owned()
     }
 
     pub fn commit(&self, emails: [&str; 2]) -> &Fixture {

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use task::{BranchName, CommandLine, Program, Stdout};
 
 use crate::task::failure::Failure;
-use commit::Commit;
+pub use commit::Commit;
 pub use foreign_emails::ForeignEmails;
 
 #[derive(Debug)]

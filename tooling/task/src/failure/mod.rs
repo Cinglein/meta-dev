@@ -17,7 +17,7 @@ use crate::site::Site;
 pub enum Failure {
     #[error("{0}")]
     Usage(String),
-    #[error("unknown flag {flag}; the only flag is {known}")]
+    #[error("unknown flag {flag}; known: {known}")]
     UnknownFlag { flag: String, known: &'static str },
     #[error("no cargo workspace above the tooling")]
     NoWorkspace,

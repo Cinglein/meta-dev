@@ -10,7 +10,7 @@ pub struct Usage;
 
 impl fmt::Display for Usage {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "usage: cargo xtask <{}> [--affected]", Task::VARIANTS.join("|"))
+        write!(formatter, "usage: cargo xtask <{}> [--affected] [--status]", Task::VARIANTS.join("|"))
     }
 }
 
