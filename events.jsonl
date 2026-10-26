@@ -125,3 +125,4 @@
 {"at":"2026-10-26T04:11:24.064438Z","actor":"claude-adopt-affected","kind":"TaskClaimed","task":"task-05c40ac3c9872af8"}
 {"at":"2026-10-26T04:12:03.525651Z","actor":"claude-port-own","kind":"TaskClaimed","task":"task-51119fbbaa4bb24f"}
 {"at":"2026-10-26T04:16:18.739647Z","actor":"claude-lead","kind":"TaskOpened","task":"task-358c0320a1babdd6","text":"Port three old lints onto the chess base: binary-files (thin main.rs), vec-out-params (no &mut Vec out params), enum-predicates (no bool-returning methods on enums); ownership is dropped (Basho-specific)"}
+{"at":"2026-10-26T04:17:35.693391Z","actor":"claude-lead","kind":"TaskOpened","task":"task-ee04a5a913188c8e","text":"Adopt chess's coverage task (cargo xtask coverage [--affected]); coverage tooling installed in CI only"}
