@@ -143,3 +143,4 @@
 {"at":"2026-10-26T04:54:13.818119Z","actor":"claude-lead","kind":"TaskOpened","task":"task-e5446176f7fa6f60","text":"Kill all surviving mutants in meta-state, meta-schema, meta-log, meta-listing before #18 merges (owner: option a)"}
 {"at":"2026-10-26T04:54:52.345195Z","actor":"claude-mutants-core","kind":"TaskClaimed","task":"task-e5446176f7fa6f60"}
 {"at":"2026-10-26T04:54:54.497125Z","actor":"claude-mutants-cli","kind":"TaskClaimed","task":"task-c777def40a9d2278"}
+{"at":"2026-10-26T05:02:15.975168Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-044452e84ef8d538","text":"Chess keeps landing tooling fixes (#111, #112, #115) during the handover; track chess tooling/ commits automatically (e.g. a scheduled check listing chess commits touching tooling/ since the last adopted SHA) until chess switches"}
