@@ -35,7 +35,7 @@ impl Fixture {
             .expect("write origin HEAD");
     }
 
-    pub fn commit(&self, author: &str, committer: &str) -> &Fixture {
+    pub fn commit(&self, [author, committer]: [&str; 2]) -> &Fixture {
         Self::ran(
             Self::git(&self.work)
                 .env("GIT_AUTHOR_NAME", "fixture")

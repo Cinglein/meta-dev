@@ -7,6 +7,7 @@ use task::{Branch, Policy, Report, SourceFile};
 
 use crate::task::failure::Failure;
 use crate::task::ratchet::{Baseline, Drift, Ratchet, ViolationCount};
+use crate::task::revision::Revision;
 
 #[derive(Debug)]
 pub struct Lint {
@@ -15,6 +16,7 @@ pub struct Lint {
 
 impl Lint {
     pub fn run(root: &Path, files: &[SourceFile], policy: &Policy) -> Result<(), Failure> {
+        Revision::merge_base(root, policy.branch(Branch::Base))?.noreply_since()?;
         let allowed = Baseline::admitted(root, policy.baseline(), policy.branch(Branch::Base))?;
         let observed = Self::gathered(files, policy).ratchet(&allowed, |_| true)?;
         println!("lint: {} rust files, {} baselined violations", files.len(), observed.total());
@@ -89,9 +91,8 @@ mod tests {
     fn every_commit_since_the_merge_base_has_noreply_author_and_committer_emails() {
         let fixture = Fixture::new();
         fixture.write(BASELINE, "").branch();
-        let policy = Policy::defaults();
-        assert!(Lint::run(fixture.commit(NOREPLY, WEB_COMMITTER).root(), &[], &policy).is_ok());
-        let refused = Lint::run(fixture.commit(AUTHOR, COMMITTER).root(), &[], &policy);
+        fixture.commit([NOREPLY, WEB_COMMITTER]).commit([AUTHOR, COMMITTER]);
+        let refused = Lint::run(fixture.root(), &[], &Policy::defaults());
         assert_eq!(refused.map_err(|failure| failure.to_string()).err().as_deref(), Some(FOREIGN));
     }
 }

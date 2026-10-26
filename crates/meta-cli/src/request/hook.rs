@@ -79,6 +79,7 @@ impl HookEvent {
                 input
                     .command()
                     .and_then(|command| command.refusal(project.config()))
+                    .or_else(|| input.foreign_commit(project))
                     .map(Denial::from)
                     .map_or(Verdict::Allow, Verdict::Deny),
                 None,

@@ -13,12 +13,17 @@ impl ShellCommand {
     const SEPARATORS: &'static [char] = &[';', '&', '|', '\n', '(', ')'];
     const QUOTES: &'static [char] = &['\'', '"'];
     const PR_MERGE: &'static [&'static str] = &["gh", "pr", "merge"];
+    const COMMIT_WRITERS: &'static [&'static str] = &["commit", "rebase", "cherry-pick", "merge"];
 
     pub fn refusal(&self, config: &Config) -> Option<Listed> {
         self.segments()
             .find(|words| words.windows(Self::PR_MERGE.len()).any(|window| window == Self::PR_MERGE))
             .map(|_| Listed::new("gh pr merge is the owner's job"))
             .or_else(|| self.segments().filter_map(GitCall::parse).find_map(|call| call.push_refusal(config)))
+    }
+
+    pub fn writes_commits(&self) -> Option<()> {
+        Self::COMMIT_WRITERS.iter().find_map(|subcommand| self.runs(subcommand))
     }
 
     pub fn runs(&self, subcommand: &str) -> Option<()> {
