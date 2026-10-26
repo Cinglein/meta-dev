@@ -111,6 +111,19 @@ impl Git {
 
 struct Waited(String, ExitStatus);
 
+struct Stale;
+
+impl Stale {
+    fn plant(repo: &Repo) {
+        let state = repo.clone.path().join(".git/meta-ci/ABCDEF1234/state");
+        std::fs::create_dir_all(state.parent().unwrap()).unwrap();
+        std::fs::write(&state, STALE).unwrap();
+        let mut permissions = std::fs::metadata(&state).unwrap().permissions();
+        permissions.set_readonly(true);
+        std::fs::set_permissions(&state, permissions).unwrap();
+    }
+}
+
 struct Repo {
     _origin: tempfile::TempDir,
     clone: tempfile::TempDir,
@@ -131,12 +144,6 @@ impl Repo {
         std::fs::set_permissions(clone.path().join("bin/gh"), std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
         Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"]);
         std::fs::write(clone.path().join("bin/head"), Git::run(clone.path(), &["rev-parse", "HEAD"]).stdout).unwrap();
-        let state = clone.path().join(".git/meta-ci/ABCDEF1234/state");
-        std::fs::create_dir_all(state.parent().unwrap()).unwrap();
-        std::fs::write(&state, STALE).unwrap();
-        let mut permissions = std::fs::metadata(&state).unwrap().permissions();
-        permissions.set_readonly(true);
-        std::fs::set_permissions(&state, permissions).unwrap();
         Self { _origin: origin, clone, scenario }
     }
 
@@ -198,6 +205,7 @@ impl fmt::Display for Repo {
 #[test]
 fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
     let repo = Repo::new(FAILURE);
+    Stale::plant(&repo);
     repo.hook(POST, COMMIT);
     let waited = repo.session_command(CI_WAIT);
     let stop = repo.hook(STOP, COMMIT);
