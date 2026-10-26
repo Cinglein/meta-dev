@@ -13,8 +13,7 @@ impl ConfigEffect {
     const BUILD: &str = "build";
     const TARGET: &str = "target";
     const RUSTFLAGS: &str = "rustflags";
-    const BUILD_KEYS: [&str; 7] =
-        ["rustflags", "rustdocflags", "target-dir", "build-dir", "rustc", "rustc-wrapper", "rustc-workspace-wrapper"];
+    const BUILD_KEYS: [&str; 4] = ["rustflags", "rustdocflags", "target-dir", "build-dir"];
 }
 
 impl FromStr for ConfigEffect {
