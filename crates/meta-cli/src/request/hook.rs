@@ -5,6 +5,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use meta_listing::Scope;
+use meta_schema::Actor;
 
 use crate::request::ci::{CiStatus, SessionDir, Watcher};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
@@ -60,9 +61,7 @@ impl HookEvent {
     fn reply(self, project: &Project, input: &HookInput, session: Option<&SessionDir>) -> Reply {
         match self {
             Self::SessionStart => {
-                let actor = input
-                    .announced_actor()
-                    .map_or_else(|| "$USER (META_ACTOR unset)".to_owned(), |actor| actor.to_string());
+                let actor = input.announced_actor().unwrap_or_else(Actor::owner);
                 let state = project
                     .listed(None, Scope::Open)
                     .map_or_else(|failure| format!("meta/log unreadable: {failure}\n"), |listed| listed.to_string());

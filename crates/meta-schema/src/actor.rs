@@ -11,6 +11,15 @@ use actor_failure::ActorFailure;
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Actor(String);
 
+impl Actor {
+    const OWNER: &'static str = "owner";
+
+    #[must_use]
+    pub fn owner() -> Self {
+        Self(Self::OWNER.to_owned())
+    }
+}
+
 impl FromStr for Actor {
     type Err = ActorFailure;
 
