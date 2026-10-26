@@ -1,6 +1,7 @@
 mod baseline_file;
 mod bit_boundary;
 mod budgets;
+mod domains;
 mod floor;
 mod least;
 mod limit;
