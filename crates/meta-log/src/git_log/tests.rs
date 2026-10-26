@@ -23,7 +23,6 @@ const STATUS: [&str; 3] = ["status", "--porcelain", "--branch"];
 const COUNT: [&str; 3] = ["rev-list", "--count", "meta/log"];
 const FIRST: usize = 0;
 const SECOND: usize = 1;
-const INTERLEAVED: [usize; 2] = [FIRST, SECOND];
 const PAIR: usize = 2;
 const SINGLE: usize = 1;
 
@@ -96,27 +95,22 @@ impl Fixture {
 }
 
 #[test]
-fn appends_from_any_clone_land_on_the_remote_in_commit_order_without_touching_checkouts() {
-    let fixture = Fixture::new(PAIR);
-    let before = Git::text(fixture.clones[FIRST].path(), &STATUS);
-    let written: Vec<Record> = INTERLEAVED.map(|clone| fixture.observe(clone).record).to_vec();
-    assert_eq!(fixture.log(FIRST).read().unwrap().records(), written);
-    assert_eq!(Git::text(fixture.clones[FIRST].path(), &STATUS), before);
-    assert_eq!(Git::text(fixture.origin.path(), &COUNT), written.len().to_string());
-}
-
-#[test]
-fn racing_writers_each_land_right_after_what_they_validated() {
+fn writers_on_any_clone_race_and_each_lands_right_after_what_it_validated_without_touching_checkouts() {
     let fixture = Arc::new(Fixture::new(PAIR));
+    let before = Git::text(fixture.clones[FIRST].path(), &STATUS);
     let seen: Arc<Mutex<Vec<Observation>>> = Arc::default();
     let writers: Vec<_> = (0..fixture.clones.len())
         .map(|clone| (Arc::clone(&fixture), Arc::clone(&seen), clone))
         .map(|(fixture, seen, clone)| std::thread::spawn(move || seen.lock().unwrap().push(fixture.observe(clone))))
         .collect();
     writers.into_iter().try_for_each(std::thread::JoinHandle::join).unwrap();
-    let records = fixture.log(FIRST).read().unwrap().records().to_vec();
+    let records = fixture.log(SECOND).read().unwrap().records().to_vec();
     assert!(seen.lock().unwrap().iter().all(|seen| records.get(seen.validated) == Some(&seen.record)));
-    assert_eq!(fixture.log(FIRST).to_string(), SHOWN);
+    assert_eq!(Git::text(fixture.origin.path(), &COUNT), records.len().to_string());
+    assert_eq!(
+        (Git::text(fixture.clones[FIRST].path(), &STATUS), fixture.log(FIRST).to_string()),
+        (before, SHOWN.to_owned())
+    );
 }
 
 #[test]
