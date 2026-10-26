@@ -12,6 +12,7 @@ use crate::entity::Entity;
 use id_failure::IdFailure;
 use raw_id::RawId;
 
+#[derive(Debug)]
 pub struct Id<Kind: Entity> {
     raw: RawId,
     kind: PhantomData<fn() -> Kind>,
@@ -39,12 +40,6 @@ impl<Kind: Entity> FromStr for Id<Kind> {
 impl<Kind: Entity> fmt::Display for Id<Kind> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{}-{}", Kind::PREFIX, self.raw)
-    }
-}
-
-impl<Kind: Entity> fmt::Debug for Id<Kind> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(self, formatter)
     }
 }
 
