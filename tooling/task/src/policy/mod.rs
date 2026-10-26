@@ -1,13 +1,8 @@
-mod available_gib;
 mod baseline_file;
 mod bit_boundary;
-mod compiler_tasks;
 mod floor;
-mod interval;
 mod least;
 mod limit;
-mod memory_share;
-mod millis;
 mod most;
 mod percent;
 mod share;
@@ -18,7 +13,6 @@ mod wire_type;
 
 pub use baseline_file::BaselineFile;
 pub use floor::Floor;
-pub use interval::Interval;
 pub use limit::Limit;
 
 pub use most::Most;
@@ -26,19 +20,19 @@ pub use share::Share;
 pub use surface::Surface;
 pub use wire_type::WireType;
 
-use available_gib::AvailableGib;
 use bit_boundary::BitBoundary;
-use compiler_tasks::CompilerTasks;
 use enum_map::EnumMap;
 use least::Least;
-use memory_share::MemoryShare;
-use millis::Millis;
 use percent::Percent;
 use serde::{Deserialize, Serialize};
 use settings::EmbeddedDefaults;
 use vague::Vague;
 use vocabulary::Vocabulary;
 
+use crate::branches::{Branch, BranchName};
+use crate::budget::{
+    AvailableGib, CompilerTasks, Interval, MemoryShare, Millis, MutantMillis, MutationCadence,
+};
 use crate::name::Name;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -48,12 +42,15 @@ pub struct Policy {
     wire_types: Vec<String>,
     bit_boundary: BitBoundary,
     surfaces: Vec<Surface>,
+    branches: EnumMap<Branch, BranchName>,
     baseline: BaselineFile,
     limits: EnumMap<Limit, Most>,
     floors: EnumMap<Floor, Least>,
     shares: EnumMap<Share, Percent>,
     memory_gib: EnumMap<MemoryShare, AvailableGib>,
     millis: EnumMap<Interval, Millis>,
+    mutant_millis: MutantMillis,
+    mutation: MutationCadence,
 }
 
 impl EmbeddedDefaults for Policy {
@@ -79,6 +76,26 @@ impl Policy {
     #[must_use]
     pub fn interval(&self, interval: Interval) -> Millis {
         self.millis[interval]
+    }
+
+    #[must_use]
+    pub fn branch(&self, branch: Branch) -> &BranchName {
+        &self.branches[branch]
+    }
+
+    #[must_use]
+    pub fn memory(&self, share: MemoryShare) -> AvailableGib {
+        self.memory_gib[share]
+    }
+
+    #[must_use]
+    pub fn mutant_millis(&self) -> &MutantMillis {
+        &self.mutant_millis
+    }
+
+    #[must_use]
+    pub fn mutation(&self) -> &MutationCadence {
+        &self.mutation
     }
 
     #[must_use]

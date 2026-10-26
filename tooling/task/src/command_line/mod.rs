@@ -1,5 +1,6 @@
 mod cargo_argument;
 mod git_argument;
+mod mutants_argument;
 mod program;
 mod stderr;
 mod stdout;
@@ -7,6 +8,7 @@ mod stream;
 
 pub use cargo_argument::CargoArgument;
 pub use git_argument::GitArgument;
+pub use mutants_argument::MutantsArgument;
 pub use program::Program;
 pub use stderr::Stderr;
 pub use stdout::Stdout;
@@ -14,7 +16,7 @@ pub use stream::Stream;
 
 use std::fmt;
 use std::path::PathBuf;
-use std::process::{Command, Output};
+use std::process::{Child, Command, Output};
 
 use crate::failure::Failure;
 
@@ -61,6 +63,12 @@ impl CommandLine {
             .filter(std::process::ExitStatus::success)
             .map(|_| ())
             .ok_or_else(|| Failure::Command(self.to_string()))
+    }
+
+    pub fn spawn(&self) -> Result<Child, Failure> {
+        self.command()
+            .spawn()
+            .map_err(|_| Failure::Command(self.to_string()))
     }
 
     pub fn captured<S: Stream>(&self) -> Result<String, Failure> {

@@ -6,6 +6,7 @@ use std::path::PathBuf;
 pub enum Program {
     Cargo,
     Git,
+    GitHub,
     Executable(PathBuf),
 }
 
@@ -16,6 +17,7 @@ impl fmt::Display for Program {
                 formatter.write_str(&env::var("CARGO").unwrap_or_else(|_| String::from("cargo")))
             }
             Program::Git => formatter.write_str("git"),
+            Program::GitHub => formatter.write_str("gh"),
             Program::Executable(path) => write!(formatter, "{}", path.display()),
         }
     }

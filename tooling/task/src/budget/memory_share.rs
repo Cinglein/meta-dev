@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 #[repr(u8)]
 pub enum MemoryShare {
     Granted,
+    Reserve,
     PerCompilerTask,
     ForTheTests,
 }
