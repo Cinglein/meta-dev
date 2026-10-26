@@ -30,7 +30,8 @@ impl Measure {
                 Unit::Duration
             }
             Measure::MutantPrice | Measure::TestLineShare => Unit::Share,
-            Measure::LintFindings | Measure::TangleItems => Unit::Count,
+            Measure::TangleItems => Unit::Count,
+            Measure::LintFindings => Unit::Baseline,
         }
     }
 
@@ -38,8 +39,8 @@ impl Measure {
     pub const fn scope(self) -> ScopeKind {
         match self {
             Measure::TestWallTime | Measure::SlowestTest => ScopeKind::Tests,
-            Measure::WorkflowWallTime(_) => ScopeKind::Workflows,
-            Measure::MutantPrice | Measure::TangleItems => ScopeKind::Crates,
+            Measure::WorkflowWallTime(_) | Measure::MutantPrice => ScopeKind::Workflows,
+            Measure::TangleItems => ScopeKind::Crates,
             Measure::LintFindings | Measure::TestLineShare => ScopeKind::Paths,
         }
     }

@@ -1,5 +1,6 @@
 mod domain;
 mod domain_failure;
+mod extent;
 mod scope_kind;
 
 use std::collections::BTreeMap;
@@ -9,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 pub use domain::Domain;
 pub use domain_failure::DomainFailure;
+pub use extent::Extent;
 pub use scope_kind::ScopeKind;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -87,7 +89,7 @@ mod tests {
     use settings::EmbeddedDefaults;
     use strum::IntoEnumIterator;
 
-    use super::{Domains, ScopeKind};
+    use super::{Domains, Extent, ScopeKind};
     use crate::policy::Policy;
 
     const TOPS: [TopDivision; 3] = [
@@ -100,7 +102,7 @@ mod tests {
         &[ScopeKind::Crates, ScopeKind::Paths],
         &[],
     ];
-    const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"meta_*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"local_gate\"\nwarning = 50\ntolerance = 10\n";
+    const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"meta_*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"local_gate\"\nwarning = 50\ntolerance = 10\n";
     const REFUSED: [(&str, &str); 7] = [
         (
             "\n[budgets.whole]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"ci\"\n\n[budgets.part]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"tangle_items\"\nallowance = { of = \"whole\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n",
@@ -148,7 +150,7 @@ mod tests {
                 .cloned()
                 .unwrap_or_default();
             ScopeKind::iter()
-                .filter(|kind| domain.declares(*kind))
+                .filter(|kind| domain.extent(*kind) == Extent::Whole)
                 .collect::<Vec<ScopeKind>>()
         });
         assert_eq!(declared, DECLARED.map(<[ScopeKind]>::to_vec));

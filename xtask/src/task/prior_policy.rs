@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use serde::Deserialize;
-use task::{BaselineFile, Surface};
+use task::{BaselineFile, Policy, Surface};
 
 use crate::task::revision::Revision;
 
@@ -16,7 +16,10 @@ impl PriorPolicy {
     pub const PATH: &str = "tooling/policy.toml";
 
     pub fn read_at(revision: &Revision) -> PriorPolicy {
-        revision.file(Path::new(Self::PATH)).and_then(|text| toml::from_str(&text).ok()).unwrap_or_default()
+        let text = revision.file(Path::new(Self::PATH));
+        let prior: PriorPolicy = text.as_deref().and_then(|text| toml::from_str(text).ok()).unwrap_or_default();
+        let typed = text.as_deref().and_then(|text| toml::from_str::<Policy>(text).ok());
+        PriorPolicy { baseline: typed.map(|policy| policy.baseline().clone()).or(prior.baseline), ..prior }
     }
 
     pub fn surfaces(self) -> Vec<Surface> {

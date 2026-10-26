@@ -25,10 +25,20 @@ impl Allowance {
     }
 
     #[must_use]
-    pub fn whole(&self) -> Option<Amount> {
+    pub fn whole(&self) -> Option<&Amount> {
         match self {
-            Allowance::Whole(amount) => Some(*amount),
+            Allowance::Whole(amount) => Some(amount),
             Allowance::PartOf(_) => None,
+        }
+    }
+
+    #[must_use]
+    pub fn resolved(&self, parent: impl Fn(&BudgetId) -> Option<Amount>) -> Option<Amount> {
+        match self {
+            Allowance::Whole(amount) => Some(amount.clone()),
+            Allowance::PartOf(part) => {
+                parent(part.parent()).and_then(|whole| whole.part(part.percent()))
+            }
         }
     }
 

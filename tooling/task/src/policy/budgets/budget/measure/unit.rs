@@ -3,4 +3,5 @@ pub enum Unit {
     Count,
     Duration,
     Share,
+    Baseline,
 }

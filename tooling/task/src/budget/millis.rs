@@ -15,6 +15,12 @@ impl Millis {
     }
 
     #[must_use]
+    pub fn rounded_up(elapsed: Duration) -> Millis {
+        let nanos_per_milli = u128::from(Duration::from_millis(1).subsec_nanos());
+        Millis(u64::try_from(elapsed.as_nanos().div_ceil(nanos_per_milli)).unwrap_or(u64::MAX))
+    }
+
+    #[must_use]
     pub const fn duration(self) -> Duration {
         Duration::from_millis(self.0)
     }

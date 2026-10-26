@@ -6,7 +6,7 @@ use super::millis::Millis;
 use crate::crate_name::CrateName;
 use meta_schema::TopDivision;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MutantMillis {
     default: Millis,

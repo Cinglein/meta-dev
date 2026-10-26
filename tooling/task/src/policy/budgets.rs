@@ -1,5 +1,7 @@
 mod budget;
 mod budget_id;
+mod ledger;
+mod legacy_key;
 mod tree_failure;
 
 use std::collections::BTreeMap;
@@ -9,7 +11,10 @@ use serde::{Deserialize, Serialize};
 use super::domains::Domains;
 use super::percent::Percent;
 use budget::Budget;
+pub use budget::{Amount, Measure};
 use budget_id::BudgetId;
+pub use ledger::Ledger;
+pub use legacy_key::LegacyKey;
 pub use tree_failure::TreeFailure;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -23,6 +28,37 @@ impl Budgets {
     #[must_use]
     pub fn budget(&self, id: &BudgetId) -> Option<&Budget> {
         self.0.get(id)
+    }
+
+    #[must_use]
+    pub fn whole(&self, measure: Measure) -> Option<&Budget> {
+        self.0.values().find(|budget| {
+            budget.measure() == measure
+                && !budget.division().is_nested()
+                && budget.allowance().whole().is_some()
+        })
+    }
+
+    #[must_use]
+    pub fn amount(&self, budget: &Budget) -> Option<Amount> {
+        budget
+            .allowance()
+            .resolved(|parent| self.0.get(parent).and_then(|parent| self.amount(parent)))
+    }
+
+    pub fn adding(
+        mut self,
+        key: LegacyKey,
+        amount: Amount,
+        tolerance: Option<Percent>,
+    ) -> Result<Budgets, TreeFailure> {
+        match self.0.insert(
+            key.budget_id(),
+            Budget::legacy(key.measure(), amount, tolerance),
+        ) {
+            Some(_) => Err(TreeFailure::Taken(key.budget_id())),
+            None => Budgets::try_from(self.0),
+        }
     }
 
     pub fn measurable(&self, domains: &Domains) -> Result<(), TreeFailure> {
@@ -64,8 +100,9 @@ impl From<Budgets> for BTreeMap<BudgetId, Budget> {
 
 #[cfg(test)]
 mod tests {
-    use super::Budgets;
-    use super::budget::Overspend;
+    use super::budget::State;
+    use super::{Amount, Budgets};
+    use crate::budget::Millis;
 
     const TREE: &str = r#"
 [ci]
@@ -96,8 +133,10 @@ tolerance = 10
     const WINDOW: &str = "window = ";
     const MEASURED: &str = "measure = \"tangle_items\"\nsource = \"ci\"\nwindow = ";
     const PART: &str = "ci-tests";
-    const SHARE: usize = 60;
-    const ESCALATE: Overspend = Overspend::Escalate;
+    const WHOLE: &str = "ci";
+    const PART_MILLIS: u64 = 2400;
+    const OVER: Option<State> = Some(State::Over);
+    const WARN: Option<State> = Some(State::Warn);
     const UNITLESS: [&str; 3] = [
         "[ci]\ndivision = \"performance-and-cost\"\nwindow = \"standing\"\n",
         "[ci]\ndivision = \"performance-and-cost\"\nallowance = {}\nwindow = \"standing\"\n",
@@ -138,13 +177,11 @@ tolerance = 10
     fn a_budget_reads_back_with_its_default_overspend_and_a_part_keeps_its_share() {
         let budgets: Budgets = toml::from_str(TREE).unwrap();
         assert_eq!(toml::to_string(&budgets).unwrap(), WRITTEN);
-        let part = budgets.budget(&PART.parse().unwrap()).unwrap();
-        assert!(
-            part.overspend() == ESCALATE
-                && part
-                    .allowance()
-                    .part()
-                    .is_some_and(|share| share.percent() == SHARE.into())
+        let [part, whole] = [PART, WHOLE].map(|id| budgets.budget(&id.parse().unwrap()).unwrap());
+        assert!(!part.blocks(OVER) && whole.blocks(OVER) && !whole.blocks(WARN));
+        assert_eq!(
+            budgets.amount(part),
+            Some(Amount::Duration(Millis::new(PART_MILLIS)))
         );
     }
 

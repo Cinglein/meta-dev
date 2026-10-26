@@ -17,6 +17,8 @@ pub enum TreeFailure {
     OtherWindow(BudgetId),
     #[error("budget {0}: its allowance is not in its measure's unit")]
     OtherUnit(BudgetId),
+    #[error("budget {0}: this id is kept for an old policy key")]
+    Taken(BudgetId),
     #[error("budget {0}: its measure needs {1}, which its division's domain does not declare")]
     Unmeasurable(BudgetId, ScopeKind),
 }

@@ -15,6 +15,7 @@ use crate::task::failure::Failure;
 use crate::task::surfaces::Surfaces;
 pub use ci_step::CiStep;
 use step_times::StepTimes;
+use task::Ledger;
 use task::Policy;
 use task::Selection;
 use task::Workspace;
@@ -36,8 +37,10 @@ impl Ci {
                 println!("ci: checking {selection}");
                 let started = Instant::now();
                 let mut times = StepTimes::default();
-                let outcome =
-                    CiStep::iter().try_for_each(|step| times.record(step, step.timed(workspace, selection, policy)));
+                let mut ledger = Ledger::default();
+                let outcome = CiStep::iter()
+                    .try_for_each(|step| times.record(step, step.timed(workspace, selection, policy, &mut ledger)))
+                    .and_then(|()| Ok(ledger.checked(policy, selection)?));
                 println!("ci: total {:.1?}", started.elapsed());
                 self.recorded(&times)?;
                 Surfaces::announce(workspace.root(), policy, self.summary.as_deref())

@@ -1,7 +1,9 @@
 mod allowance;
+mod lines;
 mod measure;
 mod overspend;
 mod source;
+mod state;
 mod warning_line;
 mod window;
 
@@ -11,15 +13,18 @@ use serde::{Deserialize, Serialize};
 
 use super::budget_id::BudgetId;
 use super::tree_failure::TreeFailure;
-use crate::policy::domains::Domains;
+use crate::policy::domains::{Domains, Extent};
 use crate::policy::percent::Percent;
-pub use allowance::Allowance;
-pub use measure::Measure;
+use allowance::Allowance;
+pub use allowance::Amount;
+pub use lines::Lines;
+pub use measure::{Measure, MutationJob};
 use meta_schema::Division;
-pub use overspend::Overspend;
-pub use source::Source;
-pub use warning_line::WarningLine;
-pub use window::Window;
+use overspend::Overspend;
+use source::Source;
+pub use state::State;
+use warning_line::WarningLine;
+use window::Window;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -38,6 +43,20 @@ pub struct Budget {
 }
 
 impl Budget {
+    #[must_use]
+    pub fn legacy(measure: Measure, amount: Amount, tolerance: Option<Percent>) -> Budget {
+        Budget {
+            division: Division::from(measure.scope().owner()),
+            measure,
+            allowance: Allowance::Whole(amount),
+            window: Window::PerChange,
+            source: Source::Ci,
+            warning: WarningLine::default(),
+            tolerance,
+            overspend: Overspend::default(),
+        }
+    }
+
     #[must_use]
     pub fn division(&self) -> &Division {
         &self.division
@@ -64,24 +83,28 @@ impl Budget {
     }
 
     #[must_use]
-    pub fn warning(&self) -> WarningLine {
-        self.warning
-    }
-
-    #[must_use]
     pub fn tolerance(&self) -> Option<Percent> {
         self.tolerance
     }
 
     #[must_use]
-    pub fn overspend(&self) -> Overspend {
-        self.overspend
+    pub fn blocks(&self, state: Option<State>) -> bool {
+        state == Some(State::Over) && self.overspend == Overspend::Block
+    }
+
+    #[must_use]
+    pub fn lines(&self, allowance: &Amount) -> Option<Lines> {
+        let blocking = Percent::total([Percent::ALL, self.tolerance.unwrap_or(Percent::NONE)])?;
+        Some(Lines::new(
+            allowance.part(self.warning.percent())?,
+            allowance.part(blocking)?,
+        ))
     }
 
     pub fn measurable(&self, id: &BudgetId, domains: &Domains) -> Result<(), TreeFailure> {
         let needed = self.measure.scope();
         match domains.domain(&self.division) {
-            Some(domain) if domain.declares(needed) => Ok(()),
+            Some(domain) if domain.extent(needed) != Extent::Undeclared => Ok(()),
             Some(_) | None => Err(TreeFailure::Unmeasurable(id.clone(), needed)),
         }
     }

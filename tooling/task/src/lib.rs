@@ -42,6 +42,7 @@ pub use mutant_count::MutantCount;
 pub use name::{Casing, LoweredInfix, Name, Prefix, Whole};
 pub use nesting_depth::NestingDepth;
 pub use package_graph::PackageGraph;
+pub use policy::budgets::{Amount, Ledger, Measure};
 pub use policy::{
     BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface, WireType,
 };

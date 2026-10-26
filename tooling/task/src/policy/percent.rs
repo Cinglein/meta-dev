@@ -1,18 +1,20 @@
 use std::num::NonZeroUsize;
 
-use derive_more::{Display, From};
+use derive_more::{Display, From, Into};
 use serde::{Deserialize, Serialize};
 
 use crate::budget::Millis;
 
 #[derive(
-    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Display, From, Serialize, Deserialize,
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Display, From, Into, Serialize, Deserialize,
 )]
 #[serde(transparent)]
 pub struct Percent(usize);
 
 impl Percent {
     const WHOLE: usize = 100;
+    pub const ALL: Percent = Percent(Self::WHOLE);
+    pub const NONE: Percent = Percent(0);
 
     #[must_use]
     pub const fn new(percent: usize) -> Percent {
@@ -39,6 +41,7 @@ impl Percent {
         NonZeroUsize::new(Self::WHOLE).map_or(whole, |all| whole.times(self.0).divided_by(all))
     }
 
+    #[must_use]
     pub fn exceeds(self, ratio: f64) -> bool {
         let scaled = |count: usize| f64::from(u32::try_from(count).unwrap_or(u32::MAX));
         ratio * scaled(Self::WHOLE) < scaled(self.0)

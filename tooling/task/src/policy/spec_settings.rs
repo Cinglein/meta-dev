@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::crate_name::CrateName;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpecSettings {
     package: CrateName,

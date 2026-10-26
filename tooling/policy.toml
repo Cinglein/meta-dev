@@ -15,7 +15,6 @@ wire_types = [
     "core::any::Any",
 ]
 bit_boundary = []
-baseline = "self/lint-baseline.toml"
 gate = "local-gate"
 gate_wait = 600000
 surfaces = [
@@ -56,7 +55,6 @@ assertions_per_test = 3
 lines_per_test = 20
 literals_per_test = 4
 largest_integer = 64
-scc_items = 83
 slowest_shown = 5
 
 [floors]
@@ -65,11 +63,9 @@ lifetime_name = 2
 cut_side = 5
 price_sample = 30
 diff_factor = 3
-price_tolerance = 25
 
 [shares]
 tests_per_hundred_files = 40
-test_line_percent = 18
 cut_conductance = 19
 shard_headroom = 60
 
@@ -80,14 +76,10 @@ per_compiler_task = 2
 for_the_tests = 1
 
 [millis]
-per_test = 1000
-total = 4000
 sample_every = 20
 discover_every = 100
 per_crate = 15000
 test_timeout = 30000
-full_job = 480000
-diff_job = 360000
 job_setup = 90000
 
 [mutation]
@@ -100,6 +92,63 @@ paths = ["*"]
 [domains.performance-and-cost]
 tests = ["*"]
 workflows = ["*"]
+
+[budgets.test-time]
+division = "performance-and-cost"
+measure = "test_wall_time"
+allowance = { duration = 4000 }
+window = "per_change"
+source = "local_gate"
+
+[budgets.slowest-test]
+division = "performance-and-cost"
+measure = "slowest_test"
+allowance = { duration = 1000 }
+window = "per_change"
+source = "local_gate"
+
+[budgets.mutants-full-job]
+division = "performance-and-cost"
+measure = { workflow_wall_time = "full_job" }
+allowance = { duration = 480000 }
+window = "per_change"
+source = "ci"
+
+[budgets.mutants-diff-job]
+division = "performance-and-cost"
+measure = { workflow_wall_time = "diff_job" }
+allowance = { duration = 360000 }
+window = "per_change"
+source = "ci"
+
+[budgets.mutant-price]
+division = "performance-and-cost"
+measure = "mutant_price"
+allowance = { share = 100 }
+tolerance = 25
+window = "per_change"
+source = "ci"
+
+[budgets.lint-findings]
+division = "features-and-maintenance"
+measure = "lint_findings"
+allowance = { baseline = "self/lint-baseline.toml" }
+window = "per_change"
+source = "ci"
+
+[budgets.test-line-share]
+division = "features-and-maintenance"
+measure = "test_line_share"
+allowance = { share = 18 }
+window = "per_change"
+source = "ci"
+
+[budgets.tangle-items]
+division = "features-and-maintenance"
+measure = "tangle_items"
+allowance = { count = 83 }
+window = "per_change"
+source = "ci"
 
 [mutant_millis]
 default = 5200

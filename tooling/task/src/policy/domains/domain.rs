@@ -4,6 +4,7 @@ use meta_schema::TopDivision;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
+use super::extent::Extent;
 use super::scope_kind::ScopeKind;
 use pattern::Pattern;
 
@@ -23,19 +24,17 @@ pub struct Domain {
 impl Domain {
     #[must_use]
     pub fn owned_by(top: TopDivision) -> Domain {
-        let everything = || vec![Pattern::everything()];
-        match top {
-            TopDivision::FeaturesAndMaintenance => Domain {
-                crates: everything(),
-                paths: everything(),
-                ..Domain::default()
-            },
-            TopDivision::PerformanceAndCost => Domain {
-                tests: everything(),
-                workflows: everything(),
-                ..Domain::default()
-            },
-            TopDivision::ArchitectureAndPlanning => Domain::default(),
+        let owned = |kind: ScopeKind| {
+            (kind.owner() == top)
+                .then(Pattern::everything)
+                .into_iter()
+                .collect()
+        };
+        Domain {
+            tests: owned(ScopeKind::Tests),
+            workflows: owned(ScopeKind::Workflows),
+            crates: owned(ScopeKind::Crates),
+            paths: owned(ScopeKind::Paths),
         }
     }
 
@@ -50,13 +49,17 @@ impl Domain {
     }
 
     #[must_use]
-    pub fn declares(&self, kind: ScopeKind) -> bool {
-        !self.scope(kind).is_empty()
+    pub fn extent(&self, kind: ScopeKind) -> Extent {
+        match self.scope(kind) {
+            [] => Extent::Undeclared,
+            patterns if patterns.contains(&Pattern::everything()) => Extent::Whole,
+            _ => Extent::Partial,
+        }
     }
 
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        ScopeKind::iter().all(|kind| !self.declares(kind))
+        ScopeKind::iter().all(|kind| self.extent(kind) == Extent::Undeclared)
     }
 
     #[must_use]

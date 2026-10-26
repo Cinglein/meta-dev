@@ -71,8 +71,10 @@ mod tests {
     use super::Baseline;
     use crate::task::failure::Failure;
     use crate::task::fixture::Fixture;
-    use task::{BaselineFile, BranchName};
+    use settings::EmbeddedDefaults;
+    use task::{BaselineFile, BranchName, Policy};
 
+    const SELF_BASELINE: &str = "self/lint-baseline.toml";
     const BASELINE: &str = "lint-baseline.toml";
     const BASE: &str = "origin/main";
     const MOVED: &str = "self/moved.toml";
@@ -92,9 +94,12 @@ mod tests {
         fixture.write(BASELINE, TWO);
         let admitted = Baseline::admitted(fixture.root(), &BaselineFile::from(BASELINE), &base);
         assert_eq!(admitted.map_err(|failure| failure.to_string()).err().as_deref(), Some(RAISED));
-        let moved = Fixture::new();
-        moved.write(POLICY, MOVED_POLICY).write(MOVED, TWO).branch();
-        assert!(Baseline::admitted(moved.write(BASELINE, TWO).root(), &BaselineFile::from(BASELINE), &base).is_ok());
+        let moved_by = |policy: &str| {
+            let moved = Fixture::new();
+            moved.write(POLICY, policy).write(MOVED, TWO).branch();
+            Baseline::admitted(moved.write(BASELINE, TWO).root(), &BaselineFile::from(BASELINE), &base).is_ok()
+        };
+        assert!(moved_by(MOVED_POLICY) && moved_by(&Policy::DEFAULTS.replace(SELF_BASELINE, MOVED)));
     }
 
     #[test]

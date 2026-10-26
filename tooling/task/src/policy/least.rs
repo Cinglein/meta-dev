@@ -1,11 +1,14 @@
 use std::num::NonZeroU64;
 
+use derive_more::{From, Into};
 use serde::{Deserialize, Serialize};
 
 use super::percent::Percent;
 use crate::budget::Millis;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, From, Into, Serialize, Deserialize,
+)]
 #[serde(transparent)]
 pub struct Least(usize);
 
