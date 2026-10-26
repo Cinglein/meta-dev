@@ -5,11 +5,13 @@ mod raw_log;
 use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::Command;
+use std::time::Instant;
 
 use crate::request::ci::ci_status::CiStatus;
 use crate::request::ci::commit::Commit;
 use crate::request::output::Listed;
 use crate::request::project::ProgramName;
+use crate::request::timed_command::TimedCommand;
 use gh_jobs::GhJobs;
 use meta_gh::GhRun;
 pub use observation::Observation;
@@ -19,6 +21,7 @@ pub use raw_log::RawLog;
 pub struct Gh {
     program: ProgramName,
     root: PathBuf,
+    deadline: Instant,
 }
 
 impl Gh {
@@ -32,8 +35,8 @@ impl Gh {
     const JOB: &'static str = "--job";
     const LOG_FAILED: &'static str = "--log-failed";
 
-    pub fn new(program: ProgramName, root: PathBuf) -> Self {
-        Self { program, root }
+    pub fn new(program: ProgramName, root: PathBuf, deadline: Instant) -> Self {
+        Self { program, root, deadline }
     }
 
     pub fn observe(&self, commit: &Commit) -> Result<Observation, Listed> {
@@ -46,12 +49,11 @@ impl Gh {
         Ok(Observation::new(reported.iter().flat_map(GhJobs::failed_steps).collect(), failed_job, status))
     }
 
-    pub fn failed_logs(&self, commit: &Commit) -> RawLog {
-        let logs: Vec<String> = self
-            .runs(commit)
-            .unwrap_or_default()
+    pub fn failed_logs(&self, commits: &[Commit]) -> RawLog {
+        let logs: Vec<String> = commits
             .iter()
-            .filter_map(|run| self.jobs(run).ok())
+            .flat_map(|commit| self.runs(commit).unwrap_or_default())
+            .filter_map(|run| self.jobs(&run).ok())
             .flat_map(|jobs| jobs.failed_job_ids())
             .filter_map(|job| {
                 let words = [Self::RUN, Self::VIEW, Self::JOB].map(OsString::from).into_iter().chain([job]);
@@ -73,12 +75,9 @@ impl Gh {
     }
 
     fn text(&self, words: impl Iterator<Item = OsString>) -> Result<String, Listed> {
-        let output = Command::new(&self.program).args(words).current_dir(&self.root).output().map_err(Listed::new)?;
-        if output.status.success() {
-            Ok(String::from_utf8_lossy(&output.stdout).into_owned())
-        } else {
-            Err(Listed::new(String::from_utf8_lossy(&output.stderr).lines().next().unwrap_or_default()))
-        }
+        let mut command = Command::new(&self.program);
+        command.args(words).current_dir(&self.root);
+        TimedCommand::new(command, self.deadline).stdout()
     }
 
     fn json<Parsed: serde::de::DeserializeOwned>(

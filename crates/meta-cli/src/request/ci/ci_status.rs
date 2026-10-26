@@ -24,6 +24,13 @@ impl CiStatus {
         if outcomes.iter().all(|outcome| *outcome == Outcome::Succeeded) { Self::Passed } else { Self::Failed }
     }
 
+    pub fn of_all(statuses: impl Iterator<Item = Option<Self>>) -> Option<Self> {
+        let finished: Vec<Option<Self>> = statuses.map(|status| status.and_then(Self::finished)).collect();
+        let failed = finished.contains(&Some(Self::Failed)).then_some(Self::Failed);
+        let all: Option<Vec<Self>> = finished.into_iter().collect();
+        failed.or(all.map(|all| all.into_iter().find(|status| *status != Self::Passed).unwrap_or(Self::Passed)))
+    }
+
     pub fn unstarted(self) -> Self {
         match self {
             Self::Failed => Self::Unavailable,
