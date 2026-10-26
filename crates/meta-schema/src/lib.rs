@@ -1,5 +1,6 @@
 mod actor;
 mod claim;
+mod email;
 mod entity;
 mod entry;
 mod entry_note;
@@ -18,6 +19,7 @@ mod unparsed;
 
 pub use actor::Actor;
 pub use claim::Claim;
+pub use email::Email;
 pub use entity::Task;
 pub use entry::Entry;
 pub use entry_note::EntryNote;

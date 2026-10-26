@@ -1,3 +1,4 @@
+mod identity;
 mod shell_command;
 mod tool_input;
 
@@ -9,6 +10,7 @@ use serde::Deserialize;
 use crate::request::ci::{SessionId, SessionStart};
 use crate::request::output::Listed;
 
+use identity::Identity;
 use shell_command::ShellCommand;
 use tool_input::ToolInput;
 
@@ -31,14 +33,17 @@ impl HookInput {
         self.tool_input.as_ref().and_then(ToolInput::command)
     }
 
-    pub fn session(&self) -> Option<&SessionId> {
-        self.session_id.as_ref()
+    pub fn refusal(&self) -> Option<Listed> {
+        let command = self.command()?;
+        let foreign =
+            command.commit_directories(&self.cwd()).iter().find_map(|directory| Identity::refusal_in(directory));
+        let writing = self.session().zip(command.writes());
+        let unrecorded = writing.and_then(|(session, ())| SessionStart::for_session(session).record().err());
+        unrecorded.or(foreign)
     }
 
-    pub fn unrecorded_start(&self) -> Option<Listed> {
-        let session = self.session()?;
-        self.command()?.writes()?;
-        SessionStart::for_session(session).record().err()
+    pub fn session(&self) -> Option<&SessionId> {
+        self.session_id.as_ref()
     }
 
     pub fn announced_actor(&self) -> Option<Actor> {

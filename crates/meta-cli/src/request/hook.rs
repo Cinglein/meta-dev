@@ -53,16 +53,12 @@ impl HookEvent {
     pub fn respond(self) -> Result<Output, CliFailure> {
         let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
         let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
-        let unrecorded = (self == Self::PreToolUse).then(|| input.unrecorded_start()).flatten();
-        let refused = unrecorded.map(|reason| Reply::new(self, Verdict::Deny(Denial::from(reason)), None));
-        let reply = refused.or_else(|| self.answer(&input));
+        let reply = Project::try_from(input.cwd().as_path()).ok().map(|project| {
+            let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
+            self.reply(&project, &input).with_news(session.and_then(|dir| dir.news()))
+        });
+        let reply = reply.or_else(|| self.outside_projects(&input));
         Ok(Output::Listed(Listed::new(reply.map(|reply| reply.to_string()).unwrap_or_default())))
-    }
-
-    fn answer(self, input: &HookInput) -> Option<Reply> {
-        let project = Project::try_from(input.cwd().as_path()).ok()?;
-        let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
-        Some(self.reply(&project, input).with_news(session.and_then(|dir| dir.news())))
     }
 
     fn reply(self, project: &Project, input: &HookInput) -> Reply {
@@ -83,6 +79,7 @@ impl HookEvent {
                 input
                     .command()
                     .and_then(|command| command.refusal(project.config()))
+                    .or_else(|| input.refusal())
                     .map(Denial::from)
                     .map_or(Verdict::Allow, Verdict::Deny),
                 None,
@@ -98,6 +95,11 @@ impl HookEvent {
                 None,
             ),
         }
+    }
+
+    fn outside_projects(self, input: &HookInput) -> Option<Reply> {
+        let refusal = (self == Self::PreToolUse).then(|| input.refusal()).flatten()?;
+        Some(Reply::new(self, Verdict::Deny(Denial::from(refusal)), None))
     }
 
     fn after_push(project: &Project, input: &HookInput) -> Option<Listed> {

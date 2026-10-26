@@ -7,6 +7,7 @@ use task::{Branch, Policy, Report, SourceFile};
 
 use crate::task::failure::Failure;
 use crate::task::ratchet::{Baseline, Drift, Ratchet, ViolationCount};
+use crate::task::revision::Revision;
 
 #[derive(Debug)]
 pub struct Lint {
@@ -15,6 +16,7 @@ pub struct Lint {
 
 impl Lint {
     pub fn run(root: &Path, files: &[SourceFile], policy: &Policy) -> Result<(), Failure> {
+        Revision::noreply_off(root, policy.branch(Branch::Base))?;
         let allowed = Baseline::admitted(root, policy.baseline(), policy.branch(Branch::Base))?;
         let observed = Self::gathered(files, policy).ratchet(&allowed, |_| true)?;
         println!("lint: {} rust files, {} baselined violations", files.len(), observed.total());
@@ -58,6 +60,12 @@ mod tests {
     const ALLOWED: &str = "no-comments = 1";
     const SHOWN: &str = "no-comments: 1 found, baseline 0\ncomments go:\nworkspace: a comment\n";
     const BASELINE: &str = "self/lint-baseline.toml";
+    const NOREPLY: &str = "1+someone@users.noreply.github.com";
+    const WEB_COMMITTER: &str = "noreply@github.com";
+    const MAIN: &str = "main@example.com";
+    const AUTHOR: &str = "author@example.com";
+    const COMMITTER: &str = "committer@example.com";
+    const FOREIGN: &str = "commit emails are not noreply: author@example.com, committer@example.com";
 
     #[test]
     fn growth_over_the_baseline_fails_with_the_lint_report_and_shrinking_passes() {
@@ -78,5 +86,14 @@ mod tests {
         Lint::shrink(fixture.root(), &[], &policy).unwrap();
         assert_eq!(fs::read_to_string(fixture.path(BASELINE)).ok().as_deref(), Some(""));
         assert!(Lint::run(fixture.root(), &[], &policy).is_ok());
+    }
+
+    #[test]
+    fn every_commit_off_the_base_branch_has_noreply_author_and_committer_emails() {
+        let fixture = Fixture::new();
+        fixture.write(BASELINE, "").branch();
+        fixture.criss_cross([MAIN, MAIN], [NOREPLY, WEB_COMMITTER]).commit([AUTHOR, COMMITTER]);
+        let refused = Lint::run(fixture.root(), &[], &Policy::defaults());
+        assert_eq!(refused.map_err(|failure| failure.to_string()).err().as_deref(), Some(FOREIGN));
     }
 }
