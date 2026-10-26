@@ -57,7 +57,8 @@ impl HookEvent {
             let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
             self.reply(&project, &input).with_news(session.and_then(|dir| dir.news()))
         });
-        let reply = reply.or_else(|| self.outside_projects(&input));
+        let opened = (self == Self::SessionStart).then(|| input.open_session()).and_then(Result::err);
+        let reply = reply.or_else(|| self.outside_projects(&input)).map(|reply| reply.with_news(opened));
         Ok(Output::Listed(Listed::new(reply.map(|reply| reply.to_string()).unwrap_or_default())))
     }
 

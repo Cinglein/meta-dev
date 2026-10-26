@@ -7,9 +7,10 @@ use std::str::FromStr;
 
 use meta_log::GitLog;
 
-use crate::request::ci::{Commit, ReflogEntry, UnixSeconds};
+use crate::request::ci::{Commit, ReflogEntry, StartMoment};
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
+use crate::request::timed_command::TimedCommand;
 pub use config::{BranchName, CiSettings, Config, LogWindow, ProgramName};
 #[derive(Debug)]
 pub struct Project {
@@ -52,10 +53,13 @@ impl Project {
         })
     }
 
-    pub fn created_since(&self, start: UnixSeconds) -> Option<Vec<Commit>> {
+    pub fn created_after(&self, start: &StartMoment) -> Option<Vec<Commit>> {
         let walked = ["log", "--walk-reflogs", "--date=unix", ReflogEntry::FORMAT, "HEAD", "--"].map(OsString::from);
         let entries: Vec<ReflogEntry> = self.git_lines(walked).filter(|entries| !entries.is_empty())?;
-        let created: Vec<Commit> = entries.iter().filter_map(|entry| entry.created_since(start).cloned()).collect();
+        let created: Vec<Commit> = entries
+            .iter()
+            .filter_map(|entry| entry.created_after(start, |commit| self.born_after(commit, start)).cloned())
+            .collect();
         Some(
             created
                 .iter()
@@ -68,10 +72,13 @@ impl Project {
 
     pub fn remote_heads(&self) -> Result<Vec<Commit>, Listed> {
         let remote = self.config.remote().map_err(|failure| Listed::new(failure.to_string()))?;
-        let listed = [OsString::from("ls-remote"), OsString::from("--heads"), OsString::from(remote.to_string())];
-        self.git_lines(listed).ok_or_else(|| {
-            Listed::new(format!("git ls-remote {remote} failed, so what is pushed is unknown: retry; or ask the owner"))
-        })
+        let mut command = Command::new("git");
+        command.arg("-C").arg(&self.root).args(["ls-remote", "--heads", &remote.to_string()]);
+        let deadline = self.config.ci_settings().remote_deadline();
+        let listed = TimedCommand::new(command, deadline).stdout().map_err(|failure| {
+            Listed::new(format!("remote unreachable: git ls-remote {remote}: {failure}; retry, or ask the owner"))
+        })?;
+        Ok(listed.lines().filter_map(|line| line.parse().ok()).collect())
     }
 
     pub fn pushed_tips(&self, commits: &[Commit], heads: &[Commit]) -> Vec<Commit> {
@@ -105,6 +112,14 @@ impl Project {
             .ok()
             .filter(|output| output.status.success())?;
         Some(String::from_utf8_lossy(&output.stdout).lines().filter_map(|line| line.parse().ok()).collect())
+    }
+
+    fn born_after(&self, commit: &Commit, start: &StartMoment) -> bool {
+        let words = [OsString::from("rev-parse"), OsString::from("--git-path"), commit.loose_object().into_os_string()];
+        let paths: Option<Vec<PathBuf>> = self.git_lines(words);
+        let path = paths.and_then(|paths| paths.into_iter().next()).map(|path| self.root.join(path));
+        let modified = path.and_then(|path| std::fs::metadata(path).and_then(|meta| meta.modified()).ok());
+        modified.is_some_and(|modified| start.precedes(modified))
     }
 
     fn unprotected_branch(&self) -> Option<BranchName> {

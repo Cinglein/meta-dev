@@ -33,6 +33,10 @@ impl HookInput {
         self.tool_input.as_ref().and_then(ToolInput::command)
     }
 
+    pub fn open_session(&self) -> Result<(), Listed> {
+        self.session().map_or(Ok(()), |session| SessionStart::for_session(session).open().map_err(Listed::new))
+    }
+
     pub fn refusal(&self) -> Option<Listed> {
         let command = self.command()?;
         let foreign =

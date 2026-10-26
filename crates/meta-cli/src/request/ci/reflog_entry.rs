@@ -5,6 +5,7 @@ mod stamp;
 use std::str::FromStr;
 
 use super::commit::Commit;
+use super::start_moment::StartMoment;
 use super::unix_seconds::UnixSeconds;
 use identity::Identity;
 use move_subject::MoveSubject;
@@ -22,8 +23,9 @@ impl ReflogEntry {
     pub const FORMAT: &'static str = "--format=%H%x1f%cn <%ce>%x1f%gn <%ge> %gd%x1f%gs";
     const SEPARATOR: char = '\u{1f}';
 
-    pub fn created_since(&self, start: UnixSeconds) -> Option<&Commit> {
-        (self.subject.creates() && self.moved.by_since(&self.committer, start)).then_some(&self.commit)
+    pub fn created_after(&self, start: &StartMoment, born_after: impl FnOnce(&Commit) -> bool) -> Option<&Commit> {
+        (self.subject.creates() && self.moved.by_after(&self.committer, start, || born_after(&self.commit)))
+            .then_some(&self.commit)
     }
 }
 

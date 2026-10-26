@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use super::UnixSeconds;
 use super::identity::Identity;
+use super::{StartMoment, UnixSeconds};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Stamp {
@@ -13,8 +13,13 @@ impl Stamp {
     const SELECTOR_OPEN: char = '{';
     const SELECTOR_CLOSE: char = '}';
 
-    pub fn by_since(&self, identity: &Identity, start: UnixSeconds) -> bool {
-        self.identity == *identity && self.moment >= start
+    pub fn by_after(&self, identity: &Identity, start: &StartMoment, born_after: impl FnOnce() -> bool) -> bool {
+        self.identity == *identity
+            && match start.against_second(self.moment) {
+                std::cmp::Ordering::Greater => true,
+                std::cmp::Ordering::Equal => born_after(),
+                std::cmp::Ordering::Less => false,
+            }
     }
 }
 

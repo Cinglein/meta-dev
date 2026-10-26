@@ -1,13 +1,13 @@
 use std::fmt;
 use std::str::FromStr;
-use std::time::SystemTime;
+use std::time::Duration;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UnixSeconds(u64);
 
-impl UnixSeconds {
-    pub fn now() -> Self {
-        Self(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).map(|since| since.as_secs()).unwrap_or_default())
+impl From<Duration> for UnixSeconds {
+    fn from(since_epoch: Duration) -> Self {
+        Self(since_epoch.as_secs())
     }
 }
 

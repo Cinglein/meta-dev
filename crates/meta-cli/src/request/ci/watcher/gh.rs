@@ -1,24 +1,20 @@
-mod drain;
 mod gh_jobs;
 mod observation;
-mod process_group;
 mod raw_log;
 
 use std::ffi::OsString;
-use std::os::unix::process::CommandExt as _;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::time::Instant;
 
 use crate::request::ci::ci_status::CiStatus;
 use crate::request::ci::commit::Commit;
 use crate::request::output::Listed;
 use crate::request::project::ProgramName;
-use drain::Drain;
+use crate::request::timed_command::TimedCommand;
 use gh_jobs::GhJobs;
 use meta_gh::GhRun;
 pub use observation::Observation;
-use process_group::ProcessGroup;
 pub use raw_log::RawLog;
 
 #[derive(Clone, Debug)]
@@ -79,25 +75,9 @@ impl Gh {
     }
 
     fn text(&self, words: impl Iterator<Item = OsString>) -> Result<String, Listed> {
-        let mut child = Command::new(&self.program)
-            .args(words)
-            .current_dir(&self.root)
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .process_group(i32::default())
-            .spawn()
-            .map_err(Listed::new)?;
-        let group = ProcessGroup::led_by(&child);
-        let output = Drain::reading(child.stdout.take());
-        let errors = Drain::reading(child.stderr.take());
-        let output = output.within(self.deadline, group);
-        let errors = errors.within(self.deadline, group);
-        if child.wait().map_err(Listed::new)?.success() {
-            Ok(output)
-        } else {
-            Err(Listed::new(errors.lines().next().unwrap_or_default()))
-        }
+        let mut command = Command::new(&self.program);
+        command.args(words).current_dir(&self.root);
+        TimedCommand::new(command, self.deadline).stdout()
     }
 
     fn json<Parsed: serde::de::DeserializeOwned>(

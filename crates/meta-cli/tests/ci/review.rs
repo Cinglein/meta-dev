@@ -17,6 +17,10 @@ const BLIND: &str = "BLIND7";
 const LOCKED: &str = "LOCKED8";
 const TEXT_AT: &str = "4000000000";
 const DATED_AT: &str = "4000000100";
+const CD_AT: &str = "3999999000";
+const LATER: &str = "3999999999";
+const TEXT_COMMIT_AT: &str = "4000000001";
+const DATED_COMMIT_AT: &str = "4000000101";
 const SPOOF: [&str; 5] = ["commit", "-q", "--allow-empty", "-m", "Fast-forward (abort) (start) (finish)"];
 const OLD_AUTHOR: [&str; 6] = ["commit", "-q", "--allow-empty", "--date=@1000000000 +0000", "-m", "dated"];
 const AUTHOR_DATES: [&str; 5] = ["rebase", "-q", "--force-rebase", "--committer-date-is-author-date", "HEAD~1"];
@@ -52,8 +56,8 @@ fn commit_text_commit_dates_and_a_cd_first_never_hide_a_commit() {
     let [away, cd, text, dated] = [(repo.sessions.path(), CD), (clone, CD), (clone, TEXT), (clone, DATED)]
         .map(|(cwd, id)| Session { repo: &repo, cwd, id });
     away.hook(PRE, CD_FIRST);
-    let started = StartFile::read(repo.sessions.path(), CD).unwrap_or_else(|| Git::LONG_AGO.to_owned());
-    Git::run_at(clone, &NEXT_COMMIT, &started);
+
+    Git::run_at(clone, &NEXT_COMMIT, CD_AT);
     Git::run(clone, &PUSH_WORDS);
     let first = cd.hook(STOP, READ);
     let _: Vec<()> = [(TEXT, TEXT_AT), (DATED, DATED_AT)]
@@ -61,11 +65,11 @@ fn commit_text_commit_dates_and_a_cd_first_never_hide_a_commit() {
         .map(|(id, at)| StartFile::plant(repo.sessions.path(), id, at))
         .collect();
     text.hook(PRE, WRITE);
-    Git::run_at(clone, &SPOOF, TEXT_AT);
+    Git::run_at(clone, &SPOOF, TEXT_COMMIT_AT);
     Git::run(clone, &PUSH_WORDS);
     let spoofed = text.hook(STOP, READ);
-    Git::run_at(clone, &OLD_AUTHOR, DATED_AT);
-    Git::run_at(clone, &AUTHOR_DATES, DATED_AT);
+    Git::run_at(clone, &OLD_AUTHOR, DATED_COMMIT_AT);
+    Git::run_at(clone, &AUTHOR_DATES, DATED_COMMIT_AT);
     Git::run(clone, &PUSH_WORDS);
     assert!([first, spoofed, dated.hook(STOP, READ)].iter().all(|stop| stop.contains(BLOCK)));
 }
@@ -84,8 +88,10 @@ fn readers_and_single_branch_clones_are_judged_by_what_the_remote_holds() {
     worker.hook(POST, WRITE);
     Git::run(clone, &NEXT_COMMIT);
     let read = reader.hook(STOP, READ);
-    let _: Vec<_> =
-        [BRANCH.as_slice(), &NEXT_COMMIT, &PUSH_BRANCH].iter().map(|words| Git::run(single.path(), words)).collect();
+    let _: Vec<_> = [BRANCH.as_slice(), &NEXT_COMMIT, &PUSH_BRANCH]
+        .iter()
+        .map(|words| Git::run_at(single.path(), words, LATER))
+        .collect();
     FailingHead::copy_from(&repo, single.path());
     let pushed = lone.hook(STOP, READ);
     Git::run(single.path(), &BACK_TO_MAIN);
@@ -107,7 +113,7 @@ fn a_reflog_that_is_off_or_an_unwritable_state_dir_fails_closed() {
     std::fs::create_dir_all(clone.join(STATE_ROOT)).unwrap();
     let open = Planted::locked(&clone.join(STATE_ROOT));
     locked.hook(PRE, WRITE);
-    Git::run(clone, &NEXT_COMMIT);
+    Git::run_at(clone, &NEXT_COMMIT, LATER);
     let warned = locked.hook(POST, WRITE);
     let stop = locked.hook(STOP, READ);
     std::fs::set_permissions(clone.join(STATE_ROOT), open).unwrap();

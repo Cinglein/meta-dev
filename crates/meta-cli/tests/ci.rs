@@ -166,15 +166,14 @@ struct StartFile;
 impl StartFile {
     const ROOT: &'static str = "meta-sessions";
     const NAME: &'static str = "started";
+    const WRITES: &'static str = "writes";
+    const NANOS: &'static str = "000000000";
 
     fn plant(sessions: &Path, session: &str, seconds: &str) {
         let folder = sessions.join(Self::ROOT).join(session);
         std::fs::create_dir_all(&folder).unwrap();
-        std::fs::write(folder.join(Self::NAME), seconds).unwrap();
-    }
-
-    fn read(sessions: &Path, session: &str) -> Option<String> {
-        std::fs::read_to_string(sessions.join(Self::ROOT).join(session).join(Self::NAME)).ok()
+        std::fs::write(folder.join(Self::NAME), [seconds, Self::NANOS].concat()).unwrap();
+        std::fs::write(folder.join(Self::WRITES), "").unwrap();
     }
 }
 

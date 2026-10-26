@@ -14,7 +14,7 @@ impl SessionCommits {
 
     pub fn judged(project: &Project, session: &SessionId, reach: Reach) -> Result<Self, Listed> {
         let start = SessionStart::for_session(session).read();
-        let created = start.map_or(Some(Vec::new()), |start| project.created_since(start));
+        let created = start.map_or(Some(Vec::new()), |start| project.created_after(&start));
         let created = created.ok_or_else(|| Listed::new(Self::REFLOG_OFF))?;
         let remote = created.first().filter(|_| reach == Reach::Remote).map(|_| project.remote_heads());
         let heads = remote.transpose()?.unwrap_or_default();
