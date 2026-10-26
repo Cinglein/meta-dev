@@ -19,7 +19,7 @@ use crate::snapshot::Snapshot;
 use attempt::Attempt;
 use content::Content;
 use fetched::Fetched;
-use git::{Git, GitCommand};
+use git::Git;
 use outcome::Outcome;
 use remote::Remote;
 use sha::Sha;
@@ -31,38 +31,35 @@ pub struct GitLog {
 }
 
 impl GitLog {
+    const STAGED: &'static str = "refs/meta-log/staged";
+
     pub fn new(repo: PathBuf, remote: &impl ToString) -> Self {
         let git = Git::new(repo);
         Self { remote: Remote::new(git.clone(), Detail::from_reason(remote)), git }
     }
 
-    fn commit(&self, tip: Option<&Sha>, content: Content, record: &Record) -> Result<Sha, LogFailure> {
-        let blob = self.git.command(["hash-object", "-w", "--stdin"]).input(content).content()?;
-        let entry = Content::from(format!("100644 blob {blob}\t{}\n", Remote::FILE));
-        let tree = self.git.command(["mktree"]).input(entry).content()?;
+    fn commit(&self, tip: Option<&Sha>, content: &Content, record: &Record) -> Result<Sha, LogFailure> {
         let actor = record.actor().to_string();
-        let email = format!("{actor}@meta.invalid");
-        let parents = tip.iter().flat_map(|parent| ["-p".to_owned(), parent.to_string()]);
-        let base = self
-            .git
-            .command(["commit-tree"])
-            .arg(tree.to_string())
-            .arg("-m")
-            .arg(format!("{actor}: {}", record.event()));
-        let commit = parents
-            .fold(base, GitCommand::arg)
-            .env("GIT_AUTHOR_NAME", &actor)
-            .env("GIT_AUTHOR_EMAIL", &email)
-            .env("GIT_COMMITTER_NAME", &actor)
-            .env("GIT_COMMITTER_EMAIL", &email)
-            .content()?;
+        let identity = format!("{actor} <{actor}@meta.invalid> now");
+        let message = format!("{actor}: {}", record.event());
+        let blob = content.to_string();
+        let parent = tip.map(|parent| format!("from {parent}\n")).unwrap_or_default();
+        let stream = format!(
+            "blob\nmark :1\ndata {}\n{blob}\ncommit {staged}\nmark :2\nauthor {identity}\ncommitter {identity}\ndata {}\n{message}\n{parent}M 100644 :1 {}\n\nget-mark :2\nreset {staged}\n\n",
+            blob.len(),
+            message.len(),
+            Remote::FILE,
+            staged = Self::STAGED,
+        );
+        let commit =
+            self.git.command(["fast-import", "--quiet", "--date-format=now"]).input(Content::from(stream)).content()?;
         Ok(commit.to_string().parse().unwrap_or_else(|never| match never {}))
     }
 
     fn attempt(&self, decide: &mut dyn FnMut(&Snapshot) -> Result<Record, LogFailure>) -> Result<Outcome, LogFailure> {
         let before = self.remote.fetch()?;
         let record = decide(&before.content().snapshot())?;
-        let commit = self.commit(before.tip(), before.content().appended(&record)?, &record)?;
+        let commit = self.commit(before.tip(), &before.content().appended(&record)?, &record)?;
         let pushed = self.remote.push(&commit)?;
         pushed
             .status
