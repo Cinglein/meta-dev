@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use strum::{Display, EnumIter};
+use strum::{Display, EnumIter, EnumString};
 
 use crate::task::clippy::Clippy;
 use crate::task::failure::Failure;
@@ -13,7 +13,7 @@ use task::Workspace;
 use task::{CargoArgument, Program};
 use test_time::TestTime;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumIter)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumIter, EnumString)]
 #[strum(serialize_all = "kebab-case")]
 pub enum CiStep {
     Fmt,

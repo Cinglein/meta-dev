@@ -11,18 +11,15 @@ pub struct OutsideConfig(Vec<PathBuf>);
 impl OutsideConfig {
     const NESTED: [&str; 2] = [".cargo/config.toml", ".cargo/config"];
     const HOME: [&str; 2] = ["config.toml", "config"];
+    const TOOLS: [&str; 4] = ["clippy.toml", ".clippy.toml", "rustfmt.toml", ".rustfmt.toml"];
 
-    pub fn around(place: &Path, cargo_home: &Path) -> OutsideConfig {
-        let ancestors = place.ancestors().skip(1).flat_map(|directory| Self::NESTED.map(|file| directory.join(file)));
-        let home = Self::HOME.map(|file| cargo_home.join(file));
-        OutsideConfig(
-            ancestors
-                .chain(home)
-                .filter(|file| {
-                    fs::read_to_string(file).is_ok_and(|text| text.parse().ok() != Some(ConfigEffect::Neutral))
-                })
-                .collect(),
-        )
+    pub fn around(above: &Path, cargo_home: &Path) -> OutsideConfig {
+        let nested = above.ancestors().flat_map(|directory| Self::NESTED.map(|file| directory.join(file)));
+        let configs = nested
+            .chain(Self::HOME.map(|file| cargo_home.join(file)))
+            .filter(|file| fs::read_to_string(file).is_ok_and(|text| text.parse().ok() != Some(ConfigEffect::Neutral)));
+        let tools = above.ancestors().flat_map(|directory| Self::TOOLS.map(|file| directory.join(file)));
+        OutsideConfig(configs.chain(tools.filter(|file| file.is_dir())).collect())
     }
 
     pub fn refused(self) -> Result<(), Failure> {
@@ -32,7 +29,7 @@ impl OutsideConfig {
 
 impl fmt::Display for OutsideConfig {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "gate refused: cargo config outside the commit changes the build:")?;
+        write!(formatter, "gate refused: config outside the commit changes the build:")?;
         self.0.iter().try_for_each(|file| write!(formatter, " {}", file.display()))
     }
 }
@@ -47,17 +44,27 @@ mod tests {
     const CONFIG: &str = ".cargo/config.toml";
     const CAPPED: &str = "[env]\nRUSTFLAGS = \"--cap-lints=allow\"\n";
     const ALIASED: &str = "[alias]\nxtask = \"run --package xtask --\"\n";
-    const PLACE: &str = "checkout";
     const HOME: &str = "cargo-home";
+    const RUSTFMT: &str = "rustfmt.toml";
+    const FORMATTED: &str = "max_width = 200\n";
 
     #[test]
     fn an_ancestor_or_cargo_home_config_that_changes_the_build_refuses_the_gate() {
         let fixture = Fixture::new();
-        let around = || OutsideConfig::around(&fixture.beside().join(PLACE), &fixture.path(HOME));
+        let around = || OutsideConfig::around(&fixture.beside(), &fixture.path(HOME));
         fs::create_dir_all(fixture.path(HOME)).unwrap();
         fs::write(fixture.path(HOME).join("config.toml"), ALIASED).unwrap();
         assert!(around().refused().is_ok());
         fixture.write(&format!("../{CONFIG}"), CAPPED);
         assert!(around().refused().is_err_and(|failure| failure.to_string().contains(CONFIG)));
+    }
+
+    #[test]
+    fn a_clippy_or_rustfmt_config_above_the_checkout_refuses_the_gate() {
+        let fixture = Fixture::new();
+        let around = || OutsideConfig::around(&fixture.beside(), &fixture.path(HOME));
+        assert!(around().refused().is_ok());
+        fixture.write(&format!("../{RUSTFMT}"), FORMATTED);
+        assert!(around().refused().is_err_and(|failure| failure.to_string().contains(RUSTFMT)));
     }
 }

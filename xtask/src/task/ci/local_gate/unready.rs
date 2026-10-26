@@ -10,4 +10,6 @@ pub enum Unready {
     Tampered,
     #[error("no meta-dev rev")]
     Unversioned,
+    #[error("the gate did not record every step as passed")]
+    Incomplete,
 }

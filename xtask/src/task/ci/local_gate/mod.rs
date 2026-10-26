@@ -5,6 +5,7 @@ mod gate_lock;
 mod gate_state;
 mod meta_rev;
 mod outside_config;
+mod passed_steps;
 mod posting;
 mod recorded_times;
 mod status_argument;
@@ -21,6 +22,7 @@ use config_effect::ConfigEffect;
 use gate_lock::GateLock;
 use gate_state::GateState;
 use meta_rev::MetaRev;
+use passed_steps::PassedSteps;
 use recorded_times::RecordedTimes;
 use worktrees::Worktrees;
 
@@ -90,7 +92,7 @@ impl LocalGate {
             .map(PathBuf::from)
             .or_else(|| env::home_dir().map(|home| home.join(Self::DOT_CARGO)))
             .unwrap_or_default();
-        OutsideConfig::around(&checkout.root(), &cargo_home).refused()?;
+        OutsideConfig::around(checkout.above().unwrap_or(&parent), &cargo_home).refused()?;
         let outcome = CommandLine::new(Program::Cargo)
             .in_directory(checkout.root())
             .arguments(Self::GATE)
@@ -110,8 +112,11 @@ impl LocalGate {
         outcome: Result<(), task::Failure>,
         surfaces: &Changed,
     ) -> Result<(), Failure> {
-        let state = outcome.as_ref().map_or(GateState::Failure, |()| GateState::Success);
-        self.post(checkout, state, surfaces).and(outcome.map_err(Failure::from))
+        let recorded = outcome.map_err(Failure::from).and_then(|()| {
+            checkout.times().passed()?.whole().then_some(()).ok_or(Failure::Unready(Unready::Incomplete))
+        });
+        let state = recorded.as_ref().map_or(GateState::Failure, |()| GateState::Success);
+        self.post(checkout, state, surfaces).and(recorded)
     }
 
     fn post(&self, checkout: &Checkout, state: GateState, surfaces: &Changed) -> Result<(), Failure> {
@@ -142,9 +147,11 @@ mod tests {
     use std::path::PathBuf;
 
     use settings::EmbeddedDefaults;
+    use strum::IntoEnumIterator;
     use task::{CommandLine, Policy, Program};
 
     use super::{LocalGate, Unready};
+    use crate::task::ci::CiStep;
     use crate::task::failure::Failure;
     use crate::task::fixture::Fixture;
     use crate::task::surfaces::Changed;
@@ -160,8 +167,15 @@ mod tests {
     const RECORDED: &str = ".git/fake-gh.args";
     const SCRIPT: &str = "printf '%s\\n' \"$@\" > \"$0.args\"\n";
     const TIMED: &str = "fmt 1.0s";
-    const POSTED: &str = "-f\nstate=success\n-f\ncontext=local-gate/consumer\n-f\ndescription=meta-dev local: fmt 1.0s; surfaces changed\n";
+    const POSTED: &str =
+        "-f\nstate=success\n-f\ncontext=local-gate/consumer\n-f\ndescription=meta-dev local: fmt 1.0s,";
     const FAILED: &str = "state=failure";
+
+    impl CiStep {
+        fn every_step_passed() -> String {
+            CiStep::iter().map(|step| format!("{step} 1.0s")).collect::<Vec<String>>().join(", ")
+        }
+    }
 
     impl LocalGate {
         fn faked(fixture: &Fixture) -> LocalGate {
@@ -193,14 +207,17 @@ mod tests {
         let fixture = Fixture::new();
         let gate = LocalGate::faked(&fixture);
         let checkout = gate.checkout(&fixture.beside()).unwrap();
-        fs::write(checkout.times().path(), TIMED).unwrap();
+        fs::write(checkout.times().path(), CiStep::every_step_passed()).unwrap();
         fixture.write(SOURCE, BETA).branch();
         let surfaces = Changed::new(vec![PathBuf::from(IGNORE)]);
+        let recorded = || fs::read_to_string(fixture.path(RECORDED)).unwrap_or_default();
         gate.concluded(&checkout, Ok(()), &surfaces).unwrap();
-        let recorded = fs::read_to_string(fixture.path(RECORDED)).unwrap_or_default();
-        assert!(recorded.ends_with(&format!("/statuses/{}\n{POSTED}", checkout.commit())));
+        assert!(recorded().contains(&format!("/statuses/{}\n{POSTED}", checkout.commit())));
         let failed = gate.concluded(&checkout, Err(task::Failure::NoWorkspace), &surfaces);
-        assert!(failed.is_err() && fs::read_to_string(fixture.path(RECORDED)).unwrap_or_default().contains(FAILED));
+        assert!(failed.is_err() && recorded().contains(FAILED));
+        fs::write(checkout.times().path(), TIMED).unwrap();
+        let partial = gate.concluded(&checkout, Ok(()), &surfaces);
+        assert!(LocalGate::refused(partial, Unready::Incomplete) && recorded().contains(FAILED));
     }
 
     #[test]

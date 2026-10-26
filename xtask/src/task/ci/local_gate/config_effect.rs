@@ -1,3 +1,5 @@
+use std::ffi::OsStr;
+use std::path::Path;
 use std::str::FromStr;
 
 use toml::{Table, Value};
@@ -9,11 +11,11 @@ pub enum ConfigEffect {
 }
 
 impl ConfigEffect {
-    const ENV: &str = "env";
+    const NEUTRAL_TABLES: [&str; 5] = ["alias", "net", "http", "registries", "term"];
     const BUILD: &str = "build";
-    const TARGET: &str = "target";
-    const RUSTFLAGS: &str = "rustflags";
-    const BUILD_KEYS: [&str; 4] = ["rustflags", "rustdocflags", "target-dir", "build-dir"];
+    const JOBS: &str = "jobs";
+    const WRAPPER: &str = "rustc-wrapper";
+    const SCCACHE: &str = "sccache";
 }
 
 impl FromStr for ConfigEffect {
@@ -21,20 +23,19 @@ impl FromStr for ConfigEffect {
 
     fn from_str(text: &str) -> Result<ConfigEffect, toml::de::Error> {
         let table: Table = text.parse()?;
-        let build = table.get(Self::BUILD).and_then(Value::as_table);
-        let targets = table.get(Self::TARGET).and_then(Value::as_table);
-        Ok(
-            if table.contains_key(Self::ENV)
-                || build.is_some_and(|build| Self::BUILD_KEYS.iter().any(|key| build.contains_key(*key)))
-                || targets.is_some_and(|targets| {
-                    targets.values().filter_map(Value::as_table).any(|target| target.contains_key(Self::RUSTFLAGS))
-                })
-            {
-                ConfigEffect::Overriding
-            } else {
-                ConfigEffect::Neutral
-            },
-        )
+        let sccache = |wrapper: &str| Path::new(wrapper).file_name() == Some(OsStr::new(Self::SCCACHE));
+        let neutral_build = |build: &Table| {
+            build.iter().all(|(key, value)| {
+                key == Self::JOBS
+                    || (key == Self::WRAPPER
+                        && value.as_str().is_some_and(|wrapper| sccache(wrapper) || !wrapper.is_empty()))
+            })
+        };
+        let neutral = |(key, value): (&String, &Value)| {
+            Self::NEUTRAL_TABLES.contains(&key.as_str())
+                || (key != Self::BUILD || value.as_table().is_some_and(neutral_build))
+        };
+        Ok(if table.iter().all(neutral) { ConfigEffect::Neutral } else { ConfigEffect::Overriding })
     }
 }
 
@@ -42,16 +43,22 @@ impl FromStr for ConfigEffect {
 mod tests {
     use super::ConfigEffect;
 
-    const OVERRIDING: [&str; 3] = [
+    const OVERRIDING: [&str; 6] = [
+        "[target.aarch64-apple-darwin]\nrunner = \"true\"\n",
+        "[profile.dev]\ndebug-assertions = false\n",
+        "[build]\nrustc-wrapper = \"/tmp/wrap.sh\"\n",
         "[env]\nRUSTFLAGS = \"--cap-lints=allow\"\n",
-        "[build]\nrustflags = [\"--cap-lints=allow\"]\n",
-        "[target.aarch64-apple-darwin]\nrustflags = [\"--cap-lints=allow\"]\n",
+        "[build]\njobs = 2\nrustflags = [\"--cap-lints=allow\"]\n",
+        "[build]\nrustc-wrapper = \"/tmp/sccache-not\"\n",
     ];
-    const NEUTRAL: &str = "[alias]\nxtask = \"run --package xtask --\"\n[target.x]\nlinker = \"cc\"\n";
+    const NEUTRAL: [&str; 2] = [
+        "[alias]\nxtask = \"run --package xtask --\"\n[net]\nretry = 3\n[term]\nverbose = false\n",
+        "[build]\njobs = 4\nrustc-wrapper = \"/opt/homebrew/bin/sccache\"\n[http]\ntimeout = 30\n[registries]\n",
+    ];
 
     #[test]
-    fn env_build_flags_and_target_flags_override_the_build_and_an_alias_does_not() {
+    fn only_listed_keys_and_an_sccache_wrapper_leave_the_build_alone() {
         assert!(OVERRIDING.iter().all(|text| text.parse::<ConfigEffect>().ok() == Some(ConfigEffect::Overriding)));
-        assert_eq!(NEUTRAL.parse::<ConfigEffect>().ok(), Some(ConfigEffect::Neutral));
+        assert!(NEUTRAL.iter().all(|text| text.parse::<ConfigEffect>().ok() == Some(ConfigEffect::Neutral)));
     }
 }

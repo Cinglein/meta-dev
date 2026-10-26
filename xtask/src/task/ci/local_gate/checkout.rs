@@ -65,6 +65,10 @@ impl Checkout {
         Ok(parent)
     }
 
+    pub fn above(&self) -> Option<&Path> {
+        self.place.parent()
+    }
+
     pub fn root(&self) -> PathBuf {
         self.place.join(&self.scope)
     }
