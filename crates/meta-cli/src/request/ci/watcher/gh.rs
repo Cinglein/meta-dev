@@ -7,6 +7,7 @@ use std::ffi::OsString;
 use std::os::unix::process::CommandExt as _;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::mpsc::RecvTimeoutError;
 use std::time::Instant;
 
 use crate::request::ci::ci_status::CiStatus;
@@ -51,12 +52,11 @@ impl Gh {
         Ok(Observation::new(reported.iter().flat_map(GhJobs::failed_steps).collect(), failed_job, status))
     }
 
-    pub fn failed_logs(&self, commit: &Commit) -> RawLog {
-        let logs: Vec<String> = self
-            .runs(commit)
-            .unwrap_or_default()
+    pub fn failed_logs(&self, commits: &[Commit]) -> RawLog {
+        let logs: Vec<String> = commits
             .iter()
-            .filter_map(|run| self.jobs(run).ok())
+            .flat_map(|commit| self.runs(commit).unwrap_or_default())
+            .filter_map(|run| self.jobs(&run).ok())
             .flat_map(|jobs| jobs.failed_job_ids())
             .filter_map(|job| {
                 let words = [Self::RUN, Self::VIEW, Self::JOB].map(OsString::from).into_iter().chain([job]);
@@ -88,15 +88,13 @@ impl Gh {
             .spawn()
             .map_err(Listed::new)?;
         let group = ProcessGroup::led_by(&child);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        std::thread::spawn(move || sender.send(child.wait_with_output()).ok());
-        let output = receiver
-            .recv_timeout(self.deadline.saturating_duration_since(Instant::now()))
-            .map_err(|_| {
-                group.kill();
-                Listed::new("timed out")
-            })?
-            .map_err(Listed::new)?;
+        let (done, finished) = std::sync::mpsc::channel::<()>();
+        let left = self.deadline.saturating_duration_since(Instant::now());
+        std::thread::spawn(move || {
+            (finished.recv_timeout(left) == Err(RecvTimeoutError::Timeout)).then(|| group.kill())
+        });
+        let output = child.wait_with_output().map_err(Listed::new)?;
+        done.send(()).ok();
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).into_owned())
         } else {

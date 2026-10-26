@@ -1,6 +1,7 @@
-use super::{BLOCK, COMMIT, FAILURE, Git, NEXT_COMMIT, PASSED_EVENT, POST, Planted, Repo, STOP, SUCCESS};
+use super::{BLOCK, COMMIT, FAILURE, Git, NEXT_COMMIT, POST, PRE, PUSH_WORDS, Planted, Repo, STOP, SUCCESS};
 
 const STACK_PUSH: &str = "gh stack push";
+const STATUS: &str = "git status";
 const ELSEWHERE: [&str; 4] = ["push", "-q", "origin", "HEAD:elsewhere"];
 const DETACH: [&str; 3] = ["checkout", "-q", "--detach"];
 const BACK: [&str; 3] = ["checkout", "-q", "feature"];
@@ -10,8 +11,13 @@ const SESSION_DIR: &str = ".git/meta-ci/ABCDEF1234";
 const PASSED: &str = "passed";
 
 #[test]
-fn pushes_to_other_names_rejected_pushes_and_unwritable_state_block_stop() {
+fn stop_judges_every_recorded_push_and_a_dead_watcher_restarts() {
     let repo = Repo::new(FAILURE);
+    Planted::running(&repo);
+    Git::run(repo.clone.path(), &PUSH_WORDS);
+    repo.hook(PRE, STATUS);
+    repo.hook(POST, STATUS);
+    let quiet = repo.hook(STOP, STATUS);
     Git::run(repo.clone.path(), &ELSEWHERE);
     repo.hook(POST, STACK_PUSH);
     Git::run(repo.clone.path(), &DETACH);
@@ -25,15 +31,18 @@ fn pushes_to_other_names_rejected_pushes_and_unwritable_state_block_stop() {
     let unwritable = repo.hook(STOP, COMMIT);
     std::fs::set_permissions(repo.clone.path().join(SESSION_DIR), open).unwrap();
     repo.settled();
-    assert!(detached.contains(BLOCK) && rejected.contains(NOT_PUSHED) && unwritable.contains(UNWRITABLE));
+    assert!(
+        !quiet.contains(BLOCK)
+            && detached.contains(BLOCK)
+            && rejected.contains(NOT_PUSHED)
+            && unwritable.contains(UNWRITABLE)
+    );
 }
 
 #[test]
-fn a_dead_watcher_restarts_and_one_commit_gets_one_watcher() {
-    let [dead, twinned] = [SUCCESS, SUCCESS].map(Repo::new);
-    Planted::running(&dead);
-    dead.hook(POST, COMMIT);
-    let twins = [Planted::twin(&twinned), Planted::twin(&twinned)].map(|child| child.wait_with_output().unwrap());
+fn one_commit_gets_one_watcher() {
+    let repo = Repo::new(SUCCESS);
+    let twins = [Planted::twin(&repo), Planted::twin(&repo)].map(|child| child.wait_with_output().unwrap());
     let passes = twins.iter().filter(|twin| String::from_utf8_lossy(&twin.stdout).contains(PASSED)).count();
-    assert!(dead.settled().contains(PASSED_EVENT) && passes == 1);
+    assert_eq!(passes, 1);
 }

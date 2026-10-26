@@ -84,9 +84,8 @@ impl Watcher {
             .iter()
             .find(|(_, status)| status.is_none())
             .map(|(commit, _)| Listed::new(format!("CI not watched for {commit}: push again to watch it")));
-        let known = statuses.iter().filter_map(|(_, status)| *status);
-        let failed = known.clone().find(|status| *status == CiStatus::Failed).and_then(CiStatus::stop_reason);
-        unwritable.or(unpushed).or(failed).or(unwatched).or(known.clone().find_map(CiStatus::stop_reason))
+        let known = statuses.iter().find_map(|(_, status)| status.and_then(CiStatus::stop_reason));
+        unwritable.or(unpushed).or(unwatched).or(known)
     }
 
     pub fn watch(project: &Project, session: &SessionId, commit: Commit) -> Result<Output, CliFailure> {
