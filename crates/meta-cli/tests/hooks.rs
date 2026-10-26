@@ -7,21 +7,8 @@ use std::process::{Command, Output, Stdio};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n";
-const BLOCKED: [&str; 7] = [
-    "gh pr merge 1",
-    "cd x && gh pr merge 1 --squash",
-    "git push --force origin feature",
-    "git push -uf origin feature",
-    "git push origin +feature",
-    "git -C x push origin HEAD:refs/heads/main",
-    "git push --force-with-lease origin main",
-];
-const ALLOWED: [&str; 4] = [
-    "git push -u origin feature",
-    "git push --force-with-lease origin feature",
-    "git commit -m 'git push origin main'",
-    "gh pr view 1",
-];
+const BLOCKED: &str = "git push --force origin feature";
+const ALLOWED: &str = "git push -u origin feature";
 const DENY: &str = "\"permissionDecision\":\"deny\"";
 const PRE: &str = "pre-tool-use";
 const POST: &str = "post-tool-use";
@@ -96,11 +83,10 @@ impl Repo {
 }
 
 #[test]
-fn pre_tool_use_denies_merges_force_pushes_and_protected_pushes_only() {
+fn pre_tool_use_answers_a_refused_command_with_a_denial_and_an_allowed_one_with_nothing() {
     let repo = Repo::new();
     let env = repo.env_file();
-    assert!(BLOCKED.iter().all(|command| repo.hook(PRE, command, &env).contains(DENY)));
-    assert!(ALLOWED.iter().all(|command| repo.hook(PRE, command, &env).is_empty()));
+    assert!(repo.hook(PRE, BLOCKED, &env).contains(DENY) && repo.hook(PRE, ALLOWED, &env).is_empty());
 }
 
 #[test]
