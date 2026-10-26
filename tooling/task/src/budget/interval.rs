@@ -11,10 +11,9 @@ pub enum Interval {
     Total,
     SampleEvery,
     DiscoverEvery,
-    PerShard,
     PerCrate,
-    PerSlice,
     TestTimeout,
+    FullJob,
     DiffJob,
 }
 

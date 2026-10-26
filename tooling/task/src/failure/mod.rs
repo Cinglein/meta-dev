@@ -39,6 +39,10 @@ pub enum Failure {
     MutantList(serde_json::Error),
     #[error("refused: {0}")]
     Refused(String),
+    #[error(
+        "underpriced in [mutant_millis]: {0}; regenerate it with mutant-costs over recent CI mutants artifacts"
+    )]
+    Underpriced(String),
     #[error("refused: another mutants run holds {}", .0.display())]
     LockHeld(PathBuf),
     #[error("refused: {0} is already running")]

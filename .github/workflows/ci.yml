@@ -89,6 +89,27 @@ jobs:
       - run: cargo xtask mutants
         env:
           CARGO_INCREMENTAL: 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutants-${{ strategy.job-index }}
+          path: target/mutants
+          retention-days: 30
+
+  mutant-costs:
+    needs: [mutants-plan, mutants]
+    if: ${{ !cancelled() && needs.mutants-plan.outputs.shards != '[]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mutants-*
+          path: target/measured
+      - run: cargo xtask mutant-costs target/measured | tee -a "$GITHUB_STEP_SUMMARY"
+        shell: bash
 
   ci-gate:
     needs: [ci, stacked, mutants-plan, mutants]

@@ -1,31 +1,36 @@
 mod bin;
 
 use std::cmp::Reverse;
-use std::num::NonZeroUsize;
 
 use bin::Bin;
 
 use crate::crate_load::CrateLoad;
 use task::Millis;
+use task::{Interval, Policy, Share};
 use task::{Shard, Slice, SliceCount};
 
 #[derive(Debug)]
 pub struct Packing;
 
 impl Packing {
-    pub fn shards(loads: &[CrateLoad], target: Millis) -> Vec<Shard> {
-        let slice_count = |load: &CrateLoad| load.cost().div_ceil(target);
-        let slices = loads
+    #[must_use]
+    pub fn target(policy: &Policy, job: Interval) -> Millis {
+        policy
+            .share(Share::ShardHeadroom)
+            .applied_to(policy.interval(job))
+    }
+
+    pub fn shards(loads: &[CrateLoad], policy: &Policy, job: Interval) -> Vec<Shard> {
+        let target = Self::target(policy, job);
+        let slices = loads.iter().flat_map(|load| {
+            load.slices(target)
+                .into_iter()
+                .flat_map(move |count| Self::slices(load, count))
+        });
+        let mut whole: Vec<&CrateLoad> = loads
             .iter()
-            .filter(|load| slice_count(load) > 1)
-            .flat_map(|load| {
-                NonZeroUsize::new(slice_count(load))
-                    .map(SliceCount::from)
-                    .into_iter()
-                    .flat_map(move |count| Self::slices(load, count))
-            });
-        let mut whole: Vec<&CrateLoad> =
-            loads.iter().filter(|load| slice_count(load) <= 1).collect();
+            .filter(|load| load.slices(target).is_none())
+            .collect();
         whole.sort_by_key(|load| Reverse(load.cost()));
         let bins = whole.into_iter().fold(Vec::<Bin>::new(), |mut bins, load| {
             if let Some(bin) = bins.last_mut().filter(|bin| bin.fits(load.cost(), target)) {
@@ -57,12 +62,13 @@ mod tests {
     const PR_SEVEN_CRATE: &str = "meta-cli";
     const PR_SEVEN_SECONDS_PER_MUTANT_ON_CI: f64 = 5.4;
     const LOADS: [(&str, usize, Interval); 4] = [
-        ("a", 1, Interval::PerShard),
-        ("b", 1, Interval::PerSlice),
+        ("a", 2, Interval::FullJob),
+        ("b", 1, Interval::DiffJob),
         ("c", 1, Interval::SampleEvery),
         ("d", 2, Interval::TestTimeout),
     ];
     const SHARDS: [&str; 4] = ["a/0/2", "a/1/2", "b", "c+d"];
+    const OVERHEAD_PRICED: (usize, usize) = (27, 3);
 
     #[test]
     fn crates_costlier_than_a_shard_are_sliced_and_the_rest_are_packed_largest_first() {
@@ -75,11 +81,30 @@ mod tests {
                 &policy,
             )
         });
-        let shards: Vec<String> = Packing::shards(&loads, policy.interval(Interval::PerShard))
+        let shards: Vec<String> = Packing::shards(&loads, &policy, Interval::FullJob)
             .iter()
             .map(ToString::to_string)
             .collect();
         assert_eq!(shards, SHARDS);
+    }
+
+    #[test]
+    fn every_slice_pays_the_crate_overhead_and_still_fits_the_target() {
+        let policy = Policy::defaults();
+        let (mutants, slices) = OVERHEAD_PRICED;
+        let each = policy.interval(Interval::PerCrate);
+        let load = CrateLoad::new(
+            PR_SEVEN_CRATE.parse().unwrap(),
+            MutantCount::from(mutants),
+            each,
+            &policy,
+        );
+        let shards = Packing::shards(&[load], &policy, Interval::DiffJob);
+        assert_eq!(shards.len(), slices);
+        assert!(
+            each.plus(each.times(mutants.div_ceil(slices)))
+                <= Packing::target(&policy, Interval::DiffJob)
+        );
     }
 
     #[test]
@@ -88,17 +113,14 @@ mod tests {
         let measured = Duration::from_secs_f64(PR_SEVEN_SECONDS_PER_MUTANT_ON_CI).as_millis();
         let measured = Millis::new(u64::try_from(measured).unwrap());
         let job = policy.interval(Interval::DiffJob);
-        let mutants = job.div_ceil(measured);
+        let mutants = job.times_fitting(measured) + 1;
         let name: CrateName = PR_SEVEN_CRATE.parse().unwrap();
         let price = policy.mutant_millis().for_crate(&name);
         let load = CrateLoad::new(name, MutantCount::from(mutants), price, &policy);
-        let shards = Packing::shards(&[load], policy.interval(Interval::PerSlice)).len();
+        let shards = Packing::shards(&[load], &policy, Interval::DiffJob).len();
         let spent = policy
             .interval(Interval::PerCrate)
             .plus(measured.times(mutants.div_ceil(shards)));
-        assert!(
-            spent <= job,
-            "{mutants} mutants in {shards} shards: {spent} ms each"
-        );
+        assert!(spent <= job);
     }
 }
