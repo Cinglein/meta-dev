@@ -17,10 +17,6 @@ impl ImplKind {
         }
     }
 
-    pub fn forbids_mutation(&self) -> bool {
-        matches!(self, ImplKind::InherentOnVertex)
-    }
-
     pub fn edge_source(
         &self,
         self_type: &TypeName,

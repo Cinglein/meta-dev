@@ -17,10 +17,12 @@ pub struct EnumPredicates {
 impl EnumPredicates {
     #[must_use]
     pub fn report(files: &[SourceFile]) -> Report {
-        let mut predicates = EnumPredicates::default();
-        files
+        let predicates = files
             .iter()
-            .for_each(|file| predicates.visit_file(file.syntax()));
+            .fold(EnumPredicates::default(), |mut predicates, file| {
+                predicates.visit_file(file.syntax());
+                predicates
+            });
         Report::new(
             "an enum method returning bool throws away the variant; return an enum or match where the answer is used",
             files

@@ -24,20 +24,17 @@ impl MethodShape {
             Expr::Field(field) if matches!(&*field.base, Expr::Path(base) if base.path.is_ident("self")) => {
                 MethodShape::Accessor
             }
-            Expr::Struct(literal) if Self::builds(literal, self_name) => MethodShape::Constructor,
+            Expr::Struct(literal) => Self::of_literal(literal, self_name),
             _ => MethodShape::Logic,
         }
     }
 
-    pub fn is_trivial(self) -> bool {
-        self != MethodShape::Logic
-    }
-
-    fn builds(literal: &ExprStruct, self_name: &Name) -> bool {
-        literal
-            .path
-            .segments
-            .last()
-            .is_some_and(|segment| segment.ident == Self::SELF || *self_name == segment.ident)
+    fn of_literal(literal: &ExprStruct, self_name: &Name) -> MethodShape {
+        match literal.path.segments.last() {
+            Some(segment) if segment.ident == Self::SELF || *self_name == segment.ident => {
+                MethodShape::Constructor
+            }
+            _ => MethodShape::Logic,
+        }
     }
 }

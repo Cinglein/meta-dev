@@ -12,8 +12,8 @@ use syn::{ImplItem, ImplItemFn, ItemImpl, Receiver};
 
 use super::declarations::Declarations;
 use super::finding::Finding;
-use super::function_shape::FunctionShape;
-use super::impl_context::ImplContext;
+use super::function_shape::{Body, FunctionShape, Returns};
+use super::impl_context::{ImplContext, ImplKind};
 use task::Name;
 use task::Site;
 use task::SourceFile;
@@ -93,9 +93,7 @@ impl<'scan> EdgeScan<'scan> {
     fn check_function(&mut self, context: &ImplContext, function: &ImplItemFn) {
         let shape = FunctionShape::describe(&self.path, function, context, self.declarations);
         self.violations.extend(
-            shape
-                .returns()
-                .holds_vertex_in_tuple()
+            matches!(shape.returns(), Returns::TupleHoldingVertex)
                 .then(|| Violation::new(shape.site().clone(), Finding::TupleHoldsVertex)),
         );
         let receiver = function.sig.receiver();
@@ -163,7 +161,7 @@ impl<'scan> EdgeScan<'scan> {
         shape: &FunctionShape,
     ) -> Option<Violation> {
         if receiver.mutability.is_some() {
-            context.kind().forbids_mutation().then(|| {
+            matches!(context.kind(), ImplKind::InherentOnVertex).then(|| {
                 Violation::new(
                     shape.site().clone(),
                     Finding::MutatesVertex {
@@ -175,7 +173,7 @@ impl<'scan> EdgeScan<'scan> {
             shape
                 .returns()
                 .vertex()
-                .filter(|_| !shape.body().projects_field())
+                .filter(|_| shape.body() != Body::FieldProjection)
                 .map(|target| {
                     Violation::new(
                         shape.site().clone(),
