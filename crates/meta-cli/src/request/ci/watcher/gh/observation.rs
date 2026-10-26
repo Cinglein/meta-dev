@@ -25,11 +25,7 @@ impl Observation {
         self.status.and_then(CiStatus::finished)
     }
 
-    pub fn absent(&self) -> Option<&Self> {
-        self.status.is_none().then_some(self)
-    }
-
-    pub fn settled(&self) -> CiStatus {
-        self.status.unwrap_or(CiStatus::Absent)
+    pub fn appeared(&self) -> Option<&Self> {
+        self.status.map(|_| self)
     }
 }

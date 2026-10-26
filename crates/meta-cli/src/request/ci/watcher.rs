@@ -28,6 +28,9 @@ pub struct Watcher {
 }
 
 impl Watcher {
+    const NO_RUN_YET: &'static str = "no run yet; Stop passes until one appears";
+    const RUN_APPEARED: &'static str = "run appeared";
+
     pub fn spawn(project: &Project, session: &SessionId, commit: &Commit) -> Option<()> {
         SessionDir::for_session(project, session)?.watch(commit).ok()?;
         Command::new(std::env::current_exe().ok()?)
@@ -73,7 +76,7 @@ impl Watcher {
         settled.map_or_else(
             || Ok(Output::Listed(Listed::new(format!("{news}\nCI still running; stopped waiting")))),
             |status| {
-                if status == CiStatus::Failed {
+                if matches!(status, CiStatus::Failed | CiStatus::Unavailable) {
                     Err(CliFailure::raised::<Invalid>(&news))
                 } else {
                     Ok(Output::Listed(Listed::new(format!("{news}\n"))))
@@ -82,41 +85,57 @@ impl Watcher {
         )
     }
 
-    fn step(&self, reported: Option<Listed>, observed: Observation) -> ControlFlow<Observation, Option<Listed>> {
-        let carried = reported.or_else(|| {
-            observed
-                .failed_job()
-                .inspect(|job| {
-                    self.note(&format!("{job} failed after {}; run `meta ci-log`", self.elapsed()), CiStatus::Failed);
-                })
-                .map(Listed::new)
-        });
-        let overdue = self.settings.run_overdue(self.started.elapsed()).and_then(|()| observed.absent());
-        match observed.finished().map(|_| ()).or(overdue.map(|_| ())) {
-            Some(()) => ControlFlow::Break(observed),
+    fn step(
+        &self,
+        reported: Option<Listed>,
+        observed: Result<Observation, Listed>,
+    ) -> ControlFlow<Observation, Option<Listed>> {
+        let carried = self.news(reported, &observed);
+        match observed.ok().filter(|observed| observed.finished().is_some()) {
+            Some(observed) => ControlFlow::Break(observed),
             None => ControlFlow::Continue(carried),
         }
     }
 
+    fn news(&self, reported: Option<Listed>, observed: &Result<Observation, Listed>) -> Option<Listed> {
+        let overdue = self.settings.run_overdue(self.started.elapsed());
+        let absent = self.dir.status().filter(|status| *status == CiStatus::Absent);
+        let event = match observed {
+            Err(trouble) => Some((format!("gh failed: {trouble}"), CiStatus::Running)),
+            Ok(observed) => observed
+                .failed_job()
+                .map(|job| (format!("{job} failed; run `meta ci-log`"), CiStatus::Failed))
+                .or(overdue
+                    .filter(|()| observed.appeared().is_none())
+                    .map(|()| (Self::NO_RUN_YET.to_owned(), CiStatus::Absent)))
+                .or(observed.appeared().and(absent).map(|_| (Self::RUN_APPEARED.to_owned(), CiStatus::Running))),
+        };
+        match event {
+            Some((line, status)) if reported.as_ref().map(ToString::to_string).as_ref() != Some(&line) => {
+                self.note(&line, status);
+                Some(Listed::new(line))
+            }
+            Some(_) | None => reported,
+        }
+    }
+
     fn conclude(&self, last: Option<&Observation>) -> Output {
-        let status = last.map_or(CiStatus::TimedOut, Observation::settled);
+        let absent = self.dir.status().filter(|status| *status == CiStatus::Absent);
+        let status = last.and_then(Observation::finished).or(absent).unwrap_or(CiStatus::TimedOut);
         let steps: Vec<String> =
             last.iter().flat_map(|observed| observed.failed_steps()).map(ToString::to_string).collect();
         let failed = Some(steps.join(", "))
             .filter(|joined| !joined.is_empty())
             .map(|joined| format!(": {joined}; run `meta ci-log`"));
+        let elapsed = Elapsed::new(self.started.elapsed());
         let detail = status.detail();
-        self.note(&format!("{status} after {}{detail}{}", self.elapsed(), failed.unwrap_or_default()), status);
+        self.note(&format!("{status} after {elapsed}{detail}{}", failed.unwrap_or_default()), status);
         Output::Listed(Listed::new(status))
     }
 
     fn note(&self, line: &str, status: CiStatus) {
         self.dir.record(format!("{self}: {line}")).ok();
         self.dir.settle(&self.commit, status).ok();
-    }
-
-    fn elapsed(&self) -> Elapsed {
-        Elapsed::new(self.started.elapsed())
     }
 }
 

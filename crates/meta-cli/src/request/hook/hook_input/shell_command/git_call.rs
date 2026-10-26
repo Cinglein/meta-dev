@@ -31,8 +31,7 @@ impl GitCall {
 
     fn protected(&self, args: &[String], config: &Config) -> Option<Listed> {
         let branch = Self::targets(args).find_map(|branch| config.protects(&branch).cloned())?;
-        let fix = branch.log().map_or("open a PR", |_| "only `meta` writes it");
-        Some(Listed::new(format!("{self}: {branch} is protected; {fix}")))
+        Some(Listed::new(format!("{self}: {branch} is protected; {}", config.push_fix(&branch))))
     }
 
     fn after_options(words: &[String]) -> &[String] {

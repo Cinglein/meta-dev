@@ -8,7 +8,6 @@ use serde::Deserialize;
 pub struct DatabaseId(u64);
 
 impl DatabaseId {
-    #[must_use]
     pub fn argument(self) -> OsString {
         OsString::from(self.to_string())
     }

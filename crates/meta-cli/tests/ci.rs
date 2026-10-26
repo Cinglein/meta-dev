@@ -8,8 +8,8 @@ use std::time::Duration;
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str =
-    "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\nappear_millis = 100\n";
-const PATIENT: &str = "timeout_millis = 200\n";
+    "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\nappear_millis = 60\n";
+const PATIENT: &str = "timeout_millis = 120\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 count="$FAKE_GH_DIR/count"
 n=$(cat "$count" 2>/dev/null || echo 0)
@@ -19,7 +19,7 @@ case "$1 $2" in
   n=$((n + 1)); echo "$n" > "$count"
   if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
   elif [ "$s" = none ] || [ "$4" != "$(git rev-parse HEAD)" ]; then echo '[]'
-  elif [ "$n" -lt 2 ] || { [ "$s" = late ] && [ "$n" -lt 12 ]; }; then echo '[]'
+  elif [ "$n" -lt 2 ] || { [ "$s" = late ] && [ "$n" -lt 8 ]; }; then echo '[]'
   elif [ "$s" = late ] || [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
   elif [ "$s" = success ] || [ "$s" = broken ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"success"}]'
   elif [ "$s" = mixed ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"failure"},{"databaseId":8,"status":"completed","conclusion":"failure"}]'
@@ -217,7 +217,7 @@ fn passing_or_unstarted_runs_let_the_agent_stop() {
 #[test]
 fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
     let repos = [NONE, LATE, BROKEN, MIXED].map(Repo::new);
-    repos.iter().for_each(|repo| drop(repo.hook(POST, COMMIT)));
+    let _: Vec<String> = repos.iter().map(|repo| repo.hook(POST, COMMIT)).collect();
     let [absent, late, broken, mixed] = repos.each_ref().map(Repo::settled);
     let [none, ..] = &repos;
     assert!(absent.contains(ABSENT) && !none.hook(STOP, COMMIT).contains(BLOCK));
