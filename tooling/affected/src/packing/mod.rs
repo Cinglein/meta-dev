@@ -17,7 +17,9 @@ impl Packing {
     pub fn target(policy: &Policy, job: Interval) -> Millis {
         policy
             .share(Share::ShardHeadroom)
-            .applied_to(policy.interval(job))
+            .portion_of(policy.interval(job))
+            .checked_minus(policy.interval(Interval::JobSetup))
+            .unwrap_or_default()
     }
 
     pub fn shards(loads: &[CrateLoad], policy: &Policy, job: Interval) -> Vec<Shard> {
@@ -69,7 +71,7 @@ mod tests {
         ("d", 2, Interval::TestTimeout),
     ];
     const SHARDS: [&str; 4] = ["a/0/2", "a/1/2", "b", "c+d"];
-    const OVERHEAD_PRICED: (usize, usize) = (27, 3);
+    const OVERHEAD_PRICED: (usize, usize) = (27, 4);
 
     #[test]
     fn crates_costlier_than_a_shard_are_sliced_and_the_rest_are_packed_largest_first() {
@@ -124,6 +126,6 @@ mod tests {
             .plus(policy.interval(Interval::PerCrate))
             .plus(measured.times(mutants.div_ceil(shards)));
         let headroom = policy.share(Share::ShardHeadroom);
-        assert!(spent <= headroom.applied_to::<Millis, Millis>(policy.interval(job)));
+        assert!(spent <= headroom.portion_of(policy.interval(job)));
     }
 }

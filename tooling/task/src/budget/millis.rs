@@ -9,8 +9,6 @@ use serde::{Deserialize, Serialize};
 pub struct Millis(u64);
 
 impl Millis {
-    const HALVING: u64 = 2;
-
     #[must_use]
     pub const fn new(millis: u64) -> Millis {
         Millis(millis)
@@ -52,21 +50,9 @@ impl Millis {
     }
 
     #[must_use]
-    pub const fn rounded_to(self, step: NonZeroU64) -> Millis {
+    pub const fn rounded_up_to(self, step: NonZeroU64) -> Millis {
         let step = step.get();
-        Millis((self.0 + step / Self::HALVING) / step * step)
-    }
-}
-
-impl From<Millis> for usize {
-    fn from(millis: Millis) -> usize {
-        usize::try_from(millis.0).unwrap_or(usize::MAX)
-    }
-}
-
-impl From<usize> for Millis {
-    fn from(millis: usize) -> Millis {
-        Millis(u64::try_from(millis).unwrap_or(u64::MAX))
+        Millis(self.0.div_ceil(step) * step)
     }
 }
 

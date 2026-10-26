@@ -48,7 +48,10 @@ impl Shard {
         });
         match self {
             Shard::Whole(_) => packaged,
-            Shard::Slice { slice, .. } => packaged.argument(MutantsArgument::Shard).argument(slice),
+            Shard::Slice { slice, .. } => packaged
+                .argument(MutantsArgument::Shard)
+                .argument(slice)
+                .argument(MutantsArgument::RoundRobin),
         }
     }
 }

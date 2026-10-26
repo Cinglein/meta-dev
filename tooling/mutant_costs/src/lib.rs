@@ -45,7 +45,7 @@ impl MutantCosts {
         let under: Vec<String> = self
             .prices
             .iter()
-            .filter(|(name, price)| price.rounded_to(Self::STEP) > table.for_crate(name))
+            .filter(|(name, price)| price.rounded_up_to(Self::STEP) > table.for_crate(name))
             .map(|(name, price)| format!("{name} {price} > {}", table.for_crate(name)))
             .collect();
         under.is_empty().then_some(()).ok_or_else(|| Failure::Underpriced(under.join(", ")))
@@ -82,12 +82,12 @@ impl fmt::Display for MutantCosts {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let costliest = self.prices.values().max().copied().unwrap_or_default();
         writeln!(formatter, "[mutant_millis]")?;
-        writeln!(formatter, "default = {}", costliest.rounded_to(Self::STEP))?;
+        writeln!(formatter, "default = {}", costliest.rounded_up_to(Self::STEP))?;
         writeln!(formatter)?;
         writeln!(formatter, "[mutant_millis.crates]")?;
         self.prices
             .iter()
-            .try_for_each(|(name, price)| writeln!(formatter, "{name} = {}", price.rounded_to(Self::STEP)))
+            .try_for_each(|(name, price)| writeln!(formatter, "{name} = {}", price.rounded_up_to(Self::STEP)))
     }
 }
 

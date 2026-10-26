@@ -54,6 +54,7 @@ jobs:
         with:
           tool: cargo-mutants
       - run: cargo xtask mutants-full
+        timeout-minutes: 7
         env:
           CARGO_INCREMENTAL: 1
       - uses: actions/upload-artifact@v4
@@ -79,7 +80,7 @@ jobs:
         shell: bash
 
   mutants-gate:
-    needs: [plan, full]
+    needs: [plan, full, mutant-costs]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:

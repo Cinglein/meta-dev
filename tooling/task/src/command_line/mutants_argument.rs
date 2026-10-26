@@ -11,6 +11,8 @@ pub enum MutantsArgument {
     Output,
     #[strum(serialize = "--shard")]
     Shard,
+    #[strum(serialize = "--sharding=round-robin")]
+    RoundRobin,
     #[strum(serialize = "--list")]
     List,
     #[strum(serialize = "--json")]

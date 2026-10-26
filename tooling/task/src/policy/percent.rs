@@ -1,5 +1,9 @@
+use std::num::NonZeroUsize;
+
 use derive_more::From;
 use serde::{Deserialize, Serialize};
+
+use crate::budget::Millis;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, From, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -21,6 +25,11 @@ impl Percent {
 
     pub fn applied_to<Whole: Into<usize>, Part: From<usize>>(self, whole: Whole) -> Part {
         Part::from(whole.into() * self.0 / Self::WHOLE)
+    }
+
+    #[must_use]
+    pub fn portion_of(self, whole: Millis) -> Millis {
+        NonZeroUsize::new(Self::WHOLE).map_or(whole, |all| whole.times(self.0).divided_by(all))
     }
 
     pub fn exceeds(self, ratio: f64) -> bool {
