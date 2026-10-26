@@ -3,6 +3,7 @@ use strum::{Display, EnumIter, EnumString, IntoStaticStr};
 use const_shape::ConstShape;
 use crate_graph::CrateGraph;
 use distinct_signatures::DistinctSignatures;
+use enum_predicates::EnumPredicates;
 use expression_flow::ExpressionFlow;
 use fn_shape::FnShape;
 use literal_names::LiteralNames;
@@ -24,7 +25,9 @@ use task::Policy;
 use task::Report;
 use task::SourceFile;
 use test_budget::TestBudget;
+use thin_main::ThinMain;
 use type_shape::TypeShape;
+use vec_out_params::VecOutParams;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Display, EnumIter, EnumString, IntoStaticStr)]
 #[strum(serialize_all = "kebab-case")]
@@ -33,6 +36,7 @@ pub enum LintName {
     ConstShape,
     CrateGraph,
     DistinctSignatures,
+    EnumPredicates,
     ExpressionFlow,
     FnShape,
     LiteralNames,
@@ -51,7 +55,9 @@ pub enum LintName {
     SettingsShape,
     StateGraph,
     TestBudget,
+    ThinMain,
     TypeShape,
+    VecOutParams,
 }
 
 impl LintName {
@@ -61,6 +67,7 @@ impl LintName {
             LintName::ConstShape => ConstShape::report(files, policy),
             LintName::CrateGraph => CrateGraph::report(files, policy),
             LintName::DistinctSignatures => DistinctSignatures::report(files),
+            LintName::EnumPredicates => EnumPredicates::report(files),
             LintName::ExpressionFlow => ExpressionFlow::report(files),
             LintName::FnShape => FnShape::report(files, policy),
             LintName::LiteralNames => LiteralNames::report(files, policy),
@@ -79,7 +86,9 @@ impl LintName {
             LintName::SettingsShape => SettingsShape::report(files),
             LintName::StateGraph => StateGraph::report(files, policy),
             LintName::TestBudget => TestBudget::report(files, policy),
+            LintName::ThinMain => ThinMain::report(files),
             LintName::TypeShape => TypeShape::report(files),
+            LintName::VecOutParams => VecOutParams::report(files),
         }
     }
 }

@@ -13,6 +13,7 @@ thiserror = "2"
 const_shape = { path = "../lints/const_shape" }
 crate_graph = { path = "../lints/crate_graph" }
 distinct_signatures = { path = "../lints/distinct_signatures" }
+enum_predicates = { path = "../lints/enum_predicates" }
 expression_flow = { path = "../lints/expression_flow" }
 fn_shape = { path = "../lints/fn_shape" }
 literal_names = { path = "../lints/literal_names" }
@@ -31,7 +32,9 @@ public_surface = { path = "../lints/public_surface" }
 settings_shape = { path = "../lints/settings_shape" }
 state_graph = { path = "../lints/state_graph" }
 test_budget = { path = "../lints/test_budget" }
+thin_main = { path = "../lints/thin_main" }
 type_shape = { path = "../lints/type_shape" }
+vec_out_params = { path = "../lints/vec_out_params" }
 
 [lints]
 workspace = true

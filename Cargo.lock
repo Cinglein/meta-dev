@@ -88,6 +88,7 @@ dependencies = [
  "const_shape",
  "crate_graph",
  "distinct_signatures",
+ "enum_predicates",
  "expression_flow",
  "fn_shape",
  "literal_names",
@@ -109,8 +110,10 @@ dependencies = [
  "strum",
  "task",
  "test_budget",
+ "thin_main",
  "thiserror",
  "type_shape",
+ "vec_out_params",
 ]
 
 [[package]]
@@ -184,6 +187,14 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
+]
+
+[[package]]
+name = "enum_predicates"
+version = "0.0.0"
+dependencies = [
+ "syn 2.0.119",
+ "task",
 ]
 
 [[package]]
@@ -880,6 +891,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "thin_main"
+version = "0.0.0"
+dependencies = [
+ "syn 2.0.119",
+ "task",
+]
+
+[[package]]
 name = "thiserror"
 version = "2.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1004,6 +1023,14 @@ name = "unicode-xid"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
+
+[[package]]
+name = "vec_out_params"
+version = "0.0.0"
+dependencies = [
+ "syn 2.0.119",
+ "task",
+]
 
 [[package]]
 name = "wasm-bindgen"

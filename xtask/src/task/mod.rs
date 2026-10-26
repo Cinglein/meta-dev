@@ -34,6 +34,7 @@ pub enum Task {
     ConstShape,
     CrateGraph,
     DistinctSignatures,
+    EnumPredicates,
     ExpressionFlow,
     FnShape,
     Graph,
@@ -56,7 +57,9 @@ pub enum Task {
     Surfaces,
     Test,
     TestBudget,
+    ThinMain,
     TypeShape,
+    VecOutParams,
 }
 
 impl Task {
