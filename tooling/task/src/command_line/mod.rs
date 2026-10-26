@@ -30,7 +30,7 @@ pub struct CommandLine {
     arguments: Vec<String>,
     directory: Option<PathBuf>,
     variables: BTreeMap<&'static str, OsString>,
-    inherited: Option<BTreeMap<&'static str, OsString>>,
+    inherited: Option<BTreeMap<String, OsString>>,
 }
 
 impl CommandLine {
@@ -46,12 +46,14 @@ impl CommandLine {
     }
 
     #[must_use]
-    pub fn inheriting_only(self, names: &[&'static str]) -> CommandLine {
+    pub fn inheriting_only(self, names: impl IntoIterator<Item = impl AsRef<str>>) -> CommandLine {
         CommandLine {
             inherited: Some(
                 names
-                    .iter()
-                    .filter_map(|name| env::var_os(name).map(|value| (*name, value)))
+                    .into_iter()
+                    .filter_map(|name| {
+                        env::var_os(name.as_ref()).map(|value| (name.as_ref().to_owned(), value))
+                    })
                     .collect(),
             ),
             ..self
@@ -197,7 +199,7 @@ mod tests {
         let shell = || CommandLine::new(Program::Executable(SHELL.into()));
         let shown = shell()
             .arguments(SHOW_TARGET)
-            .inheriting_only(&[INHERITED])
+            .inheriting_only([INHERITED])
             .environment(VARIABLE, PathBuf::from(TARGET))
             .captured::<Stdout>();
         assert_eq!(shown.ok().as_deref(), Some(TARGET));

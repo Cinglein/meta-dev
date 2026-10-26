@@ -45,6 +45,7 @@ impl Parsed {
         match (name, args) {
             (OptionName::All, rest) => Self { scope: Scope::All, ..self }.take(rest),
             (OptionName::Flags, rest) => Self { view: StatusView::Flags, ..self }.take(rest),
+            (OptionName::Worktree, rest) => self.take(rest),
             (_, []) => Err(CliFailure::raised::<Misuse>(format!("{name} needs a value"))),
             (OptionName::Source, [value, rest @ ..]) => {
                 Self { source: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
@@ -81,6 +82,10 @@ impl Parsed {
             .find(|name| !allowed.contains(name))
             .map_or(Ok(()), |name| Err(CliFailure::raised::<Misuse>(format!("{name} does not apply here"))))?;
         Ok(self)
+    }
+
+    pub fn flagged(&self, name: OptionName) -> Option<()> {
+        self.given.contains(&name).then_some(())
     }
 
     pub fn text(&self) -> Result<Text, CliFailure> {

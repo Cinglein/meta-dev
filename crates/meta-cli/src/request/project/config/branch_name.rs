@@ -3,9 +3,9 @@ use std::fmt;
 use std::str::FromStr;
 
 use meta_schema::{Id, Task};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct BranchName(String);
 
