@@ -2,6 +2,7 @@ use std::path::Path;
 
 use super::{
     BLOCK, COMMIT, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSH_WORDS, Planted, Repo, STOP, Session,
+    StartFile,
 };
 
 const MINE: &str = "MINE1";
@@ -35,6 +36,7 @@ impl Reviewer {
         let started = repo.clone.path().join(THEIRS_START);
         std::fs::create_dir_all(started.parent().unwrap()).unwrap();
         std::fs::write(started, FUTURE_START).unwrap();
+        StartFile::plant(repo.sessions.path(), THEIRS, FUTURE_START);
     }
 
     fn worktree(repo: &Repo) -> std::path::PathBuf {

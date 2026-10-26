@@ -55,6 +55,7 @@ const SHELL: &str = "/bin/sh";
 const SETTLE_POLL: Duration = Duration::from_millis(10);
 const SETTLE_LENGTH: usize = 300;
 const SESSION: &str = "ABCDEF12-34";
+const SESSION_FILE: &str = "ABCDEF1234";
 const FAILURE: &str = "failure";
 const SUCCESS: &str = "success";
 const NONE: &str = "none";
@@ -97,6 +98,8 @@ const COMPLETIONS: [&str; 5] =
 
 #[path = "ci/pushes.rs"]
 mod pushes;
+#[path = "ci/review.rs"]
+mod review;
 #[path = "ci/sessions.rs"]
 mod sessions;
 
@@ -158,6 +161,23 @@ impl Started {
     }
 }
 
+struct StartFile;
+
+impl StartFile {
+    const ROOT: &'static str = "meta-sessions";
+    const NAME: &'static str = "started";
+
+    fn plant(sessions: &Path, session: &str, seconds: &str) {
+        let folder = sessions.join(Self::ROOT).join(session);
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(folder.join(Self::NAME), seconds).unwrap();
+    }
+
+    fn read(sessions: &Path, session: &str) -> Option<String> {
+        std::fs::read_to_string(sessions.join(Self::ROOT).join(session).join(Self::NAME)).ok()
+    }
+}
+
 struct FailingHead;
 
 impl FailingHead {
@@ -205,6 +225,7 @@ impl Planted {
             .env("PATH", path)
             .env("FAKE_GH_DIR", repo.clone.path())
             .env("FAKE_GH_SCENARIO", repo.scenario)
+            .env("TMPDIR", repo.sessions.path())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .spawn()
@@ -233,6 +254,7 @@ impl Session<'_> {
             .env("PATH", path)
             .env("FAKE_GH_DIR", self.repo.clone.path())
             .env("FAKE_GH_SCENARIO", self.repo.scenario)
+            .env("TMPDIR", self.repo.sessions.path())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()
@@ -245,6 +267,7 @@ impl Session<'_> {
 struct Repo {
     origin: tempfile::TempDir,
     clone: tempfile::TempDir,
+    sessions: tempfile::TempDir,
     scenario: &'static str,
 }
 
@@ -263,7 +286,9 @@ impl Repo {
         Git::run_at(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"], Git::LONG_AGO);
         std::fs::create_dir_all(clone.path().join(Planted::SESSION_DIR)).unwrap();
         std::fs::write(clone.path().join(Planted::SESSION_DIR).join("started"), "0").unwrap();
-        let repo = Self { origin, clone, scenario };
+        let sessions = tempfile::tempdir().unwrap();
+        StartFile::plant(sessions.path(), SESSION_FILE, "0");
+        let repo = Self { origin, clone, sessions, scenario };
         FailingHead::copy_from(&repo, repo.clone.path());
         repo
     }
@@ -283,6 +308,7 @@ impl Repo {
             )
             .env("FAKE_GH_DIR", self.clone.path())
             .env("FAKE_GH_SCENARIO", self.scenario)
+            .env("TMPDIR", self.sessions.path())
             .output()
             .unwrap();
         let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
