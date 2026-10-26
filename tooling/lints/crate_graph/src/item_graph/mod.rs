@@ -1,5 +1,6 @@
 mod node_index;
 mod referenced_names;
+mod scope;
 
 pub use node_index::NodeIndex;
 
@@ -7,6 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::item_count::ItemCount;
 use referenced_names::ReferencedNames;
+use scope::Scope;
 use task::Name;
 use task::SourceFile;
 
@@ -22,7 +24,10 @@ impl ItemGraph {
     pub fn of_files(files: &[&SourceFile]) -> ItemGraph {
         let references: BTreeMap<Name, Vec<Name>> = files
             .iter()
-            .flat_map(|file| ReferencedNames::of_items(&file.syntax().items).into_map())
+            .flat_map(|file| {
+                ReferencedNames::of_items(&file.syntax().items, &Scope::of_file(file.syntax()))
+                    .into_map()
+            })
             .fold(BTreeMap::new(), |mut all, (owner, names)| {
                 all.entry(owner).or_insert_with(Vec::new).extend(names);
                 all
@@ -126,6 +131,10 @@ mod tests {
     const CYCLE: &str = "struct A(B); struct B(C); struct C(A); struct D(A);";
     const PATH: &str = "crates/a/src/lib.rs";
     const LONGEST: [usize; 2] = [3, 1];
+    const EXTERNAL: &str = "mod inner; use std::process::Command; use inner::Kept; pub struct Command; pub struct Kept; \
+        pub struct Runner(std::process::Command); impl Runner { fn run() { Command::new(); } } \
+        pub struct Local(crate::Command, inner::Kept, Kept);";
+    const LOCAL_EDGES: usize = 2;
 
     #[test]
     fn a_cycle_is_one_tangle_and_a_reference_into_it_is_not() {
@@ -139,5 +148,11 @@ mod tests {
                 .collect::<Vec<_>>(),
             LONGEST
         );
+    }
+
+    #[test]
+    fn a_path_or_import_from_another_crate_is_no_edge_to_a_local_namesake() {
+        let file = SourceFile::parse(PATH, EXTERNAL.to_owned()).expect("valid rust");
+        assert_eq!(ItemGraph::of_files(&[&file]).edges().len(), LOCAL_EDGES);
     }
 }
