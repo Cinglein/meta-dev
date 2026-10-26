@@ -86,6 +86,7 @@ mod tests {
     const RULES: &[Rule] = &[Rule::new(RuleId::new("an-id"), PerformanceAndCost, Wording::new("Says."), Tracked)];
     const SECTION: &[Section] = &[Section::new(Wording::new("New"), RULES)];
     const CHECK: Option<&str> = Some(SpecSettings::CHECK);
+    const OTHER: Option<&str> = Some("render");
     const SHOWN: &str = "## New\n- `an-id` (performance-and-cost, rung 1, no enforcer): Says.\n\n# Not yet converted: hand-written prose, 4 words\n\n## Old\n- kept\n";
     const SPEC: &str = "SPEC.md";
 
@@ -111,7 +112,7 @@ mod tests {
         assert!(SpecView::follow(&file, None).is_err());
         fs::write(&file, PROSE).unwrap();
         assert!(SpecView::follow(&file, CHECK).is_err());
-        SpecView::follow(&file, None).unwrap();
+        SpecView::follow(&file, OTHER).unwrap();
         assert!(SpecView::follow(&file, CHECK).is_ok());
     }
 }
