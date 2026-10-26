@@ -40,6 +40,11 @@ impl Fixture {
         self
     }
 
+    pub fn revision(&self, name: &str) -> String {
+        let output = Self::git(&self.work).args(["rev-parse", name]).output().expect("run git");
+        String::from_utf8_lossy(&output.stdout).into_owned()
+    }
+
     pub fn write(&self, path: &str, text: &str) -> &Fixture {
         let file = self.path(path);
         fs::create_dir_all(file.parent().expect("parent")).expect("create dirs");

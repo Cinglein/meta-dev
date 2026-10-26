@@ -18,13 +18,21 @@ impl Coverage {
     const AFFECTED_FLAG: &str = "--affected";
     const STATUS_FLAG: &str = "--status";
     const KNOWN: &str = "--affected, --status (ci only)";
+    const PARTIAL: &str = "--status needs the full gate; drop --affected";
 
     pub fn from_flags(task: Task, mut flags: impl Iterator<Item = String>) -> Result<Coverage, task::Failure> {
-        flags.try_fold(Self::EVERYTHING, |coverage, flag| match flag.as_str() {
-            Self::AFFECTED_FLAG => Ok(Coverage { changes: Changes::SinceMain, ..coverage }),
-            Self::STATUS_FLAG if task == Task::Ci => Ok(Coverage { posting: Posting::Requested, ..coverage }),
-            _ => Err(task::Failure::UnknownFlag { flag, known: Self::KNOWN }),
-        })
+        flags
+            .try_fold(Self::EVERYTHING, |coverage, flag| match flag.as_str() {
+                Self::AFFECTED_FLAG => Ok(Coverage { changes: Changes::SinceMain, ..coverage }),
+                Self::STATUS_FLAG if task == Task::Ci => Ok(Coverage { posting: Posting::Requested, ..coverage }),
+                _ => Err(task::Failure::UnknownFlag { flag, known: Self::KNOWN }),
+            })
+            .and_then(|coverage| match coverage {
+                Coverage { changes: Changes::Everything, posting: Posting::Requested } => {
+                    Err(task::Failure::Refused(Self::PARTIAL.to_owned()))
+                }
+                whole => Ok(whole),
+            })
     }
 
     pub fn changes(&self) -> Changes {
@@ -72,8 +80,14 @@ mod tests {
         let gate = |flags: &[&str]| {
             Coverage::parsed(Task::Ci, flags).ok().map(|coverage| coverage.gate(Path::new(""), &Policy::defaults()))
         };
-        assert!(matches!(gate(&[STATUS, AFFECTED]), Some(Ok(Some(_)))));
+        assert!(matches!(gate(&[STATUS]), Some(Ok(Some(_)))));
         assert!(matches!(gate(&[AFFECTED]), Some(Ok(None))));
         assert!(matches!(Coverage::parsed(Task::Test, &[STATUS]), Err(Failure::UnknownFlag { .. })));
+    }
+
+    #[test]
+    fn the_status_flag_refuses_a_partial_gate() {
+        assert!(matches!(Coverage::parsed(Task::Ci, &[STATUS, AFFECTED]), Err(Failure::Refused(_))));
+        assert!(matches!(Coverage::parsed(Task::Ci, &[AFFECTED, STATUS]), Err(Failure::Refused(_))));
     }
 }

@@ -13,6 +13,10 @@ impl Changed {
         Changed(paths)
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn announce(&self, summary: Option<&Path>) -> Result<(), Failure> {
         print!("{self}");
         summary

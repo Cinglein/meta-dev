@@ -19,21 +19,34 @@ use std::path::PathBuf;
 use std::process::{Child, Command, Output};
 
 use crate::failure::Failure;
+use crate::workspace::TargetDirectory;
 
 #[derive(Clone, Debug)]
 pub struct CommandLine {
     program: Program,
     arguments: Vec<String>,
     directory: Option<PathBuf>,
+    target: Option<PathBuf>,
 }
 
 impl CommandLine {
+    const TARGET: &str = "CARGO_TARGET";
+
     #[must_use]
     pub fn new(program: Program) -> CommandLine {
         CommandLine {
             program,
             arguments: Vec::new(),
             directory: None,
+            target: None,
+        }
+    }
+
+    #[must_use]
+    pub fn building_into(self, target: &TargetDirectory) -> CommandLine {
+        CommandLine {
+            target: Some(target.path().to_path_buf()),
+            ..self
         }
     }
 
@@ -96,6 +109,9 @@ impl CommandLine {
         self.directory.iter().for_each(|directory| {
             command.current_dir(directory);
         });
+        self.target.iter().for_each(|target| {
+            command.env(Self::TARGET, target);
+        });
         command
     }
 }
@@ -108,13 +124,17 @@ impl fmt::Display for CommandLine {
 
 #[cfg(test)]
 mod tests {
-    use super::{CargoArgument, CommandLine, Program, Stderr, Stdout};
+    use super::{CargoArgument, CommandLine, Program, Stderr, Stdout, TargetDirectory};
     use std::path::PathBuf;
     const GIT: &str = "git";
     const SHOWN: &str = "git fmt --all";
     const PROGRAMS: [&str; 4] = ["pwd", "true", "false", "sh"];
     const TO_STDERR: [&str; 2] = ["-c", "echo said >&2"];
     const SAID: &str = "said\n";
+    const SHELL: &str = "sh";
+    const SHOW_TARGET: [&str; 2] = ["-c", "printf %s \"$CARGO_TARGET_DIR\""];
+    const TARGET: &str = "shared/target";
+    const SHARED: &str = r#"{"target_directory": "shared/target"}"#;
 
     #[test]
     fn a_command_line_prints_its_program_and_arguments_in_order() {
@@ -140,5 +160,14 @@ mod tests {
         assert!(executable(succeeds).run().is_ok() && executable(fails).run().is_err());
         let complained = executable(shell).arguments(TO_STDERR).captured::<Stderr>();
         assert_eq!(complained.ok().as_deref(), Some(SAID));
+    }
+
+    #[test]
+    fn a_command_building_into_a_target_sees_it_as_the_cargo_target_dir() {
+        let shown = CommandLine::new(Program::Executable(SHELL.into()))
+            .arguments(SHOW_TARGET)
+            .building_into(&TargetDirectory::from_metadata(SHARED).unwrap())
+            .captured::<Stdout>();
+        assert_eq!(shown.ok().as_deref(), Some(TARGET));
     }
 }

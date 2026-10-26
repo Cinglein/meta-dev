@@ -1,8 +1,10 @@
+mod checkout;
 mod gate_state;
 mod posting;
 mod status_argument;
 mod unready;
 
+pub use checkout::Checkout;
 pub use gate_state::GateState;
 pub use posting::Posting;
 pub use unready::Unready;
@@ -14,6 +16,7 @@ use task::{CommandLine, GateStatus, Policy, Program, Stdout};
 use crate::task::ci::step_times::StepTimes;
 use crate::task::failure::Failure;
 use crate::task::revision::Commit;
+use crate::task::surfaces::Changed;
 use status_argument::StatusArgument;
 
 #[derive(Debug)]
@@ -26,12 +29,13 @@ pub struct LocalGate {
 
 impl LocalGate {
     const SOURCE: &str = env!("CARGO_MANIFEST_DIR");
-    const CHANGES: [&str; 2] = ["status", "--porcelain"];
+    const CHANGES: [&str; 3] = ["status", "--porcelain", "--untracked-files=all"];
     const PUSHED: [&str; 4] = ["branch", "--remotes", "--contains", "HEAD"];
     const HEAD: [&str; 2] = ["rev-parse", "HEAD"];
     const VERSION: [&str; 3] = ["rev-parse", "--short", "HEAD"];
     const POST: [&str; 4] = ["api", "--method", "POST", "--silent"];
     const FIELD: &str = "-f";
+    const CHECKOUT: &str = "local-gate";
 
     pub fn new(root: &Path, policy: &Policy) -> Result<LocalGate, Failure> {
         Ok(LocalGate {
@@ -51,21 +55,23 @@ impl LocalGate {
         }
     }
 
-    pub fn post(&self, checked: &Commit, times: &StepTimes) -> Result<(), Failure> {
+    pub fn checkout(&self, target: &Path) -> Result<Checkout, Failure> {
+        Checkout::add(&self.root, self.ready()?, target.join(Self::CHECKOUT))
+    }
+
+    pub fn post(&self, checkout: &Checkout, times: &StepTimes, surfaces: &Changed) -> Result<(), Failure> {
+        let checked = checkout.commit();
         (self.ready()? == *checked).then_some(()).ok_or(Unready::Moved)?;
         let version = Self::git(&self.source).arguments(Self::VERSION).captured::<Stdout>()?.parse()?;
         let state = times.state();
+        let context = StatusArgument::Context { status: &self.status, scope: checkout.scope() };
         let line = self.gh.clone().in_directory(self.root.clone()).arguments(Self::POST);
-        [
-            StatusArgument::State(state),
-            StatusArgument::Context(&self.status),
-            StatusArgument::Description { version, times },
-        ]
-        .iter()
-        .fold(line.argument(StatusArgument::Endpoint(checked)), |line, field| {
-            line.argument(Self::FIELD).argument(field)
-        })
-        .run()?;
+        [StatusArgument::State(state), context, StatusArgument::Description { version, times, surfaces }]
+            .iter()
+            .fold(line.argument(StatusArgument::Endpoint(checked)), |line, field| {
+                line.argument(Self::FIELD).argument(field)
+            })
+            .run()?;
         println!("{}: posted {state} on {checked}", self.status);
         Ok(())
     }
@@ -78,6 +84,7 @@ impl LocalGate {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::path::PathBuf;
     use std::time::Duration;
 
     use settings::EmbeddedDefaults;
@@ -88,8 +95,13 @@ mod tests {
     use crate::task::ci::step_times::StepTimes;
     use crate::task::failure::Failure;
     use crate::task::fixture::Fixture;
+    use crate::task::surfaces::Changed;
 
-    const SOURCE: &str = "src/lib.rs";
+    const IGNORE: &str = ".gitignore";
+    const IGNORED: &str = "target/\n";
+    const SOURCE: &str = "consumer/src/lib.rs";
+    const SCOPE: &str = "consumer";
+    const TARGET: &str = "target";
     const ALPHA: &str = "pub struct Alpha;\n";
     const BETA: &str = "pub struct Beta;\n";
     const SHELL: &str = "sh";
@@ -97,15 +109,15 @@ mod tests {
     const RECORDED: &str = ".git/fake-gh.args";
     const SCRIPT: &str = "printf '%s\\n' \"$@\" > \"$0.args\"\n";
     const SECOND: Duration = Duration::from_secs(1);
-    const POSTED: &str = "-f\nstate=success\n-f\ncontext=local-gate\n-f\ndescription=meta-dev ";
-    const TIMED: &str = ": fmt 1.0s\n";
+    const POSTED: &str = "-f\nstate=success\n-f\ncontext=local-gate/consumer\n-f\ndescription=meta-dev ";
+    const TIMED: &str = ": fmt 1.0s; surfaces changed\n";
 
     impl LocalGate {
         fn faked(fixture: &Fixture) -> LocalGate {
-            fixture.write(SOURCE, ALPHA).branch();
+            fixture.write(IGNORE, IGNORED).write(SOURCE, ALPHA).branch();
             fs::write(fixture.path(FAKE_GH), SCRIPT).expect("write fake gh");
             let gh = CommandLine::new(Program::Executable(SHELL.into())).argument(fixture.path(FAKE_GH).display());
-            let gate = LocalGate::new(fixture.root(), &Policy::defaults()).expect("gate in policy");
+            let gate = LocalGate::new(&fixture.path(SCOPE), &Policy::defaults()).expect("gate in policy");
             LocalGate { gh, source: fixture.root().into(), ..gate }
         }
 
@@ -126,26 +138,27 @@ mod tests {
     }
 
     #[test]
-    fn the_checked_commit_gets_the_state_the_status_name_the_version_and_the_timings() {
+    fn the_checked_commit_gets_the_state_a_workspace_scoped_context_the_version_timings_and_surfaces() {
         let fixture = Fixture::new();
         let gate = LocalGate::faked(&fixture);
-        let checked = gate.ready().unwrap();
+        let checkout = gate.checkout(&fixture.path(TARGET)).unwrap();
         let mut times = StepTimes::default();
         times.record(CiStep::Fmt, Ok(SECOND)).unwrap();
-        gate.post(&checked, &times).unwrap();
+        gate.post(&checkout, &times, &Changed::new(vec![PathBuf::from(IGNORE)])).unwrap();
         let recorded = fs::read_to_string(fixture.path(RECORDED)).unwrap_or_default();
-        assert!(recorded.contains(&format!("/statuses/{checked}\n{POSTED}")) && recorded.ends_with(TIMED));
+        assert!(recorded.contains(&format!("/statuses/{}\n{POSTED}", checkout.commit())) && recorded.ends_with(TIMED));
     }
 
     #[test]
     fn a_tree_dirtied_or_a_head_moved_during_the_run_posts_nothing() {
         let fixture = Fixture::new();
         let gate = LocalGate::faked(&fixture);
-        let checked = gate.ready().unwrap();
+        let checkout = gate.checkout(&fixture.path(TARGET)).unwrap();
+        let unchanged = Changed::new(Vec::new());
         fixture.write(SOURCE, BETA);
-        assert!(LocalGate::refused(gate.post(&checked, &StepTimes::default()), Unready::Dirty));
+        assert!(LocalGate::refused(gate.post(&checkout, &StepTimes::default(), &unchanged), Unready::Dirty));
         fixture.branch();
-        let moved = LocalGate::refused(gate.post(&checked, &StepTimes::default()), Unready::Moved);
+        let moved = LocalGate::refused(gate.post(&checkout, &StepTimes::default(), &unchanged), Unready::Moved);
         assert!(moved && !fixture.path(RECORDED).exists());
     }
 }

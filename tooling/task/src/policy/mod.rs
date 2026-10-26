@@ -169,6 +169,7 @@ mod tests {
     use std::path::Path;
     const CHECK: &str = "check";
     const LONG_ENOUGH: &str = "report";
+    const GATE: &str = "local-gate";
 
     #[test]
     fn the_checked_in_policy_round_trips_and_knows_a_vague_name_from_a_said_one() {
@@ -186,6 +187,18 @@ mod tests {
     fn the_policy_is_read_from_the_tooling_directory_of_a_workspace_root() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         assert_eq!(Policy::read(&root).unwrap(), Policy::defaults());
-        assert!(Policy::read(&root.join("tooling")).is_err() && Policy::defaults().gate().is_ok());
+        assert!(Policy::read(&root.join("tooling")).is_err());
+    }
+
+    #[test]
+    fn the_checked_in_policy_names_the_gate_status() {
+        assert_eq!(
+            Policy::defaults()
+                .gate()
+                .map(ToString::to_string)
+                .ok()
+                .as_deref(),
+            Some(GATE)
+        );
     }
 }

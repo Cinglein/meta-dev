@@ -19,6 +19,7 @@ pub struct Workspace {
     root: PathBuf,
     target: TargetDirectory,
     packages: PackageGraph,
+    shared_target: Option<TargetDirectory>,
 }
 
 impl Workspace {
@@ -26,10 +27,21 @@ impl Workspace {
     const WORKSPACE_TABLE: &str = "[workspace]";
 
     pub fn locate() -> Result<Workspace, Failure> {
-        let here = env::current_dir().map_err(|error| Failure::Io {
+        Self::above(&env::current_dir().map_err(|error| Failure::Io {
             site: Site::Workspace,
             error,
-        })?;
+        })?)
+    }
+
+    pub fn checked_out(&self, root: &Path) -> Result<Workspace, Failure> {
+        Ok(Workspace {
+            target: self.target.clone(),
+            shared_target: Some(self.target.clone()),
+            ..Self::above(root)?
+        })
+    }
+
+    fn above(here: &Path) -> Result<Workspace, Failure> {
         let root = here
             .ancestors()
             .find(|directory| {
@@ -48,6 +60,7 @@ impl Workspace {
             root,
             target: TargetDirectory::from_metadata(&metadata)?,
             packages: PackageGraph::from_metadata(&metadata)?,
+            shared_target: None,
         })
     }
 
@@ -68,7 +81,10 @@ impl Workspace {
 
     #[must_use]
     pub fn line(&self, program: Program) -> CommandLine {
-        CommandLine::new(program).in_directory(self.root.clone())
+        let line = CommandLine::new(program).in_directory(self.root.clone());
+        self.shared_target
+            .iter()
+            .fold(line, CommandLine::building_into)
     }
 
     pub fn source_files(&self) -> Result<Vec<SourceFile>, Failure> {
@@ -152,6 +168,7 @@ mod tests {
             root,
             target,
             packages,
+            shared_target: None,
         };
         let files = workspace.source_files().unwrap();
         let found = files
