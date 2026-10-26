@@ -16,7 +16,7 @@ pub struct GitCommand {
 
 impl GitCommand {
     const NETWORK_TIMEOUT: Duration = Duration::from_secs(30);
-    const POLL: Duration = Duration::from_millis(10);
+    const POLL: Duration = Duration::from_millis(1);
 
     pub fn new(command: Command) -> Self {
         Self { command, input: None }
