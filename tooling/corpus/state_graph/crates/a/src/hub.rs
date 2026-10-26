@@ -9,4 +9,4 @@ impl Hub {
     pub fn borrowed(&self, other: &Hub) -> Spoke { other.spoke } pub fn pair(self) -> (Spoke, Volt) { (Spoke, 0) } pub fn poke(&mut self) {} //~ state-graph: is a view returning vertex //~ state-graph: returns a tuple holding //~ state-graph: takes &mut self on vertex //~ type-shape: tuple in a signature
 }
 impl Spoke { pub fn home(self) -> Hub { Hub } }
-impl Wire { fn is_live(&self) -> bool { match self { Wire::Live(_) => true, Wire::Dead => false } } }
+impl Wire { fn is_live(&self) -> bool { match self { Wire::Live(_) => true, Wire::Dead => false } } } //~ enum-predicates: fn is_live -> bool
