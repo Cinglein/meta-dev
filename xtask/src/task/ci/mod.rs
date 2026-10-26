@@ -51,7 +51,7 @@ impl Ci {
     fn recorded(&self, times: &StepTimes) -> Result<(), Failure> {
         self.record
             .as_ref()
-            .map_or(Ok(()), |path| File::create(path).and_then(|mut file| write!(file, "{times}.")))
+            .map_or(Ok(()), |path| File::create(path).and_then(|mut file| write!(file, "{times}")))
             .map_err(Failure::Summary)
     }
 }

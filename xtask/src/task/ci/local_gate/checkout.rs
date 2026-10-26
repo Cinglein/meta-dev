@@ -49,7 +49,7 @@ impl Checkout {
         listed
             .below(&parent)
             .iter()
-            .filter(|place| Self::claimed(place).is_err())
+            .filter(|place| Self::claimed(place).is_ok())
             .try_for_each(|place| Self::git(repository).arguments(Self::REMOVE).argument(place.display()).run())?;
         Self::git(repository).arguments(Self::PRUNE).run()?;
         Ok(parent)

@@ -87,8 +87,7 @@ impl LocalGate {
 
     pub fn post(&self, checkout: &Checkout, state: GateState, surfaces: &Changed) -> Result<(), Failure> {
         let checked = checkout.commit();
-        let head: Commit =
-            self.ready().and(Self::git(&self.root).arguments(Self::HEAD).captured::<Stdout>()?.parse())?;
+        let head: Commit = Self::git(&self.root).arguments(Self::HEAD).captured::<Stdout>()?.parse()?;
         (head == *checked).then_some(()).ok_or(Unready::Moved)?;
         checkout.intact()?;
         let version = checkout.version()?;

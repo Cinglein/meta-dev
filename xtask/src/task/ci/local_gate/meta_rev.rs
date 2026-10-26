@@ -13,7 +13,7 @@ impl MetaRev {
     const SOURCE: &str = "source = \"";
     const REV: char = '#';
     const QUOTE: char = '"';
-    const REV_LENGTH: usize = 9;
+    const REV_LENGTH: usize = 7;
 }
 
 impl FromStr for MetaRev {
