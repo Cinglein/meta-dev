@@ -155,7 +155,7 @@ Source: Basho postmortem, part 3 (kept in the Basho project's private repo).
 ## Goal: automate the owner's triage/priority/wall-time role (owner, 2026-10-25)
 - Today the owner does it: flagging slow CI, noticing a PR like Basho #72 blocking everything, spotting perf problems in the app AND in devx (builds, tests, simulators, agent waits).
 - GOAL: the repo automates most of this. A STEWARD role, run on a schedule and on events, reads the log and:
-  - flags budget overruns and trends before they breach: CI/check wall time, build time, queue/lease wait, agent idle time, flakiness;
+  - flags budget overruns and trends before they breach: CI/check wall time, build time, queue/lease wait, agent wall time, flakiness;
   - detects blocking work:
     - PR age;
     - review rounds;
@@ -168,6 +168,14 @@ Source: Basho postmortem, part 3 (kept in the Basho project's private repo).
 - The steward escalates to the owner only for decisions: budget or authority changes, priority conflicts, waivers beyond budget.
 - Dogfooded: the steward's own false alarms and misses are budgeted, and calibrated against what the owner would have flagged.
 - Depends on stage 1 (runs, timings, budgets). Its first version belongs there.
+
+## Agent wall time (owner, 2026-10-26)
+- Wall time is the only reliable guard against silent agent stalls. Activity signals (pushes, log events, idleness) are not: an agent blocked on a watcher that can never fire looks idle while working and busy while stuck.
+- Every claimed task carries a wall-time budget, set when it is claimed (a project default in tooling/policy.toml, overridable per task).
+- Spending it is an event, whatever the agent appears to be doing. The task is flagged and escalated: the lead checks the agent and replaces it, or extends the budget explicitly (a recorded, budgeted extension).
+- A task whose budget expires again without an extension is released, so another agent can claim it.
+- Headroom applies: a task past ~60-80% of its budget is a warning to the steward.
+- Example: a mutation-testing PR's agent waited on a merge in a repo that had been frozen; nothing fired until the owner noticed by hand.
 
 ## Prose (owner, 2026-10-25)
 Prose is allowed only in three categories, each clearly marked and separated from the rest of the codebase:
