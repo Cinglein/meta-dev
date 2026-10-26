@@ -46,6 +46,10 @@ impl HookInput {
         unrecorded.or(foreign)
     }
 
+    pub fn publishing(&self) -> Option<PathBuf> {
+        self.command()?.publishing_directory(&self.cwd())
+    }
+
     pub fn session(&self) -> Option<&SessionId> {
         self.session_id.as_ref()
     }
@@ -53,5 +57,28 @@ impl HookInput {
     pub fn announced_actor(&self) -> Option<Actor> {
         let configured = std::env::var("META_ACTOR").ok().and_then(|name| name.parse().ok());
         self.session_id.as_ref().map_or(configured.clone(), |session| session.announce(configured.clone()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::HookInput;
+
+    const PUBLISHING: [(&str, &str); 4] = [
+        ("git push -u origin x", "/w"),
+        ("cd a && gh pr create --fill", "/w/a"),
+        ("git status; git -C b commit -m y", "/w/b"),
+        ("(cd c && git -C d push) && git push", "/w/c/d"),
+    ];
+    const QUIET: [&str; 3] = ["gh pr list", "git status", "cd a && gh pr view 1"];
+
+    #[test]
+    fn pushes_commits_and_pull_request_creation_publish_from_their_own_directory_and_nothing_else() {
+        let publishing = |command: &str| {
+            let input = serde_json::json!({ "cwd": "/w", "tool_input": { "command": command } }).to_string();
+            serde_json::from_str::<HookInput>(&input).unwrap().publishing()
+        };
+        assert!(PUBLISHING.iter().all(|(command, directory)| publishing(command) == Some((*directory).into())));
+        assert!(QUIET.iter().all(|command| publishing(command).is_none()));
     }
 }

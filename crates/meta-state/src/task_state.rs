@@ -25,26 +25,32 @@ impl TaskState {
         self.task = self.task.corrected(text);
     }
 
+    #[must_use]
     pub fn new(task: NewTask, opened: Stamp) -> Self {
         Self { task, opened, progress: Progress::open(), pull_requests: Vec::new() }
     }
 
+    #[must_use]
     pub fn entry(&self) -> Entry {
         Entry::Task(self.task.task())
     }
 
+    #[must_use]
     pub fn new_task(&self) -> &NewTask {
         &self.task
     }
 
+    #[must_use]
     pub fn progress(&self) -> &Progress {
         &self.progress
     }
 
+    #[must_use]
     pub fn pull_requests(&self) -> &[PullRequest] {
         &self.pull_requests
     }
 
+    #[must_use]
     pub fn addressing(&self, target: Target) -> Option<Id<Task>> {
         self.progress.done().and(self.task.addresses().contains(&target).then(|| self.task.task()))
     }
@@ -58,13 +64,8 @@ impl TaskState {
         self.progress = self.progress.dissolved();
     }
 
-    pub fn linked(&mut self, pull_request: PullRequest) -> Result<(), Refusal> {
-        if self.pull_requests.contains(&pull_request) {
-            Err(Refusal::AlreadyLinked(pull_request))
-        } else {
-            self.pull_requests.push(pull_request);
-            Ok(())
-        }
+    pub fn linked(&mut self, pull_request: PullRequest) {
+        self.pull_requests.extend((!self.pull_requests.contains(&pull_request)).then_some(pull_request));
     }
 }
 

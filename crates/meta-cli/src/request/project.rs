@@ -126,7 +126,7 @@ impl Project {
         modified.is_some_and(|modified| start.precedes(modified))
     }
 
-    fn unprotected_branch(&self) -> Option<BranchName> {
+    pub fn unprotected_branch(&self) -> Option<BranchName> {
         let current = Command::new("git").arg("-C").arg(&self.root).args(["branch", "--show-current"]).output().ok()?;
         let branch: BranchName = String::from_utf8_lossy(&current.stdout).trim().parse().ok()?;
         Some(branch).filter(|branch| !branch.to_string().is_empty() && self.config.protects(branch).is_none())

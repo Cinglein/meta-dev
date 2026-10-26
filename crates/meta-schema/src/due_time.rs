@@ -10,6 +10,12 @@ use crate::unrecognised::Unrecognised;
 #[serde(transparent)]
 pub struct DueTime(DateTime<Utc>);
 
+impl From<DateTime<Utc>> for DueTime {
+    fn from(time: DateTime<Utc>) -> Self {
+        Self(time)
+    }
+}
+
 impl FromStr for DueTime {
     type Err = Unrecognised;
 

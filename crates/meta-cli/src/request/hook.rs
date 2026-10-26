@@ -1,4 +1,5 @@
 mod hook_input;
+mod linking;
 mod reply;
 
 use std::fmt;
@@ -12,6 +13,7 @@ use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
 use crate::request::output::{Listed, Output};
 use crate::request::project::Project;
 use hook_input::HookInput;
+use linking::Linking;
 use reply::{Blocking, Denial, Reply, Verdict};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -85,7 +87,9 @@ impl HookEvent {
                     .map_or(Verdict::Allow, Verdict::Deny),
                 None,
             ),
-            Self::PostToolUse => Reply::new(self, Verdict::Allow, Self::after_push(project, input)),
+            Self::PostToolUse => {
+                Reply::new(self, Verdict::Allow, Self::after_push(project, input)).with_news(Linking::after(input))
+            }
             Self::Stop => Reply::new(
                 self,
                 input
@@ -99,8 +103,10 @@ impl HookEvent {
     }
 
     fn outside_projects(self, input: &HookInput) -> Option<Reply> {
-        let refusal = (self == Self::PreToolUse).then(|| input.refusal()).flatten()?;
-        Some(Reply::new(self, Verdict::Deny(Denial::from(refusal)), None))
+        let linked = (self == Self::PostToolUse).then(|| Linking::after(input)).flatten();
+        let linking = linked.map(|linked| Reply::new(self, Verdict::Allow, Some(linked)));
+        let refusal = (self == Self::PreToolUse).then(|| input.refusal()).flatten();
+        refusal.map(|refusal| Reply::new(self, Verdict::Deny(Denial::from(refusal)), None)).or(linking)
     }
 
     fn after_push(project: &Project, input: &HookInput) -> Option<Listed> {

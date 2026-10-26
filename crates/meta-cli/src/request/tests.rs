@@ -1,5 +1,7 @@
 mod fetches;
 mod notices;
+#[cfg(test)]
+mod status;
 
 use meta_log::{LogStore, MemoryLog};
 

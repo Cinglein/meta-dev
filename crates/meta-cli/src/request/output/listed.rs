@@ -14,6 +14,11 @@ impl Listed {
         Self(text.to_string())
     }
 
+    #[must_use]
+    pub fn then(self, next: impl fmt::Display) -> Self {
+        Self(format!("{}{next}", self.0))
+    }
+
     pub fn from_log(log: &impl LogStore, kind: Option<Kind>, scope: Scope) -> Result<Self, CliFailure> {
         let snapshot = log.read()?;
         let state = State::fold(snapshot.records());

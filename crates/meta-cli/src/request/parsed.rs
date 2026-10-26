@@ -8,6 +8,7 @@ use meta_schema::{
 
 use crate::request::ci::{Commit, SessionId};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
+use crate::request::status_view::StatusView;
 pub use option_name::OptionName;
 use word::Word;
 
@@ -24,6 +25,7 @@ pub struct Parsed {
     effort: Option<Tokens>,
     due: Option<DueTime>,
     on: Option<Blocker>,
+    view: StatusView,
 }
 
 impl Parsed {
@@ -42,6 +44,7 @@ impl Parsed {
         self.given.push(name);
         match (name, args) {
             (OptionName::All, rest) => Self { scope: Scope::All, ..self }.take(rest),
+            (OptionName::Flags, rest) => Self { view: StatusView::Flags, ..self }.take(rest),
             (OptionName::Worktree, rest) => self.take(rest),
             (_, []) => Err(CliFailure::raised::<Misuse>(format!("{name} needs a value"))),
             (OptionName::Source, [value, rest @ ..]) => {
@@ -177,6 +180,10 @@ impl Parsed {
     pub fn scope(&self) -> Scope {
         self.scope
     }
+
+    pub fn view(&self) -> StatusView {
+        self.view
+    }
 }
 
 impl TryFrom<&[String]> for Parsed {
@@ -195,6 +202,7 @@ impl TryFrom<&[String]> for Parsed {
             effort: None,
             due: None,
             on: None,
+            view: StatusView::Tree,
         };
         empty.take(args)
     }
