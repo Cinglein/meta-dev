@@ -6,7 +6,7 @@ pub use tangle_index::TangleIndex;
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::crate_summary::cut::conductance::Conductance;
-use crate::crate_summary::item_count::ItemCount;
+use crate::item_count::ItemCount;
 use crate::item_graph::{ItemGraph, NodeIndex};
 use spectrum::{Spectrum, Weight};
 

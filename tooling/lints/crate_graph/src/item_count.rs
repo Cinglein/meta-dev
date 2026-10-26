@@ -1,3 +1,4 @@
+use std::fmt;
 use std::iter::Sum;
 use std::ops::Add;
 
@@ -25,5 +26,11 @@ impl Add for ItemCount {
 impl Sum for ItemCount {
     fn sum<Counts: Iterator<Item = ItemCount>>(counts: Counts) -> ItemCount {
         counts.fold(ItemCount::default(), Add::add)
+    }
+}
+
+impl fmt::Display for ItemCount {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}", self.0)
     }
 }
