@@ -98,6 +98,8 @@ mod tests {
     use std::{env, fs, process};
     use task::Policy;
     const LISTED: &str = "meta-cli";
+    const SAMPLE: usize = 30;
+    const BELOW_SAMPLE: usize = 29;
     const SNIPPET: &str = r#"{"outcomes": [{"scenario": "Baseline", "phase_results": [{"phase": "Build", "duration": 9.0}]}, {"scenario": {"Mutant": {"package": "log", "file": "x"}}, "phase_results": [{"phase": "Build", "duration": 2.51}, {"phase": "Test", "duration": 0.5}]}, {"scenario": {"Mutant": {"package": "state"}}, "phase_results": [{"phase": "Build", "duration": 1.0}]}]}"#;
     const SLOWER_STATE: &str = r#"{"outcomes": [{"scenario": {"Mutant": {"package": "state"}}, "phase_results": [{"phase": "Test", "duration": 2.0}]}]}"#;
     const TABLE: &str = "[mutant_millis]\ndefault = 3100\n\n[mutant_millis.crates]\nlog = 3100\nstate = 2000\n";
@@ -112,18 +114,20 @@ mod tests {
     }
 
     #[test]
-    fn a_crate_measured_at_its_price_is_within_it_and_one_measured_dearer_is_underpriced() {
+    fn a_sampled_crate_at_its_price_is_within_it_dearer_is_underpriced_and_a_small_run_never_is() {
         let policy = Policy::defaults();
         let price = policy.mutant_millis().for_crate(&LISTED.parse().unwrap());
-        let measured = |millis: Millis| {
+        let measured = |millis: Millis, mutants: usize| {
             let seconds = millis.duration().as_secs_f64();
-            let run = format!(
-                r#"{{"outcomes": [{{"scenario": {{"Mutant": {{"package": "{LISTED}"}}}}, "phase_results": [{{"phase": "Test", "duration": {seconds}}}]}}]}}"#
+            let one = format!(
+                r#"{{"scenario": {{"Mutant": {{"package": "{LISTED}"}}}}, "phase_results": [{{"phase": "Test", "duration": {seconds}}}]}}"#
             );
+            let run = format!(r#"{{"outcomes": [{}]}}"#, vec![one; mutants].join(", "));
             MutantCosts::tally([Outcomes::parse(&run).unwrap()]).priced_within(&policy)
         };
-        assert!(measured(price).is_ok());
-        assert!(matches!(measured(price.plus(price)), Err(Failure::Underpriced(_))));
+        assert!(measured(price, SAMPLE).is_ok());
+        assert!(matches!(measured(price.plus(price), SAMPLE), Err(Failure::Underpriced(_))));
+        assert!(measured(price.plus(price), BELOW_SAMPLE).is_ok());
     }
 
     #[test]
