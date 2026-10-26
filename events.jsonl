@@ -395,3 +395,4 @@
 {"at":"2026-10-26T20:47:43.971764Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-144fe5a44d4971a5","from":"claude-mutant-fix-2"}
 {"at":"2026-10-26T20:47:45.525526Z","actor":"claude-lead","kind":"TaskDone","task":"task-144fe5a44d4971a5"}
 {"at":"2026-10-26T21:09:12.361349Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-367007423db6b993","from":"claude-test-speed"}
+{"at":"2026-10-26T21:09:14.000890Z","actor":"claude-lead","kind":"TaskReleased","task":"task-367007423db6b993"}
