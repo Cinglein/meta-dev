@@ -25,3 +25,21 @@ impl Git {
         GitCommand::new(command)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::Git;
+
+    const NOWHERE: &str = "/nonexistent/meta";
+    const STATUS: [&str; 1] = ["status"];
+    const FAILED: &str = "git: git -C /nonexistent/meta status: ";
+
+    #[test]
+    fn failures_name_the_git_command() {
+        let failure =
+            Git::new(PathBuf::from(NOWHERE)).command(STATUS).content().err().map(|failure| failure.to_string());
+        assert!(failure.is_some_and(|failure| failure.starts_with(FAILED)));
+    }
+}

@@ -2,7 +2,7 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::io::Write as _;
 use std::process::{Command, Output, Stdio};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::detail::Detail;
 use crate::git_log::content::Content;
@@ -38,8 +38,8 @@ impl GitCommand {
 
     pub fn timed_output(mut self) -> Result<Output, LogFailure> {
         let mut child = self.command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
-        let polls = Self::NETWORK_TIMEOUT.as_millis() / Self::POLL.as_millis();
-        let finished = (0..polls).find_map(|_| {
+        let deadline = Instant::now() + Self::NETWORK_TIMEOUT;
+        let finished = std::iter::from_fn(|| deadline.checked_duration_since(Instant::now())).find_map(|_| {
             std::thread::sleep(Self::POLL);
             child.try_wait().transpose()
         });

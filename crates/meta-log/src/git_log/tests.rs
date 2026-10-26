@@ -13,6 +13,9 @@ const ORIGIN: &str = "origin";
 const WRITER: &str = "writer";
 const OFFLINE: [&str; 4] = ["remote", "set-url", ORIGIN, "/nonexistent/origin.git"];
 const OFFLINE_PREFIX: &str = "offline";
+const SHOWN: &str = "meta/log on origin";
+const REJECTED_PREFIX: &str = "meta/log push rejected";
+const REFUSE_PUSHES: [&str; 2] = ["/usr/bin/false", "hooks/pre-receive"];
 const STATUS: [&str; 3] = ["status", "--porcelain", "--branch"];
 const COUNT: [&str; 3] = ["rev-list", "--count", "meta/log"];
 const FIRST: usize = 0;
@@ -101,10 +104,11 @@ fn racing_writers_each_land_right_after_what_they_validated() {
     writers.into_iter().try_for_each(std::thread::JoinHandle::join).unwrap();
     let records = fixture.log(FIRST).read().unwrap().records().to_vec();
     assert!(seen.lock().unwrap().iter().all(|seen| records.get(seen.validated) == Some(&seen.record)));
+    assert_eq!(fixture.log(FIRST).to_string(), SHOWN);
 }
 
 #[test]
-fn refusals_write_nothing_and_offline_writes_are_refused() {
+fn refusals_write_nothing_and_rejected_or_offline_writes_fail() {
     let fixture = Fixture::new(SINGLE);
     let log = fixture.log(FIRST);
     let refused = log.append(&mut |_| Err(LogFailure::refused(WRITER))).err().map(|failure| failure.to_string());
@@ -112,12 +116,11 @@ fn refusals_write_nothing_and_offline_writes_are_refused() {
         refused.zip(log.read().ok().filter(|snapshot| snapshot.records().is_empty())).map(|(refused, _)| refused),
         Some(format!("refused: {WRITER}"))
     );
+    let failure =
+        || log.append(&mut |_| Ok(Fixture::record())).err().map(|failure| failure.to_string()).unwrap_or_default();
+    let [false_program, hook] = REFUSE_PUSHES;
+    std::os::unix::fs::symlink(false_program, fixture.origin.path().join(hook)).unwrap();
+    assert!(failure().starts_with(REJECTED_PREFIX));
     Git::run(fixture.clones[FIRST].path(), &OFFLINE);
-    assert!(
-        log.append(&mut |_| Ok(Fixture::record()))
-            .err()
-            .map(|failure| failure.to_string())
-            .unwrap_or_default()
-            .starts_with(OFFLINE_PREFIX)
-    );
+    assert!(failure().starts_with(OFFLINE_PREFIX));
 }

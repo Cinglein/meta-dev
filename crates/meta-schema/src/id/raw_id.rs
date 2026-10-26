@@ -2,7 +2,6 @@ use std::fmt;
 use std::hash::BuildHasher;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::SystemTime;
 
 use super::id_failure::IdFailure;
 
@@ -15,9 +14,7 @@ impl RawId {
 
     pub fn generate() -> Self {
         static COUNTER: AtomicU64 = AtomicU64::new(0);
-        let hasher = std::collections::hash_map::RandomState::new();
-        let count = COUNTER.fetch_add(1, Ordering::Relaxed);
-        Self(hasher.hash_one(count) ^ hasher.hash_one(SystemTime::now()) ^ hasher.hash_one(std::process::id()))
+        Self(std::collections::hash_map::RandomState::new().hash_one(COUNTER.fetch_add(1, Ordering::Relaxed)))
     }
 }
 
