@@ -9,6 +9,8 @@ pub enum CargoArgument {
     Clippy,
     #[strum(serialize = "test")]
     Test,
+    #[strum(serialize = "run")]
+    Run,
     #[strum(serialize = "mutants")]
     Mutants,
     #[strum(serialize = "metadata")]

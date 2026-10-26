@@ -8,6 +8,7 @@ use crate::task::lint::Lint;
 use crate::task::test::Test;
 use task::Policy;
 use task::Selection;
+use task::SpecSettings;
 use task::Workspace;
 use task::{CargoArgument, Program};
 use test_time::TestTime;
@@ -20,6 +21,7 @@ pub enum CiStep {
     Test,
     TestTime,
     Lint,
+    Spec,
 }
 
 impl CiStep {
@@ -40,6 +42,17 @@ impl CiStep {
                 .source_files()
                 .map_err(Failure::from)
                 .and_then(|files| Lint::run(workspace.root(), &files, policy)),
+            CiStep::Spec => policy.spec().map_or(Ok(()), |spec| {
+                workspace
+                    .line(Program::Cargo)
+                    .argument(CargoArgument::Run)
+                    .argument(CargoArgument::Package)
+                    .argument(spec.package())
+                    .argument(CargoArgument::ToolArguments)
+                    .argument(SpecSettings::CHECK)
+                    .run()
+                    .map_err(Failure::from)
+            }),
         };
         println!("ci: {self} {:.1?}", started.elapsed());
         outcome

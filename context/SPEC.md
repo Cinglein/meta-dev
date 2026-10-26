@@ -1,5 +1,45 @@
 # Meta-development repo: spec (draft, started 2026-10-22)
 
+Sections down to the next top-level heading are rendered from the rule records in `self/spec`; edit those, then run `cargo run -p meta-spec`. Each rule shows its id, division, ladder rung and enforcer.
+
+## Divisions (owner, 2026-10-26)
+- `division-is-a-property` (architecture-and-planning, rung 1, no enforcer): A division is any behaviour or invariant made first class (e.g. Basho navigation). It is a named property, not a code area: divisions overlap freely in code and are isolated by tracking (own items, budgets, checks, status).
+- `division-context` (architecture-and-planning, rung 1, no enforcer): An agent on a division sees only that division's context.
+- `division-nesting` (architecture-and-planning, rung 1, no enforcer): Divisions nest arbitrarily. A child gets a subset of its parent's budget.
+- `division-membership` (architecture-and-planning, rung 1, no enforcer): Every concern, issue and task belongs to exactly one division. An unplaced item belongs to the project root; growth there signals a missing division.
+- `division-top-level` (architecture-and-planning, rung 1, no enforcer): Top level, in every project: (1) features and maintenance (navigation, the tracker, guarding lints and mutants); (2) performance and cost (CI and test time, mutation time, Actions minutes and money, disk, agent wall time); (3) architecture and planning (the spec, DISCUSS items, the ladder; feeds 1 and 2).
+- `division-ownership` (architecture-and-planning, rung 1, no enforcer): Each top-level division owns its status tracking and metrics, and controls its own soundness, testing and measurability.
+- `division-dogfood` (architecture-and-planning, rung 1, no enforcer): meta-dev is an ordinary project with the same three divisions (principle 4). The steward and triage sit in its architecture and planning division.
+- `division-promotion` (architecture-and-planning, rung 1, no enforcer): Promotion: a concern that reaches ladder rung 2 (a precise property) may become a division; architecture and planning does the typing.
+
+## Budgets (owner, 2026-10-26)
+- `budget-definition` (architecture-and-planning, rung 1, no enforcer): A budget is a typed definition with an id, in tooling/policy.toml. Spend events in the log point at it.
+- `budget-unit` (architecture-and-planning, rung 1, no enforcer): Unit, exactly one per budget: Count, Duration, Share (later maybe Money or CI minutes).
+- `budget-window` (architecture-and-planning, rung 1, no enforcer): Window: per change (ratchet against the merge base), rolling per period, or standing (open items at any time).
+- `budget-overspend` (architecture-and-planning, rung 1, no enforcer): Overspend action is part of the definition: block (default) or escalate to DISCUSS.
+- `budget-measured-spend` (architecture-and-planning, rung 1, no enforcer): Spend is recorded by measurement only (CI and tools). Severity is the judged exception, checked later by calibration.
+- `budget-raise` (architecture-and-planning, rung 1, no enforcer): Raising a budget is owner-only.
+- `budget-waivers` (architecture-and-planning, rung 1, no enforcer): Waivers are spend from the waiver budget of the division whose rule they bend. They replace raw lint baselines.
+
+## Severity per division (owner, 2026-10-26)
+- `severity-scale` (architecture-and-planning, rung 1, no enforcer): Each division owns its severity scale. Deeper divisions have finer scales.
+- `severity-mapping` (architecture-and-planning, rung 1, no enforcer): Each child level maps to exactly one parent level, and the order is kept (a more severe child level never maps below a less severe one). Parent caps count every child item that maps to the level.
+- `severity-caps` (architecture-and-planning, rung 1, no enforcer): Caps are standing budgets per level, split down the tree. Rating into a full level needs a downgrade elsewhere or owner sign-off.
+- `severity-evidence` (architecture-and-planning, rung 1, no enforcer): A higher level needs stronger evidence (e.g. Critical: a reproduction; Major: a concrete failure scenario).
+- `severity-raising` (architecture-and-planning, rung 1, no enforcer): The reporter proposes a level. Raising after the rating is for the owner or the reviewer who reproduced it; lowering is free.
+- `severity-gates-work` (architecture-and-planning, rung 1, no enforcer): Severity orders the steward's work and gates new work (an open Critical stops new work in its division).
+
+## Build order (2026-10-26)
+- `build-1-types` (architecture-and-planning, rung 1, no enforcer): Step 1: Division and Budget types; policy entries with ids.
+- `build-2-log-divisions` (architecture-and-planning, rung 1, no enforcer): Step 2: every log item carries a division.
+- `build-3-status` (architecture-and-planning, rung 1, no enforcer): Step 3: `meta status` as a tree of divisions (tasks, claims, PRs and CI, agents with worktree and last activity).
+- `build-4-steward` (architecture-and-planning, rung 1, no enforcer): Step 4: steward heartbeat and `meta gc` on top of status.
+- `build-5-severity` (architecture-and-planning, rung 1, no enforcer): Step 5: severity scales, mapping and caps.
+- `build-6-waivers` (architecture-and-planning, rung 1, no enforcer): Step 6: waivers replace baselines (this also settles first-baseline seeding).
+- `build-7-rungs` (architecture-and-planning, rung 1, no enforcer): Step 7: ladder rungs on concerns.
+
+# Not yet converted: hand-written prose, 2006 words
+
 Source: Basho postmortem, part 3 (kept in the Basho project's private repo).
 
 ## Core principles (owner)
@@ -136,8 +176,6 @@ Source: Basho postmortem, part 3 (kept in the Basho project's private repo).
   - Unused or redundant structure is paid down (deleted).
   - Tension by design: the vagueness budget pushes to define; the complexity budget pushes to define only what earns its keep.
 
-## Next: bootstrapping (smallest useful first version, build order)
-
 ## Goal: sight-unseen merges (owner, 2026-10-25)
 - Today the owner reviews and merges every PR. That is a bottleneck, worse as implementer agents parallelise.
 - GOAL: the system becomes robust enough that most PRs can be merged sight-unseen.
@@ -176,44 +214,6 @@ Source: Basho postmortem, part 3 (kept in the Basho project's private repo).
 - A task whose budget expires again without an extension is released, so another agent can claim it.
 - Headroom applies: a task past ~60-80% of its budget is a warning to the steward.
 - Example: a mutation-testing PR's agent waited on a merge in a repo that had been frozen; nothing fired until the owner noticed by hand.
-
-## Divisions (owner, 2026-10-26)
-- A division is any behaviour or invariant made first class (e.g. Basho navigation). It is a named property, not a code area: divisions overlap freely in code and are isolated by tracking (own items, budgets, checks, status). An agent on a division sees only that division's context.
-- Divisions nest arbitrarily. A child gets a subset of its parent's budget.
-- Every concern, issue and task belongs to exactly one division. An unplaced item belongs to the project root; growth there signals a missing division.
-- Top level, in every project:
-  1. Features and maintenance (navigation, the tracker, guarding lints and mutants).
-  2. Performance and cost (CI and test time, mutation time, Actions minutes and money, disk, agent wall time).
-  3. Architecture and planning (the spec, DISCUSS items, the ladder; feeds 1 and 2).
-- Each top-level division owns its status tracking and metrics, and controls its own soundness, testing and measurability.
-- meta-dev is an ordinary project with the same three divisions (principle 4). The steward and triage sit in its architecture and planning division.
-- Promotion: a concern that reaches ladder rung 2 (a precise property) may become a division; architecture and planning does the typing.
-
-## Budgets (owner, 2026-10-26)
-- A budget is a typed definition with an id, in tooling/policy.toml. Spend events in the log point at it.
-- Unit, exactly one per budget: Count, Duration, Share (later maybe Money or CI minutes).
-- Window: per change (ratchet against the merge base), rolling per period, or standing (open items at any time).
-- Overspend action is part of the definition: block (default) or escalate to DISCUSS.
-- Spend is recorded by measurement only (CI and tools). Severity is the judged exception, checked later by calibration.
-- Raising a budget is owner-only.
-- Waivers are spend from the waiver budget of the division whose rule they bend. They replace raw lint baselines.
-
-## Severity per division (owner, 2026-10-26)
-- Each division owns its severity scale. Deeper divisions have finer scales.
-- Each child level maps to exactly one parent level, and the order is kept (a more severe child level never maps below a less severe one). Parent caps count every child item that maps to the level.
-- Caps are standing budgets per level, split down the tree. Rating into a full level needs a downgrade elsewhere or owner sign-off.
-- A higher level needs stronger evidence (e.g. Critical: a reproduction; Major: a concrete failure scenario).
-- The reporter proposes a level. Raising after the rating is for the owner or the reviewer who reproduced it; lowering is free.
-- Severity orders the steward's work and gates new work (an open Critical stops new work in its division).
-
-## Build order (2026-10-26)
-1. Division and Budget types; policy entries with ids.
-2. Every log item carries a division.
-3. `meta status` as a tree of divisions (tasks, claims, PRs and CI, agents with worktree and last activity).
-4. Steward heartbeat and `meta gc` on top of status.
-5. Severity scales, mapping and caps.
-6. Waivers replace baselines (this also settles first-baseline seeding).
-7. Ladder rungs on concerns.
 
 ## Prose (owner, 2026-10-25)
 Prose is allowed only in three categories, each clearly marked and separated from the rest of the codebase:

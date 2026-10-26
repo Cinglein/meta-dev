@@ -10,6 +10,8 @@ Principles, ladder and design: `context/SPEC.md`. Build stages: `context/BOOTSTR
 - `tooling/`: one crate per lint or task; `tooling/policy.toml` holds every limit and budget.
 - `xtask/`: `cargo xtask ci` (fmt, clippy, lints, tests, test-time budget); CI runs it with `--affected`.
 - `plugin/`: Claude Code hooks that call `meta hook`. `self/`: lint baseline and log seed scripts.
+- `self/spec` (`meta-spec`): spec rules as typed records; `context/SPEC.md` is rendered from them
+  (`cargo run -p meta-spec`). `cargo xtask ci` checks the render in its `spec` step.
 - `examples/consumer/`: a small workspace that uses the tooling with its own policy; CI runs it.
 - `context/` and this file: agent context (prose category 1). `README.md` and `docs/`: STE100
   documentation only (category 2).
