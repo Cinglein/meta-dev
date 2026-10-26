@@ -30,7 +30,7 @@ impl LocalTrail {
         file.appended(serde_json::to_string(entry).map_err(|failure| file.failure(failure))?)
     }
 
-    pub fn current(&self) -> Vec<&RecordedWorktree> {
+    pub fn current(&self) -> Vec<RecordedWorktree> {
         self.entries.iter().fold(Vec::new(), |current, entry| entry.applied(current))
     }
 

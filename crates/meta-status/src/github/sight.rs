@@ -1,9 +1,11 @@
 use std::fmt;
 
-use meta_pulls::RuledPull;
+use meta_pulls::{PullState, RuledPull};
 use meta_schema::{Id, PullRequest, Task};
 
+use crate::ending::Ending;
 use crate::flag::Flag;
+use crate::lifetime::Lifetime;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Sight<'github> {
@@ -18,6 +20,18 @@ impl Sight<'_> {
         match self {
             Self::Seen(pull) => pull.open(),
             Self::Missing | Self::Unreached => None,
+        }
+    }
+
+    #[must_use]
+    pub fn lifetime(self, pull_request: PullRequest) -> Lifetime {
+        match self {
+            Self::Seen(pull) => match pull.state() {
+                PullState::Open => Lifetime::Open(pull_request),
+                PullState::Merged => Lifetime::Ended(Ending::Merged(pull_request)),
+                PullState::Closed => Lifetime::Ended(Ending::Closed(pull_request)),
+            },
+            Self::Missing | Self::Unreached => Lifetime::Unknown(pull_request),
         }
     }
 

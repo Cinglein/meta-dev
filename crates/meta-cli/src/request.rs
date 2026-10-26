@@ -20,7 +20,7 @@ use cli_failure::{CliFailure, Invalid, Misuse, Setup};
 use heartbeat::Heartbeat;
 use hook::HookEvent;
 use live_github::LiveGithub;
-use local::LocalClone;
+use local::{LocalClone, Sweep};
 use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
 use project::Project;
@@ -32,6 +32,7 @@ pub enum Request {
     Write(Event),
     ClaimWorktree(Claim),
     Worktrees,
+    Gc(Sweep),
     List(Option<Kind>, Scope),
     Status(StatusView),
     Hook(HookEvent),
@@ -90,6 +91,10 @@ impl TryFrom<Vec<String>> for Request {
                 })
             }
             "worktrees" => parsed.allowing(&[]).map(|_| Self::Worktrees),
+            "gc" => {
+                let planned = parsed.allowing(&[OptionName::DryRun])?.flagged(OptionName::DryRun);
+                Ok(Self::Gc(planned.map_or(Sweep::Done, |()| Sweep::Planned)))
+            }
             "release" => Ok(Self::Write(Event::TaskReleased(task()?))),
             "done" => Ok(Self::Write(Event::TaskDone(task()?))),
             "reopen" => Ok(Self::Write(Event::TaskReopened(task()?))),
@@ -131,6 +136,7 @@ impl Request {
             Self::Status(view) => view.answer(&project.log()?, |query| LiveGithub::for_project(project).read(query)),
             Self::ClaimWorktree(claim) => LocalClone::try_from(project)?.claimed(project, claim, Self::actor()?),
             Self::Worktrees => LocalClone::try_from(project)?.worktrees(project),
+            Self::Gc(sweep) => LocalClone::try_from(project)?.collected(project, sweep),
             logged => logged.answer_from(&project.log()?, Self::actor),
         }
     }
@@ -150,7 +156,8 @@ impl Request {
             | Self::CiLog(_)
             | Self::Status(_)
             | Self::ClaimWorktree(_)
-            | Self::Worktrees => Err(CliFailure::raised::<Misuse>("not a meta/log request")),
+            | Self::Worktrees
+            | Self::Gc(_) => Err(CliFailure::raised::<Misuse>("not a meta/log request")),
         }
     }
 
