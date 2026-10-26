@@ -12,32 +12,41 @@ use tally::Tally;
 
 use task::CrateName;
 use task::Failure;
+use task::Floor;
 use task::Millis;
 use task::Policy;
 use task::Site;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct MutantCosts {
     prices: BTreeMap<CrateName, Millis>,
+    unsampled: BTreeMap<CrateName, Millis>,
 }
 
 impl MutantCosts {
     const OUTCOMES: &str = "outcomes.json";
     const STEP: NonZeroU64 = NonZeroU64::new(100).unwrap();
 
-    pub fn measure(directory: &Path) -> Result<MutantCosts, Failure> {
+    pub fn measure(directory: &Path, policy: &Policy) -> Result<MutantCosts, Failure> {
         let io = |error| Failure::Io { site: Site::File(directory.to_path_buf()), error };
         Self::outcome_files(directory)?
             .iter()
             .map(|file| fs::read_to_string(file).map_err(io))
             .map(|json| Outcomes::parse(&json?))
             .collect::<Result<Vec<Outcomes>, Failure>>()
-            .map(Self::tally)
+            .map(|all| Self::tally(all, policy))
     }
 
     #[must_use]
-    pub fn tally(all: impl IntoIterator<Item = Outcomes>) -> MutantCosts {
-        MutantCosts { prices: all.into_iter().fold(BTreeMap::new(), |prices, run| Self::costliest_run(prices, &run)) }
+    pub fn tally(all: impl IntoIterator<Item = Outcomes>, policy: &Policy) -> MutantCosts {
+        all.into_iter().fold(MutantCosts::default(), |costs, run| costs.costliest_run(&run, policy))
+    }
+
+    #[must_use]
+    pub fn below_sample_floor(&self) -> String {
+        let spelled: Vec<String> =
+            self.unsampled.iter().map(|(name, mean)| format!("{name} {}", mean.rounded_up_to(Self::STEP))).collect();
+        spelled.join(", ")
     }
 
     pub fn priced_within(&self, policy: &Policy) -> Result<(), Failure> {
@@ -51,12 +60,14 @@ impl MutantCosts {
         under.is_empty().then_some(()).ok_or_else(|| Failure::Underpriced(under.join(", ")))
     }
 
-    fn costliest_run(mut prices: BTreeMap<CrateName, Millis>, run: &Outcomes) -> BTreeMap<CrateName, Millis> {
+    fn costliest_run(mut self, run: &Outcomes, policy: &Policy) -> MutantCosts {
+        let floor = policy.floor(Floor::PriceSample);
         run.tallied_into(BTreeMap::new()).into_iter().for_each(|(name, tally): (CrateName, Tally)| {
-            let price = prices.entry(name).or_default();
+            let book = if floor.allows(tally.count().into()) { &mut self.prices } else { &mut self.unsampled };
+            let price = book.entry(name).or_default();
             *price = (*price).max(tally.mean());
         });
-        prices
+        self
     }
 
     fn outcome_files(path: &Path) -> Result<Vec<PathBuf>, Failure> {
@@ -100,17 +111,27 @@ mod tests {
     const LISTED: &str = "meta-cli";
     const SAMPLE: usize = 30;
     const BELOW_SAMPLE: usize = 29;
-    const SNIPPET: &str = r#"{"outcomes": [{"scenario": "Baseline", "phase_results": [{"phase": "Build", "duration": 9.0}]}, {"scenario": {"Mutant": {"package": "log", "file": "x"}}, "phase_results": [{"phase": "Build", "duration": 2.51}, {"phase": "Test", "duration": 0.5}]}, {"scenario": {"Mutant": {"package": "state"}}, "phase_results": [{"phase": "Build", "duration": 1.0}]}]}"#;
-    const SLOWER_STATE: &str = r#"{"outcomes": [{"scenario": {"Mutant": {"package": "state"}}, "phase_results": [{"phase": "Test", "duration": 2.0}]}]}"#;
+    const BASELINE: &str = r#"{"scenario": "Baseline", "phase_results": [{"phase": "Build", "duration": 9.0}]}"#;
+    const RUNS: [&[(&str, f64, usize)]; 3] =
+        [&[("log", 3.01, SAMPLE), ("state", 1.0, SAMPLE)], &[("state", 2.0, SAMPLE)], &[("log", 9.0, BELOW_SAMPLE)]];
+    const SMALL: &str = "log 9000";
     const TABLE: &str = "[mutant_millis]\ndefault = 3100\n\n[mutant_millis.crates]\nlog = 3100\nstate = 2000\n";
     const SCRATCH: &str = "meta-costs";
     const NESTED: [&str; 3] = ["a", "b", "outcomes.json"];
     const DECOY: &str = "other.json";
 
     #[test]
-    fn each_crate_is_priced_at_its_costliest_run_and_unknown_crates_at_the_costliest_crate() {
-        let runs = [SNIPPET, SLOWER_STATE, SNIPPET].map(|run| Outcomes::parse(run).unwrap());
-        assert_eq!(MutantCosts::tally(runs).to_string(), TABLE);
+    fn each_sampled_crate_is_priced_at_its_costliest_run_rounded_up_and_small_runs_are_only_reported() {
+        let policy = Policy::defaults();
+        let run = |crates: &[(&str, f64, usize)]| {
+            let mutants = crates.iter().flat_map(|(package, seconds, mutants)| {
+                vec![format!(r#"{{"scenario": {{"Mutant": {{"package": "{package}"}}}}, "phase_results": [{{"phase": "Test", "duration": {seconds}}}]}}"#); *mutants]
+            });
+            let outcomes: Vec<String> = [BASELINE.to_owned()].into_iter().chain(mutants).collect();
+            Outcomes::parse(&format!(r#"{{"outcomes": [{}]}}"#, outcomes.join(", "))).unwrap()
+        };
+        let costs = MutantCosts::tally(RUNS.map(run), &policy);
+        assert_eq!((costs.to_string(), costs.below_sample_floor()), (TABLE.to_owned(), SMALL.to_owned()));
     }
 
     #[test]
@@ -123,7 +144,7 @@ mod tests {
                 r#"{{"scenario": {{"Mutant": {{"package": "{LISTED}"}}}}, "phase_results": [{{"phase": "Test", "duration": {seconds}}}]}}"#
             );
             let run = format!(r#"{{"outcomes": [{}]}}"#, vec![one; mutants].join(", "));
-            MutantCosts::tally([Outcomes::parse(&run).unwrap()]).priced_within(&policy)
+            MutantCosts::tally([Outcomes::parse(&run).unwrap()], &policy).priced_within(&policy)
         };
         assert!(measured(price, SAMPLE).is_ok());
         assert!(matches!(measured(price.plus(price), SAMPLE), Err(Failure::Underpriced(_))));
