@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use task::{CommandLine, Program, Site, Stdout};
 use tempfile::TempDir;
 
-use crate::task::ci::local_gate::{MetaRev, RecordedTimes, Unready, Worktrees};
+use crate::task::ci::local_gate::{MetaRev, RecordedTimes, Toolchain, Unready, Worktrees};
 use crate::task::failure::Failure;
 use crate::task::revision::Commit;
 
@@ -23,7 +23,12 @@ impl Checkout {
     const ADD: [&str; 3] = ["worktree", "add", "--detach"];
     const PRUNE: [&str; 2] = ["worktree", "prune"];
     const LIST: [&str; 3] = ["worktree", "list", "--porcelain"];
-    const CHANGES: [&str; 3] = ["status", "--porcelain", "--untracked-files=all"];
+    const CHANGES: [&str; 7] =
+        ["status", "--porcelain", "--no-renames", "--untracked-files=all", "--", ":/", ":(exclude)Cargo.lock"];
+    const NO_HOOKS: [&str; 2] = ["-c", "core.hooksPath=/dev/null"];
+    const RUSTUP: &str = "rustup";
+    const ACTIVE_TOOLCHAIN: [&str; 2] = ["show", "active-toolchain"];
+    const RUSTUP_ENVIRONMENT: [&str; 4] = ["PATH", "HOME", "RUSTUP_HOME", "CARGO_HOME"];
     const HEAD: [&str; 2] = ["rev-parse", "HEAD"];
     const SHORT_HEAD: [&str; 3] = ["rev-parse", "--short", "HEAD"];
     const GIT: &str = ".git";
@@ -62,6 +67,9 @@ impl Checkout {
             })
         })?;
         Self::git(repository).arguments(Self::PRUNE).run()?;
+        Self::orphans(&parent).iter().filter(|place| Self::claimed(place).is_ok()).for_each(|place| {
+            Self::discarded(place);
+        });
         Ok(parent)
     }
 
@@ -86,9 +94,18 @@ impl Checkout {
     }
 
     pub fn intact(&self) -> Result<(), Failure> {
-        let git = |arguments: &[&str]| Self::git(&self.place).arguments(arguments).captured::<Stdout>();
-        let head: Commit = git(&Self::HEAD)?.parse()?;
-        (head == self.commit && git(&Self::CHANGES)?.is_empty()).then_some(()).ok_or(Unready::Tampered.into())
+        let head: Commit = Self::git(&self.place).arguments(Self::HEAD).captured::<Stdout>()?.parse()?;
+        let changes = Self::git(&self.root()).arguments(Self::CHANGES).captured::<Stdout>()?;
+        (head == self.commit && changes.is_empty()).then_some(()).ok_or(Unready::Tampered.into())
+    }
+
+    pub fn toolchain(&self) -> Result<Toolchain, Failure> {
+        CommandLine::new(Program::Executable(PathBuf::from(Self::RUSTUP)))
+            .in_directory(self.root())
+            .arguments(Self::ACTIVE_TOOLCHAIN)
+            .inheriting_only(&Self::RUSTUP_ENVIRONMENT)
+            .captured::<Stdout>()?
+            .parse()
     }
 
     pub fn version(&self) -> Result<MetaRev, Failure> {
@@ -117,7 +134,21 @@ impl Checkout {
     }
 
     fn git(directory: &Path) -> CommandLine {
-        CommandLine::new(Program::Git).in_directory(directory.to_path_buf())
+        CommandLine::new(Program::Git).in_directory(directory.to_path_buf()).arguments(Self::NO_HOOKS)
+    }
+
+    fn orphans(parent: &Path) -> Vec<PathBuf> {
+        fs::read_dir(parent)
+            .map(|entries| {
+                entries
+                    .flatten()
+                    .map(|entry| entry.path())
+                    .filter(|path| path.is_file())
+                    .map(|path| path.with_extension(""))
+                    .filter(|place| place.exists())
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 }
 
@@ -155,6 +186,7 @@ mod tests {
     const HEAD: &str = "HEAD";
     const HELD: &str = "lock";
     const UNKNOWN: &str = "0000000";
+    const ORPHAN: &str = ".tmpgone.times";
 
     impl Fixture {
         fn checked_out(&self) -> Checkout {
@@ -170,11 +202,11 @@ mod tests {
         }
     }
 
-    impl Checkout {
-        fn abandoned(self) -> PathBuf {
-            self.lock.unlock().unwrap();
-            let place = self.place.clone();
-            mem::forget(self);
+    impl Fixture {
+        fn abandoned(checkout: Checkout) -> PathBuf {
+            checkout.lock.unlock().unwrap();
+            let place = checkout.place.clone();
+            mem::forget(checkout);
             place
         }
     }
@@ -185,7 +217,8 @@ mod tests {
         let checkout = fixture.checked_out();
         assert!(checkout.root().join("committed.txt").exists() && !checkout.root().join("hello.txt").exists());
         let outside = checkout.above().is_some_and(|above| checkout.root().starts_with(above));
-        assert!(outside && checkout.root().ancestors().all(|directory| !directory.join(CARGO_CONFIG).exists()));
+        let excluded = checkout.root().with_file_name(CARGO_CONFIG);
+        assert!(outside && !checkout.root().starts_with(fixture.root()) && !excluded.exists());
         let local = checkout.version().is_ok_and(|version| version == MetaRev::local());
         assert!(checkout.scope() == Path::new(SCOPE) && checkout.intact().is_ok() && local);
     }
@@ -204,9 +237,11 @@ mod tests {
     #[test]
     fn a_sweep_removes_only_checkouts_no_running_gate_holds() {
         let fixture = Fixture::new();
-        let stale = fixture.checked_out().abandoned();
+        let stale = Fixture::abandoned(fixture.checked_out());
         let live = fixture.added();
+        let orphan = fixture.beside().join(ORPHAN);
+        fs::write(&orphan, "").unwrap();
         Checkout::sweep(&fixture.path(SCOPE), &fixture.beside()).unwrap();
-        assert!(!stale.exists() && !stale.with_extension(HELD).exists() && live.root().exists());
+        assert!(!stale.exists() && !stale.with_extension(HELD).exists() && live.root().exists() && !orphan.exists());
     }
 }

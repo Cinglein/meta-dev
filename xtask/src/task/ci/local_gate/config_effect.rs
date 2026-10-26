@@ -41,8 +41,9 @@ impl FromStr for ConfigEffect {
 mod tests {
     use super::ConfigEffect;
 
-    const OVERRIDING: [&str; 6] = [
-        "[target.aarch64-apple-darwin]\nrunner = \"true\"\n",
+    const OVERRIDING: [&str; 7] = [
+        "[alias]\nclippy = \"test --no-run\"\n",
+        "[target.'cfg(unix)']\nrunner = \"true\"\n",
         "[profile.dev]\ndebug-assertions = false\n",
         "[build]\nrustc-wrapper = \"/tmp/wrap.sh\"\n",
         "[env]\nRUSTFLAGS = \"--cap-lints=allow\"\n",
@@ -50,8 +51,8 @@ mod tests {
         "[build]\nrustc-wrapper = \"/tmp/sccache-not\"\n",
     ];
     const NEUTRAL: [&str; 2] = [
-        "[alias]\nxtask = \"run --package xtask --\"\n[net]\nretry = 3\n[term]\nverbose = false\n",
-        "[build]\njobs = 4\nrustc-wrapper = \"/opt/homebrew/bin/sccache\"\n[http]\ntimeout = 30\n[registries]\n",
+        "[net]\nretry = 3\n[term]\nverbose = false\n",
+        "[build]\njobs = 4\nrustc-wrapper = \"/tools/bin/sccache\"\n[http]\ntimeout = 30\n[registries]\n",
     ];
 
     #[test]

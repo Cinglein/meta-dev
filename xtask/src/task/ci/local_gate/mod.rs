@@ -9,6 +9,7 @@ mod passed_steps;
 mod posting;
 mod recorded_times;
 mod status_argument;
+mod toolchain;
 mod unready;
 mod worktrees;
 
@@ -24,6 +25,7 @@ use gate_state::GateState;
 use meta_rev::MetaRev;
 use passed_steps::PassedSteps;
 use recorded_times::RecordedTimes;
+use toolchain::Toolchain;
 use worktrees::Worktrees;
 
 use std::env;
@@ -56,6 +58,8 @@ impl LocalGate {
     const CARGO_BUILD_DIR: &str = "CARGO_BUILD_BUILD_DIR";
     const CARGO_HOME: &str = "CARGO_HOME";
     const DOT_CARGO: &str = ".cargo";
+    const CARGO: &str = "cargo";
+    const RUSTUP_TOOLCHAIN: &str = "RUSTUP_TOOLCHAIN";
     const INHERITED: [&str; 5] = ["PATH", "HOME", "CARGO_HOME", "RUSTUP_HOME", "TMPDIR"];
     const WORKTREES: [&str; 3] = ["worktree", "list", "--porcelain"];
 
@@ -93,10 +97,12 @@ impl LocalGate {
             .or_else(|| env::home_dir().map(|home| home.join(Self::DOT_CARGO)))
             .unwrap_or_default();
         OutsideConfig::around(checkout.above().unwrap_or(&parent), &cargo_home).refused()?;
-        let outcome = CommandLine::new(Program::Cargo)
+        let toolchain = checkout.toolchain()?;
+        let outcome = CommandLine::new(Program::Executable(PathBuf::from(Self::CARGO)))
             .in_directory(checkout.root())
             .arguments(Self::GATE)
             .inheriting_only(&Self::INHERITED)
+            .environment(Self::RUSTUP_TOOLCHAIN, &toolchain)
             .environment(Self::CARGO_TARGET, target.clone())
             .environment(Self::CARGO_BUILD_DIR, target)
             .environment(Self::TIMES, checkout.times().path().to_path_buf())
@@ -123,10 +129,12 @@ impl LocalGate {
         let checked = checkout.commit();
         checkout.intact()?;
         let version = checkout.version()?;
+        let toolchain = checkout.toolchain()?;
         let times = checkout.times();
         let context = StatusArgument::Context { status: &self.status, scope: checkout.scope() };
         let line = self.gh.clone().in_directory(self.root.clone()).arguments(Self::POST);
-        [StatusArgument::State(state), context, StatusArgument::Description { version, times: &times, surfaces }]
+        let description = StatusArgument::Description { version, toolchain, times: &times, surfaces };
+        [StatusArgument::State(state), context, description]
             .iter()
             .fold(line.argument(StatusArgument::Endpoint(checked)), |line, field| {
                 line.argument(Self::FIELD).argument(field)
@@ -157,7 +165,9 @@ mod tests {
     use crate::task::surfaces::Changed;
 
     const IGNORE: &str = ".gitignore";
-    const IGNORED: &str = "target/\n";
+    const IGNORED: &str = "target/\n*.built\n";
+    const LEFTOVER: &str = "leftover.built";
+    const LOCKFILE: &str = "Cargo.lock";
     const SOURCE: &str = "consumer/src/lib.rs";
     const SCOPE: &str = "consumer";
     const ALPHA: &str = "pub struct Alpha;\n";
@@ -167,8 +177,7 @@ mod tests {
     const RECORDED: &str = ".git/fake-gh.args";
     const SCRIPT: &str = "printf '%s\\n' \"$@\" > \"$0.args\"\n";
     const TIMED: &str = "fmt 1.0s";
-    const POSTED: &str =
-        "-f\nstate=success\n-f\ncontext=local-gate/consumer\n-f\ndescription=meta-dev local: fmt 1.0s,";
+    const POSTED: &str = "-f\nstate=success\n-f\ncontext=local-gate/consumer\n-f\ndescription=meta-dev local on ";
     const FAILED: &str = "state=failure";
     const SURFACED: &str = "; surfaces changed\n";
 
@@ -209,6 +218,7 @@ mod tests {
         let gate = LocalGate::faked(&fixture);
         let checkout = gate.checkout(&fixture.beside()).unwrap();
         fs::write(checkout.times().path(), CiStep::every_step_passed()).unwrap();
+        fs::write(checkout.root().join(LOCKFILE), BETA).unwrap();
         fixture.write(SOURCE, BETA).branch();
         let surfaces = Changed::new(vec![PathBuf::from(IGNORE)]);
         let recorded = || fs::read_to_string(fixture.path(RECORDED)).unwrap_or_default();
@@ -227,7 +237,7 @@ mod tests {
         let fixture = Fixture::new();
         let gate = LocalGate::faked(&fixture);
         let checkout = gate.checkout(&fixture.beside()).unwrap();
-        fs::write(checkout.root().join(SCOPE), BETA).unwrap();
+        fs::write(checkout.root().join(LEFTOVER), BETA).unwrap();
         let posted = gate.concluded(&checkout, Ok(()), &Changed::new(Vec::new()));
         assert!(LocalGate::refused(posted, Unready::Tampered) && !fixture.path(RECORDED).exists());
     }

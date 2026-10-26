@@ -29,7 +29,7 @@ pub struct CommandLine {
     program: Program,
     arguments: Vec<String>,
     directory: Option<PathBuf>,
-    variables: BTreeMap<&'static str, PathBuf>,
+    variables: BTreeMap<&'static str, OsString>,
     inherited: Option<BTreeMap<&'static str, OsString>>,
 }
 
@@ -59,8 +59,8 @@ impl CommandLine {
     }
 
     #[must_use]
-    pub fn environment(mut self, name: &'static str, value: PathBuf) -> CommandLine {
-        self.variables.insert(name, value);
+    pub fn environment(mut self, name: &'static str, value: impl Into<OsString>) -> CommandLine {
+        self.variables.insert(name, value.into());
         self
     }
 

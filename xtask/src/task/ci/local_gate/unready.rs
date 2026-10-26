@@ -12,4 +12,6 @@ pub enum Unready {
     Unversioned,
     #[error("the gate did not record every step as passed")]
     Incomplete,
+    #[error("rustup shows no active toolchain for the checkout")]
+    NoToolchain,
 }

@@ -37,34 +37,48 @@ impl fmt::Display for OutsideConfig {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::path::{Path, PathBuf};
 
     use super::OutsideConfig;
     use crate::task::fixture::Fixture;
 
     const CONFIG: &str = ".cargo/config.toml";
+    const HOME_CONFIG: &str = "config.toml";
     const CAPPED: &str = "[env]\nRUSTFLAGS = \"--cap-lints=allow\"\n";
-    const ALIASED: &str = "[alias]\nxtask = \"run --package xtask --\"\n";
+    const ALIASED: &str = "[alias]\nclippy = \"test --no-run\"\n";
+    const NETTED: &str = "[net]\nretry = 3\n";
     const HOME: &str = "cargo-home";
     const RUSTFMT: &str = "rustfmt.toml";
     const FORMATTED: &str = "max_width = 200\n";
 
+    impl Fixture {
+        fn placed(file: &Path, text: &str) -> PathBuf {
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(file, text).unwrap();
+            file.to_path_buf()
+        }
+
+        fn outside(&self) -> OutsideConfig {
+            OutsideConfig::around(&self.beside(), &self.path(HOME))
+        }
+    }
+
     #[test]
-    fn an_ancestor_or_cargo_home_config_that_changes_the_build_refuses_the_gate() {
+    fn an_ancestor_or_cargo_home_config_that_changes_the_build_is_listed() {
         let fixture = Fixture::new();
-        let around = || OutsideConfig::around(&fixture.beside(), &fixture.path(HOME));
-        fs::create_dir_all(fixture.path(HOME)).unwrap();
-        fs::write(fixture.path(HOME).join("config.toml"), ALIASED).unwrap();
-        assert!(around().refused().is_ok());
-        fixture.write(&format!("../{CONFIG}"), CAPPED);
-        assert!(around().refused().is_err_and(|failure| failure.to_string().contains(CONFIG)));
+        let home = Fixture::placed(&fixture.path(HOME).join(HOME_CONFIG), NETTED);
+        assert!(!fixture.outside().0.contains(&home));
+        Fixture::placed(&home, ALIASED);
+        let ancestor = Fixture::placed(&fixture.beside().with_file_name(CONFIG), CAPPED);
+        assert!(fixture.outside().0.contains(&home) && fixture.outside().0.contains(&ancestor));
     }
 
     #[test]
     fn a_clippy_or_rustfmt_config_above_the_checkout_refuses_the_gate() {
         let fixture = Fixture::new();
-        let around = || OutsideConfig::around(&fixture.beside(), &fixture.path(HOME));
-        assert!(around().refused().is_ok());
-        fixture.write(&format!("../{RUSTFMT}"), FORMATTED);
-        assert!(around().refused().is_err_and(|failure| failure.to_string().contains(RUSTFMT)));
+        let rustfmt = fixture.beside().with_file_name(RUSTFMT);
+        assert!(!fixture.outside().0.contains(&rustfmt) && OutsideConfig(Vec::new()).refused().is_ok());
+        Fixture::placed(&rustfmt, FORMATTED);
+        assert!(fixture.outside().refused().is_err_and(|failure| failure.to_string().contains(RUSTFMT)));
     }
 }
