@@ -11,6 +11,7 @@ Do these steps at the root of your workspace.
 1. Add an `xtask` crate to `members` in `Cargo.toml`.
 
 2. Add the dependency to `xtask/Cargo.toml`. Use a tag. Do not use a branch.
+   The tag `v0.1.0` is available only after the owner makes it. Until then, use `rev = "<commit>"`.
 
    ```toml
    [package]
@@ -60,7 +61,13 @@ Do these steps at the root of your workspace.
    The file must have all of the keys. If a key is missing or unknown, the task stops and shows the error.
    Put the baseline file at the path that `baseline` gives. An empty file is correct.
 
-6. Run the checks:
+6. Make sure that git has the base branch.
+   The `[branches]` table in your policy gives it, for example `base = "origin/main"`.
+   Your repository must have an `origin` remote. Run `git fetch origin` before the checks.
+   The checks compare your work with the merge base of `HEAD` and that branch.
+   Your workspace can be in a subdirectory of the git repository.
+
+7. Run the checks:
 
    ```sh
    cargo xtask ci
@@ -69,7 +76,10 @@ Do these steps at the root of your workspace.
    The command runs fmt, clippy, the tests, the test-time budget and the lints.
    It reads your `tooling/policy.toml` only. It does not read the policy of meta-development.
 
-`examples/consumer/` is a full example. CI runs `cargo xtask ci` in it.
+`examples/consumer/` is a full example. CI makes a new lockfile for it and runs `cargo xtask ci` in it.
+
+Your lockfile gets `unicode-ident 1.0.24`. meta-development sets this exact version.
+Newer versions stop `ra-ap-rustc_lexer` from compiling. Do not update `unicode-ident` until meta-development removes this limit.
 
 ## Versions
 
