@@ -268,10 +268,10 @@ pub const SECTIONS: &[Section] = &[
                 Tracked,
             ),
             Rule::new(
-                RuleId::new("rule-decomposition-parked"),
+                RuleId::new("rule-decomposition"),
                 ArchitectureAndPlanning,
                 Wording::new(
-                    "'Spec rule' is decomposed into four things: claim, definition, plan and decision. That work is parked.",
+                    "'Spec rule' is decomposed into four things: claim, definition, plan and decision. PR #28 (the rung audit of the old rules) is paused as input to the split.",
                 ),
                 Tracked,
             ),

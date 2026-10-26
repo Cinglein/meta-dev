@@ -39,7 +39,7 @@ Sections down to the next top-level heading are rendered from the rule records i
 - `concern-resting` (architecture-and-planning, rung 1, no enforcer): Concerns may rest at any rung, but resting is budgeted with a ratchet (exact shape being decided).
 - `concern-rung-only-axis` (architecture-and-planning, rung 1, no enforcer): Rung is the only typed axis; confidence is not separate, because climbing from rung 1 to 2 already narrows it.
 - `concern-closing` (architecture-and-planning, rung 1, no enforcer): Closing: resolved or retired.
-- `rule-decomposition-parked` (architecture-and-planning, rung 1, no enforcer): 'Spec rule' is decomposed into four things: claim, definition, plan and decision. That work is parked.
+- `rule-decomposition` (architecture-and-planning, rung 1, no enforcer): 'Spec rule' is decomposed into four things: claim, definition, plan and decision. PR #28 (the rung audit of the old rules) is paused as input to the split.
 
 ## Severity per division (owner, 2026-10-26)
 - `severity-scale` (architecture-and-planning, rung 1, no enforcer): Each division owns its severity scale. Deeper divisions have finer scales.
