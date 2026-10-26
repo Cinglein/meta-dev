@@ -51,7 +51,6 @@ impl CommandLine {
             inherited: Some(
                 names
                     .iter()
-                    .chain(&["HOME"])
                     .filter_map(|name| env::var_os(name).map(|value| (*name, value)))
                     .collect(),
             ),

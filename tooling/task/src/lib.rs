@@ -4,6 +4,7 @@ mod budget;
 mod command_line;
 mod crate_name;
 mod failure;
+mod gate_status;
 mod line_number;
 mod mutant_count;
 mod name;
@@ -33,13 +34,14 @@ pub use command_line::{
 };
 pub use crate_name::CrateName;
 pub use failure::{FailedRuns, Failure, KilledProcess, KilledProcesses};
+pub use gate_status::GateStatus;
 pub use line_number::LineNumber;
 pub use mutant_count::MutantCount;
 pub use name::{Casing, LoweredInfix, Name, Prefix, Whole};
 pub use nesting_depth::NestingDepth;
 pub use package_graph::PackageGraph;
 pub use policy::{
-    BaselineFile, Floor, GateStatus, Limit, Most, Policy, Share, SpecSettings, Surface, WireType,
+    BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface, WireType,
 };
 pub use reexport_count::ReexportCount;
 pub use report::Report;

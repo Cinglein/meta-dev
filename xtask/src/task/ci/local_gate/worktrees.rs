@@ -14,7 +14,7 @@ impl Worktrees {
     }
 
     pub fn main(&self) -> Option<&Path> {
-        self.0.last().map(PathBuf::as_path)
+        self.0.first().map(PathBuf::as_path)
     }
 }
 

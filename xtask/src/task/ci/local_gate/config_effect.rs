@@ -25,7 +25,7 @@ impl FromStr for ConfigEffect {
         let build = table.get(Self::BUILD).and_then(Value::as_table);
         let targets = table.get(Self::TARGET).and_then(Value::as_table);
         Ok(
-            if table.contains_key(Self::ENV.trim_end_matches('v'))
+            if table.contains_key(Self::ENV)
                 || build.is_some_and(|build| Self::BUILD_KEYS.iter().any(|key| build.contains_key(*key)))
                 || targets.is_some_and(|targets| {
                     targets.values().filter_map(Value::as_table).any(|target| target.contains_key(Self::RUSTFLAGS))

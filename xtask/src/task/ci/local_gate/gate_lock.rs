@@ -20,7 +20,6 @@ impl GateLock {
     const PAUSE: Duration = Duration::from_millis(250);
     const TARGETS: &str = "targets";
     const LOCK: &str = "lock";
-    const NOWHERE: &str = "/dev/null";
 
     pub fn target(parent: &Path, workspace: &Path) -> PathBuf {
         workspace
@@ -50,9 +49,7 @@ impl GateLock {
     }
 
     pub fn inheritable(&self) -> Result<File, Failure> {
-        Ok(File::open(Self::NOWHERE)
-            .and_then(|file| self.held.metadata().map(|_| file))
-            .map_err(|error| task::Failure::Io { site: Site::Workspace, error })?)
+        Ok(self.held.try_clone().map_err(|error| task::Failure::Io { site: Site::Workspace, error })?)
     }
 }
 
