@@ -36,7 +36,15 @@ impl Revision {
             .arguments(["diff", "--name-only", "--no-renames", "-z"])
             .argument(&self.commit)
             .captured::<Stdout>()?;
-        Ok(listed.split('\0').filter(|path| !path.is_empty()).map(PathBuf::from).collect())
+        let untracked = Self::git(&self.root)
+            .arguments(["ls-files", "--others", "--exclude-standard", "-z"])
+            .captured::<Stdout>()?;
+        Ok([listed, untracked]
+            .iter()
+            .flat_map(|paths| paths.split('\0'))
+            .filter(|path| !path.is_empty())
+            .map(PathBuf::from)
+            .collect())
     }
 
     fn git(root: &Path) -> CommandLine {

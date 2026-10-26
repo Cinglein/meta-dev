@@ -16,7 +16,10 @@ impl LogStore for MemoryLog {
         Ok(self.records.borrow().iter().cloned().fold(Snapshot::default(), Snapshot::with_record))
     }
 
-    fn append(&self, decide: &mut dyn FnMut(&Snapshot) -> Result<Record, LogFailure>) -> Result<Record, LogFailure> {
+    fn append<Failure: From<LogFailure>>(
+        &self,
+        decide: &mut dyn FnMut(&Snapshot) -> Result<Record, Failure>,
+    ) -> Result<Record, Failure> {
         let record = decide(&self.read()?)?;
         self.records.borrow_mut().push(record.clone());
         Ok(record)

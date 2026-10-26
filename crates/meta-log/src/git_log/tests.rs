@@ -6,6 +6,8 @@ use std::sync::{Arc, Mutex};
 
 use meta_schema::{Event, NewTask, Record};
 
+mod malformed;
+
 use super::GitLog;
 use crate::LogStore;
 use crate::log_failure::LogFailure;
@@ -13,7 +15,7 @@ use crate::log_failure::LogFailure;
 const ORIGIN: &str = "origin";
 const WRITER: &str = "writer";
 const OFFLINE: [&str; 4] = ["remote", "set-url", ORIGIN, "/nonexistent/origin.git"];
-const OFFLINE_PREFIX: &str = "offline";
+const OFFLINE_PREFIX: &str = "offline: cannot fetch meta/log from origin: \"fatal: ";
 const SHOWN: &str = "meta/log on origin";
 const REJECTED_PREFIX: &str = "meta/log push rejected";
 const REFUSE_PUSHES: [&str; 2] = ["/usr/bin/false", "hooks/pre-receive"];
@@ -76,7 +78,7 @@ impl Fixture {
     }
 
     fn log(&self, clone: usize) -> GitLog {
-        GitLog::new(self.clones[clone].path().to_owned(), &ORIGIN)
+        GitLog::new(self.clones[clone].path().to_owned(), ORIGIN.parse().unwrap())
     }
 
     fn record() -> Record {
@@ -85,7 +87,7 @@ impl Fixture {
 
     fn observe(&self, clone: usize) -> Observation {
         let validated = Cell::new(0);
-        let record = self.log(clone).append(&mut |snapshot| {
+        let record = self.log(clone).append::<LogFailure>(&mut |snapshot| {
             validated.set(snapshot.records().len());
             Ok(Self::record())
         });
@@ -121,13 +123,17 @@ fn racing_writers_each_land_right_after_what_they_validated() {
 fn refusals_write_nothing_and_rejected_or_offline_writes_fail() {
     let fixture = Fixture::new(SINGLE);
     let log = fixture.log(FIRST);
-    let refused = log.append(&mut |_| Err(LogFailure::refused(WRITER))).err().map(|failure| failure.to_string());
+    let refused = log.append(&mut |_| Err(LogFailure::Contended)).err().map(|failure| failure.to_string());
     assert_eq!(
         refused.zip(log.read().ok().filter(|snapshot| snapshot.records().is_empty())).map(|(refused, _)| refused),
-        Some(format!("refused: {WRITER}"))
+        Some(LogFailure::Contended.to_string())
     );
-    let failure =
-        || log.append(&mut |_| Ok(Fixture::record())).err().map(|failure| failure.to_string()).unwrap_or_default();
+    let failure = || {
+        log.append::<LogFailure>(&mut |_| Ok(Fixture::record()))
+            .err()
+            .map(|failure| failure.to_string())
+            .unwrap_or_default()
+    };
     let [false_program, hook] = REFUSE_PUSHES;
     std::os::unix::fs::symlink(false_program, fixture.origin.path().join(hook)).unwrap();
     assert!(failure().starts_with(REJECTED_PREFIX));

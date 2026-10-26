@@ -20,22 +20,8 @@ impl Project {
     const CONFIG_FILE: &'static str = "meta.toml";
     const GIT_ENTRY: &'static str = ".git";
 
-    pub fn discover(dir: &Path) -> Result<Self, CliFailure> {
-        let root = dir
-            .ancestors()
-            .find(|ancestor| ancestor.join(Self::GIT_ENTRY).exists())
-            .map(Path::to_path_buf)
-            .ok_or_else(|| CliFailure::raised::<Setup>("not inside a git repository"))?;
-        let path = root.join(Self::CONFIG_FILE);
-        let text = std::fs::read_to_string(&path)
-            .map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
-        let config =
-            toml::from_str(&text).map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
-        Ok(Self { root, config })
-    }
-
     pub fn log(&self) -> Result<GitLog, CliFailure> {
-        self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote))
+        self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote.clone()))
     }
 
     pub fn root(&self) -> &Path {
@@ -70,8 +56,20 @@ impl Project {
     }
 }
 
-impl std::fmt::Display for Project {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "{}", self.root.display())
+impl TryFrom<&Path> for Project {
+    type Error = CliFailure;
+
+    fn try_from(dir: &Path) -> Result<Self, Self::Error> {
+        let root = dir
+            .ancestors()
+            .find(|ancestor| ancestor.join(Self::GIT_ENTRY).exists())
+            .map(Path::to_path_buf)
+            .ok_or_else(|| CliFailure::raised::<Setup>("not inside a git repository"))?;
+        let path = root.join(Self::CONFIG_FILE);
+        let text = std::fs::read_to_string(&path)
+            .map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
+        let config =
+            toml::from_str(&text).map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
+        Ok(Self { root, config })
     }
 }

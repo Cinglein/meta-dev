@@ -5,6 +5,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use meta_listing::Scope;
+use meta_schema::Actor;
 
 use crate::request::ci::{CiStatus, SessionDir, Watcher};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
@@ -50,7 +51,7 @@ impl HookEvent {
     pub fn respond(self) -> Result<Output, CliFailure> {
         let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
         let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
-        let reply = Project::discover(&input.cwd()).ok().map(|project| {
+        let reply = Project::try_from(input.cwd().as_path()).ok().map(|project| {
             let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
             self.reply(&project, &input, session.as_ref()).with_news(session.and_then(|dir| dir.news()))
         });
@@ -60,9 +61,7 @@ impl HookEvent {
     fn reply(self, project: &Project, input: &HookInput, session: Option<&SessionDir>) -> Reply {
         match self {
             Self::SessionStart => {
-                let actor = input
-                    .announced_actor()
-                    .map_or_else(|| "$USER (META_ACTOR unset)".to_owned(), |actor| actor.to_string());
+                let actor = input.announced_actor().unwrap_or_else(Actor::owner);
                 let state = project
                     .log()
                     .and_then(|log| Listed::from_log(&log, None, Scope::Open))

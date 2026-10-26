@@ -108,7 +108,7 @@ impl Watcher {
     }
 
     fn note(&self, line: &str, status: CiStatus) {
-        self.dir.record(format!("CI {}: {line}", self.commit)).ok();
+        self.dir.record(format!("{self}: {line}")).ok();
         self.dir.settle(&self.commit, status).ok();
     }
 
@@ -119,6 +119,6 @@ impl Watcher {
 
 impl std::fmt::Display for Watcher {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "CI watch of {} in {}", self.commit, self.dir)
+        write!(formatter, "CI {}", self.commit)
     }
 }

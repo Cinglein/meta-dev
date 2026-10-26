@@ -12,6 +12,7 @@ const ISSUE: [&str; 2] = ["issue", "text"];
 const OFFLINE: &str = "offline";
 const WRITES: &str = "1";
 const LIST_ISSUES: [&str; 2] = ["list", "issues"];
+const LOCAL_NAME: &str = "localname";
 
 struct Git;
 
@@ -41,7 +42,12 @@ struct Complaint(String);
 struct Written(String);
 
 impl Run {
+    const ACTOR_INDEX: usize = 2;
     const ID_INDEX: usize = 4;
+
+    fn actor(&self) -> Option<String> {
+        self.to_string().split_whitespace().nth(Self::ACTOR_INDEX).map(str::to_owned)
+    }
 
     fn complaint(&self) -> Complaint {
         Complaint(String::from_utf8_lossy(&self.0.stderr).into_owned())
@@ -77,13 +83,20 @@ impl Project {
     fn meta(&self, actor: &str, words: &[&str]) -> Run {
         Run(Command::new(META).current_dir(self.clone.path()).args(words).env("META_ACTOR", actor).output().unwrap())
     }
+
+    fn meta_unset(&self, words: &[&str]) -> Run {
+        let mut command = Command::new(META);
+        command.current_dir(self.clone.path()).args(words).env_remove("META_ACTOR").env("USER", LOCAL_NAME);
+        Run(command.output().unwrap())
+    }
 }
 
 #[test]
-fn a_write_lands_on_the_remote_and_offline_writes_are_refused() {
+fn an_unset_actor_writes_as_owner_to_the_remote_and_offline_writes_are_refused() {
     let project = Project::new();
-    let issue = project.meta(OWNER, &ISSUE).written();
-    assert!(project.meta(OWNER, &LIST_ISSUES).to_string().contains(&issue.0));
+    let opened = project.meta_unset(&ISSUE);
+    let listed = project.meta(OWNER, &LIST_ISSUES).to_string();
+    assert!(opened.actor().as_deref() == Some(OWNER) && listed.contains(&opened.written().0));
     assert!(Run(Git::run(project.origin.path(), &COUNT)).to_string().starts_with(WRITES));
     Git::run(project.clone.path(), &NOWHERE);
     assert!(project.meta(OWNER, &ISSUE).complaint().0.contains(OFFLINE));

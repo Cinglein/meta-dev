@@ -25,11 +25,11 @@ impl GitCall {
         let args = self.words.split_first().filter(|(subcommand, _)| *subcommand == "push").map(|(_, args)| args)?;
         args.iter()
             .find(|word| Self::forces(word).is_some())
-            .map(|word| Listed::new(format!("{word}: force push; use --force-with-lease on your own branch")))
+            .map(|word| Listed::new(format!("{self}: {word} forces; use --force-with-lease on your own branch")))
             .or_else(|| {
                 Self::targets(args)
                     .find_map(|branch| config.protects(&branch).cloned())
-                    .map(|branch| Listed::new(format!("{branch} is protected: open a PR")))
+                    .map(|branch| Listed::new(format!("{self}: {branch} is protected; open a PR")))
             })
     }
 

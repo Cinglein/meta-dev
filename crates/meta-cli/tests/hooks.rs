@@ -7,15 +7,18 @@ use std::process::{Command, Output, Stdio};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n";
-const BLOCKED: &str = "git push --force origin feature";
+const MERGE: &str = "gh pr merge 1";
+const PUSH: &str = "git push --force origin feature";
 const ALLOWED: &str = "git push -u origin feature";
-const DENY: &str = "\"permissionDecision\":\"deny\"";
+const DENY: &str = "\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"meta-development: ";
+const PUSH_REASON: &str = "meta-development: git push";
 const PRE: &str = "pre-tool-use";
 const POST: &str = "post-tool-use";
 const COMMIT: &str = "git commit -m change";
+const STATUS: &str = "git status";
+const ALL_REFS: &str = "--all";
 const AMEND: [&str; 6] = ["commit", "-q", "--amend", "--allow-empty", "-m", "rewritten"];
 const NEW_FEATURE: [&str; 4] = ["switch", "-q", "-c", "feature"];
-const MAIN: &str = "main";
 const HEAD: &str = "HEAD";
 const FEATURE_BRANCH: &str = "feature";
 const REJECTED: &str = "rejected";
@@ -93,10 +96,12 @@ impl Repo {
 }
 
 #[test]
-fn pre_tool_use_answers_a_refused_command_with_a_denial_and_an_allowed_one_with_nothing() {
+fn pre_tool_use_denies_a_merge_and_a_force_push_and_allows_a_feature_push() {
     let repo = Repo::new();
     let env = repo.env_file();
-    assert!(repo.hook(PRE, BLOCKED, &env).contains(DENY) && repo.hook(PRE, ALLOWED, &env).is_empty());
+    let push = repo.hook(PRE, PUSH, &env);
+    assert!(repo.hook(PRE, MERGE, &env).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
+    assert_eq!(repo.hook(PRE, ALLOWED, &env), "");
 }
 
 #[test]
@@ -104,8 +109,9 @@ fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
     let repo = Repo::new();
     let env = repo.env_file();
     repo.hook(POST, COMMIT, &env);
-    assert_ne!(Git::head(repo.origin.path(), MAIN), Git::head(repo.clone.path(), HEAD));
     Git::run(repo.clone.path(), &NEW_FEATURE);
+    repo.hook(POST, STATUS, &env);
+    assert_eq!(Git::head(repo.origin.path(), ALL_REFS), Revision(String::new()));
     repo.hook(POST, COMMIT, &env);
     assert_eq!(Git::head(repo.origin.path(), FEATURE_BRANCH), Git::head(repo.clone.path(), HEAD));
     Git::run(repo.clone.path(), &AMEND);

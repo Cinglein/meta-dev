@@ -1,8 +1,15 @@
+use std::ffi::OsString;
 use std::fmt;
 use std::str::FromStr;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Commit(String);
+
+impl Commit {
+    pub fn argument(&self) -> OsString {
+        OsString::from(&self.0)
+    }
+}
 
 impl FromStr for Commit {
     type Err = std::convert::Infallible;

@@ -29,11 +29,11 @@ impl WatchState {
 }
 
 impl FromStr for WatchState {
-    type Err = std::convert::Infallible;
+    type Err = strum::ParseError;
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         let (commit, status) = text.trim().split_once(' ').unwrap_or((text, ""));
-        Ok(Self { commit: commit.parse()?, status: status.parse()? })
+        Ok(Self { commit: commit.parse().map_err(|never| match never {})?, status: status.parse()? })
     }
 }
 

@@ -1,11 +1,10 @@
-use std::fmt;
-use std::str::FromStr;
-
 use meta_gh::{GhRun, Outcome};
+use strum::{Display, EnumString};
 
 use crate::request::output::Listed;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumString)]
+#[strum(serialize_all = "kebab-case")]
 pub enum CiStatus {
     Running,
     Passed,
@@ -39,29 +38,5 @@ impl CiStatus {
             Self::Running => None,
             Self::Passed | Self::Failed | Self::TimedOut => Some(self),
         }
-    }
-}
-
-impl FromStr for CiStatus {
-    type Err = std::convert::Infallible;
-
-    fn from_str(name: &str) -> Result<Self, Self::Err> {
-        Ok(match name.trim() {
-            "running" => Self::Running,
-            "passed" => Self::Passed,
-            "failed" => Self::Failed,
-            _ => Self::TimedOut,
-        })
-    }
-}
-
-impl fmt::Display for CiStatus {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::Running => "running",
-            Self::Passed => "passed",
-            Self::Failed => "failed",
-            Self::TimedOut => "timed-out",
-        })
     }
 }

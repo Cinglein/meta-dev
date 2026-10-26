@@ -1,5 +1,3 @@
-use std::fmt;
-
 use serde::Deserialize;
 
 use crate::outcome::Outcome;
@@ -29,11 +27,5 @@ impl Conclusion {
             }
             Self::Stale | Self::Unknown => Outcome::Undecided,
         }
-    }
-}
-
-impl fmt::Display for Conclusion {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{self:?}")
     }
 }

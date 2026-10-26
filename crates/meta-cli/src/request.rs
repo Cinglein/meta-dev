@@ -6,7 +6,7 @@ mod parsed;
 mod project;
 
 use meta_listing::{Kind, Scope};
-use meta_log::{LogFailure, LogStore};
+use meta_log::LogStore;
 use meta_schema::{Actor, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, Record, TaskRef};
 use meta_state::State;
 
@@ -34,7 +34,7 @@ impl TryFrom<Vec<String>> for Request {
         let (_program, words) =
             args.split_first().ok_or_else(|| CliFailure::raised::<Misuse>("missing program name"))?;
         let (name, rest) = words.split_first().ok_or_else(|| CliFailure::raised::<Misuse>("missing command"))?;
-        let parsed = Parsed::new(rest)?;
+        let parsed = Parsed::try_from(rest)?;
         let task = || parsed.task().map(TaskRef::new);
         match name.as_str() {
             "concern" => {
@@ -77,9 +77,9 @@ impl Request {
     pub fn answer(self) -> Result<Output, CliFailure> {
         match self {
             Self::Hook(event) => event.respond(),
-            other => {
-                other.answer_in(&Project::discover(&std::env::current_dir().map_err(CliFailure::raised::<Setup>)?)?)
-            }
+            other => other.answer_in(&Project::try_from(
+                std::env::current_dir().map_err(CliFailure::raised::<Setup>)?.as_path(),
+            )?),
         }
     }
 
@@ -101,9 +101,9 @@ impl Request {
         match self {
             Self::Write(event) => {
                 let actor = actor()?;
-                let record = log.append(&mut |snapshot| {
+                let record = log.append::<CliFailure>(&mut |snapshot| {
                     let record = Record::new(actor.clone(), event.clone());
-                    State::fold(snapshot.complete()?).vet(&record).map_err(LogFailure::refused)?;
+                    State::fold(snapshot.complete()?).vet(&record)?;
                     Ok(record)
                 })?;
                 Ok(Output::Written(record))
@@ -127,12 +127,10 @@ impl Request {
     }
 
     fn actor() -> Result<Actor, CliFailure> {
-        ["META_ACTOR", "USER"]
-            .iter()
-            .find_map(|variable| std::env::var(variable).ok().filter(|name| !name.is_empty()))
-            .ok_or_else(|| CliFailure::raised::<Setup>("set META_ACTOR"))?
-            .parse()
-            .map_err(CliFailure::raised::<Invalid>)
+        std::env::var("META_ACTOR")
+            .ok()
+            .filter(|name| !name.is_empty())
+            .map_or_else(|| Ok(Actor::owner()), |name| name.parse().map_err(CliFailure::raised::<Invalid>))
     }
 }
 

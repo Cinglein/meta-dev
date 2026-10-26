@@ -6,10 +6,20 @@ use std::str::FromStr;
 use serde::de::Error as _;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::unparsed::Unparsed;
 use actor_failure::ActorFailure;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Actor(String);
+
+impl Actor {
+    const OWNER: &'static str = "owner";
+
+    #[must_use]
+    pub fn owner() -> Self {
+        Self(Self::OWNER.to_owned())
+    }
+}
 
 impl FromStr for Actor {
     type Err = ActorFailure;
@@ -21,7 +31,7 @@ impl FromStr for Actor {
                 name.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'-' | b'_' | b'.'))
             })
             .map(|name| Self(name.to_owned()))
-            .ok_or_else(|| ActorFailure::NotASlug(name.to_owned()))
+            .ok_or_else(|| ActorFailure::NotASlug(Unparsed::from(name)))
     }
 }
 

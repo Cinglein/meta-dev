@@ -2,6 +2,7 @@ mod id_failure;
 mod raw_id;
 
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::str::FromStr;
 
@@ -9,6 +10,7 @@ use serde::de::Error as _;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::entity::Entity;
+use crate::unparsed::Unparsed;
 use id_failure::IdFailure;
 use raw_id::RawId;
 
@@ -32,7 +34,7 @@ impl<Kind: Entity> FromStr for Id<Kind> {
         let hex = text
             .strip_prefix(Kind::PREFIX)
             .and_then(|rest| rest.strip_prefix('-'))
-            .ok_or_else(|| IdFailure::WrongKind { expected: Kind::PREFIX, found: text.to_owned() })?;
+            .ok_or_else(|| IdFailure::WrongKind { expected: Kind::PREFIX, found: Unparsed::from(text) })?;
         Ok(Self { raw: hex.parse()?, kind: PhantomData })
     }
 }
@@ -58,6 +60,12 @@ impl<Kind: Entity> PartialEq for Id<Kind> {
 }
 
 impl<Kind: Entity> Eq for Id<Kind> {}
+
+impl<Kind: Entity> Hash for Id<Kind> {
+    fn hash<Into: Hasher>(&self, state: &mut Into) {
+        self.raw.hash(state);
+    }
+}
 
 impl<Kind: Entity> Serialize for Id<Kind> {
     fn serialize<Out: Serializer>(&self, serializer: Out) -> Result<Out::Ok, Out::Error> {

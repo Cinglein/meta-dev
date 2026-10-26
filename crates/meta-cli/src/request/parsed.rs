@@ -1,8 +1,6 @@
 mod option_name;
 mod word;
 
-use std::fmt;
-
 use meta_listing::{Kind, Scope};
 use meta_schema::{Actor, Entry, Id, Tag, Target, Task, Text};
 
@@ -23,19 +21,6 @@ pub struct Parsed {
 }
 
 impl Parsed {
-    pub fn new(args: &[String]) -> Result<Self, CliFailure> {
-        let empty = Self {
-            words: vec![],
-            given: vec![],
-            source: None,
-            tags: vec![],
-            addresses: vec![],
-            from: None,
-            scope: Scope::Open,
-        };
-        empty.take(args)
-    }
-
     fn take(self, args: &[String]) -> Result<Self, CliFailure> {
         match args {
             [] => Ok(self),
@@ -145,8 +130,19 @@ impl Parsed {
     }
 }
 
-impl fmt::Display for Parsed {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.words.iter().try_for_each(|word| write!(formatter, "{word} "))
+impl TryFrom<&[String]> for Parsed {
+    type Error = CliFailure;
+
+    fn try_from(args: &[String]) -> Result<Self, Self::Error> {
+        let empty = Self {
+            words: vec![],
+            given: vec![],
+            source: None,
+            tags: vec![],
+            addresses: vec![],
+            from: None,
+            scope: Scope::Open,
+        };
+        empty.take(args)
     }
 }
