@@ -25,6 +25,10 @@ impl ShellCommand {
         self.segments().scan(cwd.to_path_buf(), |directory, words| Some(Self::step(directory, words))).flatten().next()
     }
 
+    pub fn commit_directories(&self, cwd: &Path) -> Vec<PathBuf> {
+        self.commit_directory(cwd).into_iter().collect()
+    }
+
     fn step(directory: &mut PathBuf, words: &[String]) -> Option<PathBuf> {
         match words {
             [cd, target] if cd == "cd" => {
@@ -73,16 +77,24 @@ mod tests {
 
     const WRITERS: [&str; 4] = ["git revert HEAD", "git pull", "git am x.patch", "git commit-tree t"];
     const NOT_WRITERS: [&str; 3] = ["git merge --abort", "git rebase --abort", "git merge-base a b"];
-    const CWD: &str = "/w";
-    const NESTED_COMMIT: &str = "(cd a && git -c x=y -C b commit -m 'cd z')";
-    const NESTED: &str = "/w/a/b";
+    const CWD: &str = "/w/good";
+    const CHAINS: [(&str, &[&str]); 5] = [
+        ("(cd a && git -c x=y -C b commit -m 'cd z')", &["/w/good/a/b"]),
+        ("git commit -m x && git -C ../bad commit -m y", &["/w/good", "/w/good/../bad"]),
+        ("git commit; cd ../bad; git commit", &["/w/good", "/w/good/../bad"]),
+        ("(cd ../bad && git commit) && git commit", &["/w/good/../bad", "/w/good"]),
+        ("cd $PWD/a && git -C ~/b commit && git -C $HOME commit", &["~/b", "~"]),
+    ];
 
     #[test]
-    fn commit_writers_resolve_cd_and_dash_c_and_aborts_write_nothing() {
-        let directory = |command: &str| command.parse::<ShellCommand>().unwrap().commit_directory(Path::new(CWD));
-        assert!(WRITERS.iter().all(|command| directory(command).is_some()));
-        assert!(NOT_WRITERS.iter().all(|command| directory(command).is_none()));
-        assert_eq!(directory(NESTED_COMMIT), Some(PathBuf::from(NESTED)));
+    fn every_commit_writer_resolves_its_own_directory_and_aborts_write_nothing() {
+        let home = std::env::var("HOME").unwrap();
+        let directories = |command: &str| command.parse::<ShellCommand>().unwrap().commit_directories(Path::new(CWD));
+        let expected =
+            |paths: &[&str]| paths.iter().map(|path| PathBuf::from(path.replacen('~', &home, 1))).collect::<Vec<_>>();
+        assert!(WRITERS.iter().all(|command| directories(command).len() == 1));
+        assert!(NOT_WRITERS.iter().all(|command| directories(command).is_empty()));
+        assert!(CHAINS.iter().all(|(command, paths)| directories(command) == expected(paths)));
     }
 
     const CONFIG: &str = "protected = [\"main\"]\n";

@@ -34,7 +34,7 @@ impl HookInput {
     }
 
     pub fn foreign_commit(&self) -> Option<Listed> {
-        Identity::refusal_in(&self.command()?.commit_directory(&self.cwd())?)
+        self.command()?.commit_directories(&self.cwd()).iter().find_map(|directory| Identity::refusal_in(directory))
     }
 
     pub fn session(&self) -> Option<&SessionId> {
