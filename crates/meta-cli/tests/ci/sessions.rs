@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use super::{
-    BLOCK, COMMIT, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSH_WORDS, Planted, Repo, STOP, Session,
+    BLOCK, COMMIT, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSH_WORDS, Planted, QUICK, Repo, STOP, Session,
     StartFile,
 };
 
@@ -51,7 +51,7 @@ impl Reviewer {
 
 #[test]
 fn a_slow_remote_fails_closed_in_time_and_a_commit_in_the_start_second_is_not_the_sessions() {
-    let repo = Repo::new(FAILURE);
+    let repo = Repo::limited(FAILURE, QUICK);
     let clone: &Path = repo.clone.path();
     StartFile::plant(repo.sessions.path(), SAME, SAME_AT);
     Git::run_at(clone, &NEXT_COMMIT, SAME_AT);
