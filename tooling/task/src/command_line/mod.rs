@@ -199,7 +199,7 @@ mod tests {
         let shell = || CommandLine::new(Program::Executable(SHELL.into()));
         let shown = shell()
             .arguments(SHOW_TARGET)
-            .inheriting_only(&[INHERITED])
+            .inheriting_only([INHERITED])
             .environment(VARIABLE, PathBuf::from(TARGET))
             .captured::<Stdout>();
         assert_eq!(shown.ok().as_deref(), Some(TARGET));

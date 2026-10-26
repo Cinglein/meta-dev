@@ -119,7 +119,7 @@ mod tests {
         };
         let toolchain = || TOOLCHAIN.parse().unwrap();
         let child = || GateChild::new(&fixture.beside(), PathBuf::from(TARGET), PathBuf::new(), toolchain()).unwrap();
-        assert_eq!(shown(child().passing(&[name.clone()])).ok(), Some(value));
+        assert_eq!(shown(child().passing(std::slice::from_ref(&name))).ok(), Some(value));
         assert_eq!(shown(child()).ok().as_deref(), Some("unset"));
     }
 }

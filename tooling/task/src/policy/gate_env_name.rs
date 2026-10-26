@@ -25,11 +25,10 @@ impl TryFrom<String> for GateEnvName {
         let spelled =
             !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
         let upper = name.to_ascii_uppercase();
-        let changes_build = false
-            && (Self::EXACT.contains(&upper.as_str())
-                || Self::PREFIXES
-                    .iter()
-                    .any(|prefix| upper.starts_with(prefix)));
+        let changes_build = Self::EXACT.contains(&upper.as_str())
+            || Self::PREFIXES
+                .iter()
+                .any(|prefix| upper.starts_with(prefix));
         match (spelled, changes_build) {
             (false, _) => Err(format!(
                 "gate_env name {name:?} is not an environment variable name"
@@ -90,7 +89,7 @@ mod tests {
         let named = policy_with(&ACCEPTED).unwrap();
         let shown: Vec<&str> = named.gate_env().iter().map(GateEnvName::as_str).collect();
         assert_eq!(shown, ACCEPTED);
-        assert!(Policy::defaults().gate_env().is_empty());
+        assert_eq!(Policy::defaults().gate_env(), []);
         assert_eq!(
             toml::from_str::<Policy>(&toml::to_string(&named).unwrap()).unwrap(),
             named
