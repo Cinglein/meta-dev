@@ -28,7 +28,8 @@ const OFF_BRANCH: &str = "HEAD is not on the recorded branch";
 const NO_BRANCH: &str = "task branch missing";
 const SHARED: &str = "branch checked out elsewhere";
 const STRANGER: &str = "a different worktree at the recorded path";
-const REFUSED: [Case; 52] = [
+const OWN_CHECKOUTS: &str = "worktree /clone\nHEAD c0\nbranch refs/heads/main\n\nworktree /trees/task-00000000000000b1\nHEAD c1\nbranch refs/heads/task-00000000000000b1\n";
+const REFUSED: [Case; 54] = [
     Case("symlink", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::Symlink)),
     Case("not found", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::Missing)),
     Case("unreadable entry", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::File)),
@@ -102,6 +103,11 @@ const REFUSED: [Case; 52] = [
     }),
     Case(IGNORED, |host| host.walks(&["target/debug/notes.txt"], EntryKind::File)),
     Case(IGNORED, |host| host.walks(&["target/debug/stash", "target/debug/stash/keep"], EntryKind::Dir)),
+    Case(IGNORED, |host| host.walks(&["target/empty"], EntryKind::Dir)),
+    Case(BORROWED, |host| {
+        let objects = "/clone/.git/worktrees/peer/objects".into();
+        host.lent_in("/clone/.git/worktrees", Alternates::new(objects, "../../../../../trees/task-00000000000000b1/x"));
+    }),
     Case(OFF_BRANCH, |host| host.answer_is("symbolic-ref", "refs/heads/other\n")),
     Case(NO_BRANCH, |host| host.answer_is("for-each-ref", "")),
     Case(STRANGER, |host| {
@@ -110,11 +116,12 @@ const REFUSED: [Case; 52] = [
         host.text_is("/clone/.git/worktrees/other/commondir", "../..\n");
     }),
     Case(SHARED, |host| {
-        host.answer_is("worktree", "worktree /clone\nHEAD c1\nbranch refs/heads/task-00000000000000b1\n");
+        host.answer_is("list", "worktree /clone\nHEAD c1\nbranch refs/heads/task-00000000000000b1\n");
     }),
 ];
-const ACCEPTED: [fn(&mut FakeHost); 4] = [
+const ACCEPTED: [fn(&mut FakeHost); 5] = [
     |_| {},
+    |host| host.answer_is("list", OWN_CHECKOUTS),
     |host| host.answer_is("ls-remote", "c1\trefs/heads/main\n"),
     |host| {
         host.lent(Alternates::new(

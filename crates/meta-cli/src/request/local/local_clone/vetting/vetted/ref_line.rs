@@ -11,7 +11,11 @@ impl RefLine {
     const HEAD: &'static str = "HEAD";
 
     pub fn head(object: &str) -> Self {
-        Self { object: object.trim().to_owned(), name: Self::HEAD.to_owned() }
+        Self::pseudo(Self::HEAD, object)
+    }
+
+    pub fn pseudo(name: &str, object: &str) -> Self {
+        Self { object: object.trim().to_owned(), name: name.to_owned() }
     }
 
     pub fn object(&self) -> &OsStr {

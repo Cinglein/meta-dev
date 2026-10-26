@@ -23,4 +23,6 @@ pub use vetted::Vetted;
 #[cfg(test)]
 pub mod fake_host;
 #[cfg(test)]
+mod quarantine_tests;
+#[cfg(test)]
 mod tests;

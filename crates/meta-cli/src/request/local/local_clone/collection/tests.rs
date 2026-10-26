@@ -35,7 +35,7 @@ const REASONS: [&str; 3] = [
     r#""at":"#,
 ];
 const REMOVALS: [&str; 2] =
-    ["worktree remove /trees/task-00000000000000b1", "update-ref -d refs/heads/task-00000000000000b1 c1"];
+    ["worktree remove /trees/.gc-task-00000000000000b1", "update-ref -d refs/heads/task-00000000000000b1 c1"];
 const UNREMOVED: &str = "kept /trees/task-00000000000000b1: removal failed: offline; pr #1 merged\n";
 const LIVE_ONLY: &str = "kept /trees/live: pr #2 open\n";
 
@@ -53,7 +53,9 @@ impl Scene {
             LIVE => Lifetime::Open("2".parse().unwrap()),
             _ => Lifetime::Ended(Ending::Merged("1".parse().unwrap())),
         };
-        let recorded = |path: &&str| RecordedWorktree::new(PathBuf::from(path), TASK.parse().unwrap());
+        let recorded = |path: &&str| {
+            RecordedWorktree::new(PathBuf::from(path), TASK.parse().unwrap()).identified(FakeHost::worktree_id())
+        };
         let tracked = tracked.iter().map(|path| Tracked::new(recorded(path), lifetime(path))).collect();
         Self { host, census: Census::new(tracked, [PATH, STRAY].map(PathBuf::from).to_vec()) }
     }
@@ -79,7 +81,7 @@ fn a_sweep_re_vets_removes_the_worktree_then_its_branch_and_trails_each_removal_
     let done = scene.swept(Sweep::Done);
     let trailed: Vec<String> =
         done.trailed(Utc::now()).iter().map(|entry| serde_json::to_string(entry).unwrap()).collect();
-    assert!(DONE.iter().all(|line| done.to_string().contains(line)));
+    assert!(DONE.iter().all(|line| done.to_string().contains(line)), "{done}");
     assert!(
         trailed
             .iter()
@@ -95,7 +97,7 @@ fn a_sweep_re_vets_removes_the_worktree_then_its_branch_and_trails_each_removal_
 #[test]
 fn a_failed_removal_keeps_the_worktree_and_no_candidate_means_no_scan() {
     let mut failing = Scene::new(&[PATH]);
-    failing.host.fails("worktree");
+    failing.host.fails("remove");
     assert!(failing.swept(Sweep::Done).to_string().starts_with(UNREMOVED));
     let live = Scene::new(&[LIVE]);
     assert!(live.swept(Sweep::Done).to_string().starts_with(LIVE_ONLY) && live.host.scans().is_empty());

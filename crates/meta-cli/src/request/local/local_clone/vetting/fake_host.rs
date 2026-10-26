@@ -14,6 +14,7 @@ use super::kept::Kept;
 use super::occupancy::Occupancy;
 use crate::request::local::byte_count::ByteCount;
 use crate::request::local::recorded_worktree::RecordedWorktree;
+use crate::request::local::worktree_id::WorktreeId;
 
 pub const TASK: &str = "task-00000000000000b1";
 pub const PATH: &str = "/trees/task-00000000000000b1";
@@ -31,17 +32,25 @@ const TEXTS: [(&str, &str); 4] = [
         "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n",
     ),
 ];
-const ANSWERS: [(&str, &str); 8] = [
+const ANSWERS: [(&str, &str); 10] = [
     ("symbolic-ref", "refs/heads/task-00000000000000b1\n"),
     ("ls-files", "H 100644 a1 0\tmeta.toml\0"),
     ("status", "!! target/\0"),
     ("rev-parse", "c1\n"),
     ("for-each-ref", "c1 refs/heads/task-00000000000000b1\n"),
     ("ls-remote", "c0\tHEAD\nc1\trefs/heads/task-00000000000000b1\nc0\trefs/heads/main\n"),
-    ("worktree", ""),
+    ("list", ""),
+    ("move", ""),
+    ("remove", ""),
     ("update-ref", ""),
 ];
-const WALK: [(&str, EntryKind, u64); 10] = [
+const WALK: [(&str, EntryKind, u64); 16] = [
+    ("target/debug/deps", EntryKind::Dir, 0),
+    ("target/debug/deps/libx.rlib", EntryKind::File, 0),
+    ("target/debug/meta.d", EntryKind::File, 0),
+    ("target/debug/meta.dSYM", EntryKind::Dir, 0),
+    ("target/doc", EntryKind::Dir, 0),
+    ("target/doc/index.html", EntryKind::File, 0),
     (".git", EntryKind::File, 50),
     ("meta.toml", EntryKind::File, 10),
     ("target", EntryKind::Dir, 0),
@@ -59,6 +68,11 @@ const IGNORE_MISSING: &str = "--ignore-missing";
 const UNEXPECTED: &str = "unexpected git call";
 const OFFLINE: &str = "offline";
 const SPACE: &str = " ";
+const MOVE: &str = "move";
+const QUARANTINED: &str = ".gc-";
+const STATUS: &str = "status";
+const UNTRACKED: &str = "?? ";
+const ENTRY_END: &str = "\0";
 
 #[derive(Debug)]
 pub struct FakeHost {
@@ -67,10 +81,11 @@ pub struct FakeHost {
     moved: HashMap<PathBuf, PathBuf>,
     answers: HashMap<&'static str, Result<String, Kept>>,
     walk: Vec<Found>,
-    neighbours: Vec<Alternates>,
+    neighbours: HashMap<PathBuf, Vec<Alternates>>,
     places: [PathBuf; 3],
     calls: RefCell<Vec<Vec<OsString>>>,
     scans: RefCell<Vec<Vec<PathBuf>>>,
+    raced: Option<String>,
 }
 
 impl FakeHost {
@@ -84,15 +99,24 @@ impl FakeHost {
                 .iter()
                 .map(|(path, kind, bytes)| Found::new(PathBuf::from(path), *kind, ByteCount::new(*bytes)))
                 .collect(),
-            neighbours: Vec::new(),
+            neighbours: HashMap::new(),
             places: [ROOT, CHECKOUT, COMMON].map(PathBuf::from),
             calls: RefCell::new(Vec::new()),
             scans: RefCell::new(Vec::new()),
+            raced: None,
         }
     }
 
     pub fn worktree() -> RecordedWorktree {
-        RecordedWorktree::new(PathBuf::from(PATH), TASK.parse().unwrap())
+        RecordedWorktree::new(PathBuf::from(PATH), TASK.parse().unwrap()).identified(Self::worktree_id())
+    }
+
+    pub fn worktree_id() -> WorktreeId {
+        WorktreeId::parsed(Path::new(TASK)).unwrap()
+    }
+
+    pub fn races(&mut self, untracked: &str) {
+        self.raced = Some([UNTRACKED, untracked, ENTRY_END].concat());
     }
 
     pub fn context(&self) -> Context {
@@ -129,7 +153,11 @@ impl FakeHost {
     }
 
     pub fn lent(&mut self, alternates: Alternates) {
-        self.neighbours.push(alternates);
+        self.lent_in(ROOT, alternates);
+    }
+
+    pub fn lent_in(&mut self, root: &str, alternates: Alternates) {
+        self.neighbours.entry(PathBuf::from(root)).or_default().push(alternates);
     }
 
     pub fn calls(&self) -> Vec<String> {
@@ -139,6 +167,10 @@ impl FakeHost {
 
     pub fn scans(&self) -> Vec<Vec<PathBuf>> {
         self.scans.borrow().clone()
+    }
+
+    fn quarantined(&self) -> bool {
+        self.calls.borrow().iter().any(|earlier| earlier.iter().any(|argument| argument == MOVE))
     }
 
     fn beyond(arguments: &[OsString]) -> String {
@@ -162,14 +194,20 @@ impl Inspection for FakeHost {
     }
 
     fn text(&self, path: &Path) -> Option<String> {
-        self.texts.get(path).cloned()
+        let moved_back = path.components().map(|part| {
+            let name = part.as_os_str().to_string_lossy();
+            PathBuf::from(name.strip_prefix(QUARANTINED).unwrap_or(&name))
+        });
+        self.texts.get(&moved_back.collect::<PathBuf>()).cloned()
     }
 
     fn git(&self, call: &GitCall) -> Result<String, Kept> {
         let arguments = call.arguments();
-        self.calls.borrow_mut().push(arguments.clone());
         let word = arguments.iter().find_map(|argument| self.answers.keys().find(|word| argument == **word));
-        let answer = word.and_then(|word| self.answers.get(word).cloned());
+        let raced = self.raced.as_ref().filter(|_| word == Some(&STATUS) && self.quarantined());
+        let raced = raced.map(|race| Ok(race.clone()));
+        self.calls.borrow_mut().push(arguments.clone());
+        let answer = raced.or_else(|| word.and_then(|word| self.answers.get(word).cloned()));
         let listed = arguments.iter().any(|argument| argument == REV_LIST).then(|| Ok(Self::beyond(&arguments)));
         answer.or(listed).unwrap_or_else(|| Err(Kept::Uninspected(Cause::new(UNEXPECTED))))
     }
@@ -178,8 +216,8 @@ impl Inspection for FakeHost {
         self.walk.clone()
     }
 
-    fn neighbours(&self, _root: &Path) -> Vec<Alternates> {
-        self.neighbours.clone()
+    fn neighbours(&self, root: &Path) -> Vec<Alternates> {
+        self.neighbours.get(root).cloned().unwrap_or_default()
     }
 
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {

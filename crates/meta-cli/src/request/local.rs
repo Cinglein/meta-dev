@@ -7,6 +7,7 @@ mod reason;
 mod recorded_worktree;
 mod sweep;
 mod trail_entry;
+mod worktree_id;
 mod worktrees;
 
 pub use local_clone::LocalClone;

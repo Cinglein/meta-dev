@@ -14,6 +14,8 @@ pub struct Context {
 }
 
 impl Context {
+    const LINKED: &'static str = "worktrees";
+
     pub fn new(checkout: PathBuf, common: PathBuf, root: PathBuf, remote: RemoteName) -> Self {
         Self { checkout, common, root, remote }
     }
@@ -27,7 +29,7 @@ impl Context {
     }
 
     pub fn lenders(&self, host: &impl Inspection) -> Vec<Alternates> {
-        host.neighbours(&self.root)
+        [host.neighbours(&self.root), host.neighbours(&self.common.join(Self::LINKED))].concat()
     }
 
     pub fn common(&self) -> &Path {

@@ -1,4 +1,5 @@
 mod collection;
+mod gc_lock;
 mod git;
 mod vetting;
 
@@ -17,6 +18,7 @@ use super::local_trail::LocalTrail;
 use super::recorded_worktree::RecordedWorktree;
 use super::sweep::Sweep;
 use super::trail_entry::TrailEntry;
+use super::worktree_id::WorktreeId;
 use super::worktrees::Worktrees;
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::live_github::LiveGithub;
@@ -24,6 +26,7 @@ use crate::request::output::{Listed, Output};
 use crate::request::project::Project;
 use crate::request::writing::Writing;
 use collection::{Census, Collection, Sweeper, Tracked};
+use gc_lock::GcLock;
 use git::Git;
 use vetting::{Context, Host};
 
@@ -78,7 +81,11 @@ impl LocalClone {
                 })?;
             worktree.output(&["reset", "--hard", "--quiet"].map(OsStr::new))?;
             let created = std::fs::canonicalize(&path).map_err(CliFailure::raised::<Setup>)?;
-            LocalTrail::append(&self.git_dir, &TrailEntry::Created(RecordedWorktree::new(created.clone(), task)))?;
+            let git_dir = worktree.output(&["rev-parse", "--absolute-git-dir"].map(OsStr::new))?;
+            let id =
+                WorktreeId::parsed(Path::new(&git_dir)).ok_or_else(|| CliFailure::raised::<Setup>("no worktree id"))?;
+            let recorded = RecordedWorktree::new(created.clone(), task).identified(id);
+            LocalTrail::append(&self.git_dir, &TrailEntry::Created(recorded))?;
             Ok(created)
         };
         let created = settled().map_err(|failure| self.rolled_back(Some(&path), new_branch, failure))?;
@@ -105,6 +112,7 @@ impl LocalClone {
 
     pub fn collected(&self, project: &Project, sweep: Sweep) -> Result<Output, CliFailure> {
         let root = self.settings()?.worktree_root(&self.checkout);
+        let _held = GcLock::taken(&self.git_dir)?;
         let trail = LocalTrail::read(&self.git_dir)?;
         trail.torn().iter().for_each(|torn| eprintln!("meta: warning: {torn}"));
         let state = State::fold(project.log()?.read()?.records());
@@ -120,7 +128,7 @@ impl LocalClone {
         let root = std::fs::canonicalize(&root).unwrap_or(root);
         let context =
             Context::new(self.checkout.clone(), self.git_dir.clone(), root, project.config().remote()?.clone());
-        let collection = Collection::swept(&Sweeper::new(sweep, &context, &Host), &census);
+        let collection = Collection::swept(&Sweeper::new(sweep, &context, &Host::default()), &census);
         collection.trailed(Utc::now()).iter().try_for_each(|entry| LocalTrail::append(&self.git_dir, entry))?;
         Ok(Output::Listed(Listed::new(collection)))
     }

@@ -3,6 +3,8 @@ mod walker;
 #[cfg(test)]
 mod tests;
 
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -18,15 +20,23 @@ use super::kept::Kept;
 use super::occupancy::Occupancy;
 use walker::Walker;
 
-#[derive(Clone, Copy, Debug)]
-pub struct Host;
+#[derive(Debug, Default)]
+pub struct Host {
+    lenders: RefCell<HashMap<PathBuf, Vec<Alternates>>>,
+}
 
 impl Host {
-    const GIT_PREFIX: &'static str = "GIT_";
-    const OBJECTS: [&'static str; 2] = [".git/objects", "objects"];
-    const ALTERNATES: &'static str = "info/alternates";
     const LISTING: [&'static str; 3] = ["-w", "-F", "n"];
     const RECURSIVE: &'static str = "+D";
+
+    fn lenders(&self, root: &Path) -> Vec<Alternates> {
+        let found = self.walked(root).into_iter().filter(|found| found.kind() == EntryKind::File && found.lends());
+        let listed = found.map(|found| root.join(found.path())).filter_map(|file| {
+            let objects = file.parent().and_then(Path::parent)?.to_path_buf();
+            self.text(&file).map(|listed| Alternates::new(objects, &listed))
+        });
+        listed.collect()
+    }
 }
 
 impl Inspection for Host {
@@ -49,12 +59,7 @@ impl Inspection for Host {
     }
 
     fn git(&self, call: &GitCall) -> Result<String, Kept> {
-        let mut command = Command::new("git");
-        let cleared = std::env::vars_os()
-            .map(|(name, _)| name)
-            .filter(|name| name.as_encoded_bytes().starts_with(Self::GIT_PREFIX.as_bytes()))
-            .fold(&mut command, |command, name| command.env_remove(name));
-        let ran = cleared.args(call.arguments()).current_dir(call.directory()).output();
+        let ran = call.command(std::env::vars_os().map(|(name, _)| name)).output();
         let ran = ran.map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
         let shown = |stream: &[u8]| String::from_utf8_lossy(stream).into_owned();
         ran.status
@@ -68,13 +73,12 @@ impl Inspection for Host {
     }
 
     fn neighbours(&self, root: &Path) -> Vec<Alternates> {
-        let siblings = root.read_dir().into_iter().flatten().flatten().map(|sibling| sibling.path());
-        let objects = siblings.flat_map(|sibling| Self::OBJECTS.map(|objects| sibling.join(objects)));
-        objects
-            .filter_map(|objects| {
-                self.text(&objects.join(Self::ALTERNATES)).map(|listed| Alternates::new(objects, &listed))
-            })
-            .collect()
+        let known = self.lenders.borrow().get(root).cloned();
+        known.unwrap_or_else(|| {
+            let lenders = self.lenders(root);
+            self.lenders.borrow_mut().insert(root.to_path_buf(), lenders.clone());
+            lenders
+        })
     }
 
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {

@@ -87,7 +87,7 @@ impl fmt::Display for Created<'_> {
         let created = "2026-10-26T00:00:00Z";
         writeln!(
             formatter,
-            r#"{{"change":"Created","path":"{}","branch":"{task}","task":"{task}","created":"{created}"}}"#,
+            r#"{{"change":"Created","path":"{}","branch":"{task}","task":"{task}","created":"{created}","worktree":"{task}"}}"#,
             self.0.join(task).display()
         )
     }

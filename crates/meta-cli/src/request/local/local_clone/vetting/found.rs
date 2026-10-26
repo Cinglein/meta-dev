@@ -1,4 +1,5 @@
-use std::path::{Path, PathBuf};
+use std::ffi::OsStr;
+use std::path::{Component, Path, PathBuf};
 
 use super::entry_kind::EntryKind;
 use crate::request::local::byte_count::ByteCount;
@@ -11,6 +12,8 @@ pub struct Found {
 }
 
 impl Found {
+    const ALTERNATES: [&'static str; 3] = ["alternates", "info", "objects"];
+
     pub fn new(path: PathBuf, kind: EntryKind, bytes: ByteCount) -> Self {
         Self { path, kind, bytes }
     }
@@ -25,5 +28,12 @@ impl Found {
 
     pub fn bytes(&self) -> ByteCount {
         self.bytes
+    }
+
+    pub fn lends(&self) -> bool {
+        let tail: Vec<&OsStr> =
+            self.path.components().rev().take(Self::ALTERNATES.len()).map(Component::as_os_str).collect();
+        tail.len() == Self::ALTERNATES.len()
+            && tail.iter().zip(Self::ALTERNATES).all(|(part, name)| part.eq_ignore_ascii_case(name))
     }
 }

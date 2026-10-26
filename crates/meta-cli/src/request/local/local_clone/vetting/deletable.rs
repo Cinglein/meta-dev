@@ -1,3 +1,4 @@
+use super::entry_kind::EntryKind;
 use super::inspection::Inspection;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
@@ -15,9 +16,16 @@ impl Deletable {
 
     pub fn removed(self, host: &impl Inspection) -> Result<ByteCount, Kept> {
         let link = self.0.link();
-        host.git(&link.removal()).map_err(|kept| kept.recast(Kept::Unremoved))?;
-        let unbranched = self.0.branch().map(|branch| host.git(&link.unbranch(branch)));
-        unbranched.transpose().map_err(|kept| kept.recast(Kept::Unremoved))?;
+        let quarantine = link.quarantine();
+        (host.entry(&quarantine) == EntryKind::Missing).then_some(()).ok_or(Kept::Changed)?;
+        host.git(&link.moving(&quarantine)).map_err(|kept| kept.recast(Kept::Unremoved))?;
+        let held = link.relocated(&quarantine);
+        let removed = self.0.rechecked(&quarantine, host).and_then(|()| host.git(&held.removal()));
+        removed.map_err(|kept| {
+            let kept = kept.recast(Kept::Unremoved);
+            host.git(&held.moving(link.path())).map_or_else(|failure| failure.recast(Kept::Unremoved), |_| kept)
+        })?;
+        let _unbranched = host.git(&link.unbranch(self.0.branch()));
         Ok(self.0.bytes())
     }
 }
