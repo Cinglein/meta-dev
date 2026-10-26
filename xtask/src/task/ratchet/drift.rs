@@ -15,7 +15,7 @@ impl Drift {
     }
 
     pub fn grew(&self) -> bool {
-        self.found > self.allowed
+        self.found.cmp(&self.allowed).is_gt()
     }
 
     pub fn lint(&self) -> &str {

@@ -12,6 +12,9 @@ mod surfaces;
 mod test;
 mod usage;
 
+use std::env;
+use std::path::PathBuf;
+
 use settings::EmbeddedDefaults;
 use strum::{EnumString, IntoStaticStr, VariantNames};
 use task::{CrateName, Policy, Workspace};
@@ -76,18 +79,18 @@ impl Task {
         let Ok(tool) = env!("CARGO_PKG_NAME").parse::<CrateName>();
         let workspace = Workspace::locate(tool)?;
         let policy = Policy::defaults();
-        let selection = Coverage::from_flags(flags, &workspace)?;
+        let selection = Affected::selection(&workspace, Coverage::from_flags(flags)?)?;
+        let summary = env::var_os(Surfaces::SUMMARY).map(PathBuf::from);
         match self {
             Task::Affected => {
                 Ok(Affected::selection(&workspace, Changes::SinceMain).map(|reached| println!("{reached}"))?)
             }
-            Task::Baseline => {
-                Lint::shrink(&workspace, &policy).map(|kept| println!("baseline: {} violations", kept.total()))
-            }
-            Task::Ci => Ci::run(&workspace, &selection, &policy),
+            Task::Baseline => Lint::shrink(workspace.root(), &workspace.source_files()?, &policy)
+                .map(|kept| println!("baseline: {} violations", kept.total())),
+            Task::Ci => Ci::run(&workspace, &selection, &policy, summary.as_deref()),
             Task::Clippy => Ok(Clippy::run(&workspace, &selection, &policy)?),
-            Task::Lint => Lint::run(&workspace, &policy),
-            Task::Surfaces => Surfaces::announce(workspace.root(), &policy),
+            Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy),
+            Task::Surfaces => Surfaces::announce(workspace.root(), &policy, summary.as_deref()),
             Task::Test => Ok(Test::run(&workspace, &selection, &policy)?),
             Task::TestTime => Ok(TestTime::run(&workspace, &selection, &policy)?),
             lint => Ok(<&'static str>::from(lint)

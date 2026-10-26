@@ -6,4 +6,4 @@ impl Clock { pub fn scaled(ticks: Speed) -> Speed { ticks * 0.5 } pub fn named(t
 pub trait Rate { const BASE: Scale = 2.5; fn beat(&self) -> Ticks { 3 } } const LIMIT: Ticks = 40; //~ named-numbers: numeric literal outside a const item
 pub fn capped(ticks: Ticks) -> Ticks { let edge = const { 7 }; assert!(ticks > 9); ticks.min(LIMIT) } //~ named-numbers: numeric literal outside a const item //~ no-free-fns: fn capped
 mod inner { impl Clock { pub fn depth() -> Depth { 4 } } } //~ named-numbers: numeric literal outside a const item
-#[cfg(test)] mod tests { impl Clock { fn depth() -> Depth { 4 } } }
+#[cfg(test)] mod tests { impl Clock { fn depth() -> Depth { 4 } } } #[cfg(test)] mod support; //~ workspace test-budget: has 3 test lines
