@@ -2,7 +2,7 @@ mod ci_step;
 mod local_gate;
 mod step_times;
 
-pub use local_gate::{Busy, LocalGate, Posting, Unready};
+pub use local_gate::{Busy, LocalGate, OutsideConfig, Posting, Unready};
 
 use std::fs::File;
 use std::io::Write;

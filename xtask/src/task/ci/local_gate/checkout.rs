@@ -42,9 +42,13 @@ impl Checkout {
             .argument(&commit)
             .captured::<Stdout>()
             .inspect_err(|_| Self::discarded(&place))?;
-        let top = repository.ancestors().find(|directory| directory.join(Self::GIT).exists()).unwrap_or(repository);
-        let scope = repository.strip_prefix(top).unwrap_or(Path::new("")).to_path_buf();
+        let scope = Self::scope_of(repository);
         Ok(Checkout { repository: repository.to_path_buf(), place, scope, commit, lock })
+    }
+
+    pub fn scope_of(repository: &Path) -> PathBuf {
+        let top = repository.ancestors().find(|directory| directory.join(Self::GIT).exists()).unwrap_or(repository);
+        repository.strip_prefix(top).unwrap_or(Path::new("")).to_path_buf()
     }
 
     pub fn sweep(repository: &Path, parent: &Path) -> Result<PathBuf, Failure> {

@@ -2,7 +2,7 @@ use std::io;
 
 use thiserror::Error;
 
-use crate::task::ci::{Busy, Unready};
+use crate::task::ci::{Busy, OutsideConfig, Unready};
 use crate::task::ratchet::{Raised, Ratchet};
 use crate::task::revision::ForeignEmails;
 
@@ -24,6 +24,8 @@ pub enum Failure {
     Unready(#[from] Unready),
     #[error("{0}")]
     Busy(Busy),
+    #[error("{0}")]
+    Configured(OutsideConfig),
     #[error("{0}")]
     Identity(ForeignEmails),
 }

@@ -13,13 +13,14 @@ use crate::task::failure::Failure;
 
 #[derive(Debug)]
 pub struct GateLock {
-    _held: File,
+    held: File,
 }
 
 impl GateLock {
     const PAUSE: Duration = Duration::from_millis(250);
     const TARGETS: &str = "targets";
     const LOCK: &str = "lock";
+    const NOWHERE: &str = "/dev/null";
 
     pub fn target(parent: &Path, workspace: &Path) -> PathBuf {
         workspace
@@ -45,13 +46,19 @@ impl GateLock {
         .ok_or_else(|| Failure::Busy(Busy::new(path.to_path_buf(), wait)))?;
         file.set_len(0).map_err(io)?;
         write!(file, "pid {}", process::id()).map_err(io)?;
-        Ok(GateLock { _held: file })
+        Ok(GateLock { held: file })
+    }
+
+    pub fn inheritable(&self) -> Result<File, Failure> {
+        Ok(File::open(Self::NOWHERE)
+            .and_then(|file| self.held.metadata().map(|_| file))
+            .map_err(|error| task::Failure::Io { site: Site::Workspace, error })?)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::process;
+    use std::process::{self, Command};
     use std::time::Duration;
 
     use task::Millis;
@@ -61,6 +68,10 @@ mod tests {
 
     const LOCK: &str = "gate.lock";
     const SCOPE: &str = "consumer";
+    const SHELL: &str = "sh";
+    const STOPPED: [&str; 2] = ["-c", "exec sleep 5"];
+    const SETTLE: Duration = Duration::from_secs(5);
+    const BRIEF: Duration = Duration::from_millis(50);
 
     #[test]
     fn a_held_gate_lock_makes_the_next_gate_give_up_naming_the_holder() {
@@ -69,7 +80,18 @@ mod tests {
         let refused = GateLock::acquire(&fixture.path(LOCK), Duration::ZERO).map_err(|failure| failure.to_string());
         assert!(refused.err().is_some_and(|message| message.contains(&process::id().to_string())));
         drop(held);
-        assert!(GateLock::acquire(&fixture.path(LOCK), Duration::ZERO).is_ok());
+        assert!(GateLock::acquire(&fixture.path(LOCK), SETTLE).is_ok());
+    }
+
+    #[test]
+    fn a_child_holding_the_lock_keeps_it_after_its_parent_lets_go() {
+        let fixture = Fixture::new();
+        let parent = GateLock::acquire(&fixture.path(LOCK), Duration::ZERO).unwrap();
+        let mut child = Command::new(SHELL).args(STOPPED).stdin(parent.inheritable().unwrap()).spawn().unwrap();
+        drop(parent);
+        assert!(GateLock::acquire(&fixture.path(LOCK), BRIEF).is_err());
+        child.kill().and_then(|()| child.wait()).unwrap();
+        assert!(GateLock::acquire(&fixture.path(LOCK), SETTLE).is_ok());
     }
 
     #[test]

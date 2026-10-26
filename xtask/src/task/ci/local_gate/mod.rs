@@ -1,8 +1,10 @@
 mod busy;
 mod checkout;
+mod config_effect;
 mod gate_lock;
 mod gate_state;
 mod meta_rev;
+mod outside_config;
 mod posting;
 mod recorded_times;
 mod status_argument;
@@ -10,10 +12,12 @@ mod unready;
 mod worktrees;
 
 pub use busy::Busy;
+pub use outside_config::OutsideConfig;
 pub use posting::Posting;
 pub use unready::Unready;
 
 use checkout::Checkout;
+use config_effect::ConfigEffect;
 use gate_lock::GateLock;
 use gate_state::GateState;
 use meta_rev::MetaRev;
@@ -47,6 +51,11 @@ impl LocalGate {
     const FIELD: &str = "-f";
     const CHECKOUTS: &str = "meta-local-gate";
     const CARGO_TARGET: &str = "CARGO_TARGET_DIR";
+    const CARGO_BUILD_DIR: &str = "CARGO_BUILD_BUILD_DIR";
+    const CARGO_HOME: &str = "CARGO_HOME";
+    const DOT_CARGO: &str = ".cargo";
+    const INHERITED: [&str; 5] = ["PATH", "HOME", "CARGO_HOME", "RUSTUP_HOME", "TMPDIR"];
+    const WORKTREES: [&str; 3] = ["worktree", "list", "--porcelain"];
 
     pub fn new(root: &Path, policy: &Policy) -> Result<LocalGate, Failure> {
         Ok(LocalGate {
@@ -72,15 +81,24 @@ impl LocalGate {
 
     pub fn run(&self, policy: &Policy, summary: Option<&Path>) -> Result<(), Failure> {
         let parent = env::temp_dir().join(Self::CHECKOUTS);
-        let target = GateLock::target(&parent, &self.root);
-        let _lock = GateLock::guarding(&target, policy.gate_wait()?)?;
+        let listed: Worktrees = Self::git(&self.root).arguments(Self::WORKTREES).captured::<Stdout>()?.parse()?;
+        let key = listed.main().unwrap_or(&self.root).join(Checkout::scope_of(&self.root));
+        let target = GateLock::target(&parent, &key);
+        let lock = GateLock::guarding(&target, policy.gate_wait()?)?;
         let checkout = self.checkout(&parent)?;
+        let cargo_home = env::var_os(Self::CARGO_HOME)
+            .map(PathBuf::from)
+            .or_else(|| env::home_dir().map(|home| home.join(Self::DOT_CARGO)))
+            .unwrap_or_default();
+        OutsideConfig::around(&checkout.root(), &cargo_home).refused()?;
         let outcome = CommandLine::new(Program::Cargo)
             .in_directory(checkout.root())
             .arguments(Self::GATE)
-            .environment(Self::CARGO_TARGET, target)
+            .inheriting_only(&Self::INHERITED)
+            .environment(Self::CARGO_TARGET, target.clone())
+            .environment(Self::CARGO_BUILD_DIR, target)
             .environment(Self::TIMES, checkout.times().path().to_path_buf())
-            .run();
+            .run_holding(lock.inheritable()?);
         let changed = Surfaces::changed(&checkout.root(), policy.surfaces(), policy.branch(Branch::Base))?;
         changed.announce(summary)?;
         self.concluded(&checkout, outcome, &changed)
