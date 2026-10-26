@@ -136,6 +136,7 @@ impl LocalGate {
         let line = self.gh.clone().in_directory(self.root.clone()).arguments(Self::POST);
         let description = StatusArgument::Description {
             version,
+            state,
             toolchain: findings.toolchain(),
             times: &times,
             surfaces: findings.surfaces(),

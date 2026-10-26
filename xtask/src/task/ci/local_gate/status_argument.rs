@@ -17,6 +17,7 @@ pub enum StatusArgument<'post> {
     },
     Description {
         version: MetaRev,
+        state: GateState,
         toolchain: &'post Toolchain,
         times: &'post RecordedTimes,
         surfaces: &'post Changed,
@@ -37,11 +38,13 @@ impl fmt::Display for StatusArgument<'_> {
                 write!(formatter, "context={status}")
             }
             StatusArgument::Context { status, scope } => write!(formatter, "context={status}/{}", scope.display()),
-            StatusArgument::Description { version, toolchain, times, surfaces, passed } => {
+            StatusArgument::Description { version, state, toolchain, times, surfaces, passed } => {
                 let names: Vec<&str> = passed.iter().map(GateEnvName::as_str).collect();
                 let surfaced = if surfaces.is_empty() { "" } else { Self::SURFACES };
-                let head = format!("meta-dev {version} on {toolchain}");
-                let description = StatusDescription::new(&head, &times.to_string(), surfaced, &names);
+                let description = StatusDescription::of(&version.to_string(), &toolchain.to_string())
+                    .after(*state, &times.to_string())
+                    .surfacing(surfaced)
+                    .passing(&names);
                 write!(formatter, "description={description}")
             }
         }
@@ -56,7 +59,7 @@ mod tests {
     use task::{GateEnvName, Policy};
 
     use super::StatusArgument;
-    use crate::task::ci::local_gate::{MetaRev, RecordedTimes, Toolchain};
+    use crate::task::ci::local_gate::{GateState, MetaRev, RecordedTimes, Toolchain};
     use crate::task::surfaces::Changed;
 
     const VERSION: &str = "0a1b2c";
@@ -75,6 +78,7 @@ mod tests {
         let toolchain: Toolchain = TOOLCHAIN.parse().unwrap();
         let description = StatusArgument::Description {
             version,
+            state: GateState::Success,
             toolchain: &toolchain,
             times: &times,
             surfaces: &unchanged,
@@ -90,6 +94,7 @@ mod tests {
         let passed: Vec<GateEnvName> = NAMES.iter().map(|name| name.to_string().try_into().unwrap()).collect();
         let description = StatusArgument::Description {
             version: VERSION.parse().unwrap(),
+            state: GateState::Success,
             toolchain: &TOOLCHAIN.parse().unwrap(),
             times: &times,
             surfaces: &changed,
