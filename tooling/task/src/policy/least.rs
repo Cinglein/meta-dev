@@ -2,6 +2,7 @@ use std::num::NonZeroU64;
 
 use serde::{Deserialize, Serialize};
 
+use super::percent::Percent;
 use crate::budget::Millis;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -11,6 +12,11 @@ pub struct Least(usize);
 impl Least {
     pub const fn allows(self, length: usize) -> bool {
         length >= self.0
+    }
+
+    #[must_use]
+    pub fn percent_above(self, price: Millis) -> Millis {
+        price.plus(Percent::from(self.0).portion_of(price))
     }
 
     #[must_use]

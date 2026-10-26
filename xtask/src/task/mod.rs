@@ -120,13 +120,14 @@ impl Task {
             )
             .inspect(|costs| println!("{costs}"))
             .inspect(|costs| eprintln!("below the sample floor, not priced: {}", costs.below_sample_floor()))?
-            .priced_within(
-                &policy,
-                match TriggerEvent::current() {
+            .and_then(|costs| {
+                let job = match TriggerEvent::current() {
                     Some(TriggerEvent::PullRequest) => Interval::DiffJob,
                     _ => Interval::FullJob,
-                },
-            )?),
+                };
+                eprintln!("{}", costs.within_tolerance(&policy, job));
+                costs.priced_within(&policy, job)
+            })?),
             Task::Mutants => Ok(Mutants::run(&workspace, Scope::ChangedLines, &policy)?),
             Task::MutantsFull => Ok(Mutants::run(&workspace, Scope::Workspace, &policy)?),
             Task::MutantsPlan => Ok(ShardPlan::full(

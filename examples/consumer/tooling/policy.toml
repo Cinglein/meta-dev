@@ -58,6 +58,7 @@ lifetime_name = 2
 cut_side = 5
 price_sample = 30
 diff_factor = 3
+price_tolerance = 25
 
 [shares]
 tests_per_hundred_files = 50
