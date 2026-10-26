@@ -1,17 +1,18 @@
 mod finding;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use finding::Finding;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 use syn::{ImplItem, Item, ItemEnum, ItemImpl, ReturnType, Type};
 
-use task::{LineNumber, Name, Report, Site, SourceFile, Violation};
+use task::{CrateName, LineNumber, Name, Report, Site, SourceFile, Violation};
 
 #[derive(Debug, Default)]
 pub struct EnumPredicates {
-    enums: BTreeSet<Name>,
+    current: Option<CrateName>,
+    enums: BTreeMap<Option<CrateName>, BTreeSet<Name>>,
 }
 
 impl EnumPredicates {
@@ -20,7 +21,7 @@ impl EnumPredicates {
         let predicates = files
             .iter()
             .fold(EnumPredicates::default(), |mut predicates, file| {
-                predicates.visit_file(file.syntax());
+                predicates.enter(file);
                 predicates
             });
         Report::new(
@@ -40,7 +41,7 @@ impl EnumPredicates {
                 Item::Impl(block) if block.trait_.is_none() => Some(block),
                 _ => None,
             })
-            .filter(|block| self.is_enum(&block.self_ty))
+            .filter(|block| self.is_enum(file.crate_name(), &block.self_ty))
             .flat_map(|block| Self::predicates(file, block))
             .collect()
     }
@@ -70,21 +71,32 @@ impl EnumPredicates {
             .collect()
     }
 
-    fn is_enum(&self, implemented: &Type) -> bool {
-        match implemented {
+    fn is_enum(&self, owner: Option<&CrateName>, implemented: &Type) -> bool {
+        let named = match implemented {
             Type::Path(path) => path
                 .path
                 .segments
                 .last()
-                .is_some_and(|segment| self.enums.contains(&Name::from(&segment.ident))),
-            _ => false,
-        }
+                .map(|segment| Name::from(&segment.ident)),
+            _ => None,
+        };
+        named
+            .zip(self.enums.get(&owner.cloned()))
+            .is_some_and(|(name, enums)| enums.contains(&name))
+    }
+
+    fn enter(&mut self, file: &SourceFile) {
+        self.current = file.crate_name().cloned();
+        self.visit_file(file.syntax());
     }
 }
 
 impl<'ast> Visit<'ast> for EnumPredicates {
     fn visit_item_enum(&mut self, item: &'ast ItemEnum) {
-        self.enums.insert(Name::from(&item.ident));
+        self.enums
+            .entry(self.current.clone())
+            .or_default()
+            .insert(Name::from(&item.ident));
     }
 }
 
