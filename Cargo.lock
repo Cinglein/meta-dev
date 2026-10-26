@@ -500,6 +500,7 @@ dependencies = [
  "meta-pulls",
  "meta-schema",
  "meta-state",
+ "serde",
  "serde_json",
 ]
 

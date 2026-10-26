@@ -1,5 +1,6 @@
 mod ci;
 mod cli_failure;
+mod heartbeat;
 mod hook;
 mod live_github;
 mod local;
@@ -16,6 +17,7 @@ use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, N
 
 use ci::{Commit, FailureLog, SessionId, Watcher};
 use cli_failure::{CliFailure, Invalid, Misuse, Setup};
+use heartbeat::Heartbeat;
 use hook::HookEvent;
 use live_github::LiveGithub;
 use local::{LocalClone, Sweep};
@@ -34,6 +36,7 @@ pub enum Request {
     List(Option<Kind>, Scope),
     Status(StatusView),
     Hook(HookEvent),
+    Heartbeat(Heartbeat),
     WatchCi(SessionId, Commit),
     WaitCi(SessionId),
     CiLog(SessionId),
@@ -104,6 +107,7 @@ impl TryFrom<Vec<String>> for Request {
             "list" => Ok(Self::List(parsed.kind()?, parsed.allowing(&[OptionName::All])?.scope())),
             "status" => Ok(Self::Status(parsed.allowing(&[OptionName::Flags])?.view())),
             "hook" => Ok(Self::Hook(parsed.allowing(&[])?.text()?.to_string().parse()?)),
+            "heartbeat" => Ok(Self::Heartbeat(parsed.allowing(&[])?.text()?.to_string().parse()?)),
             "ci-watch" => parsed.allowing(&[])?.session_and_commit(Self::WatchCi),
             "ci-wait" => Self::session().map(Self::WaitCi),
             "ci-log" => Self::session().map(Self::CiLog),
@@ -125,6 +129,7 @@ impl Request {
     pub fn answer_in(self, project: &Project) -> Result<Output, CliFailure> {
         match self {
             Self::Hook(event) => event.respond(),
+            Self::Heartbeat(command) => command.answer(project),
             Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
             Self::WaitCi(session) => Watcher::wait(project, &session),
             Self::CiLog(session) => FailureLog::excerpt(project, &session),
@@ -145,6 +150,7 @@ impl Request {
             Self::Write(event) => Writing::new(log, actor()?, event).entered(),
             Self::List(kind, scope) => Listed::from_log(log, kind, scope).map(Output::Listed),
             Self::Hook(_)
+            | Self::Heartbeat(_)
             | Self::WatchCi(..)
             | Self::WaitCi(_)
             | Self::CiLog(_)

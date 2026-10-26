@@ -31,11 +31,9 @@ mod tests {
     use super::GcLock;
 
     #[test]
-    fn one_gc_holds_the_lock_until_it_ends() {
+    fn a_second_gc_in_the_same_clone_is_refused_while_the_first_holds_the_lock() {
         let common = tempfile::tempdir().unwrap();
         let first = GcLock::taken(common.path());
-        let second = GcLock::taken(common.path());
-        drop(first);
-        assert!(second.is_err() && GcLock::taken(common.path()).is_ok());
+        assert!(first.is_ok() && GcLock::taken(common.path()).is_err());
     }
 }

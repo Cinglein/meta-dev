@@ -11,6 +11,7 @@ mod worktree_id;
 mod worktrees;
 
 pub use local_clone::LocalClone;
+pub use local_file::LocalFile;
 pub use sweep::Sweep;
 
 #[cfg(test)]

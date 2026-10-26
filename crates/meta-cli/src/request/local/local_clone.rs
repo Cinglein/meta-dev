@@ -1,6 +1,7 @@
 mod collection;
 mod gc_lock;
 mod git;
+mod git_dir;
 mod vetting;
 
 use std::ffi::OsStr;
@@ -28,18 +29,31 @@ use crate::request::writing::Writing;
 use collection::{Census, Collection, Sweeper, Tracked};
 use gc_lock::GcLock;
 use git::Git;
+use git_dir::GitDir;
 use vetting::{Context, Host};
 
 #[derive(Debug)]
 pub struct LocalClone {
     checkout: PathBuf,
-    git_dir: PathBuf,
+    git_dir: GitDir,
 }
 
 impl LocalClone {
     const LISTED_PREFIX: &'static str = "worktree ";
     const NAME_KEYS: [&'static str; 3] = ["user.name", "author.name", "committer.name"];
     const EMAIL_KEYS: [&'static str; 3] = ["user.email", "author.email", "committer.email"];
+
+    pub fn new(checkout: PathBuf, git_dir: PathBuf) -> Self {
+        Self { checkout, git_dir: GitDir::new(git_dir) }
+    }
+
+    pub fn checkout(&self) -> &Path {
+        &self.checkout
+    }
+
+    pub fn git_dir(&self) -> &GitDir {
+        &self.git_dir
+    }
 
     pub fn claimed(&self, project: &Project, claim: Claim, actor: Actor) -> Result<Output, CliFailure> {
         let settings = self.settings()?;
@@ -85,7 +99,7 @@ impl LocalClone {
             let id =
                 WorktreeId::parsed(Path::new(&git_dir)).ok_or_else(|| CliFailure::raised::<Setup>("no worktree id"))?;
             let recorded = RecordedWorktree::new(created.clone(), task).identified(id);
-            LocalTrail::append(&self.git_dir, &TrailEntry::Created(recorded))?;
+            LocalTrail::append(self.git_dir.as_ref(), &TrailEntry::Created(recorded))?;
             Ok(created)
         };
         let created = settled().map_err(|failure| self.rolled_back(Some(&path), new_branch, failure))?;
@@ -93,7 +107,7 @@ impl LocalClone {
             || {
                 Writing::new(&log, actor, event).entered().map(|written| written.to_string()).map_err(|failure| {
                     let removed = TrailEntry::Removed { path: created.clone(), at: Utc::now() };
-                    let failure = LocalTrail::append(&self.git_dir, &removed).err().unwrap_or(failure);
+                    let failure = LocalTrail::append(self.git_dir.as_ref(), &removed).err().unwrap_or(failure);
                     self.rolled_back(Some(&path), new_branch, failure)
                 })
             },
@@ -103,7 +117,7 @@ impl LocalClone {
     }
 
     pub fn worktrees(&self, project: &Project) -> Result<Output, CliFailure> {
-        let trail = LocalTrail::read(&self.git_dir)?;
+        let trail = LocalTrail::read(self.git_dir.as_ref())?;
         let state = State::fold(project.log()?.read()?.records());
         let paths = self.listed()?;
         trail.torn().iter().for_each(|torn| eprintln!("meta: warning: {torn}"));
@@ -112,8 +126,8 @@ impl LocalClone {
 
     pub fn collected(&self, project: &Project, sweep: Sweep) -> Result<Output, CliFailure> {
         let root = self.settings()?.worktree_root(&self.checkout);
-        let _held = GcLock::taken(&self.git_dir)?;
-        let trail = LocalTrail::read(&self.git_dir)?;
+        let _held = GcLock::taken(self.git_dir.as_ref())?;
+        let trail = LocalTrail::read(self.git_dir.as_ref())?;
         trail.torn().iter().for_each(|torn| eprintln!("meta: warning: {torn}"));
         let state = State::fold(project.log()?.read()?.records());
         let recorded: Vec<RecordedWorktree> = trail.current().into_iter().cloned().collect();
@@ -126,10 +140,14 @@ impl LocalClone {
         });
         let census = Census::new(tracked.collect(), self.listed()?);
         let root = std::fs::canonicalize(&root).unwrap_or(root);
-        let context =
-            Context::new(self.checkout.clone(), self.git_dir.clone(), root, project.config().remote()?.clone());
+        let context = Context::new(
+            self.checkout.clone(),
+            self.git_dir.as_ref().to_path_buf(),
+            root,
+            project.config().remote()?.clone(),
+        );
         let collection = Collection::swept(&Sweeper::new(sweep, &context, &Host::default()), &census);
-        collection.trailed(Utc::now()).iter().try_for_each(|entry| LocalTrail::append(&self.git_dir, entry))?;
+        collection.trailed(Utc::now()).iter().try_for_each(|entry| LocalTrail::append(self.git_dir.as_ref(), entry))?;
         Ok(Output::Listed(Listed::new(collection)))
     }
 
@@ -196,6 +214,6 @@ impl TryFrom<&Project> for LocalClone {
         let git_dir = std::fs::canonicalize(shown).map_err(CliFailure::raised::<Setup>)?;
         let checkout =
             git_dir.parent().map(Path::to_path_buf).ok_or_else(|| CliFailure::raised::<Setup>("no checkout"))?;
-        Ok(Self { checkout, git_dir })
+        Ok(Self::new(checkout, git_dir))
     }
 }

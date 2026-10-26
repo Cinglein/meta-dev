@@ -1,7 +1,10 @@
+mod verdict;
+
 use std::fmt;
 use std::process::ExitStatus;
 
 use crate::request::output::Listed;
+use verdict::Verdict;
 
 #[derive(Debug)]
 pub struct Finished {
@@ -20,6 +23,14 @@ impl Finished {
     pub fn succeeded(self) -> Result<String, Listed> {
         let complaint = self.complaint();
         self.status.success().then_some(self.output).ok_or(complaint)
+    }
+
+    pub fn verdict(&self) -> Verdict {
+        match (self.status.success(), self.errors.is_empty()) {
+            (true, _) => Verdict::Clean,
+            (false, true) => Verdict::Flagged,
+            (false, false) => Verdict::Failed,
+        }
     }
 
     pub fn output(&self) -> &str {
