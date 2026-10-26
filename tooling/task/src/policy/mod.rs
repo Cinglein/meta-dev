@@ -1,5 +1,6 @@
 mod baseline_file;
 mod bit_boundary;
+mod budgets;
 mod floor;
 mod least;
 mod limit;
@@ -24,6 +25,7 @@ use std::fs;
 use std::path::Path;
 
 use bit_boundary::BitBoundary;
+use budgets::Budgets;
 use enum_map::EnumMap;
 use least::Least;
 use percent::Percent;
@@ -57,6 +59,8 @@ pub struct Policy {
     millis: EnumMap<Interval, Millis>,
     mutant_millis: MutantMillis,
     mutation: MutationCadence,
+    #[serde(default)]
+    budgets: Budgets,
 }
 
 #[cfg(any(test, feature = "test-policy"))]
@@ -128,6 +132,11 @@ impl Policy {
     }
 
     #[must_use]
+    pub fn budgets(&self) -> &Budgets {
+        &self.budgets
+    }
+
+    #[must_use]
     pub fn surfaces(&self) -> &[Surface] {
         &self.surfaces
     }
@@ -160,6 +169,8 @@ mod tests {
     use std::path::Path;
     const CHECK: &str = "check";
     const LONG_ENOUGH: &str = "report";
+    const TEST_TIME: &str = "test-time";
+    const BUDGET: &str = "\n[budgets.test-time]\ndivision = \"performance-and-cost\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\n";
 
     #[test]
     fn the_checked_in_policy_round_trips_and_knows_a_vague_name_from_a_said_one() {
@@ -178,5 +189,22 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         assert_eq!(Policy::read(&root).unwrap(), Policy::defaults());
         assert!(Policy::read(&root.join("tooling")).is_err());
+    }
+
+    #[test]
+    fn a_policy_without_budgets_has_none_and_one_with_budgets_reads_them() {
+        let budgeted: Policy = toml::from_str(&format!("{}{BUDGET}", Policy::DEFAULTS)).unwrap();
+        assert!(
+            Policy::defaults()
+                .budgets()
+                .budget(&TEST_TIME.parse().unwrap())
+                .is_none()
+        );
+        assert!(
+            budgeted
+                .budgets()
+                .budget(&TEST_TIME.parse().unwrap())
+                .is_some()
+        );
     }
 }
