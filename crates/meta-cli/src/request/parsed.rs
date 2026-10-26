@@ -179,6 +179,9 @@ impl Parsed {
     }
 }
 
+#[cfg(test)]
+mod tests;
+
 impl TryFrom<&[String]> for Parsed {
     type Error = CliFailure;
 
