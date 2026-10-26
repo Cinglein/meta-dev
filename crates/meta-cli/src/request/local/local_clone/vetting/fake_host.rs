@@ -31,7 +31,8 @@ const TEXTS: [(&str, &str); 4] = [
         "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n",
     ),
 ];
-const ANSWERS: [(&str, &str); 7] = [
+const ANSWERS: [(&str, &str); 8] = [
+    ("symbolic-ref", "refs/heads/task-00000000000000b1\n"),
     ("ls-files", "H 100644 a1 0\tmeta.toml\0"),
     ("status", "!! target/\0"),
     ("rev-parse", "c1\n"),

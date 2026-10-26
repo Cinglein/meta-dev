@@ -22,7 +22,13 @@ const CARGO_TAG: &str =
     "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n";
 const FOREIGN_TAG: &str = "Signature: 8a477f597d28d172789f06886806bc55\n# made by another tool\n";
 const UNSIGNED_TAG: &str = "Signature: none\n# created by cargo\n";
-const REFUSED: [Case; 40] = [
+const PAUSED: &str = "am, rebase or cherry-pick in progress";
+const REDIRECTED: &str = "worktree config sets a remote";
+const OFF_BRANCH: &str = "HEAD is not on the recorded branch";
+const NO_BRANCH: &str = "task branch missing";
+const SHARED: &str = "branch checked out elsewhere";
+const STRANGER: &str = "a different worktree at the recorded path";
+const REFUSED: [Case; 52] = [
     Case("symlink", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::Symlink)),
     Case("not found", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::Missing)),
     Case("unreadable entry", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::File)),
@@ -79,6 +85,33 @@ const REFUSED: [Case; 40] = [
     }),
     Case("commits not on the remote", |host| host.answer_is("rev-parse", "c9\n")),
     Case("remote unreachable: offline", |host| host.fails("ls-remote")),
+    Case("commits not on the remote", |host| {
+        host.text_is("/clone/.git/worktrees/task-00000000000000b1/ORIG_HEAD", "c7\n");
+    }),
+    Case(PAUSED, |host| host.entry_is("/clone/.git/worktrees/task-00000000000000b1/rebase-merge", EntryKind::Dir)),
+    Case(PAUSED, |host| host.entry_is("/clone/.git/worktrees/task-00000000000000b1/rebase-apply", EntryKind::Dir)),
+    Case(PAUSED, |host| host.entry_is("/clone/.git/worktrees/task-00000000000000b1/sequencer", EntryKind::Dir)),
+    Case(REDIRECTED, |host| {
+        host.text_is(
+            "/clone/.git/worktrees/task-00000000000000b1/config.worktree",
+            "[remote \"origin\"]\n\turl = /x\n",
+        );
+    }),
+    Case(REDIRECTED, |host| {
+        host.text_is("/clone/.git/worktrees/task-00000000000000b1/config.worktree", "[URL \"/x\"]\n\tinsteadOf = /o\n");
+    }),
+    Case(IGNORED, |host| host.walks(&["target/debug/notes.txt"], EntryKind::File)),
+    Case(IGNORED, |host| host.walks(&["target/debug/stash", "target/debug/stash/keep"], EntryKind::Dir)),
+    Case(OFF_BRANCH, |host| host.answer_is("symbolic-ref", "refs/heads/other\n")),
+    Case(NO_BRANCH, |host| host.answer_is("for-each-ref", "")),
+    Case(STRANGER, |host| {
+        host.text_is("/trees/task-00000000000000b1/.git", "gitdir: /clone/.git/worktrees/other\n");
+        host.text_is("/clone/.git/worktrees/other/gitdir", "/trees/task-00000000000000b1/.git\n");
+        host.text_is("/clone/.git/worktrees/other/commondir", "../..\n");
+    }),
+    Case(SHARED, |host| {
+        host.answer_is("worktree", "worktree /clone\nHEAD c1\nbranch refs/heads/task-00000000000000b1\n");
+    }),
 ];
 const ACCEPTED: [fn(&mut FakeHost); 4] = [
     |_| {},
