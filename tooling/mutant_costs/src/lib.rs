@@ -88,7 +88,6 @@ impl MutantCosts {
             .iter()
             .map(move |(name, price)| Overrun::new(name.to_string(), *price, policy.mutant_price(name, job)))
             .chain([baseline])
-            .map(|overrun| overrun.rounded_up_to(Self::STEP))
             .filter(Overrun::is_above_price)
     }
 
@@ -145,12 +144,13 @@ mod tests {
     const LISTED: &str = "meta-cli";
     const SAMPLE: usize = 30;
     const AFFECTED: &str = "affected";
-    const CASES: [(f64, f64, Interval, bool, bool); 9] = [
+    const CASES: [(f64, f64, Interval, bool, bool); 10] = [
         (2.8, 1.0, Interval::DiffJob, true, false),
         (5.9, 1.0, Interval::DiffJob, true, true),
         (6.1, 1.0, Interval::DiffJob, false, false),
         (1.6, 1.0, Interval::FullJob, true, false),
         (1.76, 1.0, Interval::FullJob, true, true),
+        (2.0, 1.0, Interval::FullJob, true, true),
         (2.08, 1.0, Interval::FullJob, false, false),
         (2.8, 1.0, Interval::FullJob, false, false),
         (1.6, 16.5, Interval::FullJob, true, true),
