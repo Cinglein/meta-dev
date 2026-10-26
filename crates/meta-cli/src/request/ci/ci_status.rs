@@ -10,15 +10,33 @@ pub enum CiStatus {
     Passed,
     Failed,
     TimedOut,
+    Unavailable,
+    Absent,
 }
 
 impl CiStatus {
     pub fn of_runs(runs: &[GhRun]) -> Option<Self> {
-        runs.iter().map(GhRun::outcome).collect::<Option<Vec<Outcome>>>().filter(|outcomes| !outcomes.is_empty()).map(
-            |outcomes| {
-                if outcomes.iter().all(|outcome| *outcome == Outcome::Succeeded) { Self::Passed } else { Self::Failed }
-            },
-        )
+        let outcomes: Option<Vec<Outcome>> = runs.iter().map(GhRun::outcome).collect();
+        runs.first().map(|_| outcomes.as_deref().map_or(Self::Running, Self::of_outcomes))
+    }
+
+    fn of_outcomes(outcomes: &[Outcome]) -> Self {
+        if outcomes.iter().all(|outcome| *outcome == Outcome::Succeeded) { Self::Passed } else { Self::Failed }
+    }
+
+    pub fn unstarted(self) -> Self {
+        match self {
+            Self::Failed => Self::Unavailable,
+            Self::Running | Self::Passed | Self::TimedOut | Self::Unavailable | Self::Absent => self,
+        }
+    }
+
+    pub fn detail(self) -> &'static str {
+        match self {
+            Self::Unavailable => ": jobs never started; give the local gate result instead",
+            Self::Absent => ": no run for this commit; no CI for this push",
+            Self::Running | Self::Passed | Self::Failed | Self::TimedOut => "",
+        }
     }
 
     pub fn stop_reason(self) -> Option<Listed> {
@@ -29,14 +47,14 @@ impl CiStatus {
             Self::Failed => Some(Listed::new(
                 "CI failed for your last push: fix it, push, then run `meta ci-wait`; or ask the owner",
             )),
-            Self::Passed | Self::TimedOut => None,
+            Self::Passed | Self::TimedOut | Self::Unavailable | Self::Absent => None,
         }
     }
 
     pub fn finished(self) -> Option<Self> {
         match self {
             Self::Running => None,
-            Self::Passed | Self::Failed | Self::TimedOut => Some(self),
+            Self::Passed | Self::Failed | Self::TimedOut | Self::Unavailable | Self::Absent => Some(self),
         }
     }
 }

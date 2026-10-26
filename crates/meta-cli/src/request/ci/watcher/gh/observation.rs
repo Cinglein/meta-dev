@@ -5,12 +5,12 @@ use crate::request::output::Listed;
 pub struct Observation {
     failed_job: Option<Listed>,
     failed_steps: Vec<Listed>,
-    finished: Option<CiStatus>,
+    status: Option<CiStatus>,
 }
 
 impl Observation {
-    pub fn new(failed_steps: Vec<Listed>, failed_job: Option<Listed>, finished: Option<CiStatus>) -> Self {
-        Self { failed_job, failed_steps, finished }
+    pub fn new(failed_steps: Vec<Listed>, failed_job: Option<Listed>, status: Option<CiStatus>) -> Self {
+        Self { failed_job, failed_steps, status }
     }
 
     pub fn failed_job(&self) -> Option<&Listed> {
@@ -22,6 +22,10 @@ impl Observation {
     }
 
     pub fn finished(&self) -> Option<CiStatus> {
-        self.finished
+        self.status.and_then(CiStatus::finished)
+    }
+
+    pub fn appeared(&self) -> Option<&Self> {
+        self.status.map(|_| self)
     }
 }

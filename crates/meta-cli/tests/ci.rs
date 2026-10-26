@@ -7,22 +7,33 @@ use std::process::{Command, ExitStatus, Output, Stdio};
 use std::time::Duration;
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
-const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\n";
+const CONFIG: &str =
+    "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\nappear_millis = 60\n";
 const PATIENT: &str = "timeout_millis = 300\n";
-const IMPATIENT: &str = "timeout_millis = 30\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 count="$FAKE_GH_DIR/count"
-n=$(cat "$count" 2>/dev/null || echo 0)
+read -r n < "$count" 2>/dev/null || n=0
+read -r head < "$FAKE_GH_DIR/bin/head"
+events="$FAKE_GH_DIR/.git/meta-ci/ABCDEF1234/events"
+s="$FAKE_GH_SCENARIO"
 case "$1 $2" in
 "run list")
   n=$((n + 1)); echo "$n" > "$count"
-  if [ "$FAKE_GH_SCENARIO" = none ] || [ "$4" != "$(git rev-parse HEAD)" ]; then echo '[]'
-  elif [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
-  else echo "[{\"databaseId\":7,\"status\":\"completed\",\"conclusion\":\"$FAKE_GH_SCENARIO\"}]"; fi ;;
+  if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
+  elif [ "$s" = none ] || [ "$4" != "$head" ]; then echo '[]'
+  elif [ "$s" = late ] && { ! grep -q "no run yet" "$events" || grep -q "run appeared" "$events"; }; then echo '[]'
+  elif [ "$n" -lt 2 ]; then echo '[]'
+  elif [ "$s" = late ] || [ "$s" = broken ] || [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
+  elif [ "$s" = success ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"success"}]'
+  elif [ "$s" = mixed ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"failure"},{"databaseId":8,"status":"completed","conclusion":"failure"}]'
+  else echo '[{"databaseId":7,"status":"completed","conclusion":"failure"}]'; fi ;;
 "run view")
-  if [ "$3 $4" = "--job 11" ]; then cat "$FAKE_GH_DIR/bin/failed.log"
+  if [ "$s" = broken ] && [ "$n" -gt 5 ]; then echo 'HTTP 401: Bad credentials' >&2; exit 1
+  elif [ "$3 $4" = "--job 11" ]; then cat "$FAKE_GH_DIR/bin/failed.log"
+  elif [ "$3" = 8 ]; then echo '{"jobs":[{"databaseId":13,"name":"lint","conclusion":"failure","steps":[{"name":"clippy","conclusion":"failure"}]}]}'
   elif [ "$3" != 7 ]; then echo '{"jobs":[]}'
-  elif [ "$FAKE_GH_SCENARIO" = failure ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[{"name":"Checkout","conclusion":"success"},{"name":"cargo xtask ci","conclusion":"failure"}]},{"databaseId":12,"name":"docs","conclusion":""}]}'
+  elif [ "$s" = failure ] || [ "$s" = broken ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[{"name":"Checkout","conclusion":"success"},{"name":"cargo xtask ci","conclusion":"failure"}]},{"databaseId":12,"name":"docs","conclusion":""}]}'
+  elif [ "$s" = unstarted ] || [ "$s" = mixed ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[]}]}'
   else echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"success"}]}'; fi ;;
 esac
 "#;
@@ -46,12 +57,21 @@ const SESSION: &str = "ABCDEF12-34";
 const FAILURE: &str = "failure";
 const SUCCESS: &str = "success";
 const NONE: &str = "none";
+const LATE: &str = "late";
+const BROKEN: &str = "broken";
+const MIXED: &str = "mixed";
+const NOT_WATCHED: &str = "CI not watched for";
+const PLAIN_PUSH: &str = "git push";
+const PUSH_WORDS: [&str; 4] = ["push", "-q", "origin", "feature"];
+const NEXT_COMMIT: [&str; 5] = ["commit", "-q", "--allow-empty", "-m", "next"];
+const UNSTARTED: &str = "unstarted";
+const POST: &str = "post-tool-use";
 const COMMIT: &str = "git commit -m change";
 const PRE: &str = "pre-tool-use";
 const STOP: &str = "stop";
 const BLOCK: &str = "\"decision\":\"block\"";
 const BLOCK_REASON: &str = "\"reason\":\"meta-development: CI failed for your last push";
-const JOB_FAILED: &str = "ci failed after";
+const JOB_FAILED: &str = "ci failed; run `meta ci-log`";
 const CI_LOG_HINT: &str = "run `meta ci-log`";
 const STEP_LISTED: &str = "s: ci / cargo xtask ci; run `meta ci-log`";
 const PANIC_BLOCK: &str =
@@ -63,7 +83,15 @@ const PASSED: &str = "passed after";
 const PASSED_EVENT: &str = ": passed after";
 const EVENT_PREFIX: &str = "CI ";
 const TIMED_OUT: &str = "timed-out after";
-const COMPLETIONS: [&str; 3] = [": passed after", ": failed after", ": timed-out after"];
+const UNAVAILABLE: &str = ": jobs never started; give the local gate result instead";
+const ABSENT: &str = ": no run for this commit; no CI for this push";
+const NO_RUN_YET: &str = "no run yet; Stop passes until one appears";
+const RUN_APPEARED: &str = "run appeared";
+const LIST_ERROR: &str = "gh failed: HTTP 502: Bad Gateway";
+const VIEW_ERROR: &str = "gh failed: HTTP 401: Bad credentials";
+const FAILED_EVENT: &str = ": failed after";
+const COMPLETIONS: [&str; 5] =
+    [": passed after", ": failed after", ": timed-out after", ": unavailable after", ": absent after"];
 
 struct Git;
 
@@ -88,6 +116,16 @@ impl Git {
 
 struct Waited(String, ExitStatus);
 
+struct Stale;
+
+impl Stale {
+    fn plant(repo: &Repo) {
+        let head = String::from_utf8(Git::run(repo.clone.path(), &["rev-parse", "HEAD"]).stdout).unwrap();
+        let states = repo.clone.path().join(".git/meta-ci/ABCDEF1234/states");
+        std::fs::create_dir_all(states.join(head.trim())).unwrap();
+    }
+}
+
 struct Repo {
     _origin: tempfile::TempDir,
     clone: tempfile::TempDir,
@@ -101,13 +139,13 @@ impl Repo {
         Git::run(origin.path(), &["init", "-q", "--bare"]);
         Git::run(clone.path(), &["init", "-q", "-b", "feature"]);
         Git::link_origin(clone.path(), origin.path().to_str().unwrap());
-        let timeout = if scenario == NONE { IMPATIENT } else { PATIENT };
-        std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{timeout}")).unwrap();
+        std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{PATIENT}")).unwrap();
         std::fs::create_dir(clone.path().join("bin")).unwrap();
         std::fs::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
         std::fs::write(clone.path().join("bin/failed.log"), FAILED_LOG).unwrap();
         std::fs::set_permissions(clone.path().join("bin/gh"), std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
         Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"]);
+        std::fs::write(clone.path().join("bin/head"), Git::run(clone.path(), &["rev-parse", "HEAD"]).stdout).unwrap();
         Self { _origin: origin, clone, scenario }
     }
 
@@ -169,7 +207,7 @@ impl fmt::Display for Repo {
 #[test]
 fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
     let repo = Repo::new(FAILURE);
-    repo.hook("post-tool-use", COMMIT);
+    repo.hook(POST, COMMIT);
     let waited = repo.session_command(CI_WAIT);
     let stop = repo.hook(STOP, COMMIT);
     let settled = repo.settled();
@@ -181,17 +219,46 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
 }
 
 #[test]
-fn a_passing_run_reports_only_completion_and_lets_the_agent_stop() {
+fn passing_or_unstarted_runs_let_the_agent_stop() {
     let repo = Repo::new(SUCCESS);
-    repo.hook("post-tool-use", COMMIT);
+    Git::run(repo.clone.path(), &PUSH_WORDS);
+    repo.hook(POST, PLAIN_PUSH);
     let waited = repo.session_command(CI_WAIT);
     assert!(waited.0.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
     assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
+    Git::run(repo.clone.path(), &NEXT_COMMIT);
+    Stale::plant(&repo);
+    Git::run(repo.clone.path(), &PUSH_WORDS);
+    repo.hook(POST, PLAIN_PUSH);
+    let unstarted = Repo::new(UNSTARTED);
+    unstarted.hook(POST, COMMIT);
+    let settled = unstarted.settled();
+    let wait = unstarted.session_command(CI_WAIT).1;
+    let unwatched = repo.hook(STOP, COMMIT);
+    assert!(
+        settled.contains(UNAVAILABLE)
+            && !unstarted.hook(STOP, COMMIT).contains(BLOCK)
+            && !wait.success()
+            && unwatched.contains(NOT_WATCHED)
+    );
 }
 
 #[test]
-fn a_run_that_never_appears_times_out_and_says_so() {
-    let repo = Repo::new(NONE);
-    repo.hook("post-tool-use", COMMIT);
-    assert!(repo.settled().contains(TIMED_OUT));
+fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
+    let repos = [NONE, LATE, BROKEN, MIXED].map(Repo::new);
+    let _: Vec<String> = repos.iter().map(|repo| repo.hook(POST, COMMIT)).collect();
+    let [absent, late, broken, mixed] = repos.each_ref().map(Repo::settled);
+    let [none, ..] = &repos;
+    assert!(
+        absent.contains(ABSENT)
+            && absent.split_once(NO_RUN_YET).is_some_and(|(_, after)| !after.contains(NO_RUN_YET))
+            && !none.hook(STOP, COMMIT).contains(BLOCK)
+            && !none.session_command(CI_WAIT).1.success()
+    );
+    assert!(late.contains(NO_RUN_YET) && late.contains(RUN_APPEARED) && late.contains(TIMED_OUT));
+    assert!(
+        broken.contains(LIST_ERROR)
+            && broken.contains(VIEW_ERROR)
+            && [broken, mixed].iter().all(|settled| settled.contains(FAILED_EVENT))
+    );
 }

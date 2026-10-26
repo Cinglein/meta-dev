@@ -8,7 +8,7 @@ use meta_log::GitLog;
 use crate::request::ci::Commit;
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
-pub use config::{BranchName, Config, LogWindow, ProgramName};
+pub use config::{BranchName, CiSettings, Config, LogWindow, ProgramName};
 
 #[derive(Debug)]
 pub struct Project {
@@ -34,10 +34,7 @@ impl Project {
 
     pub fn push_current_branch(&self) -> Option<Result<Commit, Listed>> {
         let remote = self.config.remote().ok()?.to_string();
-        let current = Command::new("git").arg("-C").arg(&self.root).args(["branch", "--show-current"]).output().ok()?;
-        let branch: BranchName = String::from_utf8_lossy(&current.stdout).trim().parse().ok()?;
-        let unprotected =
-            Some(branch).filter(|branch| !branch.to_string().is_empty() && self.config.protects(branch).is_none())?;
+        let unprotected = self.unprotected_branch()?;
         let pushed = Command::new("git")
             .arg("-C")
             .arg(&self.root)
@@ -53,6 +50,24 @@ impl Project {
                 String::from_utf8_lossy(&pushed.stderr).trim()
             )))
         })
+    }
+
+    pub fn pushed_head(&self) -> Option<Commit> {
+        let tracking = format!("refs/remotes/{}/{}", self.config.remote().ok()?, self.unprotected_branch()?);
+        let head = Command::new("git")
+            .arg("-C")
+            .arg(&self.root)
+            .args(["rev-parse", "--verify", "-q", &tracking])
+            .output()
+            .ok()?;
+        let Ok(commit) = String::from_utf8_lossy(&head.stdout).parse();
+        head.status.success().then_some(commit)
+    }
+
+    fn unprotected_branch(&self) -> Option<BranchName> {
+        let current = Command::new("git").arg("-C").arg(&self.root).args(["branch", "--show-current"]).output().ok()?;
+        let branch: BranchName = String::from_utf8_lossy(&current.stdout).trim().parse().ok()?;
+        Some(branch).filter(|branch| !branch.to_string().is_empty() && self.config.protects(branch).is_none())
     }
 }
 

@@ -23,6 +23,15 @@ impl GhRun {
     }
 
     #[must_use]
+    pub fn failed(&self) -> Option<&Self> {
+        self.status
+            .completed()
+            .and(self.conclusion)
+            .filter(|conclusion| *conclusion == Conclusion::Failure)
+            .map(|_| self)
+    }
+
+    #[must_use]
     pub fn outcome(&self) -> Option<Outcome> {
         self.status.completed().map(|_| self.conclusion.map_or(Outcome::Undecided, Conclusion::outcome))
     }

@@ -11,7 +11,8 @@ impl FailureLog {
     pub fn excerpt(project: &Project, session: &SessionId) -> Result<Output, CliFailure> {
         let dir =
             SessionDir::for_session(project, session).ok_or_else(|| CliFailure::raised::<Setup>("no git directory"))?;
-        let commit = dir.tracked().ok_or_else(|| CliFailure::raised::<Setup>("no CI tracked for this session"))?;
+        dir.watched().ok_or_else(|| CliFailure::raised::<Setup>("no CI tracked for this session"))?;
+        let commit = project.pushed_head().ok_or_else(|| CliFailure::raised::<Setup>("no pushed branch"))?;
         let settings = project.config().ci_settings();
         let raw = Gh::new(settings.program().clone(), project.root().to_path_buf()).failed_logs(&commit);
         Ok(Output::Listed(raw.excerpt(settings.log_window())))

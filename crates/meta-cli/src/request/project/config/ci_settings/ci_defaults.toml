@@ -1,5 +1,6 @@
 program = "gh"
 poll_millis = 15000
 timeout_millis = 3600000
+appear_millis = 120000
 log_lines = 120
 log_context = 8

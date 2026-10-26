@@ -28,6 +28,11 @@ impl GhJob {
     }
 
     #[must_use]
+    pub fn unstarted(&self) -> Option<()> {
+        (self.conclusion == Some(Conclusion::Failure) && self.steps.is_empty()).then_some(())
+    }
+
+    #[must_use]
     pub fn database_id(&self) -> DatabaseId {
         self.database_id
     }

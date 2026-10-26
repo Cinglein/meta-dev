@@ -8,6 +8,7 @@ use std::process::Command;
 
 use crate::request::ci::ci_status::CiStatus;
 use crate::request::ci::commit::Commit;
+use crate::request::output::Listed;
 use crate::request::project::ProgramName;
 use gh_jobs::GhJobs;
 use meta_gh::GhRun;
@@ -35,44 +36,55 @@ impl Gh {
         Self { program, root }
     }
 
-    pub fn observe(&self, commit: &Commit) -> Observation {
-        let runs = self.runs(commit);
-        let jobs: Vec<GhJobs> = runs.iter().filter_map(|run| self.jobs(run)).collect();
-        let failed_job = jobs.iter().find_map(GhJobs::first_failure);
-        Observation::new(jobs.iter().flat_map(GhJobs::failed_steps).collect(), failed_job, CiStatus::of_runs(&runs))
+    pub fn observe(&self, commit: &Commit) -> Result<Observation, Listed> {
+        let runs = self.runs(commit)?;
+        let jobs = runs.iter().map(|run| self.jobs(run)).collect::<Result<Vec<GhJobs>, Listed>>()?;
+        let refused = runs.iter().zip(&jobs).try_for_each(|(run, jobs)| run.failed().and(jobs.unstarted()).map(|_| ()));
+        let status = CiStatus::of_runs(&runs).map(|status| refused.map_or(status, |()| status.unstarted()));
+        let reported = refused.map_or(jobs.as_slice(), |()| &[]);
+        let failed_job = reported.iter().find_map(GhJobs::first_failure);
+        Ok(Observation::new(reported.iter().flat_map(GhJobs::failed_steps).collect(), failed_job, status))
     }
 
     pub fn failed_logs(&self, commit: &Commit) -> RawLog {
         let logs: Vec<String> = self
             .runs(commit)
+            .unwrap_or_default()
             .iter()
-            .filter_map(|run| self.jobs(run))
+            .filter_map(|run| self.jobs(run).ok())
             .flat_map(|jobs| jobs.failed_job_ids())
             .filter_map(|job| {
                 let words = [Self::RUN, Self::VIEW, Self::JOB].map(OsString::from).into_iter().chain([job]);
-                self.text(words.chain([OsString::from(Self::LOG_FAILED)]))
+                self.text(words.chain([OsString::from(Self::LOG_FAILED)])).ok()
             })
             .collect();
         let Ok(raw) = logs.concat().parse();
         raw
     }
 
-    fn runs(&self, commit: &Commit) -> Vec<GhRun> {
+    fn runs(&self, commit: &Commit) -> Result<Vec<GhRun>, Listed> {
         let list = [Self::RUN, Self::LIST, Self::COMMIT].map(OsString::from).into_iter().chain([commit.argument()]);
-        self.json(list.chain([Self::JSON, Self::RUN_FIELDS].map(OsString::from))).unwrap_or_default()
+        self.json(list.chain([Self::JSON, Self::RUN_FIELDS].map(OsString::from)))
     }
 
-    fn jobs(&self, run: &GhRun) -> Option<GhJobs> {
+    fn jobs(&self, run: &GhRun) -> Result<GhJobs, Listed> {
         let view = [Self::RUN, Self::VIEW].map(OsString::from).into_iter().chain([run.database_id().argument()]);
         self.json(view.chain([Self::JSON, Self::JOB_FIELDS].map(OsString::from)))
     }
 
-    fn text(&self, words: impl Iterator<Item = OsString>) -> Option<String> {
-        let output = Command::new(&self.program).args(words).current_dir(&self.root).output().ok()?;
-        output.status.success().then(|| String::from_utf8_lossy(&output.stdout).into_owned())
+    fn text(&self, words: impl Iterator<Item = OsString>) -> Result<String, Listed> {
+        let output = Command::new(&self.program).args(words).current_dir(&self.root).output().map_err(Listed::new)?;
+        if output.status.success() {
+            Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+        } else {
+            Err(Listed::new(String::from_utf8_lossy(&output.stderr).lines().next().unwrap_or_default()))
+        }
     }
 
-    fn json<Parsed: serde::de::DeserializeOwned>(&self, words: impl Iterator<Item = OsString>) -> Option<Parsed> {
-        self.text(words).and_then(|text| serde_json::from_str(&text).ok())
+    fn json<Parsed: serde::de::DeserializeOwned>(
+        &self,
+        words: impl Iterator<Item = OsString>,
+    ) -> Result<Parsed, Listed> {
+        self.text(words).and_then(|text| serde_json::from_str(&text).map_err(Listed::new))
     }
 }

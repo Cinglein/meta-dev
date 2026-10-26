@@ -2,6 +2,8 @@ mod log_window;
 mod millis;
 mod program_name;
 
+use std::time::Duration;
+
 use serde::Deserialize;
 
 pub use log_window::LogWindow;
@@ -13,6 +15,7 @@ pub struct CiSettings {
     program: ProgramName,
     poll_millis: Millis,
     timeout_millis: Millis,
+    appear_millis: Millis,
     #[serde(flatten)]
     log_window: LogWindow,
 }
@@ -28,9 +31,12 @@ impl CiSettings {
         self.poll_millis
     }
 
-    pub fn poll_length(&self) -> usize {
-        let polls = self.timeout_millis.duration().as_millis().checked_div(self.poll_millis.duration().as_millis());
-        usize::try_from(polls.unwrap_or_default()).unwrap_or(usize::MAX)
+    pub fn run_overdue(&self, waited: Duration) -> Option<()> {
+        (waited >= self.appear_millis.duration()).then_some(())
+    }
+
+    pub fn remaining(&self, waited: Duration) -> Option<Duration> {
+        self.timeout_millis.duration().checked_sub(waited).filter(|left| !left.is_zero())
     }
 
     pub fn log_window(&self) -> &LogWindow {

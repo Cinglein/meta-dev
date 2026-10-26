@@ -1,2 +1,3 @@
 remote = "origin"
 protected = ["main", "meta/log", "meta/log-v0"]
+log_branches = ["meta/log", "meta/log-v0"]

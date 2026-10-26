@@ -48,6 +48,9 @@ impl fmt::Display for HookEvent {
 }
 
 impl HookEvent {
+    const COMMIT: &'static str = "commit";
+    const PUSH: &'static str = "push";
+
     pub fn respond(self) -> Result<Output, CliFailure> {
         let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
         let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
@@ -80,23 +83,32 @@ impl HookEvent {
                     .map_or(Verdict::Allow, Verdict::Deny),
                 None,
             ),
-            Self::PostToolUse => Reply::new(self, Verdict::Allow, Self::after_commit(project, input)),
+            Self::PostToolUse => Reply::new(self, Verdict::Allow, Self::after_push(project, input)),
             Self::Stop => Reply::new(
                 self,
-                session
-                    .and_then(SessionDir::status)
-                    .and_then(CiStatus::stop_reason)
-                    .map(Blocking::from)
-                    .map_or(Verdict::Allow, Verdict::Block),
+                Self::stop_reason(project, session).map(Blocking::from).map_or(Verdict::Allow, Verdict::Block),
                 None,
             ),
         }
     }
 
-    fn after_commit(project: &Project, input: &HookInput) -> Option<Listed> {
-        input.command().and_then(|command| command.commits())?;
-        match project.push_current_branch()? {
-            Ok(commit) => input.session().and_then(|session| Watcher::spawn(project, session, &commit)).and(None),
+    fn stop_reason(project: &Project, session: Option<&SessionDir>) -> Option<Listed> {
+        let dir = session?.watched()?;
+        let head = project.pushed_head()?;
+        dir.status_of(&head).map_or_else(
+            || Some(Listed::new(format!("CI not watched for {head}: push again to watch it"))),
+            CiStatus::stop_reason,
+        )
+    }
+
+    fn after_push(project: &Project, input: &HookInput) -> Option<Listed> {
+        let command = input.command()?;
+        let pushed = match command.runs(Self::COMMIT) {
+            Some(()) => project.push_current_branch()?,
+            None => command.runs(Self::PUSH).and_then(|()| project.pushed_head()).map(Ok)?,
+        };
+        match pushed {
+            Ok(commit) => input.session().and_then(|session| Watcher::spawn(project, session, &commit).err()),
             Err(failure) => Some(failure),
         }
     }

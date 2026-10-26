@@ -19,10 +19,6 @@ impl WatchState {
         (self.commit == *commit).then_some(self)
     }
 
-    pub fn commit(&self) -> &Commit {
-        &self.commit
-    }
-
     pub fn status(&self) -> CiStatus {
         self.status
     }
