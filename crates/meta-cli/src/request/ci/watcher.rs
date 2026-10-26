@@ -56,13 +56,13 @@ impl Watcher {
     pub fn watch_all(project: &Project, session: &SessionId) -> Result<(), Listed> {
         let dir =
             SessionDir::for_session(project, session).ok_or_else(|| Listed::new("CI not watched: no git directory"))?;
-        project.on_remote(&dir.created(project)).iter().try_for_each(|commit| Self::spawn(project, session, commit))
+        project.pushed_tips(&dir.created(project)).iter().try_for_each(|commit| Self::spawn(project, session, commit))
     }
 
     pub fn stop_reason(project: &Project, session: &SessionId) -> Option<Listed> {
         let dir = SessionDir::for_session(project, session)?;
         let created = dir.created(project);
-        let commits = project.on_remote(&created);
+        let commits = project.pushed_tips(&created);
         let unwritable = commits
             .first()
             .and(dir.writable().err())
@@ -113,7 +113,7 @@ impl Watcher {
     pub fn wait(project: &Project, session: &SessionId) -> Result<Output, CliFailure> {
         let dir =
             SessionDir::for_session(project, session).ok_or_else(|| CliFailure::raised::<Setup>("no git directory"))?;
-        let pushed = project.on_remote(&dir.created(project));
+        let pushed = project.pushed_tips(&dir.created(project));
         pushed.first().ok_or_else(|| CliFailure::raised::<Invalid>("no CI watched for this session"))?;
         pushed
             .iter()

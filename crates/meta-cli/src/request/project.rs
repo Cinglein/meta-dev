@@ -72,12 +72,13 @@ impl Project {
             .collect()
     }
 
-    pub fn on_remote(&self, commits: &[Commit]) -> Vec<Commit> {
+    pub fn pushed_tips(&self, commits: &[Commit]) -> Vec<Commit> {
         let remote = commits.first().and_then(|_| self.config.remote().ok());
         let unpushed = remote.and_then(|remote| self.unpushed_of(commits, &remote.to_string()));
-        unpushed.map_or_else(Vec::new, |unpushed| {
+        let pushed: Vec<Commit> = unpushed.map_or_else(Vec::new, |unpushed| {
             commits.iter().filter(|commit| !unpushed.contains(commit)).cloned().collect()
-        })
+        });
+        pushed.first().and_then(|_| self.independent(&pushed)).unwrap_or_default()
     }
 
     pub fn unpushed(&self) -> Option<Commit> {
@@ -91,6 +92,19 @@ impl Project {
         let text = String::from_utf8_lossy(&ahead.stdout);
         let Ok(commit) = text.parse();
         (ahead.status.success() && !text.trim().is_empty()).then_some(commit)
+    }
+
+    fn independent(&self, commits: &[Commit]) -> Option<Vec<Commit>> {
+        let tips = Command::new("git")
+            .arg("-C")
+            .arg(&self.root)
+            .args(["merge-base", "--independent"])
+            .args(commits.iter().map(Commit::argument))
+            .output()
+            .ok()
+            .filter(|tips| tips.status.success())?;
+        let Ok(tips) = String::from_utf8_lossy(&tips.stdout).lines().map(str::parse).collect();
+        Some(tips)
     }
 
     fn unpushed_of(&self, commits: &[Commit], remote: &str) -> Option<Vec<Commit>> {

@@ -308,7 +308,7 @@ impl fmt::Display for Repo {
 }
 
 #[test]
-fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
+fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push() {
     let repo = Repo::new(FAILURE);
     repo.hook(POST, COMMIT);
     let waited = repo.session_command(CI_WAIT);
@@ -318,7 +318,11 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
     assert!(waited.0.contains(JOB_FAILED) && !waited.1.success() && stop.contains(BLOCK_REASON));
     assert!(settled.contains(STEP_LISTED) && shown.contains(STEP_LISTED) && shown.contains(CI_LOG_HINT));
     let log = repo.session_command(CI_LOG).0;
-    assert!(log.contains(PANIC_BLOCK) && !log.contains(COMPILING));
+    Git::run(repo.clone.path(), &NEXT_COMMIT);
+    repo.hook(POST, COMMIT);
+    repo.session_command(CI_WAIT);
+    let fixed = repo.hook(STOP, COMMIT);
+    assert!(log.contains(PANIC_BLOCK) && !log.contains(COMPILING) && !fixed.contains(BLOCK));
 }
 
 #[test]
