@@ -1,28 +1,23 @@
 mod log_line;
 
 use std::collections::BTreeSet;
-use std::fmt;
+use std::str::FromStr;
 
 use crate::request::output::Listed;
 use crate::request::project::LogWindow;
 use log_line::LogLine;
 
-#[derive(Clone, Debug, Default)]
-pub struct RawLog(String);
+#[derive(Clone, Debug)]
+pub struct RawLog(Vec<LogLine>);
 
 impl RawLog {
-    pub fn new(text: String) -> Self {
-        Self(text)
-    }
-
     pub fn excerpt(&self, window: &LogWindow) -> Listed {
-        let lines: Vec<LogLine> = self.0.lines().filter_map(|line| line.parse().ok()).collect();
+        let lines = &self.0;
         let kept: BTreeSet<usize> = lines
             .iter()
             .enumerate()
             .filter(|(_, line)| line.marks_failure().is_some())
             .flat_map(|(index, _)| window.index_span(index))
-            .filter(|index| *index < lines.len())
             .collect();
         let kept_lines: Vec<&LogLine> =
             kept.iter().take(window.limit().len()).filter_map(|index| lines.get(*index)).collect();
@@ -44,9 +39,11 @@ impl RawLog {
     }
 }
 
-impl fmt::Display for RawLog {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.0)
+impl FromStr for RawLog {
+    type Err = std::convert::Infallible;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        Ok(Self(text.lines().map(str::parse).collect::<Result<_, _>>()?))
     }
 }
 

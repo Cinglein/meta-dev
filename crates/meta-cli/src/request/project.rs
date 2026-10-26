@@ -22,26 +22,6 @@ pub struct Project {
 impl Project {
     const CONFIG_FILE: &'static str = "meta.toml";
 
-    pub fn discover(dir: &Path) -> Result<Self, CliFailure> {
-        let output = Command::new("git")
-            .arg("-C")
-            .arg(dir)
-            .args(["rev-parse", "--show-toplevel"])
-            .output()
-            .map_err(CliFailure::raised::<Setup>)?;
-        let root = output
-            .status
-            .success()
-            .then(|| PathBuf::from(String::from_utf8_lossy(&output.stdout).trim()))
-            .ok_or_else(|| CliFailure::raised::<Setup>("not inside a git repository"))?;
-        let path = root.join(Self::CONFIG_FILE);
-        let text = std::fs::read_to_string(&path)
-            .map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
-        let config =
-            toml::from_str(&text).map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
-        Ok(Self { root, config })
-    }
-
     pub fn log(&self) -> Result<GitLog, CliFailure> {
         self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote))
     }
@@ -87,8 +67,26 @@ impl Project {
     }
 }
 
-impl std::fmt::Display for Project {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "{}", self.root.display())
+impl TryFrom<&Path> for Project {
+    type Error = CliFailure;
+
+    fn try_from(dir: &Path) -> Result<Self, Self::Error> {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(["rev-parse", "--show-toplevel"])
+            .output()
+            .map_err(CliFailure::raised::<Setup>)?;
+        let root = output
+            .status
+            .success()
+            .then(|| PathBuf::from(String::from_utf8_lossy(&output.stdout).trim()))
+            .ok_or_else(|| CliFailure::raised::<Setup>("not inside a git repository"))?;
+        let path = root.join(Self::CONFIG_FILE);
+        let text = std::fs::read_to_string(&path)
+            .map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
+        let config =
+            toml::from_str(&text).map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
+        Ok(Self { root, config })
     }
 }

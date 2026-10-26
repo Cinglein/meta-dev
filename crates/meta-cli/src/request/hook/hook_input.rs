@@ -26,7 +26,7 @@ impl HookInput {
         self.cwd.clone().or_else(|| std::env::current_dir().ok()).unwrap_or_default()
     }
 
-    pub fn command(&self) -> Option<&ShellCommand> {
+    pub fn command(&self) -> Option<ShellCommand> {
         self.tool_input.as_ref().and_then(ToolInput::command)
     }
 

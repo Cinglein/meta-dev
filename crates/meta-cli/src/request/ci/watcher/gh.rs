@@ -53,14 +53,12 @@ impl Gh {
                 self.text(words.chain([OsString::from(Self::LOG_FAILED)]))
             })
             .collect();
-        RawLog::new(logs.concat())
+        let Ok(raw) = logs.concat().parse();
+        raw
     }
 
     fn runs(&self, commit: &Commit) -> Vec<GhRun> {
-        let list = [Self::RUN, Self::LIST, Self::COMMIT]
-            .map(OsString::from)
-            .into_iter()
-            .chain([OsString::from(commit.to_string())]);
+        let list = [Self::RUN, Self::LIST, Self::COMMIT].map(OsString::from).into_iter().chain([commit.argument()]);
         self.json(list.chain([Self::JSON, Self::RUN_FIELDS].map(OsString::from))).unwrap_or_default()
     }
 
@@ -76,11 +74,5 @@ impl Gh {
 
     fn json<Parsed: serde::de::DeserializeOwned>(&self, words: impl Iterator<Item = OsString>) -> Option<Parsed> {
         self.text(words).and_then(|text| serde_json::from_str(&text).ok())
-    }
-}
-
-impl std::fmt::Display for Gh {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "{} in {}", self.program, self.root.display())
     }
 }

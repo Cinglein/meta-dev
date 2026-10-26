@@ -50,7 +50,7 @@ impl HookEvent {
     pub fn respond(self) -> Result<Output, CliFailure> {
         let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
         let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
-        let reply = Project::discover(&input.cwd()).ok().map(|project| {
+        let reply = Project::try_from(input.cwd().as_path()).ok().map(|project| {
             let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
             self.reply(&project, &input, session.as_ref()).with_news(session.and_then(|dir| dir.news()))
         });
