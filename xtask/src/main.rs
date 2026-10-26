@@ -1,7 +1,7 @@
 use std::env;
 use std::process::ExitCode;
 
-use xtask::Task;
+use meta_xtask::Task;
 
 fn main() -> ExitCode {
     let arguments: Vec<String> = env::args().skip(1).collect();

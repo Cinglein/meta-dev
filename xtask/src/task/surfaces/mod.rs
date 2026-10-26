@@ -4,7 +4,7 @@ pub use changed::Changed;
 
 use std::path::Path;
 
-use task::{Policy, Surface};
+use task::{Branch, BranchName, Policy, Surface};
 
 use crate::task::failure::Failure;
 use crate::task::prior_policy::PriorPolicy;
@@ -17,11 +17,11 @@ impl Surfaces {
     pub const SUMMARY: &str = "GITHUB_STEP_SUMMARY";
 
     pub fn announce(root: &Path, policy: &Policy, summary: Option<&Path>) -> Result<(), Failure> {
-        Self::changed(root, policy.surfaces())?.announce(summary)
+        Self::changed(root, policy.surfaces(), policy.branch(Branch::Base))?.announce(summary)
     }
 
-    pub fn changed(root: &Path, current: &[Surface]) -> Result<Changed, Failure> {
-        let revision = Revision::merge_base(root)?;
+    pub fn changed(root: &Path, current: &[Surface], base: &BranchName) -> Result<Changed, Failure> {
+        let revision = Revision::merge_base(root, base)?;
         let surfaces: Vec<Surface> =
             current.iter().cloned().chain(PriorPolicy::read_at(&revision).surfaces()).collect();
         let paths = revision.changed_paths()?;
@@ -37,7 +37,7 @@ mod tests {
 
     use super::Surfaces;
     use crate::task::fixture::Fixture;
-    use task::{Policy, Surface};
+    use task::{Branch, Policy, Surface};
 
     const POLICY: &str = "tooling/policy.toml";
     const POLICY_TEXT: &str = "surfaces = [\"tooling/policy.toml\", \"lint-baseline.toml\"]\n";
@@ -58,7 +58,9 @@ mod tests {
 
         fn listed(&self, surfaces: &[&str]) -> String {
             let surfaces: Vec<Surface> = surfaces.iter().copied().map(Surface::from).collect();
-            Surfaces::changed(self.root(), &surfaces).map(|changed| changed.to_string()).unwrap_or_default()
+            Surfaces::changed(self.root(), &surfaces, Policy::defaults().branch(Branch::Base))
+                .map(|changed| changed.to_string())
+                .unwrap_or_default()
         }
     }
 

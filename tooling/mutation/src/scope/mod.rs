@@ -6,6 +6,7 @@ pub use mutants_run::MutantsRun;
 
 use std::env;
 use std::fs;
+use std::path::Path;
 
 use affected::TestedCrates;
 use affected::{CrateLoad, Packing};
@@ -14,7 +15,7 @@ use task::Failure;
 use task::Shard;
 use task::Site;
 use task::Workspace;
-use task::{Branch, Interval, Policy};
+use task::{Branch, BranchName, Interval, Policy};
 use task::{CargoArgument, CommandLine, GitArgument, MutantsArgument, Program, Stdout};
 use test_packages::TestPackages;
 
@@ -25,7 +26,7 @@ pub enum Scope {
 }
 
 impl Scope {
-    const DIFF_FILE: &str = "target/mutants.diff";
+    const DIFF_FILE: &str = "mutants.diff";
     const SHARD_VARIABLE: &str = "MUTANTS_SHARD";
 
     pub fn applied(
@@ -34,20 +35,24 @@ impl Scope {
         workspace: &Workspace,
         policy: &Policy,
     ) -> Result<Vec<MutantsRun>, Failure> {
-        let output = OutputDirectory::cleared(workspace.root())?;
+        let output = OutputDirectory::cleared(workspace.target().path())?;
         let line = line.argument(MutantsArgument::InPlace);
         match self {
             Scope::ChangedLines => {
                 let shards = match env::var(Self::SHARD_VARIABLE) {
                     Ok(spelled) => {
-                        Self::write_diff(workspace, policy)?;
+                        Self::write_diff(
+                            workspace.root(),
+                            policy.branch(Branch::Base),
+                            &workspace.target().path().join(Self::DIFF_FILE),
+                        )?;
                         vec![spelled.parse()?]
                     }
                     Err(_) => Self::changed_shards(workspace, policy)?,
                 };
                 let line = line
                     .argument(MutantsArgument::InDiff)
-                    .argument(Self::DIFF_FILE)
+                    .argument(workspace.target().path().join(Self::DIFF_FILE).display())
                     .argument(MutantsArgument::BaselineSkip);
                 Self::shard_runs(&line, workspace, &output, &shards)
             }
@@ -64,12 +69,16 @@ impl Scope {
     }
 
     pub fn changed_shards(workspace: &Workspace, policy: &Policy) -> Result<Vec<Shard>, Failure> {
-        Self::write_diff(workspace, policy)?;
+        Self::write_diff(
+            workspace.root(),
+            policy.branch(Branch::Base),
+            &workspace.target().path().join(Self::DIFF_FILE),
+        )?;
         let listing = workspace
             .line(Program::Cargo)
             .argument(CargoArgument::Mutants)
             .argument(MutantsArgument::InDiff)
-            .argument(Self::DIFF_FILE);
+            .argument(workspace.target().path().join(Self::DIFF_FILE).display());
         Ok(Packing::shards(&CrateLoad::listed(listing, policy)?, policy.interval(Interval::PerSlice)))
     }
 
@@ -96,14 +105,47 @@ impl Scope {
             .collect()
     }
 
-    fn write_diff(workspace: &Workspace, policy: &Policy) -> Result<(), Failure> {
-        let diff = workspace
-            .line(Program::Git)
+    fn write_diff(root: &Path, base: &BranchName, file: &Path) -> Result<(), Failure> {
+        let diff = CommandLine::new(Program::Git)
+            .in_directory(root.to_path_buf())
             .argument(GitArgument::Diff)
+            .argument(GitArgument::Relative)
             .argument(GitArgument::MergeBase)
-            .argument(policy.branch(Branch::Base))
+            .argument(base)
             .captured::<Stdout>()?;
-        fs::write(workspace.root().join(Self::DIFF_FILE), diff)
-            .map_err(|error| Failure::Io { site: Site::File(Self::DIFF_FILE.into()), error })
+        fs::write(file, diff).map_err(|error| Failure::Io { site: Site::File(file.to_path_buf()), error })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Scope;
+    use std::path::Path;
+    use std::process::Command;
+    use std::{env, fs, process};
+    const SOURCE: &str = "consumer/a.rs";
+    const BASE: &str = "origin/main";
+    const RELATIVE: &str = "+++ b/a.rs";
+    const GIT: [&[&str]; 4] = [
+        &["init", "--quiet"],
+        &["add", "--all"],
+        &["-c", "user.name=t", "-c", "user.email=t@invalid", "commit", "--quiet", "-m", "t"],
+        &["update-ref", "refs/remotes/origin/main", "HEAD"],
+    ];
+
+    #[test]
+    fn the_diff_of_a_workspace_below_the_git_top_level_names_paths_from_its_root() {
+        let repository = env::temp_dir().join(format!("meta-diff-{}", process::id()));
+        fs::create_dir_all(repository.join(SOURCE).parent().unwrap()).unwrap();
+        fs::write(repository.join(SOURCE), BASE).unwrap();
+        assert!(GIT.iter().all(|arguments| {
+            Command::new("git").args(*arguments).current_dir(&repository).status().unwrap().success()
+        }));
+        fs::write(repository.join(SOURCE), SOURCE).unwrap();
+        let file = repository.join("mutants.diff");
+        let root = repository.join(Path::new(SOURCE).parent().unwrap());
+        Scope::write_diff(&root, &BASE.parse().unwrap(), &file).unwrap();
+        assert!(fs::read_to_string(&file).unwrap().contains(RELATIVE));
+        fs::remove_dir_all(&repository).unwrap();
     }
 }
