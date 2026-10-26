@@ -58,6 +58,7 @@ impl HookEvent {
             let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
             self.reply(&project, &input, session.as_ref()).with_news(session.and_then(|dir| dir.news()))
         });
+        let reply = reply.or_else(|| self.outside_projects(&input));
         Ok(Output::Listed(Listed::new(reply.map(|reply| reply.to_string()).unwrap_or_default())))
     }
 
@@ -79,6 +80,7 @@ impl HookEvent {
                 input
                     .command()
                     .and_then(|command| command.refusal(project.config()))
+                    .or_else(|| input.foreign_commit())
                     .map(Denial::from)
                     .map_or(Verdict::Allow, Verdict::Deny),
                 None,
@@ -90,6 +92,11 @@ impl HookEvent {
                 None,
             ),
         }
+    }
+
+    fn outside_projects(self, input: &HookInput) -> Option<Reply> {
+        let refusal = (self == Self::PreToolUse).then(|| input.foreign_commit()).flatten()?;
+        Some(Reply::new(self, Verdict::Deny(Denial::from(refusal)), None))
     }
 
     fn stop_reason(project: &Project, session: Option<&SessionDir>) -> Option<Listed> {

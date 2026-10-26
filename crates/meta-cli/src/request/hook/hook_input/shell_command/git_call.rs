@@ -5,16 +5,41 @@ use crate::request::project::{BranchName, Config};
 
 #[derive(Debug)]
 pub struct GitCall {
+    directories: Vec<String>,
     words: Vec<String>,
 }
 
 impl GitCall {
     const VALUED_OPTIONS: &'static [&'static str] = &["-C", "-c"];
+    const DIRECTORY: &'static str = "-C";
+    const OPTION_PAIR_LEN: usize = 2;
+    const COMMIT_WRITERS: &'static [&'static str] =
+        &["commit", "rebase", "cherry-pick", "merge", "revert", "pull", "am", "commit-tree"];
+    const ABORT: &'static str = "--abort";
 
     pub fn parse(segment: &[String]) -> Option<Self> {
         let start = segment.iter().position(|word| word == "git")?;
         let (_git, rest) = segment.get(start..)?.split_first()?;
-        Some(Self { words: Self::after_options(rest).to_vec() })
+        let words = Self::after_options(rest);
+        let directories = rest
+            .get(..rest.len() - words.len())?
+            .windows(Self::OPTION_PAIR_LEN)
+            .filter_map(|pair| match pair {
+                [option, directory] if option == Self::DIRECTORY => Some(directory.clone()),
+                _ => None,
+            })
+            .collect();
+        Some(Self { directories, words: words.to_vec() })
+    }
+
+    pub fn writes_commits(&self) -> Option<()> {
+        let (subcommand, args) = self.words.split_first()?;
+        (Self::COMMIT_WRITERS.contains(&subcommand.as_str()) && !args.iter().any(|arg| arg == Self::ABORT))
+            .then_some(())
+    }
+
+    pub fn directory_words(&self) -> &[String] {
+        &self.directories
     }
 
     pub fn runs(&self, subcommand: &str) -> Option<()> {

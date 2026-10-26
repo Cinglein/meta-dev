@@ -1,3 +1,4 @@
+mod identity;
 mod shell_command;
 mod tool_input;
 
@@ -7,7 +8,9 @@ use meta_schema::Actor;
 use serde::Deserialize;
 
 use crate::request::ci::SessionId;
+use crate::request::output::Listed;
 
+use identity::Identity;
 use shell_command::ShellCommand;
 use tool_input::ToolInput;
 
@@ -28,6 +31,10 @@ impl HookInput {
 
     pub fn command(&self) -> Option<ShellCommand> {
         self.tool_input.as_ref().and_then(ToolInput::command)
+    }
+
+    pub fn foreign_commit(&self) -> Option<Listed> {
+        self.command()?.commit_directories(&self.cwd()).iter().find_map(|directory| Identity::refusal_in(directory))
     }
 
     pub fn session(&self) -> Option<&SessionId> {
