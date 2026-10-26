@@ -1,7 +1,7 @@
 use enum_map::Enum;
 use serde::{Deserialize, Serialize};
 
-use crate::top_division::TopDivision;
+use meta_schema::TopDivision;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Enum, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

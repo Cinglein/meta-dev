@@ -22,7 +22,7 @@ const LOG: &str = r#"{"at":"2026-10-25T00:00:00Z","actor":"owner","kind":"Concer
 {"at":"2026-10-25T00:00:00Z","actor":"owner","kind":"TaskOpened","task":"task-00000000000000b4","text":"speed up","division":"performance-and-cost/ci","effort":50000,"due":"2026-11-01T00:00:00Z"}"#;
 
 const SUMMARY: &str = "Tasks: 3 unfinished, 1 done, 0 retired
-  [assigned to bob 2026-10-25 00:00Z] task-00000000000000b3 fix crash — opened by owner 2026-10-25 00:00Z
+  [assigned] task-00000000000000b3 fix crash — opened by owner 2026-10-25 00:00Z — assigned bob 2026-10-25 00:00Z
   [open] task-00000000000000b2 triage >issue-00000000000000a1 — opened by owner 2026-10-25 00:00Z
   [open] task-00000000000000b4 speed up @performance-and-cost/ci effort 50000 tokens due 2026-11-01 00:00Z — opened by owner 2026-10-25 00:00Z
 Issues: 1 open

@@ -24,11 +24,11 @@ impl fmt::Display for Summary<'_> {
         let unfinished: Vec<&TaskState> = state
             .tasks()
             .iter()
-            .filter(|task| task.status().done().is_none() && state.retirement(task.entry()).is_none())
+            .filter(|task| task.progress().done().is_none() && state.retirement(task.entry()).is_none())
             .collect();
-        let claimed = unfinished.iter().filter(|task| *task.status() != TaskStatus::Open);
-        let open = unfinished.iter().filter(|task| *task.status() == TaskStatus::Open);
-        let done = state.tasks().iter().filter(|task| task.status().done().is_some()).count();
+        let claimed = unfinished.iter().filter(|task| task.progress().status() != TaskStatus::Open);
+        let open = unfinished.iter().filter(|task| task.progress().status() == TaskStatus::Open);
+        let done = state.tasks().iter().filter(|task| task.progress().done().is_some()).count();
         writeln!(formatter, "Tasks: {} unfinished, {done} done, {retired} retired", unfinished.len())?;
         claimed.chain(open).try_for_each(|task| writeln!(formatter, "  {task}"))?;
         let issues: Vec<_> =

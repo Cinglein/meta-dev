@@ -3,19 +3,21 @@ mod applying;
 mod concern_state;
 mod issue_state;
 mod retired;
+mod vetting;
 
 use std::collections::HashMap;
 
-use meta_schema::{Entry, EntryNote, Id, Record, Target, Task, Text};
+use meta_schema::{Block, Entry, EntryNote, Id, Record, Target, Task, Text};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
-use crate::task_state::TaskState;
+use crate::task_state::{TaskState, TaskStatus};
 use anomaly::Anomaly;
 use applying::Applying;
 use concern_state::ConcernState;
 use issue_state::IssueState;
 pub use retired::Retired;
+use vetting::Vetting;
 
 #[derive(Clone, Debug, Default)]
 pub struct State {
@@ -81,6 +83,15 @@ impl State {
             .ok_or(Refusal::UnknownTask(task))
     }
 
+    pub(crate) fn vet_blocker(&self, block: Block) -> Result<(), Refusal> {
+        block.blocker().visit(Vetting::new(self, block.task()))
+    }
+
+    #[must_use]
+    pub fn status_of(&self, task: &TaskState) -> TaskStatus {
+        self.retirement(task.entry()).map_or_else(|| task.progress().status(), |_| TaskStatus::Retired)
+    }
+
     pub(crate) fn retire(&mut self, retired: Retired) -> Result<(), Refusal> {
         let entry = retired.note().entry();
         self.known(entry)?;
@@ -115,7 +126,7 @@ impl State {
     #[must_use]
     pub fn closed(&self, entry: Entry) -> Option<()> {
         let addressed = entry.target().and_then(|target| self.addressed_by(target));
-        let done = entry.task().and_then(|task| self.task(task)).and_then(|task| task.status().done());
+        let done = entry.task().and_then(|task| self.task(task)).filter(|task| task.progress().done().is_some());
         addressed.map(|_| ()).or(done.map(|_| ())).or(self.retirement(entry).map(|_| ()))
     }
 

@@ -7,7 +7,7 @@ mod project;
 
 use meta_listing::{Kind, Scope};
 use meta_log::LogStore;
-use meta_schema::{Actor, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, Record, TaskRef};
+use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, Record, TaskRef};
 use meta_state::State;
 
 use ci::{Commit, FailureLog, SessionId, Watcher};
@@ -38,18 +38,35 @@ impl TryFrom<Vec<String>> for Request {
         let task = || parsed.task().map(TaskRef::new);
         match name.as_str() {
             "concern" => {
-                let parsed = parsed.allowing(&[OptionName::Source, OptionName::Tag])?;
+                let parsed = parsed.allowing(&[OptionName::Source, OptionName::Tag, OptionName::Division])?;
                 Ok(Self::Write(Event::ConcernIdentified(NewConcern::new(
+                    parsed.division()?,
                     parsed.text()?,
                     parsed.source(),
                     parsed.tags(),
                 ))))
             }
-            "issue" => Ok(Self::Write(Event::IssueReported(NewIssue::new(parsed.allowing(&[])?.text()?)))),
-            "open" => {
-                let parsed = parsed.allowing(&[OptionName::Addresses])?;
-                Ok(Self::Write(Event::TaskOpened(NewTask::new(parsed.text()?, parsed.addresses()))))
+            "issue" => {
+                let parsed = parsed.allowing(&[OptionName::Division])?;
+                Ok(Self::Write(Event::IssueReported(NewIssue::new(parsed.division()?, parsed.text()?))))
             }
+            "open" => {
+                let parsed = parsed.allowing(&[
+                    OptionName::Addresses,
+                    OptionName::Division,
+                    OptionName::Effort,
+                    OptionName::Due,
+                ])?;
+                let opened = NewTask::new(parsed.division()?, parsed.text()?, parsed.addresses());
+                let sized = parsed.effort().into_iter().fold(opened, NewTask::allowing);
+                Ok(Self::Write(Event::TaskOpened(parsed.due().into_iter().fold(sized, NewTask::due_by))))
+            }
+            "wait" => {
+                let parsed = parsed.allowing(&[OptionName::On])?;
+                Ok(Self::Write(Event::TaskBlocked(Block::new(parsed.task()?, parsed.blocker()?))))
+            }
+            "resume" => Ok(Self::Write(Event::TaskUnblocked(task()?))),
+            "link" => Ok(Self::Write(Event::TaskLinked(parsed.allowing(&[])?.task_link()?))),
             "claim" => {
                 let parsed = parsed.allowing(&[OptionName::From])?;
                 Ok(Self::Write(Event::TaskClaimed(Claim::new(parsed.task()?, parsed.previous_claimant()))))

@@ -4,10 +4,6 @@ use super::budget_id::BudgetId;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum TreeFailure {
-    #[error(
-        "division {0}: begins features-and-maintenance, performance-and-cost or architecture-and-planning; no empty part"
-    )]
-    Division(String),
     #[error("budget {0}: part of a budget that is not defined")]
     NoParent(BudgetId),
     #[error("budget {0}: its division is not inside the division of the budget it is part of")]

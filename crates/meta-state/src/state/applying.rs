@@ -1,11 +1,11 @@
-use meta_schema::{Claim, EntryNote, EventVisitor, NewConcern, NewIssue, NewTask, TaskRef};
+use meta_schema::{Block, Claim, EntryNote, EventVisitor, NewConcern, NewIssue, NewTask, TaskLink, TaskRef};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
 use crate::state::concern_state::ConcernState;
 use crate::state::issue_state::IssueState;
 use crate::state::{Retired, State};
-use crate::task_state::TaskState;
+use crate::task_state::{Progress, TaskState};
 
 #[derive(Debug)]
 pub struct Applying<'state> {
@@ -35,18 +35,28 @@ impl EventVisitor for Applying<'_> {
     }
 
     fn task_claimed(self, claim: &Claim) -> Self::Output {
-        let task = self.state.task_mut(claim.task())?;
-        task.advance(task.status().claimed(self.stamp, claim.previous_claimant()))
+        self.state.task_mut(claim.task())?.advance(|progress| progress.claimed(self.stamp, claim.previous_claimant()))
     }
 
     fn task_released(self, task: TaskRef) -> Self::Output {
-        let task_state = self.state.task_mut(task.task())?;
-        task_state.advance(task_state.status().released(&self.stamp))
+        self.state.task_mut(task.task())?.advance(|progress| progress.released(&self.stamp))
+    }
+
+    fn task_blocked(self, block: Block) -> Self::Output {
+        self.state.vet_blocker(block)?;
+        self.state.task_mut(block.task())?.advance(|progress| progress.blocked(block.blocker()))
+    }
+
+    fn task_unblocked(self, task: TaskRef) -> Self::Output {
+        self.state.task_mut(task.task())?.advance(Progress::unblocked)
+    }
+
+    fn task_linked(self, link: TaskLink) -> Self::Output {
+        self.state.task_mut(link.task())?.linked(link.pull_request())
     }
 
     fn task_done(self, task: TaskRef) -> Self::Output {
-        let task_state = self.state.task_mut(task.task())?;
-        task_state.advance(task_state.status().finished(self.stamp))
+        self.state.task_mut(task.task())?.advance(|progress| progress.finished(self.stamp))
     }
 
     fn entry_retired(self, note: &EntryNote) -> Self::Output {
@@ -58,7 +68,6 @@ impl EventVisitor for Applying<'_> {
     }
 
     fn task_reopened(self, task: TaskRef) -> Self::Output {
-        let task_state = self.state.task_mut(task.task())?;
-        task_state.advance(task_state.status().reopened())
+        self.state.task_mut(task.task())?.advance(|progress| progress.reopened().map(Progress::Active))
     }
 }

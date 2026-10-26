@@ -17,7 +17,6 @@ mod shard;
 mod site;
 mod source_file;
 mod support_modules;
-mod top_division;
 mod type_name;
 mod use_edges;
 mod use_path;

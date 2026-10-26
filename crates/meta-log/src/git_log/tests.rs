@@ -14,6 +14,7 @@ use crate::log_failure::LogFailure;
 
 const ORIGIN: &str = "origin";
 const WRITER: &str = "writer";
+const DIVISION: &str = "features-and-maintenance";
 const OFFLINE: [&str; 4] = ["remote", "set-url", ORIGIN, "/nonexistent/origin.git"];
 const OFFLINE_PREFIX: &str = "offline: cannot fetch meta/log from origin: \"fatal: ";
 const SHOWN: &str = "meta/log on origin";
@@ -81,7 +82,8 @@ impl Fixture {
     }
 
     fn record() -> Record {
-        Record::new(WRITER.parse().unwrap(), Event::TaskOpened(NewTask::new(WRITER.parse().unwrap(), vec![])))
+        let opened = NewTask::new(DIVISION.parse().unwrap(), WRITER.parse().unwrap(), vec![]);
+        Record::new(WRITER.parse().unwrap(), Event::TaskOpened(opened))
     }
 
     fn observe(&self, clone: usize) -> Observation {

@@ -46,7 +46,8 @@ impl fmt::Display for Record {
 mod tests {
     use super::Record;
     use crate::{
-        Block, Blocker, Claim, Event, ExternalKind, Id, NewConcern, NewIssue, NewTask, Placement, Tag, TaskLink, TaskRef,
+        Block, Blocker, Claim, Event, ExternalKind, Id, NewConcern, NewIssue, NewTask, Placement, Tag, TaskLink,
+        TaskRef,
     };
 
     const ACTOR: &str = "a";
@@ -55,7 +56,8 @@ mod tests {
     const TOKENS: &str = "50000";
     const DUE: &str = "2026-11-01T00:00:00Z";
     const FOREIGN_TASK_AS_CONCERN: &str = r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"ConcernIdentified","concern":"task-0000000000000000","text":"x"}"#;
-    const LEGACY_TASK: &str = r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000001","text":"x"}"#;
+    const LEGACY_TASK: &str =
+        r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000001","text":"x"}"#;
     const LEGACY_CONCERN: &str = r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"ConcernIdentified","concern":"concern-0000000000000001","text":"x"}"#;
     const LEGACY_ISSUE: &str = r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"IssueReported","issue":"issue-0000000000000001","text":"x"}"#;
     const OUTSIDE_TASK: &str = r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000001","text":"x","division":"architecture"}"#;
@@ -67,11 +69,15 @@ mod tests {
             let task = Id::generate();
             let text = || ACTOR.parse().unwrap();
             let division = || DIVISION.parse().unwrap();
-            let planned = NewTask::new(division(), text(), vec![])
-                .allowing(TOKENS.parse().unwrap())
-                .due_by(DUE.parse().unwrap());
+            let planned =
+                NewTask::new(division(), text(), vec![]).allowing(TOKENS.parse().unwrap()).due_by(DUE.parse().unwrap());
             [
-                Event::ConcernIdentified(NewConcern::new(division(), text(), Some(text()), vec![Tag::AcceptanceCandidate])),
+                Event::ConcernIdentified(NewConcern::new(
+                    division(),
+                    text(),
+                    Some(text()),
+                    vec![Tag::AcceptanceCandidate],
+                )),
                 Event::IssueReported(NewIssue::new(division(), text())),
                 Event::TaskOpened(planned),
                 Event::TaskClaimed(Claim::new(task, ACTOR.parse().ok())),
@@ -89,15 +95,13 @@ mod tests {
                 .collect()
         }
 
-        fn placements(lines: [&str; 3]) -> Vec<Placement> {
-            lines
-                .map(|line| match serde_json::from_str::<Record>(line).unwrap().event() {
-                    Event::TaskOpened(task) => task.placement(),
-                    Event::IssueReported(issue) => issue.placement(),
-                    Event::ConcernIdentified(concern) => concern.placement(),
-                    _ => Placement::default(),
-                })
-                .to_vec()
+        fn placements(lines: [&str; 3]) -> [Placement; 3] {
+            let [task, concern, issue] = lines;
+            [
+                serde_json::from_str::<NewTask>(task).unwrap().placement().clone(),
+                serde_json::from_str::<NewConcern>(concern).unwrap().placement().clone(),
+                serde_json::from_str::<NewIssue>(issue).unwrap().placement().clone(),
+            ]
         }
     }
 

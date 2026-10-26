@@ -8,8 +8,7 @@ const OWNER: &str = "owner";
 const ALICE: &str = "alice";
 const DIVISION: &str = "features-and-maintenance";
 const NESTED: &str = "performance-and-cost/ci";
-const CONCERN: [&str; 9] =
-    ["concern", "CI", "is", "slow", "--source", "chat", "--division", DIVISION, "--tag"];
+const CONCERN: [&str; 9] = ["concern", "CI", "is", "slow", "--source", "chat", "--division", DIVISION, "--tag"];
 const CONCERN_SHOWN: &str = " CI is slow @features-and-maintenance #acceptance-candidate (from chat)";
 const TAG: &str = "acceptance-candidate";
 const OPEN_DASHED: [&str; 6] = ["open", "--division", DIVISION, "--", "--dashed", "text"];
@@ -18,7 +17,7 @@ const ISSUE_SOURCED: [&str; 4] = ["issue", "text", "--source", "chat"];
 const ISSUE_UNPLACED: [&str; 2] = ["issue", "text"];
 const ISSUE_PLACED: [&str; 4] = ["issue", "--division", DIVISION, "crash"];
 const OPEN_ELSEWHERE: [&str; 4] = ["open", "--division", "nowhere", "text"];
-const OPEN_PLANNED: [&str; 9] =
+const OPEN_PLANNED: [&str; 8] =
     ["open", "--division", NESTED, "--effort", "5000", "--due", "2026-11-01T00:00:00Z", "speed"];
 const LIST_TASKS: [&str; 2] = ["list", "tasks"];
 const WAIT: &str = "wait";
@@ -28,7 +27,7 @@ const LINK: &str = "link";
 const PULL_REQUEST: &str = "12";
 const PLANNED_SHOWN: &str = "speed @performance-and-cost/ci effort 5000 tokens due 2026-11-01 00:00Z";
 const DISCUSSED: &str = "[in discussion ";
-const ASSIGNED: &str = "[assigned to alice";
+const ASSIGNED: &str = "[assigned] ";
 const LINKED: &str = "PR #12";
 const NEEDS_DIVISION: &str = "--division";
 const NOT_HERE: &str = "--source does not apply here\nusage: meta <command>";

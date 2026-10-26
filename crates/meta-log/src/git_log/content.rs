@@ -58,6 +58,7 @@ mod tests {
     const UNTERMINATED: &str = "x  \n\n{}";
     const TERMINATOR: &str = "\n";
     const WRITER: &str = "writer";
+    const DIVISION: &str = "features-and-maintenance";
 
     #[test]
     fn unknown_lines_are_listed_and_block_writes() {
@@ -70,8 +71,8 @@ mod tests {
 
     #[test]
     fn appends_keep_every_earlier_byte() {
-        let record =
-            Record::new(WRITER.parse().unwrap(), Event::TaskOpened(NewTask::new(WRITER.parse().unwrap(), vec![])));
+        let opened = NewTask::new(DIVISION.parse().unwrap(), WRITER.parse().unwrap(), vec![]);
+        let record = Record::new(WRITER.parse().unwrap(), Event::TaskOpened(opened));
         let appended = Content::from(UNTERMINATED.to_owned()).appended(&record).unwrap();
         assert!(appended.as_ref().starts_with(&[UNTERMINATED, TERMINATOR].concat()));
         assert_eq!(appended.snapshot().records(), [record]);

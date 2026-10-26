@@ -25,7 +25,8 @@ Principles, ladder and design: `context/SPEC.md`. Build stages: `context/BOOTSTR
 ## Process
 
 - Work from the log: `meta list`, `meta claim <task>`, `meta done <task>` once GitHub CI passes.
-  Report surprises with `meta issue`; vague worries with `meta concern`.
+  Report surprises with `meta issue`; vague worries with `meta concern`. Every new concern, issue
+  and task takes `--division <path>` (a path under a top division, see `meta` usage).
 - One task, one small PR off `main`. Stack only a truly atomic sequence, and then only with
   `gh stack`, never `--base <branch>`. A small good PR never waits on a large one.
 - Push your own branch right after every commit so CI runs.

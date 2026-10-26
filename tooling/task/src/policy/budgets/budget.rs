@@ -1,5 +1,4 @@
 mod allowance;
-mod division;
 mod overspend;
 mod window;
 
@@ -10,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use super::budget_id::BudgetId;
 use super::tree_failure::TreeFailure;
 pub use allowance::Allowance;
-use division::Division;
+use meta_schema::Division;
 pub use overspend::Overspend;
 pub use window::Window;
 

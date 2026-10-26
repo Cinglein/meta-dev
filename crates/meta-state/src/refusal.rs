@@ -1,4 +1,4 @@
-use meta_schema::{Actor, Entry, Id, Target, Task};
+use meta_schema::{Actor, Entry, Id, PullRequest, Target, Task};
 use thiserror::Error;
 
 #[derive(Clone, Debug, PartialEq, Eq, Error)]
@@ -13,14 +13,16 @@ pub enum Refusal {
     AlreadyDone,
     #[error("the task is not done")]
     NotDone,
-    #[error("the task is claimed by {0}; take it over with --from {0}")]
-    ClaimedBy(Actor),
-    #[error("{0} does not hold the task")]
-    NotClaimant(Actor),
-    #[error("the task is held by {0}, not by you")]
-    HeldBy(Actor),
-    #[error("the task is not claimed; claim it first")]
-    Unclaimed,
+    #[error("{0} is already assigned to the task")]
+    AlreadyAssigned(Actor),
+    #[error("{0} is not assigned to the task")]
+    NotAssigned(Actor),
+    #[error("the task is not waiting")]
+    NotBlocked,
+    #[error("a task cannot wait on itself")]
+    WaitsOnItself,
+    #[error("{0} is already linked to the task")]
+    AlreadyLinked(PullRequest),
     #[error("there is no entry {0}")]
     UnknownEntry(Entry),
     #[error("{0} is retired")]
