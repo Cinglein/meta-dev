@@ -163,6 +163,7 @@ mod tests {
     const VARIABLE: &str = "CARGO_TARGET_DIR";
     const INHERITED: &str = "PATH";
     const MANIFEST: &str = "Cargo.toml";
+    const EMPTY: &str = "/dev/null";
     const READS_PACKAGE: [&str; 2] = ["-c", "read line && [ \"$line\" = \"[package]\" ]"];
 
     #[test]
@@ -202,6 +203,7 @@ mod tests {
         assert_eq!(shown.ok().as_deref(), Some(TARGET));
         let manifest = || File::open(Path::new(env!("CARGO_MANIFEST_DIR")).join(MANIFEST)).unwrap();
         let reads = shell().arguments(READS_PACKAGE);
-        assert!(reads.run_holding(manifest()).is_ok() && reads.run().is_err());
+        let empty = File::open(EMPTY).unwrap();
+        assert!(reads.run_holding(manifest()).is_ok() && reads.run_holding(empty).is_err());
     }
 }
