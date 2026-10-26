@@ -15,7 +15,7 @@ pub enum Progress {
 
 impl Progress {
     pub fn open() -> Self {
-        Self::Active(Activity::default())
+        Self::Active(Activity::unassigned())
     }
 
     pub fn assignments(&self) -> &[Stamp] {
@@ -59,7 +59,7 @@ impl Progress {
 
     pub fn reopened(&self) -> Result<Activity, Refusal> {
         match self {
-            Self::Done(_) => Ok(Activity::default()),
+            Self::Done(_) => Ok(Activity::unassigned()),
             Self::Active(_) => Err(Refusal::NotDone),
         }
     }

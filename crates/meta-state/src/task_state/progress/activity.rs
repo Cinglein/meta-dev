@@ -7,13 +7,17 @@ use crate::stamp::Stamp;
 use crate::task_state::task_status::TaskStatus;
 use waiting::Waiting;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Activity {
     assignments: Vec<Stamp>,
     blocker: Option<Blocker>,
 }
 
 impl Activity {
+    pub fn unassigned() -> Self {
+        Self { assignments: Vec::new(), blocker: None }
+    }
+
     pub fn assignments(&self) -> &[Stamp] {
         &self.assignments
     }

@@ -29,6 +29,8 @@ mod unparsed;
 mod unrecognised;
 
 #[cfg(test)]
+mod item_tests;
+#[cfg(test)]
 mod parsing_tests;
 
 pub use actor::Actor;
