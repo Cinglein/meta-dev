@@ -13,6 +13,8 @@ pub struct SpecSettings {
 
 impl SpecSettings {
     pub const UNCONVERTED: &str = "# Not yet converted: hand-written prose, ";
+    pub const RULE: &str = "- `";
+    pub const CHECK: &str = "check";
 
     #[must_use]
     pub fn package(&self) -> &CrateName {

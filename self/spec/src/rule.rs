@@ -5,7 +5,7 @@ use std::fmt;
 use crate::enforcement::Enforcement;
 use crate::wording::Wording;
 use rule_id::RuleId;
-use task::TopDivision;
+use task::{SpecSettings, TopDivision};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Rule {
@@ -34,6 +34,14 @@ impl Rule {
 
 impl fmt::Display for Rule {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "- `{}` ({}, {}): {}", self.id, self.division, self.enforcement, self.wording)
+        write!(
+            formatter,
+            "{}{}` ({}, {}): {}",
+            SpecSettings::RULE,
+            self.id,
+            self.division,
+            self.enforcement,
+            self.wording
+        )
     }
 }

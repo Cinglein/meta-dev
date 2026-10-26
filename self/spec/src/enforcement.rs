@@ -1,10 +1,9 @@
 use std::fmt;
 
 use corpus_check::LintName;
-use meta_xtask::Task;
 
+use crate::rust_type::RustType;
 use crate::test_fn::TestFn;
-use crate::type_name::TypeName;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Enforcement {
@@ -12,8 +11,8 @@ pub enum Enforcement {
     Defined,
     Lint(LintName),
     Test(TestFn),
-    CiStep(Task),
-    Type(TypeName),
+    CiStep(meta_xtask::CiStep),
+    Type(RustType),
 }
 
 impl Enforcement {
@@ -33,42 +32,39 @@ impl fmt::Display for Enforcement {
             Enforcement::Defined => formatter.write_str("rung 2, no enforcer"),
             Enforcement::Lint(lint) => write!(formatter, "rung 3, lint {lint}"),
             Enforcement::Test(test) => write!(formatter, "rung 3, test {test}"),
-            Enforcement::CiStep(task) => write!(formatter, "rung 3, ci step {}", <&str>::from(*task)),
-            Enforcement::Type(type_name) => write!(formatter, "rung 4, type {type_name}"),
+            Enforcement::CiStep(step) => write!(formatter, "rung 3, ci step {step}"),
+            Enforcement::Type(rust_type) => write!(formatter, "rung 4, type {rust_type}"),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Enforcement, LintName, Task, TestFn, TypeName};
-    use crate::spec_view::SpecView;
+    use meta_xtask::CiStep;
 
-    const THIS_FILE: &str = "self/spec/src/enforcement.rs";
-    const THIS_TEST: &str = "each_rung_shows_its_enforcer_and_only_an_existing_test_enforces";
-    const NOT_A_TEST: TestFn = TestFn::new("self/spec/src/test_fn.rs", "exists_under");
+    use super::{Enforcement, LintName, RustType, TestFn};
+
     const SHOWN: [&str; 6] = [
         "rung 1, no enforcer",
         "rung 2, no enforcer",
         "rung 3, lint no-comments",
-        "rung 3, test each_rung_shows_its_enforcer_and_only_an_existing_test_enforces in self/spec/src/enforcement.rs",
-        "rung 3, ci step lint",
-        "rung 4, type meta_spec::type_name::TypeName",
+        "rung 3, test enforcement::tests::each_rung_shows_its_enforcer in meta-spec",
+        "rung 3, ci step spec",
+        "rung 4, type meta_spec::rust_type::RustType",
     ];
-    const TEST: TestFn = TestFn::new(THIS_FILE, THIS_TEST);
+    const TEST: TestFn = TestFn::new("meta-spec", "enforcement::tests::each_rung_shows_its_enforcer");
     const ALL: [Enforcement; 6] = [
         Enforcement::Tracked,
         Enforcement::Defined,
         Enforcement::Lint(LintName::NoComments),
         Enforcement::Test(TEST),
-        Enforcement::CiStep(Task::Lint),
-        Enforcement::Type(TypeName::naming::<TypeName>()),
+        Enforcement::CiStep(CiStep::Spec),
+        Enforcement::Type(RustType::naming::<RustType>()),
     ];
 
     #[test]
-    fn each_rung_shows_its_enforcer_and_only_an_existing_test_enforces() {
+    fn each_rung_shows_its_enforcer() {
         assert_eq!(ALL.map(|enforcement| enforcement.to_string()), SHOWN);
         assert_eq!(ALL.iter().filter_map(Enforcement::test).collect::<Vec<_>>(), [&TEST]);
-        assert!(TEST.exists_under(&SpecView::root()) && !NOT_A_TEST.exists_under(&SpecView::root()));
     }
 }

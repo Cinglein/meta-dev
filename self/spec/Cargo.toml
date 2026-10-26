@@ -9,7 +9,6 @@ license.workspace = true
 corpus_check = { path = "../../tooling/corpus_check" }
 meta-xtask = { path = "../../xtask" }
 strum.workspace = true
-syn.workspace = true
 task = { path = "../../tooling/task" }
 
 [dev-dependencies]

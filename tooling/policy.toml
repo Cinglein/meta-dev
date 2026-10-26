@@ -32,6 +32,7 @@ surfaces = [
     ".claude",
     ".github",
     "plugin",
+    "self/spec",
 ]
 
 [spec]

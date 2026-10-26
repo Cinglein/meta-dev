@@ -8,6 +8,7 @@ use crate::task::lint::Lint;
 use crate::task::test::Test;
 use task::Policy;
 use task::Selection;
+use task::SpecSettings;
 use task::Workspace;
 use task::{CargoArgument, Program};
 use test_time::TestTime;
@@ -44,9 +45,11 @@ impl CiStep {
             CiStep::Spec => policy.spec().map_or(Ok(()), |spec| {
                 workspace
                     .line(Program::Cargo)
-                    .argument(CargoArgument::Test)
+                    .argument(CargoArgument::Run)
                     .argument(CargoArgument::Package)
                     .argument(spec.package())
+                    .argument(CargoArgument::ToolArguments)
+                    .argument(SpecSettings::CHECK)
                     .run()
                     .map_err(Failure::from)
             }),

@@ -52,7 +52,7 @@ pub const SECTIONS: &[Section] = &[
             Rule::new(
                 "division-promotion",
                 ArchitectureAndPlanning,
-                "A concern that reaches ladder rung 2 (a precise property) may become a division; architecture and planning does the typing.",
+                "Promotion: a concern that reaches ladder rung 2 (a precise property) may become a division; architecture and planning does the typing.",
                 Tracked,
             ),
         ],

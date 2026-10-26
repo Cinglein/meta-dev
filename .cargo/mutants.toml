@@ -12,6 +12,8 @@ exclude_re = [
     "Stacked::",
     "Scope::(applied|changed_shards|shard_runs|write_diff)",
     "CrateLoad::listed",
+    "TestListing::listed_by",
+    "TestFn::ensure_runs",
     "ShardPlan::changed_lines",
     "TriggerEvent::current",
     "Mutants::run",

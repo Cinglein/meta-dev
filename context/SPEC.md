@@ -10,7 +10,7 @@ Sections down to the next top-level heading are rendered from the rule records i
 - `division-top-level` (architecture-and-planning, rung 1, no enforcer): Top level, in every project: (1) features and maintenance (navigation, the tracker, guarding lints and mutants); (2) performance and cost (CI and test time, mutation time, Actions minutes and money, disk, agent wall time); (3) architecture and planning (the spec, DISCUSS items, the ladder; feeds 1 and 2).
 - `division-ownership` (architecture-and-planning, rung 1, no enforcer): Each top-level division owns its status tracking and metrics, and controls its own soundness, testing and measurability.
 - `division-dogfood` (architecture-and-planning, rung 1, no enforcer): meta-dev is an ordinary project with the same three divisions (principle 4). The steward and triage sit in its architecture and planning division.
-- `division-promotion` (architecture-and-planning, rung 1, no enforcer): A concern that reaches ladder rung 2 (a precise property) may become a division; architecture and planning does the typing.
+- `division-promotion` (architecture-and-planning, rung 1, no enforcer): Promotion: a concern that reaches ladder rung 2 (a precise property) may become a division; architecture and planning does the typing.
 
 ## Budgets (owner, 2026-10-26)
 - `budget-definition` (architecture-and-planning, rung 1, no enforcer): A budget is a typed definition with an id, in tooling/policy.toml. Spend events in the log point at it.
@@ -38,7 +38,7 @@ Sections down to the next top-level heading are rendered from the rule records i
 - `build-6-waivers` (architecture-and-planning, rung 1, no enforcer): Step 6: waivers replace baselines (this also settles first-baseline seeding).
 - `build-7-rungs` (architecture-and-planning, rung 1, no enforcer): Step 7: ladder rungs on concerns.
 
-# Not yet converted: hand-written prose, 170 lines
+# Not yet converted: hand-written prose, 2006 words
 
 Source: Basho postmortem, part 3 (kept in the Basho project's private repo).
 

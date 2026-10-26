@@ -1,69 +1,54 @@
-use std::fmt;
-use std::fs;
-use std::path::Path;
+mod test_listing;
 
-use syn::{Item, ItemFn, ItemMod};
+use std::fmt;
+use std::io;
+
+use test_listing::TestListing;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TestFn {
-    file: &'static str,
-    name: &'static str,
+    package: &'static str,
+    path: &'static str,
 }
 
 impl TestFn {
     #[must_use]
-    pub const fn new(file: &'static str, name: &'static str) -> TestFn {
-        TestFn { file, name }
+    pub const fn new(package: &'static str, path: &'static str) -> TestFn {
+        TestFn { package, path }
     }
 
-    #[must_use]
-    pub fn exists_under(&self, root: &Path) -> bool {
-        fs::read_to_string(root.join(self.file))
-            .ok()
-            .and_then(|text| syn::parse_file(&text).ok())
-            .is_some_and(|parsed| self.declared_in(&parsed.items))
+    pub fn ensure_runs(&self) -> io::Result<()> {
+        let listed = TestListing::listed_by(self.package, TestListing::ALL).map_err(io::Error::other)?;
+        let ignored = TestListing::listed_by(self.package, TestListing::IGNORED).map_err(io::Error::other)?;
+        self.runs_in(&listed, &ignored)
+            .then_some(())
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, self.to_string()))
     }
 
-    fn declared_in(&self, items: &[Item]) -> bool {
-        items.iter().any(|item| match item {
-            Item::Fn(function) => self.names_test(function),
-            Item::Mod(module) => self.declared_inside(module),
-            _ => false,
-        })
-    }
-
-    fn names_test(&self, function: &ItemFn) -> bool {
-        function.sig.ident == self.name && function.attrs.iter().any(|attribute| attribute.path().is_ident("test"))
-    }
-
-    fn declared_inside(&self, module: &ItemMod) -> bool {
-        module.content.as_ref().is_some_and(|(_, inner)| self.declared_in(inner))
+    fn runs_in(&self, listed: &TestListing, ignored: &TestListing) -> bool {
+        listed.names(self.path) && !ignored.names(self.path)
     }
 }
 
 impl fmt::Display for TestFn {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{} in {}", self.name, self.file)
+        write!(formatter, "{} in {}", self.path, self.package)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use super::{TestFn, TestListing};
 
-    use tempfile::TempDir;
-
-    use super::TestFn;
-
-    const PROBE: &str = "probe.rs";
-    const SOURCE: &str = "fn helper() {}\nmod checks {\n    #[test]\n    fn holds() {}\n}\n";
-    const NAMES: [&str; 3] = ["holds", "helper", "absent"];
-    const FOUND: [bool; 3] = [true, false, false];
+    const LISTED: &str = "spec::tests::holds: test\nspec::tests::skipped: test\nspec::tests::bench: bench\n";
+    const IGNORED: &str = "spec::tests::skipped: test\n";
+    const PATHS: [&str; 4] = ["spec::tests::holds", "spec::tests::skipped", "spec::tests::bench", "holds"];
+    const RUNS: [bool; 4] = [true, false, false, false];
 
     #[test]
-    fn only_a_test_fn_of_that_name_in_the_file_or_its_inline_modules_counts() {
-        let root = TempDir::new().unwrap();
-        fs::write(root.path().join(PROBE), SOURCE).unwrap();
-        assert_eq!(NAMES.map(|name| TestFn::new(PROBE, name).exists_under(root.path())), FOUND);
+    fn only_a_listed_test_that_is_not_ignored_runs() {
+        let Ok(listed) = LISTED.parse::<TestListing>();
+        let Ok(ignored) = IGNORED.parse::<TestListing>();
+        assert_eq!(PATHS.map(|path| TestFn::new("spec", path).runs_in(&listed, &ignored)), RUNS);
     }
 }

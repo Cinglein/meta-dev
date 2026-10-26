@@ -19,8 +19,8 @@ impl FromStr for Unconverted {
 
 impl fmt::Display for Unconverted {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let lines = self.0.lines().filter(|line| !line.is_empty()).count();
-        writeln!(formatter, "{}{lines} lines", SpecSettings::UNCONVERTED)?;
+        let words = self.0.split_whitespace().count();
+        writeln!(formatter, "{}{words} words", SpecSettings::UNCONVERTED)?;
         formatter.write_str(&self.0)
     }
 }
