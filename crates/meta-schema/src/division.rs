@@ -71,7 +71,15 @@ mod tests {
 
     const TOP: &str = "performance-and-cost";
     const NESTED: &str = "performance-and-cost/ci/tests";
-    const REFUSED: [&str; 3] = ["performance", "performance-and-cost//ci", "features-and-maintenance/"];
+    const REFUSED: [&str; 7] = [
+        "performance",
+        "performance-and-cost//ci",
+        "features-and-maintenance/",
+        "performance-and-cost/Ci",
+        "performance-and-cost/c i",
+        "performance-and-cost/ci_tests",
+        "performance-and-cost/é",
+    ];
 
     #[test]
     fn a_division_id_starts_at_a_top_division_and_nests_by_slashes() {

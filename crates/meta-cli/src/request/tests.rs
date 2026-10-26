@@ -1,3 +1,5 @@
+mod notices;
+
 use meta_log::{LogStore, MemoryLog};
 
 use super::Request;
@@ -40,7 +42,7 @@ const DONE: &str = "done";
 const NOTHING_OPEN: &str = "Concerns: 0 open";
 const HELD: &str = "owner is not assigned to the task";
 const UNKNOWN_OPTION: &str = "unknown option";
-const WRITES: usize = 2;
+const WRITES: usize = 3;
 const ID_INDEX: usize = 4;
 
 #[derive(Default)]

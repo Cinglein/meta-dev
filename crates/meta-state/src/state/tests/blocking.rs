@@ -9,15 +9,15 @@ use crate::task_state::{Stalling, TaskStatus};
 const REASON: &str = "dropped";
 
 #[derive(Clone)]
-struct Board {
-    script: Script,
-    task: NewTask,
-    other: NewTask,
-    issue: NewIssue,
+pub struct Board {
+    pub script: Script,
+    pub task: NewTask,
+    pub other: NewTask,
+    pub issue: NewIssue,
 }
 
 impl Board {
-    fn assigned() -> Self {
+    pub fn assigned() -> Self {
         let task = Events::task(vec![]);
         let other = Events::task(vec![]);
         let issue = Items::issue();
@@ -29,38 +29,40 @@ impl Board {
         Self { script, task, other, issue }
     }
 
-    fn then(self, event: Event) -> Self {
+    pub fn then(self, event: Event) -> Self {
         Self { script: self.script.then(ALICE, event), ..self }
     }
 
-    fn blocking(&self, on: Blocker) -> Event {
+    pub fn blocking(&self, on: Blocker) -> Event {
         Event::TaskBlocked(Block::new(self.task.task(), on))
     }
 
-    fn resumed(&self) -> Event {
+    pub fn resumed(&self) -> Event {
         Event::TaskUnblocked(TaskRef::new(self.task.task()))
     }
 }
 
 #[test]
-fn discussion_and_waits_are_typed_statuses_and_never_stall() {
+fn only_discussion_never_stalls_and_every_wait_is_a_typed_status() {
     let board = Board::assigned();
     let issue = board.issue.issue();
     let other = board.other.task();
     assert_eq!(board.script.status().stalling(), Stalling::Possible);
     let steps = [
-        (Blocker::Discussion(issue), TaskStatus::Discussion(issue)),
-        (Blocker::Task(other), TaskStatus::WaitingOnTask(other)),
-        (Blocker::External(ExternalKind::Ci), TaskStatus::WaitingOnExternal(ExternalKind::Ci)),
+        (Blocker::Discussion(issue), TaskStatus::Discussion(issue), Stalling::Never),
+        (Blocker::Task(other), TaskStatus::WaitingOnTask(other), Stalling::Possible),
+        (
+            Blocker::External(ExternalKind::Merge),
+            TaskStatus::WaitingOnExternal(ExternalKind::Merge),
+            Stalling::Possible,
+        ),
     ];
-    let waiting = steps.into_iter().fold(board, |board, (on, expected)| {
-        let blocked = board.blocking(on);
-        let next = board.then(blocked);
-        assert!(next.script.status() == expected && next.script.status().stalling() == Stalling::Never);
-        next
-    });
-    let resume = waiting.resumed();
-    let resumed = waiting.then(resume);
+    assert!(steps.into_iter().all(|(on, status, stalling)| {
+        let next = board.clone().then(board.blocking(on));
+        next.script.status() == status && next.script.status().stalling() == stalling
+    }));
+    let waiting = board.clone().then(board.blocking(Blocker::Discussion(issue)));
+    let resumed = waiting.clone().then(waiting.resumed());
     assert_eq!(
         (resumed.script.status(), resumed.script.status().stalling()),
         (TaskStatus::Assigned, Stalling::Possible)

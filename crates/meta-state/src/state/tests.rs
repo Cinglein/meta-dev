@@ -1,6 +1,7 @@
 mod assignments;
 mod blocking;
 mod links;
+mod waiting_rules;
 
 use meta_schema::{Actor, Claim, Division, Event, Id, NewConcern, NewIssue, NewTask, Record, Target, Task, TaskRef};
 

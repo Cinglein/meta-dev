@@ -65,7 +65,7 @@ mod tests {
     struct Samples;
 
     impl Samples {
-        fn records() -> [Record; 7] {
+        fn records() -> [Record; 8] {
             let task = Id::generate();
             let text = || ACTOR.parse().unwrap();
             let division = || DIVISION.parse().unwrap();
@@ -84,11 +84,12 @@ mod tests {
                 Event::TaskBlocked(Block::new(task, Blocker::External(ExternalKind::Ci))),
                 Event::TaskLinked(TaskLink::new(task, "7".parse().unwrap())),
                 Event::TaskDone(TaskRef::new(task)),
+                Event::SchemaVersion(crate::SchemaVersion::current()),
             ]
             .map(|event| Record::new(ACTOR.parse().unwrap(), event))
         }
 
-        fn round_tripped(records: &[Record; 7]) -> Vec<Record> {
+        fn round_tripped(records: &[Record; 8]) -> Vec<Record> {
             records
                 .iter()
                 .map(|record| serde_json::from_str(&serde_json::to_string(record).unwrap()).unwrap())

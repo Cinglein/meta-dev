@@ -1,4 +1,4 @@
-use crate::{Block, Blocker, Event, ExternalKind, NewConcern, NewIssue, NewTask, Placement, TaskLink};
+use crate::{Block, Blocker, Event, ExternalKind, NewConcern, NewIssue, NewTask, Placement, SchemaVersion, TaskLink};
 
 const DIVISION: &str = "performance-and-cost/ci";
 const TEXT: &str = "speed up";
@@ -10,6 +10,7 @@ const LEGACY_ISSUE: &str = r#"{"issue":"issue-0000000000000001","text":"x"}"#;
 const TASK: &str = "task-0000000000000002";
 const BLOCKED: &str = "TaskBlocked task-0000000000000002 on ci";
 const LINKED: &str = "TaskLinked task-0000000000000002 #7";
+const MARKER: &str = "SchemaVersion 2";
 
 #[test]
 fn new_items_carry_their_division_and_tasks_their_effort_and_due_time() {
@@ -47,5 +48,7 @@ fn blocks_and_links_show_their_task_and_what_they_point_at() {
     let task = TASK.parse().unwrap();
     let blocked = Event::TaskBlocked(Block::new(task, Blocker::External(ExternalKind::Ci)));
     let linked = Event::TaskLinked(TaskLink::new(task, "7".parse().unwrap()));
-    assert_eq!([blocked.to_string(), linked.to_string()], [BLOCKED, LINKED]);
+    let marker = Event::SchemaVersion(SchemaVersion::current());
+    assert_eq!([blocked.to_string(), linked.to_string(), marker.to_string()], [BLOCKED, LINKED, MARKER]);
+    assert!(marker.schema_version().is_some() && blocked.schema_version().is_none());
 }
