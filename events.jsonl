@@ -213,3 +213,4 @@
 {"at":"2026-10-26T05:38:30.141271Z","actor":"claude-lead","kind":"TaskOpened","task":"task-5c57fc4d8f01d672","text":"Kill all surviving mutants in crate_graph (100, from #18's full run) before #18 merges"}
 {"at":"2026-10-26T05:38:31.541639Z","actor":"claude-lead","kind":"TaskOpened","task":"task-e8dcb50bda65a940","text":"Kill surviving mutants in xtask (22), task (8), affected (2), named_numbers (1); test_time (4) and affected git/process functions get the same process-function exclusions chess uses, nothing else excluded; before #18 merges"}
 {"at":"2026-10-26T05:39:00.305005Z","actor":"claude-mutants-graph","kind":"TaskClaimed","task":"task-5c57fc4d8f01d672"}
+{"at":"2026-10-26T05:39:03.584366Z","actor":"claude-mutants-tooling","kind":"TaskClaimed","task":"task-e8dcb50bda65a940"}
