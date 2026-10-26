@@ -1,24 +1,31 @@
 mod git_call;
+mod working_directory;
 
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use crate::request::output::Listed;
 use crate::request::project::Config;
 use git_call::GitCall;
+use working_directory::WorkingDirectory;
 
 #[derive(Debug)]
 pub struct ShellCommand(Vec<Vec<String>>);
 
 impl ShellCommand {
-    const SEPARATORS: &'static [char] = &[';', '&', '|', '\n', '(', ')'];
+    const SEPARATORS: &'static [char] = &[';', '&', '|', '\n'];
     const QUOTES: &'static [char] = &['\'', '"'];
     const PR_MERGE: &'static [&'static str] = &["gh", "pr", "merge"];
-
     pub fn refusal(&self, config: &Config) -> Option<Listed> {
         self.segments()
             .find(|words| words.windows(Self::PR_MERGE.len()).any(|window| window == Self::PR_MERGE))
             .map(|_| Listed::new("gh pr merge is the owner's job"))
             .or_else(|| self.segments().filter_map(GitCall::parse).find_map(|call| call.push_refusal(config)))
+    }
+
+    pub fn commit_directories(&self, cwd: &Path) -> Vec<PathBuf> {
+        let mut shell = WorkingDirectory::new(cwd);
+        self.segments().filter_map(|words| shell.follow(words)).collect()
     }
 
     pub fn runs(&self, subcommand: &str) -> Option<()> {
@@ -35,7 +42,9 @@ impl FromStr for ShellCommand {
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         Ok(Self(
-            text.split(Self::SEPARATORS)
+            text.replace('(', ";(;")
+                .replace(')', ";);")
+                .split(Self::SEPARATORS)
                 .map(|segment| {
                     segment
                         .split_whitespace()
@@ -50,8 +59,32 @@ impl FromStr for ShellCommand {
 
 #[cfg(test)]
 mod tests {
+    use std::path::{Path, PathBuf};
+
     use super::ShellCommand;
     use crate::request::project::Config;
+
+    const WRITERS: [&str; 4] = ["git revert HEAD", "git pull", "git am x.patch", "git commit-tree t"];
+    const NOT_WRITERS: [&str; 3] = ["git merge --abort", "git rebase --abort", "git merge-base a b"];
+    const CWD: &str = "/w/good";
+    const CHAINS: [(&str, &[&str]); 5] = [
+        ("(cd a && git -c x=y -C b commit -m 'cd z')", &["/w/good/a/b"]),
+        ("git commit -m x && git -C ../bad commit -m y", &["/w/good", "/w/good/../bad"]),
+        ("git commit; cd ../bad; git commit", &["/w/good", "/w/good/../bad"]),
+        ("(cd ../bad && pwd && git commit) && git commit", &["/w/good/../bad", "/w/good"]),
+        ("cd $PWD/a && git -C ~/b commit && git -C $HOME commit; git -C $PWD/c commit", &["~/b", "~", "/w/good/a/c"]),
+    ];
+
+    #[test]
+    fn every_commit_writer_resolves_its_own_directory_and_aborts_write_nothing() {
+        let home = std::env::var("HOME").unwrap();
+        let directories = |command: &str| command.parse::<ShellCommand>().unwrap().commit_directories(Path::new(CWD));
+        let expected =
+            |paths: &[&str]| paths.iter().map(|path| PathBuf::from(path.replacen('~', &home, 1))).collect::<Vec<_>>();
+        assert!(WRITERS.iter().all(|command| directories(command).len() == 1));
+        assert!(NOT_WRITERS.iter().all(|command| directories(command).is_empty()));
+        assert!(CHAINS.iter().all(|(command, paths)| directories(command) == expected(paths)));
+    }
 
     const CONFIG: &str = "protected = [\"main\"]\n";
     const MERGES: [&str; 2] = ["gh pr merge 1", "cd x && gh pr merge 1 --squash"];

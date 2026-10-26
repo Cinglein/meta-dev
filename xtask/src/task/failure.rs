@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 use crate::task::ratchet::{Raised, Ratchet};
+use crate::task::revision::ForeignEmails;
 
 #[derive(Debug, Error)]
 pub enum Failure {
@@ -23,4 +24,6 @@ pub enum Failure {
     PriorSpec(toml::de::Error),
     #[error("merge-base spec file {} is unreadable", .0.display())]
     PriorSpecFile(PathBuf),
+    #[error("{0}")]
+    Identity(ForeignEmails),
 }
