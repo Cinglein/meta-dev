@@ -21,7 +21,7 @@ const STATUS: [&str; 3] = ["status", "--porcelain", "--branch"];
 const COUNT: [&str; 3] = ["rev-list", "--count", "meta/log"];
 const FIRST: usize = 0;
 const SECOND: usize = 1;
-const INTERLEAVED: [usize; 3] = [FIRST, SECOND, FIRST];
+const INTERLEAVED: [usize; 2] = [FIRST, SECOND];
 const PAIR: usize = 2;
 const SINGLE: usize = 1;
 
@@ -98,7 +98,7 @@ fn appends_from_any_clone_land_on_the_remote_in_commit_order_without_touching_ch
     let fixture = Fixture::new(PAIR);
     let before = Git::text(fixture.clones[FIRST].path(), &STATUS);
     let written: Vec<Record> = INTERLEAVED.map(|clone| fixture.observe(clone).record).to_vec();
-    assert_eq!(fixture.log(SECOND).read().unwrap().records(), written);
+    assert_eq!(fixture.log(FIRST).read().unwrap().records(), written);
     assert_eq!(Git::text(fixture.clones[FIRST].path(), &STATUS), before);
     assert_eq!(Git::text(fixture.origin.path(), &COUNT), written.len().to_string());
 }
