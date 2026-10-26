@@ -8,7 +8,7 @@ use crate::entity::{Concern, Issue};
 use crate::entry::Entry;
 use crate::id::Id;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Target {
     Concern(Id<Concern>),

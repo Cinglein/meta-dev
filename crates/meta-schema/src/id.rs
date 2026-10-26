@@ -2,6 +2,7 @@ mod id_failure;
 mod raw_id;
 
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::str::FromStr;
 
@@ -58,6 +59,12 @@ impl<Kind: Entity> PartialEq for Id<Kind> {
 }
 
 impl<Kind: Entity> Eq for Id<Kind> {}
+
+impl<Kind: Entity> Hash for Id<Kind> {
+    fn hash<Into: Hasher>(&self, state: &mut Into) {
+        self.raw.hash(state);
+    }
+}
 
 impl<Kind: Entity> Serialize for Id<Kind> {
     fn serialize<Out: Serializer>(&self, serializer: Out) -> Result<Out::Ok, Out::Error> {

@@ -4,6 +4,8 @@ mod concern_state;
 mod issue_state;
 mod retired;
 
+use std::collections::HashMap;
+
 use meta_schema::{Entry, EntryNote, Id, Record, Target, Task, Text};
 
 use crate::refusal::Refusal;
@@ -20,8 +22,10 @@ pub struct State {
     concerns: Vec<ConcernState>,
     issues: Vec<IssueState>,
     tasks: Vec<TaskState>,
+    index_of: HashMap<Entry, usize>,
+    addressers: HashMap<Target, Vec<Id<Task>>>,
     anomalies: Vec<Anomaly>,
-    retired: Vec<Retired>,
+    retired: HashMap<Entry, Retired>,
 }
 
 impl State {
@@ -41,73 +45,83 @@ impl State {
 
     pub(crate) fn add_concern(&mut self, concern: ConcernState) -> Result<(), Refusal> {
         self.fresh(concern.target())?;
+        self.index_of.insert(concern.target().entry(), self.concerns.len());
         self.concerns.push(concern);
         Ok(())
     }
 
     pub(crate) fn add_issue(&mut self, issue: IssueState) -> Result<(), Refusal> {
         self.fresh(issue.target())?;
+        self.index_of.insert(issue.target().entry(), self.issues.len());
         self.issues.push(issue);
         Ok(())
     }
 
     pub(crate) fn add_task(&mut self, task: TaskState, addresses: &[Target]) -> Result<(), Refusal> {
-        self.tasks
-            .iter()
-            .find(|known| known.new_task().task() == task.new_task().task())
-            .map_or(Ok(()), |_| Err(Refusal::DuplicateId))?;
+        self.known(task.entry()).map_or(Ok(()), |()| Err(Refusal::DuplicateId))?;
         addresses
             .iter()
             .find(|target| self.fresh(**target).is_ok())
             .map_or(Ok(()), |missing| Err(Refusal::UnknownTarget(*missing)))?;
+        let id = task.new_task().task();
+        self.addressers = addresses.iter().fold(std::mem::take(&mut self.addressers), |mut addressers, target| {
+            addressers.entry(*target).or_default().push(id);
+            addressers
+        });
+        self.index_of.insert(task.entry(), self.tasks.len());
         self.tasks.push(task);
         Ok(())
     }
 
     pub(crate) fn task_mut(&mut self, task: Id<Task>) -> Result<&mut TaskState, Refusal> {
         self.retirement(Entry::Task(task)).map_or(Ok(()), |retired| Err(Refusal::Retired(retired.note().entry())))?;
-        self.tasks.iter_mut().find(|known| known.new_task().task() == task).ok_or(Refusal::UnknownTask(task))
+        self.index_of
+            .get(&Entry::Task(task))
+            .and_then(|index| self.tasks.get_mut(*index))
+            .ok_or(Refusal::UnknownTask(task))
     }
 
     pub(crate) fn retire(&mut self, retired: Retired) -> Result<(), Refusal> {
-        self.known(retired.note().entry())?;
-        self.retirement(retired.note().entry()).map_or(Ok(()), |done| Err(Refusal::Retired(done.note().entry())))?;
-        self.retired.push(retired);
+        let entry = retired.note().entry();
+        self.known(entry)?;
+        self.retirement(entry).map_or(Ok(()), |done| Err(Refusal::Retired(done.note().entry())))?;
+        self.retired.insert(entry, retired);
         Ok(())
     }
 
     pub(crate) fn correct(&mut self, note: &EntryNote) -> Result<(), Refusal> {
-        self.known(note.entry())?;
-        let text: Text = note.text().clone();
         let entry = note.entry();
+        let index = self.index_of.get(&entry).copied().ok_or(Refusal::UnknownEntry(entry))?;
+        let text: &Text = note.text();
         self.concerns
-            .iter_mut()
-            .filter(|known| Some(known.target()) == entry.target())
-            .for_each(|known| known.correct(text.clone()));
-        self.issues
-            .iter_mut()
-            .filter(|known| Some(known.target()) == entry.target())
-            .for_each(|known| known.correct(text.clone()));
-        self.tasks
-            .iter_mut()
-            .filter(|known| Some(known.new_task().task()) == entry.task())
-            .for_each(|known| known.correct(text.clone()));
-        Ok(())
+            .get_mut(index)
+            .filter(|known| known.target().entry() == entry)
+            .map(|known| known.correct(text.clone()))
+            .or_else(|| {
+                self.issues
+                    .get_mut(index)
+                    .filter(|known| known.target().entry() == entry)
+                    .map(|known| known.correct(text.clone()))
+            })
+            .or_else(|| {
+                self.tasks
+                    .get_mut(index)
+                    .filter(|known| known.entry() == entry)
+                    .map(|known| known.correct(text.clone()))
+            })
+            .ok_or(Refusal::UnknownEntry(entry))
     }
 
     #[must_use]
     pub fn closed(&self, entry: Entry) -> Option<()> {
         let addressed = entry.target().and_then(|target| self.addressed_by(target));
-        let done = entry
-            .task()
-            .and_then(|task| self.tasks.iter().find(|known| known.new_task().task() == task))
-            .and_then(|task| task.status().done());
+        let done = entry.task().and_then(|task| self.task(task)).and_then(|task| task.status().done());
         addressed.map(|_| ()).or(done.map(|_| ())).or(self.retirement(entry).map(|_| ()))
     }
 
     #[must_use]
     pub fn retirement(&self, entry: Entry) -> Option<&Retired> {
-        self.retired.iter().find(|retired| retired.note().entry() == entry)
+        self.retired.get(&entry)
     }
 
     #[must_use]
@@ -130,23 +144,19 @@ impl State {
     }
 
     pub(crate) fn addressed_by(&self, target: Target) -> Option<Id<Task>> {
-        self.tasks.iter().find_map(|task| task.addressing(target))
+        self.addressers.get(&target)?.iter().find_map(|task| self.task(*task)?.addressing(target))
+    }
+
+    fn task(&self, task: Id<Task>) -> Option<&TaskState> {
+        self.index_of.get(&Entry::Task(task)).and_then(|index| self.tasks.get(*index))
     }
 
     fn known(&self, entry: Entry) -> Result<(), Refusal> {
-        let task =
-            entry.task().and_then(|task| self.tasks.iter().find(|known| known.new_task().task() == task)).map(|_| ());
-        task.or(entry.target().filter(|target| self.fresh(*target).is_err()).map(|_| ()))
-            .ok_or(Refusal::UnknownEntry(entry))
+        self.index_of.contains_key(&entry).then_some(()).ok_or(Refusal::UnknownEntry(entry))
     }
 
     fn fresh(&self, target: Target) -> Result<(), Refusal> {
-        self.concerns
-            .iter()
-            .map(ConcernState::target)
-            .chain(self.issues.iter().map(IssueState::target))
-            .find(|known| *known == target)
-            .map_or(Ok(()), |_| Err(Refusal::DuplicateId))
+        self.known(target.entry()).map_or(Ok(()), |()| Err(Refusal::DuplicateId))
     }
 }
 
