@@ -28,11 +28,6 @@ impl GitCommand {
         self
     }
 
-    pub fn env(mut self, variable: impl AsRef<OsStr>, value: impl AsRef<OsStr>) -> Self {
-        self.command.env(variable, value);
-        self
-    }
-
     pub fn input(self, content: Content) -> Self {
         Self { input: Some(content), ..self }
     }

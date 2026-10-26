@@ -1,6 +1,7 @@
-use std::fs;
+use std::io::Write as _;
+use std::process::{Command, Stdio};
 
-use super::{FIRST, Fixture, Git};
+use super::{FIRST, Fixture};
 use crate::LogStore;
 use crate::log_failure::LogFailure;
 
@@ -10,13 +11,18 @@ const REFUSED: &str = "meta/log on origin must hold only events.jsonl; nothing w
 
 impl Fixture {
     fn publish(&self, files: &[&str]) -> Option<LogFailure> {
-        let clone = self.clones[FIRST].path();
-        Git::run(clone, &["checkout", "-q", "--orphan", "meta/log"]);
-        Git::run(clone, &["rm", "-q", "-r", "-f", "--ignore-unmatch", "."]);
-        files.iter().try_for_each(|file| fs::write(clone.join(file), "")).unwrap();
-        Git::run(clone, &["add", "-A"]);
-        Git::run(clone, &["commit", "-q", "-m", EXTRA]);
-        Git::run(clone, &["push", "-q", "-f", "origin", "HEAD:refs/heads/meta/log"]);
+        let mut import = Command::new("git")
+            .arg("-C")
+            .arg(self.origin.path())
+            .args(["fast-import", "--quiet", "--force", "--date-format=now"])
+            .stdin(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let input = import.stdin.as_mut().unwrap();
+        write!(input, "commit refs/heads/meta/log\ncommitter t <t@meta.invalid> now\ndata {}\n{EXTRA}\n", EXTRA.len())
+            .unwrap();
+        files.iter().try_for_each(|file| write!(input, "M 100644 inline {file}\ndata 0\n")).unwrap();
+        import.wait().unwrap();
         self.log(FIRST).read().err()
     }
 }

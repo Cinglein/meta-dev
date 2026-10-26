@@ -35,8 +35,12 @@ impl Remote {
 
     fn fetch_once(&self) -> Result<Option<Fetched>, LogFailure> {
         let refspec = format!("+refs/heads/meta/*:refs/remotes/{}/meta/*", self.name);
-        let fetched =
-            self.git.command(["fetch", "--quiet", "--prune"]).arg(self.name.to_string()).arg(refspec).timed_output()?;
+        let fetched = self
+            .git
+            .command(["fetch", "--quiet", "--prune", "--no-write-fetch-head", "--no-auto-maintenance"])
+            .arg(self.name.to_string())
+            .arg(refspec)
+            .timed_output()?;
         if fetched.status.success() {
             let tip = self.tracking_tip();
             self.blob_at(tip.as_ref()).map(|content| Some(Fetched::new(tip, content)))

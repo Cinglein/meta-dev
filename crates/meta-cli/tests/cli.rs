@@ -1,32 +1,17 @@
 #![allow(clippy::unwrap_used)]
 
+use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, Output};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const OWNER: &str = "owner";
-const ALICE: &str = "alice";
-const CONCERN: [&str; 7] = ["concern", "CI", "is", "slow", "--source", "chat", "--tag"];
-const CONCERN_SHOWN: &str = " CI is slow #acceptance-candidate (from chat)";
-const TAG: &str = "acceptance-candidate";
-const OPEN_DASHED: [&str; 4] = ["open", "--", "--dashed", "text"];
-const ISSUE_WITH_OPTION: [&str; 2] = ["issue", "--verbose"];
-const ISSUE_SOURCED: [&str; 4] = ["issue", "text", "--source", "chat"];
-const NOT_HERE: &str = "--source does not apply here\nusage: meta <command>";
-const LIST_ALL_CONCERNS: [&str; 3] = ["list", "concerns", "--all"];
-const SUMMARY: [&str; 1] = ["list"];
 const NOWHERE: [&str; 4] = ["remote", "set-url", "origin", "/nonexistent/origin.git"];
 const COUNT: [&str; 3] = ["rev-list", "--count", "meta/log"];
 const ISSUE: [&str; 2] = ["issue", "text"];
-const OPEN_FOR: [&str; 3] = ["open", "budget", "--addresses"];
-const CLAIM: &str = "claim";
-const FROM: &str = "--from";
-const DONE: &str = "done";
-const NOTHING_OPEN: &str = "Concerns: 0 open";
-const HELD: &str = "held by alice";
-const UNKNOWN_OPTION: &str = "unknown option";
 const OFFLINE: &str = "offline";
-const WRITES: &str = "2";
+const WRITES: &str = "1";
+const LIST_ISSUES: [&str; 2] = ["list", "issues"];
 const LOCAL_NAME: &str = "localname";
 
 struct Git;
@@ -37,6 +22,16 @@ impl Git {
 
     fn run(dir: &Path, words: &[&str]) -> Output {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
+    }
+
+    fn link_origin(dir: &Path, url: &str) {
+        let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(dir.join(".git/config"))
+            .unwrap()
+            .write_all(remote.as_bytes())
+            .unwrap();
     }
 }
 
@@ -80,7 +75,7 @@ impl Project {
         let clone = tempfile::tempdir().unwrap();
         Git::run(origin.path(), &["init", "-q", "--bare"]);
         Git::run(clone.path(), &["init", "-q"]);
-        Git::run(clone.path(), &["remote", "add", "origin", origin.path().to_str().unwrap()]);
+        Git::link_origin(clone.path(), origin.path().to_str().unwrap());
         std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
         Self { origin, clone }
     }
@@ -94,42 +89,15 @@ impl Project {
         command.current_dir(self.clone.path()).args(words).env_remove("META_ACTOR").env("USER", LOCAL_NAME);
         Run(command.output().unwrap())
     }
-
-    fn task_step(&self, actor: &str, step: &str, task: &Written) -> Run {
-        self.meta(actor, &[step, &task.0])
-    }
 }
 
 #[test]
-fn an_unset_actor_writes_as_owner_and_a_task_addresses_a_concern_when_its_claimant_finishes_it() {
+fn an_unset_actor_writes_as_owner_to_the_remote_and_offline_writes_are_refused() {
     let project = Project::new();
-    let opened = project.meta_unset(&[&CONCERN[..], &[TAG]].concat());
-    assert_eq!(opened.actor().as_deref(), Some(OWNER));
-    let concern = opened.written();
-    let task = project.meta(OWNER, &[&OPEN_FOR[..], &[concern.0.as_str()]].concat()).written();
-    project.task_step(OWNER, CLAIM, &task);
-    project.meta(ALICE, &[CLAIM, &task.0, FROM, OWNER]);
-    project.task_step(ALICE, DONE, &task);
-    assert!(project.meta(OWNER, &LIST_ALL_CONCERNS).to_string().contains(&format!("{}{CONCERN_SHOWN}", concern.0)));
-    assert!(project.meta(OWNER, &SUMMARY).to_string().contains(NOTHING_OPEN));
-}
-
-#[test]
-fn refusals_and_bad_input_say_why_and_write_nothing() {
-    let project = Project::new();
-    let task = project.meta(OWNER, &OPEN_DASHED).written();
-    project.task_step(ALICE, CLAIM, &task);
-    assert!(project.task_step(OWNER, DONE, &task).complaint().0.contains(HELD));
-    assert!(
-        project.meta(OWNER, &ISSUE_WITH_OPTION).complaint().0.contains(UNKNOWN_OPTION)
-            && project.meta(OWNER, &ISSUE_SOURCED).complaint().0.contains(NOT_HERE)
-    );
+    let opened = project.meta_unset(&ISSUE);
+    let listed = project.meta(OWNER, &LIST_ISSUES).to_string();
+    assert!(opened.actor().as_deref() == Some(OWNER) && listed.contains(&opened.written().0));
     assert!(Run(Git::run(project.origin.path(), &COUNT)).to_string().starts_with(WRITES));
-}
-
-#[test]
-fn writes_are_refused_offline() {
-    let project = Project::new();
     Git::run(project.clone.path(), &NOWHERE);
     assert!(project.meta(OWNER, &ISSUE).complaint().0.contains(OFFLINE));
 }

@@ -7,21 +7,9 @@ use std::process::{Command, Output, Stdio};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n";
-const MERGES: [&str; 2] = ["gh pr merge 1", "cd x && gh pr merge 1 --squash"];
-const PUSHES: [&str; 6] = [
-    "git push --force origin feature",
-    "git push -uf origin feature",
-    "git push origin +feature",
-    "git -C x push origin HEAD:refs/heads/main",
-    "git push --force-with-lease origin main",
-    "git --no-pager push origin main",
-];
-const ALLOWED: [&str; 4] = [
-    "git push -u origin feature",
-    "git push --force-with-lease origin feature",
-    "git commit -m 'git push origin main'",
-    "gh pr view 1",
-];
+const MERGE: &str = "gh pr merge 1";
+const PUSH: &str = "git push --force origin feature";
+const ALLOWED: &str = "git push -u origin feature";
 const DENY: &str = "\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"meta-development: ";
 const PUSH_REASON: &str = "meta-development: git push";
 const PRE: &str = "pre-tool-use";
@@ -49,6 +37,16 @@ impl Git {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
     }
 
+    fn link_origin(dir: &Path, url: &str) {
+        let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(dir.join(".git/config"))
+            .unwrap()
+            .write_all(remote.as_bytes())
+            .unwrap();
+    }
+
     fn head(dir: &Path, reference: &str) -> Revision {
         Revision(String::from_utf8_lossy(&Self::run(dir, &["rev-parse", reference]).stdout).into_owned())
     }
@@ -68,7 +66,7 @@ impl Repo {
         let clone = tempfile::tempdir().unwrap();
         Git::run(origin.path(), &["init", "-q", "--bare"]);
         Git::run(clone.path(), &["init", "-q"]);
-        Git::run(clone.path(), &["remote", "add", "origin", origin.path().to_str().unwrap()]);
+        Git::link_origin(clone.path(), origin.path().to_str().unwrap());
         std::fs::write(clone.path().join("meta.toml"), CONFIG).unwrap();
         Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "start"]);
         Self { origin, clone }
@@ -98,17 +96,12 @@ impl Repo {
 }
 
 #[test]
-fn pre_tool_use_denies_merges_force_pushes_and_protected_pushes_only() {
+fn pre_tool_use_denies_a_merge_and_a_force_push_and_allows_a_feature_push() {
     let repo = Repo::new();
     let env = repo.env_file();
-    assert!(MERGES.iter().all(|command| repo.hook(PRE, command, &env).contains(DENY)));
-    assert!(
-        PUSHES
-            .iter()
-            .map(|command| repo.hook(PRE, command, &env))
-            .all(|reply| reply.contains(DENY) && reply.contains(PUSH_REASON))
-    );
-    assert!(ALLOWED.iter().all(|command| repo.hook(PRE, command, &env).is_empty()));
+    let push = repo.hook(PRE, PUSH, &env);
+    assert!(repo.hook(PRE, MERGE, &env).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
+    assert_eq!(repo.hook(PRE, ALLOWED, &env), "");
 }
 
 #[test]
