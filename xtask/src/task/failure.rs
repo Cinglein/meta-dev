@@ -2,6 +2,7 @@ use std::io;
 
 use thiserror::Error;
 
+use crate::task::ci::Unready;
 use crate::task::ratchet::{Raised, Ratchet};
 
 #[derive(Debug, Error)]
@@ -18,4 +19,6 @@ pub enum Failure {
     Written(#[from] toml::ser::Error),
     #[error("step summary: {0}")]
     Summary(io::Error),
+    #[error("gate not posted: {0}")]
+    Unready(#[from] Unready),
 }

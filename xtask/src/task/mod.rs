@@ -88,9 +88,13 @@ impl Task {
     pub fn run(self, mut flags: impl Iterator<Item = String>) -> Result<(), Failure> {
         let workspace = Workspace::locate()?;
         let policy = Policy::read(workspace.root())?;
+        let coverage = match self {
+            Task::MutantCosts => Coverage::EVERYTHING,
+            _ => Coverage::from_flags(self, flags.by_ref())?,
+        };
         let selection = match self {
             Task::MutantCosts => Selection::Workspace,
-            _ => Affected::selection(&workspace, Coverage::from_flags(flags.by_ref())?, policy.branch(Branch::Base))?,
+            _ => Affected::selection(&workspace, coverage.changes(), policy.branch(Branch::Base))?,
         };
         let summary = env::var_os(Surfaces::SUMMARY).map(PathBuf::from);
         match self {
@@ -98,7 +102,9 @@ impl Task {
                 .map(|reached| println!("{reached}"))?),
             Task::Baseline => Lint::shrink(workspace.root(), &workspace.source_files()?, &policy)
                 .map(|kept| println!("baseline: {} violations", kept.total())),
-            Task::Ci => Ci::run(&workspace, &selection, &policy, summary.as_deref()),
+            Task::Ci => {
+                Ci::new(summary, coverage.gate(workspace.root(), &policy)?).run(&workspace, &selection, &policy)
+            }
             Task::Clippy => Ok(Clippy::run(&workspace, &selection, &policy)?),
             Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
             Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy),

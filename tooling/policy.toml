@@ -16,6 +16,7 @@ wire_types = [
 ]
 bit_boundary = []
 baseline = "self/lint-baseline.toml"
+gate = "local-gate"
 surfaces = [
     "xtask",
     ".cargo",

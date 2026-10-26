@@ -1,6 +1,7 @@
 mod baseline_file;
 mod bit_boundary;
 mod floor;
+mod gate_status;
 mod least;
 mod limit;
 mod most;
@@ -13,6 +14,7 @@ mod wire_type;
 
 pub use baseline_file::BaselineFile;
 pub use floor::Floor;
+pub use gate_status::GateStatus;
 pub use limit::Limit;
 
 pub use most::Most;
@@ -50,6 +52,8 @@ pub struct Policy {
     surfaces: Vec<Surface>,
     branches: EnumMap<Branch, BranchName>,
     baseline: BaselineFile,
+    #[serde(default)]
+    gate: Option<GateStatus>,
     limits: EnumMap<Limit, Most>,
     floors: EnumMap<Floor, Least>,
     shares: EnumMap<Share, Percent>,
@@ -66,6 +70,7 @@ impl EmbeddedDefaults for Policy {
 
 impl Policy {
     const PATH: &str = "tooling/policy.toml";
+    const GATE: &str = "gate in tooling/policy.toml";
 
     pub fn read(root: &Path) -> Result<Policy, Failure> {
         let path = root.join(Self::PATH);
@@ -137,6 +142,10 @@ impl Policy {
         &self.baseline
     }
 
+    pub fn gate(&self) -> Result<&GateStatus, Failure> {
+        self.gate.as_ref().ok_or(Failure::Unset(Self::GATE))
+    }
+
     #[must_use]
     pub fn bit_boundary(&self) -> &BitBoundary {
         &self.bit_boundary
@@ -177,6 +186,6 @@ mod tests {
     fn the_policy_is_read_from_the_tooling_directory_of_a_workspace_root() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         assert_eq!(Policy::read(&root).unwrap(), Policy::defaults());
-        assert!(Policy::read(&root.join("tooling")).is_err());
+        assert!(Policy::read(&root.join("tooling")).is_err() && Policy::defaults().gate().is_ok());
     }
 }

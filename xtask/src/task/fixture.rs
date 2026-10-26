@@ -19,6 +19,13 @@ impl Fixture {
     }
 
     pub fn branch(&self) {
+        self.commit();
+        Self::ran(Self::git(&self.work).args(["update-ref", "refs/remotes/origin/main", "HEAD"]));
+        fs::write(self.work.join(".git/refs/remotes/origin/HEAD"), "ref: refs/remotes/origin/main\n")
+            .expect("write origin HEAD");
+    }
+
+    pub fn commit(&self) -> &Fixture {
         Self::ran(Self::git(&self.work).args(["add", "--all"]));
         Self::ran(Self::git(&self.work).args([
             "-c",
@@ -30,9 +37,7 @@ impl Fixture {
             "-m",
             "fixture",
         ]));
-        Self::ran(Self::git(&self.work).args(["update-ref", "refs/remotes/origin/main", "HEAD"]));
-        fs::write(self.work.join(".git/refs/remotes/origin/HEAD"), "ref: refs/remotes/origin/main\n")
-            .expect("write origin HEAD");
+        self
     }
 
     pub fn write(&self, path: &str, text: &str) -> &Fixture {

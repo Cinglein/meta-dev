@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use task::{BranchName, CommandLine, Program, Stdout};
 
 use crate::task::failure::Failure;
-use commit::Commit;
+pub use commit::Commit;
 
 #[derive(Debug)]
 pub struct Revision {

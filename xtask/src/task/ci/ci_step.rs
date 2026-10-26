@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use strum::{Display, EnumIter};
 
@@ -23,7 +23,7 @@ pub enum CiStep {
 }
 
 impl CiStep {
-    pub fn timed(self, workspace: &Workspace, selection: &Selection, policy: &Policy) -> Result<(), Failure> {
+    pub fn timed(self, workspace: &Workspace, selection: &Selection, policy: &Policy) -> Result<Duration, Failure> {
         let started = Instant::now();
         let outcome = match self {
             CiStep::Fmt => workspace
@@ -41,7 +41,8 @@ impl CiStep {
                 .map_err(Failure::from)
                 .and_then(|files| Lint::run(workspace.root(), &files, policy)),
         };
-        println!("ci: {self} {:.1?}", started.elapsed());
-        outcome
+        let elapsed = started.elapsed();
+        println!("ci: {self} {elapsed:.1?}");
+        outcome.map(|()| elapsed)
     }
 }
