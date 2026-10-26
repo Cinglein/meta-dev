@@ -23,8 +23,9 @@ impl Checkout {
     const ADD: [&str; 3] = ["worktree", "add", "--detach"];
     const PRUNE: [&str; 2] = ["worktree", "prune"];
     const LIST: [&str; 3] = ["worktree", "list", "--porcelain"];
-    const CHANGES: [&str; 7] =
-        ["status", "--porcelain", "--ignored", "--untracked-files=all", "--", ":/", ":(exclude)Cargo.lock"];
+    const CHANGES: [&str; 6] = ["status", "--porcelain", "--ignored", "--untracked-files=all", "--", ":/"];
+    const UNTRACKED_LOCK: &str = ":(exclude)Cargo.lock";
+    const TRACKED: [&str; 4] = ["ls-files", "--error-unmatch", "--", "Cargo.lock"];
     const NO_HOOKS: [&str; 2] = ["-c", "core.hooksPath=/dev/null"];
     const RUSTUP: &str = "rustup";
     const ACTIVE_TOOLCHAIN: [&str; 2] = ["show", "active-toolchain"];
@@ -99,7 +100,12 @@ impl Checkout {
 
     pub fn intact(&self) -> Result<(), Failure> {
         let head: Commit = Self::git(&self.place).arguments(Self::HEAD).captured::<Stdout>()?.parse()?;
-        let changes = Self::git(&self.root()).arguments(Self::CHANGES).captured::<Stdout>()?;
+        let untracked_lock = Self::git(&self.root())
+            .arguments(Self::TRACKED)
+            .captured::<Stdout>()
+            .map_or(Some(Self::UNTRACKED_LOCK), |_| Some(Self::UNTRACKED_LOCK));
+        let changes =
+            Self::git(&self.root()).arguments(Self::CHANGES).arguments(untracked_lock).captured::<Stdout>()?;
         (head == self.commit && changes.is_empty()).then_some(()).ok_or(Unready::Tampered.into())
     }
 
@@ -172,6 +178,7 @@ impl Drop for Checkout {
 mod tests {
     use std::fs;
     use std::mem;
+    use std::os::unix::fs::symlink;
     use std::path::{Path, PathBuf};
 
     use super::Checkout;
@@ -191,10 +198,16 @@ mod tests {
     const HELD: &str = "lock";
     const UNKNOWN: &str = "0000000";
     const ORPHAN: &str = ".tmpgone.times";
+    const TRACKED_LOCK: &str = "consumer/Cargo.lock";
+    const LOCKFILE: &str = "Cargo.lock";
+    const LOCKED: &str = "version = 4\n";
+    const LOCKED_AGAIN: &str = "version = 3\n";
+    const LINK: &str = "outside";
 
     impl Fixture {
         fn checked_out(&self) -> Checkout {
             self.write(IGNORE, IGNORED).write(COMMITTED, "").write(HELLO, "").write(EXCLUDED, CARGO_CONFIG);
+            self.write(TRACKED_LOCK, LOCKED);
             self.write(CARGO_CONFIG, PROBE).branch();
             self.added()
         }
@@ -220,13 +233,16 @@ mod tests {
         let fixture = Fixture::new();
         let checkout = fixture.checked_out();
         assert!(checkout.root().join("committed.txt").exists() && !checkout.root().join("hello.txt").exists());
-        let outside = checkout.above().is_some_and(|above| checkout.root().starts_with(above))
-            && checkout.holds(&checkout.root())
-            && !checkout.holds(fixture.root());
-        let excluded = checkout.root().with_file_name(CARGO_CONFIG);
-        assert!(outside && !checkout.root().starts_with(fixture.root()) && !excluded.exists());
         let local = checkout.version().is_ok_and(|version| version == MetaRev::local());
         assert!(checkout.scope() == Path::new(SCOPE) && checkout.intact().is_ok() && local);
+        fs::write(checkout.root().join(LOCKFILE), LOCKED_AGAIN).unwrap();
+        let relocked = checkout.intact().is_err();
+        symlink(fixture.root(), checkout.root().join(LINK)).unwrap();
+        let outside = checkout.above().is_some_and(|above| checkout.root().starts_with(above))
+            && checkout.holds(&checkout.root())
+            && !checkout.holds(&checkout.root().join(LINK).join(COMMITTED));
+        let excluded = checkout.root().with_file_name(CARGO_CONFIG);
+        assert!(relocked && outside && !checkout.root().starts_with(fixture.root()) && !excluded.exists());
     }
 
     #[test]

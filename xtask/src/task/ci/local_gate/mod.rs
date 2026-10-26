@@ -63,7 +63,7 @@ impl LocalGate {
     const FIELD: &str = "-f";
     const CHECKOUTS: &str = "meta-local-gate";
     const CARGO: &str = "cargo";
-    const METADATA: [&str; 3] = ["metadata", "--format-version", "1"];
+    const METADATA: [&str; 4] = ["metadata", "--format-version", "1", "--offline"];
     const WORKTREES: [&str; 3] = ["worktree", "list", "--porcelain"];
 
     pub fn new(root: &Path, policy: &Policy) -> Result<LocalGate, Failure> {
@@ -179,6 +179,7 @@ mod tests {
     const TIMED: &str = "fmt 1.0s";
     const POSTED: &str = "-f\nstate=success\n-f\ncontext=local-gate/consumer\n-f\ndescription=meta-dev local on 1.90-x86_64-unknown-linux-gnu: ";
     const TOOLCHAIN: &str = "1.90-x86_64-unknown-linux-gnu";
+    const ALL_FEATURES: &str = "--all-features";
     const FAILED: &str = "state=failure";
     const SURFACED: &str = "; surfaces changed\n";
     const TIMED_ALL: &str = ": fmt 1.0s, clippy 1.0s,";
@@ -207,7 +208,7 @@ mod tests {
     fn only_a_clean_tree_at_a_pushed_head_is_ready() {
         let fixture = Fixture::new();
         let gate = LocalGate::faked(&fixture);
-        assert!(gate.ready().is_ok());
+        assert!(gate.ready().is_ok() && LocalGate::METADATA.contains(&ALL_FEATURES));
         fixture.write(SOURCE, BETA);
         assert!(LocalGate::refused(gate.ready(), Unready::Dirty));
         fixture.committed();
