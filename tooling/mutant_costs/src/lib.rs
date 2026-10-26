@@ -164,17 +164,33 @@ mod tests {
         assert!(small.priced_within(&policy, Interval::DiffJob).is_ok());
     }
 
+    fn measured(seconds: f64, baseline: f64, job: Interval) -> Result<(), Failure> {
+        let policy = Policy::defaults();
+        let one = format!(
+            r#"{{"scenario": {{"Mutant": {{"package": "{AFFECTED}"}}}}, "phase_results": [{{"phase": "Test", "duration": {seconds}}}]}}"#
+        );
+        let base = format!(
+            r#"{{"scenario": "Baseline", "phase_results": [{{"phase": "Build", "duration": {baseline}}}]}}"#
+        );
+        let run = format!(r#"{{"outcomes": [{base}, {}]}}"#, vec![one; SAMPLE].join(", "));
+        MutantCosts::across([vec![Outcomes::parse(&run).unwrap()]], &policy).priced_within(&policy, job)
+    }
+
     #[test]
     fn a_diff_run_may_cost_the_full_price_times_the_diff_factor_and_a_full_run_only_the_full_price() {
-        let policy = Policy::defaults();
-        let measured = |seconds: f64, job| {
-            let one = format!(
-                r#"{{"scenario": {{"Mutant": {{"package": "{AFFECTED}"}}}}, "phase_results": [{{"phase": "Test", "duration": {seconds}}}]}}"#
-            );
-            let run = format!(r#"{{"outcomes": [{}]}}"#, vec![one; SAMPLE].join(", "));
-            MutantCosts::across([vec![Outcomes::parse(&run).unwrap()]], &policy).priced_within(&policy, job)
-        };
-        assert!(CASES.iter().all(|(seconds, job, within)| measured(*seconds, *job).is_ok() == *within));
+        assert!(CASES.iter().all(|(seconds, job, within)| measured(*seconds, 1.0, *job).is_ok() == *within));
+    }
+
+    #[test]
+    fn a_price_or_baseline_ten_percent_over_passes_and_thirty_percent_over_fails() {
+        let full = Interval::FullJob;
+        let outcomes = [
+            measured(1.43, 1.0, full).is_ok(),
+            measured(1.69, 1.0, full).is_ok(),
+            measured(1.3, 16.5, full).is_ok(),
+            measured(1.3, 19.5, full).is_ok(),
+        ];
+        assert_eq!(outcomes, [true, false, true, false]);
     }
 
     #[test]
