@@ -246,3 +246,4 @@
 {"at":"2026-10-26T07:16:13.761126Z","actor":"claude-lead","kind":"IssueReported","issue":"issue-ffe4e6b3dd7d7eed","text":"DISCUSS: meta-dev is public but its crates are UNLICENSED; outside consumers can't legally use it. Choose a license (owner's call)"}
 {"at":"2026-10-26T07:18:42.791492Z","actor":"claude-lead","kind":"IssueReported","issue":"issue-35692b312f55517a","text":"Merged Basho #86 (meta.toml + CLAUDE.md pointer; Basho log seeded with 58 concerns) under lead merge authority; gate was local cargo xtask ci (5m15s, pass) because Basho's private-repo Actions are blocked by billing"}
 {"at":"2026-10-26T07:18:49.792001Z","actor":"claude-lead","kind":"EntryRetired","entry":"issue-35692b312f55517a","text":"record only (merge log)"}
+{"at":"2026-10-26T07:18:51.180978Z","actor":"claude-lead","kind":"TaskDone","task":"task-eec45aca42cdb6ba"}
