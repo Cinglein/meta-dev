@@ -32,13 +32,7 @@ impl GateChild {
     const TARGET: &str = "CARGO_TARGET_DIR";
     const BUILD_DIR: &str = "CARGO_BUILD_BUILD_DIR";
 
-    pub fn new(
-        parent: &Path,
-        target: PathBuf,
-        times: PathBuf,
-        toolchain: Toolchain,
-        ambient: BTreeMap<String, OsString>,
-    ) -> Result<GateChild, Failure> {
+    pub fn new(parent: &Path, target: PathBuf, times: PathBuf, toolchain: Toolchain) -> Result<GateChild, Failure> {
         let home = TempDir::new_in(parent)
             .map_err(|error| task::Failure::Io { site: Site::File(parent.to_path_buf()), error })?;
         let real_home = env::home_dir().unwrap_or_default();
@@ -52,8 +46,13 @@ impl GateChild {
             times,
             toolchain,
             passed: Vec::new(),
-            ambient,
+            ambient: BTreeMap::new(),
         })
+    }
+
+    #[must_use]
+    pub fn seeing(self, ambient: BTreeMap<String, OsString>) -> GateChild {
+        GateChild { ambient, ..self }
     }
 
     #[must_use]
@@ -109,9 +108,9 @@ mod tests {
         let fixture = Fixture::new();
         fs::create_dir_all(fixture.beside()).unwrap();
         let toolchain = TOOLCHAIN.parse().unwrap();
-        let child =
-            GateChild::new(&fixture.beside(), PathBuf::from(TARGET), PathBuf::new(), toolchain, CommandLine::ambient())
-                .unwrap();
+        let child = GateChild::new(&fixture.beside(), PathBuf::from(TARGET), PathBuf::new(), toolchain)
+            .unwrap()
+            .seeing(CommandLine::ambient());
         let shown =
             child.line(Program::Executable(SHELL.into()), fixture.beside()).arguments(SHOWN).captured::<Stdout>();
         let home = child.home.path();
@@ -125,7 +124,6 @@ mod tests {
         let fixture = Fixture::new();
         fs::create_dir_all(fixture.beside()).unwrap();
         let name = GateEnvName::try_from(KNOWN.to_owned()).unwrap();
-        let value = KNOWN_VALUE.to_owned();
         let ambient: BTreeMap<String, OsString> = CommandLine::ambient()
             .into_iter()
             .filter(|(name, _)| name == PATH)
@@ -137,10 +135,20 @@ mod tests {
         };
         let toolchain = || TOOLCHAIN.parse().unwrap();
         let child = || {
-            GateChild::new(&fixture.beside(), PathBuf::from(TARGET), PathBuf::new(), toolchain(), ambient.clone())
+            GateChild::new(&fixture.beside(), PathBuf::from(TARGET), PathBuf::new(), toolchain())
                 .unwrap()
+                .seeing(ambient.clone())
         };
-        assert_eq!(shown(child().passing(std::slice::from_ref(&name))).ok(), Some(value));
+        assert_eq!(shown(child().passing(std::slice::from_ref(&name))).ok().as_deref(), Some(KNOWN_VALUE));
         assert_eq!(shown(child()).ok(), Some(String::new()));
+    }
+
+    #[test]
+    fn the_ambient_environment_is_this_process_environment() {
+        let ambient = CommandLine::ambient();
+        let process: Vec<(String, OsString)> =
+            env::vars_os().filter_map(|(name, value)| name.into_string().ok().map(|name| (name, value))).collect();
+        assert_eq!(ambient.len(), process.len());
+        assert!(process.iter().all(|(name, value)| ambient.get(name) == Some(value)));
     }
 }

@@ -170,9 +170,6 @@ impl fmt::Display for CommandLine {
 #[cfg(test)]
 mod tests {
     use super::{CargoArgument, CommandLine, Program, Stderr, Stdout};
-    use std::collections::BTreeMap;
-    use std::env;
-    use std::ffi::OsString;
     use std::fs::File;
     use std::path::{Path, PathBuf};
     const GIT: &str = "git";
@@ -213,26 +210,6 @@ mod tests {
         assert!(executable(succeeds).run().is_ok() && executable(fails).run().is_err());
         let complained = executable(shell).arguments(TO_STDERR).captured::<Stderr>();
         assert_eq!(complained.ok().as_deref(), Some(SAID));
-    }
-
-    #[test]
-    fn the_ambient_environment_is_this_process_environment_and_a_given_one_replaces_it() {
-        let ambient = CommandLine::ambient();
-        let expected: Vec<(String, OsString)> = env::vars_os()
-            .filter_map(|(name, value)| name.into_string().ok().map(|name| (name, value)))
-            .collect();
-        assert!(
-            ambient.len() == expected.len()
-                && expected
-                    .iter()
-                    .all(|(name, value)| ambient.get(name) == Some(value))
-        );
-        let given = BTreeMap::from([(VARIABLE.to_owned(), OsString::from(TARGET))]);
-        let shown = CommandLine::new(Program::Executable(SHELL.into()))
-            .arguments(SHOW_TARGET)
-            .inheriting_only_from(&given, [VARIABLE, INHERITED])
-            .captured::<Stdout>();
-        assert_eq!(shown.ok().as_deref(), Some(TARGET));
     }
 
     #[test]

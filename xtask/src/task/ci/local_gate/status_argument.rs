@@ -3,7 +3,7 @@ use std::path::Path;
 
 use task::{GateEnvName, GateStatus};
 
-use crate::task::ci::local_gate::{GateState, MetaRev, RecordedTimes, Toolchain};
+use crate::task::ci::local_gate::{GateState, MetaRev, RecordedTimes, StatusDescription, Toolchain};
 use crate::task::revision::Commit;
 use crate::task::surfaces::Changed;
 
@@ -26,7 +26,6 @@ pub enum StatusArgument<'post> {
 
 impl StatusArgument<'_> {
     const SURFACES: &str = "; surfaces changed";
-    const PASSED: &str = "; env passed: ";
 }
 
 impl fmt::Display for StatusArgument<'_> {
@@ -39,42 +38,13 @@ impl fmt::Display for StatusArgument<'_> {
             }
             StatusArgument::Context { status, scope } => write!(formatter, "context={status}/{}", scope.display()),
             StatusArgument::Description { version, toolchain, times, surfaces, passed } => {
-                let head = format!("meta-dev {version} on {toolchain}");
                 let names: Vec<&str> = passed.iter().map(GateEnvName::as_str).collect();
                 let surfaced = if surfaces.is_empty() { "" } else { Self::SURFACES };
-                write!(formatter, "description={}", Self::fitted(&head, &times.to_string(), surfaced, &names))
+                let head = format!("meta-dev {version} on {toolchain}");
+                let description = StatusDescription::new(&head, &times.to_string(), surfaced, &names);
+                write!(formatter, "description={description}")
             }
         }
-    }
-}
-
-impl StatusArgument<'_> {
-    const LIMIT: usize = 140;
-    const FAILED: &str = "; failed ";
-    const FAILED_SUFFIX: &str = " failed";
-    const SEPARATOR: &str = ", ";
-
-    fn listed(names: &[&str], hidden: usize) -> String {
-        let more = (hidden > 0).then(|| format!("+{hidden}"));
-        let items: Vec<&str> = names.iter().copied().chain(more.as_deref()).collect();
-        if items.is_empty() { String::new() } else { format!("{}{}", Self::PASSED, items.join(Self::SEPARATOR)) }
-    }
-
-    fn fitted(head: &str, times: &str, surfaced: &str, names: &[&str]) -> String {
-        let failed = times
-            .split(Self::SEPARATOR)
-            .find_map(|entry| entry.strip_suffix(Self::FAILED_SUFFIX).and_then(|_| entry.split(' ').next()))
-            .map(|step| format!("{}{step}", Self::FAILED))
-            .unwrap_or_default();
-        let whole = format!("{head}: {times}{surfaced}{}", Self::listed(names, 0));
-        let without = |kept: usize| {
-            let (shown, hidden) = names.split_at(kept);
-            format!("{head}{failed}{surfaced}{}", Self::listed(shown, hidden.len()))
-        };
-        std::iter::once(whole)
-            .chain((0..=names.len()).rev().map(without))
-            .find(|text| text.chars().count() <= Self::LIMIT)
-            .unwrap_or_else(|| without(0).chars().take(Self::LIMIT).collect())
     }
 }
 
@@ -112,86 +82,6 @@ mod tests {
         };
         assert_eq!(context.to_string(), ROOT_CONTEXT);
         assert_eq!(description.to_string(), UNNOTED);
-    }
-
-    const LIMIT: usize = 140;
-    const ALL_TIMES: &str = "fmt 160.5ms, clippy 1.8s, test 317.9ms, test-time 55.2ms, lint 47.2ms, spec 41.0ns";
-    const FAILED_TIMES: &str = "fmt 160.5ms, clippy 1.8s, test failed";
-    const APPLE: &str = "stable-aarch64-apple-darwin";
-    const MANY: [&str; 4] = ["CHROME", "TERM", "DISPLAY_NAME", "SSH_AUTH_SOCK"];
-
-    fn described(times: &str, toolchain: &str, surfaces: bool, names: &[&str]) -> String {
-        let directory = tempfile::TempDir::new().unwrap();
-        let path = directory.path().join("times");
-        std::fs::write(&path, times).unwrap();
-        let recorded = RecordedTimes::new(path);
-        let changed = Changed::new(if surfaces { vec![PathBuf::from(ANY)] } else { Vec::new() });
-        let passed: Vec<GateEnvName> = names.iter().map(|name| name.to_string().try_into().unwrap()).collect();
-        StatusArgument::Description {
-            version: "be728d0".parse().unwrap(),
-            toolchain: &toolchain.parse().unwrap(),
-            times: &recorded,
-            surfaces: &changed,
-            passed: &passed,
-        }
-        .to_string()
-        .strip_prefix("description=")
-        .unwrap()
-        .to_owned()
-    }
-
-    #[test]
-    fn every_description_fits_and_keeps_the_state_bearing_parts() {
-        let mut checked = 0;
-        for times in [ALL_TIMES, FAILED_TIMES, ""] {
-            for surfaces in [false, true] {
-                for count in 0..=MANY.len() {
-                    let shown = described(times, APPLE, surfaces, &MANY[..count]);
-                    assert!(shown.chars().count() <= LIMIT, "{shown}");
-                    assert!(shown.starts_with("meta-dev be728d0 on "));
-                    assert!(shown.contains(APPLE) && (surfaces == shown.contains("surfaces changed")));
-                    assert!(
-                        !times.contains("failed") || shown.contains("test failed") || shown.contains("failed test")
-                    );
-                    checked += 1;
-                }
-            }
-        }
-        assert_eq!(checked, 30);
-    }
-
-    #[test]
-    fn per_step_times_go_first_when_the_description_is_too_long() {
-        let long = described(ALL_TIMES, APPLE, true, &[]);
-        assert_eq!(long, format!("meta-dev be728d0 on {APPLE}; surfaces changed"));
-        let failed = described(FAILED_TIMES, APPLE, true, &["CHROME"]);
-        assert_eq!(
-            failed,
-            format!("meta-dev be728d0 on {APPLE}: {FAILED_TIMES}; surfaces changed; env passed: CHROME")
-        );
-        let tight = described(&format!("{FAILED_TIMES}, lint 1.0s, spec 1.0s"), APPLE, true, &MANY);
-        assert_eq!(
-            tight,
-            format!(
-                "meta-dev be728d0 on {APPLE}; failed test; surfaces changed; env passed: CHROME, TERM, DISPLAY_NAME, SSH_AUTH_SOCK"
-            )
-        );
-        let dropped = described(ALL_TIMES, APPLE, true, &MANY);
-        assert_eq!(
-            dropped,
-            format!(
-                "meta-dev be728d0 on {APPLE}; surfaces changed; env passed: CHROME, TERM, DISPLAY_NAME, SSH_AUTH_SOCK"
-            )
-        );
-    }
-
-    #[test]
-    fn names_that_cannot_fit_are_counted_and_a_huge_toolchain_is_cut_at_the_limit() {
-        let names = ["AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "BBBBBBBBBBBBBBBBBBBBBBBBBBBB", "CCCCCCCCCCCCCCCCCCCCCCCCCCCC"];
-        let counted = described(ALL_TIMES, APPLE, true, &names);
-        assert_eq!(counted, format!("meta-dev be728d0 on {APPLE}; surfaces changed; env passed: {}, +2", names[0]));
-        let cut = described(ALL_TIMES, &"x".repeat(300), true, &names);
-        assert_eq!(cut.chars().count(), LIMIT);
     }
 
     #[test]
