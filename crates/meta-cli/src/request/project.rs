@@ -11,7 +11,7 @@ use crate::request::ci::{Commit, ReflogEntry, StartMoment};
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
 use crate::request::timed_command::TimedCommand;
-pub use config::{BranchName, CiSettings, Config, HeartbeatSettings, LogWindow, ProgramName, Seconds};
+pub use config::{BranchName, CiSettings, Config, HeartbeatSettings, LogWindow, ProgramName, TickLimit};
 #[cfg(test)]
 mod tests;
 

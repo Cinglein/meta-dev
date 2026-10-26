@@ -1,32 +1,69 @@
+mod heartbeat_flag;
+
+use std::fmt;
 use std::path::Path;
+use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use meta_schema::DueTime;
+use meta_status::Flags;
 
-use super::heartbeat_flag::HeartbeatFlag;
 use super::heartbeat_record::HeartbeatRecord;
+use super::snapshot::Snapshot;
 use crate::request::cli_failure::CliFailure;
 use crate::request::output::{Listed, Output};
 use crate::request::project::HeartbeatSettings;
+use heartbeat_flag::HeartbeatFlag;
 
 #[derive(Debug)]
-pub struct LatestFlags;
+pub struct LatestFlags {
+    seen: Option<Snapshot>,
+    age: Duration,
+    stale: Option<HeartbeatFlag>,
+}
 
 impl LatestFlags {
     pub fn answer(git_dir: &Path, settings: &HeartbeatSettings, now: DateTime<Utc>) -> Result<Output, CliFailure> {
-        let Some(record) = HeartbeatRecord::read(git_dir)? else {
-            return Ok(Output::Flagged(Listed::new(format!("flags:\n{}", HeartbeatFlag::NeverTicked))));
-        };
-        let latest = record.latest();
-        let age = latest.age(now);
-        let limit = settings.stale_limit();
-        let stale = (age > limit).then_some(HeartbeatFlag::Stale { age, limit });
-        let body = format!("{}{}", stale.map(|stale| stale.to_string()).unwrap_or_default(), latest.flags());
-        let flags = Some(body)
-            .filter(|body| !body.is_empty())
-            .map_or_else(|| "flags: none\n".to_owned(), |body| format!("flags:\n{body}"));
-        let text = Listed::new(format!("heartbeat {}, {}s ago\n{flags}", DueTime::from(latest.at()), age.as_secs()));
-        let judged = stale.is_some() || latest.flags().awaiting_judgement().raised().is_some();
-        Ok(if judged { Output::Flagged(text) } else { Output::Listed(text) })
+        let record = HeartbeatRecord::read(git_dir)?;
+        Ok(record.map_or_else(Self::never_ticked, |record| Self::seen(record.latest().clone(), settings, now)).output())
+    }
+
+    fn never_ticked() -> Self {
+        Self { seen: None, age: Duration::ZERO, stale: Some(HeartbeatFlag::NeverTicked) }
+    }
+
+    fn seen(snapshot: Snapshot, settings: &HeartbeatSettings, now: DateTime<Utc>) -> Self {
+        let age = snapshot.age(now);
+        let stale = settings.stale_limit().passed_by(age).map(|limit| HeartbeatFlag::Stale { age, limit });
+        Self { seen: Some(snapshot), age, stale }
+    }
+
+    fn flags(&self) -> Flags {
+        self.seen.as_ref().map(|snapshot| snapshot.flags().clone()).unwrap_or_default()
+    }
+
+    fn output(self) -> Output {
+        let stale = self.stale.map(|_| ());
+        match stale.or_else(|| self.flags().awaiting_judgement().raised().map(|_| ())) {
+            Some(()) => Output::Flagged(Listed::new(self)),
+            None => Output::Listed(Listed::new(self)),
+        }
+    }
+}
+
+impl fmt::Display for LatestFlags {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.seen.iter().try_for_each(|snapshot| {
+            writeln!(formatter, "heartbeat {}, {}s ago", DueTime::from(snapshot.taken()), self.age.as_secs())
+        })?;
+        let flags = self.flags();
+        match (self.stale, flags.raised()) {
+            (None, None) => writeln!(formatter, "flags: none"),
+            (stale, _) => {
+                writeln!(formatter, "flags:")?;
+                stale.iter().try_for_each(|stale| write!(formatter, "{stale}"))?;
+                write!(formatter, "{flags}")
+            }
+        }
     }
 }

@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use serde::Deserialize;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(transparent)]
 pub struct Seconds(NonZeroU64);
 

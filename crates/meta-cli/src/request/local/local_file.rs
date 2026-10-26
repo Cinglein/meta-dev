@@ -32,10 +32,10 @@ impl LocalFile {
             .map_err(|failure| self.failure(failure))
     }
 
-    pub fn replaced(&self, text: impl fmt::Display) -> Result<(), CliFailure> {
+    pub fn replaced(&self, text: &str) -> Result<(), CliFailure> {
         let staged = self.0.with_extension(Self::STAGED_EXTENSION);
         self.0.parent().map_or(Ok(()), std::fs::create_dir_all).map_err(|failure| self.failure(failure))?;
-        std::fs::write(&staged, format!("{text}{}", Self::NEWLINE))
+        std::fs::write(&staged, text)
             .and_then(|()| std::fs::rename(&staged, &self.0))
             .map_err(|failure| self.failure(failure))
     }

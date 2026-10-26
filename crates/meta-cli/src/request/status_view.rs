@@ -23,12 +23,12 @@ impl StatusView {
                 let status = Status::new(&state, &github, Utc::now().into());
                 Ok(Output::Listed(Listed::new(status).then(snapshot)))
             }
-            Self::Flags => Self::current_flags(log, github).map(|flags| {
-                flags
-                    .raised()
-                    .map_or_else(|| Output::Listed(Listed::new("")), |raised| Output::Flagged(Listed::new(raised)))
-            }),
+            Self::Flags => Self::current_flags(log, github).map(|flags| Self::flagged(&flags)),
         }
+    }
+
+    fn flagged(flags: &Flags) -> Output {
+        flags.raised().map_or_else(|| Output::Listed(Listed::new("")), |raised| Output::Flagged(Listed::new(raised)))
     }
 
     pub fn current_flags(log: &impl LogStore, github: impl FnOnce(&LiveQuery) -> Github) -> Result<Flags, CliFailure> {

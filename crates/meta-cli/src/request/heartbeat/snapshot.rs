@@ -8,18 +8,18 @@ use super::gc_hook::GcHook;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Snapshot {
-    at: DateTime<Utc>,
+    taken: DateTime<Utc>,
     flags: Flags,
     gc: GcHook,
 }
 
 impl Snapshot {
-    pub fn new(at: DateTime<Utc>, flags: Flags, gc: GcHook) -> Self {
-        Self { at, flags, gc }
+    pub fn new(taken: DateTime<Utc>, flags: Flags, gc: GcHook) -> Self {
+        Self { taken, flags, gc }
     }
 
-    pub fn at(&self) -> DateTime<Utc> {
-        self.at
+    pub fn taken(&self) -> DateTime<Utc> {
+        self.taken
     }
 
     pub fn flags(&self) -> &Flags {
@@ -27,6 +27,6 @@ impl Snapshot {
     }
 
     pub fn age(&self, now: DateTime<Utc>) -> Duration {
-        (now - self.at).to_std().unwrap_or_default()
+        (now - self.taken).to_std().unwrap_or_default()
     }
 }

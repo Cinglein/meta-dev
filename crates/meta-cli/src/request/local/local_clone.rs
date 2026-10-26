@@ -1,4 +1,5 @@
 mod git;
+mod git_dir;
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -18,11 +19,12 @@ use crate::request::output::{Listed, Output};
 use crate::request::project::Project;
 use crate::request::writing::Writing;
 use git::Git;
+use git_dir::GitDir;
 
 #[derive(Debug)]
 pub struct LocalClone {
     checkout: PathBuf,
-    git_dir: PathBuf,
+    git_dir: GitDir,
 }
 
 impl LocalClone {
@@ -31,14 +33,14 @@ impl LocalClone {
     const EMAIL_KEYS: [&'static str; 3] = ["user.email", "author.email", "committer.email"];
 
     pub fn new(checkout: PathBuf, git_dir: PathBuf) -> Self {
-        Self { checkout, git_dir }
+        Self { checkout, git_dir: GitDir::new(git_dir) }
     }
 
     pub fn checkout(&self) -> &Path {
         &self.checkout
     }
 
-    pub fn git_dir(&self) -> &Path {
+    pub fn git_dir(&self) -> &GitDir {
         &self.git_dir
     }
 
@@ -82,7 +84,10 @@ impl LocalClone {
                 })?;
             worktree.output(&["reset", "--hard", "--quiet"].map(OsStr::new))?;
             let created = std::fs::canonicalize(&path).map_err(CliFailure::raised::<Setup>)?;
-            LocalTrail::append(&self.git_dir, &TrailEntry::Created(RecordedWorktree::new(created.clone(), task)))?;
+            LocalTrail::append(
+                self.git_dir.as_ref(),
+                &TrailEntry::Created(RecordedWorktree::new(created.clone(), task)),
+            )?;
             Ok(created)
         };
         let created = settled().map_err(|failure| self.rolled_back(Some(&path), new_branch, failure))?;
@@ -90,7 +95,7 @@ impl LocalClone {
             || {
                 Writing::new(&log, actor, event).entered().map(|written| written.to_string()).map_err(|failure| {
                     let removed = TrailEntry::Removed { path: created.clone(), at: Utc::now() };
-                    let failure = LocalTrail::append(&self.git_dir, &removed).err().unwrap_or(failure);
+                    let failure = LocalTrail::append(self.git_dir.as_ref(), &removed).err().unwrap_or(failure);
                     self.rolled_back(Some(&path), new_branch, failure)
                 })
             },
@@ -100,7 +105,7 @@ impl LocalClone {
     }
 
     pub fn worktrees(&self, project: &Project) -> Result<Output, CliFailure> {
-        let trail = LocalTrail::read(&self.git_dir)?;
+        let trail = LocalTrail::read(self.git_dir.as_ref())?;
         let state = State::fold(project.log()?.read()?.records());
         let listed = Git::new(&self.checkout).output(&["worktree", "list", "--porcelain"].map(OsStr::new))?;
         let paths: Vec<PathBuf> = listed

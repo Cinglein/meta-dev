@@ -1,17 +1,19 @@
+mod xml_text;
+
 use std::ffi::OsString;
 use std::fmt;
 use std::path::{Component, Path, PathBuf};
 
-use super::xml_text::XmlText;
 use crate::request::local::LocalClone;
-use crate::request::project::{HeartbeatSettings, Seconds};
+use crate::request::project::HeartbeatSettings;
+use xml_text::XmlText;
 
 #[derive(Debug)]
 pub struct LaunchdPlist {
     program: PathBuf,
     checkout: PathBuf,
     log: PathBuf,
-    interval: Seconds,
+    settings: HeartbeatSettings,
     search_path: OsString,
 }
 
@@ -23,8 +25,8 @@ impl LaunchdPlist {
         Self {
             program,
             checkout: clone.checkout().to_path_buf(),
-            log: clone.git_dir().join(Self::LOG),
-            interval: settings.interval(),
+            log: clone.git_dir().as_ref().join(Self::LOG),
+            settings: *settings,
             search_path,
         }
     }
@@ -82,7 +84,7 @@ impl fmt::Display for LaunchdPlist {
             program = Self::text(&self.program),
             checkout = Self::text(&self.checkout),
             search_path = XmlText::new(&self.search_path.to_string_lossy()),
-            interval = self.interval,
+            interval = self.settings.interval(),
             log = Self::text(&self.log),
         )
     }

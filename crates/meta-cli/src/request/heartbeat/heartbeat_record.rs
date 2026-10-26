@@ -18,11 +18,7 @@ impl HeartbeatRecord {
     pub fn read(git_dir: &Path) -> Result<Option<Self>, CliFailure> {
         let file = LocalFile::new(git_dir.join(Self::FILE));
         let text = file.text()?;
-        Some(text.trim())
-            .filter(|text| !text.is_empty())
-            .map(serde_json::from_str)
-            .transpose()
-            .map_err(|failure| file.failure(failure))
+        (!text.is_empty()).then(|| serde_json::from_str(&text)).transpose().map_err(|failure| file.failure(failure))
     }
 
     pub fn succeeding(before: Option<Self>, latest: Snapshot) -> Self {
@@ -31,7 +27,7 @@ impl HeartbeatRecord {
 
     pub fn write(&self, git_dir: &Path) -> Result<(), CliFailure> {
         let file = LocalFile::new(git_dir.join(Self::FILE));
-        file.replaced(serde_json::to_string(self).map_err(|failure| file.failure(failure))?)
+        file.replaced(&serde_json::to_string(self).map_err(|failure| file.failure(failure))?)
     }
 
     pub fn latest(&self) -> &Snapshot {

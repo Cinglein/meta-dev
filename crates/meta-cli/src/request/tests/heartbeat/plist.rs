@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use super::{SETTINGS, settings};
+use super::{Beat, SETTINGS};
 use crate::request::Request;
 use crate::request::heartbeat::{Heartbeat, LaunchdPlist};
 use crate::request::local::LocalClone;
@@ -14,7 +14,7 @@ const SEARCH_PATH: &str = "/usr/bin";
 #[test]
 fn the_plist_runs_tick_in_the_clone_on_the_policy_interval_and_escapes_markup() {
     let clone = LocalClone::new(PathBuf::from(CHECKOUT), PathBuf::from(GIT_DIR));
-    let settings = settings(SETTINGS).unwrap();
+    let settings = Beat::settings(SETTINGS).unwrap();
     let plist = LaunchdPlist::new(PathBuf::from(PROGRAM), &clone, &settings, OsString::from(SEARCH_PATH));
     assert_eq!(plist.to_string(), include_str!("plist.plist"));
 }

@@ -8,7 +8,7 @@ use serde::Deserialize;
 use crate::request::cli_failure::{CliFailure, Setup};
 pub use branch_name::BranchName;
 pub use ci_settings::{CiSettings, LogWindow, ProgramName};
-pub use heartbeat_settings::{HeartbeatSettings, Seconds};
+pub use heartbeat_settings::{HeartbeatSettings, TickLimit};
 
 #[derive(Debug, Default, Deserialize)]
 pub struct Config {
@@ -33,14 +33,6 @@ impl Config {
         let mut merged: toml::Table = toml::from_str(CiSettings::DEFAULTS).unwrap_or_default();
         merged.extend(self.ci.clone());
         toml::Value::Table(merged).try_into().unwrap_or_default()
-    }
-
-    pub fn heartbeat_settings(&self) -> Result<HeartbeatSettings, CliFailure> {
-        let mut merged: toml::Table = toml::from_str(HeartbeatSettings::DEFAULTS).unwrap_or_default();
-        merged.extend(self.heartbeat.clone());
-        toml::Value::Table(merged)
-            .try_into()
-            .map_err(|failure| CliFailure::raised::<Setup>(format!("meta.toml [heartbeat]: {failure}")))
     }
 
     pub fn push_fix(&self, branch: &BranchName) -> &'static str {
