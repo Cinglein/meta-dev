@@ -1,5 +1,6 @@
 #![allow(clippy::unwrap_used)]
 
+use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, Output};
 
@@ -20,6 +21,16 @@ impl Git {
 
     fn run(dir: &Path, words: &[&str]) -> Output {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
+    }
+
+    fn link_origin(dir: &Path, url: &str) {
+        let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(dir.join(".git/config"))
+            .unwrap()
+            .write_all(remote.as_bytes())
+            .unwrap();
     }
 }
 
@@ -58,7 +69,7 @@ impl Project {
         let clone = tempfile::tempdir().unwrap();
         Git::run(origin.path(), &["init", "-q", "--bare"]);
         Git::run(clone.path(), &["init", "-q"]);
-        Git::run(clone.path(), &["remote", "add", "origin", origin.path().to_str().unwrap()]);
+        Git::link_origin(clone.path(), origin.path().to_str().unwrap());
         std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
         Self { origin, clone }
     }

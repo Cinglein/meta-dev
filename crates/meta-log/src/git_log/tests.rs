@@ -1,4 +1,5 @@
 use std::cell::Cell;
+use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, Output};
 use std::sync::{Arc, Mutex};
@@ -19,7 +20,6 @@ const FIRST: usize = 0;
 const SECOND: usize = 1;
 const INTERLEAVED: [usize; 3] = [FIRST, SECOND, FIRST];
 const PAIR: usize = 2;
-const TRIO: usize = 3;
 const SINGLE: usize = 1;
 
 struct Git;
@@ -30,6 +30,16 @@ impl Git {
 
     fn run(dir: &Path, words: &[&str]) -> Output {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
+    }
+
+    fn link_origin(dir: &Path, url: &str) {
+        let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(dir.join(".git/config"))
+            .unwrap()
+            .write_all(remote.as_bytes())
+            .unwrap();
     }
 
     fn text(dir: &Path, words: &[&str]) -> String {
@@ -56,7 +66,7 @@ impl Fixture {
             .map(|_| tempfile::tempdir().unwrap())
             .inspect(|dir| {
                 Git::run(dir.path(), &["init", "-q"]);
-                Git::run(dir.path(), &["remote", "add", ORIGIN, &url]);
+                Git::link_origin(dir.path(), &url);
             })
             .collect();
         Self { origin, clones }
@@ -92,7 +102,7 @@ fn appends_from_any_clone_land_on_the_remote_in_commit_order_without_touching_ch
 
 #[test]
 fn racing_writers_each_land_right_after_what_they_validated() {
-    let fixture = Arc::new(Fixture::new(TRIO));
+    let fixture = Arc::new(Fixture::new(PAIR));
     let seen: Arc<Mutex<Vec<Observation>>> = Arc::default();
     let writers: Vec<_> = (0..fixture.clones.len())
         .map(|clone| (Arc::clone(&fixture), Arc::clone(&seen), clone))

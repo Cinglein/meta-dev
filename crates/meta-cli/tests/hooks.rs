@@ -34,6 +34,16 @@ impl Git {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
     }
 
+    fn link_origin(dir: &Path, url: &str) {
+        let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(dir.join(".git/config"))
+            .unwrap()
+            .write_all(remote.as_bytes())
+            .unwrap();
+    }
+
     fn head(dir: &Path, reference: &str) -> Revision {
         Revision(String::from_utf8_lossy(&Self::run(dir, &["rev-parse", reference]).stdout).into_owned())
     }
@@ -53,7 +63,7 @@ impl Repo {
         let clone = tempfile::tempdir().unwrap();
         Git::run(origin.path(), &["init", "-q", "--bare"]);
         Git::run(clone.path(), &["init", "-q"]);
-        Git::run(clone.path(), &["remote", "add", "origin", origin.path().to_str().unwrap()]);
+        Git::link_origin(clone.path(), origin.path().to_str().unwrap());
         std::fs::write(clone.path().join("meta.toml"), CONFIG).unwrap();
         Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "start"]);
         Self { origin, clone }
