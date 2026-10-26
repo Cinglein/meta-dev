@@ -420,3 +420,4 @@
 {"at":"2026-10-26T22:34:15.034036Z","actor":"claude-spec-budgets","kind":"TaskLinked","task":"task-53187bf6c8854ddf","pr":29}
 {"at":"2026-10-26T22:36:36.447338Z","actor":"claude-gc","kind":"TaskDone","task":"task-448900be3fc44379"}
 {"at":"2026-10-26T22:38:34.139283Z","actor":"claude-spec-budgets","kind":"TaskDone","task":"task-53187bf6c8854ddf"}
+{"at":"2026-10-26T22:49:44.874707Z","actor":"claude-budget-core","kind":"TaskLinked","task":"task-7c88d044d84f5724","pr":30}
