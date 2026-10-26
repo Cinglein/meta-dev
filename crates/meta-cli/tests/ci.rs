@@ -97,6 +97,8 @@ const COMPLETIONS: [&str; 5] =
 
 #[path = "ci/pushes.rs"]
 mod pushes;
+#[path = "ci/sessions.rs"]
+mod sessions;
 
 struct Git;
 
@@ -104,8 +106,21 @@ impl Git {
     const IDENTITY: [&'static str; 6] =
         ["-c", "user.name=t", "-c", "user.email=t@meta.invalid", "-c", "init.defaultBranch=main"];
 
+    const LONG_AGO: &'static str = "@1000000000 +0000";
+
     fn run(dir: &Path, words: &[&str]) -> Output {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
+    }
+
+    fn run_long_ago(dir: &Path, words: &[&str]) -> Output {
+        Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(Self::IDENTITY)
+            .args(words)
+            .env("GIT_COMMITTER_DATE", Self::LONG_AGO)
+            .output()
+            .unwrap()
     }
 
     fn link_origin(dir: &Path, url: &str) {
@@ -134,6 +149,7 @@ impl Stale {
 struct Planted;
 
 impl Planted {
+    const SESSION_DIR: &'static str = ".git/meta-ci/ABCDEF1234";
     const STATES: &'static str = ".git/meta-ci/ABCDEF1234/states";
     const PRE_RECEIVE: &'static str = "hooks/pre-receive";
     const REFUSE: &'static str = "#!/bin/sh\nexit 1\n";
@@ -194,15 +210,27 @@ impl Repo {
         std::fs::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
         std::fs::write(clone.path().join("bin/failed.log"), FAILED_LOG).unwrap();
         std::fs::set_permissions(clone.path().join("bin/gh"), std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
-        Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"]);
-        std::fs::write(clone.path().join("bin/head"), Git::run(clone.path(), &["rev-parse", "HEAD"]).stdout).unwrap();
-        Self { origin, clone, scenario }
+        Git::run_long_ago(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"]);
+        std::fs::create_dir_all(clone.path().join(Planted::SESSION_DIR)).unwrap();
+        std::fs::write(clone.path().join(Planted::SESSION_DIR).join("started"), "0").unwrap();
+        let repo = Self { origin, clone, scenario };
+        repo.fail_at(repo.clone.path());
+        repo
+    }
+
+    fn fail_at(&self, dir: &Path) {
+        std::fs::write(self.clone.path().join("bin/head"), Git::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap();
     }
 
     fn hook(&self, event: &str, command: &str) -> String {
+        self.hook_as(self.clone.path(), SESSION, event, command)
+    }
+
+    fn hook_as(&self, cwd: &Path, session: &str, event: &str, command: &str) -> String {
         let input = format!(
-            r#"{{"session_id":"ABCDEF12-34","cwd":{},"tool_input":{{"command":{}}}}}"#,
-            serde_json::to_string(self.clone.path()).unwrap(),
+            r#"{{"session_id":{},"cwd":{},"tool_input":{{"command":{}}}}}"#,
+            serde_json::to_string(session).unwrap(),
+            serde_json::to_string(cwd).unwrap(),
             serde_json::to_string(command).unwrap()
         );
         let path = format!("{}:{}", self.clone.path().join("bin").display(), std::env::var("PATH").unwrap_or_default());
