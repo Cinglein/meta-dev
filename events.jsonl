@@ -216,3 +216,4 @@
 {"at":"2026-10-26T05:39:03.584366Z","actor":"claude-mutants-tooling","kind":"TaskClaimed","task":"task-e8dcb50bda65a940"}
 {"at":"2026-10-26T05:45:58.498541Z","actor":"claude-adopt-affected","kind":"TaskDone","task":"task-8622ca930b87f40e"}
 {"at":"2026-10-26T05:52:52.264471Z","actor":"claude-mutants-tooling","kind":"TaskDone","task":"task-e8dcb50bda65a940"}
+{"at":"2026-10-26T06:09:03.163171Z","actor":"claude-lead","kind":"TaskOpened","task":"task-cf9c88d496fd7589","text":"Restore cargo xtask graph (per-crate items, edges, largest tangles, best cut and sides) removed in #31; kill its mutants with tests that observe the printed report, no exclusions"}
