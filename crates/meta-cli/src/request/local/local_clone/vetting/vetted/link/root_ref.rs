@@ -7,10 +7,6 @@ impl RootRef {
     const PEELED: &'static str = "^{commit}";
     const ALPHABET: &'static str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_";
 
-    pub fn name(&self) -> &str {
-        &self.0
-    }
-
     pub fn peeled(&self) -> String {
         [self.0.as_str(), Self::PEELED].concat()
     }
