@@ -78,7 +78,7 @@ impl Project {
         let pushed: Vec<Commit> = unpushed.map_or_else(Vec::new, |unpushed| {
             commits.iter().filter(|commit| !unpushed.contains(commit)).cloned().collect()
         });
-        pushed.first().and_then(|_| self.independent(&pushed)).unwrap_or_default()
+        pushed.get(1).and_then(|_| self.independent(&pushed)).unwrap_or(pushed)
     }
 
     pub fn unpushed(&self) -> Option<Commit> {
