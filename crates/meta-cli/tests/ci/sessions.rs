@@ -49,7 +49,8 @@ impl Reviewer {
     }
 }
 
-pub fn a_slow_remote_fails_closed_in_time_and_a_commit_in_the_start_second_is_not_the_sessions() {
+#[test]
+fn a_slow_remote_fails_closed_in_time_and_a_commit_in_the_start_second_is_not_the_sessions() {
     let repo = Repo::limited(FAILURE, QUICK);
     let clone: &Path = repo.clone.path();
     StartFile::plant(repo.sessions.path(), SAME, SAME_AT);
@@ -63,7 +64,8 @@ pub fn a_slow_remote_fails_closed_in_time_and_a_commit_in_the_start_second_is_no
     assert!(slow.contains(UNREACHABLE) && took < SLOW && !same.contains(BLOCK));
 }
 
-pub fn a_commit_in_the_start_second_counts_when_its_object_is_newer() {
+#[test]
+fn a_commit_in_the_start_second_counts_when_its_object_is_newer() {
     let repo = Repo::new(FAILURE);
     let clone: &Path = repo.clone.path();
     let now = Session { repo: &repo, cwd: clone, id: NOW };
@@ -74,7 +76,8 @@ pub fn a_commit_in_the_start_second_counts_when_its_object_is_newer() {
     assert!(now.hook(STOP, COMMIT).contains(BLOCK));
 }
 
-pub fn other_sessions_commits_and_a_read_only_state_dir_never_block() {
+#[test]
+fn other_sessions_commits_and_a_read_only_state_dir_never_block() {
     let repo = Repo::new(FAILURE);
     let other = Reviewer::worktree(&repo);
     Git::run(repo.clone.path(), &PUSH_WORDS);

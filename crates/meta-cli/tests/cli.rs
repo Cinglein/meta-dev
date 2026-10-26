@@ -42,9 +42,6 @@ const NOT_A_DIRECTORY: &str = "/dev/null";
 const IGNORED: &str = "not gitignored";
 const GIT_CALL: &str = "git -C /";
 
-#[path = "support/side_by_side.rs"]
-mod side_by_side;
-
 struct Git;
 
 impl Git {
@@ -155,7 +152,8 @@ impl Project {
     }
 }
 
-pub fn writes_go_to_the_remote_as_meta_actor_else_owner_and_offline_writes_are_refused() {
+#[test]
+fn writes_go_to_the_remote_as_meta_actor_else_owner_and_offline_writes_are_refused() {
     let project = Project::new();
     let opened = project.meta_unset(&ISSUE);
     let listed = project.meta(OWNER, &LIST_ISSUES).to_string();
@@ -166,7 +164,8 @@ pub fn writes_go_to_the_remote_as_meta_actor_else_owner_and_offline_writes_are_r
     assert!(project.meta(OWNER, &ISSUE).complaint().0.contains(OFFLINE));
 }
 
-pub fn claim_with_worktree_makes_a_noreply_worktree_on_the_task_branch_that_worktrees_lists() {
+#[test]
+fn claim_with_worktree_makes_a_noreply_worktree_on_the_task_branch_that_worktrees_lists() {
     let worktrees = tempfile::tempdir().unwrap();
     let project = Project::seeded(worktrees.path());
     let task = project.meta(OWNER, &OPEN).written().0;
@@ -184,7 +183,8 @@ pub fn claim_with_worktree_makes_a_noreply_worktree_on_the_task_branch_that_work
     assert!(listed.ends_with(&named) && listed.matches(UNRECORDED).count() == 1 && run.complaint().0.contains(LINE_2));
 }
 
-pub fn failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_without_a_new_claim() {
+#[test]
+fn failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_without_a_new_claim() {
     let worktrees = tempfile::tempdir().unwrap();
     let project = Project::seeded(Path::new(NOT_A_DIRECTORY));
     let task = project.meta(OWNER, &OPEN).written().0;
@@ -207,16 +207,4 @@ pub fn failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_ba
     assert!(failed == opened && claimed != opened && writes() == claimed);
     assert!(tracked.contains(IGNORED) && unwritable.contains(NOT_A_DIRECTORY) && unwritable.contains(GIT_CALL));
     assert!(resumed.ends_with(&format!("{first}\n")) && Path::new(&first).exists());
-}
-
-#[test]
-fn every_cli_scenario_holds_when_run_side_by_side() {
-    side_by_side::SideBySide::run(&[
-        ("writes", writes_go_to_the_remote_as_meta_actor_else_owner_and_offline_writes_are_refused),
-        ("worktrees", claim_with_worktree_makes_a_noreply_worktree_on_the_task_branch_that_worktrees_lists),
-        (
-            "failed_worktrees",
-            failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_without_a_new_claim,
-        ),
-    ]);
 }
