@@ -1,20 +1,20 @@
-mod open_pull;
-
-use meta_pulls::Nodes;
+use meta_pulls::{LivePull, Page};
 use meta_schema::PullRequest;
 use serde::Deserialize;
-
-use open_pull::OpenPull;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct OpenRepository {
     #[serde(rename = "pullRequests")]
-    pull_requests: Nodes<OpenPull>,
+    pull_requests: Page<LivePull>,
 }
 
 impl OpenRepository {
+    pub fn pull_requests(&self) -> &Page<LivePull> {
+        &self.pull_requests
+    }
+
     #[must_use]
     pub fn orphans(&self, linked: &[PullRequest]) -> Vec<PullRequest> {
-        self.pull_requests.nodes().copied().filter_map(|pull| pull.unlinked(linked)).collect()
+        self.pull_requests.nodes().map(LivePull::number).filter(|number| !linked.contains(number)).collect()
     }
 }

@@ -3,24 +3,22 @@ mod task_line;
 use std::fmt;
 use std::iter::once;
 
-use meta_state::{State, TaskState};
+use meta_state::TaskState;
 
 use super::Status;
-use crate::github::Github;
 use task_line::TaskLine;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Tree<'view> {
-    state: &'view State,
-    github: &'view Github,
+    status: Status<'view>,
 }
 
 impl<'view> Tree<'view> {
     const ROOT: &'static str = "root";
     const INDENT: &'static str = "  ";
 
-    pub fn new(state: &'view State, github: &'view Github) -> Self {
-        Self { state, github }
+    pub fn new(status: Status<'view>) -> Self {
+        Self { status }
     }
 
     fn headers(task: &TaskState) -> Vec<String> {
@@ -39,13 +37,13 @@ impl<'view> Tree<'view> {
 
 impl fmt::Display for Tree<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut tasks: Vec<&TaskState> = Status::active(self.state).collect();
+        let mut tasks: Vec<&TaskState> = self.status.shown().collect();
         tasks.sort_by_key(|task| task.new_task().placement().division().cloned());
         let lineages: Vec<Vec<String>> = tasks.iter().map(|task| Self::headers(task)).collect();
         let previous = once(None).chain(lineages.iter().map(Some));
         tasks.iter().zip(&lineages).zip(previous).try_for_each(|((task, lineage), before)| {
             Self::fresh(lineage, before).iter().try_for_each(|header| writeln!(formatter, "{header}"))?;
-            let line = TaskLine::new(self.state, self.github, task);
+            let line = TaskLine::new(self.status, task);
             writeln!(formatter, "{}{line}", Self::INDENT.repeat(lineage.len()))
         })
     }

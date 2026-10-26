@@ -1,30 +1,34 @@
-mod open_repository;
-
-use std::collections::HashMap;
-
+use meta_pulls::RuledPull;
 use meta_schema::PullRequest;
-use serde::Deserialize;
 
-use meta_pulls::LivePull;
+use crate::pulls::Pulls;
+use crate::rulebook::Rulebook;
 
-use crate::pull_alias::PullAlias;
-use open_repository::OpenRepository;
-
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct LiveData {
-    open: OpenRepository,
-    #[serde(default)]
-    linked: HashMap<PullAlias, Option<LivePull>>,
+    pulls: Pulls,
+    rules: Rulebook,
 }
 
 impl LiveData {
     #[must_use]
-    pub fn pull(&self, pull_request: PullRequest) -> Option<&LivePull> {
-        self.linked.get(&PullAlias::new(pull_request)).and_then(Option::as_ref)
+    pub fn new(pulls: Pulls, rules: Rulebook) -> Self {
+        Self { pulls, rules }
     }
 
     #[must_use]
-    pub fn open(&self) -> &OpenRepository {
-        &self.open
+    pub fn pull(&self, pull_request: PullRequest) -> Option<RuledPull<'_>> {
+        let pull = self.pulls.pull(pull_request)?;
+        self.rules.required(pull.base()).map(|required| RuledPull::new(pull, required))
+    }
+
+    #[must_use]
+    pub fn orphans(&self, linked: &[PullRequest]) -> Vec<PullRequest> {
+        self.pulls.open().orphans(linked)
+    }
+
+    #[must_use]
+    pub fn truncated(&self) -> Option<()> {
+        self.pulls.open().pull_requests().page_info().truncated()
     }
 }

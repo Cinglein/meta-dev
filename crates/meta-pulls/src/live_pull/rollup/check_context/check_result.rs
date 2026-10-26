@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::live_pull::verdict::Verdict;
+use crate::verdict::Verdict;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]

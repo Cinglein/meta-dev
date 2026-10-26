@@ -2,23 +2,23 @@ mod check_result;
 
 use serde::Deserialize;
 
-use super::requirement::Requirement;
-use crate::live_pull::verdict::Verdict;
+use crate::check_name::CheckName;
+use crate::verdict::Verdict;
 use check_result::CheckResult;
 
-#[derive(Clone, Copy, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct CheckContext {
     #[serde(default)]
     result: Option<CheckResult>,
-    required: Requirement,
+    name: CheckName,
 }
 
 impl CheckContext {
-    pub fn verdict(self) -> Verdict {
+    pub fn verdict(&self) -> Verdict {
         self.result.map_or(Verdict::Pending, CheckResult::verdict)
     }
 
-    pub fn requirement(self) -> Requirement {
-        self.required
+    pub fn named(&self, name: &CheckName) -> Option<&Self> {
+        (self.name == *name).then_some(self)
     }
 }

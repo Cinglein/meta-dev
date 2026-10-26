@@ -1,14 +1,13 @@
 use std::fmt;
 
-use meta_state::{State, TaskState};
+use meta_state::TaskState;
 
-use crate::github::Github;
+use crate::status::Status;
 use crate::status::effort_spend::EffortSpend;
 
 #[derive(Clone, Copy, Debug)]
 pub struct TaskLine<'view> {
-    state: &'view State,
-    github: &'view Github,
+    status: Status<'view>,
     task: &'view TaskState,
 }
 
@@ -16,8 +15,8 @@ impl<'view> TaskLine<'view> {
     const SEPARATOR: &'static str = " | ";
     const SHOWN_WORDS_LEN: usize = 8;
 
-    pub fn new(state: &'view State, github: &'view Github, task: &'view TaskState) -> Self {
-        Self { state, github, task }
+    pub fn new(status: Status<'view>, task: &'view TaskState) -> Self {
+        Self { status, task }
     }
 }
 
@@ -25,11 +24,11 @@ impl fmt::Display for TaskLine<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let planned = self.task.new_task();
         let id = planned.task();
-        write!(formatter, "{id} {}", self.state.status_of(self.task))?;
-        self.task.pull_requests().iter().try_for_each(|pull_request| {
-            write!(formatter, "{}{pull_request} {}", Self::SEPARATOR, self.github.sight(*pull_request))
+        write!(formatter, "{id} {}", self.status.state.status_of(self.task))?;
+        self.status.pulls(self.task).iter().try_for_each(|pull_request| {
+            write!(formatter, "{}{pull_request} {}", Self::SEPARATOR, self.status.github.sight(*pull_request))
         })?;
-        let holders: Vec<String> = self.state.holders(id).iter().map(ToString::to_string).collect();
+        let holders: Vec<String> = self.status.state.holders(id).iter().map(ToString::to_string).collect();
         let held =
             holders.first().map_or_else(|| "no holder".to_owned(), |_| format!("held by {}", holders.join(", ")));
         write!(formatter, "{}{held}", Self::SEPARATOR)?;

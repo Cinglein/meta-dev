@@ -1,5 +1,7 @@
 use std::cell::RefCell;
 
+use meta_log::LogStore as _;
+
 use meta_pull_query::LiveQuery;
 use meta_status::{Github, GithubFailure};
 
@@ -39,4 +41,14 @@ fn status_asks_github_about_linked_pull_requests_and_flags_exit_apart_from_the_t
     assert!(tree.starts_with(HEADER) && tree.ends_with(&format!("{task}{SHOWN_LINK}")));
     let parsed = Request::try_from(STATUS_FLAGS.map(String::from).to_vec()).unwrap();
     assert!(matches!(parsed, Request::Status(StatusView::Flags)));
+}
+
+#[test]
+fn a_second_link_of_the_same_pull_request_is_refused_and_writes_nothing() {
+    let meta = Meta::default();
+    let task = meta.written(OWNER, &OPEN_DASHED);
+    meta.run(OWNER, &[LINK, &task, PULL_REQUEST]).unwrap();
+    let written = meta.0.read().unwrap().records().len();
+    let refused = meta.run(OWNER, &[LINK, &task, PULL_REQUEST]).unwrap_err().to_string();
+    assert!(refused.contains("#12 is already linked") && meta.0.read().unwrap().records().len() == written);
 }

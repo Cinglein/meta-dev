@@ -402,6 +402,7 @@ dependencies = [
  "meta-listing",
  "meta-log",
  "meta-pull-query",
+ "meta-pulls",
  "meta-schema",
  "meta-state",
  "meta-status",
@@ -455,6 +456,7 @@ dependencies = [
 name = "meta-pulls"
 version = "0.1.0"
 dependencies = [
+ "meta-schema",
  "serde",
 ]
 

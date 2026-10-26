@@ -1,29 +1,30 @@
 mod check_context;
-mod requirement;
 
 use serde::Deserialize;
 
 use super::checks::Checks;
-use super::verdict::Verdict;
-use crate::nodes::Nodes;
+use crate::check_name::CheckName;
+use crate::page::Page;
+use crate::required_checks::RequiredChecks;
 use check_context::CheckContext;
-use requirement::Requirement;
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct Rollup {
-    contexts: Nodes<CheckContext>,
+    contexts: Page<CheckContext>,
 }
 
 impl Rollup {
-    pub fn checks(&self) -> Checks {
-        self.worst(Some(Requirement::Required))
-            .map(Checks::Required)
-            .or_else(|| self.worst(None).map(Checks::Unrequired))
+    pub fn checks(&self, required: &RequiredChecks) -> Checks {
+        let named = |name: &CheckName| {
+            self.contexts.nodes().filter_map(|context| context.named(name)).map(CheckContext::verdict).max()
+        };
+        let any = self.contexts.nodes().map(CheckContext::verdict).max();
+        self.contexts
+            .page_info()
+            .truncated()
+            .map(|()| Checks::Truncated)
+            .or_else(|| required.verdict(named).filter(|_| any.is_none()).map(Checks::Required))
+            .or_else(|| any.map(Checks::Unrequired))
             .unwrap_or(Checks::Absent)
-    }
-
-    fn worst(&self, among: Option<Requirement>) -> Option<Verdict> {
-        let counted = |context: &CheckContext| among.is_none_or(|requirement| context.requirement() == requirement);
-        self.contexts.nodes().copied().filter(counted).map(CheckContext::verdict).max()
     }
 }

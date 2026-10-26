@@ -25,8 +25,6 @@ pub struct HookInput {
 }
 
 impl HookInput {
-    const PR_CREATE: &'static [&'static str] = &["gh", "pr", "create"];
-
     pub fn cwd(&self) -> PathBuf {
         self.cwd.clone().or_else(|| std::env::current_dir().ok()).unwrap_or_default()
     }
@@ -48,9 +46,8 @@ impl HookInput {
         unrecorded.or(foreign)
     }
 
-    pub fn publishing(&self) -> Option<()> {
-        let command = self.command()?;
-        command.writes().or_else(|| command.invokes(Self::PR_CREATE))
+    pub fn publishing(&self) -> Option<PathBuf> {
+        self.command()?.publishing_directory(&self.cwd()).map(|_| self.cwd())
     }
 
     pub fn session(&self) -> Option<&SessionId> {
@@ -67,16 +64,21 @@ impl HookInput {
 mod tests {
     use super::HookInput;
 
-    const PUBLISHING: [&str; 3] = ["git push -u origin x", "cd a && gh pr create --fill", "git commit -m y"];
-    const QUIET: [&str; 3] = ["gh pr list", "git status", "gh pr view 1"];
+    const PUBLISHING: [(&str, &str); 4] = [
+        ("git push -u origin x", "/w"),
+        ("cd a && gh pr create --fill", "/w/a"),
+        ("git status; git -C b commit -m y", "/w/b"),
+        ("(cd c && git -C d push) && git push", "/w/c/d"),
+    ];
+    const QUIET: [&str; 3] = ["gh pr list", "git status", "cd a && gh pr view 1"];
 
     #[test]
-    fn pushes_commits_and_pull_request_creation_publish_and_nothing_else() {
+    fn pushes_commits_and_pull_request_creation_publish_from_their_own_directory_and_nothing_else() {
         let publishing = |command: &str| {
-            let input = serde_json::json!({ "tool_input": { "command": command } }).to_string();
-            serde_json::from_str::<HookInput>(&input).unwrap().publishing().is_some()
+            let input = serde_json::json!({ "cwd": "/w", "tool_input": { "command": command } }).to_string();
+            serde_json::from_str::<HookInput>(&input).unwrap().publishing()
         };
-        assert!(PUBLISHING.iter().all(|command| publishing(command)));
-        assert!(QUIET.iter().all(|command| !publishing(command)));
+        assert!(PUBLISHING.iter().all(|(command, directory)| publishing(command) == Some((*directory).into())));
+        assert!(QUIET.iter().all(|command| publishing(command).is_none()));
     }
 }

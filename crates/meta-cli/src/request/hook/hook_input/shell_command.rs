@@ -16,6 +16,8 @@ impl ShellCommand {
     const SEPARATORS: &'static [char] = &[';', '&', '|', '\n'];
     const QUOTES: &'static [char] = &['\'', '"'];
     const PR_MERGE: &'static [&'static str] = &["gh", "pr", "merge"];
+    const PR_CREATE: &'static [&'static str] = &["gh", "pr", "create"];
+    const PUBLISHING: &'static [&'static str] = &["push", "commit"];
     const WRITING: &'static [&'static str] =
         &["commit", "merge", "rebase", "cherry-pick", "revert", "pull", "am", "push"];
 
@@ -31,7 +33,19 @@ impl ShellCommand {
 
     pub fn commit_directories(&self, cwd: &Path) -> Vec<PathBuf> {
         let mut shell = WorkingDirectory::new(cwd);
-        self.segments().filter_map(|words| shell.follow(words)).collect()
+        let writes = |words: &[String]| GitCall::parse(words)?.writes_commits();
+        self.segments().filter_map(|words| shell.follow(words, writes)).collect()
+    }
+
+    pub fn publishing_directory(&self, cwd: &Path) -> Option<PathBuf> {
+        let mut shell = WorkingDirectory::new(cwd);
+        self.segments().find_map(|words| shell.follow(words, Self::publishes))
+    }
+
+    fn publishes(words: &[String]) -> Option<()> {
+        let pushes =
+            GitCall::parse(words).and_then(|call| Self::PUBLISHING.iter().find_map(|subcommand| call.runs(subcommand)));
+        pushes.or_else(|| words.windows(Self::PR_CREATE.len()).any(|window| window == Self::PR_CREATE).then_some(()))
     }
 
     pub fn runs(&self, subcommand: &str) -> Option<()> {

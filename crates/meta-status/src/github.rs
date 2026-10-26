@@ -3,6 +3,7 @@ mod sight;
 use meta_pull_query::LiveData;
 use meta_schema::PullRequest;
 
+use crate::flag::Flag;
 use crate::github_failure::GithubFailure;
 use sight::Sight;
 
@@ -24,16 +25,16 @@ impl Github {
     #[must_use]
     pub fn orphans(&self, linked: &[PullRequest]) -> Vec<PullRequest> {
         match self {
-            Self::Reached(data) => data.open().orphans(linked),
+            Self::Reached(data) => data.orphans(linked),
             Self::Unreached(_) => Vec::new(),
         }
     }
 
     #[must_use]
-    pub fn failure(&self) -> Option<&GithubFailure> {
+    pub fn flag(&self) -> Option<Flag> {
         match self {
-            Self::Reached(_) => None,
-            Self::Unreached(failure) => Some(failure),
+            Self::Reached(data) => data.truncated().map(|()| Flag::TruncatedOpen),
+            Self::Unreached(failure) => Some(Flag::Unreached(failure.clone())),
         }
     }
 }

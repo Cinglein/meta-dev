@@ -19,7 +19,7 @@ impl WorkingDirectory {
         Self { cwd: cwd.to_path_buf(), subshells: Vec::new() }
     }
 
-    pub fn follow(&mut self, words: &[String]) -> Option<PathBuf> {
+    pub fn follow(&mut self, words: &[String], wanted: impl Fn(&[String]) -> Option<()>) -> Option<PathBuf> {
         match words {
             [open] if open == Self::OPEN => {
                 self.subshells.push(self.current());
@@ -34,17 +34,13 @@ impl WorkingDirectory {
                 *self.subshells.last_mut().unwrap_or(&mut self.cwd) = next;
                 None
             }
-            _ => Self::commit_directory(&self.current(), words),
+            _ => wanted(words).map(|()| Self::directory(&self.current(), words)),
         }
     }
 
-    fn commit_directory(current: &Path, words: &[String]) -> Option<PathBuf> {
-        let call = GitCall::parse(words).filter(|call| call.writes_commits().is_some())?;
-        Some(
-            call.directory_words()
-                .iter()
-                .fold(current.to_path_buf(), |directory, word| Self::resolve(&directory, Path::new(word))),
-        )
+    fn directory(current: &Path, words: &[String]) -> PathBuf {
+        let directories = GitCall::parse(words).map(|call| call.directory_words().to_vec()).unwrap_or_default();
+        directories.iter().fold(current.to_path_buf(), |directory, word| Self::resolve(&directory, Path::new(word)))
     }
 
     fn current(&self) -> PathBuf {

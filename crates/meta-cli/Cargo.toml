@@ -15,6 +15,7 @@ meta-log.workspace = true
 meta-listing.workspace = true
 meta-status.workspace = true
 meta-pull-query.workspace = true
+meta-pulls.workspace = true
 meta-state.workspace = true
 meta-gh.workspace = true
 chrono.workspace = true

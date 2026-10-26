@@ -6,6 +6,7 @@ use crate::state::State;
 
 const FIRST: &str = "12";
 const SECOND: &str = "#13";
+const THIRD: &str = "14";
 
 struct Links;
 
@@ -27,7 +28,9 @@ fn a_task_links_several_pull_requests_once_each_and_only_known_tasks_link() {
     let state = State::fold(&script.records);
     let linked: Vec<PullRequest> = state.tasks().iter().flat_map(|task| task.pull_requests().to_vec()).collect();
     assert_eq!(linked, [FIRST.parse().unwrap(), SECOND.parse().unwrap()]);
-    assert!(state.anomalies().is_empty() && script.vet(OWNER, Links::event(&task, SECOND)).is_ok());
+    let duplicate = script.vet(OWNER, Links::event(&task, SECOND));
+    assert!(state.anomalies().is_empty() && duplicate == Err(Refusal::AlreadyLinked(SECOND.parse().unwrap())));
+    assert!(script.vet(OWNER, Links::event(&task, THIRD)).is_ok());
     assert_eq!(script.vet(OWNER, Links::event(&ghost, FIRST)), Err(Refusal::UnknownTask(ghost.task())));
 }
 
