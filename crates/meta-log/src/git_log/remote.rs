@@ -53,19 +53,13 @@ impl Remote {
 
     fn tracking_tip(&self) -> Option<Sha> {
         let tracking = format!("refs/remotes/{}/{}^{{commit}}", self.name, Self::BRANCH);
-        self.git
-            .command(["rev-parse", "--verify", "--quiet"])
-            .arg(tracking)
-            .content()
-            .ok()
-            .map(|content| content.to_string().parse().unwrap_or_else(|never| match never {}))
+        self.git.command(["rev-parse", "--verify", "--quiet"]).arg(tracking).sha().ok()
     }
 
     fn blob_at(&self, tip: Option<&Sha>) -> Result<Content, LogFailure> {
         Ok(tip
             .map(|commit| self.git.command(["cat-file", "blob"]).arg(format!("{commit}:{}", Self::FILE)).content())
             .transpose()?
-            .map(Content::terminated)
             .unwrap_or_default())
     }
 }

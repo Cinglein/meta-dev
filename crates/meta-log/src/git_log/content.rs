@@ -1,5 +1,4 @@
-use std::fmt;
-use std::str::FromStr;
+use std::fmt::{self, Write as _};
 
 use meta_schema::Record;
 
@@ -11,19 +10,14 @@ use crate::snapshot::Snapshot;
 pub struct Content(String);
 
 impl Content {
-    pub fn appended(&self, record: &Record) -> Result<Self, serde_json::Error> {
-        serde_json::to_string(record).map(|line| Self(format!("{}{line}\n", self.0)))
-    }
+    const NEWLINE: char = '\n';
 
-    pub fn terminated(self) -> Self {
-        match self.0.as_str() {
-            "" => self,
-            text => Self(format!("{text}\n")),
-        }
+    pub fn appended(&self, record: &Record) -> Result<Self, serde_json::Error> {
+        serde_json::to_string(record).map(|line| Self(format!("{self}{line}{}", Self::NEWLINE)))
     }
 
     pub fn snapshot(&self) -> Snapshot {
-        self.0.lines().enumerate().fold(Snapshot::default(), |snapshot, (index, line)| {
+        self.0.split_inclusive(Self::NEWLINE).enumerate().fold(Snapshot::default(), |snapshot, (index, line)| {
             match serde_json::from_str(line) {
                 Ok(record) => snapshot.with_record(record),
                 Err(error) => {
@@ -40,33 +34,49 @@ impl From<String> for Content {
     }
 }
 
-impl FromStr for Content {
-    type Err = std::convert::Infallible;
-
-    fn from_str(text: &str) -> Result<Self, Self::Err> {
-        Ok(Self(text.to_owned()))
+impl fmt::Display for Content {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.0)?;
+        match self.0.chars().next_back() {
+            Some(last) if last != Self::NEWLINE => formatter.write_char(Self::NEWLINE),
+            _ => Ok(()),
+        }
     }
 }
 
-impl fmt::Display for Content {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.0)
+impl AsRef<str> for Content {
+    fn as_ref(&self) -> &str {
+        &self.0
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use meta_schema::{Event, NewTask, Record};
+
     use super::Content;
 
     const FUTURE_AND_GARBAGE: &str = "{\"at\":\"2026-10-25T00:00:00Z\",\"actor\":\"a\",\"kind\":\"Later\"}\nnot json\n";
     const SKIPPED: [&str; 2] = ["skipped meta/log line 1", "skipped meta/log line 2"];
+    const UNTERMINATED: &str = "x  \n\n{}";
+    const TERMINATOR: &str = "\n";
+    const WRITER: &str = "writer";
 
     #[test]
     fn unknown_lines_are_listed_and_block_writes() {
-        let snapshot = FUTURE_AND_GARBAGE.parse::<Content>().unwrap().snapshot();
+        let snapshot = Content::from(FUTURE_AND_GARBAGE.to_owned()).snapshot();
         assert_eq!(snapshot.records(), []);
         assert!(snapshot.complete().is_err());
         let shown = snapshot.to_string();
         assert_eq!(shown.lines().filter_map(|line| line.split(':').next()).collect::<Vec<_>>(), SKIPPED);
+    }
+
+    #[test]
+    fn appends_keep_every_earlier_byte() {
+        let record =
+            Record::new(WRITER.parse().unwrap(), Event::TaskOpened(NewTask::new(WRITER.parse().unwrap(), vec![])));
+        let appended = Content::from(UNTERMINATED.to_owned()).appended(&record).unwrap();
+        assert!(appended.as_ref().starts_with(&[UNTERMINATED, TERMINATOR].concat()));
+        assert_eq!(appended.snapshot().records(), [record]);
     }
 }

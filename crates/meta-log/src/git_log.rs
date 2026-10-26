@@ -37,9 +37,9 @@ impl GitLog {
     }
 
     fn commit(&self, tip: Option<&Sha>, content: Content, record: &Record) -> Result<Sha, LogFailure> {
-        let blob = self.git.command(["hash-object", "-w", "--stdin"]).input(content).content()?;
+        let blob = self.git.command(["hash-object", "-w", "--stdin"]).input(content).sha()?;
         let entry = Content::from(format!("100644 blob {blob}\t{}\n", Remote::FILE));
-        let tree = self.git.command(["mktree"]).input(entry).content()?;
+        let tree = self.git.command(["mktree"]).input(entry).sha()?;
         let actor = record.actor().to_string();
         let email = format!("{actor}@meta.invalid");
         let parents = tip.iter().flat_map(|parent| ["-p".to_owned(), parent.to_string()]);
@@ -49,14 +49,13 @@ impl GitLog {
             .arg(tree.to_string())
             .arg("-m")
             .arg(format!("{actor}: {}", record.event()));
-        let commit = parents
+        parents
             .fold(base, GitCommand::arg)
             .env("GIT_AUTHOR_NAME", &actor)
             .env("GIT_AUTHOR_EMAIL", &email)
             .env("GIT_COMMITTER_NAME", &actor)
             .env("GIT_COMMITTER_EMAIL", &email)
-            .content()?;
-        Ok(commit.to_string().parse().unwrap_or_else(|never| match never {}))
+            .sha()
     }
 
     fn attempt(&self, decide: &mut dyn FnMut(&Snapshot) -> Result<Record, LogFailure>) -> Result<Outcome, LogFailure> {

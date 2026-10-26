@@ -1,11 +1,12 @@
 use std::ffi::OsStr;
 use std::fmt;
-use std::io::Write as _;
+use std::io::{self, Write as _};
 use std::process::{Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
 use crate::detail::Detail;
 use crate::git_log::content::Content;
+use crate::git_log::sha::Sha;
 use crate::log_failure::LogFailure;
 
 #[derive(Debug)]
@@ -61,14 +62,21 @@ impl GitCommand {
         self.input
             .as_ref()
             .zip(child.stdin.take())
-            .map(|(content, mut pipe)| pipe.write_all(content.to_string().as_bytes()))
+            .map(|(content, mut pipe)| pipe.write_all(content.as_ref().as_bytes()))
             .transpose()?;
         let output = child.wait_with_output()?;
-        output
-            .status
-            .success()
-            .then(|| Content::from(String::from_utf8_lossy(&output.stdout).trim_end().to_owned()))
-            .ok_or_else(|| LogFailure::Git(Detail::from_reason(&format!("{shown}: {}", Detail::from(&output)))))
+        if output.status.success() {
+            String::from_utf8(output.stdout)
+                .map(Content::from)
+                .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error).into())
+        } else {
+            Err(LogFailure::Git(Detail::from_reason(&format!("{shown}: {}", Detail::from(&output)))))
+        }
+    }
+
+    pub fn sha(self) -> Result<Sha, LogFailure> {
+        let content = self.content()?;
+        Ok(content.as_ref().parse().unwrap_or_else(|never| match never {}))
     }
 }
 
