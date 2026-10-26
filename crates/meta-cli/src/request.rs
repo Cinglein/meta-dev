@@ -5,6 +5,7 @@ mod marker;
 mod output;
 mod parsed;
 mod project;
+mod timed_command;
 
 use meta_listing::{Kind, Scope};
 use meta_log::LogStore;

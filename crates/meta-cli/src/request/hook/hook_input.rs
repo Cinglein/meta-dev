@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use meta_schema::Actor;
 use serde::Deserialize;
 
-use crate::request::ci::SessionId;
+use crate::request::ci::{SessionId, SessionStart};
 use crate::request::output::Listed;
 
 use identity::Identity;
@@ -33,8 +33,17 @@ impl HookInput {
         self.tool_input.as_ref().and_then(ToolInput::command)
     }
 
-    pub fn foreign_commit(&self) -> Option<Listed> {
-        self.command()?.commit_directories(&self.cwd()).iter().find_map(|directory| Identity::refusal_in(directory))
+    pub fn open_session(&self) -> Result<(), Listed> {
+        self.session().map_or(Ok(()), |session| SessionStart::for_session(session).open().map_err(Listed::new))
+    }
+
+    pub fn refusal(&self) -> Option<Listed> {
+        let command = self.command()?;
+        let foreign =
+            command.commit_directories(&self.cwd()).iter().find_map(|directory| Identity::refusal_in(directory));
+        let writing = self.session().zip(command.writes());
+        let unrecorded = writing.and_then(|(session, ())| SessionStart::for_session(session).record().err());
+        unrecorded.or(foreign)
     }
 
     pub fn session(&self) -> Option<&SessionId> {

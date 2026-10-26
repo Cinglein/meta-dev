@@ -48,7 +48,10 @@ impl Shard {
         });
         match self {
             Shard::Whole(_) => packaged,
-            Shard::Slice { slice, .. } => packaged.argument(MutantsArgument::Shard).argument(slice),
+            Shard::Slice { slice, .. } => packaged
+                .argument(MutantsArgument::Shard)
+                .argument(slice)
+                .argument(MutantsArgument::RoundRobin),
         }
     }
 }
@@ -100,7 +103,7 @@ mod tests {
     use crate::command_line::Program;
     const SLICE: &str = "board/0/4";
     const WHOLE: &str = "eval+uci";
-    const SLICE_LINE: &str = "gh --package board --shard 0/4";
+    const SLICE_LINE: &str = "gh --package board --shard 0/4 --sharding=round-robin";
     const WHOLE_LINE: &str = "gh --package eval --package uci";
 
     #[test]

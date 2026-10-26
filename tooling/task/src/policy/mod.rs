@@ -24,6 +24,7 @@ pub use surface::Surface;
 pub use wire_type::WireType;
 
 use std::fs;
+use std::num::NonZeroU64;
 use std::path::Path;
 
 use bit_boundary::BitBoundary;
@@ -41,6 +42,7 @@ use crate::branches::{Branch, BranchName};
 use crate::budget::{
     AvailableGib, CompilerTasks, Interval, MemoryShare, Millis, MutantMillis, MutationCadence,
 };
+use crate::crate_name::CrateName;
 use crate::failure::Failure;
 use crate::name::Name;
 use crate::site::Site;
@@ -74,6 +76,7 @@ impl EmbeddedDefaults for Policy {
 
 impl Policy {
     const PATH: &str = "tooling/policy.toml";
+    const PRICE_STEP: NonZeroU64 = NonZeroU64::new(100).unwrap();
 
     pub fn read(root: &Path) -> Result<Policy, Failure> {
         let path = root.join(Self::PATH);
@@ -120,6 +123,17 @@ impl Policy {
     #[must_use]
     pub fn mutant_millis(&self) -> &MutantMillis {
         &self.mutant_millis
+    }
+
+    #[must_use]
+    pub fn mutant_price(&self, name: &CrateName, job: Interval) -> Millis {
+        let full = self.mutant_millis.for_crate(name);
+        match job {
+            Interval::DiffJob => {
+                self.floors[Floor::DiffFactor].times_rounded_up(full, Self::PRICE_STEP)
+            }
+            _ => full,
+        }
     }
 
     #[must_use]

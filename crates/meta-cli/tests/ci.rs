@@ -9,8 +9,9 @@ use std::time::Duration;
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str =
     "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\nappear_millis = 60\n";
-const PATIENT: &str = "timeout_millis = 300\n";
+const PATIENT: &str = "timeout_millis = 300\nremote_millis = 300\n";
 const FAKE_GH: &str = r#"#!/bin/sh
+[ "$FAKE_GH_SCENARIO" = hang ] && exec sleep 5
 count="$FAKE_GH_DIR/count"
 read -r n < "$count" 2>/dev/null || n=0
 read -r head < "$FAKE_GH_DIR/bin/head"
@@ -54,12 +55,14 @@ const SHELL: &str = "/bin/sh";
 const SETTLE_POLL: Duration = Duration::from_millis(10);
 const SETTLE_LENGTH: usize = 300;
 const SESSION: &str = "ABCDEF12-34";
+const SESSION_FILE: &str = "ABCDEF1234";
 const FAILURE: &str = "failure";
 const SUCCESS: &str = "success";
 const NONE: &str = "none";
 const LATE: &str = "late";
 const BROKEN: &str = "broken";
 const MIXED: &str = "mixed";
+const HANG: &str = "hang";
 const NOT_WATCHED: &str = "CI not watched for";
 const PLAIN_PUSH: &str = "git push";
 const PUSH_WORDS: [&str; 4] = ["push", "-q", "origin", "feature"];
@@ -93,14 +96,36 @@ const FAILED_EVENT: &str = ": failed after";
 const COMPLETIONS: [&str; 5] =
     [": passed after", ": failed after", ": timed-out after", ": unavailable after", ": absent after"];
 
+#[path = "ci/merges.rs"]
+mod merges;
+#[path = "ci/pushes.rs"]
+mod pushes;
+#[path = "ci/review.rs"]
+mod review;
+#[path = "ci/sessions.rs"]
+mod sessions;
+
 struct Git;
 
 impl Git {
     const IDENTITY: [&'static str; 6] =
         ["-c", "user.name=t", "-c", "user.email=t@meta.invalid", "-c", "init.defaultBranch=main"];
 
+    const LONG_AGO: &'static str = "@1000000000 +0000";
+
     fn run(dir: &Path, words: &[&str]) -> Output {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
+    }
+
+    fn run_at(dir: &Path, words: &[&str], date: &str) -> Output {
+        Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(Self::IDENTITY)
+            .args(words)
+            .env("GIT_COMMITTER_DATE", date)
+            .output()
+            .unwrap()
     }
 
     fn link_origin(dir: &Path, url: &str) {
@@ -126,9 +151,128 @@ impl Stale {
     }
 }
 
+struct Started;
+
+impl Started {
+    fn building(scenario: &'static str) -> std::thread::JoinHandle<Repo> {
+        std::thread::spawn(move || {
+            let repo = Repo::new(scenario);
+            repo.hook(POST, COMMIT);
+            repo
+        })
+    }
+}
+
+struct StartFile;
+
+impl StartFile {
+    const ROOT: &'static str = "meta-sessions";
+    const NAME: &'static str = "started";
+    const WRITES: &'static str = "writes";
+    const NANOS: &'static str = "000000000";
+
+    fn second_of(sessions: &Path, session: &str) -> String {
+        let nanos = std::fs::read_to_string(sessions.join(Self::ROOT).join(session).join(Self::NAME)).unwrap();
+        nanos.split_at(nanos.len() - Self::NANOS.len()).0.to_owned()
+    }
+
+    fn plant(sessions: &Path, session: &str, seconds: &str) {
+        let folder = sessions.join(Self::ROOT).join(session);
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(folder.join(Self::NAME), [seconds, Self::NANOS].concat()).unwrap();
+        std::fs::write(folder.join(Self::WRITES), "").unwrap();
+    }
+}
+
+struct FailingHead;
+
+impl FailingHead {
+    fn copy_from(repo: &Repo, dir: &Path) {
+        std::fs::write(repo.clone.path().join("bin/head"), Git::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap();
+    }
+}
+
+struct Planted;
+
+impl Planted {
+    const STATES: &'static str = ".git/meta-ci/ABCDEF1234/states";
+    const PRE_RECEIVE: &'static str = "hooks/pre-receive";
+    const REFUSE: &'static str = "#!/bin/sh\nexit 1\n";
+    const RUNNING: &'static str = "running";
+
+    fn running(repo: &Repo) {
+        let head = String::from_utf8(Git::run(repo.clone.path(), &["rev-parse", "HEAD"]).stdout).unwrap();
+        let states = repo.clone.path().join(Self::STATES);
+        std::fs::create_dir_all(&states).unwrap();
+        std::fs::write(states.join(head.trim()), format!("{} {}", head.trim(), Self::RUNNING)).unwrap();
+    }
+
+    fn refusal(origin: &Path) {
+        let hook = origin.join(Self::PRE_RECEIVE);
+        std::fs::write(&hook, Self::REFUSE).unwrap();
+        std::fs::set_permissions(hook, std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
+    }
+
+    fn locked(dir: &Path) -> std::fs::Permissions {
+        let open = std::fs::metadata(dir).unwrap().permissions();
+        let mut locked = open.clone();
+        locked.set_readonly(true);
+        std::fs::set_permissions(dir, locked).unwrap();
+        open
+    }
+
+    fn twin(repo: &Repo) -> std::process::Child {
+        let head = std::fs::read_to_string(repo.clone.path().join("bin/head")).unwrap();
+        let path = format!("{}:{}", repo.clone.path().join("bin").display(), std::env::var("PATH").unwrap_or_default());
+        Command::new(META)
+            .args(["ci-watch", SESSION, head.trim()])
+            .current_dir(repo.clone.path())
+            .env("PATH", path)
+            .env("FAKE_GH_DIR", repo.clone.path())
+            .env("FAKE_GH_SCENARIO", repo.scenario)
+            .env("TMPDIR", repo.sessions.path())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap()
+    }
+}
+
+struct Session<'repo> {
+    repo: &'repo Repo,
+    cwd: &'repo Path,
+    id: &'repo str,
+}
+
+impl Session<'_> {
+    fn hook(&self, event: &str, command: &str) -> String {
+        let input = format!(
+            r#"{{"session_id":{},"cwd":{},"tool_input":{{"command":{}}}}}"#,
+            serde_json::to_string(self.id).unwrap(),
+            serde_json::to_string(self.cwd).unwrap(),
+            serde_json::to_string(command).unwrap()
+        );
+        let bin = self.repo.clone.path().join("bin");
+        let path = format!("{}:{}", bin.display(), std::env::var("PATH").unwrap_or_default());
+        let mut child = Command::new(META)
+            .args(["hook", event])
+            .env("PATH", path)
+            .env("FAKE_GH_DIR", self.repo.clone.path())
+            .env("FAKE_GH_SCENARIO", self.repo.scenario)
+            .env("TMPDIR", self.repo.sessions.path())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
+        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
+    }
+}
+
 struct Repo {
-    _origin: tempfile::TempDir,
+    origin: tempfile::TempDir,
     clone: tempfile::TempDir,
+    sessions: tempfile::TempDir,
     scenario: &'static str,
 }
 
@@ -144,29 +288,16 @@ impl Repo {
         std::fs::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
         std::fs::write(clone.path().join("bin/failed.log"), FAILED_LOG).unwrap();
         std::fs::set_permissions(clone.path().join("bin/gh"), std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
-        Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"]);
-        std::fs::write(clone.path().join("bin/head"), Git::run(clone.path(), &["rev-parse", "HEAD"]).stdout).unwrap();
-        Self { _origin: origin, clone, scenario }
+        Git::run_at(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"], Git::LONG_AGO);
+        let sessions = tempfile::tempdir().unwrap();
+        StartFile::plant(sessions.path(), SESSION_FILE, "0");
+        let repo = Self { origin, clone, sessions, scenario };
+        FailingHead::copy_from(&repo, repo.clone.path());
+        repo
     }
 
     fn hook(&self, event: &str, command: &str) -> String {
-        let input = format!(
-            r#"{{"session_id":"ABCDEF12-34","cwd":{},"tool_input":{{"command":{}}}}}"#,
-            serde_json::to_string(self.clone.path()).unwrap(),
-            serde_json::to_string(command).unwrap()
-        );
-        let path = format!("{}:{}", self.clone.path().join("bin").display(), std::env::var("PATH").unwrap_or_default());
-        let mut child = Command::new(META)
-            .args(["hook", event])
-            .env("PATH", path)
-            .env("FAKE_GH_DIR", self.clone.path())
-            .env("FAKE_GH_SCENARIO", self.scenario)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()
-            .unwrap();
-        child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
-        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
+        Session { repo: self, cwd: self.clone.path(), id: SESSION }.hook(event, command)
     }
 
     fn session_command(&self, command: &str) -> Waited {
@@ -180,6 +311,7 @@ impl Repo {
             )
             .env("FAKE_GH_DIR", self.clone.path())
             .env("FAKE_GH_SCENARIO", self.scenario)
+            .env("TMPDIR", self.sessions.path())
             .output()
             .unwrap();
         let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
@@ -205,7 +337,7 @@ impl fmt::Display for Repo {
 }
 
 #[test]
-fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
+fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push() {
     let repo = Repo::new(FAILURE);
     repo.hook(POST, COMMIT);
     let waited = repo.session_command(CI_WAIT);
@@ -214,12 +346,18 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
     let shown = format!("{}{stop}{}", waited.0, repo.hook(PRE, COMMIT));
     assert!(waited.0.contains(JOB_FAILED) && !waited.1.success() && stop.contains(BLOCK_REASON));
     assert!(settled.contains(STEP_LISTED) && shown.contains(STEP_LISTED) && shown.contains(CI_LOG_HINT));
+    Git::run(repo.clone.path(), &NEXT_COMMIT);
     let log = repo.session_command(CI_LOG).0;
-    assert!(log.contains(PANIC_BLOCK) && !log.contains(COMPILING));
+    Git::run(repo.clone.path(), &NEXT_COMMIT);
+    repo.hook(POST, COMMIT);
+    repo.session_command(CI_WAIT);
+    let fixed = repo.hook(STOP, COMMIT);
+    assert!(log.contains(PANIC_BLOCK) && !log.contains(COMPILING) && !fixed.contains(BLOCK));
 }
 
 #[test]
 fn passing_or_unstarted_runs_let_the_agent_stop() {
+    let unstarted = Started::building(UNSTARTED);
     let repo = Repo::new(SUCCESS);
     Git::run(repo.clone.path(), &PUSH_WORDS);
     repo.hook(POST, PLAIN_PUSH);
@@ -230,8 +368,7 @@ fn passing_or_unstarted_runs_let_the_agent_stop() {
     Stale::plant(&repo);
     Git::run(repo.clone.path(), &PUSH_WORDS);
     repo.hook(POST, PLAIN_PUSH);
-    let unstarted = Repo::new(UNSTARTED);
-    unstarted.hook(POST, COMMIT);
+    let unstarted = unstarted.join().unwrap();
     let settled = unstarted.settled();
     let wait = unstarted.session_command(CI_WAIT).1;
     let unwatched = repo.hook(STOP, COMMIT);
@@ -245,9 +382,8 @@ fn passing_or_unstarted_runs_let_the_agent_stop() {
 
 #[test]
 fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
-    let repos = [NONE, LATE, BROKEN, MIXED].map(Repo::new);
-    let _: Vec<String> = repos.iter().map(|repo| repo.hook(POST, COMMIT)).collect();
-    let [absent, late, broken, mixed] = repos.each_ref().map(Repo::settled);
+    let repos = [NONE, LATE, BROKEN, MIXED, HANG].map(Started::building).map(|started| started.join().unwrap());
+    let [absent, late, broken, mixed, hung] = repos.each_ref().map(Repo::settled);
     let [none, ..] = &repos;
     assert!(
         absent.contains(ABSENT)
@@ -255,7 +391,11 @@ fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
             && !none.hook(STOP, COMMIT).contains(BLOCK)
             && !none.session_command(CI_WAIT).1.success()
     );
-    assert!(late.contains(NO_RUN_YET) && late.contains(RUN_APPEARED) && late.contains(TIMED_OUT));
+    assert!(
+        [&late, &hung].iter().all(|settled| settled.contains(TIMED_OUT))
+            && late.contains(NO_RUN_YET)
+            && late.contains(RUN_APPEARED)
+    );
     assert!(
         broken.contains(LIST_ERROR)
             && broken.contains(VIEW_ERROR)

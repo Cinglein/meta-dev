@@ -2,7 +2,7 @@ mod log_window;
 mod millis;
 mod program_name;
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::Deserialize;
 
@@ -16,6 +16,7 @@ pub struct CiSettings {
     poll_millis: Millis,
     timeout_millis: Millis,
     appear_millis: Millis,
+    remote_millis: Millis,
     #[serde(flatten)]
     log_window: LogWindow,
 }
@@ -37,6 +38,10 @@ impl CiSettings {
 
     pub fn remaining(&self, waited: Duration) -> Option<Duration> {
         self.timeout_millis.duration().checked_sub(waited).filter(|left| !left.is_zero())
+    }
+
+    pub fn remote_deadline(&self) -> Instant {
+        Instant::now() + self.remote_millis.duration()
     }
 
     pub fn log_window(&self) -> &LogWindow {

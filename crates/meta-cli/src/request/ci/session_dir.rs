@@ -22,6 +22,8 @@ impl SessionDir {
     const SEEN: &'static str = "seen";
     const STATES: &'static str = "states";
     const PARTIAL: &'static str = "partial";
+    const LOCKS: &'static str = "locks";
+    const PROBE: &'static str = "probe";
 
     pub fn for_session(project: &Project, session: &SessionId) -> Option<Self> {
         GitLink::common_dir(project.root()).map(|base| Self(base.join(Self::ROOT).join(session.file_name())))
@@ -67,7 +69,16 @@ impl SessionDir {
         state.matching(commit).map(WatchState::status)
     }
 
-    pub fn watched(&self) -> Option<&Self> {
-        std::fs::read_dir(self.0.join(Self::STATES)).ok()?.next().map(|_| self)
+    pub fn writable(&self) -> std::io::Result<()> {
+        std::fs::create_dir_all(&self.0)?;
+        std::fs::File::create(self.0.join(Self::PROBE))?;
+        std::fs::remove_file(self.0.join(Self::PROBE))
+    }
+
+    pub fn claim(&self, commit: &Commit) -> Option<std::fs::File> {
+        let folder = self.0.join(Self::LOCKS);
+        std::fs::create_dir_all(&folder).ok()?;
+        let lock = std::fs::File::options().create(true).append(true).open(folder.join(commit.argument())).ok()?;
+        lock.try_lock().ok().map(|()| lock)
     }
 }
