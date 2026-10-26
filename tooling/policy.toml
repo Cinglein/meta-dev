@@ -94,24 +94,28 @@ job_setup = 90000
 full_run = ["every_main_push", "weekly", "on_demand"]
 
 [mutant_millis]
-default = 3700
+default = 5200
 
 [mutant_millis.crates]
-affected = 1300
-crate_graph = 1500
-expression_flow = 1400
-fn_shape = 1400
-meta-cli = 2000
-meta-log = 2100
-meta-schema = 7100
-meta-state = 1100
-meta-xtask = 900
-module_nesting = 1300
-mutation = 900
-no_forwarders = 1400
-no_parameter_bags = 1200
-primitive_boundary = 1300
-settings_shape = 1300
-state_graph = 1400
-task = 3700
-test_budget = 1500
+affected = 1600
+crate_graph = 2400
+expression_flow = 1800
+fn_shape = 2000
+meta-cli = 2400
+meta-log = 2600
+meta-pull-query = 1900
+meta-pulls = 2200
+meta-schema = 5200
+meta-state = 1700
+meta-status = 2100
+meta-xtask = 1400
+module_nesting = 1900
+mutant_costs = 1900
+mutation = 1400
+no_forwarders = 1900
+no_parameter_bags = 2100
+primitive_boundary = 1600
+settings_shape = 1900
+state_graph = 1900
+task = 4600
+test_budget = 2000

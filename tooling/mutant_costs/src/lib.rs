@@ -145,10 +145,10 @@ mod tests {
     const AFFECTED: &str = "affected";
     const CASES: [(f64, Interval, bool); 5] = [
         (2.8, Interval::DiffJob, true),
-        (4.8, Interval::DiffJob, true),
-        (1.6, Interval::FullJob, true),
+        (5.9, Interval::DiffJob, true),
+        (2.0, Interval::FullJob, true),
         (2.8, Interval::FullJob, false),
-        (4.9, Interval::DiffJob, false),
+        (6.1, Interval::DiffJob, false),
     ];
     const SMALL_DEAR_DIFF: &[(&str, f64, usize)] = &[(AFFECTED, 4.0, BELOW_SAMPLE)];
     const BELOW_SAMPLE: usize = 29;
@@ -189,9 +189,8 @@ mod tests {
         let one = format!(
             r#"{{"scenario": {{"Mutant": {{"package": "{AFFECTED}"}}}}, "phase_results": [{{"phase": "Test", "duration": {seconds}}}]}}"#
         );
-        let base = format!(
-            r#"{{"scenario": "Baseline", "phase_results": [{{"phase": "Build", "duration": {baseline}}}]}}"#
-        );
+        let base =
+            format!(r#"{{"scenario": "Baseline", "phase_results": [{{"phase": "Build", "duration": {baseline}}}]}}"#);
         let run = format!(r#"{{"outcomes": [{base}, {}]}}"#, vec![one; SAMPLE].join(", "));
         MutantCosts::across([vec![Outcomes::parse(&run).unwrap()]], &policy).priced_within(&policy, job)
     }
@@ -205,10 +204,10 @@ mod tests {
     fn a_price_or_baseline_ten_percent_over_passes_and_thirty_percent_over_fails() {
         let full = Interval::FullJob;
         let outcomes = [
-            measured(1.43, 1.0, full).is_ok(),
-            measured(1.69, 1.0, full).is_ok(),
-            measured(1.3, 16.5, full).is_ok(),
-            measured(1.3, 19.5, full).is_ok(),
+            measured(1.76, 1.0, full).is_ok(),
+            measured(2.08, 1.0, full).is_ok(),
+            measured(1.6, 16.5, full).is_ok(),
+            measured(1.6, 19.5, full).is_ok(),
         ];
         assert_eq!(outcomes, [true, false, true, false]);
     }
@@ -225,8 +224,8 @@ mod tests {
                 .within_tolerance(&policy, Interval::FullJob)
         };
         assert_eq!(
-            [reported(1.3), reported(1.43), reported(1.69)],
-            [String::new(), String::from("affected 1500 above price 1300, within tolerance"), String::new()]
+            [reported(1.6), reported(1.76), reported(2.08)],
+            [String::new(), String::from("affected 1800 above price 1600, within tolerance"), String::new()]
         );
     }
 
