@@ -1,7 +1,9 @@
 mod config;
 
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::str::FromStr;
 
 use meta_log::GitLog;
 
@@ -53,17 +55,9 @@ impl Project {
     }
 
     pub fn created_since(&self, start: UnixSeconds) -> Vec<Commit> {
-        let walked = Command::new("git")
-            .arg("-C")
-            .arg(&self.root)
-            .args(["log", "--walk-reflogs", "--date=unix", ReflogEntry::FORMAT, "HEAD", "--"])
-            .output();
-        let text = walked.map(|walked| String::from_utf8_lossy(&walked.stdout).into_owned()).unwrap_or_default();
-        let created: Vec<Commit> = text
-            .lines()
-            .filter_map(|line| line.parse::<ReflogEntry>().ok())
-            .filter_map(|entry| entry.created_since(start).cloned())
-            .collect();
+        let walked = ["log", "--walk-reflogs", "--date=unix", ReflogEntry::FORMAT, "HEAD", "--"].map(OsString::from);
+        let entries: Vec<ReflogEntry> = self.git_lines(walked).unwrap_or_default();
+        let created: Vec<Commit> = entries.iter().filter_map(|entry| entry.created_since(start).cloned()).collect();
         created
             .iter()
             .enumerate()
@@ -74,50 +68,34 @@ impl Project {
 
     pub fn pushed_tips(&self, commits: &[Commit]) -> Vec<Commit> {
         let remote = commits.first().and_then(|_| self.config.remote().ok());
-        let unpushed = remote.and_then(|remote| self.unpushed_of(commits, &remote.to_string()));
+        let listed = commits.iter().map(Commit::argument);
+        let ahead = remote.map(|remote| {
+            let words = [OsString::from("rev-list"), OsString::from("--ignore-missing")].into_iter().chain(listed);
+            words.chain([OsString::from("--not"), OsString::from(format!("--remotes={remote}"))])
+        });
+        let unpushed: Option<Vec<Commit>> = ahead.and_then(|words| self.git_lines(words));
         let pushed: Vec<Commit> = unpushed.map_or_else(Vec::new, |unpushed| {
             commits.iter().filter(|commit| !unpushed.contains(commit)).cloned().collect()
         });
-        pushed.get(1).and_then(|_| self.independent(&pushed)).unwrap_or(pushed)
+        let independent = [OsString::from("merge-base"), OsString::from("--independent")];
+        let tips = pushed.get(1).map(|_| independent.into_iter().chain(pushed.iter().map(Commit::argument)));
+        tips.and_then(|words| self.git_lines(words)).unwrap_or(pushed)
     }
 
     pub fn head(&self) -> Option<Commit> {
-        let head = Command::new("git")
-            .arg("-C")
-            .arg(&self.root)
-            .args(["rev-parse", "HEAD"])
-            .output()
-            .ok()
-            .filter(|head| head.status.success())?;
-        let Ok(commit) = String::from_utf8_lossy(&head.stdout).parse();
-        Some(commit)
+        let heads: Vec<Commit> = self.git_lines(["rev-parse", "HEAD"].map(OsString::from))?;
+        heads.into_iter().next()
     }
 
-    fn independent(&self, commits: &[Commit]) -> Option<Vec<Commit>> {
-        let tips = Command::new("git")
+    fn git_lines<Line: FromStr>(&self, words: impl IntoIterator<Item = OsString>) -> Option<Vec<Line>> {
+        let output = Command::new("git")
             .arg("-C")
             .arg(&self.root)
-            .args(["merge-base", "--independent"])
-            .args(commits.iter().map(Commit::argument))
+            .args(words)
             .output()
             .ok()
-            .filter(|tips| tips.status.success())?;
-        let Ok(tips) = String::from_utf8_lossy(&tips.stdout).lines().map(str::parse).collect();
-        Some(tips)
-    }
-
-    fn unpushed_of(&self, commits: &[Commit], remote: &str) -> Option<Vec<Commit>> {
-        let ahead = Command::new("git")
-            .arg("-C")
-            .arg(&self.root)
-            .args(["rev-list", "--ignore-missing"])
-            .args(commits.iter().map(Commit::argument))
-            .args(["--not", &format!("--remotes={remote}")])
-            .output()
-            .ok()
-            .filter(|ahead| ahead.status.success())?;
-        let Ok(unpushed) = String::from_utf8_lossy(&ahead.stdout).lines().map(str::parse).collect();
-        Some(unpushed)
+            .filter(|output| output.status.success())?;
+        Some(String::from_utf8_lossy(&output.stdout).lines().filter_map(|line| line.parse().ok()).collect())
     }
 
     fn unprotected_branch(&self) -> Option<BranchName> {
