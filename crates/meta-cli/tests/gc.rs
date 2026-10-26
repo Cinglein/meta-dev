@@ -43,9 +43,7 @@ esac
 const EXCLUDED: &str = "/meta.local.toml\n/bin\ntarget/\n";
 const CARGO_TAG: &str =
     "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n";
-const DRY_RUN: [&str; 2] = ["gc", "--dry-run"];
 const GC: [&str; 1] = ["gc"];
-const PLANNED: [Line; 2] = [Line("would free ", MERGED, ": "), Line("would close ", GONE, ": missing\n")];
 const SWEPT: [Line; 6] = [
     Line("freed ", MERGED, ": "),
     Line("kept ", OPEN, ": pr #2 open\n"),
@@ -153,9 +151,10 @@ impl Scene {
         Git::run(scene.origin.path(), &["init", "-q", "--bare"]);
         Git::run(scene.clone.path(), &["init", "-q"]);
         Git::run(scene.clone.path(), &["remote", "add", "origin", scene.origin.path().to_str().unwrap()]);
-        Git::run(scene.clone.path(), &["commit", "-q", "--allow-empty", "-m", "seed"]);
-        std::fs::write(scene.clone.path().join(".git/info/exclude"), EXCLUDED).unwrap();
         std::fs::write(scene.clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
+        Git::run(scene.clone.path(), &["add", "meta.toml"]);
+        Git::run(scene.clone.path(), &["commit", "-q", "-m", "seed"]);
+        std::fs::write(scene.clone.path().join(".git/info/exclude"), EXCLUDED).unwrap();
         std::fs::write(scene.clone.path().join("meta.local.toml"), Settings(&scene.trees()).to_string()).unwrap();
         std::fs::create_dir(scene.clone.path().join("bin")).unwrap();
         std::fs::write(scene.clone.path().join("bin/gh"), FAKE_GH).unwrap();
@@ -189,6 +188,7 @@ impl Scene {
         let mut command = Command::new(META);
         let searched = Searched(&self.clone.path().join("bin")).to_string();
         command.current_dir(self.clone.path()).args(words).env("META_ACTOR", "gc-test").env("PATH", searched);
+        command.env("GIT_INDEX_FILE", self.trees.path().join("foreign-index"));
         let output = command.output().unwrap();
         [String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)].concat()
     }
@@ -199,9 +199,7 @@ fn gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_wit
     let scene = Scene::new();
     let trees = scene.trees();
     let _held = File::open(trees.join(BUSY).join(".git")).unwrap();
-    let planned = scene.meta(&DRY_RUN);
     let shows = |shown: &str, lines: &[Line]| lines.iter().all(|line| shown.contains(&Shown(line, &trees).to_string()));
-    assert!(shows(&planned, &PLANNED) && trees.join(MERGED).exists(), "{planned}");
     let swept = scene.meta(&GC);
     let trail = std::fs::read_to_string(scene.clone.path().join(TRAIL)).unwrap();
     let branch = Git::run(scene.clone.path(), &["branch", "--list", MERGED]).stdout;

@@ -1,4 +1,6 @@
+mod collection;
 mod git;
+mod vetting;
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -8,16 +10,23 @@ use meta_log::{LogStore, RemoteName};
 use meta_schema::{Actor, Claim, Event, Record};
 use meta_state::State;
 
+use meta_pull_query::LiveQuery;
+use meta_status::Status;
+
 use super::local_settings::LocalSettings;
 use super::local_trail::LocalTrail;
 use super::recorded_worktree::RecordedWorktree;
+use super::sweep::Sweep;
 use super::trail_entry::TrailEntry;
 use super::worktrees::Worktrees;
 use crate::request::cli_failure::{CliFailure, Setup};
+use crate::request::live_github::LiveGithub;
 use crate::request::output::{Listed, Output};
 use crate::request::project::Project;
 use crate::request::writing::Writing;
+use collection::{Census, Collection, Sweeper, Tracked};
 use git::Git;
+use vetting::{Context, Host};
 
 #[derive(Debug)]
 pub struct LocalClone {
@@ -90,15 +99,45 @@ impl LocalClone {
     pub fn worktrees(&self, project: &Project) -> Result<Output, CliFailure> {
         let trail = LocalTrail::read(&self.git_dir)?;
         let state = State::fold(project.log()?.read()?.records());
+        let paths = self.listed()?;
+        trail.torn().iter().for_each(|torn| eprintln!("meta: warning: {torn}"));
+        Ok(Output::Listed(Listed::new(Worktrees::joined(&trail, &paths, &state))))
+    }
+
+    pub fn collected(&self, project: &Project, sweep: Sweep) -> Result<Output, CliFailure> {
+        let root = self.settings()?.worktree_root(&self.checkout);
+        let trail = LocalTrail::read(&self.git_dir)?;
+        trail.torn().iter().for_each(|torn| eprintln!("meta: warning: {torn}"));
+        let state = State::fold(project.log()?.read()?.records());
+        let recorded: Vec<RecordedWorktree> = trail.current().into_iter().cloned().collect();
+        let linked = state
+            .tasks()
+            .iter()
+            .filter(|task| recorded.iter().any(|worktree| worktree.task() == task.new_task().task()));
+        let query = LiveQuery::new(linked.flat_map(|task| task.pull_requests().to_vec()).collect());
+        let github = LiveGithub::for_project(project).read(&query);
+        let status = Status::new(&state, &github, Utc::now().into());
+        let tracked = recorded.into_iter().map(|worktree| {
+            let lifetime = status.lifetime(worktree.task());
+            Tracked::new(worktree, lifetime)
+        });
+        let census = Census::new(tracked.collect(), self.listed()?);
+        let root = std::fs::canonicalize(&root).unwrap_or(root);
+        let context =
+            Context::new(self.checkout.clone(), self.git_dir.clone(), root, project.config().remote()?.clone());
+        let collection = Collection::swept(&Sweeper::new(sweep, &context, &Host), &census);
+        collection.trailed(Utc::now()).iter().try_for_each(|entry| LocalTrail::append(&self.git_dir, entry))?;
+        Ok(Output::Listed(Listed::new(collection)))
+    }
+
+    fn listed(&self) -> Result<Vec<PathBuf>, CliFailure> {
         let listed = Git::new(&self.checkout).output(&["worktree", "list", "--porcelain"].map(OsStr::new))?;
-        let paths: Vec<PathBuf> = listed
+        Ok(listed
             .lines()
             .filter_map(|line| line.strip_prefix(Self::LISTED_PREFIX))
             .map(|path| std::fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path)))
             .filter(|path| *path != self.checkout)
-            .collect();
-        trail.torn().iter().for_each(|torn| eprintln!("meta: warning: {torn}"));
-        Ok(Output::Listed(Listed::new(Worktrees::joined(&trail, &paths, &state))))
+            .collect())
     }
 
     fn settings(&self) -> Result<LocalSettings, CliFailure> {

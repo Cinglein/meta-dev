@@ -16,6 +16,22 @@ pub enum Flag {
     Orphan(PullRequest),
 }
 
+impl Flag {
+    #[must_use]
+    pub fn stalled(&self) -> Option<DueTime> {
+        match self {
+            Self::Stalled(_, due) => Some(*due),
+            Self::Unreached(_)
+            | Self::TruncatedOpen
+            | Self::PastDue(..)
+            | Self::RedUnheld(..)
+            | Self::Missing(..)
+            | Self::TruncatedChecks(..)
+            | Self::Orphan(_) => None,
+        }
+    }
+}
+
 impl fmt::Display for Flag {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

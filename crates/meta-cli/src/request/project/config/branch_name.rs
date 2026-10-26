@@ -10,8 +10,14 @@ use serde::{Deserialize, Serialize};
 pub struct BranchName(String);
 
 impl BranchName {
+    const HEADS: &'static str = "refs/heads/";
+
     pub fn task(&self) -> Option<Id<Task>> {
         self.0.split('/').find_map(|segment| segment.parse().ok())
+    }
+
+    pub fn qualified(&self) -> String {
+        [Self::HEADS, &self.0].concat()
     }
 }
 
@@ -19,7 +25,7 @@ impl FromStr for BranchName {
     type Err = std::convert::Infallible;
 
     fn from_str(name: &str) -> Result<Self, Self::Err> {
-        Ok(Self(name.strip_prefix("refs/heads/").unwrap_or(name).to_owned()))
+        Ok(Self(name.strip_prefix(Self::HEADS).unwrap_or(name).to_owned()))
     }
 }
 

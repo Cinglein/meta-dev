@@ -25,6 +25,10 @@ impl RecordedWorktree {
         &self.path
     }
 
+    pub fn branch(&self) -> &BranchName {
+        &self.branch
+    }
+
     pub fn task(&self) -> Id<Task> {
         self.task
     }

@@ -15,6 +15,12 @@ impl FromStr for RemoteName {
     }
 }
 
+impl AsRef<std::ffi::OsStr> for RemoteName {
+    fn as_ref(&self) -> &std::ffi::OsStr {
+        std::ffi::OsStr::new(&self.0)
+    }
+}
+
 impl fmt::Display for RemoteName {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(&self.0)
