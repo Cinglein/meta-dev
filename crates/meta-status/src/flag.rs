@@ -1,10 +1,12 @@
 use std::fmt;
 
 use meta_schema::{DueTime, Id, PullRequest, Task};
+use serde::{Deserialize, Serialize};
 
 use crate::github_failure::GithubFailure;
+use crate::judgement::Judgement;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Flag {
     Unreached(GithubFailure),
     TruncatedOpen,
@@ -29,6 +31,21 @@ impl fmt::Display for Flag {
                 write!(formatter, "truncated {pull_request} {task}: more than 100 checks")
             }
             Self::Orphan(pull_request) => write!(formatter, "orphan {pull_request}: open, no task"),
+        }
+    }
+}
+
+impl Flag {
+    pub fn judgement(&self) -> Judgement {
+        match self {
+            Self::Orphan(_) => Judgement::Noted,
+            Self::Unreached(_)
+            | Self::TruncatedOpen
+            | Self::Stalled(..)
+            | Self::PastDue(..)
+            | Self::RedUnheld(..)
+            | Self::Missing(..)
+            | Self::TruncatedChecks(..) => Judgement::Needed,
         }
     }
 }

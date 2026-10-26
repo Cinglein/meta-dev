@@ -1,6 +1,9 @@
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct GithubFailure(String);
 
 impl GithubFailure {

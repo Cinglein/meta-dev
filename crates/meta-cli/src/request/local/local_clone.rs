@@ -30,6 +30,18 @@ impl LocalClone {
     const NAME_KEYS: [&'static str; 3] = ["user.name", "author.name", "committer.name"];
     const EMAIL_KEYS: [&'static str; 3] = ["user.email", "author.email", "committer.email"];
 
+    pub fn new(checkout: PathBuf, git_dir: PathBuf) -> Self {
+        Self { checkout, git_dir }
+    }
+
+    pub fn checkout(&self) -> &Path {
+        &self.checkout
+    }
+
+    pub fn git_dir(&self) -> &Path {
+        &self.git_dir
+    }
+
     pub fn claimed(&self, project: &Project, claim: Claim, actor: Actor) -> Result<Output, CliFailure> {
         let settings = self.settings()?;
         let identity = settings.identity()?;
@@ -154,6 +166,6 @@ impl TryFrom<&Project> for LocalClone {
         let git_dir = std::fs::canonicalize(shown).map_err(CliFailure::raised::<Setup>)?;
         let checkout =
             git_dir.parent().map(Path::to_path_buf).ok_or_else(|| CliFailure::raised::<Setup>("no checkout"))?;
-        Ok(Self { checkout, git_dir })
+        Ok(Self::new(checkout, git_dir))
     }
 }

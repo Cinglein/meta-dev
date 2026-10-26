@@ -9,6 +9,7 @@ pub struct LocalFile(PathBuf);
 
 impl LocalFile {
     const NEWLINE: char = '\n';
+    const STAGED_EXTENSION: &'static str = "staged";
 
     pub fn new(path: PathBuf) -> Self {
         Self(path)
@@ -28,6 +29,14 @@ impl LocalFile {
             .append(true)
             .open(&self.0)
             .and_then(|mut file| writeln!(file, "{torn}{line}"))
+            .map_err(|failure| self.failure(failure))
+    }
+
+    pub fn replaced(&self, text: impl fmt::Display) -> Result<(), CliFailure> {
+        let staged = self.0.with_extension(Self::STAGED_EXTENSION);
+        self.0.parent().map_or(Ok(()), std::fs::create_dir_all).map_err(|failure| self.failure(failure))?;
+        std::fs::write(&staged, format!("{text}{}", Self::NEWLINE))
+            .and_then(|()| std::fs::rename(&staged, &self.0))
             .map_err(|failure| self.failure(failure))
     }
 
