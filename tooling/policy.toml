@@ -44,4 +44,4 @@ for_the_tests = 2
 
 [millis]
 per_test = 1000
-total = 6000
+total = 4000
