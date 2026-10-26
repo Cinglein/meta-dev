@@ -28,6 +28,7 @@ use enum_map::EnumMap;
 use least::Least;
 use percent::Percent;
 use serde::{Deserialize, Serialize};
+#[cfg(any(test, feature = "test-policy"))]
 use settings::EmbeddedDefaults;
 use vague::Vague;
 use vocabulary::Vocabulary;
@@ -58,6 +59,7 @@ pub struct Policy {
     mutation: MutationCadence,
 }
 
+#[cfg(any(test, feature = "test-policy"))]
 impl EmbeddedDefaults for Policy {
     const DEFAULTS: &str = include_str!("../../../policy.toml");
 }
