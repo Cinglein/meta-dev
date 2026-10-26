@@ -41,7 +41,7 @@ impl Checkout {
             .argument(place.display())
             .argument(&commit)
             .captured::<Stdout>()
-            .inspect_err(|_| Self::discarded(&place.join(Self::GIT)))?;
+            .inspect_err(|_| Self::discarded(&place))?;
         let top = repository.ancestors().find(|directory| directory.join(Self::GIT).exists()).unwrap_or(repository);
         let scope = repository.strip_prefix(top).unwrap_or(Path::new("")).to_path_buf();
         Ok(Checkout { repository: repository.to_path_buf(), place, scope, commit, lock })
@@ -86,7 +86,7 @@ impl Checkout {
     pub fn version(&self) -> Result<MetaRev, Failure> {
         fs::read_to_string(self.root().join(Self::CARGO_LOCK)).ok().and_then(|lock| lock.parse().ok()).map_or_else(
             || {
-                if self.place.join(Self::GIT).exists() || self.place.join(Self::META_SOURCE).exists() {
+                if self.place.join(Self::META_SOURCE).exists() {
                     Self::git(&self.place).arguments(Self::SHORT_HEAD).captured::<Stdout>()?.parse()
                 } else {
                     Ok(MetaRev::local())

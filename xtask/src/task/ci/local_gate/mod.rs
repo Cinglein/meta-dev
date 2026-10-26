@@ -92,7 +92,7 @@ impl LocalGate {
         outcome: Result<(), task::Failure>,
         surfaces: &Changed,
     ) -> Result<(), Failure> {
-        let state = outcome.as_ref().map_or(GateState::Success, |()| GateState::Failure);
+        let state = outcome.as_ref().map_or(GateState::Failure, |()| GateState::Success);
         self.post(checkout, state, surfaces).and(outcome.map_err(Failure::from))
     }
 

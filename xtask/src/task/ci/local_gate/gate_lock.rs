@@ -23,7 +23,7 @@ impl GateLock {
         workspace
             .components()
             .filter(|part| matches!(part, Component::Normal(_)))
-            .fold(parent.join(Self::TARGETS), |target, _| target)
+            .fold(parent.join(Self::TARGETS), |target, part| target.join(part))
     }
 
     pub fn guarding(target: &Path, wait: Millis) -> Result<GateLock, Failure> {
