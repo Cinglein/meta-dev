@@ -33,15 +33,16 @@ impl CiStep {
     ) -> Result<(), Failure> {
         let started = Instant::now();
         let outcome = match self {
-            CiStep::Fmt => Ok(workspace
+            CiStep::Fmt => workspace
                 .line(Program::Cargo)
                 .argument(CargoArgument::Fmt)
                 .argument(CargoArgument::All)
                 .argument(CargoArgument::Check)
-                .run()?),
-            CiStep::Clippy => Ok(Clippy::run(workspace, selection, policy)?),
-            CiStep::Test => Ok(Test::run(workspace, selection, policy)?),
-            CiStep::TestTime => Ok(TestTime::run(workspace, selection, policy)?),
+                .run()
+                .map_err(Failure::from),
+            CiStep::Clippy => Clippy::run(workspace, selection, policy).map_err(Failure::from),
+            CiStep::Test => Test::run(workspace, selection, policy).map_err(Failure::from),
+            CiStep::TestTime => TestTime::run(workspace, selection, policy).map_err(Failure::from),
             CiStep::Lint => Lint::run(workspace, policy, project),
         };
         println!("ci: {self} {:.1?}", started.elapsed());
