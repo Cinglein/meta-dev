@@ -16,7 +16,7 @@ impl Outcome {
         match result {
             Ok(Self::Appended(record)) => ControlFlow::Break(Ok(record)),
             Ok(Self::Raced) => {
-                attempt.pause();
+                std::thread::sleep(attempt.pause());
                 ControlFlow::Continue(())
             }
             Err(failure) => ControlFlow::Break(Err(failure)),

@@ -6,6 +6,7 @@ use thiserror::Error;
 
 use crate::entity::{Concern, Issue, Task};
 use crate::id::Id;
+use crate::target::Target;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -23,18 +24,11 @@ pub enum EntryFailure {
 
 impl Entry {
     #[must_use]
-    pub fn concern(&self) -> Option<Id<Concern>> {
+    pub fn target(self) -> Option<Target> {
         match self {
-            Self::Concern(id) => Some(*id),
-            Self::Issue(_) | Self::Task(_) => None,
-        }
-    }
-
-    #[must_use]
-    pub fn issue(&self) -> Option<Id<Issue>> {
-        match self {
-            Self::Issue(id) => Some(*id),
-            Self::Concern(_) | Self::Task(_) => None,
+            Self::Concern(id) => Some(Target::Concern(id)),
+            Self::Issue(id) => Some(Target::Issue(id)),
+            Self::Task(_) => None,
         }
     }
 

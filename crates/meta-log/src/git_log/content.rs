@@ -59,11 +59,14 @@ mod tests {
     use super::Content;
 
     const FUTURE_AND_GARBAGE: &str = "{\"at\":\"2026-10-25T00:00:00Z\",\"actor\":\"a\",\"kind\":\"Later\"}\nnot json\n";
+    const SKIPPED: [&str; 2] = ["skipped meta/log line 1", "skipped meta/log line 2"];
 
     #[test]
     fn unknown_lines_are_listed_and_block_writes() {
         let snapshot = FUTURE_AND_GARBAGE.parse::<Content>().unwrap().snapshot();
         assert_eq!(snapshot.records(), []);
         assert!(snapshot.complete().is_err());
+        let shown = snapshot.to_string();
+        assert_eq!(shown.lines().filter_map(|line| line.split(':').next()).collect::<Vec<_>>(), SKIPPED);
     }
 }

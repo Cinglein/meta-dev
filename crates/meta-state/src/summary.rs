@@ -24,7 +24,7 @@ impl fmt::Display for Summary<'_> {
         let unfinished: Vec<&TaskState> = state
             .tasks()
             .iter()
-            .filter(|task| task.status().unfinished().is_some() && state.retirement(task.entry()).is_none())
+            .filter(|task| task.status().done().is_none() && state.retirement(task.entry()).is_none())
             .collect();
         let claimed = unfinished.iter().filter(|task| *task.status() != TaskStatus::Open);
         let open = unfinished.iter().filter(|task| *task.status() == TaskStatus::Open);
@@ -47,3 +47,6 @@ impl fmt::Display for Summary<'_> {
         state.anomalies().iter().try_for_each(|anomaly| writeln!(formatter, "Refused: {anomaly}"))
     }
 }
+
+#[cfg(test)]
+mod tests;

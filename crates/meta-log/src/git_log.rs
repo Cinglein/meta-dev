@@ -87,7 +87,7 @@ impl LogStore for GitLog {
         Attempt::sequence()
             .try_for_each(|attempt| Outcome::step(self.attempt(decide), attempt))
             .break_value()
-            .unwrap_or_else(|| Err(LogFailure::Contended(Detail::from_reason(&Attempt::last()))))
+            .unwrap_or_else(|| Err(LogFailure::Contended(Detail::from_reason(&Attempt::LIMIT))))
     }
 }
 
