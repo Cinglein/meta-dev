@@ -106,7 +106,7 @@ impl fmt::Display for MutantCosts {
 mod tests {
     use super::{Failure, Millis, MutantCosts, Outcomes};
     use settings::EmbeddedDefaults;
-    use std::{env, fs, process};
+    use std::{env, fs, iter, process};
     use task::Policy;
     const LISTED: &str = "meta-cli";
     const SAMPLE: usize = 30;
@@ -115,6 +115,9 @@ mod tests {
     const RUNS: [&[(&str, f64, usize)]; 3] =
         [&[("log", 3.01, SAMPLE), ("state", 1.0, SAMPLE)], &[("state", 2.0, SAMPLE)], &[("log", 9.0, BELOW_SAMPLE)]];
     const SMALL: &str = "log 9000";
+    const SLICE: &[(&str, f64, usize)] = &[(LISTED, 5.8, 25)];
+    const SLICES: usize = 11;
+    const SLICED_PRICE: &str = "meta-cli = 5800\n";
     const TABLE: &str = "[mutant_millis]\ndefault = 3100\n\n[mutant_millis.crates]\nlog = 3100\nstate = 2000\n";
     const SCRATCH: &str = "meta-costs";
     const NESTED: [&str; 3] = ["a", "b", "outcomes.json"];
@@ -132,6 +135,8 @@ mod tests {
         };
         let costs = MutantCosts::tally(RUNS.map(run), &policy);
         assert_eq!((costs.to_string(), costs.below_sample_floor()), (TABLE.to_owned(), SMALL.to_owned()));
+        let sliced = MutantCosts::tally(iter::repeat_with(|| run(SLICE)).take(SLICES), &policy);
+        assert!(sliced.to_string().ends_with(SLICED_PRICE));
     }
 
     #[test]
