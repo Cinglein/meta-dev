@@ -3,6 +3,7 @@ use std::io;
 use thiserror::Error;
 
 use crate::task::ratchet::{Raised, Ratchet};
+use crate::task::revision::ForeignEmails;
 
 #[derive(Debug, Error)]
 pub enum Failure {
@@ -18,4 +19,6 @@ pub enum Failure {
     Written(#[from] toml::ser::Error),
     #[error("step summary: {0}")]
     Summary(io::Error),
+    #[error("{0}")]
+    Identity(ForeignEmails),
 }

@@ -467,6 +467,7 @@ dependencies = [
  "affected",
  "corpus_check",
  "crate_graph",
+ "meta-schema",
  "mutant_costs",
  "mutation",
  "serde",
