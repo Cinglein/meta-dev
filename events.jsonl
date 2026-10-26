@@ -139,3 +139,4 @@
 {"at":"2026-10-26T04:50:10.990270Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-9b2393496885308a","text":"Halve the codebase per feature, not in total (owner: new tooling adds features, so total LOC rising is not regression). Measure lines per feature/claim like-for-like against the 017aacd baseline (log ~300/claim, CI watching ~200, lints ~250 avg; target ~100). Report per-feature at merges"}
 {"at":"2026-10-26T04:51:29.230098Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-a9aca68a10fadf39"}
 {"at":"2026-10-26T04:51:30.735517Z","actor":"claude-lead","kind":"TaskDone","task":"task-a9aca68a10fadf39"}
+{"at":"2026-10-26T04:54:12.217854Z","actor":"claude-lead","kind":"TaskOpened","task":"task-c777def40a9d2278","text":"Kill all surviving mutants in meta-cli and meta-gh before #18 merges (owner: option a)"}
