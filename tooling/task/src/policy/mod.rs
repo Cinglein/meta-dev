@@ -174,7 +174,7 @@ mod tests {
     }
 
     #[test]
-    fn the_policy_is_read_from_the_workspace_it_runs_in() {
+    fn the_policy_is_read_from_the_tooling_directory_of_a_workspace_root() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         assert_eq!(Policy::read(&root).unwrap(), Policy::defaults());
         assert!(Policy::read(&root.join("tooling")).is_err());
