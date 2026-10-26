@@ -18,6 +18,7 @@ impl fmt::Display for Usage {
              \x20 retire <id> <reason>   (won't do; keeps the entry)\n\
              \x20 correct <id> <text>   (replaces the entry's text)\n\
              \x20 list [tasks|issues|concerns] [--all]\n\
+             \x20 status [--flags]   (divisions down to tasks, live PR and CI; --flags: flags only, exit 1 if any)\n\
              \x20 hook session-start|pre-tool-use|post-tool-use|stop   (Claude Code hook JSON on stdin)\n\
              \x20 ci-wait | ci-log   (this session's CI: wait for failure or completion | failed step output)\n\
              actor: $META_ACTOR, else owner",

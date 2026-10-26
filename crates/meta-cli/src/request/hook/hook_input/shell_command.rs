@@ -20,10 +20,13 @@ impl ShellCommand {
         &["commit", "merge", "rebase", "cherry-pick", "revert", "pull", "am", "push"];
 
     pub fn refusal(&self, config: &Config) -> Option<Listed> {
-        self.segments()
-            .find(|words| words.windows(Self::PR_MERGE.len()).any(|window| window == Self::PR_MERGE))
-            .map(|_| Listed::new("gh pr merge is the owner's job"))
+        self.invokes(Self::PR_MERGE)
+            .map(|()| Listed::new("gh pr merge is the owner's job"))
             .or_else(|| self.segments().filter_map(GitCall::parse).find_map(|call| call.push_refusal(config)))
+    }
+
+    pub fn invokes(&self, words: &[&str]) -> Option<()> {
+        self.segments().find(|segment| segment.windows(words.len()).any(|window| window == words)).map(|_| ())
     }
 
     pub fn commit_directories(&self, cwd: &Path) -> Vec<PathBuf> {

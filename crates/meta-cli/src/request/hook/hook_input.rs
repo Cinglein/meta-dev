@@ -25,6 +25,8 @@ pub struct HookInput {
 }
 
 impl HookInput {
+    const PR_CREATE: &'static [&'static str] = &["gh", "pr", "create"];
+
     pub fn cwd(&self) -> PathBuf {
         self.cwd.clone().or_else(|| std::env::current_dir().ok()).unwrap_or_default()
     }
@@ -44,6 +46,11 @@ impl HookInput {
         let writing = self.session().zip(command.writes());
         let unrecorded = writing.and_then(|(session, ())| SessionStart::for_session(session).record().err());
         unrecorded.or(foreign)
+    }
+
+    pub fn publishing(&self) -> Option<()> {
+        let command = self.command()?;
+        command.writes().or_else(|| command.invokes(Self::PR_CREATE))
     }
 
     pub fn session(&self) -> Option<&SessionId> {

@@ -1,4 +1,5 @@
 mod drain;
+mod finished;
 mod process_group;
 
 use std::os::unix::process::CommandExt as _;
@@ -7,6 +8,7 @@ use std::time::Instant;
 
 use crate::request::output::Listed;
 use drain::Drain;
+pub use finished::Finished;
 use process_group::ProcessGroup;
 
 #[derive(Debug)]
@@ -22,7 +24,11 @@ impl TimedCommand {
         Self { command, deadline }
     }
 
-    pub fn stdout(mut self) -> Result<String, Listed> {
+    pub fn stdout(self) -> Result<String, Listed> {
+        self.finished()?.succeeded()
+    }
+
+    pub fn finished(mut self) -> Result<Finished, Listed> {
         let mut child = self
             .command
             .stdin(Stdio::null())
@@ -36,9 +42,9 @@ impl TimedCommand {
         let errors = Drain::reading(child.stderr.take());
         let output = output.within(self.deadline, group);
         let errors = errors.within(self.deadline, group);
-        let succeeded = child.wait().map_err(Listed::new)?.success();
-        let late = (Instant::now() >= self.deadline).then(|| Listed::new(Self::TIMED_OUT));
-        let failed = || late.unwrap_or_else(|| Listed::new(errors.lines().next().unwrap_or_default()));
-        succeeded.then_some(output).ok_or_else(failed)
+        let status = child.wait().map_err(Listed::new)?;
+        (status.success() || Instant::now() < self.deadline)
+            .then(|| Finished::new(status, output, errors))
+            .ok_or_else(|| Listed::new(Self::TIMED_OUT))
     }
 }

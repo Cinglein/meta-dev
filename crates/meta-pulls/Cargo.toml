@@ -1,0 +1,13 @@
+[package]
+name = "meta-pulls"
+description = "Typed pull request state and required-check rollup as `gh api graphql` prints them."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+
+[lints]
+workspace = true

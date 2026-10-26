@@ -2,7 +2,7 @@
 
 use std::io::Write as _;
 use std::path::Path;
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const OWNER: &str = "owner";
@@ -14,6 +14,16 @@ const OFFLINE: &str = "offline";
 const WRITES: &str = "2";
 const LIST_ISSUES: [&str; 2] = ["list", "issues"];
 const LOCAL_NAME: &str = "localname";
+const OPEN: [&str; 4] = ["open", "--division", "features-and-maintenance", "text"];
+const PR_CREATE: &str = "gh pr create --fill";
+const STATUS_FLAGS: [&str; 2] = ["status", "--flags"];
+const ORPHAN: &str = "orphan #8: open, no task\n";
+const FAKE_GH: &str = r#"#!/bin/sh
+case "$1" in
+pr) echo 7 ;;
+api) echo '{"data":{"open":{"pullRequests":{"nodes":[{"number":7},{"number":8}]}},"linked":{"pr7":{"state":"OPEN","statusCheckRollup":null}}}}' ;;
+esac
+"#;
 
 struct Git;
 
@@ -78,11 +88,32 @@ impl Project {
         Git::run(clone.path(), &["init", "-q"]);
         Git::link_origin(clone.path(), origin.path().to_str().unwrap());
         std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
+        let bin = clone.path().join("bin");
+        std::fs::create_dir(&bin).unwrap();
+        std::fs::write(bin.join("gh"), FAKE_GH).unwrap();
+        std::fs::set_permissions(bin.join("gh"), std::fs::metadata("/bin/sh").unwrap().permissions()).unwrap();
         Self { origin, clone }
     }
 
     fn meta(&self, actor: &str, words: &[&str]) -> Run {
-        Run(Command::new(META).current_dir(self.clone.path()).args(words).env("META_ACTOR", actor).output().unwrap())
+        let path = format!("{}:{}", self.clone.path().join("bin").display(), std::env::var("PATH").unwrap_or_default());
+        let mut command = Command::new(META);
+        command.current_dir(self.clone.path()).args(words).env("META_ACTOR", actor).env("PATH", path);
+        Run(command.output().unwrap())
+    }
+
+    fn post_tool_use(&self, shell: &str) -> Run {
+        let input = serde_json::json!({ "cwd": self.clone.path(), "tool_input": { "command": shell } }).to_string();
+        let mut child = Command::new(META)
+            .args(["hook", "post-tool-use"])
+            .env("META_ACTOR", OWNER)
+            .env("PATH", format!("{}:{}", self.clone.path().join("bin").display(), std::env::var("PATH").unwrap()))
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
+        Run(child.wait_with_output().unwrap())
     }
 
     fn meta_unset(&self, words: &[&str]) -> Run {
@@ -102,4 +133,16 @@ fn writes_go_to_the_remote_as_meta_actor_else_owner_and_offline_writes_are_refus
     assert_eq!(project.meta(WRITER, &ISSUE).actor().as_deref(), Some(WRITER));
     Git::run(project.clone.path(), &NOWHERE);
     assert!(project.meta(OWNER, &ISSUE).complaint().0.contains(OFFLINE));
+}
+
+#[test]
+fn opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_the_rest() {
+    let project = Project::new();
+    let task = project.meta(OWNER, &OPEN).written().0;
+    project.meta(OWNER, &["claim", &task]);
+    Git::run(project.clone.path(), &["switch", "-q", "-c", &format!("status/{task}")]);
+    let linked = project.post_tool_use(PR_CREATE).to_string();
+    let flags = project.meta(OWNER, &STATUS_FLAGS);
+    assert!(linked.contains(&format!("TaskLinked {task} #7")) && !flags.0.status.success());
+    assert_eq!(flags.to_string(), ORPHAN);
 }

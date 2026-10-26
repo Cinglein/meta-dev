@@ -1,4 +1,5 @@
 mod hook_input;
+mod linking;
 mod reply;
 
 use std::fmt;
@@ -12,6 +13,7 @@ use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
 use crate::request::output::{Listed, Output};
 use crate::request::project::Project;
 use hook_input::HookInput;
+use linking::Linking;
 use reply::{Blocking, Denial, Reply, Verdict};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -85,7 +87,8 @@ impl HookEvent {
                     .map_or(Verdict::Allow, Verdict::Deny),
                 None,
             ),
-            Self::PostToolUse => Reply::new(self, Verdict::Allow, Self::after_push(project, input)),
+            Self::PostToolUse => Reply::new(self, Verdict::Allow, Self::after_push(project, input))
+                .with_news(Linking::after(project, input)),
             Self::Stop => Reply::new(
                 self,
                 input

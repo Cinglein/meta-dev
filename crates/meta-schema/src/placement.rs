@@ -15,6 +15,11 @@ impl Placement {
     }
 
     #[must_use]
+    pub fn division(&self) -> Option<&Division> {
+        self.0.as_ref()
+    }
+
+    #[must_use]
     pub fn is_root(&self) -> bool {
         self.0.is_none()
     }

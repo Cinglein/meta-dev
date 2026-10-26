@@ -1,4 +1,4 @@
-use meta_schema::{Actor, Entry, Id, PullRequest, SchemaVersion, Target, Task};
+use meta_schema::{Actor, Entry, Id, SchemaVersion, Target, Task};
 use thiserror::Error;
 
 #[derive(Clone, Debug, PartialEq, Eq, Error)]
@@ -31,8 +31,6 @@ pub enum Refusal {
     NotBlocked,
     #[error("a task cannot wait on itself")]
     WaitsOnItself,
-    #[error("{0} is already linked to the task")]
-    AlreadyLinked(PullRequest),
     #[error("there is no entry {0}")]
     UnknownEntry(Entry),
     #[error("{0} is retired")]

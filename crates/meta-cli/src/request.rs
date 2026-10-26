@@ -1,9 +1,11 @@
 mod ci;
 mod cli_failure;
 mod hook;
+mod live_github;
 mod output;
 mod parsed;
 mod project;
+mod status_view;
 mod timed_command;
 mod writing;
 
@@ -14,15 +16,18 @@ use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, N
 use ci::{Commit, FailureLog, SessionId, Watcher};
 use cli_failure::{CliFailure, Invalid, Misuse, Setup};
 use hook::HookEvent;
+use live_github::LiveGithub;
 use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
 use project::Project;
+use status_view::StatusView;
 use writing::Writing;
 
 #[derive(Debug)]
 pub enum Request {
     Write(Event),
     List(Option<Kind>, Scope),
+    Status(StatusView),
     Hook(HookEvent),
     WatchCi(SessionId, Commit),
     WaitCi(SessionId),
@@ -83,6 +88,7 @@ impl TryFrom<Vec<String>> for Request {
                 .allowing(&[])?
                 .entry_and_text(|entry, text| Self::Write(Event::EntryCorrected(EntryNote::new(entry, text)))),
             "list" => Ok(Self::List(parsed.kind()?, parsed.allowing(&[OptionName::All])?.scope())),
+            "status" => Ok(Self::Status(parsed.allowing(&[OptionName::Flags])?.view())),
             "hook" => Ok(Self::Hook(parsed.allowing(&[])?.text()?.to_string().parse()?)),
             "ci-watch" => parsed.allowing(&[])?.session_and_commit(Self::WatchCi),
             "ci-wait" => Self::session().map(Self::WaitCi),
@@ -108,6 +114,7 @@ impl Request {
             Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
             Self::WaitCi(session) => Watcher::wait(project, &session),
             Self::CiLog(session) => FailureLog::excerpt(project, &session),
+            Self::Status(view) => view.answer(&project.log()?, |query| LiveGithub::for_project(project).read(query)),
             logged => logged.answer_from(&project.log()?, Self::actor),
         }
     }
@@ -120,7 +127,7 @@ impl Request {
         match self {
             Self::Write(event) => Writing::new(log, actor()?, event).entered(),
             Self::List(kind, scope) => Listed::from_log(log, kind, scope).map(Output::Listed),
-            Self::Hook(_) | Self::WatchCi(..) | Self::WaitCi(_) | Self::CiLog(_) => {
+            Self::Hook(_) | Self::WatchCi(..) | Self::WaitCi(_) | Self::CiLog(_) | Self::Status(_) => {
                 Err(CliFailure::raised::<Misuse>("not a meta/log request"))
             }
         }

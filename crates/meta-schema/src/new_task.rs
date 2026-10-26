@@ -47,6 +47,11 @@ impl NewTask {
     }
 
     #[must_use]
+    pub fn text(&self) -> &Text {
+        &self.text
+    }
+
+    #[must_use]
     pub fn placement(&self) -> &Placement {
         &self.division
     }

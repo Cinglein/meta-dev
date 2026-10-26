@@ -1,0 +1,19 @@
+[package]
+name = "meta-status"
+description = "The status view: a tree of divisions down to tasks, with flags on top."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+meta-schema.workspace = true
+meta-state.workspace = true
+meta-pulls.workspace = true
+meta-pull-query.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

@@ -401,8 +401,10 @@ dependencies = [
  "meta-gh",
  "meta-listing",
  "meta-log",
+ "meta-pull-query",
  "meta-schema",
  "meta-state",
+ "meta-status",
  "serde",
  "serde_json",
  "strum",
@@ -440,6 +442,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "meta-pull-query"
+version = "0.1.0"
+dependencies = [
+ "meta-pulls",
+ "meta-schema",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "meta-pulls"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "meta-schema"
 version = "0.1.0"
 dependencies = [
@@ -469,6 +488,17 @@ dependencies = [
  "meta-schema",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "meta-status"
+version = "0.1.0"
+dependencies = [
+ "meta-pull-query",
+ "meta-pulls",
+ "meta-schema",
+ "meta-state",
+ "serde_json",
 ]
 
 [[package]]
