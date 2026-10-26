@@ -3,6 +3,7 @@ use crate::request::local::LocalFile;
 const FILE: &str = "record.json";
 const TEXT: &str = "{}";
 const STAGED: &str = ".staged";
+const RENAMING: &str = ": renaming to ";
 
 #[test]
 fn every_writer_stages_under_its_own_name_that_holds_the_process_id() {
@@ -18,5 +19,8 @@ fn a_failed_replacement_names_the_staging_path_and_the_target() {
     let target = dir.path().join(FILE);
     std::fs::create_dir(&target).unwrap();
     let failure = LocalFile::new(target.clone()).replaced(TEXT).unwrap_err();
-    assert!(failure.to_string().contains(STAGED) && failure.to_string().contains(&*target.to_string_lossy()));
+    assert!(
+        failure.to_string().contains(STAGED)
+            && failure.to_string().contains(&format!("{RENAMING}{}", target.to_string_lossy()))
+    );
 }
