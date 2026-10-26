@@ -76,7 +76,7 @@ Do these steps at the root of your workspace.
    The command runs fmt, clippy, the tests, the test-time budget and the lints.
    It reads your `tooling/policy.toml` only. It does not read the policy of meta-development.
 
-`examples/consumer/` is a full example. CI makes a new lockfile for it and runs `cargo xtask ci` in it.
+`examples/consumer/` is a full example. CI resolves its dependencies fresh and runs `cargo xtask ci` in it.
 
 Your lockfile gets `unicode-ident 1.0.24`. meta-development sets this exact version.
 Newer versions stop `ra-ap-rustc_lexer` from compiling. Do not update `unicode-ident` until meta-development removes this limit.
