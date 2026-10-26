@@ -85,7 +85,10 @@ impl Tasks {
         let board = board.linked(self.root.task(), "99").claimed(discussed);
         let board = board.then(Event::TaskBlocked(Block::new(discussed, Blocker::Discussion(issue.issue()))));
         let board = board.then(Event::TaskReleased(TaskRef::new(discussed))).claimed(self.finished.task());
-        let board = board.linked(self.finished.task(), "15").then(Event::TaskDone(TaskRef::new(self.finished.task())));
+        let board = board
+            .linked(self.finished.task(), "15")
+            .linked(self.finished.task(), "17")
+            .then(Event::TaskDone(TaskRef::new(self.finished.task())));
         State::fold(&board.records)
     }
 
