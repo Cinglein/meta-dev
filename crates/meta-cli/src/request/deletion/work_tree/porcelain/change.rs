@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use crate::request::deletion::cargo_tag::CargoTag;
+use crate::request::deletion::cargo_target::CargoTarget;
 use crate::request::deletion::kept::Kept;
 
 #[derive(Debug)]
@@ -19,7 +19,7 @@ impl Change {
         match self {
             Self::Tracked => Some(Kept::Uncommitted),
             Self::Untracked => Some(Kept::Untracked),
-            Self::Ignored(path) => (!CargoTag::marks(&root.join(path))).then_some(Kept::Ignored),
+            Self::Ignored(path) => CargoTarget::verified(&root.join(path)).err().map(Kept::nested),
         }
     }
 }

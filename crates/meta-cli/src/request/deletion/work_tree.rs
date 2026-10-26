@@ -1,3 +1,5 @@
+mod borrowers;
+mod index;
 mod locations;
 mod porcelain;
 mod revisions;
@@ -5,10 +7,10 @@ mod revisions;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use meta_schema::RemovedKind;
-
+use super::kept::Kept;
 use crate::request::cli_failure::Message;
-use crate::request::deletion::kept::Kept;
+use borrowers::Borrowers;
+use index::Index;
 use locations::Locations;
 use porcelain::Porcelain;
 use revisions::Revisions;
@@ -19,22 +21,41 @@ pub struct WorkTree {
 }
 
 impl WorkTree {
-    const LOCATIONS: [&'static str; 5] =
-        ["rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir"];
-    const STATUS: [&'static str; 4] = ["status", "--porcelain", "-z", "--ignored"];
-    const UNPUSHED: [&'static str; 7] =
-        ["rev-list", "--max-count=1", "HEAD", "--branches", "--glob=stash", "--not", "--remotes"];
+    const LOCATIONS: [&'static str; 7] = [
+        "rev-parse",
+        "--path-format=absolute",
+        "--show-toplevel",
+        "--git-dir",
+        "--git-common-dir",
+        "--abbrev-ref",
+        "HEAD",
+    ];
+    const INDEX: [&'static str; 4] = ["ls-files", "-v", "-s", "-z"];
+    const STATUS: [&'static str; 9] = [
+        "-c",
+        "core.fsmonitor=false",
+        "status",
+        "--porcelain",
+        "-z",
+        "--untracked-files=all",
+        "--ignored=matching",
+        "--ignore-submodules=none",
+        "--no-renames",
+    ];
+    const UNPUSHED: [&'static str; 5] = ["rev-list", "--max-count=1", "--all", "--not", "--remotes"];
     const REMOVE: [&'static str; 3] = ["worktree", "remove", "."];
 
     pub fn new(root: &Path) -> Self {
         Self { root: root.to_path_buf() }
     }
 
-    pub fn settled_kind(&self) -> Result<RemovedKind, Kept> {
-        let kind = self.run(&Self::LOCATIONS)?.parse::<Locations>()?.kind(&self.root)?;
+    pub fn settled(&self) -> Result<Locations, Kept> {
+        let locations: Locations = self.run(&Self::LOCATIONS)?.parse()?;
+        Borrowers::none_of(&self.root, locations.kind(&self.root)?)?;
+        self.run(&Self::INDEX)?.parse::<Index>()?;
         self.run(&Self::STATUS)?.parse::<Porcelain>()?.settled(&self.root)?;
         self.run(&Self::UNPUSHED)?.parse::<Revisions>()?;
-        Ok(kind)
+        Ok(locations)
     }
 
     pub fn unlink(self) -> Result<(), Kept> {

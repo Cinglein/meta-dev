@@ -57,7 +57,7 @@ impl EventVisitor for Applying<'_> {
         self.state.correct(note)
     }
 
-    fn path_removed(self, _removal: &Removal) -> Self::Output {
+    fn removing(self, _removal: &Removal) -> Self::Output {
         Ok(())
     }
 

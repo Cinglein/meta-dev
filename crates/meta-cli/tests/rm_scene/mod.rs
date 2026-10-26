@@ -8,7 +8,7 @@ pub const CONFIG: &str = "remote = \"origin\"\n";
 const EXCLUDED: &str = "target\njunk\n";
 pub const CARGO_TAG: &str =
     "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n";
-const CARGO_LOCK: &str = "debug/.cargo-lock";
+const CARGO_LOCKS: [&str; 2] = ["debug/.cargo-lock", "x86_64-unknown-linux-gnu/debug/.cargo-lock"];
 pub const ORIGIN: &str = "origin";
 const PROJECT: &str = "project";
 pub const COMMIT: [&str; 5] = ["commit", "-q", "--allow-empty", "-m", "work"];
@@ -48,10 +48,14 @@ pub struct CacheTag;
 
 impl CacheTag {
     pub fn plant(dir: PathBuf, tag: &str) -> PathBuf {
-        std::fs::create_dir_all(dir.join(CARGO_LOCK).parent().unwrap()).unwrap();
-        std::fs::write(dir.join(CARGO_LOCK), "").unwrap();
+        CARGO_LOCKS.map(|lock| dir.join(lock)).iter().map(PathBuf::as_path).for_each(Self::lock);
         std::fs::write(dir.join("CACHEDIR.TAG"), tag).unwrap();
         dir
+    }
+
+    fn lock(path: &Path) {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, "").unwrap();
     }
 }
 

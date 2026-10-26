@@ -23,7 +23,7 @@ pub enum Event {
     TaskReopened(TaskRef),
     EntryRetired(EntryNote),
     EntryCorrected(EntryNote),
-    PathRemoved(Removal),
+    Removing(Removal),
 }
 
 impl Event {
@@ -38,7 +38,7 @@ impl Event {
             Self::TaskReopened(task) => visitor.task_reopened(*task),
             Self::EntryRetired(note) => visitor.entry_retired(note),
             Self::EntryCorrected(note) => visitor.entry_corrected(note),
-            Self::PathRemoved(removal) => visitor.path_removed(removal),
+            Self::Removing(removal) => visitor.removing(removal),
         }
     }
 }
@@ -55,7 +55,7 @@ impl fmt::Display for Event {
             Self::TaskReopened(task) => write!(formatter, "TaskReopened {task}"),
             Self::EntryRetired(note) => write!(formatter, "EntryRetired {note}"),
             Self::EntryCorrected(note) => write!(formatter, "EntryCorrected {note}"),
-            Self::PathRemoved(removal) => write!(formatter, "PathRemoved {removal}"),
+            Self::Removing(removal) => write!(formatter, "Removing {removal}"),
         }
     }
 }

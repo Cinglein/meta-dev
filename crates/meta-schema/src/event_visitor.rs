@@ -18,5 +18,5 @@ pub trait EventVisitor {
     fn task_reopened(self, task: TaskRef) -> Self::Output;
     fn entry_retired(self, note: &EntryNote) -> Self::Output;
     fn entry_corrected(self, note: &EntryNote) -> Self::Output;
-    fn path_removed(self, removal: &Removal) -> Self::Output;
+    fn removing(self, removal: &Removal) -> Self::Output;
 }

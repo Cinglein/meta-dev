@@ -8,20 +8,21 @@ use crate::text::Text;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Removal {
-    path: Text,
     removed: RemovedKind,
     bytes: ByteCount,
+    place: Option<Text>,
 }
 
 impl Removal {
     #[must_use]
-    pub fn new(path: Text, removed: RemovedKind, bytes: ByteCount) -> Self {
-        Self { path, removed, bytes }
+    pub fn new(removed: RemovedKind, bytes: ByteCount, place: Option<Text>) -> Self {
+        Self { removed, bytes, place }
     }
 }
 
 impl fmt::Display for Removal {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{} {} {}", self.removed, self.bytes, self.path)
+        write!(formatter, "{} {}", self.removed, self.bytes)?;
+        self.place.iter().try_for_each(|place| write!(formatter, " {place}"))
     }
 }
