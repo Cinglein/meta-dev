@@ -79,7 +79,7 @@ impl Scope {
             .argument(CargoArgument::Mutants)
             .argument(MutantsArgument::InDiff)
             .argument(workspace.target().path().join(Self::DIFF_FILE).display());
-        Ok(Packing::shards(&CrateLoad::listed(listing, policy)?, policy, Interval::DiffJob))
+        Ok(Packing::shards(&CrateLoad::listed(listing, policy, Interval::DiffJob)?, policy, Interval::DiffJob))
     }
 
     fn shard_runs(

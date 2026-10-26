@@ -113,7 +113,7 @@ jobs:
         shell: bash
 
   ci-gate:
-    needs: [ci, stacked, mutants-plan, mutants]
+    needs: [ci, stacked, mutants-plan, mutants, mutant-costs]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:

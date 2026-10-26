@@ -22,6 +22,7 @@ use task::Site;
 pub struct MutantCosts {
     prices: BTreeMap<CrateName, Millis>,
     unsampled: BTreeMap<CrateName, Millis>,
+    baseline: Millis,
 }
 
 impl MutantCosts {
@@ -56,19 +57,23 @@ impl MutantCosts {
         spelled.join(", ")
     }
 
-    pub fn priced_within(&self, policy: &Policy, _job: Interval) -> Result<(), Failure> {
-        let table = policy.mutant_millis();
+    pub fn priced_within(&self, policy: &Policy, job: Interval) -> Result<(), Failure> {
+        let overhead = policy.interval(Interval::PerCrate);
+        let baseline = (self.baseline.rounded_up_to(Self::STEP) > overhead)
+            .then(|| format!("baseline {} > per_crate {overhead}", self.baseline));
         let under: Vec<String> = self
             .prices
             .iter()
-            .filter(|(name, price)| price.rounded_up_to(Self::STEP) > table.for_crate(name))
-            .map(|(name, price)| format!("{name} {price} > {}", table.for_crate(name)))
+            .filter(|(name, price)| price.rounded_up_to(Self::STEP) > policy.mutant_price(name, job))
+            .map(|(name, price)| format!("{name} {price} > {}", policy.mutant_price(name, job)))
+            .chain(baseline)
             .collect();
         under.is_empty().then_some(()).ok_or_else(|| Failure::Underpriced(under.join(", ")))
     }
 
-    fn costliest_run(self, run: &[Outcomes], policy: &Policy) -> MutantCosts {
+    fn costliest_run(mut self, run: &[Outcomes], policy: &Policy) -> MutantCosts {
         let floor = policy.floor(Floor::PriceSample);
+        self.baseline = run.iter().map(Outcomes::baseline).fold(self.baseline, Millis::max);
         let pooled = run.iter().fold(BTreeMap::new(), |tallies, slice| slice.tallied_into(tallies));
         pooled.into_iter().fold(self, |mut costs, (name, tally): (CrateName, Tally)| {
             let book = if floor.allows(tally.count().into()) { &mut costs.prices } else { &mut costs.unsampled };
@@ -119,11 +124,15 @@ mod tests {
     const LISTED: &str = "meta-cli";
     const SAMPLE: usize = 30;
     const AFFECTED: &str = "affected";
-    const CASES: [(f64, Interval, bool); 3] =
-        [(2.8, Interval::DiffJob, true), (2.8, Interval::FullJob, false), (4.0, Interval::DiffJob, false)];
+    const CASES: [(f64, Interval, bool); 4] = [
+        (2.8, Interval::DiffJob, true),
+        (3.9, Interval::DiffJob, true),
+        (2.8, Interval::FullJob, false),
+        (4.0, Interval::DiffJob, false),
+    ];
     const SMALL_DEAR_DIFF: &[(&str, f64, usize)] = &[(AFFECTED, 4.0, BELOW_SAMPLE)];
     const BELOW_SAMPLE: usize = 29;
-    const BASELINE: &str = r#"{"scenario": "Baseline", "phase_results": [{"phase": "Build", "duration": 9.0}]}"#;
+    const BASELINE: &str = r#"{"scenario": "Baseline", "phase_results": [{"phase": "Build", "duration": 15.0}]}"#;
     const RUNS: [&[(&str, f64, usize)]; 3] =
         [&[("log", 3.01, SAMPLE), ("state", 1.0, SAMPLE)], &[("state", 2.0, SAMPLE)], &[("log", 9.0, BELOW_SAMPLE)]];
     const SMALL: &str = "log 9000";

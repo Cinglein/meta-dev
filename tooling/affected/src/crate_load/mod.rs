@@ -36,23 +36,24 @@ impl CrateLoad {
         name: CrateName,
         mutants: MutantCount,
         policy: &Policy,
-        _job: Interval,
+        job: Interval,
     ) -> CrateLoad {
-        let each = policy.mutant_millis().for_crate(&name);
+        let each = policy.mutant_price(&name, job);
         CrateLoad::new(name, mutants, each, policy)
     }
 
-    pub fn listed(listing: CommandLine, policy: &Policy) -> Result<Vec<CrateLoad>, Failure> {
+    pub fn listed(
+        listing: CommandLine,
+        policy: &Policy,
+        job: Interval,
+    ) -> Result<Vec<CrateLoad>, Failure> {
         let json = listing
             .argument(MutantsArgument::List)
             .argument(MutantsArgument::Json)
             .captured::<Stdout>()?;
         Ok(ListedMutant::tally(&json)?
             .into_iter()
-            .map(|(name, mutants)| {
-                let each = policy.mutant_millis().for_crate(&name);
-                CrateLoad::new(name, mutants, each, policy)
-            })
+            .map(|(name, mutants)| CrateLoad::priced(name, mutants, policy, job))
             .collect())
     }
 

@@ -21,7 +21,11 @@ impl ShardPlan {
             },
             |_| {
                 let listing = cargo.argument(CargoArgument::Mutants);
-                Ok(ShardPlan(Packing::shards(&CrateLoad::listed(listing, policy)?, policy, Interval::FullJob)))
+                Ok(ShardPlan(Packing::shards(
+                    &CrateLoad::listed(listing, policy, Interval::FullJob)?,
+                    policy,
+                    Interval::FullJob,
+                )))
             },
         )
     }
