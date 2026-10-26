@@ -1,6 +1,6 @@
 mod activity;
 
-use meta_schema::Blocker;
+use meta_schema::{Actor, Blocker};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
@@ -39,7 +39,7 @@ impl Progress {
         }
     }
 
-    pub fn claimed(&self, by: Stamp, previous: Option<&meta_schema::Actor>) -> Result<Self, Refusal> {
+    pub fn claimed(&self, by: Stamp, previous: Option<&Actor>) -> Result<Self, Refusal> {
         match self {
             Self::Active(activity) => activity.claimed(by, previous).map(Self::Active),
             Self::Done(_) => Err(Refusal::AlreadyDone),
@@ -48,13 +48,16 @@ impl Progress {
 
     pub fn released(&self, by: &Stamp) -> Result<Self, Refusal> {
         match self {
-            Self::Active(activity) => activity.released(by.actor()).map(Self::Active),
+            Self::Active(activity) => activity.released(by).map(Self::Active),
             Self::Done(_) => Err(Refusal::AlreadyDone),
         }
     }
 
     pub fn finished(&self, by: Stamp) -> Result<Self, Refusal> {
-        self.released(&by).map(|_| Self::Done(by))
+        match self {
+            Self::Active(activity) => activity.holder(by.actor()).map(|()| Self::Done(by)),
+            Self::Done(_) => Err(Refusal::AlreadyDone),
+        }
     }
 
     pub fn reopened(&self) -> Result<Activity, Refusal> {
@@ -64,16 +67,16 @@ impl Progress {
         }
     }
 
-    pub fn blocked(&self, on: Blocker) -> Result<Self, Refusal> {
+    pub fn blocked(&self, on: Blocker, by: &Actor) -> Result<Self, Refusal> {
         match self {
-            Self::Active(activity) => Ok(Self::Active(activity.blocked(on))),
+            Self::Active(activity) => activity.blocked(on, by).map(Self::Active),
             Self::Done(_) => Err(Refusal::AlreadyDone),
         }
     }
 
-    pub fn unblocked(&self) -> Result<Self, Refusal> {
+    pub fn unblocked(&self, by: &Actor) -> Result<Self, Refusal> {
         match self {
-            Self::Active(activity) => activity.unblocked().map(Self::Active),
+            Self::Active(activity) => activity.unblocked(by).map(Self::Active),
             Self::Done(_) => Err(Refusal::AlreadyDone),
         }
     }

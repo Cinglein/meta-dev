@@ -1,4 +1,6 @@
-use meta_schema::{Block, Claim, EntryNote, EventVisitor, NewConcern, NewIssue, NewTask, TaskLink, TaskRef};
+use meta_schema::{
+    Block, Claim, EntryNote, EventVisitor, NewConcern, NewIssue, NewTask, SchemaVersion, TaskLink, TaskRef,
+};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
@@ -44,11 +46,11 @@ impl EventVisitor for Applying<'_> {
 
     fn task_blocked(self, block: Block) -> Self::Output {
         self.state.vet_blocker(block)?;
-        self.state.task_mut(block.task())?.advance(|progress| progress.blocked(block.blocker()))
+        self.state.task_mut(block.task())?.advance(|progress| progress.blocked(block.blocker(), self.stamp.actor()))
     }
 
     fn task_unblocked(self, task: TaskRef) -> Self::Output {
-        self.state.task_mut(task.task())?.advance(Progress::unblocked)
+        self.state.task_mut(task.task())?.advance(|progress| progress.unblocked(self.stamp.actor()))
     }
 
     fn task_linked(self, link: TaskLink) -> Self::Output {
@@ -65,6 +67,10 @@ impl EventVisitor for Applying<'_> {
 
     fn entry_corrected(self, note: &EntryNote) -> Self::Output {
         self.state.correct(note)
+    }
+
+    fn schema_versioned(self, _version: SchemaVersion) -> Self::Output {
+        Ok(())
     }
 
     fn task_reopened(self, task: TaskRef) -> Self::Output {

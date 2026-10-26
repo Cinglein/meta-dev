@@ -1,7 +1,14 @@
 #!/bin/sh
 set -eu
 
-meta="${META_BIN:-meta}"
+real="${META_BIN:-meta}"
+division=features-and-maintenance
+placed() {
+  sub=$1
+  shift
+  "$real" "$sub" --division "$division" "$@"
+}
+meta=placed
 export META_ACTOR=reseed
 
 "$meta" issue -- 'Lead committed in the main checkout while the stage-0 builder was editing the same working tree; every agent needs its own worktree, enforced'

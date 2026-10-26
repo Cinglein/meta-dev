@@ -4,11 +4,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::block::Block;
 use crate::claim::Claim;
+use crate::entity::Task;
 use crate::entry_note::EntryNote;
 use crate::event_visitor::EventVisitor;
+use crate::id::Id;
 use crate::new_concern::NewConcern;
 use crate::new_issue::NewIssue;
 use crate::new_task::NewTask;
+use crate::schema_version::SchemaVersion;
 use crate::task_link::TaskLink;
 use crate::task_ref::TaskRef;
 
@@ -27,9 +30,26 @@ pub enum Event {
     TaskReopened(TaskRef),
     EntryRetired(EntryNote),
     EntryCorrected(EntryNote),
+    SchemaVersion(SchemaVersion),
 }
 
 impl Event {
+    #[must_use]
+    pub fn claimed_task(&self) -> Option<Id<Task>> {
+        match self {
+            Self::TaskClaimed(claim) => Some(claim.task()),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn schema_version(&self) -> Option<SchemaVersion> {
+        match self {
+            Self::SchemaVersion(version) => Some(*version),
+            _ => None,
+        }
+    }
+
     pub fn visit<Visitor: EventVisitor>(&self, visitor: Visitor) -> Visitor::Output {
         match self {
             Self::ConcernIdentified(concern) => visitor.concern_identified(concern),
@@ -44,6 +64,7 @@ impl Event {
             Self::TaskReopened(task) => visitor.task_reopened(*task),
             Self::EntryRetired(note) => visitor.entry_retired(note),
             Self::EntryCorrected(note) => visitor.entry_corrected(note),
+            Self::SchemaVersion(version) => visitor.schema_versioned(*version),
         }
     }
 }
@@ -63,6 +84,7 @@ impl fmt::Display for Event {
             Self::TaskReopened(task) => write!(formatter, "TaskReopened {task}"),
             Self::EntryRetired(note) => write!(formatter, "EntryRetired {note}"),
             Self::EntryCorrected(note) => write!(formatter, "EntryCorrected {note}"),
+            Self::SchemaVersion(version) => write!(formatter, "SchemaVersion {version}"),
         }
     }
 }

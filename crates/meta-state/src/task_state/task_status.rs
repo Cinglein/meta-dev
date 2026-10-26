@@ -20,12 +20,16 @@ impl TaskStatus {
     #[must_use]
     pub fn stalling(&self) -> Stalling {
         match self {
-            Self::Open | Self::Assigned => Stalling::Possible,
-            Self::Discussion(_)
-            | Self::WaitingOnTask(_)
-            | Self::WaitingOnExternal(_)
-            | Self::Done(_)
-            | Self::Retired => Stalling::Never,
+            Self::Open | Self::Assigned | Self::WaitingOnTask(_) | Self::WaitingOnExternal(_) => Stalling::Possible,
+            Self::Discussion(_) | Self::Done(_) | Self::Retired => Stalling::Never,
+        }
+    }
+
+    #[must_use]
+    pub fn waiting_on_task(&self) -> Option<Id<Task>> {
+        match self {
+            Self::WaitingOnTask(task) => Some(*task),
+            _ => None,
         }
     }
 }

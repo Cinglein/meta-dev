@@ -7,7 +7,7 @@ mod vetting;
 
 use std::collections::HashMap;
 
-use meta_schema::{Block, Entry, EntryNote, Id, Record, Target, Task, Text};
+use meta_schema::{Actor, Block, Entry, EntryNote, Id, Record, Target, Task, Text};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
@@ -36,7 +36,23 @@ impl State {
     }
 
     pub fn vet(&self, record: &Record) -> Result<(), Refusal> {
-        record.event().visit(Applying::new(&mut self.clone(), Stamp::from_record(record)))
+        self.tried(record).map(|_| ())
+    }
+
+    pub fn tried(&self, record: &Record) -> Result<Self, Refusal> {
+        let mut next = self.clone();
+        record.event().visit(Applying::new(&mut next, Stamp::from_record(record))).map(|()| next)
+    }
+
+    #[must_use]
+    pub fn holders(&self, task: Id<Task>) -> Vec<Actor> {
+        self.task(task)
+            .map(|task| task.progress().assignments().iter().map(|stamp| stamp.actor().clone()).collect())
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn waits_on(&self, task: Id<Task>) -> Option<Id<Task>> {
+        self.task(task).and_then(|task| self.status_of(task).waiting_on_task())
     }
 
     fn applied(mut self, record: &Record) -> Self {

@@ -4,6 +4,7 @@ use meta_schema::{Actor, Blocker};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
+use crate::task_state::stalling::Stalling;
 use crate::task_state::task_status::TaskStatus;
 use waiting::Waiting;
 
@@ -38,16 +39,35 @@ impl Activity {
         )
     }
 
-    pub fn released(&self, by: &Actor) -> Result<Self, Refusal> {
-        self.without(by).map(|kept| Self { assignments: kept, blocker: self.blocker })
+    pub fn released(&self, by: &Stamp) -> Result<Self, Refusal> {
+        let left = self.without(by.actor()).map(|kept| Self { assignments: kept, blocker: self.blocker })?;
+        (left.assignments.is_empty() && self.blocker.is_some() && left.status().stalling() == Stalling::Possible)
+            .then_some(())
+            .map_or(Ok(left), |()| Err(Refusal::WaitWithoutHolder))
     }
 
-    pub fn blocked(&self, on: Blocker) -> Self {
-        Self { assignments: self.assignments.clone(), blocker: Some(on) }
+    pub fn holder(&self, actor: &Actor) -> Result<(), Refusal> {
+        self.without(actor).map(|_| ())
     }
 
-    pub fn unblocked(&self) -> Result<Self, Refusal> {
-        self.blocker.map(|_| Self { assignments: self.assignments.clone(), blocker: None }).ok_or(Refusal::NotBlocked)
+    pub fn blocked(&self, on: Blocker, by: &Actor) -> Result<Self, Refusal> {
+        self.permitting(by)?.blocker.map_or_else(
+            || Ok(Self { assignments: self.assignments.clone(), blocker: Some(on) }),
+            |_| Err(Refusal::AlreadyWaiting),
+        )
+    }
+
+    pub fn unblocked(&self, by: &Actor) -> Result<Self, Refusal> {
+        self.permitting(by)?
+            .blocker
+            .map(|_| Self { assignments: self.assignments.clone(), blocker: None })
+            .ok_or(Refusal::NotBlocked)
+    }
+
+    fn permitting(&self, actor: &Actor) -> Result<&Self, Refusal> {
+        (self.assignments.is_empty() || Self::holds(&self.assignments, actor))
+            .then_some(self)
+            .ok_or_else(|| Refusal::NotAssigned(actor.clone()))
     }
 
     fn holds(assignments: &[Stamp], actor: &Actor) -> bool {

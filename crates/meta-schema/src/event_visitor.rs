@@ -4,6 +4,7 @@ use crate::entry_note::EntryNote;
 use crate::new_concern::NewConcern;
 use crate::new_issue::NewIssue;
 use crate::new_task::NewTask;
+use crate::schema_version::SchemaVersion;
 use crate::task_link::TaskLink;
 use crate::task_ref::TaskRef;
 
@@ -22,4 +23,5 @@ pub trait EventVisitor {
     fn task_reopened(self, task: TaskRef) -> Self::Output;
     fn entry_retired(self, note: &EntryNote) -> Self::Output;
     fn entry_corrected(self, note: &EntryNote) -> Self::Output;
+    fn schema_versioned(self, version: SchemaVersion) -> Self::Output;
 }

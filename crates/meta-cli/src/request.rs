@@ -1,6 +1,7 @@
 mod ci;
 mod cli_failure;
 mod hook;
+mod marker;
 mod output;
 mod parsed;
 mod project;
@@ -13,7 +14,8 @@ use meta_state::State;
 use ci::{Commit, FailureLog, SessionId, Watcher};
 use cli_failure::{CliFailure, Invalid, Misuse, Setup};
 use hook::HookEvent;
-use output::{Listed, Output};
+use marker::Marker;
+use output::{Holders, Listed, Output};
 use parsed::{OptionName, Parsed};
 use project::Project;
 
@@ -118,12 +120,13 @@ impl Request {
         match self {
             Self::Write(event) => {
                 let actor = actor()?;
+                Marker::ensured(log, &actor)?;
                 let record = log.append::<CliFailure>(&mut |snapshot| {
                     let record = Record::new(actor.clone(), event.clone());
                     State::fold(snapshot.complete()?).vet(&record)?;
                     Ok(record)
                 })?;
-                Ok(Output::Written(record))
+                Ok(Output::Written(record, Holders::after(log, &event)?))
             }
             Self::List(kind, scope) => Listed::from_log(log, kind, scope).map(Output::Listed),
             Self::Hook(_) | Self::WatchCi(..) | Self::WaitCi(_) | Self::CiLog(_) => {

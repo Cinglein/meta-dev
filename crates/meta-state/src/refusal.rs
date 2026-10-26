@@ -17,6 +17,14 @@ pub enum Refusal {
     AlreadyAssigned(Actor),
     #[error("{0} is not assigned to the task")]
     NotAssigned(Actor),
+    #[error("{0} is closed")]
+    Closed(Entry),
+    #[error("waits would form a loop")]
+    WaitCycle,
+    #[error("the task already waits; resume it first")]
+    AlreadyWaiting,
+    #[error("the last holder cannot leave a task that waits; resume it or finish it")]
+    WaitWithoutHolder,
     #[error("the task is not waiting")]
     NotBlocked,
     #[error("a task cannot wait on itself")]

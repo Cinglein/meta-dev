@@ -1,7 +1,14 @@
 #!/bin/sh
 set -eu
 
-meta="${META_BIN:-meta}"
+real="${META_BIN:-meta}"
+division=architecture-and-planning
+placed() {
+  sub=$1
+  shift
+  "$real" "$sub" --division "$division" "$@"
+}
+meta=placed
 export META_ACTOR=seed
 
 PM="Basho postmortem"

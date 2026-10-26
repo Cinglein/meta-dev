@@ -1,9 +1,12 @@
 mod assignments;
 mod blocking;
+mod board;
 mod links;
 mod waiting_rules;
 
-use meta_schema::{Actor, Claim, Division, Event, Id, NewConcern, NewIssue, NewTask, Record, Target, Task, TaskRef};
+use meta_schema::{
+    Actor, Claim, Division, Entry, EntryNote, Event, Id, NewConcern, NewIssue, NewTask, Record, Target, Task, TaskRef,
+};
 
 use super::State;
 use crate::refusal::Refusal;
@@ -12,6 +15,7 @@ use crate::task_state::TaskStatus;
 const OWNER: &str = "owner";
 const ALICE: &str = "alice";
 const BOB: &str = "bob";
+const REASON: &str = "dropped";
 const DIVISION: &str = "features-and-maintenance";
 
 struct Events;
@@ -27,6 +31,10 @@ impl Events {
 
     fn claim(task: Id<Task>, from: Option<&str>) -> Event {
         Event::TaskClaimed(Claim::new(task, from.map(Self::actor)))
+    }
+
+    fn retiring(entry: Entry) -> Event {
+        Event::EntryRetired(EntryNote::new(entry, REASON.parse().unwrap()))
     }
 }
 

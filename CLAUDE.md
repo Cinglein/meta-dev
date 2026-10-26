@@ -14,6 +14,11 @@ Principles, ladder and design: `context/SPEC.md`. Build stages: `context/BOOTSTR
 - `context/` and this file: agent context (prose category 1). `README.md` and `docs/`: STE100
   documentation only (category 2).
 
+## Upgrading
+
+- Rebuild `meta` after pulling main. The first write by a new build adds a `SchemaVersion` event to
+  `meta/log`; an older build then stops writing and says to upgrade, so it never folds claims differently.
+
 ## Privacy
 
 - Never put personal details (names, emails, trips, personal notes) or local machine details
