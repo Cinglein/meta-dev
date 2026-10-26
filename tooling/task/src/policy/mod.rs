@@ -1,3 +1,4 @@
+mod baseline_file;
 mod bit_boundary;
 mod floor;
 mod least;
@@ -5,14 +6,17 @@ mod limit;
 mod most;
 mod percent;
 mod share;
+mod surface;
 mod vague;
 mod vocabulary;
 mod wire_type;
 
+pub use baseline_file::BaselineFile;
 pub use floor::Floor;
 pub use limit::Limit;
 pub use most::Most;
 pub use share::Share;
+pub use surface::Surface;
 pub use wire_type::WireType;
 
 use bit_boundary::BitBoundary;
@@ -32,6 +36,8 @@ pub struct Policy {
     vague: Vec<String>,
     wire_types: Vec<String>,
     bit_boundary: BitBoundary,
+    surfaces: Vec<Surface>,
+    baseline: BaselineFile,
     limits: EnumMap<Limit, Most>,
     floors: EnumMap<Floor, Least>,
     shares: EnumMap<Share, Percent>,
@@ -55,6 +61,16 @@ impl Policy {
     #[must_use]
     pub fn share(&self, share: Share) -> Percent {
         self.shares[share]
+    }
+
+    #[must_use]
+    pub fn surfaces(&self) -> &[Surface] {
+        &self.surfaces
+    }
+
+    #[must_use]
+    pub fn baseline(&self) -> &BaselineFile {
+        &self.baseline
     }
 
     #[must_use]

@@ -10,6 +10,11 @@ impl Percent {
     pub fn applied_to<Whole: Into<usize>, Part: From<usize>>(self, whole: Whole) -> Part {
         Part::from(whole.into() * self.0 / Self::WHOLE)
     }
+
+    pub fn exceeds(self, ratio: f64) -> bool {
+        let scaled = |count: usize| f64::from(u32::try_from(count).unwrap_or(u32::MAX));
+        ratio * scaled(Self::WHOLE) < scaled(self.0)
+    }
 }
 
 #[cfg(test)]
