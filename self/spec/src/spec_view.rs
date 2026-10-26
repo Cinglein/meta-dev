@@ -61,9 +61,9 @@ mod tests {
     use tempfile::TempDir;
 
     use super::{SECTIONS, Section, SpecView};
-    use crate::division::Division::PerformanceAndCost;
     use crate::enforcement::Enforcement::Tracked;
     use crate::rule::Rule;
+    use task::TopDivision::PerformanceAndCost;
 
     const PROSE: &str = "\n## Old\n- kept\n";
     const RULES: &[Rule] = &[Rule::new("an-id", PerformanceAndCost, "Says.", Tracked)];

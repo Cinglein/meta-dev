@@ -48,6 +48,7 @@ pub use shard::{Shard, Slice, SliceCount};
 pub use site::Site;
 pub use source_file::SourceFile;
 pub use support_modules::SupportModules;
+pub use top_division::TopDivision;
 pub use type_name::TypeName;
 pub use use_edges::UseEdges;
 pub use use_path::UsePath;

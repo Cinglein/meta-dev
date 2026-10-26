@@ -1,7 +1,7 @@
-use crate::division::Division::ArchitectureAndPlanning;
 use crate::enforcement::Enforcement::Tracked;
 use crate::rule::Rule;
 use crate::section::Section;
+use task::TopDivision::ArchitectureAndPlanning;
 
 pub const SECTIONS: &[Section] = &[
     Section::new(

@@ -1,4 +1,3 @@
-mod division;
 mod enforcement;
 mod rule;
 mod section;
@@ -8,7 +7,6 @@ mod test_fn;
 mod type_name;
 mod wording;
 
-pub use division::Division;
 pub use enforcement::Enforcement;
 pub use rule::Rule;
 pub use section::Section;

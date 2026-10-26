@@ -2,22 +2,22 @@ mod rule_id;
 
 use std::fmt;
 
-use crate::division::Division;
 use crate::enforcement::Enforcement;
 use crate::wording::Wording;
 use rule_id::RuleId;
+use task::TopDivision;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Rule {
     id: RuleId,
-    division: Division,
+    division: TopDivision,
     wording: Wording,
     enforcement: Enforcement,
 }
 
 impl Rule {
     #[must_use]
-    pub const fn new(id: &'static str, division: Division, wording: &'static str, enforcement: Enforcement) -> Rule {
+    pub const fn new(id: &'static str, division: TopDivision, wording: &'static str, enforcement: Enforcement) -> Rule {
         Rule { id: RuleId::new(id), division, wording: Wording::new(wording), enforcement }
     }
 
