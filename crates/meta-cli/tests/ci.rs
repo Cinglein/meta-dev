@@ -292,7 +292,7 @@ impl Repo {
         Self::limited(scenario, PATIENT)
     }
 
-    fn limited(scenario: &'static str, limits: &str) -> Self {
+    pub fn limited(scenario: &'static str, limits: &str) -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
         Git::run(origin.path(), &["init", "-q", "--template=", "--bare"]);
