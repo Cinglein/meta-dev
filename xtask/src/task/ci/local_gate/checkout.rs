@@ -65,7 +65,7 @@ mod tests {
 
     const IGNORE: &str = ".gitignore";
     const IGNORED: &str = "target/\nconsumer/hello.txt\n";
-    const MANIFEST: &str = "consumer/Cargo.toml";
+    const COMMITTED: &str = "consumer/committed.txt";
     const HELLO: &str = "consumer/hello.txt";
     const PLACE: &str = "target/local-gate";
     const SCOPE: &str = "consumer";
@@ -73,7 +73,7 @@ mod tests {
 
     impl Fixture {
         fn checked_out(&self) -> Checkout {
-            self.write(IGNORE, IGNORED).write(MANIFEST, "").write(HELLO, "").branch();
+            self.write(IGNORE, IGNORED).write(COMMITTED, "").write(HELLO, "").branch();
             let head: Commit = self.revision(HEAD).parse().unwrap();
             Checkout::add(&self.path(SCOPE), head, self.path(PLACE)).unwrap()
         }
@@ -83,7 +83,7 @@ mod tests {
     fn a_checkout_holds_exactly_the_commit_scoped_like_the_workspace() {
         let fixture = Fixture::new();
         let checkout = fixture.checked_out();
-        assert!(checkout.root().join("Cargo.toml").exists() && !checkout.root().join("hello.txt").exists());
+        assert!(checkout.root().join("committed.txt").exists() && !checkout.root().join("hello.txt").exists());
         assert_eq!(checkout.scope(), Path::new(SCOPE));
     }
 

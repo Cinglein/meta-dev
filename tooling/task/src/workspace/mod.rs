@@ -143,8 +143,15 @@ impl Workspace {
 
 #[cfg(test)]
 mod tests {
-    use super::{PackageGraph, TargetDirectory, Workspace};
+    use super::{PackageGraph, Program, Stdout, TargetDirectory, Workspace};
     use std::fs;
+    use std::path::{Path, PathBuf};
+    const SHARED: &str = r#"{"target_directory": "shared/target"}"#;
+    const EMPTY: &str = r#"{"workspace_root": "/", "packages": []}"#;
+    const TARGET: &str = "shared/target";
+    const UP: &str = "../..";
+    const SHELL: &str = "sh";
+    const SHOW_TARGET: [&str; 2] = ["-c", "printf %s \"$CARGO_TARGET_DIR\""];
     const TREE: [&str; 4] = ["a/src/a.rs", "b/b.rs", "target/skipped.rs", "a/notes.txt"];
     const FOUND: [&str; 2] = ["a:a/src/a.rs", "b:b/b.rs"];
     const TEXT: &str = "pub struct Found;";
@@ -176,5 +183,25 @@ mod tests {
             .map(|file| format!("{}:{}", file.crate_name().unwrap(), file.path().display()));
         assert!(found.eq(FOUND.map(String::from)) && workspace.target().path().ends_with("built"));
         fs::remove_dir_all(workspace.root()).unwrap();
+    }
+
+    #[test]
+    fn a_checked_out_workspace_builds_into_the_original_target() {
+        let original = Workspace {
+            root: PathBuf::new(),
+            target: TargetDirectory::from_metadata(SHARED).unwrap(),
+            packages: PackageGraph::from_metadata(EMPTY).unwrap(),
+            shared_target: None,
+        };
+        let checked = original
+            .checked_out(&Path::new(env!("CARGO_MANIFEST_DIR")).join(UP))
+            .unwrap();
+        let shown = checked
+            .line(Program::Executable(SHELL.into()))
+            .arguments(SHOW_TARGET)
+            .captured::<Stdout>();
+        assert!(
+            checked.target().path() == Path::new(TARGET) && shown.ok().as_deref() == Some(TARGET)
+        );
     }
 }
