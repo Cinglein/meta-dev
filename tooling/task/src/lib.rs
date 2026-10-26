@@ -11,7 +11,7 @@ mod mutant_count;
 mod name;
 mod nesting_depth;
 mod package_graph;
-mod policy;
+pub mod policy;
 mod reexport_count;
 mod report;
 mod selection;
@@ -43,8 +43,7 @@ pub use name::{Casing, LoweredInfix, Name, Prefix, Whole};
 pub use nesting_depth::NestingDepth;
 pub use package_graph::PackageGraph;
 pub use policy::{
-    Amount, BaselineFile, Budgets, Floor, Limit, Most, Overspend, Policy, Share, SpecSettings,
-    Surface, Window, WireType,
+    BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface, WireType,
 };
 pub use reexport_count::ReexportCount;
 pub use report::Report;

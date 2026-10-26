@@ -7,7 +7,7 @@ use meta_schema::Blocker;
 use meta_state::TaskStatus;
 use meta_xtask::CiStep;
 use task::TopDivision::{ArchitectureAndPlanning, FeaturesAndMaintenance};
-use task::{Amount, Budgets, Overspend, Window};
+use task::policy::budgets::{Amount, Budgets, Overspend, Window};
 
 pub const SECTIONS: &[Section] = &[
     Section::new(

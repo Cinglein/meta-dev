@@ -1,6 +1,6 @@
 mod baseline_file;
 mod bit_boundary;
-mod budgets;
+pub mod budgets;
 mod floor;
 mod least;
 mod limit;
@@ -30,7 +30,7 @@ use std::num::NonZeroU64;
 use std::path::Path;
 
 use bit_boundary::BitBoundary;
-pub use budgets::{Amount, Budgets, Overspend, Window};
+use budgets::Budgets;
 use enum_map::EnumMap;
 use least::Least;
 use percent::Percent;
