@@ -20,7 +20,6 @@ use std::path::PathBuf;
 use std::process::{Child, Command, Output};
 
 use crate::failure::Failure;
-use crate::workspace::TargetDirectory;
 
 #[derive(Clone, Debug)]
 pub struct CommandLine {
@@ -31,8 +30,6 @@ pub struct CommandLine {
 }
 
 impl CommandLine {
-    const TARGET: &str = "CARGO_TARGET_DIR";
-
     #[must_use]
     pub fn new(program: Program) -> CommandLine {
         CommandLine {
@@ -41,11 +38,6 @@ impl CommandLine {
             directory: None,
             variables: BTreeMap::new(),
         }
-    }
-
-    #[must_use]
-    pub fn building_into(self, target: &TargetDirectory) -> CommandLine {
-        self.environment(Self::TARGET, target.path().to_path_buf())
     }
 
     #[must_use]
@@ -126,7 +118,7 @@ impl fmt::Display for CommandLine {
 
 #[cfg(test)]
 mod tests {
-    use super::{CargoArgument, CommandLine, Program, Stderr, Stdout, TargetDirectory};
+    use super::{CargoArgument, CommandLine, Program, Stderr, Stdout};
     use std::path::PathBuf;
     const GIT: &str = "git";
     const SHOWN: &str = "git fmt --all";
@@ -136,7 +128,7 @@ mod tests {
     const SHELL: &str = "sh";
     const SHOW_TARGET: [&str; 2] = ["-c", "printf %s \"$CARGO_TARGET_DIR\""];
     const TARGET: &str = "shared/target";
-    const SHARED: &str = r#"{"target_directory": "shared/target"}"#;
+    const VARIABLE: &str = "CARGO_TARGET_DIR";
 
     #[test]
     fn a_command_line_prints_its_program_and_arguments_in_order() {
@@ -165,10 +157,10 @@ mod tests {
     }
 
     #[test]
-    fn a_command_building_into_a_target_sees_it_as_the_cargo_target_dir() {
+    fn a_command_sees_the_environment_it_was_given() {
         let shown = CommandLine::new(Program::Executable(SHELL.into()))
             .arguments(SHOW_TARGET)
-            .building_into(&TargetDirectory::from_metadata(SHARED).unwrap())
+            .environment(VARIABLE, PathBuf::from(TARGET))
             .captured::<Stdout>();
         assert_eq!(shown.ok().as_deref(), Some(TARGET));
     }

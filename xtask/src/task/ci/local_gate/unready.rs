@@ -6,8 +6,6 @@ pub enum Unready {
     Dirty,
     #[error("HEAD not pushed")]
     Unpushed,
-    #[error("HEAD moved during the run")]
-    Moved,
     #[error("gate checkout changed during the run")]
     Tampered,
     #[error("no meta-dev rev")]

@@ -56,6 +56,8 @@ pub struct Policy {
     baseline: BaselineFile,
     #[serde(default)]
     gate: Option<GateStatus>,
+    #[serde(default)]
+    gate_wait: Option<Millis>,
     limits: EnumMap<Limit, Most>,
     floors: EnumMap<Floor, Least>,
     shares: EnumMap<Share, Percent>,
@@ -75,6 +77,7 @@ impl EmbeddedDefaults for Policy {
 impl Policy {
     const PATH: &str = "tooling/policy.toml";
     const GATE: &str = "gate in tooling/policy.toml";
+    const GATE_WAIT: &str = "gate_wait in tooling/policy.toml";
 
     pub fn read(root: &Path) -> Result<Policy, Failure> {
         let path = root.join(Self::PATH);
@@ -153,6 +156,10 @@ impl Policy {
 
     pub fn gate(&self) -> Result<&GateStatus, Failure> {
         self.gate.as_ref().ok_or(Failure::Unset(Self::GATE))
+    }
+
+    pub fn gate_wait(&self) -> Result<Millis, Failure> {
+        self.gate_wait.ok_or(Failure::Unset(Self::GATE_WAIT))
     }
 
     #[must_use]

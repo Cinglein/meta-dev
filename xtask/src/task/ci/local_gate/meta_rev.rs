@@ -14,6 +14,11 @@ impl MetaRev {
     const REV: char = '#';
     const QUOTE: char = '"';
     const REV_LENGTH: usize = 7;
+    const LOCAL: &str = "local";
+
+    pub fn local() -> MetaRev {
+        MetaRev(Self::LOCAL.to_owned())
+    }
 }
 
 impl FromStr for MetaRev {

@@ -2,7 +2,7 @@ use std::io;
 
 use thiserror::Error;
 
-use crate::task::ci::Unready;
+use crate::task::ci::{Busy, Unready};
 use crate::task::ratchet::{Raised, Ratchet};
 
 #[derive(Debug, Error)]
@@ -21,4 +21,6 @@ pub enum Failure {
     Summary(io::Error),
     #[error("gate not posted: {0}")]
     Unready(#[from] Unready),
+    #[error("{0}")]
+    Busy(Busy),
 }

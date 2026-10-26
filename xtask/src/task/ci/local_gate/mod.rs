@@ -1,4 +1,6 @@
+mod busy;
 mod checkout;
+mod gate_lock;
 mod gate_state;
 mod meta_rev;
 mod posting;
@@ -7,19 +9,21 @@ mod status_argument;
 mod unready;
 mod worktrees;
 
-pub use checkout::Checkout;
-pub use gate_state::GateState;
-pub use meta_rev::MetaRev;
+pub use busy::Busy;
 pub use posting::Posting;
-pub use recorded_times::RecordedTimes;
 pub use unready::Unready;
-pub use worktrees::Worktrees;
+
+use checkout::Checkout;
+use gate_lock::GateLock;
+use gate_state::GateState;
+use meta_rev::MetaRev;
+use recorded_times::RecordedTimes;
+use worktrees::Worktrees;
 
 use std::env;
-use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 
-use task::{Branch, CommandLine, GateStatus, Policy, Program, Site, Stdout, Workspace};
+use task::{Branch, CommandLine, GateStatus, Policy, Program, Stdout};
 
 use crate::task::failure::Failure;
 use crate::task::revision::Commit;
@@ -42,7 +46,7 @@ impl LocalGate {
     const GATE: [&str; 2] = ["xtask", "ci"];
     const FIELD: &str = "-f";
     const CHECKOUTS: &str = "meta-local-gate";
-    const LOCK: &str = "local-gate.lock";
+    const CARGO_TARGET: &str = "CARGO_TARGET_DIR";
 
     pub fn new(root: &Path, policy: &Policy) -> Result<LocalGate, Failure> {
         Ok(LocalGate {
@@ -66,29 +70,34 @@ impl LocalGate {
         Checkout::add(&self.root, self.ready()?, &parent)
     }
 
-    pub fn run(&self, workspace: &Workspace, policy: &Policy, summary: Option<&Path>) -> Result<(), Failure> {
-        let target = workspace.target().path();
-        let io = |error| task::Failure::Io { site: Site::File(target.join(Self::LOCK)), error };
-        fs::create_dir_all(target).map_err(io)?;
-        let lock = File::create(target.join(Self::LOCK)).map_err(io)?;
-        lock.lock().map_err(io)?;
-        let checkout = self.checkout(&env::temp_dir().join(Self::CHECKOUTS))?;
+    pub fn run(&self, policy: &Policy, summary: Option<&Path>) -> Result<(), Failure> {
+        let parent = env::temp_dir().join(Self::CHECKOUTS);
+        let target = GateLock::target(&parent, &self.root);
+        let _lock = GateLock::guarding(&target, policy.gate_wait()?)?;
+        let checkout = self.checkout(&parent)?;
         let outcome = CommandLine::new(Program::Cargo)
             .in_directory(checkout.root())
             .arguments(Self::GATE)
-            .building_into(workspace.target())
+            .environment(Self::CARGO_TARGET, target)
             .environment(Self::TIMES, checkout.times().path().to_path_buf())
             .run();
         let changed = Surfaces::changed(&checkout.root(), policy.surfaces(), policy.branch(Branch::Base))?;
         changed.announce(summary)?;
-        let state = outcome.as_ref().map_or(GateState::Failure, |()| GateState::Success);
-        self.post(&checkout, state, &changed).and(outcome.map_err(Failure::from))
+        self.concluded(&checkout, outcome, &changed)
     }
 
-    pub fn post(&self, checkout: &Checkout, state: GateState, surfaces: &Changed) -> Result<(), Failure> {
+    pub fn concluded(
+        &self,
+        checkout: &Checkout,
+        outcome: Result<(), task::Failure>,
+        surfaces: &Changed,
+    ) -> Result<(), Failure> {
+        let state = outcome.as_ref().map_or(GateState::Success, |()| GateState::Failure);
+        self.post(checkout, state, surfaces).and(outcome.map_err(Failure::from))
+    }
+
+    fn post(&self, checkout: &Checkout, state: GateState, surfaces: &Changed) -> Result<(), Failure> {
         let checked = checkout.commit();
-        let head: Commit = Self::git(&self.root).arguments(Self::HEAD).captured::<Stdout>()?.parse()?;
-        (head == *checked).then_some(()).ok_or(Unready::Moved)?;
         checkout.intact()?;
         let version = checkout.version()?;
         let times = checkout.times();
@@ -117,7 +126,7 @@ mod tests {
     use settings::EmbeddedDefaults;
     use task::{CommandLine, Policy, Program};
 
-    use super::{GateState, LocalGate, Unready};
+    use super::{LocalGate, Unready};
     use crate::task::failure::Failure;
     use crate::task::fixture::Fixture;
     use crate::task::surfaces::Changed;
@@ -133,8 +142,8 @@ mod tests {
     const RECORDED: &str = ".git/fake-gh.args";
     const SCRIPT: &str = "printf '%s\\n' \"$@\" > \"$0.args\"\n";
     const TIMED: &str = "fmt 1.0s";
-    const POSTED: &str = "-f\nstate=success\n-f\ncontext=local-gate/consumer\n-f\ndescription=meta-dev ";
-    const DESCRIBED: &str = ": fmt 1.0s; surfaces changed\n";
+    const POSTED: &str = "-f\nstate=success\n-f\ncontext=local-gate/consumer\n-f\ndescription=meta-dev local: fmt 1.0s; surfaces changed\n";
+    const FAILED: &str = "state=failure";
 
     impl LocalGate {
         fn faked(fixture: &Fixture) -> LocalGate {
@@ -162,29 +171,27 @@ mod tests {
     }
 
     #[test]
-    fn the_checked_commit_gets_the_state_a_scoped_context_the_version_timings_and_surfaces_despite_a_dirty_tree() {
+    fn the_checked_commit_gets_the_childs_state_a_scoped_context_the_version_timings_and_surfaces() {
         let fixture = Fixture::new();
         let gate = LocalGate::faked(&fixture);
         let checkout = gate.checkout(&fixture.beside()).unwrap();
         fs::write(checkout.times().path(), TIMED).unwrap();
-        fixture.write(SOURCE, BETA);
-        gate.post(&checkout, GateState::Success, &Changed::new(vec![PathBuf::from(IGNORE)])).unwrap();
+        fixture.write(SOURCE, BETA).branch();
+        let surfaces = Changed::new(vec![PathBuf::from(IGNORE)]);
+        gate.concluded(&checkout, Ok(()), &surfaces).unwrap();
         let recorded = fs::read_to_string(fixture.path(RECORDED)).unwrap_or_default();
-        assert!(
-            recorded.contains(&format!("/statuses/{}\n{POSTED}", checkout.commit())) && recorded.ends_with(DESCRIBED)
-        );
+        assert!(recorded.ends_with(&format!("/statuses/{}\n{POSTED}", checkout.commit())));
+        let failed = gate.concluded(&checkout, Err(task::Failure::NoWorkspace), &surfaces);
+        assert!(failed.is_err() && fs::read_to_string(fixture.path(RECORDED)).unwrap_or_default().contains(FAILED));
     }
 
     #[test]
-    fn a_moved_head_or_a_changed_checkout_posts_nothing() {
+    fn a_changed_checkout_posts_nothing() {
         let fixture = Fixture::new();
         let gate = LocalGate::faked(&fixture);
         let checkout = gate.checkout(&fixture.beside()).unwrap();
-        let unchanged = Changed::new(Vec::new());
         fs::write(checkout.root().join(SCOPE), BETA).unwrap();
-        assert!(LocalGate::refused(gate.post(&checkout, GateState::Success, &unchanged), Unready::Tampered));
-        fixture.write(SOURCE, BETA).branch();
-        let moved = LocalGate::refused(gate.post(&checkout, GateState::Success, &unchanged), Unready::Moved);
-        assert!(moved && !fixture.path(RECORDED).exists());
+        let posted = gate.concluded(&checkout, Ok(()), &Changed::new(Vec::new()));
+        assert!(LocalGate::refused(posted, Unready::Tampered) && !fixture.path(RECORDED).exists());
     }
 }

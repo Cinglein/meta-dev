@@ -2,7 +2,7 @@ mod ci_step;
 mod local_gate;
 mod step_times;
 
-pub use local_gate::{LocalGate, Posting, Unready};
+pub use local_gate::{Busy, LocalGate, Posting, Unready};
 
 use std::fs::File;
 use std::io::Write;
@@ -44,7 +44,7 @@ impl Ci {
                     .unwrap_or_else(|failure| eprintln!("surfaces: {failure}"));
                 outcome
             },
-            |gate| gate.run(workspace, policy, self.summary.as_deref()),
+            |gate| gate.run(policy, self.summary.as_deref()),
         )
     }
 

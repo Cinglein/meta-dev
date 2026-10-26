@@ -14,6 +14,7 @@ impl fmt::Display for GateStatus {
 
 #[cfg(test)]
 mod tests {
+    use crate::budget::Millis;
     use crate::policy::Policy;
     use settings::EmbeddedDefaults;
 
@@ -23,5 +24,10 @@ mod tests {
     fn the_checked_in_policy_names_the_gate_status() {
         let named = Policy::defaults().gate().map(ToString::to_string);
         assert_eq!(named.ok().as_deref(), Some(GATE));
+        assert!(
+            Policy::defaults()
+                .gate_wait()
+                .is_ok_and(|wait| wait > Millis::default())
+        );
     }
 }
