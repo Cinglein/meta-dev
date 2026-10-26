@@ -27,19 +27,25 @@ impl MutantCosts {
     const OUTCOMES: &str = "outcomes.json";
     const STEP: NonZeroU64 = NonZeroU64::new(100).unwrap();
 
-    pub fn measure(directory: &Path, policy: &Policy) -> Result<MutantCosts, Failure> {
+    pub fn measure(runs: &[PathBuf], policy: &Policy) -> Result<MutantCosts, Failure> {
+        runs.iter()
+            .map(|run| Self::read_run(run))
+            .collect::<Result<Vec<Vec<Outcomes>>, Failure>>()
+            .map(|runs| Self::across(runs, policy))
+    }
+
+    #[must_use]
+    pub fn across(runs: impl IntoIterator<Item = Vec<Outcomes>>, policy: &Policy) -> MutantCosts {
+        runs.into_iter().fold(MutantCosts::default(), |costs, run| costs.costliest_run(&run, policy))
+    }
+
+    fn read_run(directory: &Path) -> Result<Vec<Outcomes>, Failure> {
         let io = |error| Failure::Io { site: Site::File(directory.to_path_buf()), error };
         Self::outcome_files(directory)?
             .iter()
             .map(|file| fs::read_to_string(file).map_err(io))
             .map(|json| Outcomes::parse(&json?))
-            .collect::<Result<Vec<Outcomes>, Failure>>()
-            .map(|all| Self::tally(all, policy))
-    }
-
-    #[must_use]
-    pub fn tally(all: impl IntoIterator<Item = Outcomes>, policy: &Policy) -> MutantCosts {
-        all.into_iter().fold(MutantCosts::default(), |costs, run| costs.costliest_run(&run, policy))
+            .collect()
     }
 
     #[must_use]
@@ -60,14 +66,15 @@ impl MutantCosts {
         under.is_empty().then_some(()).ok_or_else(|| Failure::Underpriced(under.join(", ")))
     }
 
-    fn costliest_run(mut self, run: &Outcomes, policy: &Policy) -> MutantCosts {
+    fn costliest_run(self, run: &[Outcomes], policy: &Policy) -> MutantCosts {
         let floor = policy.floor(Floor::PriceSample);
-        run.tallied_into(BTreeMap::new()).into_iter().for_each(|(name, tally): (CrateName, Tally)| {
-            let book = if floor.allows(tally.count().into()) { &mut self.prices } else { &mut self.unsampled };
+        let pooled = run.iter().fold(BTreeMap::new(), |tallies, slice| slice.tallied_into(tallies));
+        pooled.into_iter().fold(self, |mut costs, (name, tally): (CrateName, Tally)| {
+            let book = if floor.allows(tally.count().into()) { &mut costs.prices } else { &mut costs.unsampled };
             let price = book.entry(name).or_default();
             *price = (*price).max(tally.mean());
-        });
-        self
+            costs
+        })
     }
 
     fn outcome_files(path: &Path) -> Result<Vec<PathBuf>, Failure> {
@@ -133,9 +140,9 @@ mod tests {
             let outcomes: Vec<String> = [BASELINE.to_owned()].into_iter().chain(mutants).collect();
             Outcomes::parse(&format!(r#"{{"outcomes": [{}]}}"#, outcomes.join(", "))).unwrap()
         };
-        let costs = MutantCosts::tally(RUNS.map(run), &policy);
+        let costs = MutantCosts::across(RUNS.map(|crates| vec![run(crates)]), &policy);
         assert_eq!((costs.to_string(), costs.below_sample_floor()), (TABLE.to_owned(), SMALL.to_owned()));
-        let sliced = MutantCosts::tally(iter::repeat_with(|| run(SLICE)).take(SLICES), &policy);
+        let sliced = MutantCosts::across([iter::repeat_with(|| run(SLICE)).take(SLICES).collect()], &policy);
         assert!(sliced.to_string().ends_with(SLICED_PRICE));
     }
 
@@ -149,7 +156,7 @@ mod tests {
                 r#"{{"scenario": {{"Mutant": {{"package": "{LISTED}"}}}}, "phase_results": [{{"phase": "Test", "duration": {seconds}}}]}}"#
             );
             let run = format!(r#"{{"outcomes": [{}]}}"#, vec![one; mutants].join(", "));
-            MutantCosts::tally([Outcomes::parse(&run).unwrap()], &policy).priced_within(&policy)
+            MutantCosts::across([vec![Outcomes::parse(&run).unwrap()]], &policy).priced_within(&policy)
         };
         assert!(measured(price, SAMPLE).is_ok());
         assert!(matches!(measured(price.plus(price), SAMPLE), Err(Failure::Underpriced(_))));
