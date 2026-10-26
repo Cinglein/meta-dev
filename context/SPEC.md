@@ -39,6 +39,14 @@ Sections down to the next top-level heading are rendered from the rule records i
 - `build-7-waivers` (architecture-and-planning, rung 1, no enforcer): Step 7: waivers replace baselines (this also settles first-baseline seeding).
 - `build-8-rungs` (architecture-and-planning, rung 1, no enforcer): Step 8: ladder rungs on concerns.
 
+## Agent wall time (owner, 2026-10-26)
+- `wall-time-guard` (architecture-and-planning, rung 1, no enforcer): Wall time is the only reliable guard against silent agent stalls. Activity signals (pushes, log events, idleness) are not: an agent blocked on a watcher that can never fire looks idle while working and busy while stuck.
+- `wall-time-budget` (architecture-and-planning, rung 1, no enforcer): Every claimed task carries a wall-time budget, set when it is claimed (a project default in tooling/policy.toml, overridable per task).
+- `wall-time-spent` (architecture-and-planning, rung 1, no enforcer): Spending it is an event, whatever the agent appears to be doing. The task is flagged and escalated: the lead checks the agent and replaces it, or extends the budget explicitly (a recorded, budgeted extension).
+- `wall-time-release` (architecture-and-planning, rung 1, no enforcer): A task whose budget expires again without an extension is released, so another agent can claim it.
+- `wall-time-headroom` (architecture-and-planning, rung 1, no enforcer): Headroom applies: a task past ~60-80% of its budget is a warning to the steward.
+- `wall-time-example` (architecture-and-planning, rung 1, no enforcer): Example: a mutation-testing PR's agent waited on a merge in a repo that had been frozen; nothing fired until the owner noticed by hand.
+
 ## Status, part 1: local state (owner, 2026-10-26)
 - `status-local-never-remote` (architecture-and-planning, rung 1, no enforcer): Local file-tree facts and settings never go to the remote.
 - `status-local-settings` (architecture-and-planning, rung 1, no enforcer): Settings (worktree root, target-dir layout, gc retention) live in a gitignored local config per clone, such as meta.local.toml (ignore rule committed, defaults when absent).
@@ -113,7 +121,7 @@ Sections down to the next top-level heading are rendered from the rule records i
 - `tier-escalation` (architecture-and-planning, rung 1, no enforcer): When a cheap tier fails review or CI, the task escalates one tier and the miss is recorded, so ratings calibrate over time.
 - `tier-spend` (architecture-and-planning, rung 1, no enforcer): Spend is counted against the performance-and-cost budget.
 
-# Not yet converted: hand-written prose, 2006 words
+# Not yet converted: hand-written prose, 1846 words
 
 Source: Basho postmortem, part 3 (kept in the Basho project's private repo).
 
@@ -281,14 +289,6 @@ Source: Basho postmortem, part 3 (kept in the Basho project's private repo).
 - The steward escalates to the owner only for decisions: budget or authority changes, priority conflicts, waivers beyond budget.
 - Dogfooded: the steward's own false alarms and misses are budgeted, and calibrated against what the owner would have flagged.
 - Depends on stage 1 (runs, timings, budgets). Its first version belongs there.
-
-## Agent wall time (owner, 2026-10-26)
-- Wall time is the only reliable guard against silent agent stalls. Activity signals (pushes, log events, idleness) are not: an agent blocked on a watcher that can never fire looks idle while working and busy while stuck.
-- Every claimed task carries a wall-time budget, set when it is claimed (a project default in tooling/policy.toml, overridable per task).
-- Spending it is an event, whatever the agent appears to be doing. The task is flagged and escalated: the lead checks the agent and replaces it, or extends the budget explicitly (a recorded, budgeted extension).
-- A task whose budget expires again without an extension is released, so another agent can claim it.
-- Headroom applies: a task past ~60-80% of its budget is a warning to the steward.
-- Example: a mutation-testing PR's agent waited on a merge in a repo that had been frozen; nothing fired until the owner noticed by hand.
 
 ## Prose (owner, 2026-10-25)
 Prose is allowed only in three categories, each clearly marked and separated from the rest of the codebase:

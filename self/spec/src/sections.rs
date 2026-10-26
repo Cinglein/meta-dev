@@ -232,6 +232,57 @@ pub const SECTIONS: &[Section] = &[
         ],
     ),
     Section::new(
+        Wording::new("Agent wall time (owner, 2026-10-26)"),
+        &[
+            Rule::new(
+                RuleId::new("wall-time-guard"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Wall time is the only reliable guard against silent agent stalls. Activity signals (pushes, log events, idleness) are not: an agent blocked on a watcher that can never fire looks idle while working and busy while stuck.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("wall-time-budget"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Every claimed task carries a wall-time budget, set when it is claimed (a project default in tooling/policy.toml, overridable per task).",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("wall-time-spent"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Spending it is an event, whatever the agent appears to be doing. The task is flagged and escalated: the lead checks the agent and replaces it, or extends the budget explicitly (a recorded, budgeted extension).",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("wall-time-release"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "A task whose budget expires again without an extension is released, so another agent can claim it.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("wall-time-headroom"),
+                ArchitectureAndPlanning,
+                Wording::new("Headroom applies: a task past ~60-80% of its budget is a warning to the steward."),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("wall-time-example"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Example: a mutation-testing PR's agent waited on a merge in a repo that had been frozen; nothing fired until the owner noticed by hand.",
+                ),
+                Tracked,
+            ),
+        ],
+    ),
+    Section::new(
         Wording::new("Status, part 1: local state (owner, 2026-10-26)"),
         &[
             Rule::new(
