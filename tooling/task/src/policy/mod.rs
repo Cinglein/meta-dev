@@ -4,6 +4,7 @@ mod budgets;
 mod domains;
 mod floor;
 mod least;
+mod legacy_key;
 mod limit;
 mod most;
 mod percent;
