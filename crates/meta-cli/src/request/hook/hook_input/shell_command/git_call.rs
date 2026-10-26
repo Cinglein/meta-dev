@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::request::output::Listed;
-use crate::request::project::{BranchName, Project};
+use crate::request::project::{BranchName, Config};
 
 #[derive(Debug)]
 pub struct GitCall {
@@ -21,14 +21,14 @@ impl GitCall {
         self.words.first().filter(|word| *word == "commit").map(|_| ())
     }
 
-    pub fn push_refusal(&self, project: &Project) -> Option<Listed> {
+    pub fn push_refusal(&self, config: &Config) -> Option<Listed> {
         let args = self.words.split_first().filter(|(subcommand, _)| *subcommand == "push").map(|(_, args)| args)?;
         args.iter()
             .find(|word| Self::forces(word).is_some())
             .map(|word| Listed::new(format!("{self}: {word} forces; use --force-with-lease on your own branch")))
             .or_else(|| {
                 Self::targets(args)
-                    .find_map(|branch| project.config().protects(&branch).cloned())
+                    .find_map(|branch| config.protects(&branch).cloned())
                     .map(|branch| Listed::new(format!("{self}: {branch} is protected; open a PR")))
             })
     }

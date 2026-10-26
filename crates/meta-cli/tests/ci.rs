@@ -74,6 +74,16 @@ impl Git {
     fn run(dir: &Path, words: &[&str]) -> Output {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
     }
+
+    fn link_origin(dir: &Path, url: &str) {
+        let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(dir.join(".git/config"))
+            .unwrap()
+            .write_all(remote.as_bytes())
+            .unwrap();
+    }
 }
 
 struct Waited(String, ExitStatus);
@@ -90,7 +100,7 @@ impl Repo {
         let clone = tempfile::tempdir().unwrap();
         Git::run(origin.path(), &["init", "-q", "--bare"]);
         Git::run(clone.path(), &["init", "-q", "-b", "feature"]);
-        Git::run(clone.path(), &["remote", "add", "origin", origin.path().to_str().unwrap()]);
+        Git::link_origin(clone.path(), origin.path().to_str().unwrap());
         let timeout = if scenario == NONE { IMPATIENT } else { PATIENT };
         std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{timeout}")).unwrap();
         std::fs::create_dir(clone.path().join("bin")).unwrap();
@@ -163,12 +173,11 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
     let waited = repo.session_command(CI_WAIT);
     let stop = repo.hook(STOP, COMMIT);
     let settled = repo.settled();
-    let next = format!("{stop}{}", repo.hook(PRE, COMMIT));
+    let shown = format!("{}{stop}{}", waited.0, repo.hook(PRE, COMMIT));
     assert!(waited.0.contains(JOB_FAILED) && !waited.1.success() && stop.contains(BLOCK_REASON));
-    assert!(settled.contains(STEP_LISTED) && next.contains(CI_LOG_HINT));
-    assert!(
-        repo.session_command(CI_LOG).0.contains(PANIC_BLOCK) && !repo.session_command(CI_LOG).0.contains(COMPILING)
-    );
+    assert!(settled.contains(STEP_LISTED) && shown.contains(STEP_LISTED) && shown.contains(CI_LOG_HINT));
+    let log = repo.session_command(CI_LOG).0;
+    assert!(log.contains(PANIC_BLOCK) && !log.contains(COMPILING));
 }
 
 #[test]

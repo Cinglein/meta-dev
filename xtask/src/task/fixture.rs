@@ -14,7 +14,7 @@ impl Fixture {
     pub fn new() -> Fixture {
         let directory = TempDir::new().expect("temp dir");
         let work = directory.path().join("work");
-        Self::ran(Self::git(directory.path()).args(["init", "--quiet", "--initial-branch", "main"]).arg(&work));
+        Self::ran(Self::git(directory.path()).args(["init", "--quiet", "--initial-branch", "change"]).arg(&work));
         Fixture { _directory: directory, work }
     }
 
@@ -31,8 +31,8 @@ impl Fixture {
             "fixture",
         ]));
         Self::ran(Self::git(&self.work).args(["update-ref", "refs/remotes/origin/main", "HEAD"]));
-        Self::ran(Self::git(&self.work).args(["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"]));
-        Self::ran(Self::git(&self.work).args(["switch", "--quiet", "--create", "change"]));
+        fs::write(self.work.join(".git/refs/remotes/origin/HEAD"), "ref: refs/remotes/origin/main\n")
+            .expect("write origin HEAD");
     }
 
     pub fn write(&self, path: &str, text: &str) -> &Fixture {
