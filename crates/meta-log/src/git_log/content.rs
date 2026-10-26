@@ -2,7 +2,6 @@ use std::fmt::{self, Write as _};
 
 use meta_schema::Record;
 
-use crate::detail::Detail;
 use crate::skipped_line::{LineNumber, SkippedLine};
 use crate::snapshot::Snapshot;
 
@@ -20,9 +19,7 @@ impl Content {
         self.0.split_inclusive(Self::NEWLINE).enumerate().fold(Snapshot::default(), |snapshot, (index, line)| {
             match serde_json::from_str(line) {
                 Ok(record) => snapshot.with_record(record),
-                Err(error) => {
-                    snapshot.with_skipped(SkippedLine::new(LineNumber::from_index(index), Detail::from_reason(&error)))
-                }
+                Err(error) => snapshot.with_skipped(SkippedLine::new(LineNumber::from_index(index), error)),
             }
         })
     }

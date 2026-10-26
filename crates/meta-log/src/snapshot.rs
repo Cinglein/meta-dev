@@ -2,11 +2,10 @@ use std::fmt;
 
 use meta_schema::Record;
 
-use crate::detail::Detail;
 use crate::log_failure::LogFailure;
 use crate::skipped_line::SkippedLine;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default)]
 pub struct Snapshot {
     records: Vec<Record>,
     skipped: Vec<SkippedLine>,
@@ -28,10 +27,7 @@ impl Snapshot {
     }
 
     pub fn complete(&self) -> Result<&[Record], LogFailure> {
-        match self.skipped.as_slice() {
-            [] => Ok(&self.records),
-            unread => Err(LogFailure::Unreadable(Detail::from_reason(&unread.len()))),
-        }
+        self.skipped.first().map_or(Ok(&self.records), |unread| Err(LogFailure::Unreadable(unread.line())))
     }
 }
 

@@ -1,13 +1,13 @@
 use std::ffi::OsStr;
-use std::fmt;
 use std::io::{self, Write as _};
 use std::process::{Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
-use crate::detail::Detail;
+use crate::command_line::CommandLine;
 use crate::git_log::content::Content;
 use crate::git_log::sha::Sha;
 use crate::log_failure::LogFailure;
+use crate::stderr::Stderr;
 
 #[derive(Debug)]
 pub struct GitCommand {
@@ -48,15 +48,12 @@ impl GitCommand {
             status.and_then(|_| child.wait_with_output()).map_err(LogFailure::from)
         } else {
             child.kill()?;
-            Err(LogFailure::Offline(Detail::from_reason(&format!(
-                "{self} timed out after {:?}",
-                Self::NETWORK_TIMEOUT
-            ))))
+            Err(LogFailure::TimedOut { command: CommandLine::from(&self.command), after: Self::NETWORK_TIMEOUT })
         }
     }
 
     pub fn content(mut self) -> Result<Content, LogFailure> {
-        let shown = self.to_string();
+        let command = CommandLine::from(&self.command);
         let stdin = self.input.as_ref().map_or_else(Stdio::null, |_| Stdio::piped());
         let mut child = self.command.stdin(stdin).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
         self.input
@@ -70,19 +67,12 @@ impl GitCommand {
                 .map(Content::from)
                 .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error).into())
         } else {
-            Err(LogFailure::Git(Detail::from_reason(&format!("{shown}: {}", Detail::from(&output)))))
+            Err(LogFailure::Git { command, stderr: Stderr::from(&output) })
         }
     }
 
     pub fn sha(self) -> Result<Sha, LogFailure> {
         let content = self.content()?;
         Ok(content.as_ref().parse().unwrap_or_else(|never| match never {}))
-    }
-}
-
-impl fmt::Display for GitCommand {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let words: Vec<_> = self.command.get_args().map(OsStr::to_string_lossy).collect();
-        write!(formatter, "git {}", words.join(" "))
     }
 }

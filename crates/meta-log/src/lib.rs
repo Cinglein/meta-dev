@@ -1,16 +1,22 @@
-mod detail;
+mod command_line;
 mod git_log;
 mod log_failure;
+mod remote_name;
 mod skipped_line;
 mod snapshot;
+mod stderr;
 
 pub use git_log::GitLog;
 pub use log_failure::LogFailure;
+pub use remote_name::RemoteName;
 
 use meta_schema::Record;
 use snapshot::Snapshot;
 
 pub trait LogStore {
     fn read(&self) -> Result<Snapshot, LogFailure>;
-    fn append(&self, decide: &mut dyn FnMut(&Snapshot) -> Result<Record, LogFailure>) -> Result<Record, LogFailure>;
+    fn append<Failure: From<LogFailure>>(
+        &self,
+        decide: &mut dyn FnMut(&Snapshot) -> Result<Record, Failure>,
+    ) -> Result<Record, Failure>;
 }
