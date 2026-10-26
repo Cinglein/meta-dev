@@ -140,3 +140,4 @@
 {"at":"2026-10-26T04:51:29.230098Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-a9aca68a10fadf39"}
 {"at":"2026-10-26T04:51:30.735517Z","actor":"claude-lead","kind":"TaskDone","task":"task-a9aca68a10fadf39"}
 {"at":"2026-10-26T04:54:12.217854Z","actor":"claude-lead","kind":"TaskOpened","task":"task-c777def40a9d2278","text":"Kill all surviving mutants in meta-cli and meta-gh before #18 merges (owner: option a)"}
+{"at":"2026-10-26T04:54:13.818119Z","actor":"claude-lead","kind":"TaskOpened","task":"task-e5446176f7fa6f60","text":"Kill all surviving mutants in meta-state, meta-schema, meta-log, meta-listing before #18 merges (owner: option a)"}
