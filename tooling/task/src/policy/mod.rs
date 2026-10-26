@@ -20,6 +20,9 @@ pub use share::Share;
 pub use surface::Surface;
 pub use wire_type::WireType;
 
+use std::fs;
+use std::path::Path;
+
 use bit_boundary::BitBoundary;
 use enum_map::EnumMap;
 use least::Least;
@@ -33,7 +36,9 @@ use crate::branches::{Branch, BranchName};
 use crate::budget::{
     AvailableGib, CompilerTasks, Interval, MemoryShare, Millis, MutantMillis, MutationCadence,
 };
+use crate::failure::Failure;
 use crate::name::Name;
+use crate::site::Site;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -58,6 +63,20 @@ impl EmbeddedDefaults for Policy {
 }
 
 impl Policy {
+    const PATH: &str = "tooling/policy.toml";
+
+    pub fn read(root: &Path) -> Result<Policy, Failure> {
+        let path = root.join(Self::PATH);
+        let text = fs::read_to_string(&path).map_err(|error| Failure::Io {
+            site: Site::File(path.clone()),
+            error,
+        })?;
+        toml::from_str(&text).map_err(|error| Failure::Policy {
+            site: Site::File(path),
+            error,
+        })
+    }
+
     #[must_use]
     pub fn limit(&self, limit: Limit) -> Most {
         self.limits[limit]
@@ -136,6 +155,7 @@ impl Policy {
 mod tests {
     use super::{Limit, Name, Policy};
     use settings::EmbeddedDefaults;
+    use std::path::Path;
     const CHECK: &str = "check";
     const LONG_ENOUGH: &str = "report";
 
@@ -149,5 +169,12 @@ mod tests {
             read.limit(Limit::Parameters)
                 .allows(read.limit(Limit::Parameters).count())
         );
+    }
+
+    #[test]
+    fn the_policy_is_read_from_the_workspace_it_runs_in() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        assert_eq!(Policy::read(&root).unwrap(), Policy::defaults());
+        assert!(Policy::read(&root.join("tooling")).is_err());
     }
 }

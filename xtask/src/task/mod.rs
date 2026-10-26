@@ -15,7 +15,6 @@ mod usage;
 use std::env;
 use std::path::{Path, PathBuf};
 
-use settings::EmbeddedDefaults;
 use strum::{EnumString, IntoStaticStr, VariantNames};
 use task::{CrateName, Policy, Program, Selection, Workspace};
 
@@ -89,7 +88,7 @@ impl Task {
     pub fn run(self, mut flags: impl Iterator<Item = String>) -> Result<(), Failure> {
         let Ok(tool) = env!("CARGO_PKG_NAME").parse::<CrateName>();
         let workspace = Workspace::locate(tool)?;
-        let policy = Policy::defaults();
+        let policy = Policy::read(workspace.root())?;
         let selection = match self {
             Task::MutantCosts => Selection::Workspace,
             _ => Affected::selection(&workspace, Coverage::from_flags(flags.by_ref())?)?,

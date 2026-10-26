@@ -1,0 +1,86 @@
+vague = [
+    "with", "from", "into", "for", "get", "set", "make", "check", "build", "create", "init",
+    "process", "handle", "helper", "util", "data", "value", "item", "thing", "execute",
+    "perform", "update", "compute", "manage",
+]
+wire_types = [
+    "serde_json::Value",
+    "toml::Value",
+    "serde_yaml::Value",
+    "rust_decimal::Decimal",
+    "bigdecimal::BigDecimal",
+    "num_bigint::BigInt",
+    "num_bigint::BigUint",
+    "std::any::Any",
+    "core::any::Any",
+]
+bit_boundary = []
+baseline = "tooling/lint-baseline.toml"
+surfaces = [
+    "xtask",
+    ".cargo",
+    "Cargo.toml",
+    "clippy.toml",
+    ".clippy.toml",
+    "rustfmt.toml",
+    ".rustfmt.toml",
+    "rust-toolchain",
+    "rust-toolchain.toml",
+    "tooling",
+    "tooling/lint-baseline.toml",
+    ".claude",
+    ".github",
+]
+
+[branches]
+default = "main"
+base = "origin/main"
+
+[limits]
+parameters = 4
+nesting = 2
+reexports = 8
+private_fns_per_type = 4
+edges_per_vertex = 4
+tests_per_file = 3
+assertions_per_test = 3
+lines_per_test = 20
+literals_per_test = 4
+largest_integer = 64
+scc_items = 83
+slowest_shown = 5
+
+[floors]
+fn_name = 3
+lifetime_name = 2
+cut_side = 5
+
+[shares]
+tests_per_hundred_files = 50
+test_line_percent = 40
+cut_conductance = 19
+
+[memory_gib]
+granted = 5
+reserve = 1
+per_compiler_task = 2
+for_the_tests = 1
+
+[millis]
+per_test = 1000
+total = 4000
+sample_every = 20
+discover_every = 100
+per_shard = 220000
+per_crate = 15000
+per_slice = 150000
+test_timeout = 30000
+
+[mutation]
+full_run = ["every_main_push", "weekly", "on_demand"]
+
+[mutant_millis]
+default = 2100
+
+[mutant_millis.crates]
+greeting = 500

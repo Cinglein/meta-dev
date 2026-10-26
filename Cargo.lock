@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "affected"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -70,7 +70,7 @@ dependencies = [
 
 [[package]]
 name = "const_shape"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "syn 2.0.119",
@@ -94,7 +94,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "corpus_check"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "const_shape",
  "crate_graph",
@@ -129,7 +129,7 @@ dependencies = [
 
 [[package]]
 name = "crate_graph"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -172,7 +172,7 @@ dependencies = [
 
 [[package]]
 name = "distinct_signatures"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "quote",
  "syn 2.0.119",
@@ -202,7 +202,7 @@ dependencies = [
 
 [[package]]
 name = "enum_predicates"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "syn 2.0.119",
  "task",
@@ -226,7 +226,7 @@ dependencies = [
 
 [[package]]
 name = "expression_flow"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "syn 2.0.119",
@@ -247,7 +247,7 @@ checksum = "1c66915cc5391097de7a2b0b972e8505aa33c0df401fd3a6811dbdb32881ba48"
 
 [[package]]
 name = "fn_shape"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "syn 2.0.119",
@@ -366,7 +366,7 @@ checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
 name = "literal_names"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "syn 2.0.119",
  "task",
@@ -380,7 +380,7 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
 name = "manual_iteration"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "syn 2.0.119",
@@ -395,7 +395,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "meta-cli"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "meta-gh",
@@ -413,14 +413,14 @@ dependencies = [
 
 [[package]]
 name = "meta-gh"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "meta-listing"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "meta-schema",
  "meta-state",
@@ -429,7 +429,7 @@ dependencies = [
 
 [[package]]
 name = "meta-log"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "meta-schema",
@@ -441,7 +441,7 @@ dependencies = [
 
 [[package]]
 name = "meta-schema"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "serde",
@@ -451,7 +451,7 @@ dependencies = [
 
 [[package]]
 name = "meta-state"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "meta-schema",
@@ -460,15 +460,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "meta-xtask"
+version = "0.1.0"
+dependencies = [
+ "affected",
+ "corpus_check",
+ "crate_graph",
+ "mutant_costs",
+ "mutation",
+ "serde",
+ "settings",
+ "stacked",
+ "strum",
+ "task",
+ "tempfile",
+ "test_time",
+ "thiserror",
+ "toml 0.9.12+spec-1.1.0",
+]
+
+[[package]]
 name = "module_nesting"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "task",
 ]
 
 [[package]]
 name = "mutant_costs"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -477,7 +497,7 @@ dependencies = [
 
 [[package]]
 name = "mutation"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "affected",
  "serde",
@@ -490,7 +510,7 @@ dependencies = [
 
 [[package]]
 name = "named_lifetimes"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "syn 2.0.119",
  "task",
@@ -498,7 +518,7 @@ dependencies = [
 
 [[package]]
 name = "named_numbers"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "quote",
  "syn 2.0.119",
@@ -507,15 +527,16 @@ dependencies = [
 
 [[package]]
 name = "no_comments"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "ra-ap-rustc_lexer",
  "task",
+ "unicode-ident",
 ]
 
 [[package]]
 name = "no_forwarders"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "syn 2.0.119",
  "task",
@@ -523,7 +544,7 @@ dependencies = [
 
 [[package]]
 name = "no_free_fns"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "syn 2.0.119",
  "task",
@@ -531,7 +552,7 @@ dependencies = [
 
 [[package]]
 name = "no_numbers_in_binaries"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "named_numbers",
  "syn 2.0.119",
@@ -540,7 +561,7 @@ dependencies = [
 
 [[package]]
 name = "no_parameter_bags"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "syn 2.0.119",
  "task",
@@ -635,7 +656,7 @@ checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 
 [[package]]
 name = "primitive_boundary"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "syn 2.0.119",
  "task",
@@ -643,7 +664,7 @@ dependencies = [
 
 [[package]]
 name = "private_fns"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "quote",
  "syn 2.0.119",
@@ -661,7 +682,7 @@ dependencies = [
 
 [[package]]
 name = "public_surface"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "syn 2.0.119",
  "task",
@@ -790,7 +811,7 @@ dependencies = [
 
 [[package]]
 name = "settings"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "serde",
  "toml 0.9.12+spec-1.1.0",
@@ -798,7 +819,7 @@ dependencies = [
 
 [[package]]
 name = "settings_shape"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -820,7 +841,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "stacked"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "strum",
  "task",
@@ -828,7 +849,7 @@ dependencies = [
 
 [[package]]
 name = "state_graph"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "derive_more",
  "quote",
@@ -896,7 +917,7 @@ dependencies = [
 
 [[package]]
 name = "task"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "derive_more",
  "enum-map",
@@ -927,7 +948,7 @@ dependencies = [
 
 [[package]]
 name = "test_budget"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "derive_more",
  "proc-macro2",
@@ -937,7 +958,7 @@ dependencies = [
 
 [[package]]
 name = "test_time"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "settings",
  "strum",
@@ -946,7 +967,7 @@ dependencies = [
 
 [[package]]
 name = "thin_main"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "syn 2.0.119",
  "task",
@@ -1047,7 +1068,7 @@ checksum = "06bdbd8cfc056b8d2e2e85f29b56a3bdbecb527cef81eb39e3e7b98af4652770"
 
 [[package]]
 name = "type_shape"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "syn 2.0.119",
@@ -1080,7 +1101,7 @@ checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
 name = "vec_out_params"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "syn 2.0.119",
  "task",
@@ -1286,26 +1307,6 @@ name = "winnow"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b97319f7b8343df12cc98938e5c3eb436064524c8d2b4e30a1d3a36eecdf81"
-
-[[package]]
-name = "xtask"
-version = "0.0.0"
-dependencies = [
- "affected",
- "corpus_check",
- "crate_graph",
- "mutant_costs",
- "mutation",
- "serde",
- "settings",
- "stacked",
- "strum",
- "task",
- "tempfile",
- "test_time",
- "thiserror",
- "toml 0.9.12+spec-1.1.0",
-]
 
 [[package]]
 name = "zmij"
