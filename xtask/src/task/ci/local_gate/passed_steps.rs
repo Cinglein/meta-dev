@@ -15,7 +15,7 @@ impl PassedSteps {
     const FAILED: &str = "failed";
 
     pub fn whole(&self) -> bool {
-        self.0.iter().copied().eq(CiStep::iter().take(self.0.len()))
+        self.0.iter().copied().eq(CiStep::iter())
     }
 }
 

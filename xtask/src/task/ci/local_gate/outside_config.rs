@@ -19,7 +19,7 @@ impl OutsideConfig {
             .chain(Self::HOME.map(|file| cargo_home.join(file)))
             .filter(|file| fs::read_to_string(file).is_ok_and(|text| text.parse().ok() != Some(ConfigEffect::Neutral)));
         let tools = above.ancestors().flat_map(|directory| Self::TOOLS.map(|file| directory.join(file)));
-        OutsideConfig(configs.chain(tools.filter(|file| file.is_dir())).collect())
+        OutsideConfig(configs.chain(tools.filter(|file| file.exists())).collect())
     }
 
     pub fn refused(self) -> Result<(), Failure> {

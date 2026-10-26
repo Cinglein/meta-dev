@@ -25,15 +25,13 @@ impl FromStr for ConfigEffect {
         let table: Table = text.parse()?;
         let sccache = |wrapper: &str| Path::new(wrapper).file_name() == Some(OsStr::new(Self::SCCACHE));
         let neutral_build = |build: &Table| {
-            build.iter().all(|(key, value)| {
-                key == Self::JOBS
-                    || (key == Self::WRAPPER
-                        && value.as_str().is_some_and(|wrapper| sccache(wrapper) || !wrapper.is_empty()))
-            })
+            build
+                .iter()
+                .all(|(key, value)| key == Self::JOBS || (key == Self::WRAPPER && value.as_str().is_some_and(sccache)))
         };
         let neutral = |(key, value): (&String, &Value)| {
             Self::NEUTRAL_TABLES.contains(&key.as_str())
-                || (key != Self::BUILD || value.as_table().is_some_and(neutral_build))
+                || (key == Self::BUILD && value.as_table().is_some_and(neutral_build))
         };
         Ok(if table.iter().all(neutral) { ConfigEffect::Neutral } else { ConfigEffect::Overriding })
     }
