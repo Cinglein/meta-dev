@@ -182,3 +182,4 @@
 {"at":"2026-10-26T05:09:34.709380Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-d5a42d520a0d9975","text":"folded into the small-defects batch task"}
 {"at":"2026-10-26T05:09:36.270640Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-f33338afc184bd8f","text":"folded into the small-defects batch task"}
 {"at":"2026-10-26T05:09:58.103789Z","actor":"claude-batch-small","kind":"TaskClaimed","task":"task-81012cb9c5a061fc"}
+{"at":"2026-10-26T05:11:13.418457Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-817a03af306f13cb","text":"Stage 1: runs and timings recorded for every check; flakiness budget; complexity and vagueness budgets as counts"}
