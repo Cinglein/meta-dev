@@ -1,15 +1,16 @@
+mod git_link;
 mod watch_state;
 
 use std::fmt;
 use std::io::Write as _;
 use std::path::PathBuf;
-use std::process::Command;
 
 use super::ci_status::CiStatus;
 use super::commit::Commit;
 use super::session_id::SessionId;
 use crate::request::output::Listed;
 use crate::request::project::Project;
+use git_link::GitLink;
 use watch_state::WatchState;
 
 #[derive(Clone, Debug)]
@@ -22,14 +23,7 @@ impl SessionDir {
     const STATE: &'static str = "state";
 
     pub fn for_session(project: &Project, session: &SessionId) -> Option<Self> {
-        let common = Command::new("git")
-            .arg("-C")
-            .arg(project.root())
-            .args(["rev-parse", "--path-format=absolute", "--git-common-dir"])
-            .output()
-            .ok()?;
-        let base = PathBuf::from(String::from_utf8_lossy(&common.stdout).trim());
-        common.status.success().then(|| Self(base.join(Self::ROOT).join(session.file_name())))
+        GitLink::common_dir(project.root()).map(|base| Self(base.join(Self::ROOT).join(session.file_name())))
     }
 
     pub fn record(&self, line: impl fmt::Display) -> std::io::Result<()> {
