@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use super::percent::Percent;
 use budget::Budget;
 use budget_id::BudgetId;
 use tree_failure::TreeFailure;
@@ -28,7 +29,27 @@ impl TryFrom<BTreeMap<BudgetId, Budget>> for Budgets {
     type Error = TreeFailure;
 
     fn try_from(budgets: BTreeMap<BudgetId, Budget>) -> Result<Budgets, TreeFailure> {
-        Ok(Budgets(budgets))
+        let parts = || {
+            budgets
+                .iter()
+                .filter_map(|(id, budget)| Some((id, budget, budget.allowance().part()?)))
+        };
+        parts().try_for_each(|(id, budget, part)| {
+            budget.placed_under(id, budgets.get(part.parent()))
+        })?;
+        let shared = |parent: &BudgetId| {
+            parts()
+                .filter(|(_, _, part)| part.parent() == parent)
+                .map(|(_, _, part)| part.percent())
+                .sum::<Percent>()
+        };
+        match budgets
+            .keys()
+            .find(|parent| shared(parent).is_more_than_whole())
+        {
+            Some(parent) => Err(TreeFailure::Oversubscribed(parent.clone())),
+            None => Ok(Budgets(budgets)),
+        }
     }
 }
 
