@@ -86,7 +86,7 @@ full_run = ["every_main_push", "weekly", "on_demand"]
 default = 5800
 
 [mutant_millis.crates]
-affected = 1200
+affected = 2000
 const_shape = 1300
 corpus_check = 800
 crate_graph = 1600
@@ -104,7 +104,7 @@ meta-schema = 1000
 meta-state = 1100
 meta-xtask = 700
 module_nesting = 1000
-mutant_costs = 800
+mutant_costs = 900
 mutation = 800
 named_lifetimes = 900
 named_numbers = 1100
