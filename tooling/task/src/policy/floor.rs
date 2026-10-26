@@ -16,8 +16,9 @@ impl Floor {
     #[must_use]
     pub const fn division(self) -> TopDivision {
         match self {
-            Floor::FnName | Floor::LifetimeName => TopDivision::FeaturesAndMaintenance,
-            Floor::CutSide => TopDivision::ArchitectureAndPlanning,
+            Floor::FnName | Floor::LifetimeName | Floor::CutSide => {
+                TopDivision::FeaturesAndMaintenance
+            }
         }
     }
 }

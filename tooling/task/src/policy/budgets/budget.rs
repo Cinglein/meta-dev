@@ -3,6 +3,8 @@ mod division;
 mod overspend;
 mod window;
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use super::budget_id::BudgetId;
@@ -43,11 +45,20 @@ impl Budget {
         self.overspend
     }
 
-    pub fn placed_under(&self, id: &BudgetId, parent: Option<&Budget>) -> Result<(), TreeFailure> {
-        match parent {
-            None => Err(TreeFailure::NoParent(id.clone())),
-            Some(parent) if parent.division.strictly_contains(&self.division) => Ok(()),
-            Some(_) => Err(TreeFailure::NotNested(id.clone())),
+    pub fn placed(
+        &self,
+        id: &BudgetId,
+        budgets: &BTreeMap<BudgetId, Budget>,
+    ) -> Result<(), TreeFailure> {
+        let refused = |failure: fn(BudgetId) -> TreeFailure| Err(failure(id.clone()));
+        match self.allowance.part().map(|part| budgets.get(part.parent())) {
+            None if self.division.is_nested() => refused(TreeFailure::NestedWhole),
+            Some(None) => refused(TreeFailure::NoParent),
+            Some(Some(parent)) if !parent.division.strictly_contains(&self.division) => {
+                refused(TreeFailure::NotNested)
+            }
+            Some(Some(parent)) if parent.window != self.window => refused(TreeFailure::OtherWindow),
+            None | Some(Some(_)) => Ok(()),
         }
     }
 }

@@ -16,10 +16,9 @@ impl Share {
     #[must_use]
     pub const fn division(self) -> TopDivision {
         match self {
-            Share::TestsPerHundredFiles | Share::TestLinePercent => {
+            Share::TestsPerHundredFiles | Share::TestLinePercent | Share::CutConductance => {
                 TopDivision::FeaturesAndMaintenance
             }
-            Share::CutConductance => TopDivision::ArchitectureAndPlanning,
         }
     }
 }

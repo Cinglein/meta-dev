@@ -14,4 +14,8 @@ pub enum TreeFailure {
     NotNested(BudgetId),
     #[error("budget {0}: its parts add up to more than all of it")]
     Oversubscribed(BudgetId),
+    #[error("budget {0}: a budget in a nested division is a part of its parent division's budget")]
+    NestedWhole(BudgetId),
+    #[error("budget {0}: a part has the window of the budget it is part of")]
+    OtherWindow(BudgetId),
 }

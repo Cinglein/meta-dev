@@ -25,11 +25,11 @@ impl Limit {
     #[must_use]
     pub const fn division(self) -> TopDivision {
         match self {
-            Limit::Reexports | Limit::EdgesPerVertex | Limit::SccItems => {
-                TopDivision::ArchitectureAndPlanning
-            }
             Limit::SlowestShown => TopDivision::PerformanceAndCost,
-            Limit::Parameters
+            Limit::Reexports
+            | Limit::EdgesPerVertex
+            | Limit::SccItems
+            | Limit::Parameters
             | Limit::Nesting
             | Limit::PrivateFnsPerType
             | Limit::TestsPerFile

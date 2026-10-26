@@ -1,14 +1,18 @@
-use derive_more::{Add, From, Sum};
+use derive_more::From;
 use serde::{Deserialize, Serialize};
 
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Add, From, Sum, Serialize, Deserialize,
-)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, From, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Percent(usize);
 
 impl Percent {
     const WHOLE: usize = 100;
+
+    pub fn total(parts: impl IntoIterator<Item = Percent>) -> Option<Percent> {
+        parts.into_iter().try_fold(Percent(0), |sum, part| {
+            sum.0.checked_add(part.0).map(Percent)
+        })
+    }
 
     #[must_use]
     pub const fn is_more_than_whole(self) -> bool {

@@ -23,6 +23,11 @@ impl Division {
             && inner.below.len() > self.below.len()
             && inner.below.starts_with(&self.below)
     }
+
+    #[must_use]
+    pub fn is_nested(&self) -> bool {
+        !self.below.is_empty()
+    }
 }
 
 impl FromStr for Division {
