@@ -9,24 +9,28 @@ use std::time::Duration;
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str =
     "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\nappear_millis = 100\n";
-const PATIENT: &str = "timeout_millis = 300\n";
-const IMPATIENT: &str = "timeout_millis = 30\n";
+const PATIENT: &str = "timeout_millis = 200\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 count="$FAKE_GH_DIR/count"
 n=$(cat "$count" 2>/dev/null || echo 0)
+s="$FAKE_GH_SCENARIO"
 case "$1 $2" in
 "run list")
   n=$((n + 1)); echo "$n" > "$count"
-  if [ "$FAKE_GH_SCENARIO" = none ] || [ "$4" != "$(git rev-parse HEAD)" ]; then echo '[]'
-  elif [ "$FAKE_GH_SCENARIO" = stuck ] && [ "$n" -lt 2 ]; then echo '[]'
-  elif [ "$FAKE_GH_SCENARIO" = stuck ] || [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
-  elif [ "$FAKE_GH_SCENARIO" = success ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"success"}]'
+  if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
+  elif [ "$s" = none ] || [ "$4" != "$(git rev-parse HEAD)" ]; then echo '[]'
+  elif [ "$n" -lt 2 ] || { [ "$s" = late ] && [ "$n" -lt 12 ]; }; then echo '[]'
+  elif [ "$s" = late ] || [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
+  elif [ "$s" = success ] || [ "$s" = broken ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"success"}]'
+  elif [ "$s" = mixed ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"failure"},{"databaseId":8,"status":"completed","conclusion":"failure"}]'
   else echo '[{"databaseId":7,"status":"completed","conclusion":"failure"}]'; fi ;;
 "run view")
-  if [ "$3 $4" = "--job 11" ]; then cat "$FAKE_GH_DIR/bin/failed.log"
+  if [ "$s" = broken ]; then echo 'HTTP 401: Bad credentials' >&2; exit 1
+  elif [ "$3 $4" = "--job 11" ]; then cat "$FAKE_GH_DIR/bin/failed.log"
+  elif [ "$3" = 8 ]; then echo '{"jobs":[{"databaseId":13,"name":"lint","conclusion":"failure","steps":[{"name":"clippy","conclusion":"failure"}]}]}'
   elif [ "$3" != 7 ]; then echo '{"jobs":[]}'
-  elif [ "$FAKE_GH_SCENARIO" = failure ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[{"name":"Checkout","conclusion":"success"},{"name":"cargo xtask ci","conclusion":"failure"}]},{"databaseId":12,"name":"docs","conclusion":""}]}'
-  elif [ "$FAKE_GH_SCENARIO" = unstarted ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[]}]}'
+  elif [ "$s" = failure ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[{"name":"Checkout","conclusion":"success"},{"name":"cargo xtask ci","conclusion":"failure"}]},{"databaseId":12,"name":"docs","conclusion":""}]}'
+  elif [ "$s" = unstarted ] || [ "$s" = mixed ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[]}]}'
   else echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"success"}]}'; fi ;;
 esac
 "#;
@@ -50,7 +54,9 @@ const SESSION: &str = "ABCDEF12-34";
 const FAILURE: &str = "failure";
 const SUCCESS: &str = "success";
 const NONE: &str = "none";
-const STUCK: &str = "stuck";
+const LATE: &str = "late";
+const BROKEN: &str = "broken";
+const MIXED: &str = "mixed";
 const UNSTARTED: &str = "unstarted";
 const POST: &str = "post-tool-use";
 const COMMIT: &str = "git commit -m change";
@@ -58,7 +64,7 @@ const PRE: &str = "pre-tool-use";
 const STOP: &str = "stop";
 const BLOCK: &str = "\"decision\":\"block\"";
 const BLOCK_REASON: &str = "\"reason\":\"meta-development: CI failed for your last push";
-const JOB_FAILED: &str = "ci failed after";
+const JOB_FAILED: &str = "ci failed; run `meta ci-log`";
 const CI_LOG_HINT: &str = "run `meta ci-log`";
 const STEP_LISTED: &str = "s: ci / cargo xtask ci; run `meta ci-log`";
 const PANIC_BLOCK: &str =
@@ -70,8 +76,13 @@ const PASSED: &str = "passed after";
 const PASSED_EVENT: &str = ": passed after";
 const EVENT_PREFIX: &str = "CI ";
 const TIMED_OUT: &str = "timed-out after";
-const UNAVAILABLE: &str = "unavailable after 0s: jobs never started";
-const ABSENT: &str = "absent after 0s: no run for this commit";
+const UNAVAILABLE: &str = ": jobs never started; give the local gate result instead";
+const ABSENT: &str = ": no run for this commit; no CI for this push";
+const NO_RUN_YET: &str = "no run yet; Stop passes until one appears";
+const RUN_APPEARED: &str = "run appeared";
+const LIST_ERROR: &str = "gh failed: HTTP 502: Bad Gateway";
+const VIEW_ERROR: &str = "gh failed: HTTP 401: Bad credentials";
+const FAILED_EVENT: &str = ": failed after";
 const COMPLETIONS: [&str; 5] =
     [": passed after", ": failed after", ": timed-out after", ": unavailable after", ": absent after"];
 
@@ -111,8 +122,7 @@ impl Repo {
         Git::run(origin.path(), &["init", "-q", "--bare"]);
         Git::run(clone.path(), &["init", "-q", "-b", "feature"]);
         Git::link_origin(clone.path(), origin.path().to_str().unwrap());
-        let timeout = if scenario == STUCK { IMPATIENT } else { PATIENT };
-        std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{timeout}")).unwrap();
+        std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{PATIENT}")).unwrap();
         std::fs::create_dir(clone.path().join("bin")).unwrap();
         std::fs::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
         std::fs::write(clone.path().join("bin/failed.log"), FAILED_LOG).unwrap();
@@ -199,15 +209,18 @@ fn passing_or_unstarted_runs_let_the_agent_stop() {
     assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
     let unstarted = Repo::new(UNSTARTED);
     unstarted.hook(POST, COMMIT);
-    assert!(unstarted.settled().contains(UNAVAILABLE) && !unstarted.hook(STOP, COMMIT).contains(BLOCK));
+    let settled = unstarted.settled();
+    let wait = unstarted.session_command(CI_WAIT).1;
+    assert!(settled.contains(UNAVAILABLE) && !unstarted.hook(STOP, COMMIT).contains(BLOCK) && !wait.success());
 }
 
 #[test]
-fn a_missing_run_means_no_ci_and_a_stuck_run_times_out() {
-    let absent = Repo::new(NONE);
-    absent.hook(POST, COMMIT);
-    let stuck = Repo::new(STUCK);
-    stuck.hook(POST, COMMIT);
-    assert!(absent.settled().contains(ABSENT) && !absent.hook(STOP, COMMIT).contains(BLOCK));
-    assert!(stuck.settled().contains(TIMED_OUT));
+fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
+    let repos = [NONE, LATE, BROKEN, MIXED].map(Repo::new);
+    repos.iter().for_each(|repo| drop(repo.hook(POST, COMMIT)));
+    let [absent, late, broken, mixed] = repos.each_ref().map(Repo::settled);
+    let [none, ..] = &repos;
+    assert!(absent.contains(ABSENT) && !none.hook(STOP, COMMIT).contains(BLOCK));
+    assert!(late.contains(NO_RUN_YET) && late.contains(RUN_APPEARED) && late.contains(TIMED_OUT));
+    assert!(broken.contains(LIST_ERROR) && broken.contains(VIEW_ERROR) && mixed.contains(FAILED_EVENT));
 }
