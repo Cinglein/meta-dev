@@ -27,7 +27,7 @@ const ISOLATED: [(&str, Option<&str>); 5] = [
     ("GIT_INDEX_FILE", None),
 ];
 const STAT_PINS: [&str; 2] = ["core.trustctime=true", "core.checkStat=default"];
-const REFUSALS: [&str; 2] = ["no recorded worktree id", "changed during checks"];
+const REFUSALS: [&str; 3] = ["no recorded worktree id", "changed during checks", "in use"];
 
 struct Sweep(FakeHost);
 
@@ -78,5 +78,10 @@ fn an_unidentified_record_or_an_occupied_quarantine_keeps_the_worktree() {
     let refused = Vetted::proved(&unidentified, &host.context(), &host).err().map(|kept| kept.to_string());
     let mut occupied = FakeHost::clean();
     occupied.entry_is(QUARANTINE, EntryKind::Dir);
-    assert_eq!([refused, Sweep(occupied).refusal()], REFUSALS.map(|reason| Some(reason.to_owned())));
+    let mut followed = FakeHost::clean();
+    followed.opens(PathBuf::from(QUARANTINE).join(LATE));
+    let followed = Sweep(followed);
+    let refusals = [refused, Sweep(occupied).refusal(), followed.refusal()];
+    assert_eq!(refusals, REFUSALS.map(|reason| Some(reason.to_owned())));
+    assert!(followed.0.calls().last().is_some_and(|call| call.contains(MOVED_BACK) && call.ends_with(RESTORED)));
 }

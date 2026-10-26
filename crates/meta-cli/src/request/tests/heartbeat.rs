@@ -1,4 +1,5 @@
 mod flags;
+mod gc;
 mod plist;
 mod scene;
 mod settings;

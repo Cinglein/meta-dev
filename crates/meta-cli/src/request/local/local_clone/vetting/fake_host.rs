@@ -72,7 +72,9 @@ const UNEXPECTED: &str = "unexpected git call";
 const OFFLINE: &str = "offline";
 const SPACE: &str = " ";
 const MOVE: &str = "move";
-const PSEUDO: [&str; 5] = ["ORIG_HEAD", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD"];
+const GIT_DIR_FILES: [&str; 5] = ["HEAD", "commondir", "gitdir", "index", "COMMIT_EDITMSG"];
+const PEELED: &str = "^{commit}";
+const ROOT_HEAD: &str = "HEAD";
 const HELD: &str = "c7\n";
 const STAMP: &str = "1x0";
 
@@ -90,6 +92,7 @@ pub struct FakeHost {
     raced: HashMap<&'static str, String>,
     relocation: RefCell<Option<[PathBuf; 2]>>,
     pseudo: Vec<&'static str>,
+    open: Vec<PathBuf>,
 }
 
 impl FakeHost {
@@ -110,6 +113,7 @@ impl FakeHost {
             raced: HashMap::new(),
             relocation: RefCell::new(None),
             pseudo: Vec::new(),
+            open: Vec::new(),
         }
     }
 
@@ -180,6 +184,10 @@ impl FakeHost {
         self.pseudo.extend(pseudo);
     }
 
+    pub fn opens(&mut self, path: PathBuf) {
+        self.open.push(path);
+    }
+
     pub fn relocate(&self, arguments: &[OsString]) {
         let moved: Vec<PathBuf> =
             arguments.iter().skip_while(|argument| *argument != MOVE).skip(1).map(PathBuf::from).collect();
@@ -203,8 +211,22 @@ impl FakeHost {
     }
 
     fn pseudo_answer(&self, arguments: &[OsString]) -> Option<Result<String, Kept>> {
-        let named = PSEUDO.iter().find(|name| arguments.iter().any(|argument| argument == **name))?;
-        Some(self.pseudo.contains(named).then(|| HELD.to_owned()).ok_or_else(|| Kept::Uninspected(Cause::new(""))))
+        let root = |argument: &OsString| {
+            let name = argument.to_string_lossy();
+            let name = name.strip_suffix(PEELED).unwrap_or(&name).to_owned();
+            (name != ROOT_HEAD
+                && !name.is_empty()
+                && name.chars().all(|letter| letter.is_ascii_uppercase() || letter == '_'))
+            .then_some(name)
+        };
+        let named = arguments.iter().find_map(root)?;
+        Some(
+            self.pseudo
+                .iter()
+                .any(|pseudo| *pseudo == named)
+                .then(|| HELD.to_owned())
+                .ok_or_else(|| Kept::Uninspected(Cause::new(""))),
+        )
     }
 
     fn beyond(arguments: &[OsString]) -> String {
@@ -249,8 +271,12 @@ impl Inspection for FakeHost {
         answer.or(listed).unwrap_or_else(|| Err(Kept::Uninspected(Cause::new(UNEXPECTED))))
     }
 
-    fn walked(&self, _path: &Path) -> Vec<Found> {
-        self.walk.clone()
+    fn walked(&self, path: &Path) -> Vec<Found> {
+        let listed = GIT_DIR_FILES
+            .iter()
+            .chain(&self.pseudo)
+            .map(|name| Found::new(PathBuf::from(name), EntryKind::File, ByteCount::default()));
+        if path.starts_with(COMMON) { listed.collect() } else { self.walk.clone() }
     }
 
     fn neighbours(&self, root: &Path) -> Vec<Alternates> {
@@ -259,7 +285,7 @@ impl Inspection for FakeHost {
 
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
         self.scans.borrow_mut().push(paths.to_vec());
-        Occupancy::Listed(Vec::new())
+        Occupancy::Listed(self.open.clone())
     }
 
     fn stamp(&self) -> Stamp {
