@@ -344,3 +344,4 @@
 {"at":"2026-10-26T17:45:22.093389Z","actor":"claude-lead","kind":"IssueReported","issue":"issue-d2c718bd566bbd19","text":"Merged meta-dev #17 (agreed designs added as rung-1 spec rules) after review: one wording fix applied, then green."}
 {"at":"2026-10-26T17:48:33.141965Z","actor":"claude-lead","kind":"TaskOpened","task":"task-d995d2c8d8c9bc52","text":"Kill the surviving mutant on main: replacing CiSettings::poll_interval (crates/meta-cli, ci_settings.rs) with a default value goes undetected (full mutants run 40370384213, shard meta-cli/0/11). main's last two full runs also failed on a meta-cli shard. Add a test that pins the configured poll interval."}
 {"at":"2026-10-26T17:49:22.193657Z","actor":"claude-mutant-fix","kind":"TaskClaimed","task":"task-d995d2c8d8c9bc52"}
+{"at":"2026-10-26T17:52:22.145217Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-d995d2c8d8c9bc52","from":"claude-mutant-fix"}
