@@ -15,15 +15,12 @@ impl Occupancy {
     const NAMED: char = 'n';
     const RECURSIVE: &'static str = "+D";
 
-    pub fn scanned(paths: &[&Path]) -> Self {
-        match paths {
-            [] => Self::Listed(vec![]),
-            _ => Command::new("lsof")
-                .args(["-w", "-F", "n"])
-                .args(paths.iter().flat_map(|path| [OsStr::new(Self::RECURSIVE), path.as_os_str()]))
-                .output()
-                .map_or_else(|failure| Self::Unlisted(Message::new(failure)), |listed| Self::read(&listed)),
-        }
+    pub fn scanned(paths: &[PathBuf]) -> Self {
+        Command::new("lsof")
+            .args(["-w", "-F", "n"])
+            .args(paths.iter().flat_map(|path| [OsStr::new(Self::RECURSIVE), path.as_os_str()]))
+            .output()
+            .map_or_else(|failure| Self::Unlisted(Message::new(failure)), |listed| Self::read(&listed))
     }
 
     pub fn vacant(&self, path: &Path) -> Result<(), Kept> {

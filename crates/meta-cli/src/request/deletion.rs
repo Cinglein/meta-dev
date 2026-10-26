@@ -6,6 +6,7 @@ mod verdict;
 mod vetted;
 mod work_tree;
 
+use std::cell::LazyCell;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -37,7 +38,8 @@ impl Deletion {
     ) -> Result<Output, CliFailure> {
         let vetted: Vec<Result<Vetted, Kept>> =
             self.paths.iter().map(|given| Vetted::checked(given, project)).collect();
-        let occupancy = Occupancy::scanned(&vetted.iter().flatten().map(Vetted::path).collect::<Vec<_>>());
+        let candidates: Vec<PathBuf> = vetted.iter().flatten().map(|vetted| vetted.path().to_path_buf()).collect();
+        let occupancy = LazyCell::new(|| Occupancy::scanned(&candidates));
         let verdicts = self
             .paths
             .iter()
