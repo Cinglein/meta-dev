@@ -145,3 +145,4 @@
 {"at":"2026-10-26T04:54:54.497125Z","actor":"claude-mutants-cli","kind":"TaskClaimed","task":"task-c777def40a9d2278"}
 {"at":"2026-10-26T05:02:15.975168Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-044452e84ef8d538","text":"Chess keeps landing tooling fixes (#111, #112, #115) during the handover; track chess tooling/ commits automatically (e.g. a scheduled check listing chess commits touching tooling/ since the last adopted SHA) until chess switches"}
 {"at":"2026-10-26T05:02:31.912088Z","actor":"claude-port-own","kind":"TaskOpened","task":"task-f92c307b2245564a","text":"Adopt chess #115: kill the const-shape free-fn and Site line Display mutants left by the corpus swap"}
+{"at":"2026-10-26T05:02:37.304916Z","actor":"claude-port-own","kind":"TaskClaimed","task":"task-f92c307b2245564a"}
