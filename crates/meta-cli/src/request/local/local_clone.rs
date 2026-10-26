@@ -27,6 +27,8 @@ pub struct LocalClone {
 
 impl LocalClone {
     const LISTED_PREFIX: &'static str = "worktree ";
+    const NAME_KEYS: [&'static str; 3] = ["user.name", "author.name", "committer.name"];
+    const EMAIL_KEYS: [&'static str; 3] = ["user.email", "author.email", "committer.email"];
 
     pub fn claimed(&self, project: &Project, claim: Claim, actor: Actor) -> Result<Output, CliFailure> {
         let settings = self.settings()?;
@@ -46,33 +48,38 @@ impl LocalClone {
         let checkout = Git::new(&self.checkout);
         checkout.output(&["worktree", "prune"].map(OsStr::new))?;
         checkout.output(&["config", "extensions.worktreeConfig", "true"].map(OsStr::new))?;
-        let new_branch = base.as_ref().map(|_| branch.as_str());
-        let placed = base.as_ref().map_or_else(
-            || vec![path.as_os_str(), OsStr::new(&branch)],
-            |base| vec![OsStr::new("-b"), OsStr::new(&branch), path.as_os_str(), OsStr::new(base)],
-        );
+        let new_branch = base
+            .map(|base| {
+                checkout.output(&["branch", "--no-track", &branch, &base].map(OsStr::new)).map(|_| branch.as_str())
+            })
+            .transpose()?;
+        let added = ["worktree", "add", "--quiet", "--no-checkout"].map(OsStr::new);
+        checkout
+            .output(&[&added[..], &[path.as_os_str(), OsStr::new(&branch)]].concat())
+            .map_err(|failure| self.rolled_back(None, new_branch, failure))?;
         let name = identity.name().to_string();
         let email = identity.email().to_string();
-        let added = || {
+        let settled = || {
             let worktree = Git::new(&path);
-            checkout
-                .output(&[&["worktree", "add", "--quiet", "--no-checkout"].map(OsStr::new)[..], &placed].concat())?;
-            worktree.output(&["config", "--worktree", "user.name", &name].map(OsStr::new))?;
-            worktree.output(&["config", "--worktree", "user.email", &email].map(OsStr::new))?;
+            Self::NAME_KEYS
+                .iter()
+                .map(|key| [*key, name.as_str()])
+                .chain(Self::EMAIL_KEYS.iter().map(|key| [*key, email.as_str()]))
+                .try_for_each(|[key, value]| {
+                    worktree.output(&["config", "--worktree", key, value].map(OsStr::new)).map(drop)
+                })?;
             worktree.output(&["reset", "--hard", "--quiet"].map(OsStr::new))?;
-            std::fs::canonicalize(&path).map_err(CliFailure::raised::<Setup>)
+            let created = std::fs::canonicalize(&path).map_err(CliFailure::raised::<Setup>)?;
+            LocalTrail::append(&self.git_dir, &TrailEntry::Created(RecordedWorktree::new(created.clone(), task)))?;
+            Ok(created)
         };
-        let created = added().map_err(|failure| self.rolled_back(&path, new_branch, failure))?;
-        LocalTrail::append(&self.git_dir, &TrailEntry::Created(RecordedWorktree::new(created.clone(), task)))?;
+        let created = settled().map_err(|failure| self.rolled_back(Some(&path), new_branch, failure))?;
         let written = held.map_or_else(
             || {
                 Writing::new(&log, actor, event).entered().map(|written| written.to_string()).map_err(|failure| {
                     let removed = TrailEntry::Removed { path: created.clone(), at: Utc::now() };
-                    self.rolled_back(
-                        &path,
-                        new_branch,
-                        LocalTrail::append(&self.git_dir, &removed).err().unwrap_or(failure),
-                    )
+                    let failure = LocalTrail::append(&self.git_dir, &removed).err().unwrap_or(failure);
+                    self.rolled_back(Some(&path), new_branch, failure)
                 })
             },
             |()| Ok(String::new()),
@@ -90,7 +97,8 @@ impl LocalClone {
             .map(|path| std::fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path)))
             .filter(|path| *path != self.checkout)
             .collect();
-        Ok(Output::Listed(Listed::new(Worktrees::joined(trail, &paths, &state))))
+        trail.torn().iter().for_each(|torn| eprintln!("meta: warning: {torn}"));
+        Ok(Output::Listed(Listed::new(Worktrees::joined(&trail, &paths, &state))))
     }
 
     fn settings(&self) -> Result<LocalSettings, CliFailure> {
@@ -127,9 +135,11 @@ impl LocalClone {
         }
     }
 
-    fn rolled_back(&self, path: &Path, new_branch: Option<&str>, failure: CliFailure) -> CliFailure {
+    fn rolled_back(&self, added: Option<&Path>, new_branch: Option<&str>, failure: CliFailure) -> CliFailure {
         let checkout = Git::new(&self.checkout);
-        checkout.holds(&[OsStr::new("worktree"), OsStr::new("remove"), OsStr::new("--force"), path.as_os_str()]);
+        added.and_then(|path| {
+            checkout.holds(&[OsStr::new("worktree"), OsStr::new("remove"), OsStr::new("--force"), path.as_os_str()])
+        });
         new_branch.and_then(|branch| checkout.holds(&["branch", "-D", branch].map(OsStr::new)));
         failure
     }

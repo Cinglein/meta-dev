@@ -1,4 +1,7 @@
+mod torn_line;
+
 use std::convert::Infallible;
+use std::num::NonZeroUsize;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -6,11 +9,12 @@ use super::local_file::LocalFile;
 use super::recorded_worktree::RecordedWorktree;
 use super::trail_entry::TrailEntry;
 use crate::request::cli_failure::CliFailure;
+pub use torn_line::TornLine;
 
 #[derive(Debug, Default)]
 pub struct LocalTrail {
     entries: Vec<TrailEntry>,
-    skipped: Vec<serde_json::Error>,
+    torn: Vec<TornLine>,
 }
 
 impl LocalTrail {
@@ -30,8 +34,8 @@ impl LocalTrail {
         self.entries.iter().fold(Vec::new(), |current, entry| entry.applied(current))
     }
 
-    pub fn skipped(self) -> Vec<serde_json::Error> {
-        self.skipped
+    pub fn torn(&self) -> &[TornLine] {
+        &self.torn
     }
 }
 
@@ -39,11 +43,16 @@ impl FromStr for LocalTrail {
     type Err = Infallible;
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        let (entries, skipped): (Vec<_>, Vec<_>) =
-            text.lines().map(serde_json::from_str::<TrailEntry>).partition(Result::is_ok);
+        let (entries, torn): (Vec<_>, Vec<_>) = text
+            .lines()
+            .zip(std::iter::successors(Some(NonZeroUsize::MIN), |number| number.checked_add(1)))
+            .map(|(line, number)| {
+                serde_json::from_str::<TrailEntry>(line).map_err(|reason| TornLine::new(number, reason))
+            })
+            .partition(Result::is_ok);
         Ok(Self {
             entries: entries.into_iter().filter_map(Result::ok).collect(),
-            skipped: skipped.into_iter().filter_map(Result::err).collect(),
+            torn: torn.into_iter().filter_map(Result::err).collect(),
         })
     }
 }

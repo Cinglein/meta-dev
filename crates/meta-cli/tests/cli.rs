@@ -60,8 +60,8 @@ impl Git {
         Self::appended(&dir.join(".git/config"), &remote);
     }
 
-    fn appended(file: &Path, text: impl AsRef<[u8]>) {
-        std::fs::OpenOptions::new().append(true).open(file).unwrap().write_all(text.as_ref()).unwrap();
+    fn appended(file: &Path, text: impl std::fmt::Display) {
+        write!(std::fs::OpenOptions::new().append(true).open(file).unwrap(), "{text}").unwrap();
     }
 }
 

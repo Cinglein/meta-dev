@@ -26,7 +26,7 @@ const UNRECORDED: &str = "unrecorded ";
 const TRAIL_DIR: &str = "meta-local";
 const TRAIL: &str = "meta-local/worktrees.jsonl";
 const TORN: &str = "{\"change\":\"Crea";
-const WARNING: &str = "warning: skipped a torn record line";
+const WARNING: &str = "skipped worktree record line 1: ";
 
 struct Fixture {
     state: State,
@@ -72,7 +72,7 @@ fn worktrees_join_the_current_trail_to_task_status_and_flag_missing_and_unrecord
         TrailEntry::Removed { path: PathBuf::from(DROPPED), at: chrono::Utc::now() },
         TrailEntry::Created(RecordedWorktree::new(here.clone(), task)),
     ]);
-    let shown = Worktrees::joined(trail, &[here.clone(), PathBuf::from(STRAY)], &state).to_string();
+    let shown = Worktrees::joined(&trail, &[here.clone(), PathBuf::from(STRAY)], &state).to_string();
     let kept = format!("{task} assigned {task} {} created", here.display());
     assert!(shown.matches(&kept).count() == 1 && !shown.contains(DROPPED));
     assert!(shown.contains(&format!("{} not in the log", gone.task())) && shown.matches(MISSING).count() == 1);
@@ -88,7 +88,7 @@ fn appends_after_a_torn_line_start_a_new_line_and_reads_skip_the_torn_line_with_
         [GONE, STRAY].map(|path| TrailEntry::Created(RecordedWorktree::new(PathBuf::from(path), Id::generate())));
     assert!(created.iter().all(|entry| LocalTrail::append(git_dir.path(), entry).is_ok()));
     let trail = LocalTrail::read(git_dir.path()).unwrap();
-    let shown = Worktrees::joined(trail, &[], &Fixture::assigned().state).to_string();
-    assert!(shown.starts_with(WARNING) && shown.matches(WARNING).count() == 1);
-    assert_eq!(shown.lines().count(), created.len() + 1);
+    let torn: Vec<String> = trail.torn().iter().map(ToString::to_string).collect();
+    assert!(torn.len() == 1 && torn.iter().all(|line| line.starts_with(WARNING)));
+    assert_eq!(trail.current().len(), created.len());
 }
