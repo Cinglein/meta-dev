@@ -6,6 +6,7 @@ use crate::request::project::TickLimit;
 const PATIENT: Duration = Duration::from_secs(5);
 const IMPATIENT: Duration = Duration::from_millis(1);
 const ANSWER: &str = "done";
+const SHOWN: &str = "5s";
 
 #[test]
 fn a_deadline_returns_finished_work() {
@@ -16,4 +17,9 @@ fn a_deadline_returns_finished_work() {
 fn a_deadline_gives_up_on_work_that_never_finishes() {
     let (_held, blocked) = mpsc::channel::<()>();
     assert_eq!(TickLimit::from(IMPATIENT).within(move || blocked.recv().is_ok()), None);
+}
+
+#[test]
+fn a_limit_reads_as_whole_seconds() {
+    assert_eq!(TickLimit::from(PATIENT).to_string(), SHOWN);
 }
