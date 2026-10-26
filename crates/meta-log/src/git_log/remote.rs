@@ -39,8 +39,10 @@ impl Remote {
         let fetched =
             self.git.command(["fetch", "--quiet", "--prune"]).arg(self.name.to_string()).arg(refspec).timed_output()?;
         if fetched.status.success() {
-            let tip = self.tracking_tip();
-            self.blob_at(tip.as_ref()).map(|content| Some(Fetched::new(tip, content)))
+            let tracking = format!("refs/remotes/{}/{}", self.name, Self::BRANCH);
+            let asked = Content::from(format!("info {tracking}^{{commit}}\ncontents {tracking}:{}\n", Self::FILE));
+            let shown = self.git.command(["cat-file", "--batch-command"]).input(asked).content()?;
+            Ok(Some(shown.to_string().parse().unwrap_or_else(|never| match never {})))
         } else {
             self.after_failed_fetch(&fetched)
         }
@@ -49,24 +51,6 @@ impl Remote {
     fn after_failed_fetch(&self, fetched: &Output) -> Result<Option<Fetched>, LogFailure> {
         let probe = self.git.command(["ls-remote"]).arg(self.name.to_string()).timed_output()?;
         probe.status.success().then_some(None).ok_or_else(|| LogFailure::Offline(Detail::from(fetched)))
-    }
-
-    fn tracking_tip(&self) -> Option<Sha> {
-        let tracking = format!("refs/remotes/{}/{}^{{commit}}", self.name, Self::BRANCH);
-        self.git
-            .command(["rev-parse", "--verify", "--quiet"])
-            .arg(tracking)
-            .content()
-            .ok()
-            .map(|content| content.to_string().parse().unwrap_or_else(|never| match never {}))
-    }
-
-    fn blob_at(&self, tip: Option<&Sha>) -> Result<Content, LogFailure> {
-        Ok(tip
-            .map(|commit| self.git.command(["cat-file", "blob"]).arg(format!("{commit}:{}", Self::FILE)).content())
-            .transpose()?
-            .map(Content::terminated)
-            .unwrap_or_default())
     }
 }
 
