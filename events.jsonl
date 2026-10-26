@@ -226,3 +226,4 @@
 {"at":"2026-10-26T06:29:58.834822Z","actor":"claude-lead","kind":"EntryRetired","entry":"issue-5334f65248db4150","text":"resolved: repo moved to public meta-dev, Actions run free; archive rename was intentional"}
 {"at":"2026-10-26T06:47:46.634859Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-61299b5b6db4103c","text":"Agents stall silently: the #18 agent waited on a background watcher for an event that couldn't happen after the repo move; detect idle agents (no push or log event for N minutes on a claimed task) and flag them"}
 {"at":"2026-10-26T06:48:11.136842Z","actor":"claude-mutation-finish","kind":"TaskOpened","task":"task-a4e8e7d570d0174a","text":"Finish PR #2: merge main, kill the 5 post-kill survivors, full runs on every main push, full mutation run green"}
+{"at":"2026-10-26T06:48:14.514628Z","actor":"claude-mutation-finish","kind":"TaskClaimed","task":"task-a4e8e7d570d0174a"}
