@@ -247,3 +247,4 @@
 {"at":"2026-10-26T07:18:42.791492Z","actor":"claude-lead","kind":"IssueReported","issue":"issue-35692b312f55517a","text":"Merged Basho #86 (meta.toml + CLAUDE.md pointer; Basho log seeded with 58 concerns) under lead merge authority; gate was local cargo xtask ci (5m15s, pass) because Basho's private-repo Actions are blocked by billing"}
 {"at":"2026-10-26T07:18:49.792001Z","actor":"claude-lead","kind":"EntryRetired","entry":"issue-35692b312f55517a","text":"record only (merge log)"}
 {"at":"2026-10-26T07:18:51.180978Z","actor":"claude-lead","kind":"TaskDone","task":"task-eec45aca42cdb6ba"}
+{"at":"2026-10-26T07:18:52.576994Z","actor":"claude-lead","kind":"TaskOpened","task":"task-b6d7dc069566a530","text":"Onboard Basho, part 2: replace Basho's own xtask lints/CI with meta-dev tooling as a git dependency (after meta-dev v0.1.0), Basho-only tasks (trip data, map build, TestFlight, UI check) stay in Basho's xtask"}
