@@ -12,7 +12,9 @@ use crate::task::ci::local_gate::Busy;
 use crate::task::failure::Failure;
 
 #[derive(Debug)]
-pub struct GateLock(File);
+pub struct GateLock {
+    _held: File,
+}
 
 impl GateLock {
     const PAUSE: Duration = Duration::from_millis(250);
@@ -34,24 +36,16 @@ impl GateLock {
     fn acquire(path: &Path, wait: Duration) -> Result<GateLock, Failure> {
         let io = |error| Failure::from(task::Failure::Io { site: Site::File(path.into()), error });
         let mut file = OpenOptions::new().create(true).truncate(false).read(true).write(true).open(path).map_err(io)?;
-        let deadline = Instant::now() + wait;
+        let deadline = Instant::now().checked_add(wait).unwrap_or_else(Instant::now);
         iter::successors(Some(()), |()| {
-            (Instant::now() < deadline).then(|| {
-                thread::sleep(Self::PAUSE);
-            })
+            deadline.checked_duration_since(Instant::now()).map(|_| thread::sleep(Self::PAUSE))
         })
         .any(|()| file.try_lock().is_ok())
         .then_some(())
         .ok_or_else(|| Failure::Busy(Busy::new(path.to_path_buf(), wait)))?;
         file.set_len(0).map_err(io)?;
         write!(file, "pid {}", process::id()).map_err(io)?;
-        Ok(GateLock(file))
-    }
-}
-
-impl Drop for GateLock {
-    fn drop(&mut self) {
-        self.0.unlock().ok();
+        Ok(GateLock { _held: file })
     }
 }
 
