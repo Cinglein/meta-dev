@@ -417,3 +417,4 @@
 {"at":"2026-10-26T22:32:36.331900Z","actor":"claude-budget-core","kind":"TaskClaimed","task":"task-7c88d044d84f5724"}
 {"at":"2026-10-26T22:32:38.101840Z","actor":"claude-spec-budgets","kind":"TaskOpened","task":"task-53187bf6c8854ddf","text":"Spec: budget enforcement, division domains, concerns, budget-core build order (owner decisions 2026-10-26)","division":"architecture-and-planning"}
 {"at":"2026-10-26T22:32:42.860368Z","actor":"claude-spec-budgets","kind":"TaskClaimed","task":"task-53187bf6c8854ddf"}
+{"at":"2026-10-26T22:34:15.034036Z","actor":"claude-spec-budgets","kind":"TaskLinked","task":"task-53187bf6c8854ddf","pr":29}
