@@ -1,4 +1,5 @@
 mod fetches;
+mod heartbeat;
 mod notices;
 #[cfg(test)]
 mod status;
