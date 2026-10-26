@@ -35,7 +35,7 @@ impl Scope {
         workspace: &Workspace,
         policy: &Policy,
     ) -> Result<Vec<MutantsRun>, Failure> {
-        let output = OutputDirectory::cleared(workspace.target())?;
+        let output = OutputDirectory::cleared(workspace.target().path())?;
         let line = line.argument(MutantsArgument::InPlace);
         match self {
             Scope::ChangedLines => {
@@ -44,7 +44,7 @@ impl Scope {
                         Self::write_diff(
                             workspace.root(),
                             policy.branch(Branch::Base),
-                            &workspace.target().join(Self::DIFF_FILE),
+                            &workspace.target().path().join(Self::DIFF_FILE),
                         )?;
                         vec![spelled.parse()?]
                     }
@@ -52,7 +52,7 @@ impl Scope {
                 };
                 let line = line
                     .argument(MutantsArgument::InDiff)
-                    .argument(workspace.target().join(Self::DIFF_FILE).display())
+                    .argument(workspace.target().path().join(Self::DIFF_FILE).display())
                     .argument(MutantsArgument::BaselineSkip);
                 Self::shard_runs(&line, workspace, &output, &shards)
             }
@@ -69,12 +69,16 @@ impl Scope {
     }
 
     pub fn changed_shards(workspace: &Workspace, policy: &Policy) -> Result<Vec<Shard>, Failure> {
-        Self::write_diff(workspace.root(), policy.branch(Branch::Base), &workspace.target().join(Self::DIFF_FILE))?;
+        Self::write_diff(
+            workspace.root(),
+            policy.branch(Branch::Base),
+            &workspace.target().path().join(Self::DIFF_FILE),
+        )?;
         let listing = workspace
             .line(Program::Cargo)
             .argument(CargoArgument::Mutants)
             .argument(MutantsArgument::InDiff)
-            .argument(workspace.target().join(Self::DIFF_FILE).display());
+            .argument(workspace.target().path().join(Self::DIFF_FILE).display());
         Ok(Packing::shards(&CrateLoad::listed(listing, policy)?, policy.interval(Interval::PerSlice)))
     }
 

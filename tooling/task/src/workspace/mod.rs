@@ -1,3 +1,7 @@
+mod target_directory;
+
+pub use target_directory::TargetDirectory;
+
 use std::collections::BTreeMap;
 use std::env;
 use std::fs::{self, DirEntry};
@@ -9,12 +13,11 @@ use crate::failure::Failure;
 use crate::package_graph::PackageGraph;
 use crate::site::Site;
 use crate::source_file::SourceFile;
-use crate::target_directory::TargetDirectory;
 
 #[derive(Debug)]
 pub struct Workspace {
     root: PathBuf,
-    target: PathBuf,
+    target: TargetDirectory,
     packages: PackageGraph,
 }
 
@@ -49,7 +52,7 @@ impl Workspace {
     }
 
     #[must_use]
-    pub fn target(&self) -> &Path {
+    pub fn target(&self) -> &TargetDirectory {
         &self.target
     }
 
@@ -154,7 +157,7 @@ mod tests {
         let found = files
             .iter()
             .map(|file| format!("{}:{}", file.crate_name().unwrap(), file.path().display()));
-        assert!(found.eq(FOUND.map(String::from)) && workspace.target().ends_with("built"));
+        assert!(found.eq(FOUND.map(String::from)) && workspace.target().path().ends_with("built"));
         fs::remove_dir_all(workspace.root()).unwrap();
     }
 }

@@ -50,9 +50,9 @@ impl Mutants {
     }
 
     fn exclusive_lock(workspace: &Workspace) -> Result<File, Failure> {
-        let path = workspace.target().join(Self::LOCK_FILE);
+        let path = workspace.target().path().join(Self::LOCK_FILE);
         let io = |error| Failure::Io { site: Site::File(path.clone()), error };
-        fs::create_dir_all(workspace.target()).map_err(io)?;
+        fs::create_dir_all(workspace.target().path()).map_err(io)?;
         let lock = File::create(&path).map_err(io)?;
         lock.try_lock().map_err(|_| Failure::LockHeld(path.clone()))?;
         Ok(lock)
