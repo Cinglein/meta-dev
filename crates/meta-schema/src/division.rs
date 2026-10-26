@@ -71,6 +71,7 @@ mod tests {
 
     const TOP: &str = "performance-and-cost";
     const NESTED: &str = "performance-and-cost/ci/tests";
+    const MIXED: &str = "performance-and-cost/ci2-fast/9";
     const REFUSED: [&str; 7] = [
         "performance",
         "performance-and-cost//ci",
@@ -86,6 +87,7 @@ mod tests {
         let [top, nested] = [TOP, NESTED].map(|id| id.parse::<Division>().unwrap());
         assert_eq!(nested.to_string(), NESTED);
         assert!(top.strictly_contains(&nested) && !nested.strictly_contains(&top) && !top.strictly_contains(&top));
-        assert!(REFUSED.iter().all(|id| id.parse::<Division>().is_err()));
+        let mixed = MIXED.parse::<Division>().map(|mixed| mixed.to_string());
+        assert!(REFUSED.iter().all(|id| id.parse::<Division>().is_err()) && mixed.is_ok_and(|shown| shown == MIXED));
     }
 }
