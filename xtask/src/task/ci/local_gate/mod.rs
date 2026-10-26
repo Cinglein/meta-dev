@@ -180,6 +180,7 @@ mod tests {
     const POSTED: &str = "-f\nstate=success\n-f\ncontext=local-gate/consumer\n-f\ndescription=meta-dev local on ";
     const FAILED: &str = "state=failure";
     const SURFACED: &str = "; surfaces changed\n";
+    const TIMED_ALL: &str = ": fmt 1.0s, clippy 1.0s,";
 
     impl CiStep {
         fn every_step_passed() -> String {
@@ -224,7 +225,8 @@ mod tests {
         let recorded = || fs::read_to_string(fixture.path(RECORDED)).unwrap_or_default();
         gate.concluded(&checkout, Ok(()), &surfaces).unwrap();
         let posted = recorded();
-        assert!(posted.contains(&format!("/statuses/{}\n{POSTED}", checkout.commit())) && posted.ends_with(SURFACED));
+        let described = posted.contains(TIMED_ALL) && posted.ends_with(SURFACED);
+        assert!(posted.contains(&format!("/statuses/{}\n{POSTED}", checkout.commit())) && described);
         let failed = gate.concluded(&checkout, Err(task::Failure::NoWorkspace), &surfaces);
         assert!(failed.is_err() && recorded().contains(FAILED));
         fs::write(checkout.times().path(), TIMED).unwrap();
