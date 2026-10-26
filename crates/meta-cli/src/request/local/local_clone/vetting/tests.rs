@@ -18,14 +18,19 @@ const NESTED: &str = "nested repo";
 const NOT_PLAIN: &str = "index entry not plain";
 const SUBMODULES: &str = "has submodules";
 const IGNORED: &str = "ignored files besides cargo target dirs";
-const REFUSED: [Case; 37] = [
+const CARGO_TAG: &str =
+    "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n";
+const FOREIGN_TAG: &str = "Signature: 8a477f597d28d172789f06886806bc55\n# made by another tool\n";
+const UNSIGNED_TAG: &str = "Signature: none\n# created by cargo\n";
+const REFUSED: [Case; 40] = [
     Case("symlink", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::Symlink)),
     Case("not found", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::Missing)),
     Case("unreadable entry", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::File)),
     Case(ESCAPES, |host| host.moved("/trees/task-00000000000000b1", PathBuf::from("/elsewhere/x"))),
-    Case(ESCAPES, |host| host.placed(["/other", "/clone"])),
-    Case(ESCAPES, |host| host.placed(["/trees/task-00000000000000b1", "/clone"])),
-    Case(ESCAPES, |host| host.placed(["/trees", "/trees/task-00000000000000b1/clone"])),
+    Case(ESCAPES, |host| host.placed(["/other", "/clone", "/clone/.git"])),
+    Case(ESCAPES, |host| host.placed(["/trees/task-00000000000000b1", "/clone", "/clone/.git"])),
+    Case(ESCAPES, |host| host.placed(["/trees", "/trees/task-00000000000000b1/clone", "/clone/.git"])),
+    Case(ESCAPES, |host| host.placed(["/trees", "/clone", "/trees/task-00000000000000b1/repo"])),
     Case(UNLINKED, |host| host.entry_is("/trees/task-00000000000000b1/.git", EntryKind::Dir)),
     Case(UNLINKED, |host| host.text_is("/trees/task-00000000000000b1/.git", "gitdir: /other/.git/worktrees/b1\n")),
     Case(ESCAPES, |host| host.text_is("/clone/.git/worktrees/task-00000000000000b1/gitdir", "/trees/other/.git\n")),
@@ -36,7 +41,10 @@ const REFUSED: [Case; 37] = [
         host.entry_is("/clone/.git/worktrees/task-00000000000000b1/objects/info/alternates", EntryKind::File);
     }),
     Case(BORROWED, |host| {
-        host.lent(Alternates::new("/trees/peer/.git/objects".into(), "../../../task-00000000000000b1/x/objects"));
+        host.lent(Alternates::new(
+            "/trees/peer/.git/objects".into(),
+            "# lent\n../../../task-00000000000000b1/x/objects",
+        ));
     }),
     Case(NESTED, |host| host.walks(&["target/debug/dep/.GIT"], EntryKind::Dir)),
     Case(NESTED, |host| host.walks(&["src/.Git"], EntryKind::File)),
@@ -59,16 +67,28 @@ const REFUSED: [Case; 37] = [
     Case("untracked files", |host| host.answer_is("status", "?? notes\0")),
     Case(IGNORED, |host| host.answer_is("status", "!! target/\0!! .env\0")),
     Case(IGNORED, |host| host.walks(&["target/notes"], EntryKind::File)),
-    Case(IGNORED, |host| host.text_is("/trees/task-00000000000000b1/target/CACHEDIR.TAG", "Signature: other tool\n")),
+    Case(IGNORED, |host| host.text_is("/trees/task-00000000000000b1/target/CACHEDIR.TAG", FOREIGN_TAG)),
+    Case(IGNORED, |host| host.text_is("/trees/task-00000000000000b1/target/CACHEDIR.TAG", UNSIGNED_TAG)),
+    Case(IGNORED, |host| {
+        host.answer_is("status", "!! target/\0!! out.bin\0");
+        host.walks(&["out.bin"], EntryKind::File);
+        host.text_is("/trees/task-00000000000000b1/out.bin/CACHEDIR.TAG", CARGO_TAG);
+    }),
     Case("branch differs from the remote", |host| {
         host.answer_is("ls-remote", "c2\trefs/heads/task-00000000000000b1\n");
     }),
-    Case("commits not on the remote", |host| host.answer_is("rev-list", "c9\n")),
+    Case("commits not on the remote", |host| host.answer_is("rev-parse", "c9\n")),
     Case("remote unreachable: offline", |host| host.fails("ls-remote")),
 ];
-const ACCEPTED: [fn(&mut FakeHost); 3] = [
+const ACCEPTED: [fn(&mut FakeHost); 4] = [
     |_| {},
-    |host| host.answer_is("ls-remote", "c0\trefs/heads/main\n"),
+    |host| host.answer_is("ls-remote", "c1\trefs/heads/main\n"),
+    |host| {
+        host.lent(Alternates::new(
+            "/trees/peer/.git/objects".into(),
+            "#/../../../../task-00000000000000b1\n/x/objects",
+        ));
+    },
     |host| {
         host.answer_is("ls-files", "H 100755 a1 0\trun\0H 120000 a2 0\tdocs/link\0");
         host.walks(&["docs/link"], EntryKind::Symlink);
@@ -81,7 +101,7 @@ const OPEN: [&[&str]; 4] = [
     &[],
     &["/clone/.git/worktrees/task-00000000000000b1/HEAD"],
 ];
-const MOVED_HEAD: &str = "c3\n";
+const MOVED_REFS: &str = "c1 refs/heads/task-00000000000000b1\nc1 refs/worktree/bisect\n";
 const NO_LSOF: &str = "no lsof";
 const CONFIRMATIONS: [&str; 5] = ["in use", "", "changed during checks", "locked", "cannot inspect: no lsof"];
 
@@ -115,7 +135,7 @@ fn every_hazard_keeps_the_worktree_with_its_reason() {
 fn only_a_vacant_worktree_that_vets_the_same_again_becomes_deletable() {
     let host = FakeHost::clean();
     let mut moved = FakeHost::clean();
-    moved.answer_is("rev-parse", MOVED_HEAD);
+    moved.answer_is("for-each-ref", MOVED_REFS);
     let vet = |host: &FakeHost| Vetted::proved(&FakeHost::worktree(), &host.context(), host);
     let scans = OPEN.map(|open| Occupancy::Listed(open.iter().map(PathBuf::from).collect()));
     let scans = [&scans[..], &[Occupancy::Unlisted(Cause::new(NO_LSOF))]].concat();

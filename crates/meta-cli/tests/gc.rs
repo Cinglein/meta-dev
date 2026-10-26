@@ -44,10 +44,11 @@ const EXCLUDED: &str = "/meta.local.toml\n/bin\ntarget/\n";
 const CARGO_TAG: &str =
     "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n";
 const GC: [&str; 1] = ["gc"];
+const CONFIG: &str = "remote = \"origin\"\n";
 const SWEPT: [Line; 6] = [
     Line("freed ", MERGED, ": "),
     Line("kept ", OPEN, ": pr #2 open\n"),
-    Line("kept ", DIRTY, ": untracked files; pr #3 closed\n"),
+    Line("kept ", DIRTY, ": symlink; pr #3 closed\n"),
     Line("kept ", BUSY, ": in use; pr #4 merged\n"),
     Line("unrecorded ", STRAY, ": left alone\n"),
     Line("closed ", GONE, ": missing\n"),
@@ -64,6 +65,17 @@ impl fmt::Display for Shown<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Line(verb, name, tail) = self.0;
         write!(formatter, "{verb}{}{tail}", self.1.join(name).display())
+    }
+}
+
+struct Freed<'trees>(&'trees Path);
+
+impl fmt::Display for Freed<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let worktree = self.0.join(MERGED);
+        let linked = std::fs::read_to_string(worktree.join(".git")).unwrap_or_default();
+        let bytes = [linked.as_str(), CONFIG, CARGO_TAG].concat().len();
+        writeln!(formatter, "freed {}: {bytes} bytes; pr #1 merged", worktree.display())
     }
 }
 
@@ -151,7 +163,7 @@ impl Scene {
         Git::run(scene.origin.path(), &["init", "-q", "--bare"]);
         Git::run(scene.clone.path(), &["init", "-q"]);
         Git::run(scene.clone.path(), &["remote", "add", "origin", scene.origin.path().to_str().unwrap()]);
-        std::fs::write(scene.clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
+        std::fs::write(scene.clone.path().join("meta.toml"), CONFIG).unwrap();
         Git::run(scene.clone.path(), &["add", "meta.toml"]);
         Git::run(scene.clone.path(), &["commit", "-q", "-m", "seed"]);
         std::fs::write(scene.clone.path().join(".git/info/exclude"), EXCLUDED).unwrap();
@@ -174,7 +186,8 @@ impl Scene {
         std::fs::create_dir_all(trees.join(MERGED).join("target/debug")).unwrap();
         std::fs::write(trees.join(MERGED).join("target/debug/.cargo-lock"), "").unwrap();
         std::fs::write(trees.join(MERGED).join("target/CACHEDIR.TAG"), CARGO_TAG).unwrap();
-        std::fs::write(trees.join(DIRTY).join("notes"), "work").unwrap();
+        std::fs::create_dir(trees.join(DIRTY).join("target")).unwrap();
+        std::os::unix::fs::symlink(&trees, trees.join(DIRTY).join("target/trees")).unwrap();
         std::fs::create_dir_all(self.clone.path().join(".git/meta-local")).unwrap();
         let trail: String = RECORDED.iter().map(|task| Created(&trees, task).to_string()).collect();
         std::fs::write(self.clone.path().join(TRAIL), trail).unwrap();
@@ -200,10 +213,14 @@ fn gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_wit
     let trees = scene.trees();
     let _held = File::open(trees.join(BUSY).join(".git")).unwrap();
     let shows = |shown: &str, lines: &[Line]| lines.iter().all(|line| shown.contains(&Shown(line, &trees).to_string()));
+    let freed = Freed(&trees).to_string();
     let swept = scene.meta(&GC);
     let trail = std::fs::read_to_string(scene.clone.path().join(TRAIL)).unwrap();
     let branch = Git::run(scene.clone.path(), &["branch", "--list", MERGED]).stdout;
-    assert!(shows(&swept, &SWEPT) && !trees.join(MERGED).exists() && branch.is_empty(), "{swept}");
+    assert!(
+        shows(&swept, &SWEPT) && swept.contains(&freed) && !trees.join(MERGED).exists() && branch.is_empty(),
+        "{swept}"
+    );
     assert!(
         KEPT.iter().all(|name| trees.join(name).exists()) && TRAILED.iter().all(|entry| trail.contains(entry)),
         "{trail}"

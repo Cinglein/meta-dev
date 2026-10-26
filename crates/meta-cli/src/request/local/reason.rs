@@ -1,4 +1,4 @@
-use std::fmt;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
@@ -6,14 +6,10 @@ use serde::{Deserialize, Serialize};
 #[serde(transparent)]
 pub struct Reason(String);
 
-impl Reason {
-    pub fn new(reason: impl fmt::Display) -> Self {
-        Self(reason.to_string())
-    }
-}
+impl FromStr for Reason {
+    type Err = std::convert::Infallible;
 
-impl fmt::Display for Reason {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.0)
+    fn from_str(reason: &str) -> Result<Self, Self::Err> {
+        Ok(Self(reason.to_owned()))
     }
 }

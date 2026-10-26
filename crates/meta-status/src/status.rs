@@ -34,6 +34,12 @@ impl<'view> Status<'view> {
     }
 
     #[must_use]
+    pub fn linked_query(state: &State, tasks: &[Id<Task>]) -> LiveQuery {
+        let linked = state.tasks().iter().filter(|task| tasks.contains(&task.new_task().task()));
+        LiveQuery::new(linked.flat_map(|task| task.pull_requests().to_vec()).collect())
+    }
+
+    #[must_use]
     pub fn flags(&self) -> Flags {
         let linked: Vec<PullRequest> =
             self.state.tasks().iter().flat_map(|task| task.pull_requests().to_vec()).collect();

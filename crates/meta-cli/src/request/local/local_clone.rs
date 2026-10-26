@@ -7,10 +7,9 @@ use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use meta_log::{LogStore, RemoteName};
-use meta_schema::{Actor, Claim, Event, Record};
+use meta_schema::{Actor, Claim, Event, Id, Record, Task};
 use meta_state::State;
 
-use meta_pull_query::LiveQuery;
 use meta_status::Status;
 
 use super::local_settings::LocalSettings;
@@ -110,12 +109,8 @@ impl LocalClone {
         trail.torn().iter().for_each(|torn| eprintln!("meta: warning: {torn}"));
         let state = State::fold(project.log()?.read()?.records());
         let recorded: Vec<RecordedWorktree> = trail.current().into_iter().cloned().collect();
-        let linked = state
-            .tasks()
-            .iter()
-            .filter(|task| recorded.iter().any(|worktree| worktree.task() == task.new_task().task()));
-        let query = LiveQuery::new(linked.flat_map(|task| task.pull_requests().to_vec()).collect());
-        let github = LiveGithub::for_project(project).read(&query);
+        let tasks: Vec<Id<Task>> = recorded.iter().map(RecordedWorktree::task).collect();
+        let github = LiveGithub::for_project(project).read(&Status::linked_query(&state, &tasks));
         let status = Status::new(&state, &github, Utc::now().into());
         let tracked = recorded.into_iter().map(|worktree| {
             let lifetime = status.lifetime(worktree.task());

@@ -29,6 +29,11 @@ const TRAILED: [&str; 3] = [
     r#""change":"Refused","path":"/elsewhere/task-00000000000000b1""#,
     r#""change":"Closed","path":"/trees/gone""#,
 ];
+const REASONS: [&str; 3] = [
+    r#""reason":"pr #1 merged","bytes":1160}"#,
+    r#""reason":"path escapes the worktree root; pr #1 merged"}"#,
+    r#""at":"#,
+];
 const REMOVALS: [&str; 2] =
     ["worktree remove /trees/task-00000000000000b1", "update-ref -d refs/heads/task-00000000000000b1 c1"];
 const UNREMOVED: &str = "kept /trees/task-00000000000000b1: removal failed: offline; pr #1 merged\n";
@@ -64,7 +69,7 @@ fn a_dry_run_vets_and_scans_once_but_deletes_and_trails_nothing() {
     let scene = Scene::new(&[PATH, ESCAPED, GONE, LIVE]);
     let planned = scene.swept(Sweep::Planned);
     assert_eq!(planned.to_string(), PLANNED);
-    assert!(planned.trailed(Utc::now()).is_empty() && scene.host.scans() == 1);
+    assert!(planned.trailed(Utc::now()).is_empty() && scene.host.scans() == [vec![PathBuf::from(PATH)]]);
     assert!(!scene.host.calls().iter().any(|call| REMOVALS.iter().any(|removal| call.ends_with(removal))));
 }
 
@@ -76,7 +81,11 @@ fn a_sweep_re_vets_removes_the_worktree_then_its_branch_and_trails_each_removal_
         done.trailed(Utc::now()).iter().map(|entry| serde_json::to_string(entry).unwrap()).collect();
     assert!(DONE.iter().all(|line| done.to_string().contains(line)));
     assert!(
-        trailed.iter().zip(TRAILED).all(|(entry, change)| entry.starts_with(&["{", change].concat())),
+        trailed
+            .iter()
+            .zip(TRAILED)
+            .zip(REASONS)
+            .all(|((entry, change), reason)| { entry.starts_with(&["{", change].concat()) && entry.contains(reason) }),
         "{trailed:?}"
     );
     let calls = scene.host.calls();
@@ -89,5 +98,5 @@ fn a_failed_removal_keeps_the_worktree_and_no_candidate_means_no_scan() {
     failing.host.fails("worktree");
     assert!(failing.swept(Sweep::Done).to_string().starts_with(UNREMOVED));
     let live = Scene::new(&[LIVE]);
-    assert!(live.swept(Sweep::Done).to_string().starts_with(LIVE_ONLY) && live.host.scans() == 0);
+    assert!(live.swept(Sweep::Done).to_string().starts_with(LIVE_ONLY) && live.host.scans().is_empty());
 }

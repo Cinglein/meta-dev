@@ -26,6 +26,10 @@ const SHOWN: [&str; 9] = [
     "task not in the log",
 ];
 
+const UNKNOWN: &str = "pr #1 unknown";
+const QUERIED: [&str; 2] = ["pr1:", "pr3:"];
+const UNQUERIED: &str = "pr2:";
+
 struct Board {
     tasks: Vec<Id<Task>>,
     state: State,
@@ -65,5 +69,9 @@ fn a_task_ends_when_every_linked_pull_request_is_merged_or_closed_or_it_stalls_a
     let reached = Github::Reached(pulls.ruled(rules.into_iter().collect()).unwrap());
     assert_eq!(board.shown(&reached), SHOWN);
     let unreached = board.shown(&Github::Unreached(GithubFailure::new("down")));
-    assert_eq!(unreached.first().map(String::as_str), Some("pr #1 unknown"));
+    let queried = Status::linked_query(&board.state, &board.tasks[6..7]).field();
+    assert!(
+        unreached.first().map(String::as_str) == Some(UNKNOWN) && QUERIED.iter().all(|pull| queried.contains(pull))
+    );
+    assert!(!queried.contains(UNQUERIED), "{queried}");
 }

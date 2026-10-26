@@ -23,11 +23,13 @@ impl Verdict {
     pub fn trailed(&self, at: DateTime<Utc>) -> Option<TrailEntry> {
         match self {
             Self::Free { sweep: Sweep::Done, path, bytes, ending } => {
-                Some(TrailEntry::Freed { path: path.clone(), at, reason: Reason::new(ending), bytes: *bytes })
+                let reason: Reason = ending.to_string().parse().unwrap_or_else(|never| match never {});
+                Some(TrailEntry::Freed { path: path.clone(), at, reason, bytes: *bytes })
             }
             Self::Close { sweep: Sweep::Done, path } => Some(TrailEntry::Closed { path: path.clone(), at }),
             Self::Refused { sweep: Sweep::Done, path, kept, ending } => {
-                Some(TrailEntry::Refused { path: path.clone(), at, reason: Reason::new(format!("{kept}; {ending}")) })
+                let reason: Reason = format!("{kept}; {ending}").parse().unwrap_or_else(|never| match never {});
+                Some(TrailEntry::Refused { path: path.clone(), at, reason })
             }
             Self::Free { .. }
             | Self::Close { .. }

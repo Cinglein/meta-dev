@@ -1,5 +1,8 @@
 mod walker;
 
+#[cfg(test)]
+mod tests;
+
 use std::ffi::OsStr;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
