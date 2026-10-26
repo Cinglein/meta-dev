@@ -1,4 +1,4 @@
-use meta_schema::{Blocker, Entry, Event, NewTask, Target, TaskRef};
+use meta_schema::{Block, Blocker, Entry, Event, ExternalKind, NewTask, Target, TaskRef};
 
 use super::board::Board;
 use super::{ALICE, BOB, Events, Lifecycle, OPENED, OWNER, Shown};
@@ -46,4 +46,7 @@ fn an_issue_addressed_by_a_finished_task_ends_the_discussion() {
         .then(BOB, Events::claim(fix.task(), None))
         .then(BOB, Event::TaskDone(TaskRef::new(fix.task())));
     assert_eq!(fixed.status(), TaskStatus::Assigned);
+    let ci = Blocker::External(ExternalKind::Ci);
+    let again = fixed.clone().then(ALICE, Event::TaskBlocked(Block::new(board.task(), ci)));
+    assert!(Shown::first_task(&fixed).contains(NOTE) && !Shown::first_task(&again).contains(NOTE));
 }
