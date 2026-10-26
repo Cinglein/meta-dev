@@ -1,5 +1,6 @@
 use crate::task::failure::Failure;
 use const_shape::ConstShape;
+use crate_graph::CrateGraph;
 use distinct_signatures::DistinctSignatures;
 use expression_flow::ExpressionFlow;
 use fn_shape::FnShape;
@@ -32,6 +33,7 @@ impl Lint {
         let files = workspace.source_files()?;
         let reports: Vec<Report> = [
             ConstShape::report(&files, policy),
+            CrateGraph::report(&files, policy),
             DistinctSignatures::report(&files),
             ExpressionFlow::report(&files),
             FnShape::report(&files, policy),

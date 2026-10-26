@@ -27,11 +27,14 @@ assertions_per_test = 3
 lines_per_test = 20
 literals_per_test = 4
 largest_integer = 64
+scc_items = 83
 
 [floors]
 fn_name = 3
 lifetime_name = 2
+cut_side = 5
 
 [shares]
 tests_per_hundred_files = 40
 test_line_percent = 18
+cut_conductance = 19

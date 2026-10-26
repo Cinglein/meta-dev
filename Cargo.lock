@@ -84,6 +84,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
+name = "crate_graph"
+version = "0.0.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "settings",
+ "syn 2.0.119",
+ "task",
+]
+
+[[package]]
 name = "derive_more"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1202,6 +1213,7 @@ name = "xtask"
 version = "0.0.0"
 dependencies = [
  "const_shape",
+ "crate_graph",
  "distinct_signatures",
  "expression_flow",
  "fn_shape",

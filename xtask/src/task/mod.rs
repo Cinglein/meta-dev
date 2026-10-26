@@ -14,6 +14,7 @@ use crate::task::test::Test;
 use crate::task::usage::Usage;
 use ci::Ci;
 use const_shape::ConstShape;
+use crate_graph::CrateGraph;
 use distinct_signatures::DistinctSignatures;
 use expression_flow::ExpressionFlow;
 use failure::Failure;
@@ -46,6 +47,7 @@ pub enum Task {
     Ci,
     Clippy,
     ConstShape,
+    CrateGraph,
     DistinctSignatures,
     ExpressionFlow,
     FnShape,
@@ -85,8 +87,9 @@ impl Task {
             Task::Baseline => Ok(project.lints().shrink_baseline().map(|tally| print!("{tally}"))?),
             Task::Ci => Ci::run(&workspace, &policy, &project),
             Task::Clippy => Ok(Clippy::run(&workspace)?),
-            Task::Graph => Ok(project.lints().crate_graphs().map(|report| print!("{report}"))?),
+            Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
             Task::ConstShape => Ok(ConstShape::report(&workspace.source_files()?, &policy).verdict()?),
+            Task::CrateGraph => Ok(CrateGraph::report(&workspace.source_files()?, &policy).verdict()?),
             Task::DistinctSignatures => Ok(DistinctSignatures::report(&workspace.source_files()?).verdict()?),
             Task::ExpressionFlow => Ok(ExpressionFlow::report(&workspace.source_files()?).verdict()?),
             Task::FnShape => Ok(FnShape::report(&workspace.source_files()?, &policy).verdict()?),
