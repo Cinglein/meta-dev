@@ -3,7 +3,7 @@ use std::path::Path;
 
 use task::{GateEnvName, GateStatus};
 
-use crate::task::ci::local_gate::{GateState, MetaRev, RecordedTimes, Toolchain};
+use crate::task::ci::local_gate::{GateState, MetaRev, RecordedTimes, StatusDescription, Toolchain};
 use crate::task::revision::Commit;
 use crate::task::surfaces::Changed;
 
@@ -17,6 +17,7 @@ pub enum StatusArgument<'post> {
     },
     Description {
         version: MetaRev,
+        state: GateState,
         toolchain: &'post Toolchain,
         times: &'post RecordedTimes,
         surfaces: &'post Changed,
@@ -26,7 +27,6 @@ pub enum StatusArgument<'post> {
 
 impl StatusArgument<'_> {
     const SURFACES: &str = "; surfaces changed";
-    const PASSED: &str = "; env passed: ";
 }
 
 impl fmt::Display for StatusArgument<'_> {
@@ -38,13 +38,14 @@ impl fmt::Display for StatusArgument<'_> {
                 write!(formatter, "context={status}")
             }
             StatusArgument::Context { status, scope } => write!(formatter, "context={status}/{}", scope.display()),
-            StatusArgument::Description { version, toolchain, times, surfaces, passed } => {
-                write!(formatter, "description=meta-dev {version} on {toolchain}: {times}")?;
-                formatter.write_str(if surfaces.is_empty() { "" } else { Self::SURFACES })?;
+            StatusArgument::Description { version, state, toolchain, times, surfaces, passed } => {
                 let names: Vec<&str> = passed.iter().map(GateEnvName::as_str).collect();
-                formatter.write_str(
-                    &names.first().map(|_| format!("{}{}", Self::PASSED, names.join(", "))).unwrap_or_default(),
-                )
+                let surfaced = if surfaces.is_empty() { "" } else { Self::SURFACES };
+                let description = StatusDescription::describing(&version.to_string(), &toolchain.to_string())
+                    .after(*state, &times.to_string())
+                    .surfacing(surfaced)
+                    .passing(&names);
+                write!(formatter, "description={description}")
             }
         }
     }
@@ -58,7 +59,7 @@ mod tests {
     use task::{GateEnvName, Policy};
 
     use super::StatusArgument;
-    use crate::task::ci::local_gate::{MetaRev, RecordedTimes, Toolchain};
+    use crate::task::ci::local_gate::{GateState, MetaRev, RecordedTimes, Toolchain};
     use crate::task::surfaces::Changed;
 
     const VERSION: &str = "0a1b2c";
@@ -77,6 +78,7 @@ mod tests {
         let toolchain: Toolchain = TOOLCHAIN.parse().unwrap();
         let description = StatusArgument::Description {
             version,
+            state: GateState::Success,
             toolchain: &toolchain,
             times: &times,
             surfaces: &unchanged,
@@ -92,6 +94,7 @@ mod tests {
         let passed: Vec<GateEnvName> = NAMES.iter().map(|name| name.to_string().try_into().unwrap()).collect();
         let description = StatusArgument::Description {
             version: VERSION.parse().unwrap(),
+            state: GateState::Success,
             toolchain: &TOOLCHAIN.parse().unwrap(),
             times: &times,
             surfaces: &changed,

@@ -47,12 +47,30 @@ impl CommandLine {
 
     #[must_use]
     pub fn inheriting_only(self, names: impl IntoIterator<Item = impl AsRef<str>>) -> CommandLine {
+        self.inheriting_only_from(&CommandLine::ambient(), names)
+    }
+
+    #[must_use]
+    pub fn ambient() -> BTreeMap<String, OsString> {
+        env::vars_os()
+            .filter_map(|(name, value)| name.into_string().ok().map(|name| (name, value)))
+            .collect()
+    }
+
+    #[must_use]
+    pub fn inheriting_only_from(
+        self,
+        ambient: &BTreeMap<String, OsString>,
+        names: impl IntoIterator<Item = impl AsRef<str>>,
+    ) -> CommandLine {
         CommandLine {
             inherited: Some(
                 names
                     .into_iter()
                     .filter_map(|name| {
-                        env::var_os(name.as_ref()).map(|value| (name.as_ref().to_owned(), value))
+                        ambient
+                            .get(name.as_ref())
+                            .map(|value| (name.as_ref().to_owned(), value.clone()))
                     })
                     .collect(),
             ),

@@ -13,6 +13,7 @@ mod passed_steps;
 mod posting;
 mod recorded_times;
 mod status_argument;
+mod status_description;
 mod toolchain;
 mod unready;
 mod worktrees;
@@ -33,6 +34,7 @@ use meta_rev::MetaRev;
 use metadata_package::MetadataPackage;
 use passed_steps::PassedSteps;
 use recorded_times::RecordedTimes;
+use status_description::StatusDescription;
 use toolchain::Toolchain;
 use worktrees::Worktrees;
 
@@ -99,6 +101,7 @@ impl LocalGate {
         let checkout = self.checkout(&parent)?;
         let toolchain = checkout.toolchain()?;
         let child = GateChild::new(&parent, target, checkout.times().path().to_path_buf(), toolchain.clone())?
+            .seeing(CommandLine::ambient())
             .passing(&self.passed);
         let cargo = || child.line(Program::Executable(PathBuf::from(Self::CARGO)), checkout.root());
         let metadata: CargoMetadata = cargo().arguments(Self::METADATA).captured::<Stdout>()?.parse()?;
@@ -133,6 +136,7 @@ impl LocalGate {
         let line = self.gh.clone().in_directory(self.root.clone()).arguments(Self::POST);
         let description = StatusArgument::Description {
             version,
+            state,
             toolchain: findings.toolchain(),
             times: &times,
             surfaces: findings.surfaces(),
