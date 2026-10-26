@@ -94,8 +94,8 @@ impl Repo {
     fn new() -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Skeleton::bare(origin.path(), "main");
-        Skeleton::working(clone.path(), "main");
+        Skeleton::Bare.lay(origin.path(), "main");
+        Skeleton::Working.lay(clone.path(), "main");
         Git::link_origin(clone.path(), origin.path());
         std::fs::write(clone.path().join("meta.toml"), CONFIG).unwrap();
         Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "start"]);

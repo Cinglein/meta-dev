@@ -125,8 +125,8 @@ impl Project {
     fn new() -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Skeleton::bare(origin.path(), "main");
-        Skeleton::working(clone.path(), "main");
+        Skeleton::Bare.lay(origin.path(), "main");
+        Skeleton::Working.lay(clone.path(), "main");
         Git::link_origin(clone.path(), origin.path().to_str().unwrap());
         std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
         Self { origin, clone }

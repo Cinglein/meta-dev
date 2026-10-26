@@ -308,8 +308,8 @@ impl Repo {
     pub fn limited(scenario: &'static str, limits: &str) -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Skeleton::bare(origin.path(), "main");
-        Skeleton::working(clone.path(), "feature");
+        Skeleton::Bare.lay(origin.path(), "main");
+        Skeleton::Working.lay(clone.path(), "feature");
         Git::link_origin(clone.path(), origin.path().to_str().unwrap());
         std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{limits}")).unwrap();
         std::fs::create_dir(clone.path().join("bin")).unwrap();

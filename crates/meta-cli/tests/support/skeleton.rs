@@ -1,28 +1,32 @@
+use std::fmt;
 use std::path::Path;
 
-pub struct Skeleton;
+pub enum Skeleton {
+    Bare,
+    Working,
+}
+
+struct Head<'name>(&'name str);
+
+impl fmt::Display for Head<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(formatter, "ref: refs/heads/{}", self.0)
+    }
+}
 
 impl Skeleton {
-    const OBJECTS: &'static str = "objects";
-    const REFS: &'static str = "refs";
-    const HEAD: &'static str = "HEAD";
-    const CONFIG: &'static str = "config";
     const BARE: &'static str = "[core]\n\trepositoryformatversion = 0\n\tbare = true\n[maintenance]\n\tauto = false\n";
     const WORKING: &'static str =
         "[core]\n\trepositoryformatversion = 0\n\tbare = false\n[maintenance]\n\tauto = false\n";
 
-    pub fn bare(dir: &Path, branch: &str) {
-        Self::lay(dir, branch, Self::BARE);
-    }
-
-    pub fn working(dir: &Path, branch: &str) {
-        Self::lay(&dir.join(".git"), branch, Self::WORKING);
-    }
-
-    fn lay(git_dir: &Path, branch: &str, config: &str) {
-        std::fs::create_dir_all(git_dir.join(Self::OBJECTS)).unwrap();
-        std::fs::create_dir_all(git_dir.join(Self::REFS)).unwrap();
-        std::fs::write(git_dir.join(Self::HEAD), format!("ref: refs/heads/{branch}\n")).unwrap();
-        std::fs::write(git_dir.join(Self::CONFIG), config).unwrap();
+    pub fn lay(self, dir: &Path, branch: &str) {
+        let (git_dir, config) = match self {
+            Self::Bare => (dir.to_path_buf(), Self::BARE),
+            Self::Working => (dir.join(".git"), Self::WORKING),
+        };
+        std::fs::create_dir_all(git_dir.join("objects")).unwrap();
+        std::fs::create_dir_all(git_dir.join("refs")).unwrap();
+        std::fs::write(git_dir.join("HEAD"), Head(branch).to_string()).unwrap();
+        std::fs::write(git_dir.join("config"), config).unwrap();
     }
 }
