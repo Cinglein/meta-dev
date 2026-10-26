@@ -177,6 +177,44 @@ Source: Basho postmortem, part 3 (kept in the Basho project's private repo).
 - Headroom applies: a task past ~60-80% of its budget is a warning to the steward.
 - Example: a mutation-testing PR's agent waited on a merge in a repo that had been frozen; nothing fired until the owner noticed by hand.
 
+## Divisions (owner, 2026-10-26)
+- A division is any behaviour or invariant made first class (e.g. Basho navigation). It is a named property, not a code area: divisions overlap freely in code and are isolated by tracking (own items, budgets, checks, status). An agent on a division sees only that division's context.
+- Divisions nest arbitrarily. A child gets a subset of its parent's budget.
+- Every concern, issue and task belongs to exactly one division. An unplaced item belongs to the project root; growth there signals a missing division.
+- Top level, in every project:
+  1. Features and maintenance (navigation, the tracker, guarding lints and mutants).
+  2. Performance and cost (CI and test time, mutation time, Actions minutes and money, disk, agent wall time).
+  3. Architecture and planning (the spec, DISCUSS items, the ladder; feeds 1 and 2).
+- Each top-level division owns its status tracking and metrics, and controls its own soundness, testing and measurability.
+- meta-dev is an ordinary project with the same three divisions (principle 4). The steward and triage sit in its architecture and planning division.
+- Promotion: a concern that reaches ladder rung 2 (a precise property) may become a division; architecture and planning does the typing.
+
+## Budgets (owner, 2026-10-26)
+- A budget is a typed definition with an id, in tooling/policy.toml. Spend events in the log point at it.
+- Unit, exactly one per budget: Count, Duration, Share (later maybe Money or CI minutes).
+- Window: per change (ratchet against the merge base), rolling per period, or standing (open items at any time).
+- Overspend action is part of the definition: block (default) or escalate to DISCUSS.
+- Spend is recorded by measurement only (CI and tools). Severity is the judged exception, checked later by calibration.
+- Raising a budget is owner-only.
+- Waivers are spend from the waiver budget of the division whose rule they bend. They replace raw lint baselines.
+
+## Severity per division (owner, 2026-10-26)
+- Each division owns its severity scale. Deeper divisions have finer scales.
+- Each child level maps to exactly one parent level, and the order is kept (a more severe child level never maps below a less severe one). Parent caps count every child item that maps to the level.
+- Caps are standing budgets per level, split down the tree. Rating into a full level needs a downgrade elsewhere or owner sign-off.
+- A higher level needs stronger evidence (e.g. Critical: a reproduction; Major: a concrete failure scenario).
+- The reporter proposes a level. Raising after the rating is for the owner or the reviewer who reproduced it; lowering is free.
+- Severity orders the steward's work and gates new work (an open Critical stops new work in its division).
+
+## Build order (2026-10-26)
+1. Division and Budget types; policy entries with ids.
+2. Every log item carries a division.
+3. `meta status` as a tree of divisions (tasks, claims, PRs and CI, agents with worktree and last activity).
+4. Steward heartbeat and `meta gc` on top of status.
+5. Severity scales, mapping and caps.
+6. Waivers replace baselines (this also settles first-baseline seeding).
+7. Ladder rungs on concerns.
+
 ## Prose (owner, 2026-10-25)
 Prose is allowed only in three categories, each clearly marked and separated from the rest of the codebase:
 1. Agent context: occasionally relevant to agents. May bloat somewhat; consolidated aggressively from time to time; not meant for humans.
