@@ -74,7 +74,7 @@ mod tests {
     const WRITERS: [&str; 4] = ["git revert HEAD", "git pull", "git am x.patch", "git commit-tree t"];
     const NOT_WRITERS: [&str; 3] = ["git merge --abort", "git rebase --abort", "git merge-base a b"];
     const CWD: &str = "/w";
-    const NESTED_COMMIT: &str = "(cd a && git -C b -c x=y commit -m 'cd z')";
+    const NESTED_COMMIT: &str = "(cd a && git -c x=y -C b commit -m 'cd z')";
     const NESTED: &str = "/w/a/b";
 
     #[test]
