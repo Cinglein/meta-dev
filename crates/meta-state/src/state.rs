@@ -82,11 +82,11 @@ impl State {
         let entry = note.entry();
         self.concerns
             .iter_mut()
-            .filter(|known| Some(known.target()) == entry.concern().map(Target::Concern))
+            .filter(|known| Some(known.target()) == entry.target())
             .for_each(|known| known.correct(text.clone()));
         self.issues
             .iter_mut()
-            .filter(|known| Some(known.target()) == entry.issue().map(Target::Issue))
+            .filter(|known| Some(known.target()) == entry.target())
             .for_each(|known| known.correct(text.clone()));
         self.tasks
             .iter_mut()
@@ -95,12 +95,9 @@ impl State {
         Ok(())
     }
 
+    #[must_use]
     pub fn closed(&self, entry: Entry) -> Option<()> {
-        let addressed = entry
-            .concern()
-            .map(Target::Concern)
-            .or(entry.issue().map(Target::Issue))
-            .and_then(|target| self.addressed_by(target));
+        let addressed = entry.target().and_then(|target| self.addressed_by(target));
         let done = entry
             .task()
             .and_then(|task| self.tasks.iter().find(|known| known.new_task().task() == task))
@@ -139,8 +136,8 @@ impl State {
     fn known(&self, entry: Entry) -> Result<(), Refusal> {
         let task =
             entry.task().and_then(|task| self.tasks.iter().find(|known| known.new_task().task() == task)).map(|_| ());
-        let target = entry.concern().map(Target::Concern).or(entry.issue().map(Target::Issue));
-        task.or(target.filter(|target| self.fresh(*target).is_err()).map(|_| ())).ok_or(Refusal::UnknownEntry(entry))
+        task.or(entry.target().filter(|target| self.fresh(*target).is_err()).map(|_| ()))
+            .ok_or(Refusal::UnknownEntry(entry))
     }
 
     fn fresh(&self, target: Target) -> Result<(), Refusal> {

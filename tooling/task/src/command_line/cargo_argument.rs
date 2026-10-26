@@ -17,10 +17,20 @@ pub enum CargoArgument {
     Check,
     #[strum(serialize = "--workspace")]
     Workspace,
+    #[strum(serialize = "--package")]
+    Package,
     #[strum(serialize = "--all-targets")]
     AllTargets,
     #[strum(serialize = "--all-features")]
     AllFeatures,
+    #[strum(serialize = "--no-run")]
+    NoRun,
+    #[strum(serialize = "--color")]
+    Color,
+    #[strum(serialize = "never")]
+    Never,
+    #[strum(serialize = "--jobs")]
+    Jobs,
     #[strum(serialize = "--format-version=1")]
     FormatVersionOne,
     #[strum(serialize = "--no-deps")]

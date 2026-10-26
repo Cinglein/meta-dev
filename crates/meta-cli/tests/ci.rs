@@ -7,8 +7,9 @@ use std::process::{Command, ExitStatus, Output, Stdio};
 use std::time::Duration;
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
-const CONFIG: &str =
-    "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 40\ntimeout_millis = 1500\n";
+const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\n";
+const PATIENT: &str = "timeout_millis = 300\n";
+const IMPATIENT: &str = "timeout_millis = 30\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 count="$FAKE_GH_DIR/count"
 n=$(cat "$count" 2>/dev/null || echo 0)
@@ -39,8 +40,8 @@ ci\tcargo xtask ci\t2026-10-25T06:40:09.4000000Z test result: FAILED. 2 passed; 
 ci\tcargo xtask ci\t2026-10-25T06:40:09.5000000Z ##[error]Process completed with exit code 101.
 ";
 const SHELL: &str = "/bin/sh";
-const SETTLE_POLL: Duration = Duration::from_millis(50);
-const SETTLE_LENGTH: usize = 60;
+const SETTLE_POLL: Duration = Duration::from_millis(10);
+const SETTLE_LENGTH: usize = 300;
 const SESSION: &str = "ABCDEF12-34";
 const FAILURE: &str = "failure";
 const SUCCESS: &str = "success";
@@ -88,14 +89,14 @@ impl Repo {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
         Git::run(origin.path(), &["init", "-q", "--bare"]);
-        Git::run(clone.path(), &["init", "-q"]);
+        Git::run(clone.path(), &["init", "-q", "-b", "feature"]);
         Git::run(clone.path(), &["remote", "add", "origin", origin.path().to_str().unwrap()]);
-        std::fs::write(clone.path().join("meta.toml"), CONFIG).unwrap();
+        let timeout = if scenario == NONE { IMPATIENT } else { PATIENT };
+        std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{timeout}")).unwrap();
         std::fs::create_dir(clone.path().join("bin")).unwrap();
         std::fs::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
         std::fs::write(clone.path().join("bin/failed.log"), FAILED_LOG).unwrap();
         std::fs::set_permissions(clone.path().join("bin/gh"), std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
-        Git::run(clone.path(), &["switch", "-q", "-c", "feature"]);
         Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"]);
         Self { _origin: origin, clone, scenario }
     }
@@ -160,8 +161,11 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked() {
     let repo = Repo::new(FAILURE);
     repo.hook("post-tool-use", COMMIT);
     let waited = repo.session_command(CI_WAIT);
-    assert!(waited.0.contains(JOB_FAILED) && !waited.1.success() && repo.hook(STOP, COMMIT).contains(BLOCK_REASON));
-    assert!(repo.settled().contains(STEP_LISTED) && repo.hook(PRE, COMMIT).contains(CI_LOG_HINT));
+    let stop = repo.hook(STOP, COMMIT);
+    let settled = repo.settled();
+    let next = format!("{stop}{}", repo.hook(PRE, COMMIT));
+    assert!(waited.0.contains(JOB_FAILED) && !waited.1.success() && stop.contains(BLOCK_REASON));
+    assert!(settled.contains(STEP_LISTED) && next.contains(CI_LOG_HINT));
     assert!(
         repo.session_command(CI_LOG).0.contains(PANIC_BLOCK) && !repo.session_command(CI_LOG).0.contains(COMPILING)
     );

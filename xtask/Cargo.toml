@@ -6,6 +6,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+affected = { path = "../tooling/affected" }
 corpus_check = { path = "../tooling/corpus_check" }
 crate_graph = { path = "../tooling/lints/crate_graph" }
 settings = { path = "../tooling/settings" }
@@ -13,6 +14,7 @@ serde = { version = "1", features = ["derive"] }
 strum = { version = "0.28", features = ["derive"] }
 thiserror = "2"
 task = { path = "../tooling/task" }
+test_time = { path = "../tooling/test_time" }
 toml = "0.9"
 
 [lints]

@@ -16,12 +16,9 @@ impl TaskStatus {
     pub fn claimed(&self, by: Stamp, previous: Option<&Actor>) -> Result<Self, Refusal> {
         match (self, previous) {
             (Self::Open, None) => Ok(Self::Claimed(by)),
-            (Self::Open, Some(named)) => Err(Refusal::NotClaimant(named.clone())),
-            (Self::Claimed(held), Some(named)) if named == held.actor() && held.actor() != by.actor() => {
-                Ok(Self::Claimed(by))
-            }
-            (Self::Claimed(held), Some(named)) if named != held.actor() => Err(Refusal::NotClaimant(named.clone())),
-            (Self::Claimed(held), _) => Err(Refusal::ClaimedBy(held.actor().clone())),
+            (Self::Claimed(held), Some(named)) if named == held.actor() => Ok(Self::Claimed(by)),
+            (Self::Claimed(held), None) => Err(Refusal::ClaimedBy(held.actor().clone())),
+            (Self::Open | Self::Claimed(_), Some(named)) => Err(Refusal::NotClaimant(named.clone())),
             (Self::Done(_), _) => Err(Refusal::AlreadyDone),
         }
     }
@@ -45,13 +42,6 @@ impl TaskStatus {
         match self {
             Self::Done(stamp) => Some(stamp),
             Self::Open | Self::Claimed(_) => None,
-        }
-    }
-
-    pub fn unfinished(&self) -> Option<&Self> {
-        match self {
-            Self::Done(_) => None,
-            Self::Open | Self::Claimed(_) => Some(self),
         }
     }
 

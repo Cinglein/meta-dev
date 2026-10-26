@@ -3,6 +3,14 @@
 version = 4
 
 [[package]]
+name = "affected"
+version = "0.0.0"
+dependencies = [
+ "syn 2.0.119",
+ "task",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -443,6 +451,7 @@ version = "0.0.0"
 dependencies = [
  "chrono",
  "meta-schema",
+ "serde_json",
  "thiserror",
 ]
 
@@ -893,6 +902,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "test_time"
+version = "0.0.0"
+dependencies = [
+ "settings",
+ "strum",
+ "task",
+]
+
+[[package]]
 name = "thin_main"
 version = "0.0.0"
 dependencies = [
@@ -1239,6 +1257,7 @@ checksum = "23b97319f7b8343df12cc98938e5c3eb436064524c8d2b4e30a1d3a36eecdf81"
 name = "xtask"
 version = "0.0.0"
 dependencies = [
+ "affected",
  "corpus_check",
  "crate_graph",
  "serde",
@@ -1246,6 +1265,7 @@ dependencies = [
  "strum",
  "task",
  "tempfile",
+ "test_time",
  "thiserror",
  "toml 0.9.12+spec-1.1.0",
 ]
