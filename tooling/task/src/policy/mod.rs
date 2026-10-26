@@ -32,10 +32,12 @@ use std::path::Path;
 
 use bit_boundary::BitBoundary;
 use budgets::Budgets;
+use domains::Domains;
 use enum_map::EnumMap;
 use least::Least;
 use percent::Percent;
-use serde::{Deserialize, Serialize};
+use serde::de::Error;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(any(test, feature = "test-policy"))]
 use settings::EmbeddedDefaults;
 use vague::Vague;
@@ -51,7 +53,7 @@ use crate::name::Name;
 use crate::site::Site;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(remote = "Self", deny_unknown_fields)]
 pub struct Policy {
     vague: Vec<String>,
     wire_types: Vec<String>,
@@ -73,6 +75,8 @@ pub struct Policy {
     mutant_millis: MutantMillis,
     mutation: MutationCadence,
     #[serde(default)]
+    domains: Domains,
+    #[serde(default)]
     budgets: Budgets,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     spec: Option<SpecSettings>,
@@ -81,6 +85,23 @@ pub struct Policy {
 #[cfg(any(test, feature = "test-policy"))]
 impl EmbeddedDefaults for Policy {
     const DEFAULTS: &str = include_str!("../../../policy.toml");
+}
+
+impl<'de> Deserialize<'de> for Policy {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Policy, D::Error> {
+        let policy = Policy::deserialize(deserializer)?;
+        policy
+            .budgets
+            .measurable(&policy.domains)
+            .map_err(D::Error::custom)?;
+        Ok(policy)
+    }
+}
+
+impl Serialize for Policy {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        Policy::serialize(self, serializer)
+    }
 }
 
 impl Policy {
@@ -222,7 +243,7 @@ mod tests {
     const CHECK: &str = "check";
     const LONG_ENOUGH: &str = "report";
     const TEST_TIME: &str = "test-time";
-    const BUDGET: &str = "\n[budgets.test-time]\ndivision = \"performance-and-cost\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\n";
+    const BUDGET: &str = "\n[budgets.test-time]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
 
     #[test]
     fn the_checked_in_policy_round_trips_and_knows_a_vague_name_from_a_said_one() {

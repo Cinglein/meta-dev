@@ -1,16 +1,23 @@
 use std::num::NonZeroUsize;
 
-use derive_more::From;
+use derive_more::{Display, From};
 use serde::{Deserialize, Serialize};
 
 use crate::budget::Millis;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, From, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Display, From, Serialize, Deserialize,
+)]
 #[serde(transparent)]
 pub struct Percent(usize);
 
 impl Percent {
     const WHOLE: usize = 100;
+
+    #[must_use]
+    pub const fn new(percent: usize) -> Percent {
+        Percent(percent)
+    }
 
     pub fn total(parts: impl IntoIterator<Item = Percent>) -> Option<Percent> {
         parts.into_iter().try_fold(Percent(0), |sum, part| {

@@ -52,6 +52,12 @@ impl FromStr for Division {
     }
 }
 
+impl From<TopDivision> for Division {
+    fn from(top: TopDivision) -> Division {
+        Division { top, below: Vec::new() }
+    }
+}
+
 impl TryFrom<String> for Division {
     type Error = DivisionFailure;
 
