@@ -64,16 +64,6 @@ impl Budget {
     }
 
     #[must_use]
-    pub fn warning(&self) -> WarningLine {
-        self.warning
-    }
-
-    #[must_use]
-    pub fn tolerance(&self) -> Option<Percent> {
-        self.tolerance
-    }
-
-    #[must_use]
     pub fn overspend(&self) -> Overspend {
         self.overspend
     }

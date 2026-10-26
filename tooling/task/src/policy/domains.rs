@@ -100,6 +100,7 @@ mod tests {
         &[ScopeKind::Crates, ScopeKind::Paths],
         &[],
     ];
+    const NESTED_DOMAIN: &str = "[domains.\"performance-and-cost/unit\"]\ntests = [\"meta_*\"]\n";
     const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"meta_*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"local_gate\"\nwarning = 50\ntolerance = 10\n";
     const REFUSED: [(&str, &str); 7] = [
         (
@@ -156,7 +157,10 @@ mod tests {
 
     #[test]
     fn a_nested_domain_inside_its_parent_and_a_budget_on_a_declared_scope_are_read() {
-        assert_eq!(Policy::with_added(NESTED).err(), None);
+        let nested = Policy::with_added(NESTED).unwrap();
+        let written = toml::to_string(&nested).unwrap();
+        assert_eq!(toml::from_str::<Policy>(&written).ok(), Some(nested));
+        assert!(written.contains(NESTED_DOMAIN));
     }
 
     #[test]
