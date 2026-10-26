@@ -6,6 +6,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+affected = { path = "../tooling/affected" }
 meta-lints = { path = "../tooling/meta-lints" }
 const_shape = { path = "../tooling/lints/const_shape" }
 distinct_signatures = { path = "../tooling/lints/distinct_signatures" }

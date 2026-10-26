@@ -27,6 +27,7 @@ assertions_per_test = 3
 lines_per_test = 20
 literals_per_test = 4
 largest_integer = 64
+slowest_shown = 5
 
 [floors]
 fn_name = 3
@@ -35,3 +36,12 @@ lifetime_name = 2
 [shares]
 tests_per_hundred_files = 40
 test_line_percent = 18
+
+[memory_gib]
+granted = 8
+per_compiler_task = 2
+for_the_tests = 2
+
+[millis]
+per_test = 1000
+total = 4000

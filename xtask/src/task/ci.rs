@@ -4,15 +4,23 @@ use crate::task::lint::Lint;
 use crate::task::test::Test;
 use meta_lints::Project;
 use task::Policy;
+use task::Selection;
 use task::Workspace;
 use task::{CargoArgument, Program};
 
 pub struct Ci;
 
 impl Ci {
-    pub fn run(workspace: &Workspace, policy: &Policy, project: &Project) -> Result<(), Failure> {
-        let outcome =
-            Self::checks(workspace).map_err(Failure::from).and_then(|()| Lint::run(workspace, policy, project));
+    pub fn run(
+        workspace: &Workspace,
+        selection: &Selection,
+        policy: &Policy,
+        project: &Project,
+    ) -> Result<(), Failure> {
+        println!("ci: checking {selection}");
+        let outcome = Self::checks(workspace, selection, policy)
+            .map_err(Failure::from)
+            .and_then(|()| Lint::run(workspace, policy, project));
         project
             .changed_surfaces()
             .and_then(|changed| changed.announce())
@@ -20,14 +28,14 @@ impl Ci {
         outcome
     }
 
-    fn checks(workspace: &Workspace) -> Result<(), task::Failure> {
+    fn checks(workspace: &Workspace, selection: &Selection, policy: &Policy) -> Result<(), task::Failure> {
         workspace
             .line(Program::Cargo)
             .argument(CargoArgument::Fmt)
             .argument(CargoArgument::All)
             .argument(CargoArgument::Check)
             .run()?;
-        Clippy::run(workspace)?;
-        Test::run(workspace)
+        Clippy::run(workspace, selection, policy)?;
+        Test::run(workspace, selection, policy)
     }
 }

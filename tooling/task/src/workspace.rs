@@ -1,5 +1,3 @@
-mod package_graph;
-
 use std::collections::BTreeMap;
 use std::fs::{self, DirEntry};
 use std::path::{Path, PathBuf};
@@ -7,13 +5,14 @@ use std::path::{Path, PathBuf};
 use crate::command_line::{CargoArgument, CommandLine, Program, Stdout};
 use crate::crate_name::CrateName;
 use crate::failure::Failure;
+use crate::package_graph::PackageGraph;
 use crate::site::Site;
 use crate::source_file::SourceFile;
-use package_graph::PackageGraph;
 
 #[derive(Debug)]
 pub struct Workspace {
     root: PathBuf,
+    tool: CrateName,
     packages: PackageGraph,
 }
 
@@ -21,7 +20,7 @@ impl Workspace {
     const MANIFEST: &str = "Cargo.toml";
     const WORKSPACE_TABLE: &str = "[workspace]";
 
-    pub fn locate() -> Result<Workspace, Failure> {
+    pub fn locate(tool: CrateName) -> Result<Workspace, Failure> {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"))
             .ancestors()
             .find(|directory| {
@@ -38,8 +37,19 @@ impl Workspace {
             .captured::<Stdout>()?;
         Ok(Workspace {
             root,
+            tool,
             packages: PackageGraph::from_metadata(&metadata)?,
         })
+    }
+
+    #[must_use]
+    pub fn tool(&self) -> &CrateName {
+        &self.tool
+    }
+
+    #[must_use]
+    pub fn packages(&self) -> &PackageGraph {
+        &self.packages
     }
 
     #[must_use]
@@ -112,6 +122,7 @@ mod tests {
     use std::fs;
     const TREE: [&str; 4] = ["a/src/a.rs", "b/b.rs", "target/skipped.rs", "a/notes.txt"];
     const FOUND: [&str; 2] = ["a:a/src/a.rs", "b:b/b.rs"];
+    const TOOL: &str = "a";
     const TEXT: &str = "pub struct Found;";
     const ROOT_MARK: &str = "ROOT";
     const METADATA: &str = r#"{"workspace_root": "ROOT", "packages": [
@@ -128,7 +139,11 @@ mod tests {
         });
         let metadata = METADATA.replace(ROOT_MARK, &root.display().to_string());
         let packages = PackageGraph::from_metadata(&metadata).unwrap();
-        let workspace = Workspace { root, packages };
+        let workspace = Workspace {
+            root,
+            tool: TOOL.parse().unwrap(),
+            packages,
+        };
         let files = workspace.source_files().unwrap();
         let found = files
             .iter()

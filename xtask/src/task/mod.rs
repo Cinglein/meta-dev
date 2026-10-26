@@ -1,5 +1,6 @@
 mod ci;
 mod clippy;
+mod coverage;
 mod failure;
 mod lint;
 mod test;
@@ -9,9 +10,12 @@ use settings::EmbeddedDefaults;
 use strum::{EnumString, VariantNames};
 
 use crate::task::clippy::Clippy;
+use crate::task::coverage::Coverage;
 use crate::task::lint::Lint;
 use crate::task::test::Test;
 use crate::task::usage::Usage;
+use affected::Affected;
+use affected::Changes;
 use ci::Ci;
 use const_shape::ConstShape;
 use distinct_signatures::DistinctSignatures;
@@ -34,6 +38,7 @@ use private_fns::PrivateFns;
 use public_surface::PublicSurface;
 use settings_shape::SettingsShape;
 use state_graph::StateGraph;
+use task::CrateName;
 use task::Policy;
 use task::Workspace;
 use test_budget::TestBudget;
@@ -42,6 +47,7 @@ use type_shape::TypeShape;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, VariantNames)]
 #[strum(serialize_all = "kebab-case")]
 pub enum Task {
+    Affected,
     Baseline,
     Ci,
     Clippy,
@@ -77,14 +83,19 @@ impl Task {
         Failure::from(task::Failure::from(Usage))
     }
 
-    pub fn run(self) -> Result<(), Failure> {
-        let workspace = Workspace::locate()?;
+    pub fn run(self, flags: impl Iterator<Item = String>) -> Result<(), Failure> {
+        let Ok(tool) = env!("CARGO_PKG_NAME").parse::<CrateName>();
+        let workspace = Workspace::locate(tool)?;
         let project = Project::locate(workspace.root())?;
         let policy = Policy::defaults();
+        let selection = Coverage::from_flags(flags, &workspace)?;
         match self {
+            Task::Affected => {
+                Ok(Affected::selection(&workspace, Changes::SinceMain).map(|reached| println!("{reached}"))?)
+            }
             Task::Baseline => Ok(project.lints().shrink_baseline().map(|tally| print!("{tally}"))?),
-            Task::Ci => Ci::run(&workspace, &policy, &project),
-            Task::Clippy => Ok(Clippy::run(&workspace)?),
+            Task::Ci => Ci::run(&workspace, &selection, &policy, &project),
+            Task::Clippy => Ok(Clippy::run(&workspace, &selection, &policy)?),
             Task::Graph => Ok(project.lints().crate_graphs().map(|report| print!("{report}"))?),
             Task::ConstShape => Ok(ConstShape::report(&workspace.source_files()?, &policy).verdict()?),
             Task::DistinctSignatures => Ok(DistinctSignatures::report(&workspace.source_files()?).verdict()?),
@@ -106,7 +117,7 @@ impl Task {
             Task::PublicSurface => Ok(PublicSurface::report(&workspace.source_files()?).verdict()?),
             Task::SettingsShape => Ok(SettingsShape::report(&workspace.source_files()?).verdict()?),
             Task::StateGraph => Ok(StateGraph::report(&workspace.source_files()?, &policy).verdict()?),
-            Task::Test => Ok(Test::run(&workspace)?),
+            Task::Test => Ok(Test::run(&workspace, &selection, &policy)?),
             Task::TestBudget => Ok(TestBudget::report(&workspace.source_files()?, &policy).verdict()?),
             Task::TypeShape => Ok(TypeShape::report(&workspace.source_files()?).verdict()?),
         }
