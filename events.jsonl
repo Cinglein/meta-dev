@@ -166,3 +166,4 @@
 {"at":"2026-10-26T05:09:10.331889Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-54bf598896b96d9f","text":"obsolete: code replaced by chess tooling (PRs #17, #20); surface items re-checked in the small-items batch"}
 {"at":"2026-10-26T05:09:11.828736Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-26afd3828ca353cb","text":"obsolete: code replaced by chess tooling (PRs #17, #20); surface items re-checked in the small-items batch"}
 {"at":"2026-10-26T05:09:13.329162Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-ac3d795f0f868677","text":"obsolete: superseded by adopting chess tooling"}
+{"at":"2026-10-26T05:09:14.827830Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-f7200aa95c09cc5f","text":"obsolete: sweep of replaced code; chess lints now enforce these patterns"}
