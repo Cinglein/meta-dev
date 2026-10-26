@@ -24,8 +24,11 @@ const NOREPLY: &str = "1+agent@users.noreply.github.com";
 const CLAIM: &str = "claim";
 const WORKTREE: &str = "--worktree";
 const WORKTREES: [&str; 1] = ["worktrees"];
-const SHOWN_BY_GIT: [[&str; 2]; 2] = [["config", "user.email"], ["branch", "--show-current"]];
+const SHOWN_BY_GIT: [[&str; 2]; 3] = [["config", "user.email"], ["config", "user.name"], ["branch", "--show-current"]];
 const MISSING: &str = "missing";
+const AGENT: &str = "agent";
+const STRAY: [&str; 4] = ["worktree", "add", "-q", "--detach"];
+const UNRECORDED: &str = "unrecorded";
 
 struct Git;
 
@@ -99,8 +102,9 @@ impl Project {
 
     fn seeded(worktrees: &Path) -> Self {
         let project = Self::new();
-        SEED.iter().for_each(|words| assert!(Git::run(project.clone.path(), words).status.success()));
-        let settings = format!("worktree_root = {worktrees:?}\n[identity]\nname = \"agent\"\nemail = \"{NOREPLY}\"\n");
+        assert!(SEED.iter().all(|words| Git::run(project.clone.path(), words).status.success()));
+        let root = worktrees.display();
+        let settings = format!("worktree_root = \"{root}\"\n[identity]\nname = \"{AGENT}\"\nemail = \"{NOREPLY}\"\n");
         std::fs::write(project.clone.path().join("meta.local.toml"), settings).unwrap();
         project
     }
@@ -136,7 +140,9 @@ fn claim_with_worktree_makes_a_noreply_worktree_on_the_task_branch_that_worktree
     let claimed = project.meta(OWNER, &[CLAIM, &task, WORKTREE]).to_string();
     let path = Path::new(claimed.lines().last().unwrap_or_default());
     let shown = SHOWN_BY_GIT.map(|words| Git::shown(path, &words));
-    assert_eq!(shown, [format!("{NOREPLY}\n"), format!("{task}\n")]);
+    assert_eq!(shown, [NOREPLY, AGENT, &task].map(|line| format!("{line}\n")));
+    Git::run(project.clone.path(), &[&STRAY[..], &[worktrees.path().join(AGENT).to_str().unwrap()]].concat());
     let listed = project.meta(OWNER, &WORKTREES).to_string();
     assert!(listed.contains(&format!("{task} assigned {task} ")) && !listed.contains(MISSING));
+    assert_eq!(listed.matches(UNRECORDED).count(), 1);
 }
