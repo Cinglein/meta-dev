@@ -11,6 +11,7 @@ const CONFIG: &str =
     "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 10\nappear_millis = 60\n";
 const PATIENT: &str = "timeout_millis = 300\n";
 const FAKE_GH: &str = r#"#!/bin/sh
+[ "$FAKE_GH_SCENARIO" = hang ] && exec sleep 5
 count="$FAKE_GH_DIR/count"
 read -r n < "$count" 2>/dev/null || n=0
 read -r head < "$FAKE_GH_DIR/bin/head"
@@ -60,6 +61,7 @@ const NONE: &str = "none";
 const LATE: &str = "late";
 const BROKEN: &str = "broken";
 const MIXED: &str = "mixed";
+const HANG: &str = "hang";
 const NOT_WATCHED: &str = "CI not watched for";
 const PLAIN_PUSH: &str = "git push";
 const PUSH_WORDS: [&str; 4] = ["push", "-q", "origin", "feature"];
@@ -92,6 +94,9 @@ const VIEW_ERROR: &str = "gh failed: HTTP 401: Bad credentials";
 const FAILED_EVENT: &str = ": failed after";
 const COMPLETIONS: [&str; 5] =
     [": passed after", ": failed after", ": timed-out after", ": unavailable after", ": absent after"];
+
+#[path = "ci/pushes.rs"]
+mod pushes;
 
 struct Git;
 
@@ -245,9 +250,9 @@ fn passing_or_unstarted_runs_let_the_agent_stop() {
 
 #[test]
 fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
-    let repos = [NONE, LATE, BROKEN, MIXED].map(Repo::new);
+    let repos = [NONE, LATE, BROKEN, MIXED, HANG].map(Repo::new);
     let _: Vec<String> = repos.iter().map(|repo| repo.hook(POST, COMMIT)).collect();
-    let [absent, late, broken, mixed] = repos.each_ref().map(Repo::settled);
+    let [absent, late, broken, mixed, hung] = repos.each_ref().map(Repo::settled);
     let [none, ..] = &repos;
     assert!(
         absent.contains(ABSENT)
@@ -255,7 +260,11 @@ fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
             && !none.hook(STOP, COMMIT).contains(BLOCK)
             && !none.session_command(CI_WAIT).1.success()
     );
-    assert!(late.contains(NO_RUN_YET) && late.contains(RUN_APPEARED) && late.contains(TIMED_OUT));
+    assert!(
+        [&late, &hung].iter().all(|settled| settled.contains(TIMED_OUT))
+            && late.contains(NO_RUN_YET)
+            && late.contains(RUN_APPEARED)
+    );
     assert!(
         broken.contains(LIST_ERROR)
             && broken.contains(VIEW_ERROR)
