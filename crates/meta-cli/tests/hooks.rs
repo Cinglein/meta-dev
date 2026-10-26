@@ -44,6 +44,9 @@ const SESSION_ACTOR: &str = "claude-abcdef1234";
 const SESSION_STARTED: &str = "meta-sessions/ABCDEF1234/started";
 const ENV_LINE: &str = "export META_ACTOR=claude-abcdef1234\nexport META_SESSION=ABCDEF12-34\n";
 
+#[path = "support/side_by_side.rs"]
+mod side_by_side;
+
 struct Git;
 
 impl Git {
@@ -126,8 +129,7 @@ impl Repo {
     }
 }
 
-#[test]
-fn pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_wherever_they_run() {
+pub fn pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_wherever_they_run() {
     let repo = Repo::new();
     let home = repo.clone.path();
     let elsewhere = repo.origin.path();
@@ -141,8 +143,7 @@ fn pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_whereve
     assert_eq!(repo.hook(PRE, ALLOWED, home), "");
 }
 
-#[test]
-fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
+pub fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
     let repo = Repo::new();
     let home = repo.clone.path();
     repo.hook(POST, COMMIT, home);
@@ -155,8 +156,7 @@ fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
     assert!(repo.hook(POST, COMMIT, home).contains(REJECTED) && !repo.clone.path().join(WATCHERS).exists());
 }
 
-#[test]
-fn session_start_shows_state_and_names_the_session_actor() {
+pub fn session_start_shows_state_and_names_the_session_actor() {
     let repo = Repo::new();
     let home = repo.clone.path();
     let shown = repo.hook(SESSION_START, COMMIT, home);
@@ -169,4 +169,13 @@ impl fmt::Display for Repo {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{}", self.clone.path().display())
     }
+}
+
+#[test]
+fn every_hook_scenario_holds_when_run_side_by_side() {
+    side_by_side::SideBySide::run(&[
+        ("pre", pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_wherever_they_run),
+        ("post", post_tool_use_pushes_unprotected_branches_and_reports_git_errors),
+        ("start", session_start_shows_state_and_names_the_session_actor),
+    ]);
 }

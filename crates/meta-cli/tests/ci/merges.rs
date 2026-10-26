@@ -9,8 +9,7 @@ const SIDE: [&str; 4] = ["checkout", "-q", "-b", "side"];
 const BACK: [&str; 3] = ["checkout", "-q", "feature"];
 const MERGE_SIDE: [&str; 6] = ["merge", "-q", "--no-ff", "side", "-m", "merged"];
 
-#[test]
-fn a_merge_made_here_counts_by_its_parents_not_its_message() {
+pub fn a_merge_made_here_counts_by_its_parents_not_its_message() {
     let repo = Repo::new(FAILURE);
     let clone: &Path = repo.clone.path();
     StartFile::plant(repo.sessions.path(), MERGER, MERGER_START);

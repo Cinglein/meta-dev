@@ -15,8 +15,7 @@ const STUCK: &str = "STUCK9";
 const START_DIR: &str = "meta-sessions/STUCK9";
 const DENIED: &str = "\"permissionDecision\":\"deny\"";
 
-#[test]
-fn stop_judges_every_pushed_commit_and_a_dead_watcher_restarts() {
+pub fn stop_judges_every_pushed_commit_and_a_dead_watcher_restarts() {
     let repo = Repo::new(FAILURE);
     Planted::running(&repo);
     Git::run(repo.clone.path(), &ELSEWHERE);
@@ -40,16 +39,14 @@ fn stop_judges_every_pushed_commit_and_a_dead_watcher_restarts() {
     );
 }
 
-#[test]
-fn one_commit_gets_one_watcher() {
+pub fn one_commit_gets_one_watcher() {
     let repo = Repo::new(SUCCESS);
     let twins = [Planted::twin(&repo), Planted::twin(&repo)].map(|child| child.wait_with_output().unwrap());
     let passes = twins.iter().filter(|twin| String::from_utf8_lossy(&twin.stdout).contains(PASSED)).count();
     assert_eq!(passes, 1);
 }
 
-#[test]
-fn an_unwritable_session_start_refuses_the_writing_command() {
+pub fn an_unwritable_session_start_refuses_the_writing_command() {
     let repo = Repo::new(SUCCESS);
     let start = repo.sessions.path().join(START_DIR);
     std::fs::create_dir_all(&start).unwrap();

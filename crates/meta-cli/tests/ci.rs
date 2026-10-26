@@ -9,7 +9,7 @@ use std::time::Duration;
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 2\n";
 const PATIENT: &str = "appear_millis = 60\ntimeout_millis = 300\nremote_millis = 300\n";
-const QUICK: &str = "appear_millis = 30\ntimeout_millis = 120\nremote_millis = 120\n";
+const QUICK: &str = "appear_millis = 40\ntimeout_millis = 150\nremote_millis = 150\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 [ "$FAKE_GH_SCENARIO" = hang ] && exec sleep 5
 count="$FAKE_GH_DIR/count"
@@ -105,6 +105,9 @@ mod pushes;
 mod review;
 #[path = "ci/sessions.rs"]
 mod sessions;
+
+#[path = "support/side_by_side.rs"]
+mod side_by_side;
 
 struct Git;
 
@@ -357,8 +360,7 @@ impl fmt::Display for Repo {
     }
 }
 
-#[test]
-fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push() {
+pub fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push() {
     let repo = Repo::new(FAILURE);
     repo.hook(POST, COMMIT);
     let waited = repo.session_command(CI_WAIT);
@@ -376,8 +378,7 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_pus
     assert!(log.contains(PANIC_BLOCK) && !log.contains(COMPILING) && !fixed.contains(BLOCK));
 }
 
-#[test]
-fn passing_or_unstarted_runs_let_the_agent_stop() {
+pub fn passing_or_unstarted_runs_let_the_agent_stop() {
     let unstarted = Started::building(UNSTARTED, PATIENT);
     let repo = Repo::new(SUCCESS);
     Git::run(repo.clone.path(), &PUSH_WORDS);
@@ -401,8 +402,7 @@ fn passing_or_unstarted_runs_let_the_agent_stop() {
     );
 }
 
-#[test]
-fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
+pub fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
     let repos = [(NONE, QUICK), (LATE, QUICK), (BROKEN, PATIENT), (MIXED, PATIENT), (HANG, QUICK)]
         .map(|(scenario, limits)| Started::building(scenario, limits))
         .map(|started| started.join().unwrap());
@@ -424,4 +424,26 @@ fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
             && broken.contains(VIEW_ERROR)
             && [broken, mixed].iter().all(|settled| settled.contains(FAILED_EVENT))
     );
+}
+
+#[test]
+fn every_ci_scenario_holds_when_run_side_by_side() {
+    side_by_side::SideBySide::run(&[
+        ("ci_wait", ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push),
+        ("passing", passing_or_unstarted_runs_let_the_agent_stop),
+        ("never_appears", only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do),
+        ("merges", merges::a_merge_made_here_counts_by_its_parents_not_its_message),
+        ("one_watcher", pushes::one_commit_gets_one_watcher),
+        ("watcher_restarts", pushes::stop_judges_every_pushed_commit_and_a_dead_watcher_restarts),
+        ("unwritable_start", pushes::an_unwritable_session_start_refuses_the_writing_command),
+        ("review_dates", review::commit_text_commit_dates_and_a_cd_first_never_hide_a_commit),
+        ("review_readers", review::readers_and_single_branch_clones_are_judged_by_what_the_remote_holds),
+        ("review_reflog", review::a_reflog_that_is_off_or_an_unwritable_state_dir_fails_closed),
+        (
+            "slow_remote",
+            sessions::a_slow_remote_fails_closed_in_time_and_a_commit_in_the_start_second_is_not_the_sessions,
+        ),
+        ("start_second", sessions::a_commit_in_the_start_second_counts_when_its_object_is_newer),
+        ("other_sessions", sessions::other_sessions_commits_and_a_read_only_state_dir_never_block),
+    ]);
 }

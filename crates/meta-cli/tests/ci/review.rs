@@ -49,8 +49,7 @@ impl Clones {
     }
 }
 
-#[test]
-fn commit_text_commit_dates_and_a_cd_first_never_hide_a_commit() {
+pub fn commit_text_commit_dates_and_a_cd_first_never_hide_a_commit() {
     let repo = Repo::new(FAILURE);
     let clone: &Path = repo.clone.path();
     let [away, cd, text, dated] = [(repo.sessions.path(), CD), (clone, CD), (clone, TEXT), (clone, DATED)]
@@ -74,8 +73,7 @@ fn commit_text_commit_dates_and_a_cd_first_never_hide_a_commit() {
     assert!([first, spoofed, dated.hook(STOP, READ)].iter().all(|stop| stop.contains(BLOCK)));
 }
 
-#[test]
-fn readers_and_single_branch_clones_are_judged_by_what_the_remote_holds() {
+pub fn readers_and_single_branch_clones_are_judged_by_what_the_remote_holds() {
     let repo = Repo::new(FAILURE);
     let clone: &Path = repo.clone.path();
     Git::run(clone, &TO_MAIN);
@@ -99,8 +97,7 @@ fn readers_and_single_branch_clones_are_judged_by_what_the_remote_holds() {
     assert!(!read.contains(BLOCK) && stops.iter().all(|stop| stop.contains(BLOCK) && !stop.contains(NOT_PUSHED)));
 }
 
-#[test]
-fn a_reflog_that_is_off_or_an_unwritable_state_dir_fails_closed() {
+pub fn a_reflog_that_is_off_or_an_unwritable_state_dir_fails_closed() {
     let repo = Repo::new(FAILURE);
     let clone: &Path = repo.clone.path();
     Git::run(clone, &PUSH_WORDS);
