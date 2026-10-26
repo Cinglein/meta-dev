@@ -52,15 +52,15 @@ impl TriggerEvent {
 mod tests {
     use super::{FullRun, Interval, TriggerEvent};
     const NAMES: [&str; 4] = ["push", "schedule", "workflow_dispatch", "pull_request"];
+    const JOBS: [Interval; 4] = [Interval::FullJob, Interval::FullJob, Interval::FullJob, Interval::DiffJob];
     const RUNS: [Option<FullRun>; 4] =
         [Some(FullRun::EveryMainPush), Some(FullRun::Weekly), Some(FullRun::OnDemand), None];
 
     #[test]
     fn each_github_event_names_the_full_run_cadence_it_stands_for() {
         let runs = NAMES.map(|name| name.parse::<TriggerEvent>().ok().and_then(TriggerEvent::full_run));
-        assert_eq!(runs, RUNS);
-        let jobs = [Some(TriggerEvent::PullRequest), Some(TriggerEvent::Push), None].map(TriggerEvent::priced_job);
-        assert_eq!(jobs, [Interval::DiffJob, Interval::FullJob, Interval::FullJob]);
+        let jobs = NAMES.map(|name| TriggerEvent::priced_job(name.parse().ok()));
+        assert_eq!((runs, jobs), (RUNS, JOBS));
         assert!("release".parse::<TriggerEvent>().is_err());
         assert_eq!([None, Some(String::from("release"))].map(TriggerEvent::named), [Some(TriggerEvent::Local), None]);
     }
