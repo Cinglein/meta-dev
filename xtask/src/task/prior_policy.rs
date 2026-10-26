@@ -13,7 +13,7 @@ pub struct PriorPolicy {
 }
 
 impl PriorPolicy {
-    const PATH: &str = "tooling/policy.toml";
+    pub const PATH: &str = "tooling/policy.toml";
 
     pub fn read_at(revision: &Revision) -> PriorPolicy {
         revision.file(Path::new(Self::PATH)).and_then(|text| toml::from_str(&text).ok()).unwrap_or_default()

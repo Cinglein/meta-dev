@@ -26,6 +26,7 @@ use crate::task::test::Test;
 use crate::task::usage::Usage;
 use affected::{Affected, Changes};
 use ci::Ci;
+pub use ci::CiStep;
 use corpus_check::LintName;
 use crate_graph::CrateGraph;
 use failure::Failure;

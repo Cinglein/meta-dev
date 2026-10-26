@@ -37,7 +37,9 @@ pub use mutant_count::MutantCount;
 pub use name::{Casing, LoweredInfix, Name, Prefix, Whole};
 pub use nesting_depth::NestingDepth;
 pub use package_graph::PackageGraph;
-pub use policy::{BaselineFile, Floor, Limit, Most, Policy, Share, Surface, WireType};
+pub use policy::{
+    BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface, WireType,
+};
 pub use reexport_count::ReexportCount;
 pub use report::Report;
 pub use selection::{CargoTool, Selection};
@@ -45,6 +47,7 @@ pub use shard::{Shard, Slice, SliceCount};
 pub use site::Site;
 pub use source_file::SourceFile;
 pub use support_modules::SupportModules;
+pub use top_division::TopDivision;
 pub use type_name::TypeName;
 pub use use_edges::UseEdges;
 pub use use_path::UsePath;

@@ -1,0 +1,18 @@
+[package]
+name = "meta-spec"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+corpus_check = { path = "../../tooling/corpus_check" }
+meta-xtask = { path = "../../xtask" }
+strum.workspace = true
+task = { path = "../../tooling/task" }
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true
