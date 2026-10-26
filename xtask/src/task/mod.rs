@@ -10,6 +10,7 @@ mod ratchet;
 mod revision;
 mod surfaces;
 mod test;
+mod usage;
 
 use std::env;
 use std::path::PathBuf;
@@ -23,6 +24,7 @@ use crate::task::coverage::Coverage;
 use crate::task::lint::Lint;
 use crate::task::surfaces::Surfaces;
 use crate::task::test::Test;
+use crate::task::usage::Usage;
 use affected::{Affected, Changes};
 use ci::Ci;
 use corpus_check::LintName;
@@ -72,7 +74,7 @@ pub enum Task {
 impl Task {
     #[must_use]
     pub fn usage() -> Failure {
-        Failure::from(task::Failure::Usage(format!("usage: cargo xtask <{}> [--affected]", Task::VARIANTS.join("|"))))
+        Failure::from(task::Failure::from(Usage))
     }
 
     pub fn run(self, flags: impl Iterator<Item = String>) -> Result<(), Failure> {
