@@ -1,6 +1,7 @@
 mod ci;
 mod cli_failure;
 mod hook;
+mod local;
 mod output;
 mod parsed;
 mod project;
@@ -14,6 +15,7 @@ use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, N
 use ci::{Commit, FailureLog, SessionId, Watcher};
 use cli_failure::{CliFailure, Invalid, Misuse, Setup};
 use hook::HookEvent;
+use local::LocalClone;
 use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
 use project::Project;
@@ -22,6 +24,8 @@ use writing::Writing;
 #[derive(Debug)]
 pub enum Request {
     Write(Event),
+    ClaimWorktree(Claim),
+    Worktrees,
     List(Option<Kind>, Scope),
     Hook(HookEvent),
     WatchCi(SessionId, Commit),
@@ -70,9 +74,14 @@ impl TryFrom<Vec<String>> for Request {
             "resume" => Ok(Self::Write(Event::TaskUnblocked(task()?))),
             "link" => Ok(Self::Write(Event::TaskLinked(parsed.allowing(&[])?.task_link()?))),
             "claim" => {
-                let parsed = parsed.allowing(&[OptionName::From])?;
-                Ok(Self::Write(Event::TaskClaimed(Claim::new(parsed.task()?, parsed.previous_claimant()))))
+                let parsed = parsed.allowing(&[OptionName::From, OptionName::Worktree])?;
+                let claim = Claim::new(parsed.task()?, parsed.previous_claimant());
+                Ok(match parsed.flagged(OptionName::Worktree) {
+                    Some(()) => Self::ClaimWorktree(claim),
+                    None => Self::Write(Event::TaskClaimed(claim)),
+                })
             }
+            "worktrees" => parsed.allowing(&[]).map(|_| Self::Worktrees),
             "release" => Ok(Self::Write(Event::TaskReleased(task()?))),
             "done" => Ok(Self::Write(Event::TaskDone(task()?))),
             "reopen" => Ok(Self::Write(Event::TaskReopened(task()?))),
@@ -108,6 +117,8 @@ impl Request {
             Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
             Self::WaitCi(session) => Watcher::wait(project, &session),
             Self::CiLog(session) => FailureLog::excerpt(project, &session),
+            Self::ClaimWorktree(claim) => LocalClone::try_from(project)?.claimed(project, claim, Self::actor()?),
+            Self::Worktrees => LocalClone::try_from(project)?.worktrees(project),
             logged => logged.answer_from(&project.log()?, Self::actor),
         }
     }
@@ -120,9 +131,12 @@ impl Request {
         match self {
             Self::Write(event) => Writing::new(log, actor()?, event).entered(),
             Self::List(kind, scope) => Listed::from_log(log, kind, scope).map(Output::Listed),
-            Self::Hook(_) | Self::WatchCi(..) | Self::WaitCi(_) | Self::CiLog(_) => {
-                Err(CliFailure::raised::<Misuse>("not a meta/log request"))
-            }
+            Self::Hook(_)
+            | Self::WatchCi(..)
+            | Self::WaitCi(_)
+            | Self::CiLog(_)
+            | Self::ClaimWorktree(_)
+            | Self::Worktrees => Err(CliFailure::raised::<Misuse>("not a meta/log request")),
         }
     }
 
