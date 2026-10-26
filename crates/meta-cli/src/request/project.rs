@@ -9,7 +9,6 @@ use crate::request::ci::Commit;
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
 pub use config::{BranchName, CiSettings, Config, LogWindow, ProgramName};
-
 #[derive(Debug)]
 pub struct Project {
     root: PathBuf,
@@ -19,7 +18,6 @@ pub struct Project {
 impl Project {
     const CONFIG_FILE: &'static str = "meta.toml";
     const GIT_ENTRY: &'static str = ".git";
-
     pub fn log(&self) -> Result<GitLog, CliFailure> {
         self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote.clone()))
     }

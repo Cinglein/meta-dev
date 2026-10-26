@@ -166,7 +166,7 @@ mod tests {
         assert!(gate.ready().is_ok());
         fixture.write(SOURCE, BETA);
         assert!(LocalGate::refused(gate.ready(), Unready::Dirty));
-        fixture.commit();
+        fixture.committed();
         assert!(LocalGate::refused(gate.ready(), Unready::Unpushed));
     }
 

@@ -4,6 +4,7 @@ use thiserror::Error;
 
 use crate::task::ci::{Busy, Unready};
 use crate::task::ratchet::{Raised, Ratchet};
+use crate::task::revision::ForeignEmails;
 
 #[derive(Debug, Error)]
 pub enum Failure {
@@ -23,4 +24,6 @@ pub enum Failure {
     Unready(#[from] Unready),
     #[error("{0}")]
     Busy(Busy),
+    #[error("{0}")]
+    Identity(ForeignEmails),
 }

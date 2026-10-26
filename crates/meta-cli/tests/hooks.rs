@@ -18,6 +18,19 @@ const COMMIT: &str = "git commit -m change";
 const STATUS: &str = "git status";
 const ALL_REFS: &str = "--all";
 const AMEND: [&str; 6] = ["commit", "-q", "--amend", "--allow-empty", "-m", "rewritten"];
+const FOREIGN_IDENTITY: &str = "[user]\n\tname = someone\n\temail = someone@example.com\n";
+const NOREPLY_IDENTITY: &str = "[user]\n\tname = someone\n\temail = 1+someone@users.noreply.github.com\n";
+const GIT_CONFIG: &str = ".git/config";
+const BARE_CONFIG: &str = "config";
+const ELSEWHERE: &str = "ELSEWHERE";
+const FOREIGN_REASON: &str = "someone@example.com is not noreply; git config user.name";
+const UNRESOLVED_REASON: &str = "cannot resolve the commit directory";
+const REFUSED_COMMITS: [(&str, &str); 4] = [
+    ("cd ELSEWHERE && git commit --amend --no-edit", FOREIGN_REASON),
+    ("git commit -m change", FOREIGN_REASON),
+    ("git commit -m x && git -C ELSEWHERE commit -m y", FOREIGN_REASON),
+    ("git -C \"$REPO\" commit -m x", UNRESOLVED_REASON),
+];
 const NEW_FEATURE: [&str; 4] = ["switch", "-q", "-c", "feature"];
 const HEAD: &str = "HEAD";
 const FEATURE_BRANCH: &str = "feature";
@@ -39,14 +52,16 @@ impl Git {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
     }
 
-    fn link_origin(dir: &Path, url: &str) {
-        let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
-        std::fs::OpenOptions::new()
-            .append(true)
-            .open(dir.join(".git/config"))
-            .unwrap()
-            .write_all(remote.as_bytes())
-            .unwrap();
+    fn link_origin(dir: &Path, origin: &Path) {
+        let url = origin.display();
+        Self::configure(
+            &dir.join(".git/config"),
+            &format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n"),
+        );
+    }
+
+    fn configure(file: &Path, section: &str) {
+        std::fs::OpenOptions::new().append(true).open(file).unwrap().write_all(section.as_bytes()).unwrap();
     }
 
     fn head(dir: &Path, reference: &str) -> Revision {
@@ -68,23 +83,23 @@ impl Repo {
         let clone = tempfile::tempdir().unwrap();
         Git::run(origin.path(), &["init", "-q", "--bare"]);
         Git::run(clone.path(), &["init", "-q"]);
-        Git::link_origin(clone.path(), origin.path().to_str().unwrap());
+        Git::link_origin(clone.path(), origin.path());
         std::fs::write(clone.path().join("meta.toml"), CONFIG).unwrap();
         Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "start"]);
         Self { origin, clone }
     }
 
-    fn hook(&self, event: &str, command: &str, env_file: &Path) -> String {
+    fn hook(&self, event: &str, command: &str, cwd: &Path) -> String {
         let session = if event == SESSION_START { SESSION_FIELD } else { "" };
         let input = format!(
             r#"{{{session}"cwd":{},"tool_input":{{"command":{}}}}}"#,
-            serde_json::to_string(self.clone.path()).unwrap(),
-            serde_json::to_string(command).unwrap()
+            serde_json::to_string(cwd).unwrap(),
+            serde_json::to_string(&command.replace(ELSEWHERE, &self.origin.path().display().to_string())).unwrap()
         );
         let mut child = Command::new(META)
             .args(["hook", event])
             .env_remove("META_ACTOR")
-            .env("CLAUDE_ENV_FILE", env_file)
+            .env("CLAUDE_ENV_FILE", self.env_file())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()
@@ -99,35 +114,41 @@ impl Repo {
 }
 
 #[test]
-fn pre_tool_use_denies_a_merge_and_a_force_push_and_allows_a_feature_push() {
+fn pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_wherever_they_run() {
     let repo = Repo::new();
-    let env = repo.env_file();
-    let push = repo.hook(PRE, PUSH, &env);
-    assert!(repo.hook(PRE, MERGE, &env).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
-    assert_eq!(repo.hook(PRE, ALLOWED, &env), "");
+    let home = repo.clone.path();
+    let elsewhere = repo.origin.path();
+    Git::configure(&home.join(GIT_CONFIG), NOREPLY_IDENTITY);
+    Git::configure(&elsewhere.join(BARE_CONFIG), FOREIGN_IDENTITY);
+    let push = repo.hook(PRE, PUSH, home);
+    assert!(repo.hook(PRE, MERGE, home).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
+    let commits = REFUSED_COMMITS.into_iter().zip([home, elsewhere, home, home]);
+    let shown = commits.map(|((command, reason), cwd)| (repo.hook(PRE, command, cwd), format!("{DENY}{reason}")));
+    assert!(shown.into_iter().all(|(shown, refused)| shown.contains(&refused)));
+    assert_eq!(repo.hook(PRE, ALLOWED, home), "");
 }
 
 #[test]
 fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
     let repo = Repo::new();
-    let env = repo.env_file();
-    repo.hook(POST, COMMIT, &env);
+    let home = repo.clone.path();
+    repo.hook(POST, COMMIT, home);
     Git::run(repo.clone.path(), &NEW_FEATURE);
-    repo.hook(POST, STATUS, &env);
+    repo.hook(POST, STATUS, home);
     assert_eq!(Git::head(repo.origin.path(), ALL_REFS), Revision(String::new()));
-    repo.hook(POST, COMMIT, &env);
+    repo.hook(POST, COMMIT, home);
     assert_eq!(Git::head(repo.origin.path(), FEATURE_BRANCH), Git::head(repo.clone.path(), HEAD));
     Git::run(repo.clone.path(), &AMEND);
-    assert!(repo.hook(POST, COMMIT, &env).contains(REJECTED) && !repo.clone.path().join(WATCHERS).exists());
+    assert!(repo.hook(POST, COMMIT, home).contains(REJECTED) && !repo.clone.path().join(WATCHERS).exists());
 }
 
 #[test]
 fn session_start_shows_state_and_names_the_session_actor() {
     let repo = Repo::new();
-    let env = repo.env_file();
-    let shown = repo.hook(SESSION_START, COMMIT, &env);
+    let home = repo.clone.path();
+    let shown = repo.hook(SESSION_START, COMMIT, home);
     assert!(shown.contains(NO_TASKS) && shown.contains(SESSION_ACTOR));
-    assert_eq!(std::fs::read_to_string(env).unwrap(), ENV_LINE);
+    assert_eq!(std::fs::read_to_string(repo.env_file()).unwrap(), ENV_LINE);
 }
 
 impl fmt::Display for Repo {

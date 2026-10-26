@@ -1,4 +1,5 @@
 mod commit;
+mod foreign_emails;
 
 use std::path::{Path, PathBuf};
 
@@ -6,6 +7,7 @@ use task::{BranchName, CommandLine, Program, Stdout};
 
 use crate::task::failure::Failure;
 pub use commit::Commit;
+pub use foreign_emails::ForeignEmails;
 
 #[derive(Debug)]
 pub struct Revision {
@@ -44,6 +46,14 @@ impl Revision {
             .filter(|path| !path.is_empty())
             .map(PathBuf::from)
             .collect())
+    }
+
+    pub fn noreply_off(root: &Path, base: &BranchName) -> Result<(), Failure> {
+        let emails = Self::git(root)
+            .arguments(["log", "--format=%ae%n%ce", "HEAD", "--not"])
+            .argument(base)
+            .captured::<Stdout>()?;
+        ForeignEmails::refused(&emails)
     }
 
     fn git(root: &Path) -> CommandLine {
