@@ -41,7 +41,7 @@ mod tests {
     use task::Policy;
     const NAME: &str = "crate";
     const SPELLED: &str = "crate 5 above price 3";
-    const PRICE: Millis = Millis::new(1000);
+    const PRICE: Millis = Millis::new(40);
 
     #[test]
     fn an_overrun_spells_its_name_measurement_and_price() {
