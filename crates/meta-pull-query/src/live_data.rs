@@ -3,17 +3,25 @@ use meta_schema::PullRequest;
 
 use crate::pulls::Pulls;
 use crate::rulebook::Rulebook;
+use crate::trunk_run::TrunkRun;
+use crate::workflow_name::WorkflowName;
 
 #[derive(Clone, Debug)]
 pub struct LiveData {
     pulls: Pulls,
     rules: Rulebook,
+    workflows: Vec<WorkflowName>,
 }
 
 impl LiveData {
     #[must_use]
     pub fn new(pulls: Pulls, rules: Rulebook) -> Self {
-        Self { pulls, rules }
+        Self { pulls, rules, workflows: Vec::new() }
+    }
+
+    #[must_use]
+    pub fn requiring(self, workflows: Vec<WorkflowName>) -> Self {
+        Self { workflows, ..self }
     }
 
     #[must_use]
@@ -25,6 +33,11 @@ impl LiveData {
     #[must_use]
     pub fn orphans(&self, linked: &[PullRequest]) -> Vec<PullRequest> {
         self.pulls.open().orphans(linked)
+    }
+
+    #[must_use]
+    pub fn trunk(&self) -> Vec<TrunkRun> {
+        self.workflows.iter().cloned().map(|workflow| self.pulls.trunk_run(workflow)).collect()
     }
 
     #[must_use]

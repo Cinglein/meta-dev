@@ -1,11 +1,13 @@
 mod sight;
+mod unseen_run;
 
-use meta_pull_query::LiveData;
+use meta_pull_query::{LiveData, TrunkRun, TrunkVerdict};
 use meta_schema::PullRequest;
 
 use crate::flag::Flag;
 use crate::github_failure::GithubFailure;
 use sight::Sight;
+use unseen_run::UnseenRun;
 
 #[derive(Clone, Debug)]
 pub enum Github {
@@ -28,6 +30,28 @@ impl Github {
             Self::Reached(data) => data.orphans(linked),
             Self::Unreached(_) => Vec::new(),
         }
+    }
+
+    #[must_use]
+    pub fn trunk(&self) -> Vec<Flag> {
+        match self {
+            Self::Reached(data) => data.trunk().iter().filter_map(Self::trunk_flag).collect(),
+            Self::Unreached(_) => Vec::new(),
+        }
+    }
+
+    fn trunk_flag(run: &TrunkRun) -> Option<Flag> {
+        match run.verdict() {
+            TrunkVerdict::Green => None,
+            TrunkVerdict::Red => Some(Flag::TrunkRed(run.workflow().clone())),
+            TrunkVerdict::Unknown => Some(Flag::Unreached(GithubFailure::new(UnseenRun::new(run.workflow())))),
+        }
+    }
+
+    #[must_use]
+    pub fn finished(&self, linked: &[PullRequest]) -> Option<()> {
+        linked.first()?;
+        linked.iter().all(|pull_request| self.sight(*pull_request).ended().is_some()).then_some(())
     }
 
     #[must_use]

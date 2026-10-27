@@ -10,7 +10,7 @@ use crate::request::project::Config;
 const FAKE_GH: &str = r#"#!/bin/sh
 printf '%s\n' "$@" >> "$0.args"
 case "$1 $2 $FAKE" in
-"api graphql partial"|"api graphql norules") echo '{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[{"number":3,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}]}}},"errors":[]}'; echo 'gh: not found' >&2; exit 1 ;;
+"api graphql partial"|"api graphql norules") echo '{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[{"number":3,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}]}},"trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}},"errors":[]}'; echo 'gh: not found' >&2; exit 1 ;;
 "api graphql garbage") echo 'not json' ;;
 "api graphql down") echo 'HTTP 502: Bad Gateway' >&2; exit 1 ;;
 "api repos/{owner}/{repo}/rules/branches/main partial") echo '["ci"]' ;;
@@ -27,6 +27,7 @@ const REASONS: [(&str, &str); 3] = [
     ("garbage", "unknown github: reply not JSON: not json"),
     ("norules", "unknown github: HTTP 404: Not Found"),
 ];
+const WORKFLOWS: [&str; 2] = ["ci", "mutants"];
 const DEADLINE: Duration = Duration::from_secs(5);
 
 struct Fake {
@@ -42,7 +43,8 @@ impl Fake {
         std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
         let config: Config = toml::from_str(&format!("[ci]\nprogram = {:?}", script.display().to_string())).unwrap();
         let program = config.ci_settings().program().clone();
-        let github = LiveGithub::new(program, dir.path().into(), Instant::now() + DEADLINE);
+        let workflows = WORKFLOWS.map(|name| name.parse().unwrap()).to_vec();
+        let github = LiveGithub::new(program, dir.path().into(), Instant::now() + DEADLINE, workflows);
         Self { dir, github }
     }
 
@@ -69,10 +71,24 @@ fn one_graphql_call_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_
 }
 
 #[test]
+fn a_project_requires_the_workflows_its_meta_toml_names_and_none_by_default() {
+    let required = |settings: &str| {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir(dir.path().join(".git")).unwrap();
+        std::fs::write(dir.path().join("meta.toml"), settings).unwrap();
+        let project = crate::request::project::Project::try_from(dir.path()).unwrap();
+        LiveGithub::for_project(&project).workflows.iter().map(ToString::to_string).collect::<Vec<_>>()
+    };
+    assert_eq!(required("remote = \"origin\"\nrequired_workflows = [\"ci\", \"docs\"]"), ["ci", "docs"]);
+    assert_eq!(required("remote = \"origin\""), Vec::<String>::new());
+}
+
+#[test]
 fn an_unreachable_or_unreadable_github_reads_as_unknown_with_its_reason() {
     assert!(REASONS.iter().all(|(scenario, reason)| Fake::reason(scenario) == *reason));
     let fake = Fake::new("down");
-    let missing = LiveGithub::new(fake.github.program.clone(), Path::new("/nonexistent").into(), Instant::now());
+    let missing =
+        LiveGithub::new(fake.github.program.clone(), Path::new("/nonexistent").into(), Instant::now(), vec![]);
     let unread = missing.read(&LiveQuery::new(vec![]));
     assert!(unread.flag().is_some() && fake.github.pulls_from(&"x".parse().unwrap()).is_empty());
 }

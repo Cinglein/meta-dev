@@ -24,6 +24,14 @@ impl Sight<'_> {
     }
 
     #[must_use]
+    pub fn ended(self) -> Option<PullState> {
+        match self {
+            Self::Seen(pull) => Some(pull.state()).filter(|state| *state != PullState::Open),
+            Self::Missing | Self::Unreached => None,
+        }
+    }
+
+    #[must_use]
     pub fn lifetime(self, pull_request: PullRequest) -> Lifetime {
         match self {
             Self::Seen(pull) => match pull.state() {

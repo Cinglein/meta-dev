@@ -22,11 +22,13 @@ const REPLY: &str = r#"{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage
 {"number":16,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}]}},"linked":{
 "pr13":{"number":13,"state":"OPEN","baseRefName":"main","statusCheckRollup":{"contexts":{"pageInfo":{"hasNextPage":false},"nodes":[{"name":"ci","result":"FAILURE"}]}}},
 "pr14":{"number":14,"state":"OPEN","baseRefName":"main","statusCheckRollup":{"contexts":{"pageInfo":{"hasNextPage":true},"nodes":[{"name":"ci","result":"FAILURE"}]}}},
-"pr99":null}}}"#;
+"pr99":null},
+"trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}}}"#;
+const WORKFLOWS: [&str; 2] = ["ci", "mutants"];
 const MAIN: &str = r#""main""#;
 const REQUIRED: &str = r#"["ci"]"#;
 const TIMED_OUT: &str = "timed out";
-const NOTHING_OPEN: &str = r#"{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[]}}}}"#;
+const NOTHING_OPEN: &str = r#"{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[]}},"trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}}}"#;
 
 #[derive(Default)]
 struct Board {
@@ -95,7 +97,8 @@ impl Tasks {
     fn reached(reply: &str) -> Github {
         let rules = [(serde_json::from_str(MAIN).unwrap(), serde_json::from_str(REQUIRED).unwrap())];
         let pulls = serde_json::from_str::<LiveReply>(reply).unwrap().answered().unwrap();
-        Github::Reached(pulls.ruled(rules.into_iter().collect()).unwrap())
+        let required = WORKFLOWS.map(|name| name.parse().unwrap()).to_vec();
+        Github::Reached(pulls.ruled(rules.into_iter().collect()).unwrap().requiring(required))
     }
 
     fn done(&self, state: &State) -> String {
