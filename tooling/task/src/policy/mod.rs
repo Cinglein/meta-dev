@@ -37,6 +37,7 @@ use crate::percent::Percent;
 use bit_boundary::BitBoundary;
 use enum_map::EnumMap;
 use least::Least;
+use meta_severity::Scales;
 use policy_failure::PolicyFailure;
 use policy_file::PolicyFile;
 use serde::{Deserialize, Serialize, Serializer};
@@ -75,6 +76,7 @@ pub struct Policy {
     mutant_millis: MutantMillis,
     mutation: MutationCadence,
     domains: Domains,
+    scales: Scales,
     budgets: Budgets,
     deprecated: Vec<LegacyKey>,
     spec: Option<SpecSettings>,

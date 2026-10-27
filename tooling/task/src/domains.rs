@@ -104,7 +104,11 @@ mod tests {
     ];
     const NESTED_DOMAIN: &str = "[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n";
     const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 50\ntolerance = 10\n";
-    const REFUSED: [(&str, &str); 7] = [
+    const REFUSED: [(&str, &str); 8] = [
+        (
+            "\n[[scales.\"features-and-maintenance/a\"]]\nname = \"b\"\nmeaning = \"x\"\nparent = \"minor\"\n\n[[scales.\"features-and-maintenance/a\"]]\nname = \"c\"\nmeaning = \"x\"\nparent = \"critical\"\n",
+            "scale features-and-maintenance/a: c maps above a more severe level",
+        ),
         (
             "\n[budgets.whole]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"ci\"\n\n[budgets.part]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"tangle_items\"\nallowance = { of = \"whole\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n",
             "budget part: its allowance is not in its measure's unit",
@@ -166,7 +170,8 @@ mod tests {
     }
 
     #[test]
-    fn domains_outside_their_parent_planning_code_and_unmeasurable_budgets_are_refused() {
+    fn domains_outside_their_parent_planning_code_unmeasurable_budgets_and_unordered_scales_are_refused()
+     {
         let refusals = REFUSED.map(|(added, _)| Policy::with_added(added).err());
         assert_eq!(
             refusals,
