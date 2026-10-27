@@ -162,19 +162,27 @@ impl Git {
         };
         let heads = branches("refs/heads/", &ADDED);
         let tracking = branches("refs/remotes/origin/", &["main", MERGED, OPEN, DIRTY, BUSY, PAUSED]);
-        Self::imported(origin, &[SEED, &heads, LOG].concat());
-        Self::imported(clone, &[SEED, &heads, &tracking].concat());
+        std::thread::scope(|scope| {
+            scope.spawn(|| Self::imported(origin, &[SEED, &heads, LOG].concat()));
+            Self::imported(clone, &[SEED, &heads, &tracking].concat());
+        });
     }
 
     fn added(scene: &Scene) {
         let clone = scene.clone.path();
         let trees = scene.trees();
-        let added: Vec<Output> = ADDED
-            .iter()
-            .map(|task| Self::run(clone, &["worktree", "add", "-q", trees.join(task).to_str().unwrap(), task]))
-            .collect();
+        let added: Vec<Output> = std::thread::scope(|scope| {
+            let spawned: Vec<_> = ADDED
+                .iter()
+                .map(|task| {
+                    let tree = trees.join(task);
+                    scope.spawn(move || Self::run(clone, &["worktree", "add", "-q", tree.to_str().unwrap(), task]))
+                })
+                .collect();
+            Self::run(clone, &["worktree", "add", "-q", "--detach", trees.join(STRAY).to_str().unwrap()]);
+            spawned.into_iter().map(|worktree| worktree.join().unwrap()).collect()
+        });
         assert!(added.iter().all(|output| output.status.success()));
-        Self::run(clone, &["worktree", "add", "-q", "--detach", trees.join(STRAY).to_str().unwrap()]);
     }
 }
 

@@ -35,6 +35,22 @@ pub struct TestTime {
 }
 
 impl TestTime {
+    const GIT_SETTINGS: [(&'static str, &'static str); 13] = [
+        ("GIT_CONFIG_COUNT", "6"),
+        ("GIT_CONFIG_KEY_0", "core.fsync"),
+        ("GIT_CONFIG_VALUE_0", "none"),
+        ("GIT_CONFIG_KEY_1", "gc.auto"),
+        ("GIT_CONFIG_VALUE_1", "0"),
+        ("GIT_CONFIG_KEY_2", "core.looseCompression"),
+        ("GIT_CONFIG_VALUE_2", "0"),
+        ("GIT_CONFIG_KEY_3", "pack.compression"),
+        ("GIT_CONFIG_VALUE_3", "0"),
+        ("GIT_CONFIG_KEY_4", "pack.threads"),
+        ("GIT_CONFIG_VALUE_4", "1"),
+        ("GIT_CONFIG_KEY_5", "core.preloadIndex"),
+        ("GIT_CONFIG_VALUE_5", "false"),
+    ];
+
     pub fn run(
         workspace: &Workspace,
         selection: &Selection,
@@ -59,14 +75,12 @@ impl TestTime {
                         CargoBuild::examples(line(), examples, policy).run()
                     })?;
                 let cargo = |selection| CargoTest::new(line(), selection, policy);
-                let ran = cargo(selection)
+                let line = cargo(selection)
                     .through(&RunnerConfig::current()?)
-                    .environment(TestRunner::RUNS, runs.path())
-                    .environment("GIT_CONFIG_COUNT", "2")
-                    .environment("GIT_CONFIG_KEY_0", "core.fsync")
-                    .environment("GIT_CONFIG_VALUE_0", "none")
-                    .environment("GIT_CONFIG_KEY_1", "gc.auto")
-                    .environment("GIT_CONFIG_VALUE_1", "0")
+                    .environment(TestRunner::RUNS, runs.path());
+                let ran = Self::GIT_SETTINGS
+                    .into_iter()
+                    .fold(line, |line, (name, value)| line.environment(name, value))
                     .run();
                 let documented = selection.within(workspace.packages().doctested());
                 let documented_ran = documented
