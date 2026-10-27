@@ -63,20 +63,24 @@ mod tests {
     use std::path::PathBuf;
 
     use super::{TestBinary, TestRunner};
-    use crate::test_run::TestRun;
 
     const CANNOT_LIST: &str = "false";
     const LISTS_NOTHING: &str = "true";
+    const RECORDED: [&str; 2] = ["unlisted\tfalse", "passed\t"];
 
     #[test]
-    fn a_binary_that_cannot_list_is_recorded_as_unlisted_and_fails_and_an_empty_one_passes() {
+    fn a_binary_that_cannot_list_fails_and_one_that_lists_nothing_runs_once_as_one_test() {
         let runs = tempfile::NamedTempFile::new().unwrap();
         let recorded = |binary: &str| {
             TestRunner::recorded(&TestBinary::new(PathBuf::from(binary)), runs.path())
         };
         assert!(recorded(CANNOT_LIST).is_err() && recorded(LISTS_NOTHING).is_ok());
         let read = fs::read_to_string(runs.path()).unwrap();
-        let runs: Vec<TestRun> = read.lines().filter_map(|line| line.parse().ok()).collect();
-        assert_eq!(runs, [TestRun::Unlisted(PathBuf::from(CANNOT_LIST))]);
+        let lines: Vec<&str> = read.lines().collect();
+        let starts = lines
+            .iter()
+            .zip(RECORDED)
+            .all(|(line, start)| line.starts_with(start));
+        assert!(lines.len() == RECORDED.len() && starts, "{read}");
     }
 }
