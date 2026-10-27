@@ -37,6 +37,15 @@ impl Git {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
     }
 
+    fn laid(dir: &Path, bare: bool) {
+        let git_dir = if bare { dir.to_path_buf() } else { dir.join(".git") };
+        std::fs::create_dir_all(git_dir.join("objects")).unwrap();
+        std::fs::create_dir_all(git_dir.join("refs")).unwrap();
+        std::fs::write(git_dir.join("HEAD"), "ref: refs/heads/main\n").unwrap();
+        let config = format!("[core]\n\trepositoryformatversion = 0\n\tbare = {bare}\n[maintenance]\n\tauto = false\n");
+        std::fs::write(git_dir.join("config"), config).unwrap();
+    }
+
     fn link_origin(dir: &Path, url: &str) {
         let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
         std::fs::OpenOptions::new()
@@ -65,12 +74,12 @@ struct Fixture {
 impl Fixture {
     fn new(clones: usize) -> Self {
         let origin = tempfile::tempdir().unwrap();
-        Git::run(origin.path(), &["init", "-q", "--bare"]);
+        Git::laid(origin.path(), true);
         let url = origin.path().to_str().unwrap().to_owned();
         let clones = (0..clones)
             .map(|_| tempfile::tempdir().unwrap())
             .inspect(|dir| {
-                Git::run(dir.path(), &["init", "-q"]);
+                Git::laid(dir.path(), false);
                 Git::link_origin(dir.path(), &url);
             })
             .collect();
@@ -131,6 +140,7 @@ fn refusals_write_nothing_and_rejected_or_offline_writes_fail() {
             .unwrap_or_default()
     };
     let [false_program, hook] = REFUSE_PUSHES;
+    std::fs::create_dir_all(fixture.origin.path().join("hooks")).unwrap();
     std::os::unix::fs::symlink(false_program, fixture.origin.path().join(hook)).unwrap();
     assert!(failure().starts_with(REJECTED_PREFIX));
     Git::run(fixture.clones[FIRST].path(), &OFFLINE);
