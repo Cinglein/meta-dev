@@ -450,3 +450,4 @@
 {"at":"2026-10-27T05:37:00.636794Z","actor":"claude-lead","kind":"TaskDone","task":"task-7da95286b7c471f9"}
 {"at":"2026-10-27T05:37:02.301850Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-b6d7dc069566a530","from":"claude-basho-tooling"}
 {"at":"2026-10-27T05:37:03.908620Z","actor":"claude-lead","kind":"TaskDone","task":"task-b6d7dc069566a530"}
+{"at":"2026-10-27T05:37:05.546464Z","actor":"claude-lead","kind":"IssueReported","issue":"issue-c5a282bf1f67fc01","text":"Basho #87 squash-merged (meta-xtask adoption with every lint finding fixed; exhaustive browser tier over all 768 stages, budget 10 s with a 6 s warning set by the owner) after nine review rounds. Basho main now requires the local-gate status (ruleset 25935520).","division":"features-and-maintenance"}
