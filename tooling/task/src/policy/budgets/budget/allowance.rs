@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::policy::budgets::budget_id::BudgetId;
 use crate::policy::percent::Percent;
-use amount::Amount;
+pub use amount::Amount;
 use part::Part;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -21,6 +21,14 @@ impl Allowance {
         match self {
             Allowance::PartOf(part) => Some(part),
             Allowance::Whole(_) => None,
+        }
+    }
+
+    #[must_use]
+    pub fn whole(&self) -> Option<Amount> {
+        match self {
+            Allowance::Whole(amount) => Some(*amount),
+            Allowance::PartOf(_) => None,
         }
     }
 

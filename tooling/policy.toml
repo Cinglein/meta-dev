@@ -93,6 +93,14 @@ job_setup = 90000
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]
 
+[domains.features-and-maintenance]
+crates = ["*"]
+paths = ["*"]
+
+[domains.performance-and-cost]
+tests = ["*"]
+workflows = ["*"]
+
 [mutant_millis]
 default = 5200
 

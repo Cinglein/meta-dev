@@ -6,10 +6,11 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use super::domains::Domains;
 use super::percent::Percent;
 use budget::Budget;
 use budget_id::BudgetId;
-use tree_failure::TreeFailure;
+pub use tree_failure::TreeFailure;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(
@@ -22,6 +23,12 @@ impl Budgets {
     #[must_use]
     pub fn budget(&self, id: &BudgetId) -> Option<&Budget> {
         self.0.get(id)
+    }
+
+    pub fn measurable(&self, domains: &Domains) -> Result<(), TreeFailure> {
+        self.0
+            .iter()
+            .try_for_each(|(id, budget)| budget.measurable(id, domains))
     }
 }
 
@@ -63,21 +70,31 @@ mod tests {
     const TREE: &str = r#"
 [ci]
 division = "performance-and-cost"
+measure = { workflow_wall_time = "diff_job" }
 allowance = { duration = 4000 }
 window = { rolling = 604800000 }
+source = "ci"
 
 [ci-tests]
 division = "performance-and-cost/tests"
+measure = "test_wall_time"
 allowance = { of = "ci", percent = 60 }
 window = { rolling = 604800000 }
+source = "ci"
 overspend = "escalate"
 
 [ci-lints]
 division = "performance-and-cost/lints"
+measure = "slowest_test"
 allowance = { of = "ci", percent = 40 }
 window = { rolling = 604800000 }
+source = "local_gate"
+warning = 50
+tolerance = 10
 "#;
-    const WRITTEN: &str = "[ci]\ndivision = \"performance-and-cost\"\noverspend = \"block\"\n\n[ci.allowance]\nduration = 4000\n\n[ci.window]\nrolling = 604800000\n\n[ci-lints]\ndivision = \"performance-and-cost/lints\"\noverspend = \"block\"\n\n[ci-lints.allowance]\nof = \"ci\"\npercent = 40\n\n[ci-lints.window]\nrolling = 604800000\n\n[ci-tests]\ndivision = \"performance-and-cost/tests\"\noverspend = \"escalate\"\n\n[ci-tests.allowance]\nof = \"ci\"\npercent = 60\n\n[ci-tests.window]\nrolling = 604800000\n";
+    const WRITTEN: &str = "[ci]\ndivision = \"performance-and-cost\"\nsource = \"ci\"\nwarning = 60\noverspend = \"block\"\n\n[ci.measure]\nworkflow_wall_time = \"diff_job\"\n\n[ci.allowance]\nduration = 4000\n\n[ci.window]\nrolling = 604800000\n\n[ci-lints]\ndivision = \"performance-and-cost/lints\"\nmeasure = \"slowest_test\"\nsource = \"local_gate\"\nwarning = 50\ntolerance = 10\noverspend = \"block\"\n\n[ci-lints.allowance]\nof = \"ci\"\npercent = 40\n\n[ci-lints.window]\nrolling = 604800000\n\n[ci-tests]\ndivision = \"performance-and-cost/tests\"\nmeasure = \"test_wall_time\"\nsource = \"ci\"\nwarning = 60\noverspend = \"escalate\"\n\n[ci-tests.allowance]\nof = \"ci\"\npercent = 60\n\n[ci-tests.window]\nrolling = 604800000\n";
+    const WINDOW: &str = "window = ";
+    const MEASURED: &str = "measure = \"tangle_items\"\nsource = \"ci\"\nwindow = ";
     const PART: &str = "ci-tests";
     const SHARE: usize = 60;
     const ESCALATE: Overspend = Overspend::Escalate;
@@ -112,7 +129,7 @@ window = { rolling = 604800000 }
             "budget ci: its parts add up to more than all of it",
         ),
         (
-            "[ci]\ndivision = \"performance-and-cost\"\nallowance = { share = 50 }\nwindow = \"standing\"\n\n[a]\ndivision = \"performance-and-cost/a\"\nallowance = { of = \"ci\", percent = 51 }\nwindow = \"standing\"\n\n[b]\ndivision = \"performance-and-cost/b\"\nallowance = { of = \"ci\", percent = 50 }\nwindow = \"standing\"\n",
+            "[ci]\ndivision = \"performance-and-cost\"\nallowance = { count = 50 }\nwindow = \"standing\"\n\n[a]\ndivision = \"performance-and-cost/a\"\nallowance = { of = \"ci\", percent = 51 }\nwindow = \"standing\"\n\n[b]\ndivision = \"performance-and-cost/b\"\nallowance = { of = \"ci\", percent = 50 }\nwindow = \"standing\"\n",
             "budget ci: its parts add up to more than all of it",
         ),
     ];
@@ -131,19 +148,21 @@ window = { rolling = 604800000 }
         );
     }
 
+    impl Budgets {
+        fn measured(tree: &str) -> Result<Budgets, toml::de::Error> {
+            toml::from_str(&tree.replace(WINDOW, MEASURED))
+        }
+    }
+
     #[test]
     fn a_budget_without_exactly_one_unit_does_not_parse() {
-        assert!(
-            UNITLESS
-                .iter()
-                .all(|tree| toml::from_str::<Budgets>(tree).is_err())
-        );
+        assert!(UNITLESS.iter().all(|tree| Budgets::measured(tree).is_err()));
     }
 
     #[test]
     fn a_part_names_a_defined_parent_sits_inside_its_division_and_fits_its_share() {
         let refusals = REFUSED.map(|(tree, _)| {
-            toml::from_str::<Budgets>(tree)
+            Budgets::measured(tree)
                 .err()
                 .map(|error| error.message().to_owned())
         });

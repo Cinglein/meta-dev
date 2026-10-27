@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 use super::budget_id::BudgetId;
+use crate::policy::domains::ScopeKind;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum TreeFailure {
@@ -14,4 +15,8 @@ pub enum TreeFailure {
     NestedWhole(BudgetId),
     #[error("budget {0}: a part has the window of the budget it is part of")]
     OtherWindow(BudgetId),
+    #[error("budget {0}: its allowance is not in its measure's unit")]
+    OtherUnit(BudgetId),
+    #[error("budget {0}: its measure needs {1}, which its division's domain does not declare")]
+    Unmeasurable(BudgetId, ScopeKind),
 }
