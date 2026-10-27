@@ -6,6 +6,8 @@ pub enum Unready {
     Dirty,
     #[error("HEAD not pushed")]
     Unpushed,
+    #[error("not exactly one pushed branch ends at HEAD")]
+    Unnamed,
     #[error("gate checkout changed during the run")]
     Tampered,
     #[error("no meta-dev rev")]
