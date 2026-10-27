@@ -1,4 +1,5 @@
 use std::fmt;
+use std::panic::resume_unwind;
 
 use meta_log::LogStore as _;
 use meta_schema::{CommitId, ExternalKind, Id, Task};
@@ -27,10 +28,15 @@ impl WaitOnCi {
     pub fn stop_reason(project: &Project, dir: &SessionDir, commits: &[Commit]) -> Option<Listed> {
         let unresolved = |commit: &Commit| dir.status_of(commit).and_then(CiStatus::unresolved);
         commits.iter().find_map(unresolved)?;
-        let state =
-            project.log().and_then(|log| log.read().map_err(CliFailure::from)).map(|read| State::fold(read.records()));
-        let head = project.head().and_then(|head| head.commit_id());
-        let task = project.unprotected_branch().and_then(|branch| branch.task());
+        let (read, head, branch) = std::thread::scope(|scope| {
+            let head = scope.spawn(|| project.head());
+            let branch = scope.spawn(|| project.unprotected_branch());
+            let read = project.log().and_then(|log| log.read().map_err(CliFailure::from));
+            (read, head.join().unwrap_or_else(|panic| resume_unwind(panic)), branch.join())
+        });
+        let state = read.map(|read| State::fold(read.records()));
+        let head = head.and_then(|head| head.commit_id());
+        let task = branch.unwrap_or_else(|panic| resume_unwind(panic)).and_then(|branch| branch.task());
         commits.iter().find_map(|commit| {
             let what = unresolved(commit)?;
             Self::judging(&state, commit, head.as_ref(), task).map_or_else(Some, |wait| wait.reason(what))
