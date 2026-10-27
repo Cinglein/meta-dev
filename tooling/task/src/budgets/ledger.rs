@@ -8,7 +8,6 @@ use std::collections::BTreeMap;
 use super::budget::{Amount, Budget, Measure};
 use super::budget_id::BudgetId;
 use super::standing::{Exposure, Standing};
-use crate::domains::Domains;
 use crate::failure::Failure;
 use crate::policy::Policy;
 use crate::selection::Selection;
@@ -70,15 +69,19 @@ impl Ledger {
     }
 
     #[must_use]
-    pub fn exposure_of(&self, budget: &Budget, domains: &Domains) -> Exposure {
-        budget
-            .measure()
-            .item_filter()
-            .zip(self.standing.as_ref())
-            .map_or(Exposure::Diff, |(filter, standing)| match self.mode {
-                Mode::Reporting => Exposure::Reported,
-                Mode::Enforcing => standing.exposure(filter, budget.division(), domains),
-            })
+    pub fn exposure_of(&self, budget: &Budget) -> Exposure {
+        match (
+            budget.measure().item_filter(),
+            self.mode,
+            self.standing.as_ref(),
+        ) {
+            (None, ..) => Exposure::Diff,
+            (Some(_), Mode::Reporting, _) => Exposure::Reported,
+            (Some(_), Mode::Enforcing, None) => Exposure::Within,
+            (Some(filter), Mode::Enforcing, Some(standing)) => {
+                standing.exposure(filter, budget.division())
+            }
+        }
     }
 
     pub fn checked(&self, policy: &Policy, selection: &Selection) -> Result<(), Failure> {
@@ -109,7 +112,7 @@ impl Ledger {
                 let exposure = if waiting(id, budget) {
                     Exposure::Pending
                 } else {
-                    self.exposure_of(budget, policy.domains())
+                    self.exposure_of(budget)
                 };
                 (
                     id,
@@ -144,9 +147,9 @@ mod tests {
     const STANDING_ROWS: [&str; 13] = [
         "architecture-and-planning-critical architecture-and-planning  open_items critical                  0          0          0 ok",
         "features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, paid down by the linked task",
-        "performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over, outside the linked task's division; a diff in its domain reaches it",
+        "performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over, outside the linked task's division",
         "t-concerns         features-and-maintenance   open_items concerns                  1          3          5 ok",
-        "t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over, outside the linked task's division; a diff in its domain reaches it",
+        "t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over, outside the linked task's division",
         "t-cost-tasks       performance-and-cost       open_items tasks                     0          5          9 ok",
         "t-discussion       features-and-maintenance   open_items in_discussion             1          1          2 ok",
         "t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over, paid down by the linked task",
@@ -169,12 +172,9 @@ mod tests {
         ("11", &["t-nav-concerns", "t-nav-tasks"]),
     ];
     const DIFF_REACHED: [(&str, &[&str]); 3] = [
-        (
-            "task-0000000000000004",
-            &["t-cost-concerns", "t-nav-concerns", "t-nav-tasks"],
-        ),
-        ("7", &["t-cost-concerns", "t-nav-concerns", "t-nav-tasks"]),
-        (ADDRESSING, &["t-cost-concerns", "t-nav-tasks"]),
+        ("task-0000000000000004", &["t-cost-concerns"]),
+        ("7", &["t-nav-concerns", "t-nav-tasks"]),
+        (ADDRESSING, &["t-nav-tasks"]),
     ];
 
     const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
