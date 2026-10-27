@@ -1,6 +1,10 @@
+mod test_names;
+
 use std::fmt;
 use std::fs;
 use std::path::Path;
+
+use test_names::TestNames;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Enforcer {
@@ -16,7 +20,8 @@ impl Enforcer {
 
     #[must_use]
     pub fn found(&self, root: &Path) -> bool {
-        fs::read_to_string(root.join(self.file)).is_ok_and(|text| text.contains(self.name))
+        let names = fs::read_to_string(root.join(self.file)).map(|text| text.parse::<TestNames>());
+        names.is_ok_and(|names| names.is_ok_and(|names| names.holds(self.name)))
     }
 }
 
