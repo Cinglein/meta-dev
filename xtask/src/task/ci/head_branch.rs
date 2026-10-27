@@ -1,4 +1,5 @@
 use std::convert::Infallible;
+use std::fmt;
 use std::str::FromStr;
 
 use meta_schema::{Id, Task};
@@ -15,6 +16,12 @@ pub struct HeadBranch {
 impl HeadBranch {
     pub fn task(&self) -> Result<Id<Task>, Untracked> {
         self.task.ok_or_else(|| Untracked::NotTask(self.name.clone()))
+    }
+}
+
+impl fmt::Display for HeadBranch {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}", self.name)
     }
 }
 

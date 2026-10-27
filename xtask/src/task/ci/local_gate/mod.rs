@@ -43,6 +43,7 @@ use std::path::{Path, PathBuf};
 
 use task::{Branch, CommandLine, GateEnvName, GateStatus, Policy, Program, Stdout};
 
+use crate::task::ci::head_branch::HeadBranch;
 use crate::task::ci::standing_log::StandingLog;
 use crate::task::failure::Failure;
 use crate::task::revision::Commit;
@@ -103,11 +104,10 @@ impl LocalGate {
         let checkout = self.checkout(&parent)?;
         let log = StandingLog::prefetched(&checkout.root())?;
         let toolchain = checkout.toolchain()?;
-        let branch = Self::git(&self.root).arguments(Self::BRANCH).captured::<Stdout>().ok();
         let child = GateChild::new(&parent, target, checkout.times().path().to_path_buf(), toolchain.clone())?
             .seeing(CommandLine::ambient())
             .passing(&self.passed)
-            .heading(branch.and_then(|name| name.parse().ok()));
+            .heading(self.head_branch());
         let cargo = || child.line(Program::Executable(PathBuf::from(Self::CARGO)), checkout.root());
         let metadata: CargoMetadata = cargo().arguments(Self::METADATA).captured::<Stdout>()?.parse()?;
         OutsideConfig::around(checkout.above().unwrap_or(&parent), child.cargo_home())
@@ -157,6 +157,10 @@ impl LocalGate {
         Ok(())
     }
 
+    pub fn head_branch(&self) -> Option<HeadBranch> {
+        Self::git(&self.root).arguments(Self::BRANCH).captured::<Stdout>().ok().and_then(|name| name.parse().ok())
+    }
+
     fn git(directory: &Path) -> CommandLine {
         CommandLine::new(Program::Git).in_directory(directory.to_path_buf())
     }
@@ -196,6 +200,9 @@ mod tests {
     const FAILED: &str = "state=failure";
     const SURFACED: &str = "; surfaces changed\n";
     const TIMED_ALL: &str = ": fmt 1.0s, clippy 1.0s,";
+    const ATTACHED: &str = "change";
+    const HEAD_FILE: &str = ".git/HEAD";
+    const HEAD: &str = "HEAD";
 
     impl CiStep {
         fn every_step_passed() -> String {
@@ -218,14 +225,17 @@ mod tests {
     }
 
     #[test]
-    fn only_a_clean_tree_at_a_pushed_head_is_ready() {
+    fn only_a_clean_tree_at_a_pushed_head_is_ready_and_a_detached_head_names_no_branch() {
         let fixture = Fixture::new();
         let gate = LocalGate::faked(&fixture);
-        assert!(gate.ready().is_ok() && LocalGate::METADATA.contains(&ALL_FEATURES));
+        let attached = gate.head_branch() == ATTACHED.parse().ok();
+        assert!(attached && gate.ready().is_ok() && LocalGate::METADATA.contains(&ALL_FEATURES));
         fixture.write(SOURCE, BETA);
         assert!(LocalGate::refused(gate.ready(), Unready::Dirty));
         fixture.committed();
-        assert!(LocalGate::refused(gate.ready(), Unready::Unpushed));
+        let unpushed = LocalGate::refused(gate.ready(), Unready::Unpushed);
+        fixture.write(HEAD_FILE, &fixture.revision(HEAD));
+        assert!(unpushed && gate.head_branch().is_none());
     }
 
     #[test]

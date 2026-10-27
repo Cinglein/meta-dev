@@ -40,16 +40,14 @@ mod tests {
     const LOG: &str = "TaskOpened a1 TaskClaimed a1 TaskOpened b2 TaskOpened c3 EntryRetired c3 TaskOpened d4 TaskClaimed d4 TaskDone d4";
     const RECORD: &str = r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"KIND","task":"task-00000000000000ID","entry":"task-00000000000000ID","text":"x","division":"features-and-maintenance"}"#;
     const REFUSED: [&str; 4] = ["feature-x", "task-00000000000000e5", "task-00000000000000c3", "task-00000000000000b2"];
-    const PASSED: [&str; 3] = ["task-00000000000000a1", "task-00000000000000a1-rated", "task-00000000000000d4"];
-    const REMEDY: [&str; 3] = ["meta open \"", "--division ", "meta claim <task> --worktree"];
-    const GATE: (&str, &str) = ("META_GATE_BRANCH", "task-00000000000000a1-rated");
+    const PASSED: [&str; 3] = ["task-00000000000000a1-rated", "task-00000000000000a1/rated", "task-00000000000000d4"];
+    const OPEN: [&str; 3] = ["meta open \"", "--division ", "meta claim <task> --worktree"];
+    const CLAIM: &str = "meta claim task-00000000000000b2";
+    const REBUILD: &str = "bump meta-xtask / merge main, then rebuild meta";
+    const GATE: (&str, &str) = ("META_GATE_BRANCH", PASSED[1]);
     const PUSH: [(&str, &str); 2] = [("GITHUB_EVENT_NAME", "push"), ("GITHUB_HEAD_REF", "")];
-    const SIGNALS: [(&str, &str); 4] = [
-        ("GITHUB_EVENT_NAME", "pull_request_target"),
-        ("PULL_REQUEST", "7"),
-        ("META_GATE_BRANCH", ""),
-        ("GITHUB_HEAD_REF", "task-00000000000000a1-rated"),
-    ];
+    const SIGNALS: [(&str, &str); 4] =
+        [("GITHUB_EVENT_NAME", "pull_request_target"), ("PULL_REQUEST", "7"), (GATE.0, ""), (PUSH[1].0, GATE.1)];
 
     impl TrackedWork {
         fn judged(branch: Option<&str>) -> Result<(), Failure> {
@@ -87,9 +85,12 @@ mod tests {
         let found = [None].into_iter().chain(REFUSED.map(Some)).map(TrackedWork::judged);
         let shown = TrackedWork::shown(REFUSED);
         assert_eq!(found.map(|refused| refused.err().map(|failure| failure.to_string())).collect::<Vec<_>>(), shown);
-        assert!(shown.iter().flatten().all(|shown| REMEDY.iter().all(|step| shown.contains(step))));
+        let (claim, open) = shown.split_last().unwrap();
+        let opens = open.iter().flatten().all(|open| OPEN.iter().all(|step| open.contains(step)));
+        assert!(opens && claim.as_ref().is_some_and(|claim| claim.contains(CLAIM) && !claim.contains(OPEN[0])));
         let refused = TrackedWork::refuse_untracked(&RunKind::Pull(PASSED[0].parse().ok()), TrackedWork::unreadable);
-        assert!(matches!(refused, Err(Failure::Untracked(Untracked::Unreadable(_)))));
+        let refused = refused.err().map(|failure| failure.to_string()).unwrap_or_default();
+        assert!(refused.contains(REBUILD) && !refused.contains(OPEN[0]));
     }
 
     #[test]
