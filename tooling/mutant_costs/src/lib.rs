@@ -147,6 +147,8 @@ mod tests {
     const LISTED: &str = "meta-cli";
     const SAMPLE: usize = 30;
     const AFFECTED: &str = "affected";
+    const CASED_PRICE: f64 = 1.7;
+    const CASED_OVERHEAD: f64 = 21.5;
     const CASES: [(f64, f64, Interval, bool, bool); 10] = [
         (2.8, 1.0, Interval::DiffJob, true, false),
         (5.9, 1.0, Interval::DiffJob, true, true),
@@ -175,6 +177,15 @@ mod tests {
     const SLOW_BASELINE: &str =
         r#"{"outcomes": [{"scenario": "Baseline", "phase_results": [{"phase": "Build", "duration": 60.0}]}]}"#;
 
+    struct Rates;
+
+    impl Rates {
+        fn seconds(policy: &Policy) -> [f64; 2] {
+            [policy.mutant_price(&AFFECTED.parse().unwrap(), Interval::FullJob), policy.interval(Interval::PerCrate)]
+                .map(|millis| millis.duration().as_secs_f64())
+        }
+    }
+
     #[test]
     fn each_sampled_crate_is_priced_at_its_costliest_run_rounded_up_and_small_runs_are_only_reported() {
         let policy = Policy::defaults();
@@ -197,7 +208,9 @@ mod tests {
     fn a_run_may_cost_up_to_price_plus_tolerance_and_a_diff_run_the_price_times_the_diff_factor_and_is_reported_above_price()
      {
         let policy = Policy::defaults();
-        let judged = |(seconds, baseline, job, _, _): &(f64, f64, Interval, bool, bool)| {
+        let [price, overhead] = Rates::seconds(&policy);
+        let judged = |(cased, based, job, _, _): &(f64, f64, Interval, bool, bool)| {
+            let (seconds, baseline) = (cased / CASED_PRICE * price, based / CASED_OVERHEAD * overhead);
             let one = format!(
                 r#"{{"scenario": {{"Mutant": {{"package": "{AFFECTED}"}}}}, "phase_results": [{{"phase": "Test", "duration": {seconds}}}]}}"#
             );

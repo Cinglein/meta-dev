@@ -1,4 +1,6 @@
-use crate::{Block, Blocker, Event, ExternalKind, NewConcern, NewIssue, NewTask, Placement, SchemaVersion, TaskLink};
+use crate::{
+    Block, Blocker, Event, ExternalKind, NewConcern, NewIssue, NewTask, Placement, Rating, SchemaVersion, TaskLink,
+};
 
 const DIVISION: &str = "performance-and-cost/ci";
 const TEXT: &str = "speed up";
@@ -41,6 +43,7 @@ fn old_items_stay_at_the_root_and_are_written_back_without_a_division() {
     ];
     assert!(written.iter().all(|line| !line.contains("division")));
     assert!(task.placement().is_root() && concern.placement().is_root() && issue.placement().is_root());
+    assert_eq!([concern.rating(), issue.rating()], [Rating::Unrated, Rating::Unrated]);
     assert_eq!((task.effort_allowance(), task.due_time()), (None, None));
 }
 

@@ -31,15 +31,10 @@ impl Parsed {
 }
 
 #[test]
-fn the_latest_decided_run_of_each_required_workflow_wins_and_undecided_and_unrelated_runs_are_skipped() {
+fn the_latest_decided_run_per_required_workflow_wins_and_none_or_no_default_branch_reads_unknown() {
     assert_eq!(Parsed::trunk(MIXED), "ci red, mutants green");
     assert_eq!(Parsed::trunk(SOLO), "ci green, mutants red");
-}
-
-#[test]
-fn a_workflow_with_no_decided_run_in_the_window_or_no_default_branch_reads_unknown() {
-    assert_eq!(Parsed::trunk(ABSENT), "ci unknown, mutants unknown");
-    assert_eq!(Parsed::trunk(UNBORN), "ci unknown, mutants unknown");
+    assert_eq!([ABSENT, UNBORN].map(Parsed::trunk), ["ci unknown, mutants unknown"; 2]);
 }
 
 #[test]

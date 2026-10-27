@@ -7,8 +7,8 @@ use crate::github::Github;
 use crate::github_failure::GithubFailure;
 
 const ALICE: &str = "alice";
-const NOW: &str = "2026-10-26T12:00:00Z";
-const PAST: &str = "2026-10-01T00:00:00Z";
+pub(super) const NOW: &str = "2026-10-26T12:00:00Z";
+pub(super) const PAST: &str = "2026-10-01T00:00:00Z";
 const EFFORT: &str = "5000";
 const CI: &str = "features-and-maintenance/ci";
 const FEATURES: &str = "features-and-maintenance";
@@ -54,7 +54,7 @@ impl Board {
     }
 }
 
-struct Tasks {
+pub(super) struct Tasks {
     held: NewTask,
     late: NewTask,
     root: NewTask,
@@ -94,8 +94,8 @@ impl Tasks {
         State::fold(&board.records)
     }
 
-    fn reached(reply: &str) -> Github {
-        let rules = [(serde_json::from_str(MAIN).unwrap(), serde_json::from_str(REQUIRED).unwrap())];
+    pub(super) fn reached(reply: &str, required: &str) -> Github {
+        let rules = [(serde_json::from_str(MAIN).unwrap(), serde_json::from_str(required).unwrap())];
         let pulls = serde_json::from_str::<LiveReply>(reply).unwrap().answered().unwrap();
         let required = WORKFLOWS.map(|name| name.parse().unwrap()).to_vec();
         Github::Reached(pulls.ruled(rules.into_iter().collect()).unwrap().requiring(required))
@@ -111,7 +111,7 @@ impl Tasks {
 fn flags_name_late_red_unknown_truncated_and_orphan_pull_requests_and_red_ones_on_done_tasks() {
     let tasks = Tasks::new();
     let state = tasks.state();
-    let github = Tasks::reached(REPLY);
+    let github = Tasks::reached(REPLY, REQUIRED);
     let flags = Status::new(&state, &github, NOW.parse().unwrap()).flags().to_string();
     let held = tasks.held.task();
     let late = tasks.late.task();
@@ -127,7 +127,7 @@ fn flags_name_late_red_unknown_truncated_and_orphan_pull_requests_and_red_ones_o
 fn the_tree_runs_from_divisions_down_to_tasks_with_pull_requests_holders_effort_and_due() {
     let tasks = Tasks::new();
     let state = tasks.state();
-    let github = Tasks::reached(REPLY);
+    let github = Tasks::reached(REPLY, REQUIRED);
     let shown = Status::new(&state, &github, NOW.parse().unwrap()).to_string();
     let tree = shown.split_once("orphan #16: open, no task\n").map(|(_, tree)| tree).unwrap_or_default();
     let expected = format!(
@@ -151,6 +151,6 @@ fn an_unreachable_github_is_one_flag_and_every_pull_request_reads_unknown() {
     let shown = Status::new(&state, &github, PAST.parse().unwrap()).to_string();
     assert!(shown.starts_with("flags:\nunknown github: timed out\nroot\n") && shown.contains("| #13 unknown |"));
     assert!(Status::query(&state).field().contains("pr99:") && !Status::query(&state).field().contains("pr15"));
-    let quiet = Tasks::reached(NOTHING_OPEN);
+    let quiet = Tasks::reached(NOTHING_OPEN, REQUIRED);
     assert_eq!(Status::new(&State::default(), &quiet, PAST.parse().unwrap()).to_string(), "flags: none\n");
 }
