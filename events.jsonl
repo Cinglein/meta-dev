@@ -525,3 +525,4 @@
 {"at":"2026-10-27T06:08:30.176015Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-560b535b89c30214","text":"triage tier: Superseded with successor in log; successor task-77a05d955dd12789 exists in log (open); B also names PR #38 (OPEN, not relied on)"}
 {"at":"2026-10-27T06:10:01.667302Z","actor":"claude-severity","kind":"TaskLinked","task":"task-a607a687f5daa839","pr":40}
 {"at":"2026-10-27T06:25:18.614734Z","actor":"claude-severity","kind":"TaskDone","task":"task-a607a687f5daa839"}
+{"at":"2026-10-27T06:27:45.927853Z","actor":"claude-standing-budgets","kind":"TaskDone","task":"task-6aa1474d4fad63f9"}
