@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 
 use super::command_summary::CommandSummary;
 use super::core_share::CoreShare;
@@ -51,6 +51,11 @@ impl ProcessRow {
 
     pub fn parent_of(&self, pid: Pid) -> Option<Pid> {
         (self.pid == pid).then_some(self.parent)
+    }
+
+    pub fn started(&self, now: DateTime<Utc>) -> DateTime<Utc> {
+        let age = TimeDelta::from_std(self.age).ok();
+        age.and_then(|age| now.checked_sub_signed(age)).unwrap_or(DateTime::<Utc>::MIN_UTC)
     }
 
     pub fn orphaned(&self) -> Option<()> {

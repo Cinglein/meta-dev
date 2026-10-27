@@ -45,7 +45,7 @@ impl<'patrol, Host: Machine> Patrol<'patrol, Host> {
             || MonitorReport::new(now, load, before.clone()).found(vec![Finding::Blind], Vec::new()),
             |rows| {
                 let table = ProcessTable::new(rows, self.settings, self.host.own_pid());
-                let marked = table.marked(before.marked());
+                let marked = table.marked(before.marked(), now);
                 let judged = table.judged(&marked);
                 let (stopped, over): (Vec<Culprit>, Vec<Culprit>) = judged
                     .culprits(Ownership::Agent, self.settings)

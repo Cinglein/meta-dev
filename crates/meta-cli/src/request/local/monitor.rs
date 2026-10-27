@@ -3,6 +3,7 @@ mod core_share;
 mod culprit;
 mod fault;
 mod finding;
+mod group_sighting;
 mod judged_row;
 mod live_machine;
 mod load_average;
@@ -30,6 +31,7 @@ use chrono::{DateTime, Utc};
 
 use super::LocalClone;
 use crate::request::cli_failure::{CliFailure, Misuse};
+use crate::request::local::local_settings::MonitorSettings;
 use crate::request::output::{Listed, Output};
 use fault::Fault;
 use finding::Finding;
@@ -71,8 +73,10 @@ impl Monitor {
     }
 
     pub fn noted(clone: &LocalClone, failure: &CliFailure, at: DateTime<Utc>) {
-        let failed = Finding::Failed(Fault::shown(failure));
-        MonitorTrail::new(clone.git_dir().as_ref()).noted(at, failed).ok();
+        let failed = [Finding::Failed(Fault::shown(failure))];
+        let settings = clone.monitor_settings().ok().or_else(MonitorSettings::fallback);
+        let trail = MonitorTrail::new(clone.git_dir().as_ref());
+        settings.map(|settings| trail.appended(at, &failed, &settings).ok());
     }
 
     pub fn recent(clone: &LocalClone, now: DateTime<Utc>) -> Result<Option<Listed>, CliFailure> {

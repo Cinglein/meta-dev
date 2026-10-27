@@ -12,6 +12,7 @@ mod tests;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde::de::Error as _;
 
@@ -48,13 +49,16 @@ pub struct MonitorSettings {
     watch: WatchShare,
     #[serde(rename = "watch_ticks")]
     promote: TickCount,
+    #[serde(rename = "mark_seconds")]
+    mark: Limit,
 }
 
 impl MonitorSettings {
     const DEFAULTS: &'static str = include_str!("monitor_settings/monitor_defaults.toml");
     const GRACE_CEILING: Duration = Duration::from_secs(30);
     const PROBE_CEILING: Duration = Duration::from_secs(30);
-    const TOO_WIDE: &'static str = "scratch dirs may not be empty, `.`, `/`, or hold $HOME or this clone";
+    const TOO_WIDE: &'static str =
+        "worktree root and scratch dirs may not be empty, `.`, `/`, or hold $HOME or this clone";
     const TOO_LONG: &'static str = "grace_seconds and probe_seconds are at most 30, watch_percent at most 100";
 
     pub fn merged(
@@ -66,15 +70,24 @@ impl MonitorSettings {
         let mut merged: toml::Table = toml::from_str(Self::DEFAULTS).unwrap_or_default();
         merged.extend(overrides);
         let read: Self = toml::Value::Table(merged).try_into()?;
-        let scratch: Option<Vec<AgentRoot>> =
-            read.roots.into_iter().map(|root| root.anchored(checkout, home)).collect();
-        let scratch = scratch.ok_or_else(|| toml::de::Error::custom(Self::TOO_WIDE))?;
+        let declared = read.roots.into_iter();
+        let declared: Option<Vec<AgentRoot>> = declared.map(|root| root.anchored(checkout, home)).collect();
+        let declared = declared.ok_or_else(|| toml::de::Error::custom(Self::TOO_WIDE))?;
         (read.grace.duration() <= Self::GRACE_CEILING && read.probe.duration() <= Self::PROBE_CEILING)
             .then_some(())
             .and_then(|()| read.watch.bounded())
             .ok_or_else(|| toml::de::Error::custom(Self::TOO_LONG))?;
-        let roots = [AgentRoot::own(checkout), AgentRoot::own(worktrees)].into_iter().chain(scratch).collect();
+        let roots = [AgentRoot::own(checkout), AgentRoot::own(worktrees)].into_iter().chain(declared).collect();
         Ok(Self { roots, spared: SparedName::floor().into_iter().chain(read.spared).collect(), ..read })
+    }
+
+    pub fn fallback() -> Option<Self> {
+        toml::from_str(Self::DEFAULTS).ok()
+    }
+
+    pub fn mark_fresh(&self, seen: DateTime<Utc>, now: DateTime<Utc>) -> Option<()> {
+        let idle = (now - seen).to_std().unwrap_or_default();
+        self.mark.passed_by(idle).map_or(Some(()), |()| None)
     }
 
     pub fn roots(&self) -> &[AgentRoot] {

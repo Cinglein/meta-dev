@@ -10,6 +10,12 @@ use super::pid::Pid;
 #[serde(transparent)]
 pub struct GroupId(Pid);
 
+impl GroupId {
+    pub fn leader(self) -> Pid {
+        self.0
+    }
+}
+
 impl From<Pid> for GroupId {
     fn from(leader: Pid) -> Self {
         Self(leader)

@@ -44,11 +44,6 @@ impl MonitorTrail {
         self.0.replaced(&(lines.map_err(|failure| self.0.failure(failure))?.join("\n") + "\n"))
     }
 
-    pub fn noted(&self, at: DateTime<Utc>, finding: Finding) -> Result<(), CliFailure> {
-        let entry = MonitorEntry::new(at, finding);
-        self.0.appended(serde_json::to_string(&entry).map_err(|failure| self.0.failure(failure))?)
-    }
-
     pub fn since(&self, settings: &MonitorSettings, now: DateTime<Utc>) -> Result<Vec<MonitorEntry>, CliFailure> {
         Ok(self.entries()?.into_iter().filter(|entry| settings.shows(entry.age(now)).is_some()).collect())
     }

@@ -10,3 +10,4 @@ recent_seconds = 3600
 kept_entries = 500
 watch_percent = 50
 watch_ticks = 6
+mark_seconds = 600

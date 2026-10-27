@@ -1,9 +1,12 @@
 use std::collections::BTreeSet;
 
+use chrono::{DateTime, Utc};
+
+use super::super::group_sighting::GroupSighting;
 use super::super::judged_row::JudgedRow;
 use super::super::marked_groups::MarkedGroups;
 use super::super::ownership::Ownership;
-use super::super::process_row::{Pid, ProcessRow};
+use super::super::process_row::{GroupId, Pid, ProcessRow};
 use super::judged_rows::JudgedRows;
 use crate::request::local::local_settings::MonitorSettings;
 
@@ -24,10 +27,19 @@ impl<'settings> ProcessTable<'settings> {
         Self { rows, settings, spared, shielded, wrappers }
     }
 
-    pub fn marked(&self, before: &MarkedGroups) -> MarkedGroups {
-        let live = self.rows.iter().map(ProcessRow::group).collect();
-        let wrapped = self.rows.iter().filter(|row| self.wrapped(row).is_some()).map(ProcessRow::group);
-        before.renewed(&live, wrapped.collect())
+    pub fn marked(&self, before: &MarkedGroups, now: DateTime<Utc>) -> MarkedGroups {
+        let placed = self.rows.iter();
+        let groups: BTreeSet<GroupId> = placed.map(ProcessRow::group).collect();
+        let sightings: Vec<GroupSighting> = groups.into_iter().map(|group| self.sighting(group, now)).collect();
+        before.renewed(&sightings, now, self.settings)
+    }
+
+    fn sighting(&self, group: GroupId, now: DateTime<Utc>) -> GroupSighting {
+        let members: Vec<&ProcessRow> = self.rows.iter().filter(|row| row.group() == group).collect();
+        let started = members.iter().map(|row| row.started(now)).min().unwrap_or(now);
+        let leader = members.iter().find(|row| row.pid() == group.leader()).map(|row| row.started(now));
+        let wrapped = members.iter().any(|row| self.wrapped(row).is_some()).then_some(());
+        GroupSighting::new(group, started, leader, wrapped)
     }
 
     pub fn judged(&self, marked: &MarkedGroups) -> JudgedRows {

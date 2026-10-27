@@ -92,7 +92,7 @@ mod tests {
     const SLEEP: &str = "sleep";
     const SECONDS: &str = "10";
     const OWN_GROUP: i32 = 0;
-    const ROOT: &str = "/";
+    const PLACES: [&str; 3] = ["/c", "/w", "/h"];
     const GRACE: Duration = Duration::from_millis(10);
     const KILLED: i32 = 9;
 
@@ -101,8 +101,8 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let mut child =
             Command::new(SLEEP).arg(SECONDS).current_dir(root.path()).process_group(OWN_GROUP).spawn().unwrap();
-        let root_path = Path::new(ROOT);
-        let settings = MonitorSettings::merged(toml::Table::new(), root_path, root_path, root_path).unwrap();
+        let [checkout, worktrees, home] = PLACES.map(Path::new);
+        let settings = MonitorSettings::merged(toml::Table::new(), checkout, worktrees, home).unwrap();
         let (machine, pid) = (LiveMachine::new(&settings), Pid::from(child.id()));
         let table = machine.table().unwrap_or_default();
         let cwds = machine.cwds(&PidList::new(vec![pid])).unwrap_or_default();

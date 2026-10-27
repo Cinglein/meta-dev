@@ -1,4 +1,5 @@
 mod fake_machine;
+mod stale_marks;
 
 use std::path::Path;
 
@@ -14,7 +15,8 @@ use fake_machine::FakeMachine;
 
 const NOW: &str = "2026-10-27T12:00:00Z";
 const STATE: &str = "meta-local/monitor-state.json";
-const MARKED: &str = r#"{"marked":[100,106,110],"watched":[]}"#;
+const MARKED: &str = r#"{"marked":{"100":{"started":"2026-10-26T18:00:00Z","seen":"2026-10-27T12:00:00Z"},
+"110":{"started":"2026-10-27T11:50:00Z","seen":"2026-10-27T12:00:00Z"}},"watched":[]}"#;
 const SCENE: &str = "  400     1   400 2-00:00:00   0:10.00   1.0 /Applications/Warp.app/Contents/MacOS/stable
   500   400   500   10:00:00   0:01.00   0.0 -zsh
   501   500   501   10:00:00 2:00:00.00   5.0 /usr/local/bin/claude
@@ -130,7 +132,9 @@ fn watch_items_persist_into_obvious_and_the_trail_keeps_no_repeats_failures_or_b
         })
         .collect();
     let last = NOW.parse::<DateTime<Utc>>().unwrap() + LATER[4];
-    Monitor::noted(&clone, &CliFailure::raised::<Setup>(BROKEN), last);
+    let failure = CliFailure::raised::<Setup>(BROKEN);
+    Monitor::noted(&clone, &failure, last);
+    Monitor::noted(&clone, &failure, last);
     let recent = Monitor::recent(&clone, last).unwrap();
     let report = Monitor::Report.answer(&clone).unwrap().to_string();
     assert!(ticks.iter().all(|tick| matches!(tick, Output::Flagged(_))) && report == ticks[4].to_string());
