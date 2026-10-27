@@ -1,5 +1,6 @@
 use meta_schema::{
-    Block, Claim, EntryNote, EventVisitor, NewConcern, NewIssue, NewTask, Rerating, SchemaVersion, TaskLink, TaskRef,
+    Block, Claim, EntryNote, EventVisitor, NewConcern, NewIssue, NewTask, Relocation, Rerating, SchemaVersion,
+    TaskLink, TaskRef,
 };
 
 use crate::refusal::Refusal;
@@ -76,6 +77,10 @@ impl EventVisitor for Applying<'_> {
 
     fn item_rated(self, rerating: &Rerating) -> Self::Output {
         self.state.rerate(rerating)
+    }
+
+    fn item_moved(self, relocation: &Relocation) -> Self::Output {
+        self.state.relocate(relocation)
     }
 
     fn task_reopened(self, task: TaskRef) -> Self::Output {

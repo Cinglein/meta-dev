@@ -3,6 +3,7 @@ use meta_severity::Scales;
 use super::{DIVISION, Meta, OWNER, PROGRAM};
 use crate::request::Request;
 use crate::request::cli_failure::{CliFailure, Invalid};
+use crate::request::scale_policy::ScalePolicy;
 
 const OVERRIDDEN: &str =
     r#"{"features-and-maintenance": [{"name": "blocker", "meaning": "x"}, {"name": "nuisance", "meaning": "x"}]}"#;
@@ -15,7 +16,7 @@ impl Meta {
         let args = std::iter::once(PROGRAM).chain(words.iter().copied()).map(String::from).collect::<Vec<_>>();
         let actor = || OWNER.parse().map_err(CliFailure::raised::<Invalid>);
         Request::try_from(args)
-            .and_then(|request| request.answer_from(&self.0, scales, actor))
+            .and_then(|request| request.answer_from(&self.0, &ScalePolicy::from(scales.clone()), actor))
             .map(|output| output.to_string())
     }
 }

@@ -2,11 +2,11 @@ use std::cell::RefCell;
 
 use meta_log::{LogFailure, LogStore, MemoryLog, Snapshot};
 use meta_schema::Record;
-use meta_severity::Scales;
 
 use super::{OPEN_DASHED, OWNER, PROGRAM};
 use crate::request::Request;
 use crate::request::cli_failure::{CliFailure, Invalid};
+use crate::request::scale_policy::ScalePolicy;
 
 #[derive(Debug, PartialEq, Eq)]
 enum Call {
@@ -40,7 +40,7 @@ impl Counted {
         let args = std::iter::once(PROGRAM).chain(words.iter().copied()).map(String::from).collect::<Vec<_>>();
         let actor = || OWNER.parse().map_err(CliFailure::raised::<Invalid>);
         Request::try_from(args)
-            .and_then(|request| request.answer_from(self, &Scales::default(), actor))
+            .and_then(|request| request.answer_from(self, &ScalePolicy::default(), actor))
             .map(|_| ())
             .unwrap();
     }

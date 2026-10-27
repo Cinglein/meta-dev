@@ -10,7 +10,7 @@ const LEGACY_ISSUE: &str = r#"{"issue":"issue-0000000000000001","text":"x"}"#;
 const TASK: &str = "task-0000000000000002";
 const BLOCKED: &str = "TaskBlocked task-0000000000000002 on ci";
 const LINKED: &str = "TaskLinked task-0000000000000002 #7";
-const MARKER: &str = "SchemaVersion 3";
+const MARKER: &str = "SchemaVersion 4";
 
 #[test]
 fn new_items_carry_their_division_and_tasks_their_effort_and_due_time() {

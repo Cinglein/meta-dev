@@ -8,7 +8,8 @@ mod vetting;
 use std::collections::HashMap;
 
 use meta_schema::{
-    Actor, Block, Entry, EntryNote, Id, PullRequest, Record, Rerating, SchemaVersion, Target, Task, TaskLink, Text,
+    Actor, Block, Change, Entry, EntryNote, Id, PullRequest, Record, Relocation, Rerating, SchemaVersion, Target, Task,
+    TaskLink, Text,
 };
 
 use crate::rated_item::RatedItem;
@@ -204,6 +205,31 @@ impl State {
             .or_else(|| {
                 let issue = self.issues.get_mut(index).filter(|known| known.target() == item);
                 issue.map(|known| known.rerate(level.clone()))
+            })
+            .ok_or(Refusal::UnknownTarget(item))
+    }
+
+    pub(crate) fn relocate(&mut self, relocation: &Relocation) -> Result<(), Refusal> {
+        let item = relocation.target();
+        let current = self.rated_item(item).ok_or(Refusal::UnknownTarget(item))?;
+        self.retirement(item.entry()).map_or(Ok(()), |_| Err(Refusal::Retired(item.entry())))?;
+        let division = relocation.division();
+        (current.placement() == relocation.origin()).then_some(()).ok_or(Refusal::MovedSince)?;
+        (current.placement().division() != Some(division))
+            .then_some(())
+            .ok_or_else(|| Refusal::AlreadyIn(division.clone()))?;
+        let change = relocation.change();
+        let stale = |change: &Change| (*current.rating() != change.before()).then(|| current.rating().clone());
+        change.and_then(stale).map_or(Ok(()), |since| Err(Refusal::RatedSince(since)))?;
+        let index = self.index_of.get(&item.entry()).copied().unwrap_or_default();
+        let level = change.map(Change::level);
+        self.concerns
+            .get_mut(index)
+            .filter(|known| known.target() == item)
+            .map(|known| known.relocate(division.clone(), level.cloned()))
+            .or_else(|| {
+                let issue = self.issues.get_mut(index).filter(|known| known.target() == item);
+                issue.map(|known| known.relocate(division.clone(), level.cloned()))
             })
             .ok_or(Refusal::UnknownTarget(item))
     }

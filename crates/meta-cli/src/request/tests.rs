@@ -11,9 +11,9 @@ mod status;
 mod usage;
 
 use meta_log::{LogStore, MemoryLog};
-use meta_severity::Scales;
 
 use super::Request;
+use super::ScalePolicy;
 use super::cli_failure::{CliFailure, Invalid};
 
 const PROGRAM: &str = "meta";
@@ -64,8 +64,9 @@ impl Meta {
         let args = std::iter::once(PROGRAM).chain(words.iter().copied()).map(String::from).collect::<Vec<_>>();
         Request::try_from(args)
             .and_then(|request| {
-                request
-                    .answer_from(&self.0, &Scales::default(), || actor.parse().map_err(CliFailure::raised::<Invalid>))
+                request.answer_from(&self.0, &ScalePolicy::default(), || {
+                    actor.parse().map_err(CliFailure::raised::<Invalid>)
+                })
             })
             .map(|output| output.to_string())
     }
