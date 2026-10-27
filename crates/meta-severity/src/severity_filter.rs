@@ -36,6 +36,21 @@ impl SeverityFilter {
     }
 
     #[must_use]
+    pub fn covers(&self, item: &RatedItem, scales: &Scales, division: &Division) -> Option<Target> {
+        let inside = |placed: &&Division| *placed == division || division.strictly_contains(placed);
+        let rolled = item
+            .placement()
+            .division()
+            .filter(inside)
+            .zip(item.rating().level())
+            .and_then(|(placed, rated)| scales.rolled_up(placed, rated, division));
+        let ranks = scales.scale(division).zip(rolled).zip(self.level());
+        let at_or_above = ranks.and_then(|((scale, rolled), level)| scale.index_of(&rolled).zip(scale.index_of(level)));
+        let covered = at_or_above.filter(|(found, capped)| found <= capped).map(|_| item.target());
+        covered.or_else(|| self.admitted(scales, division, item))
+    }
+
+    #[must_use]
     pub fn open(&self, scales: &Scales, division: &Division, state: &State) -> Vec<Target> {
         state.open_items().iter().filter_map(|item| self.admitted(scales, division, item)).collect()
     }

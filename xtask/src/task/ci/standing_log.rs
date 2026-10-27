@@ -4,7 +4,7 @@ use std::path::Path;
 use meta_log::{GitLog, Snapshot};
 use meta_severity::Scales;
 use meta_state::State;
-use task::{Branch, ChangeLink, Ledger, Policy, Standing};
+use task::{ChangeLink, Ledger, Policy, Standing};
 
 use crate::task::ci::log_source::LogSource;
 use crate::task::ci::run_kind::RunKind;
@@ -16,6 +16,7 @@ pub struct StandingLog;
 
 impl StandingLog {
     const REMOTE: &str = "origin";
+    const DEFAULT_BRANCH: &str = "origin/HEAD";
     const GIT_ENTRY: &str = ".git";
     const PULL_REQUEST: &str = "PULL_REQUEST";
     const HEAD: &str = "GITHUB_HEAD_REF";
@@ -46,10 +47,10 @@ impl StandingLog {
         Ok(())
     }
 
-    pub fn enforcing(run: &RunKind, root: &Path, policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
+    pub fn enforcing(run: &RunKind, root: &Path, ledger: &mut Ledger) -> Result<(), Failure> {
         run.by_kind(
             ledger,
-            |ledger| Self::enforced_from(root, policy, ledger),
+            |ledger| Self::enforced_from(root, ledger),
             |ledger| {
                 ledger.report_only();
                 Ok(())
@@ -57,9 +58,10 @@ impl StandingLog {
         )
     }
 
-    pub fn enforced_from(root: &Path, policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
-        let base = Revision::merge_base(root, policy.branch(Branch::Base))?;
-        let text = base.file(Path::new(PriorPolicy::PATH));
+    pub fn enforced_from(root: &Path, ledger: &mut Ledger) -> Result<(), Failure> {
+        let Ok(default_branch) = Self::DEFAULT_BRANCH.parse();
+        let base = Revision::merge_base(root, &default_branch)?;
+        let text = base.present(Path::new(PriorPolicy::PATH))?;
         ledger.enforce_from(text.as_deref()).map_err(Failure::PriorPolicy)
     }
 
@@ -96,8 +98,7 @@ mod tests {
     impl StandingLog {
         fn policy(extra: &str) -> Policy {
             let bare = Policy::DEFAULTS.split(CAPS).next().unwrap_or_default();
-            let own_base = bare.replace("base = \"origin/main\"", "base = \"HEAD\"");
-            toml::from_str(&format!("{own_base}{extra}")).expect("policy")
+            toml::from_str(&format!("{bare}{extra}")).expect("policy")
         }
 
         fn closed(refused: &[Result<(), Failure>], prefix: &str) -> bool {
@@ -111,8 +112,8 @@ mod tests {
         fixture.write(POLICY, STANDING).branch();
         fixture.write(POLICY, NOTHING).committed();
         let (bare, mut pull, mut push) = (StandingLog::policy(NOTHING), Ledger::default(), Ledger::default());
-        let enforced = StandingLog::enforcing(&RunKind::Pull(None), fixture.root(), &bare, &mut pull);
-        let reported = StandingLog::enforcing(&RunKind::Other, fixture.root(), &bare, &mut push);
+        let enforced = StandingLog::enforcing(&RunKind::Pull(None), fixture.root(), &mut pull);
+        let reported = StandingLog::enforcing(&RunKind::Other, fixture.root(), &mut push);
         assert!(enforced.is_ok() && pull.reads_standing(&bare) && !pull.reports_only());
         assert!(reported.is_ok() && push.reports_only());
     }

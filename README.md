@@ -88,6 +88,9 @@ CI enforces a standing budget from the policy at the merge base, not from the po
 The policy in the pull request must only parse and be valid.
 A cap that a pull request adds or makes stricter starts to apply to the next pull request.
 A cap that a pull request makes looser or removes still applies to that pull request.
+The merge base is the one with the default branch of `origin` (`origin/HEAD`). A pull request cannot choose it.
+If git cannot read the policy at the merge base, the run fails. If the file does not exist there, no standing budget applies.
+A pull request whose task addresses an open item at the level of a cap, or at a more severe level, is paid down for that cap.
 The budget table marks a new cap as "enforced from the next change".
 A run that is not a pull request, such as a push to the main branch, shows the standing budgets and marks the rows that are over.
 That run does not fail because of them.

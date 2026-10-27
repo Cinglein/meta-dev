@@ -114,7 +114,9 @@ impl Standing {
     fn paid_down(&self, filter: &ItemFilter, division: &Division) -> bool {
         !self.linked.is_empty()
             && self.linked.iter().all(|task| {
-                self.counted(filter, division)
+                self.items
+                    .iter()
+                    .filter_map(|item| item.pays_into(filter, division, &self.scales))
                     .any(|item| item.addressed_by(task))
             })
     }

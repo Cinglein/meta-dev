@@ -33,7 +33,18 @@ impl Revision {
     }
 
     pub fn present(&self, path: &Path) -> Result<Option<String>, Failure> {
-        Ok(self.file(path))
+        let listed = Self::git(&self.root)
+            .arguments(["ls-tree", "-z", "--name-only"])
+            .argument(&self.commit)
+            .arguments(["--"])
+            .argument(path.display())
+            .captured::<Stdout>()?;
+        if listed.is_empty() {
+            Ok(None)
+        } else {
+            let blob = Self::git(&self.root).arguments(["cat-file", "blob"]).argument(self.commit.object(path));
+            Ok(Some(blob.captured::<Stdout>()?))
+        }
     }
 
     pub fn changed_paths(&self) -> Result<Vec<PathBuf>, Failure> {
@@ -111,10 +122,10 @@ mod tests {
         let fixture = Fixture::new();
         fixture.write(PARENT_POLICY, PARENT_TEXT).branch();
         let Ok(base) = BASE.parse::<BranchName>();
-        let real = Revision::merge_base(fixture.root(), &base).unwrap();
+        let tip = Revision::merge_base(fixture.root(), &base).unwrap();
         let lost = Revision { root: fixture.root().to_path_buf(), commit: LOST.parse().unwrap() };
         let read = |revision: &Revision, path: &str| revision.present(Path::new(path)).map(|text| text.is_some()).ok();
-        let found = [read(&real, PARENT_POLICY), read(&real, ABSENT), read(&lost, PARENT_POLICY)];
+        let found = [read(&tip, PARENT_POLICY), read(&tip, ABSENT), read(&lost, PARENT_POLICY)];
         assert_eq!(found, [Some(true), Some(false), None]);
     }
 }

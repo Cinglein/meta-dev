@@ -46,6 +46,25 @@ impl OpenItem {
     }
 
     #[must_use]
+    pub fn pays_into(
+        &self,
+        filter: &ItemFilter,
+        division: &Division,
+        scales: &Scales,
+    ) -> Option<&OpenItem> {
+        let covered = filter.severity().map_or_else(
+            || self.counts_in(filter, division, scales),
+            |severity| {
+                self.rated
+                    .as_ref()
+                    .and_then(|rated| severity.covers(rated, scales, division))
+                    .is_some()
+            },
+        );
+        covered.then_some(self)
+    }
+
+    #[must_use]
     pub fn addressed_by(&self, task: &NewTask) -> bool {
         self.target
             .is_some_and(|target| task.addresses().contains(&target))
