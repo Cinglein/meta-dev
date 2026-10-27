@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use meta_schema::{Change, Division, LevelName, Rating, Scenario};
 use serde::{Deserialize, Serialize};
 
@@ -35,13 +37,13 @@ impl Scale {
     ) -> Result<Change, RatingFailure> {
         let rank = |name: &LevelName| self.0.iter().position(|known| known.name() == name);
         let new = rank(&level).ok_or_else(|| RatingFailure::UnknownLevel(level.clone()))?;
-        match current.level() {
+        match current.level().map(|from| (from.clone(), rank(from).map(|old| new.cmp(&old)))) {
             None => Ok(Change::First { level }),
-            Some(from) if *from == level => Err(RatingFailure::Unchanged(level)),
-            Some(from) if rank(from).is_some_and(|old| new > old) => Ok(Change::Lowered { from: from.clone(), level }),
-            Some(from) => scenario
+            Some((_, Some(Ordering::Equal))) => Err(RatingFailure::Unchanged(level)),
+            Some((from, Some(Ordering::Greater))) => Ok(Change::Lowered { from, level }),
+            Some((from, Some(Ordering::Less) | None)) => scenario
                 .map(|scenario| Change::Raised { from: from.clone(), level, scenario })
-                .ok_or_else(|| RatingFailure::RaisedWithoutScenario(from.clone())),
+                .ok_or(RatingFailure::RaisedWithoutScenario(from)),
         }
     }
 
