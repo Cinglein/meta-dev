@@ -619,3 +619,4 @@
 {"at":"2026-10-27T17:26:49.920920Z","actor":"claude-lead","kind":"EntryRetired","entry":"issue-81713c0b2adf4c65","text":"triage 2026-10-27 (both drafts): done: #7 chose judging the session's pushed commits (reflog) and merged"}
 {"at":"2026-10-27T17:26:52.001920Z","actor":"claude-lead","kind":"EntryRetired","entry":"issue-c5a282bf1f67fc01","text":"triage 2026-10-27 (both drafts): record (Basho #87 merge note), not a problem"}
 {"at":"2026-10-27T17:26:53.899383Z","actor":"claude-lead","kind":"EntryRetired","entry":"issue-ceeb81eaaeb3578b","text":"triage 2026-10-27 (both drafts): record (limit-hit handoff note); meta-dev items resumed and merged; Basho guide assembly belongs to Basho's tracking"}
+{"at":"2026-10-27T17:26:55.943149Z","actor":"claude-lead","kind":"EntryRetired","entry":"issue-d8ccc357465f7ff4","text":"triage 2026-10-27 (both drafts): record (fork handoff note for Basho guide lints), not a meta-dev problem"}
