@@ -1,12 +1,8 @@
 budget             division                   measure                          spend    warning   blocking state
-cost-issues        performance-and-cost       open_items issues                    -          3          5 -
-in-discussion      architecture-and-planning  open_items in_discussion             -          1          3 -
 lint-findings      features-and-maintenance   lint_findings                        -                     - -
 mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
 mutants-diff-job   performance-and-cost       workflow_wall_time diff_job          -   216000ms   360000ms -
 mutants-full-job   performance-and-cost       workflow_wall_time full_job          -   288000ms   480000ms -
-open-issues        features-and-maintenance   open_items issues                    -         12         20 -
-planning-concerns  architecture-and-planning  open_items concerns                  -          1          2 -
 slowest-test       performance-and-cost       slowest_test                     999ms      600ms     1000ms warn
 tangle-items       features-and-maintenance   tangle_items                       128         49         83 ok
 test-line-share    features-and-maintenance   test_line_share                    25%        10%        18% ok

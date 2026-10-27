@@ -20,7 +20,7 @@ const REFUSED: [(&str, &str, &str, &str); 28] = [
     (
         "meta",
         END,
-        "\n[domains.\"features-and-maintenance/x\"]\ncrates = [\"*\"]\n\n[budgets.x-tangle]\ndivision = \"features-and-maintenance/x\"\nmeasure = \"tangle_items\"\nallowance = { of = \"open-issues\", count = 20 }\nwindow = \"per_change\"\n",
+        "\n[budgets.open-issues]\ndivision = \"features-and-maintenance\"\nmeasure = { open_items = { kind = \"issue\" } }\nallowance = { count = 20 }\nwindow = \"standing\"\n\n[domains.\"features-and-maintenance/x\"]\ncrates = [\"*\"]\n\n[budgets.x-tangle]\ndivision = \"features-and-maintenance/x\"\nmeasure = \"tangle_items\"\nallowance = { of = \"open-issues\", count = 20 }\nwindow = \"per_change\"\n",
         "budget x-tangle: its measure is not the measure of the budget it is part of",
     ),
     (

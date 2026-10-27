@@ -47,6 +47,7 @@ mod tests {
     use super::StandingLog;
 
     const CLOSED: &str = "standing budgets fail closed: meta/log";
+    const STANDING: &str = "\n[budgets.open-issues]\ndivision = \"features-and-maintenance\"\nmeasure = { open_items = { kind = \"issue\" } }\nallowance = { count = 20 }\nwindow = \"standing\"\n";
 
     struct Offline;
 
@@ -64,8 +65,9 @@ mod tests {
     }
 
     #[test]
-    fn an_unreadable_or_missing_log_fails_standing_budgets_closed() {
-        let policy = Policy::defaults();
+    fn an_unreadable_or_missing_log_fails_standing_budgets_closed_and_no_standing_budget_reads_nothing() {
+        let policy: Policy = toml::from_str(&format!("{}{STANDING}", Policy::DEFAULTS)).expect("standing policy");
+        assert!(StandingLog::counted(&Offline, &Policy::defaults(), &mut Ledger::default()).is_ok());
         let refused = [
             StandingLog::counted(&Offline, &policy, &mut Ledger::default()),
             StandingLog::counted(&MemoryLog::default(), &policy, &mut Ledger::default()),
