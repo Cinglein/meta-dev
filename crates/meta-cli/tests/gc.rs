@@ -151,7 +151,7 @@ impl Git {
         assert!(child.wait().unwrap().success());
     }
 
-    fn seeded([origin, clone]: [&Path; 2]) {
+    fn seeded(origin: &Path, clone: &Path) {
         let branches = |prefix: &str, names: &[&str]| -> String {
             names.iter().flat_map(|name| ["reset ", prefix, name, "\nfrom refs/heads/main\n\n"]).collect()
         };
@@ -161,7 +161,9 @@ impl Git {
         Self::imported(clone, &[SEED, &heads, &tracking].concat());
     }
 
-    fn added(clone: &Path, trees: &Path) {
+    fn added(scene: &Scene) {
+        let clone = scene.clone.path();
+        let trees = scene.trees();
         let added: Vec<Output> = ADDED
             .iter()
             .map(|task| Self::run(clone, &["worktree", "add", "-q", trees.join(task).to_str().unwrap(), task]))
@@ -203,8 +205,8 @@ impl Scene {
             std::fs::metadata("/bin/sh").unwrap().permissions(),
         )
         .unwrap();
-        Git::seeded([scene.origin.path(), scene.clone.path()]);
-        Git::added(scene.clone.path(), &scene.trees());
+        Git::seeded(scene.origin.path(), scene.clone.path());
+        Git::added(&scene);
         scene.planted();
         scene
     }
