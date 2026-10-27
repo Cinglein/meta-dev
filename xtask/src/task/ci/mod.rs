@@ -55,7 +55,8 @@ impl Ci {
                 let mut ledger = Ledger::default();
                 let log = StandingLog::git(workspace.root());
                 let read = || self.log.snapshot(&log);
-                let tracked = TrackedWork::refuse_untracked(&RunKind::from_ambient(&CommandLine::ambient()), read);
+                let run = RunKind::from_ambient(&CommandLine::ambient());
+                let tracked = TrackedWork::refuse_untracked(&run, read);
                 let stepped = tracked
                     .is_ok()
                     .then(CiStep::iter)
@@ -64,7 +65,7 @@ impl Ci {
                     .try_for_each(|step| times.record(step, step.timed(workspace, selection, policy, &mut ledger)));
                 let outcome = tracked
                     .and(stepped)
-                    .and_then(|()| StandingLog::enforced_from(workspace.root(), policy, &mut ledger))
+                    .and_then(|()| StandingLog::enforcing(&run, workspace.root(), policy, &mut ledger))
                     .and_then(|()| StandingLog::counted(read, policy, &mut ledger))
                     .and_then(|()| Ok(ledger.checked(policy, selection)?))
                     .and_then(|()| Stranding::refuse_stranded(workspace.root(), policy, read));

@@ -46,8 +46,15 @@ impl StandingLog {
         Ok(())
     }
 
-    pub fn enforcing(_run: &RunKind, root: &Path, policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
-        Self::enforced_from(root, policy, ledger)
+    pub fn enforcing(run: &RunKind, root: &Path, policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
+        run.by_kind(
+            ledger,
+            |ledger| Self::enforced_from(root, policy, ledger),
+            |ledger| {
+                ledger.report_only();
+                Ok(())
+            },
+        )
     }
 
     pub fn enforced_from(root: &Path, policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {

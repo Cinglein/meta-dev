@@ -1,3 +1,4 @@
+mod mode;
 mod prior_standing;
 mod row;
 mod statement;
@@ -11,6 +12,7 @@ use crate::domains::Domains;
 use crate::failure::Failure;
 use crate::policy::Policy;
 use crate::selection::Selection;
+use mode::Mode;
 use prior_standing::PriorStanding;
 use row::Row;
 use statement::Statement;
@@ -20,17 +22,17 @@ pub struct Ledger {
     spent: BTreeMap<Measure, Amount>,
     standing: Option<Standing>,
     prior: Option<PriorStanding>,
-    reporting: bool,
+    mode: Mode,
 }
 
 impl Ledger {
     pub fn report_only(&mut self) {
-        self.reporting = true;
+        self.mode = Mode::Reporting;
     }
 
     #[must_use]
     pub fn reports_only(&self) -> bool {
-        self.reporting
+        self.mode == Mode::Reporting
     }
 
     pub fn enforce_from(&mut self, policy_text: Option<&str>) -> Result<(), toml::de::Error> {
@@ -103,10 +105,10 @@ impl Ledger {
                 let lines = budgets
                     .amount(budget)
                     .and_then(|allowance| budget.lines(&allowance));
-                let exposure = if waiting(id, budget) {
-                    Exposure::Pending
-                } else {
-                    self.exposure_of(budget, policy.domains())
+                let exposure = match (self.mode, waiting(id, budget)) {
+                    (Mode::Reporting, _) if budget.standing_in().is_some() => Exposure::Reported,
+                    (_, true) => Exposure::Pending,
+                    _ => self.exposure_of(budget, policy.domains()),
                 };
                 (
                     id,

@@ -89,6 +89,8 @@ The policy in the pull request must only parse and be valid.
 A cap that a pull request adds or makes stricter starts to apply to the next pull request.
 A cap that a pull request makes looser or removes still applies to that pull request.
 The budget table marks a new cap as "enforced from the next change".
+A run that is not a pull request, such as a push to the main branch, shows the standing budgets and marks the rows that are over.
+That run does not fail because of them.
 
 ## Versions
 

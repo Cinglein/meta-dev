@@ -8,6 +8,7 @@ pub enum Exposure {
     CodeOutside,
     PaysDown,
     Pending,
+    Reported,
 }
 
 impl Exposure {
@@ -16,7 +17,7 @@ impl Exposure {
         match self {
             Exposure::Diff | Exposure::CodeOutside => selection.reaching().map(|_| self),
             Exposure::Within => Some(self),
-            Exposure::Outside | Exposure::PaysDown | Exposure::Pending => None,
+            Exposure::Outside | Exposure::PaysDown | Exposure::Pending | Exposure::Reported => None,
         }
     }
 
@@ -28,6 +29,7 @@ impl Exposure {
                 Some("outside the linked task's division; a diff in its domain reaches it")
             }
             Exposure::PaysDown => Some("paid down by the linked task"),
+            Exposure::Reported => Some("reported only; this run is not a pull request"),
             Exposure::Pending => {
                 Some("not in the merge-base policy; enforced from the next change")
             }
