@@ -106,7 +106,7 @@ mod tests {
         fixture.write(POLICY, STANDING).branch();
         fixture.write(POLICY, NOTHING).committed();
         let (bare, mut pull, mut push) = (StandingLog::policy(NOTHING), Ledger::default(), Ledger::default());
-        let enforced = StandingLog::enforcing(&RunKind::Pull(None), fixture.root(), &mut pull);
+        let enforced = StandingLog::enforcing(&RunKind::Pull(None, None), fixture.root(), &mut pull);
         let reported = StandingLog::enforcing(&RunKind::Other, fixture.root(), &mut push);
         assert!(enforced.is_ok() && pull.reads_standing(&bare) && !pull.reports_only());
         assert!(reported.is_ok() && push.reports_only());
