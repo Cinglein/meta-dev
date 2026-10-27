@@ -61,7 +61,7 @@ mod tests {
         [("GITHUB_EVENT_NAME", "pull_request_target"), LINKED, (GATE.0, ""), (PUSH[1].0, GATE.1)];
 
     impl TrackedWork {
-        fn judged(branch: Option<&str>, pull: (&str, &str)) -> Result<(), Failure> {
+        pub(crate) fn judged(branch: Option<&str>, pull: (&str, &str)) -> Result<(), Failure> {
             let words: Vec<&str> = LOG.split(' ').collect();
             let line = |pair: &[&str]| RECORD.replace("KIND", pair[0]).replace("ID", pair[1]);
             let log = words.chunks(2).map(|pair| serde_json::from_str::<Record>(&line(pair)).unwrap());

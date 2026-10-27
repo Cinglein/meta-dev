@@ -103,6 +103,7 @@ mod tests {
 
     use super::GateChild;
     use crate::task::ci::run_kind::RunKind;
+    use crate::task::ci::tracked_work::TrackedWork;
     use crate::task::fixture::Fixture;
 
     const SHELL: &str = "sh";
@@ -114,6 +115,9 @@ mod tests {
     const KNOWN_VALUE: &str = "known7value";
     const BRANCH: &str = "task-00000000000000a1";
     const PRINTED: [&str; 4] = ["+known7value", "", "+task-00000000000000a1", "+"];
+    const NUMBER: (&str, &str) = ("PULL_REQUEST", "7");
+    const NUMBER_SHOWN: [&str; 2] = ["-c", "printf %s \"$PULL_REQUEST\""];
+    const DONE: &str = "task-00000000000000d4";
 
     #[test]
     fn the_child_gets_an_empty_home_of_its_own_no_config_home_and_only_allowed_names_with_the_callers_values() {
@@ -137,6 +141,17 @@ mod tests {
             [(&passing, KNOWN), (&plain, KNOWN), (&passing, RunKind::GATE_BRANCH), (&plain, RunKind::GATE_BRANCH)]
                 .map(|(child, variable)| shown(child, PRINT, variable));
         assert_eq!(printed, PRINTED);
+    }
+
+    #[test]
+    fn after_meta_done_a_child_given_the_open_pull_request_passes_the_linked_task() {
+        let fixture = Fixture::new();
+        fs::create_dir_all(fixture.beside()).unwrap();
+        let ambient = BTreeMap::from([(NUMBER.0.to_owned(), OsString::from(NUMBER.1))]);
+        let child = GateChild::new(&fixture.beside(), TARGET.into(), PathBuf::new(), TOOLCHAIN.parse().unwrap());
+        let line = child.unwrap().seeing(ambient).line(Program::Executable(SHELL.into()), fixture.beside());
+        let seen = line.arguments(NUMBER_SHOWN).captured::<Stdout>().unwrap_or_default();
+        assert!(TrackedWork::judged(Some(DONE), (NUMBER.0, &seen)).is_ok());
     }
 
     #[test]
