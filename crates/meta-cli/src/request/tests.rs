@@ -11,6 +11,7 @@ mod status;
 mod usage;
 
 use meta_log::{LogStore, MemoryLog};
+use meta_severity::Scales;
 
 use super::Request;
 use super::ScalePolicy;
@@ -60,15 +61,18 @@ const ID_INDEX: usize = 4;
 struct Meta(MemoryLog);
 
 impl Meta {
-    fn run(&self, actor: &str, words: &[&str]) -> Result<String, CliFailure> {
+    fn answer(log: &impl LogStore, actor: &str, scales: &Scales, words: &[&str]) -> Result<String, CliFailure> {
         let args = std::iter::once(PROGRAM).chain(words.iter().copied()).map(String::from).collect::<Vec<_>>();
+        let policy = ScalePolicy::from(scales.clone());
         Request::try_from(args)
             .and_then(|request| {
-                request.answer_from(&self.0, &ScalePolicy::default(), || {
-                    actor.parse().map_err(CliFailure::raised::<Invalid>)
-                })
+                request.answer_from(log, &policy, || actor.parse().map_err(CliFailure::raised::<Invalid>))
             })
             .map(|output| output.to_string())
+    }
+
+    fn run(&self, actor: &str, words: &[&str]) -> Result<String, CliFailure> {
+        Self::answer(&self.0, actor, &Scales::default(), words)
     }
 
     fn written(&self, actor: &str, words: &[&str]) -> String {

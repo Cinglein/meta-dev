@@ -1,13 +1,11 @@
-use meta_pull_query::LiveReply;
 use meta_schema::{Actor, Claim, Event, Id, NewTask, Record, Task, TaskLink};
 use meta_state::State;
 
 use super::Status;
+use super::tests::{NOW, PAST, Tasks};
 use crate::github::Github;
 use crate::github_failure::GithubFailure;
 
-const NOW: &str = "2026-10-26T12:00:00Z";
-const PAST: &str = "2026-10-01T00:00:00Z";
 const DUE: &str = "due 2026-10-01 00:00Z";
 const TRUNK_GREEN: &str = r#""trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}"#;
 const TRUNK_RED: &str = r#""trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"FAILURE","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":"CANCELLED","workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}"#;
@@ -27,7 +25,6 @@ const CASES: [(bool, &[&str], bool); 8] = [
     (true, &["2"], false),
     (true, &["3"], true),
 ];
-const WORKFLOWS: [&str; 2] = ["ci", "mutants"];
 const DONE: &str = "held, every linked pr merged or closed";
 
 struct Board {
@@ -56,10 +53,7 @@ impl Board {
     }
 
     fn reached(reply: &str) -> Github {
-        let pulls = serde_json::from_str::<LiveReply>(reply).unwrap().answered().unwrap();
-        let rules = [(serde_json::from_str(r#""main""#).unwrap(), serde_json::from_str("[]").unwrap())];
-        let required = WORKFLOWS.map(|name| name.parse().unwrap()).to_vec();
-        Github::Reached(pulls.ruled(rules.into_iter().collect()).unwrap().requiring(required))
+        Tasks::reached(reply, "[]")
     }
 
     fn flags(&self, github: &Github) -> String {

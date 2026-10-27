@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use meta_schema::{Division, LevelName, TopDivision};
 
 use crate::{Scale, Scales};
@@ -63,18 +61,6 @@ const REFUSED: [(&str, &str); 8] = [
     ),
     (r#"{"performance-and-cost/a": []}"#, "scale performance-and-cost/a: no levels"),
 ];
-
-impl Scales {
-    fn declared(json: &str) -> Option<Scales> {
-        Scales::try_from(serde_json::from_str::<BTreeMap<Division, Scale>>(json).ok()?).ok()
-    }
-
-    fn refusal(json: &str) -> Option<String> {
-        Scales::try_from(serde_json::from_str::<BTreeMap<Division, Scale>>(json).ok()?)
-            .err()
-            .map(|failure| failure.to_string())
-    }
-}
 
 impl Scale {
     fn names(&self) -> Vec<String> {
