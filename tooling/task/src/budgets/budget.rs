@@ -13,14 +13,14 @@ use serde::{Deserialize, Serialize};
 
 use super::budget_id::BudgetId;
 use super::tree_failure::TreeFailure;
-use crate::domains::{Domains, Extent};
+use crate::domains::{Domains, Extent, ScopeKind};
 use crate::percent::Percent;
 use allowance::Allowance;
 pub use allowance::Amount;
 pub use lines::Lines;
 use measure::{Enforcer, Unit};
-pub use measure::{Measure, MutationJob};
-use meta_schema::Division;
+pub use measure::{ItemFilter, ItemKind, Measure, MutationJob};
+use meta_schema::{Division, TopDivision};
 use overspend::Overspend;
 use source::Source;
 pub use state::State;
@@ -48,7 +48,11 @@ impl Budget {
     #[must_use]
     pub fn legacy(measure: Measure, amount: Amount, tolerance: Option<Percent>) -> Budget {
         Budget {
-            division: Division::from(measure.scope().owner()),
+            division: Division::from(
+                measure
+                    .scope()
+                    .map_or(TopDivision::FeaturesAndMaintenance, ScopeKind::owner),
+            ),
             measure,
             allowance: Allowance::Whole(amount),
             window: Window::PerChange,
@@ -67,6 +71,11 @@ impl Budget {
     #[must_use]
     pub fn measure(&self) -> Measure {
         self.measure
+    }
+
+    #[must_use]
+    pub fn standing_in(&self) -> Option<&Division> {
+        (self.window == Window::Standing).then_some(&self.division)
     }
 
     #[must_use]
@@ -117,15 +126,18 @@ impl Budget {
     }
 
     pub fn measurable(&self, id: &BudgetId, domains: &Domains) -> Result<(), TreeFailure> {
-        let needed = self.measure.scope();
-        match domains
-            .domain(&self.division)
-            .map(|domain| domain.extent(needed))
-        {
-            Some(Extent::Whole) => Ok(()),
-            Some(Extent::Partial) => Err(TreeFailure::PartlyMeasurable(id.clone(), needed)),
-            Some(Extent::Undeclared) | None => Err(TreeFailure::Unmeasurable(id.clone(), needed)),
-        }
+        self.measure.scope().map_or(Ok(()), |needed| {
+            match domains
+                .domain(&self.division)
+                .map(|domain| domain.extent(needed))
+            {
+                Some(Extent::Whole) => Ok(()),
+                Some(Extent::Partial) => Err(TreeFailure::PartlyMeasurable(id.clone(), needed)),
+                Some(Extent::Undeclared) | None => {
+                    Err(TreeFailure::Unmeasurable(id.clone(), needed))
+                }
+            }
+        })
     }
 
     pub fn placed(
@@ -136,14 +148,15 @@ impl Budget {
         let refused = |failure: fn(BudgetId) -> TreeFailure| Err(failure(id.clone()));
         let unit = self.measure.unit();
         match (
-            self.allowance.whole(),
-            self.allowance.part().map(|part| budgets.get(part.parent())),
+            self.allowance.resolved(|_| None),
+            self.allowance.parent().map(|parent| budgets.get(parent)),
         ) {
+            _ if self.window != self.measure.window() => refused(TreeFailure::OtherWindow),
             _ if self.tolerance.is_some() && self.measure.enforcer() == Enforcer::Lint => {
                 refused(TreeFailure::LintTolerance)
             }
             (Some(amount), _) if amount.unit() != unit => refused(TreeFailure::OtherUnit),
-            (Some(amount), _) if unit != Unit::Baseline && self.lines(amount).is_none() => {
+            (Some(amount), _) if unit != Unit::Baseline && self.lines(&amount).is_none() => {
                 refused(TreeFailure::Overflow)
             }
             (_, None) if self.division.is_nested() => refused(TreeFailure::NestedWhole),
@@ -156,6 +169,12 @@ impl Budget {
             }
             (_, Some(Some(parent))) if parent.measure.unit() != unit => {
                 refused(TreeFailure::OtherUnit)
+            }
+            (_, Some(Some(parent)))
+                if parent.measure != self.measure
+                    && (self.standing_in().is_some() || parent.standing_in().is_some()) =>
+            {
+                refused(TreeFailure::OtherMeasure)
             }
             (_, None | Some(Some(_))) => Ok(()),
         }

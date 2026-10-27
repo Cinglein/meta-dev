@@ -2,6 +2,8 @@ use std::fmt;
 
 use super::super::budget::{Amount, Budget, Lines, State};
 use super::super::budget_id::BudgetId;
+use super::super::standing::Exposure;
+use crate::selection::Selection;
 
 #[derive(Debug)]
 pub struct Row<'policy> {
@@ -9,6 +11,7 @@ pub struct Row<'policy> {
     budget: &'policy Budget,
     lines: Option<Lines>,
     spend: Option<Amount>,
+    exposure: Exposure,
 }
 
 impl<'policy> Row<'policy> {
@@ -27,7 +30,13 @@ impl<'policy> Row<'policy> {
             budget,
             lines,
             spend,
+            exposure: Exposure::Diff,
         }
+    }
+
+    #[must_use]
+    pub fn within(self, exposure: Exposure) -> Row<'policy> {
+        Row { exposure, ..self }
     }
 
     #[must_use]
@@ -36,8 +45,8 @@ impl<'policy> Row<'policy> {
     }
 
     #[must_use]
-    pub fn blocks(&self) -> bool {
-        self.budget.blocks(self.state())
+    pub fn blocks(&self, selection: &Selection) -> bool {
+        self.exposure.exposed(selection).is_some() && self.budget.blocks(self.state())
     }
 }
 
@@ -58,6 +67,10 @@ impl fmt::Display for Row<'_> {
             ),
             shown(self.lines.as_ref().map(ToString::to_string)),
             shown(self.state().map(|state| state.to_string())),
-        )
+        )?;
+        self.exposure
+            .excuse()
+            .filter(|_| self.state() == Some(State::Over))
+            .map_or(Ok(()), |excuse| write!(formatter, ", {excuse}"))
     }
 }

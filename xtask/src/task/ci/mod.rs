@@ -1,5 +1,6 @@
 mod ci_step;
 mod local_gate;
+mod standing_log;
 mod step_times;
 
 pub use local_gate::{Busy, LocalGate, OutsideConfig, Posting, Unready};
@@ -14,6 +15,7 @@ use strum::IntoEnumIterator;
 use crate::task::failure::Failure;
 use crate::task::surfaces::Surfaces;
 pub use ci_step::CiStep;
+use standing_log::StandingLog;
 use step_times::StepTimes;
 use task::Ledger;
 use task::Policy;
@@ -40,6 +42,7 @@ impl Ci {
                 let mut ledger = Ledger::default();
                 let outcome = CiStep::iter()
                     .try_for_each(|step| times.record(step, step.timed(workspace, selection, policy, &mut ledger)))
+                    .and_then(|()| StandingLog::counted(&StandingLog::git(workspace.root()), policy, &mut ledger))
                     .and_then(|()| Ok(ledger.checked(policy, selection)?));
                 println!("ci: total {:.1?}", started.elapsed());
                 self.recorded(&times)?;

@@ -21,7 +21,7 @@ impl<'policy> Statement<'policy> {
             "budget over its blocking line",
             self.0
                 .iter()
-                .filter(|row| selection.reaching().is_some() && row.blocks())
+                .filter(|row| row.blocks(selection))
                 .map(|row| Violation::new(Site::Workspace, row))
                 .collect(),
         )
