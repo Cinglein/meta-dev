@@ -9,9 +9,9 @@ use std::time::Duration;
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 2\n";
 const PATIENT: &str = "appear_millis = 60\ntimeout_millis = 300\nremote_millis = 300\n";
-const ERRING: &str = "appear_millis = 60\ntimeout_millis = 150\nremote_millis = 150\n";
+const TICKED: &str = "appear_millis = 2000\ntimeout_millis = 7000\n";
 const STALLED: &str = "appear_millis = 60\ntimeout_millis = 300\nremote_millis = 40\n";
-const QUICK: &str = "appear_millis = 20\ntimeout_millis = 80\nremote_millis = 80\n";
+const QUICK: &str = "appear_millis = 20\ntimeout_millis = 80\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 [ "$FAKE_GH_SCENARIO" = hang ] && exec sleep 5
 count="$FAKE_GH_DIR/count"
@@ -22,6 +22,7 @@ s="$FAKE_GH_SCENARIO"
 case "$1 $2" in
 "run list")
   n=$((n + 1)); echo "$n" > "$count"
+  case "$s" in none|late|broken|mixed) echo "${n}000" > "$FAKE_GH_DIR/clock" ;; esac
   if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
   elif [ "$s" = none ] || [ "$4" != "$head" ]; then echo '[]'
   elif [ "$s" = late ] && { ! grep -q "no run yet" "$events" || grep -q "run appeared" "$events"; }; then echo '[]'
@@ -293,6 +294,7 @@ impl Session<'_> {
             .env("PATH", path)
             .env("FAKE_GH_DIR", self.repo.clone.path())
             .env("FAKE_GH_SCENARIO", self.repo.scenario)
+            .env("META_CI_CLOCK", self.repo.clone.path().join("clock"))
             .env("TMPDIR", self.repo.sessions.path())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -367,12 +369,16 @@ impl Repo {
 
     fn settled(&self) -> String {
         let events = self.clone.path().join(".git/meta-ci/ABCDEF1234/events");
+        let lock = events.with_file_name("locks").join(Git::head(self.clone.path()));
         std::iter::repeat_with(|| {
             std::thread::sleep(SETTLE_POLL);
             std::fs::read_to_string(&events).unwrap_or_default()
         })
         .take(SETTLE_LENGTH)
-        .find(|text| COMPLETIONS.iter().any(|completion| text.contains(completion)))
+        .find(|text| {
+            COMPLETIONS.iter().any(|completion| text.contains(completion))
+                && std::fs::File::open(&lock).map_or(true, |watcher| watcher.try_lock().is_ok())
+        })
         .unwrap_or_default()
     }
 }
@@ -430,7 +436,7 @@ fn passing_runs_let_the_agent_stop_and_unstarted_ones_do_not() {
 
 #[test]
 fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
-    let repos = [(NONE, QUICK), (LATE, QUICK), (BROKEN, ERRING), (MIXED, PATIENT), (HANG, QUICK)]
+    let repos = [(NONE, TICKED), (LATE, TICKED), (BROKEN, TICKED), (MIXED, TICKED), (HANG, QUICK)]
         .map(|(scenario, limits)| Started::building(scenario, limits))
         .map(|started| started.join().unwrap());
     let [absent, late, broken, mixed, hung] = repos.each_ref().map(Repo::settled);

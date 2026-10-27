@@ -4,6 +4,7 @@ mod gh;
 mod reach;
 mod session_commits;
 mod wait_on_ci;
+mod watch_clock;
 
 use std::cell::OnceCell;
 use std::ops::ControlFlow;
@@ -24,13 +25,14 @@ use gh::{Gh, Observation};
 use reach::Reach;
 use session_commits::SessionCommits;
 use wait_on_ci::WaitOnCi;
+use watch_clock::WatchClock;
 
 #[derive(Debug)]
 pub struct Watcher {
     dir: SessionDir,
     commit: Commit,
     gh: Gh,
-    started: Instant,
+    clock: WatchClock,
     settings: CiSettings,
     appeared: OnceCell<()>,
 }
@@ -99,16 +101,16 @@ impl Watcher {
         let settled = dir.status_of(&commit).and_then(CiStatus::finished);
         settled.map_or(Ok(()), |status| Err(CliFailure::raised::<Invalid>(format!("already {status}"))))?;
         let settings = project.config().ci_settings();
-        let started = Instant::now();
-        let deadline = started + settings.remaining(Duration::ZERO).unwrap_or_default();
+        let clock = WatchClock::start();
+        let deadline = clock.started() + settings.remaining(Duration::ZERO).unwrap_or_default();
         let gh = Gh::new(settings.program().clone(), project.root().to_path_buf(), deadline);
-        let watcher = Self { dir, commit, gh, started, settings: settings.clone(), appeared: OnceCell::new() };
+        let watcher = Self { dir, commit, gh, clock, settings: settings.clone(), appeared: OnceCell::new() };
         let interval = settings.poll_interval();
         let finished = std::iter::from_fn(|| {
-            settings.remaining(watcher.started.elapsed())?;
+            settings.remaining(watcher.clock.elapsed())?;
             std::thread::sleep(interval.duration());
             let observed = watcher.gh.observe(&watcher.commit);
-            let in_time = settings.remaining(watcher.started.elapsed()).map(|_| ());
+            let in_time = settings.remaining(watcher.clock.elapsed()).map(|_| ());
             observed.is_ok().then_some(()).or(in_time).map(|()| observed)
         })
         .try_fold(None, |reported, observed| watcher.step(reported, observed));
@@ -157,7 +159,7 @@ impl Watcher {
     }
 
     fn news(&self, reported: Option<Listed>, observed: &Result<Observation, Listed>) -> Option<Listed> {
-        let overdue = self.settings.run_overdue(self.started.elapsed());
+        let overdue = self.settings.run_overdue(self.clock.elapsed());
         let seen = observed
             .as_ref()
             .ok()
@@ -194,7 +196,7 @@ impl Watcher {
         let failed = Some(steps.join(", "))
             .filter(|joined| !joined.is_empty())
             .map(|joined| format!(": {joined}; run `meta ci-log`"));
-        let elapsed = Elapsed::new(self.started.elapsed());
+        let elapsed = Elapsed::new(self.clock.elapsed());
         let detail = status.detail();
         self.note(&format!("{status} after {elapsed}{detail}{}", failed.unwrap_or_default()), status);
         Output::Listed(Listed::new(status))
