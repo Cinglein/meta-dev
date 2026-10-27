@@ -150,6 +150,30 @@ allowance = { count = 83 }
 window = "per_change"
 source = "ci"
 
+[budgets.open-issues]
+division = "features-and-maintenance"
+measure = { open_items = { kind = "issue" } }
+allowance = { count = 20 }
+window = "standing"
+
+[budgets.planning-concerns]
+division = "architecture-and-planning"
+measure = { open_items = { kind = "concern" } }
+allowance = { count = 2 }
+window = "standing"
+
+[budgets.cost-issues]
+division = "performance-and-cost"
+measure = { open_items = { kind = "issue" } }
+allowance = { count = 5 }
+window = "standing"
+
+[budgets.in-discussion]
+division = "architecture-and-planning"
+measure = { open_items = "in_discussion" }
+allowance = { count = 3 }
+window = "standing"
+
 [mutant_millis]
 default = 5700
 
