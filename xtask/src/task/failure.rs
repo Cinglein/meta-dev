@@ -2,7 +2,7 @@ use std::io;
 use std::path::PathBuf;
 
 use meta_log::LogFailure;
-use meta_severity::{Demotions, Strands};
+use meta_severity::{Demotions, ScaleFailure, Strands};
 use thiserror::Error;
 
 use crate::task::ci::{Busy, OutsideConfig, Unready, Untracked};
@@ -43,6 +43,10 @@ pub enum Failure {
     Demoted(Demotions),
     #[error("merge-base tooling/policy.toml does not parse: {0}")]
     PriorPolicy(toml::de::Error),
+    #[error("merge-base default severity levels do not parse: {0}")]
+    PriorLevels(serde_json::Error),
+    #[error("merge-base scales: {0}")]
+    PriorScales(ScaleFailure),
     #[error("standing budgets fail closed: meta/log is unreadable: {0}")]
     StandingLog(LogFailure),
     #[error("standing budgets fail closed: meta/log has no events on the remote")]
