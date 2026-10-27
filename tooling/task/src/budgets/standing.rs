@@ -7,7 +7,6 @@ use meta_severity::Scales;
 use meta_state::{State, TaskState};
 
 use super::budget::{Amount, ItemFilter, ItemKind};
-use crate::domains::Domains;
 use crate::policy::Most;
 pub use change_link::ChangeLink;
 pub use exposure::Exposure;
@@ -71,21 +70,11 @@ impl Standing {
     }
 
     #[must_use]
-    pub fn exposure(
-        &self,
-        filter: &ItemFilter,
-        division: &Division,
-        domains: &Domains,
-    ) -> Exposure {
+    pub fn exposure(&self, filter: &ItemFilter, division: &Division) -> Exposure {
         if self.paid_down(filter, division) {
             Exposure::PaysDown
         } else if self.within(division) {
             Exposure::Within
-        } else if domains
-            .domain(division)
-            .is_some_and(|domain| !domain.is_empty())
-        {
-            Exposure::CodeOutside
         } else {
             Exposure::Outside
         }
