@@ -45,6 +45,7 @@ impl Link {
     const CONFIG: &'static str = "config.worktree";
     const REFTABLE: &'static str = "reftable";
     const RESOLVE: [&'static str; 2] = ["cat-file", "--batch-check=%(objectname)"];
+    const VERIFY: [&'static str; 3] = ["rev-parse", "--verify", "-q"];
     const HEAD: &'static str = "HEAD";
     const LINE_END: &'static str = "\n";
     const NO_HEAD: &'static str = "HEAD does not resolve";
@@ -137,6 +138,11 @@ impl Link {
             .ok_or_else(|| Kept::Uninspected(Cause::new(Self::UNEXPECTED)))
     }
 
+    fn names(&self, host: &impl Inspection, name: &str) -> bool {
+        let words = Self::VERIFY.map(OsStr::new).into_iter().chain([OsStr::new(name)]).collect::<Vec<_>>();
+        self.git(host, Scope::Worktree, &words).is_ok_and(|object| object.lines().next().is_some())
+    }
+
     fn guarded(&self, host: &impl Inspection) -> Result<(), Kept> {
         let absent =
             |dirs: &[&Path], name: &str| dirs.iter().all(|dir| host.entry(&dir.join(name)) == EntryKind::Missing);
@@ -146,8 +152,7 @@ impl Link {
         absent(&both, Self::ALTERNATES).then_some(()).ok_or(Kept::Borrowed)?;
         absent(&both, Self::MODULES).then_some(()).ok_or(Kept::Submodules)?;
         Self::PAUSED_DIRS.iter().all(|pause| absent(&[&self.git_dir], pause)).then_some(()).ok_or(Kept::Paused)?;
-        let paused = Self::PAUSED_REFS.map(str::to_owned);
-        self.resolved(host, &paused)?.iter().all(Option::is_none).then_some(()).ok_or(Kept::Paused)?;
+        Self::PAUSED_REFS.iter().all(|name| !self.names(host, name)).then_some(()).ok_or(Kept::Paused)?;
         let Ok(config) = host.text(&self.git_dir.join(Self::CONFIG)).unwrap_or_default().parse::<WorktreeConfig>();
         config.unredirected()
     }

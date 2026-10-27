@@ -196,7 +196,7 @@ impl FakeHost {
         self.pseudo.extend(pseudo);
     }
 
-    pub fn dangles(&mut self, pseudo: &[&'static str]) {
+    pub fn dangles(&mut self, pseudo: [&'static str; 1]) {
         self.dangling.extend(pseudo);
     }
 
