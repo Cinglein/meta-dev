@@ -15,12 +15,14 @@ use meta_state::State;
 
 use meta_status::Status;
 
+use super::local_file::LocalFile;
 use super::local_settings::LocalSettings;
 use super::local_trail::LocalTrail;
 use super::recorded_worktree::RecordedWorktree;
 use super::sweep::Sweep;
 use super::trail_entry::TrailEntry;
 use super::worktree_id::WorktreeId;
+use super::worktree_identity::WorktreeIdentity;
 use super::worktrees::Worktrees;
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::live_github::LiveGithub;
@@ -41,8 +43,7 @@ pub struct LocalClone {
 
 impl LocalClone {
     const LISTED_PREFIX: &'static str = "worktree ";
-    const NAME_KEYS: [&'static str; 3] = ["user.name", "author.name", "committer.name"];
-    const EMAIL_KEYS: [&'static str; 3] = ["user.email", "author.email", "committer.email"];
+    const WORKTREE_CONFIG: &'static str = "config.worktree";
 
     pub fn new(checkout: PathBuf, git_dir: PathBuf) -> Self {
         Self { checkout, git_dir: GitDir::new(git_dir) }
@@ -87,16 +88,11 @@ impl LocalClone {
         let email = identity.email().to_string();
         let settled = || {
             let worktree = Git::new(&path);
-            Self::NAME_KEYS
-                .iter()
-                .map(|key| [*key, name.as_str()])
-                .chain(Self::EMAIL_KEYS.iter().map(|key| [*key, email.as_str()]))
-                .try_for_each(|[key, value]| {
-                    worktree.output(&["config", "--worktree", key, value].map(OsStr::new)).map(drop)
-                })?;
+            let git_dir = worktree.output(&["rev-parse", "--absolute-git-dir"].map(OsStr::new))?;
+            let identity = WorktreeIdentity::new(&name, &email).to_string();
+            LocalFile::new(Path::new(&git_dir).join(Self::WORKTREE_CONFIG)).replaced(&identity)?;
             worktree.output(&["reset", "--hard", "--quiet"].map(OsStr::new))?;
             let created = std::fs::canonicalize(&path).map_err(CliFailure::raised::<Setup>)?;
-            let git_dir = worktree.output(&["rev-parse", "--absolute-git-dir"].map(OsStr::new))?;
             let id =
                 WorktreeId::parsed(Path::new(&git_dir)).ok_or_else(|| CliFailure::raised::<Setup>("no worktree id"))?;
             let recorded = RecordedWorktree::new(created.clone(), task).identified(id);
