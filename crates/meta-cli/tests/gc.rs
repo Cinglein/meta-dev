@@ -263,7 +263,7 @@ fn gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_wit
     let swept = scene.meta(&GC);
     let real = started.elapsed();
     assert!(
-        false,
+        real < setup,
         "PROBE setup {setup:?} dry_run {:?} real_run {:?} lsof {lsof:?} git {git:?} meta {meta:?} probes {:?}",
         dry - before_dry,
         real - dry,
