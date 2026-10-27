@@ -18,7 +18,7 @@ const DENIED: &str = "\"permissionDecision\":\"deny\"";
 #[test]
 fn stop_judges_every_pushed_commit_and_a_dead_watcher_restarts() {
     let repo = Repo::new(FAILURE);
-    Planted::running(&repo);
+    Planted::settled(&repo, Planted::RUNNING);
     Git::run(repo.clone.path(), &ELSEWHERE);
     Git::run(repo.clone.path(), &DETACH);
     let detached = repo.hook(STOP, STATUS);

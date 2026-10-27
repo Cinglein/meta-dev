@@ -89,7 +89,7 @@ impl Event {
             Self::TaskOpened(task) => visitor.task_opened(task),
             Self::TaskClaimed(claim) => visitor.task_claimed(claim),
             Self::TaskReleased(task) => visitor.task_released(*task),
-            Self::TaskBlocked(block) => visitor.task_blocked(*block),
+            Self::TaskBlocked(block) => visitor.task_blocked(block),
             Self::TaskUnblocked(task) => visitor.task_unblocked(*task),
             Self::TaskLinked(link) => visitor.task_linked(*link),
             Self::TaskDone(task) => visitor.task_done(*task),

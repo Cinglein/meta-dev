@@ -69,7 +69,7 @@ impl<'run, Host: Inspection> Sweeper<'run, Host> {
             Sweep::Done => {
                 let worktree = candidate.tracked().worktree();
                 let again = Vetted::proved(worktree, self.context, self.host);
-                Deletable::confirmed(candidate.into_vetted(), occupancy, again)
+                Deletable::confirmed(candidate.into_vetted(), again)
                     .and_then(|deletable| deletable.removed(worktree, self.context, self.host))
             }
         };

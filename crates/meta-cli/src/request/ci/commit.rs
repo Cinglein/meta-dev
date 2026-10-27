@@ -3,12 +3,18 @@ use std::fmt;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use meta_schema::CommitId;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Commit(String);
 
 impl Commit {
     const OBJECTS: &'static str = "objects";
     const FAN_OUT_LEN: usize = 2;
+
+    pub fn commit_id(&self) -> Option<CommitId> {
+        self.0.parse().ok()
+    }
 
     pub fn argument(&self) -> OsString {
         OsString::from(&self.0)

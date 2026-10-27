@@ -39,6 +39,7 @@ use writing::Writing;
 #[derive(Debug)]
 pub enum Request {
     Write(Event),
+    Wait(Block),
     Rate(Rate),
     Move(Relocate),
     ClaimWorktree(Claim),
@@ -99,7 +100,7 @@ impl TryFrom<Vec<String>> for Request {
             }
             "wait" => {
                 let parsed = parsed.allowing(&[OptionName::On])?;
-                Ok(Self::Write(Event::TaskBlocked(Block::new(parsed.task()?, parsed.blocker()?))))
+                Ok(Self::Wait(Block::new(parsed.task()?, parsed.blocker()?)))
             }
             "resume" => Ok(Self::Write(Event::TaskUnblocked(task()?))),
             "link" => Ok(Self::Write(Event::TaskLinked(parsed.allowing(&[])?.task_link()?))),
@@ -165,6 +166,10 @@ impl Request {
             logged @ (Self::List(..) | Self::Write(_) | Self::Rate(_) | Self::Move(_)) => {
                 logged.answer_from(&project.log()?, &ScalePolicy::read(project.root())?, Self::actor)
             }
+            Self::Wait(block) => {
+                let head = project.head().and_then(|head| head.commit_id());
+                Self::Write(Event::TaskBlocked(head.into_iter().fold(block, Block::at_head))).answer_in(project)
+            }
         }
     }
 
@@ -182,6 +187,7 @@ impl Request {
             Self::Rate(rate) => rate.answer(log, policy.scales(), actor()?),
             Self::Move(relocate) => relocate.answer(log, policy, actor()?),
             Self::List(kind, scope) => Listed::from_log(log, kind, scope).map(Output::Listed),
+            Self::Wait(block) => Self::Write(Event::TaskBlocked(block)).answer_from(log, policy, actor),
             Self::Hook(_)
             | Self::Heartbeat(_)
             | Self::WatchCi(..)

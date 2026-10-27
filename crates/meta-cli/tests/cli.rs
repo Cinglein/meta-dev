@@ -183,15 +183,12 @@ fn failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_a
     let failed = writes();
     let first = project.meta(OWNER, &claim).to_string().lines().last().unwrap_or_default().to_owned();
     let claimed = writes();
+    let shown = SHOWN_BY_GIT.map(|words| Git::shown(Path::new(&first), &words));
     std::fs::remove_dir_all(&first).ok();
     let resumed = project.meta(OWNER, &claim).to_string();
     assert!(failed == opened && claimed != opened && writes() == claimed);
     assert!(tracked.contains(IGNORED) && unwritable.contains(NOT_A_DIRECTORY) && unwritable.contains(GIT_CALL));
     assert!(resumed.ends_with(&format!("{first}\n")) && Path::new(&first).exists());
-    let task = project.meta(OWNER, &OPEN).written().0;
-    let claimed = project.meta(OWNER, &[CLAIM, &task, WORKTREE]).to_string();
-    let path = Path::new(claimed.lines().last().unwrap_or_default());
-    let shown = SHOWN_BY_GIT.map(|words| Git::shown(path, &words));
     assert_eq!(shown, [NOREPLY, NOREPLY, AGENT, &task].map(|line| format!("{line}\n")));
     let stray = worktrees.path().join(AGENT);
     Git::run(project.clone.path(), &[&STRAY[..], &[stray.to_str().unwrap()]].concat());

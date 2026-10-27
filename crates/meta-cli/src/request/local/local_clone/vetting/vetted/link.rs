@@ -1,4 +1,5 @@
 mod path_line;
+mod resolved;
 mod root_ref;
 mod scope;
 mod step;
@@ -9,6 +10,7 @@ use std::path::{Path, PathBuf};
 
 use super::ref_line::RefLine;
 use super::ref_list::RefList;
+use crate::request::local::local_clone::vetting::cause::Cause;
 use crate::request::local::local_clone::vetting::context::Context;
 use crate::request::local::local_clone::vetting::entry_kind::EntryKind;
 use crate::request::local::local_clone::vetting::git_call::GitCall;
@@ -17,6 +19,7 @@ use crate::request::local::local_clone::vetting::kept::Kept;
 use crate::request::local::local_clone::vetting::thaw::Thaw;
 use crate::request::local::worktree_id::WorktreeId;
 use path_line::PathLine;
+use resolved::Resolved;
 use root_ref::RootRef;
 pub use scope::Scope;
 pub use step::Step;
@@ -41,8 +44,12 @@ impl Link {
     const PAUSED_REFS: [&'static str; 4] = ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD"];
     const CONFIG: &'static str = "config.worktree";
     const REFTABLE: &'static str = "reftable";
-    const RESOLVE: [&'static str; 3] = ["rev-parse", "--verify", "-q"];
-    const HEAD: [&'static str; 3] = ["rev-parse", "--verify", "HEAD"];
+    const RESOLVE: [&'static str; 2] = ["cat-file", "--batch-check=%(objectname)"];
+    const VERIFY: [&'static str; 3] = ["rev-parse", "--verify", "-q"];
+    const HEAD: &'static str = "HEAD";
+    const LINE_END: &'static str = "\n";
+    const NO_HEAD: &'static str = "HEAD does not resolve";
+    const UNEXPECTED: &'static str = "unexpected git cat-file output";
     const REFS: [&'static str; 5] =
         ["for-each-ref", "--format=%(objectname) %(refname)", "refs/worktree/", "refs/bisect/", "refs/rewritten/"];
     const MOVE: [&'static str; 2] = ["worktree", "move"];
@@ -78,15 +85,20 @@ impl Link {
     }
 
     pub fn refs(&self, host: &impl Inspection, branch: &str) -> Result<RefList, Kept> {
-        let head = RefLine::head(&self.git(host, Scope::Worktree, &Self::HEAD.map(OsStr::new))?);
-        let named = Self::REFS.map(OsStr::new).into_iter().chain([OsStr::new(branch)]).collect::<Vec<_>>();
-        let local = self.git(host, Scope::Worktree, &named)?.parse::<RefList>()?.headed(head);
         let listed = host.walked(&self.git_dir);
         let named = listed.iter().filter(|found| found.kind() == EntryKind::File);
-        let roots = named
+        let peeled: Vec<String> = named
             .filter_map(|found| found.path().to_str()?.parse::<RootRef>().ok())
             .map(|root| root.peeled())
-            .filter_map(|peeled| self.resolved(host, &peeled).map(|object| RefLine::pseudo(&peeled, &object)));
+            .collect();
+        let wanted = [Self::HEAD.to_owned()].into_iter().chain(peeled.iter().cloned()).collect::<Vec<_>>();
+        let resolved = self.resolved(host, &wanted)?;
+        let (head, objects) = resolved.split_first().ok_or_else(|| Kept::Uninspected(Cause::new(Self::NO_HEAD)))?;
+        let head = head.as_deref().ok_or_else(|| Kept::Uninspected(Cause::new(Self::NO_HEAD)))?;
+        let named = Self::REFS.map(OsStr::new).into_iter().chain([OsStr::new(branch)]).collect::<Vec<_>>();
+        let local = self.git(host, Scope::Worktree, &named)?.parse::<RefList>()?.headed(RefLine::head(head));
+        let roots =
+            peeled.iter().zip(objects).filter_map(|(peeled, object)| Some(RefLine::pseudo(peeled, object.as_deref()?)));
         Ok(roots.fold(local, RefList::headed))
     }
 
@@ -117,9 +129,18 @@ impl Link {
         GitCall::common(&self.common, &words)
     }
 
-    fn resolved(&self, host: &impl Inspection, name: &str) -> Option<String> {
-        let words = Self::RESOLVE.map(OsStr::new).into_iter().chain([OsStr::new(name)]).collect::<Vec<_>>();
-        self.git(host, Scope::Worktree, &words).ok().filter(|object| object.lines().next().is_some())
+    fn resolved(&self, host: &impl Inspection, names: &[String]) -> Result<Vec<Option<String>>, Kept> {
+        let input = names.iter().flat_map(|name| [name.as_str(), Self::LINE_END]).collect::<String>();
+        let call = GitCall::worktree(&self.git_dir, &self.path, &Self::RESOLVE.map(OsStr::new)).fed(input);
+        let Ok(resolved) = host.git(&call)?.parse::<Resolved>();
+        (resolved.objects().len() == names.len())
+            .then(|| resolved.objects().to_vec())
+            .ok_or_else(|| Kept::Uninspected(Cause::new(Self::UNEXPECTED)))
+    }
+
+    fn names(&self, host: &impl Inspection, name: &str) -> bool {
+        let words = Self::VERIFY.map(OsStr::new).into_iter().chain([OsStr::new(name)]).collect::<Vec<_>>();
+        self.git(host, Scope::Worktree, &words).is_ok_and(|object| object.lines().next().is_some())
     }
 
     fn guarded(&self, host: &impl Inspection) -> Result<(), Kept> {
@@ -130,10 +151,8 @@ impl Link {
         absent(&[&self.git_dir], Self::REFTABLE).then_some(()).ok_or(Kept::Unlistable)?;
         absent(&both, Self::ALTERNATES).then_some(()).ok_or(Kept::Borrowed)?;
         absent(&both, Self::MODULES).then_some(()).ok_or(Kept::Submodules)?;
-        (Self::PAUSED_DIRS.iter().all(|pause| absent(&[&self.git_dir], pause))
-            && Self::PAUSED_REFS.iter().all(|name| self.resolved(host, name).is_none()))
-        .then_some(())
-        .ok_or(Kept::Paused)?;
+        Self::PAUSED_DIRS.iter().all(|pause| absent(&[&self.git_dir], pause)).then_some(()).ok_or(Kept::Paused)?;
+        Self::PAUSED_REFS.iter().all(|name| !self.names(host, name)).then_some(()).ok_or(Kept::Paused)?;
         let Ok(config) = host.text(&self.git_dir.join(Self::CONFIG)).unwrap_or_default().parse::<WorktreeConfig>();
         config.unredirected()
     }
