@@ -8,6 +8,8 @@ use crate::level::Level;
 use crate::rating_failure::RatingFailure;
 use crate::scale::Scale;
 use crate::scale_failure::ScaleFailure;
+use crate::stranded::Stranded;
+use meta_state::State;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(try_from = "BTreeMap<Division, Scale>", into = "BTreeMap<Division, Scale>")]
@@ -40,6 +42,11 @@ impl Scales {
             Some(parent) => self.rolled_up(owner.lineage().iter().rev().nth(1)?, parent, onto),
             None => None,
         }
+    }
+
+    #[must_use]
+    pub fn stranded(&self, state: &State) -> Vec<Stranded> {
+        state.open_items().iter().filter_map(|_| None).collect()
     }
 
     pub fn for_item(&self, placement: &Placement) -> Result<&Scale, RatingFailure> {
