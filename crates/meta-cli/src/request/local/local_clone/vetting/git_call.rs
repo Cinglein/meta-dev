@@ -7,6 +7,7 @@ pub struct GitCall {
     git_dir: PathBuf,
     work_tree: Option<PathBuf>,
     words: Vec<OsString>,
+    input: Option<String>,
 }
 
 impl GitCall {
@@ -34,12 +35,20 @@ impl GitCall {
 
     pub fn worktree(git_dir: &Path, work_tree: &Path, words: &[&OsStr]) -> Self {
         let words = words.iter().map(|word| word.to_os_string()).collect();
-        Self { git_dir: git_dir.to_path_buf(), work_tree: Some(work_tree.to_path_buf()), words }
+        Self { git_dir: git_dir.to_path_buf(), work_tree: Some(work_tree.to_path_buf()), words, input: None }
+    }
+
+    pub fn fed(self, input: String) -> Self {
+        Self { input: Some(input), ..self }
+    }
+
+    pub fn input(&self) -> Option<&str> {
+        self.input.as_deref()
     }
 
     pub fn common(git_dir: &Path, words: &[&OsStr]) -> Self {
         let words = words.iter().map(|word| word.to_os_string()).collect();
-        Self { git_dir: git_dir.to_path_buf(), work_tree: None, words }
+        Self { git_dir: git_dir.to_path_buf(), work_tree: None, words, input: None }
     }
 
     pub fn command(&self, inherited: impl IntoIterator<Item = OsString>) -> Command {

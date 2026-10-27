@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 
+mod fake_batch;
+
 use super::alternates::Alternates;
 use super::cause::Cause;
 use super::context::Context;
@@ -18,6 +20,7 @@ use crate::request::local::byte_count::ByteCount;
 use crate::request::local::local_clone::quarantine::Stamp;
 use crate::request::local::recorded_worktree::RecordedWorktree;
 use crate::request::local::worktree_id::WorktreeId;
+use fake_batch::FakeBatch;
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
 
@@ -77,9 +80,7 @@ const OFFLINE: &str = "offline";
 const SPACE: &str = " ";
 const MOVE: &str = "move";
 const GIT_DIR_FILES: [&str; 5] = ["HEAD", "commondir", "gitdir", "index", "COMMIT_EDITMSG"];
-const PEELED: &str = "^{commit}";
-const ROOT_HEAD: &str = "HEAD";
-const HELD: &str = "c7\n";
+const HEAD_WORD: &str = "rev-parse";
 const STAMP: &str = "1x0";
 const FROZEN: &str = "frozen";
 const NO_MODE: u32 = 0o0;
@@ -222,23 +223,11 @@ impl FakeHost {
         })
     }
 
-    fn pseudo_answer(&self, arguments: &[OsString]) -> Option<Result<String, Kept>> {
-        let root = |argument: &OsString| {
-            let name = argument.to_string_lossy();
-            let name = name.strip_suffix(PEELED).unwrap_or(&name).to_owned();
-            (name != ROOT_HEAD
-                && !name.is_empty()
-                && name.chars().all(|letter| letter.is_ascii_uppercase() || letter == '_' || letter == '-'))
-            .then_some(name)
-        };
-        let named = arguments.iter().find_map(root)?;
-        Some(
-            self.pseudo
-                .iter()
-                .any(|pseudo| *pseudo == named)
-                .then(|| HELD.to_owned())
-                .ok_or_else(|| Kept::Uninspected(Cause::new(""))),
-        )
+    fn resolved(&self, answer: Result<String, Kept>, call: &GitCall) -> Result<String, Kept> {
+        match call.input() {
+            None => answer,
+            Some(input) => answer.map(|head| FakeBatch::new(&self.pseudo, head, input).to_string()),
+        }
     }
 
     fn beyond(arguments: &[OsString]) -> String {
@@ -272,13 +261,15 @@ impl Inspection for FakeHost {
 
     fn git(&self, call: &GitCall) -> Result<String, Kept> {
         let arguments = call.arguments();
-        let word = arguments.iter().find_map(|argument| self.answers.keys().find(|word| argument == **word));
+        let named = arguments.iter().find_map(|argument| self.answers.keys().find(|word| argument == **word));
+        let head = call.input().and(self.answers.get_key_value(HEAD_WORD)).map(|(word, _)| word);
+        let word = named.or(head);
         let raced = word.and_then(|word| self.raced.get(word)).filter(|_| self.quarantined());
         let raced = raced.map(|race| Ok(race.clone()));
         self.calls.borrow_mut().push(arguments.clone());
         self.relocate(&arguments);
-        let answer =
-            self.pseudo_answer(&arguments).or(raced).or_else(|| word.and_then(|word| self.answers.get(word).cloned()));
+        let answer = raced.or_else(|| word.and_then(|word| self.answers.get(word).cloned()));
+        let answer = answer.map(|answer| self.resolved(answer, call));
         let listed = arguments.iter().any(|argument| argument == REV_LIST).then(|| Ok(Self::beyond(&arguments)));
         answer.or(listed).unwrap_or_else(|| Err(Kept::Uninspected(Cause::new(UNEXPECTED))))
     }
