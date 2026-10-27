@@ -2,16 +2,26 @@ use std::fmt;
 
 use meta_schema::{Division, LevelName, Rating, Target};
 use meta_state::{RatedItem, State};
+use serde::{Deserialize, Serialize};
 
 use crate::scales::Scales;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SeverityFilter {
     Unrated,
     AtLevel(LevelName),
 }
 
 impl SeverityFilter {
+    #[must_use]
+    pub const fn level(&self) -> Option<&LevelName> {
+        match self {
+            Self::Unrated => None,
+            Self::AtLevel(level) => Some(level),
+        }
+    }
+
     #[must_use]
     pub fn admitted(&self, scales: &Scales, division: &Division, item: &RatedItem) -> Option<Target> {
         let inside = |placed: &&Division| *placed == division || division.strictly_contains(placed);

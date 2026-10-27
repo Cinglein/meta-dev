@@ -2,6 +2,7 @@ use std::env;
 use std::path::Path;
 
 use meta_log::{GitLog, Snapshot};
+use meta_severity::Scales;
 use meta_state::State;
 use task::{ChangeLink, Ledger, Policy, Standing};
 
@@ -42,18 +43,18 @@ impl StandingLog {
         policy: &Policy,
         ledger: &mut Ledger,
     ) -> Result<(), Failure> {
-        let standing = policy.budgets().standing().then(|| Self::standing(read())).transpose()?;
+        let standing = policy.budgets().standing().then(|| Self::standing(read(), policy.scales())).transpose()?;
         ledger.count(standing);
         Ok(())
     }
 
-    fn standing(snapshot: Result<Snapshot, Failure>) -> Result<Standing, Failure> {
+    fn standing(snapshot: Result<Snapshot, Failure>, scales: &Scales) -> Result<Standing, Failure> {
         let state = Self::state(snapshot)?;
         let link = ChangeLink::new(
             env::var(Self::PULL_REQUEST).ok().and_then(|number| number.parse().ok()),
             env::var(Self::HEAD).ok().and_then(|branch| branch.parse().ok()),
         );
-        Ok(Standing::read(&state, &link))
+        Ok(Standing::read(&state, &link, scales))
     }
 }
 

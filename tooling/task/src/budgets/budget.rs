@@ -21,6 +21,7 @@ pub use lines::Lines;
 use measure::{Enforcer, Unit};
 pub use measure::{ItemFilter, ItemKind, Measure, MutationJob};
 use meta_schema::{Division, TopDivision};
+use meta_severity::{Scales, SeverityFilter};
 use overspend::Overspend;
 use source::Source;
 pub use state::State;
@@ -69,8 +70,8 @@ impl Budget {
     }
 
     #[must_use]
-    pub fn measure(&self) -> Measure {
-        self.measure
+    pub fn measure(&self) -> &Measure {
+        &self.measure
     }
 
     #[must_use]
@@ -105,7 +106,7 @@ impl Budget {
 
     #[must_use]
     pub fn top_measure(&self) -> Option<Measure> {
-        self.allowance.whole().map(|_| self.measure)
+        self.allowance.whole().map(|_| self.measure.clone())
     }
 
     #[must_use]
@@ -138,6 +139,24 @@ impl Budget {
                 }
             }
         })
+    }
+
+    pub fn leveled(&self, id: &BudgetId, scales: &Scales) -> Result<(), TreeFailure> {
+        let named = self
+            .measure
+            .item_filter()
+            .and_then(ItemFilter::severity)
+            .and_then(SeverityFilter::level);
+        named
+            .filter(|level| {
+                scales
+                    .scale(&self.division)
+                    .and_then(|scale| scale.level(level))
+                    .is_none()
+            })
+            .map_or(Ok(()), |level| {
+                Err(TreeFailure::UnknownLevel(id.clone(), level.clone()))
+            })
     }
 
     pub fn placed(

@@ -1,9 +1,10 @@
+use meta_severity::SeverityFilter;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
 use super::item_kind::ItemKind;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Display, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Display, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ItemFilter {
@@ -11,4 +12,16 @@ pub enum ItemFilter {
     Kind(ItemKind),
     InDiscussion,
     UnheldTasks,
+    #[strum(to_string = "{0}")]
+    Severity(SeverityFilter),
+}
+
+impl ItemFilter {
+    #[must_use]
+    pub const fn severity(&self) -> Option<&SeverityFilter> {
+        match self {
+            ItemFilter::Severity(severity) => Some(severity),
+            ItemFilter::Kind(_) | ItemFilter::InDiscussion | ItemFilter::UnheldTasks => None,
+        }
+    }
 }

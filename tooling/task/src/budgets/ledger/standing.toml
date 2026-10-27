@@ -61,3 +61,41 @@ division = "architecture-and-planning"
 measure = { open_items = { kind = "issue" } }
 allowance = { count = 0 }
 window = "standing"
+
+[[scales."features-and-maintenance/nav"]]
+name = "lost"
+meaning = "x"
+parent = "critical"
+
+[[scales."features-and-maintenance/nav"]]
+name = "slow"
+meaning = "x"
+parent = "major"
+
+[[scales."features-and-maintenance/nav"]]
+name = "typo"
+meaning = "x"
+parent = "minor"
+
+[budgets.t-sev-critical]
+division = "features-and-maintenance"
+measure = { open_items = { severity = { at_level = "critical" } } }
+allowance = { count = 9 }
+window = "standing"
+
+[budgets.t-sev-major]
+division = "features-and-maintenance"
+measure = { open_items = { severity = { at_level = "major" } } }
+allowance = { count = 9 }
+window = "standing"
+[budgets.t-sev-cost-critical]
+division = "performance-and-cost"
+measure = { open_items = { severity = { at_level = "critical" } } }
+allowance = { count = 9 }
+window = "standing"
+
+[budgets.t-sev-cost-unrated]
+division = "performance-and-cost"
+measure = { open_items = { severity = "unrated" } }
+allowance = { count = 9 }
+window = "standing"
