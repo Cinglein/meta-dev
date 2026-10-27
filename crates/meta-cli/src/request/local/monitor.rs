@@ -1,9 +1,15 @@
+mod command_summary;
+mod core_share;
 mod culprit;
+mod fault;
 mod finding;
 mod judged_row;
 mod live_machine;
 mod load_average;
 mod machine;
+mod marked_groups;
+mod monitor_report;
+mod monitor_state;
 mod monitor_trail;
 mod ownership;
 mod patrol;
@@ -12,6 +18,7 @@ mod process_row;
 mod signal;
 mod target;
 mod unreadable;
+mod watch_item;
 
 #[cfg(test)]
 mod tests;
@@ -24,14 +31,19 @@ use chrono::{DateTime, Utc};
 use super::LocalClone;
 use crate::request::cli_failure::{CliFailure, Misuse};
 use crate::request::output::{Listed, Output};
+use fault::Fault;
+use finding::Finding;
 use live_machine::LiveMachine;
 use machine::Machine;
+use monitor_report::MonitorReport;
+use monitor_state::MonitorState;
 use monitor_trail::MonitorTrail;
 use patrol::Patrol;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Monitor {
     Tick,
+    Report,
 }
 
 impl FromStr for Monitor {
@@ -40,34 +52,48 @@ impl FromStr for Monitor {
     fn from_str(name: &str) -> Result<Self, Self::Err> {
         match name {
             "tick" => Ok(Self::Tick),
+            "report" => Ok(Self::Report),
             other => Err(CliFailure::raised::<Misuse>(format!("unknown monitor command `{other}`"))),
         }
     }
 }
 
 impl Monitor {
-    const QUIET: &'static str = "monitor: nothing to stop or flag\n";
-
     pub fn answer(self, clone: &LocalClone) -> Result<Output, CliFailure> {
-        let settings = clone.monitor_settings()?;
-        let host = LiveMachine::new(&settings);
+        let git_dir = clone.git_dir().as_ref();
         match self {
-            Self::Tick => Self::patrolled(clone.git_dir().as_ref(), &Patrol::new(&settings, &host), Utc::now()),
+            Self::Tick => {
+                let settings = clone.monitor_settings()?;
+                Self::patrolled(git_dir, &Patrol::new(&settings, &LiveMachine::new(&settings)), Utc::now())
+            }
+            Self::Report => Ok(Output::Listed(Listed::new(MonitorReport::latest(git_dir)?))),
         }
     }
 
+    pub fn noted(clone: &LocalClone, failure: &CliFailure) {
+        let failed = Finding::Failed(Fault::shown(failure));
+        MonitorTrail::new(clone.git_dir().as_ref()).noted(Utc::now(), failed).ok();
+    }
+
     pub fn recent(clone: &LocalClone, now: DateTime<Utc>) -> Result<Option<Listed>, CliFailure> {
-        let entries = MonitorTrail::new(clone.git_dir().as_ref()).since(&clone.monitor_settings()?, now)?;
-        Ok((!entries.is_empty()).then(|| entries.iter().fold(Listed::new(""), Listed::then)))
+        match clone.monitor_settings() {
+            Ok(settings) => {
+                let entries = MonitorTrail::new(clone.git_dir().as_ref()).since(&settings, now)?;
+                Ok((!entries.is_empty()).then(|| entries.iter().fold(Listed::new(""), Listed::then)))
+            }
+            Err(failure) => Ok(Some(Listed::new(Finding::Failed(Fault::shown(failure))))),
+        }
     }
 
     fn patrolled(git_dir: &Path, patrol: &Patrol<'_, impl Machine>, now: DateTime<Utc>) -> Result<Output, CliFailure> {
-        let findings = patrol.findings();
-        MonitorTrail::new(git_dir).appended(now, &findings)?;
-        Ok(if findings.is_empty() {
-            Output::Listed(Listed::new(Self::QUIET))
+        let report = patrol.round(&MonitorState::read(git_dir), now);
+        report.state().write(git_dir)?;
+        report.write(git_dir)?;
+        MonitorTrail::new(git_dir).appended(now, report.obvious(), patrol.settings())?;
+        Ok(if report.obvious().is_empty() {
+            Output::Listed(Listed::new(&report))
         } else {
-            Output::Flagged(findings.iter().fold(Listed::new(""), Listed::then))
+            Output::Flagged(Listed::new(&report))
         })
     }
 }

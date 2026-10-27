@@ -1,7 +1,8 @@
+use std::fmt;
 use std::str::FromStr;
 
+use super::core_share::CoreShare;
 use super::unreadable::Unreadable;
-use crate::request::local::local_settings::CoreShare;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LoadAverage(CoreShare);
@@ -9,10 +10,6 @@ pub struct LoadAverage(CoreShare);
 impl LoadAverage {
     const MARK: &'static str = "load average";
     const FIFTEEN_MINUTE_INDEX: usize = 2;
-
-    pub fn cores(self) -> CoreShare {
-        self.0
-    }
 }
 
 impl FromStr for LoadAverage {
@@ -27,5 +24,11 @@ impl FromStr for LoadAverage {
             .nth(Self::FIFTEEN_MINUTE_INDEX)
             .ok_or(Unreadable)?;
         figure.parse().map(Self).map_err(|_| Unreadable)
+    }
+}
+
+impl fmt::Display for LoadAverage {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{} over 15 min", self.0)
     }
 }

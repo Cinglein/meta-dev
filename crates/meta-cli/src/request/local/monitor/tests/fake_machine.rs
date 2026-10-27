@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::fmt;
-use std::num::NonZeroUsize;
 use std::time::Duration;
 
 use super::super::machine::Machine;
@@ -11,7 +10,6 @@ use super::super::signal::Signal;
 use super::super::target::Target;
 
 const ME: &str = "60";
-const CORES: NonZeroUsize = NonZeroUsize::new(2).unwrap();
 
 #[derive(Debug)]
 pub struct FakeMachine {
@@ -40,10 +38,6 @@ impl Machine for FakeMachine {
 
     fn uptime(&self) -> Option<String> {
         Some(self.uptime.to_owned())
-    }
-
-    fn cores(&self) -> NonZeroUsize {
-        CORES
     }
 
     fn signal(&self, signal: Signal, targets: &BTreeSet<Target>) {

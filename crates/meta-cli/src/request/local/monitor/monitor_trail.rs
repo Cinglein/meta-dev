@@ -20,16 +20,41 @@ impl MonitorTrail {
         Self(LocalFile::new(git_dir.join(Self::FILE)))
     }
 
-    pub fn appended(&self, at: DateTime<Utc>, findings: &[Finding]) -> Result<(), CliFailure> {
-        findings.iter().try_for_each(|finding| {
-            let entry = MonitorEntry::new(at, finding.clone());
-            self.0.appended(serde_json::to_string(&entry).map_err(|failure| self.0.failure(failure))?)
-        })
+    pub fn appended(
+        &self,
+        at: DateTime<Utc>,
+        findings: &[Finding],
+        settings: &MonitorSettings,
+    ) -> Result<(), CliFailure> {
+        let entries = self.entries()?;
+        let recent: Vec<&MonitorEntry> =
+            entries.iter().filter(|entry| settings.shows(entry.age(at)).is_some()).collect();
+        let fresh =
+            findings.iter().filter(|finding| recent.iter().all(|entry| entry.finding().repeats(finding).is_none()));
+        let fresh: Vec<MonitorEntry> = fresh.map(|finding| MonitorEntry::new(at, finding.clone())).collect();
+        if fresh.is_empty() {
+            Ok(())
+        } else {
+            self.rewritten(&settings.kept().newest(entries.into_iter().chain(fresh).collect()))
+        }
+    }
+
+    fn rewritten(&self, kept: &[MonitorEntry]) -> Result<(), CliFailure> {
+        let lines: Result<Vec<String>, serde_json::Error> = kept.iter().map(serde_json::to_string).collect();
+        self.0.replaced(&(lines.map_err(|failure| self.0.failure(failure))?.join("\n") + "\n"))
+    }
+
+    pub fn noted(&self, at: DateTime<Utc>, finding: Finding) -> Result<(), CliFailure> {
+        let entry = MonitorEntry::new(at, finding);
+        self.0.appended(serde_json::to_string(&entry).map_err(|failure| self.0.failure(failure))?)
     }
 
     pub fn since(&self, settings: &MonitorSettings, now: DateTime<Utc>) -> Result<Vec<MonitorEntry>, CliFailure> {
+        Ok(self.entries()?.into_iter().filter(|entry| settings.shows(entry.age(now)).is_some()).collect())
+    }
+
+    fn entries(&self) -> Result<Vec<MonitorEntry>, CliFailure> {
         let text = self.0.text()?;
-        let entries = text.lines().filter_map(|line| serde_json::from_str::<MonitorEntry>(line).ok());
-        Ok(entries.filter(|entry| settings.shows(entry.age(now)).is_some()).collect())
+        Ok(text.lines().filter_map(|line| serde_json::from_str::<MonitorEntry>(line).ok()).collect())
     }
 }

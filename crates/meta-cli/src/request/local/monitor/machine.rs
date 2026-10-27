@@ -1,5 +1,4 @@
 use std::collections::BTreeSet;
-use std::num::NonZeroUsize;
 use std::time::Duration;
 
 use super::pid_list::PidList;
@@ -11,7 +10,6 @@ pub trait Machine {
     fn table(&self) -> Option<String>;
     fn cwds(&self, pids: &PidList) -> Option<String>;
     fn uptime(&self) -> Option<String>;
-    fn cores(&self) -> NonZeroUsize;
     fn signal(&self, signal: Signal, targets: &BTreeSet<Target>);
     fn pause(&self, grace: Duration);
     fn own_pid(&self) -> Pid;

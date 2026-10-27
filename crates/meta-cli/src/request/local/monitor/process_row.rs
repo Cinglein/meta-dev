@@ -1,26 +1,32 @@
 mod clock_time;
 mod command_line;
+mod group_id;
 mod pid;
 
+use std::fmt;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 
+use chrono::{DateTime, Utc};
+
+use super::command_summary::CommandSummary;
+use super::core_share::CoreShare;
 use super::culprit::Culprit;
-use super::judged_row::JudgedRow;
-use super::ownership::Ownership;
 use super::target::Target;
 use super::unreadable::Unreadable;
-use crate::request::local::local_settings::{Cause, CoreShare, MonitorSettings};
+use super::watch_item::WatchItem;
+use crate::request::local::local_settings::{AgentRoot, Cause, MonitorSettings};
 use clock_time::ClockTime;
 pub use command_line::CommandLine;
+pub use group_id::GroupId;
 pub use pid::Pid;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProcessRow {
     pid: Pid,
     parent: Pid,
-    group: Pid,
+    group: GroupId,
     age: Duration,
     cpu_time: Duration,
     cpu: CoreShare,
@@ -39,33 +45,37 @@ impl ProcessRow {
         self.pid
     }
 
+    pub fn group(&self) -> GroupId {
+        self.group
+    }
+
     pub fn parent_of(&self, pid: Pid) -> Option<Pid> {
         (self.pid == pid).then_some(self.parent)
     }
 
-    pub fn grouped_with(&self, other: &Self) -> Option<()> {
-        (self.group == other.group).then_some(())
+    pub fn orphaned(&self) -> Option<()> {
+        (self.parent == Pid::INIT).then_some(())
     }
 
-    pub fn cpu(&self) -> CoreShare {
-        self.cpu
+    pub fn wrapper_pid(&self) -> Option<Pid> {
+        self.command.wrapper().map(|()| self.pid)
+    }
+
+    pub fn spared_pid(&self, settings: &MonitorSettings) -> Option<Pid> {
+        settings.spared().iter().find_map(|name| self.command.spares(name)).map(|()| self.pid)
+    }
+
+    pub fn root<'settings>(&self, settings: &'settings MonitorSettings) -> Option<&'settings AgentRoot> {
+        let cwd = self.cwd.as_deref()?;
+        settings.roots().iter().find(|root| root.holds(cwd).is_some())
+    }
+
+    pub fn named(&self, settings: &MonitorSettings) -> Option<()> {
+        settings.roots().iter().find_map(|root| self.command.names(root.path()))
     }
 
     pub fn cause(&self, settings: &MonitorSettings) -> Option<Cause> {
-        settings.cause(self.age, self.cpu_time, (self.parent == Pid::INIT).then_some(()))
-    }
-
-    pub fn judged(self, settings: &MonitorSettings, guarded: &[Pid]) -> JudgedRow {
-        let spared = guarded.contains(&self.pid).then_some(());
-        let spared = spared.or_else(|| settings.spared().iter().find_map(|name| self.command.spares(name)));
-        let placed = self.cwd.as_deref().and_then(|cwd| settings.roots().iter().find_map(|root| root.holds(cwd)));
-        let named = settings.roots().iter().find_map(|root| self.command.names(root.path()));
-        let ownership = match (spared, placed, named) {
-            (None, Some(()), _) => Ownership::Agent,
-            (None, None, Some(())) => Ownership::Unsure,
-            (Some(()), _, _) | (None, None, None) => Ownership::Outside,
-        };
-        JudgedRow::new(self, ownership)
+        settings.cause(self.age, self.cpu_time, self.orphaned())
     }
 
     pub fn culprit(&self, cause: Cause, whole_group: Option<()>) -> Culprit {
@@ -73,9 +83,29 @@ impl ProcessRow {
         Culprit::new(self.pid, self.command.clone(), cause, target)
     }
 
-    pub fn survives(&self, culprit: &Culprit) -> Option<()> {
-        let same_command = (culprit.command() == &self.command).then_some(());
-        culprit.target().covers(self.pid, self.group, same_command)
+    pub fn command(&self) -> &CommandLine {
+        &self.command
+    }
+
+    pub fn watched(&self, settings: &MonitorSettings, now: DateTime<Utc>) -> Option<WatchItem> {
+        let quiet = self.cause(settings).map_or(Some(()), |_| None);
+        quiet.and_then(|()| settings.near(self.age, self.cpu_time))?;
+        Some(WatchItem::new(self.pid, CommandSummary::from(&self.command), now, self.cpu_time))
+    }
+}
+
+impl fmt::Display for ProcessRow {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let orphaned = self.orphaned().map_or("", |()| " orphaned");
+        write!(
+            formatter,
+            "pid {}{orphaned} age {}s cpu {}s {}: {}",
+            self.pid,
+            self.age.as_secs(),
+            self.cpu_time.as_secs(),
+            self.cpu,
+            CommandSummary::from(&self.command)
+        )
     }
 }
 

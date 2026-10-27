@@ -3,22 +3,15 @@ use std::process::Command;
 
 use serde::{Deserialize, Serialize};
 
-use super::process_row::Pid;
+use super::process_row::{GroupId, Pid};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Target {
-    Group(Pid),
+    Group(GroupId),
     Process(Pid),
 }
 
 impl Target {
-    pub fn covers(self, pid: Pid, group: Pid, same_command: Option<()>) -> Option<()> {
-        match self {
-            Self::Group(led) => (led == group).then_some(()),
-            Self::Process(alone) => same_command.filter(|()| alone == pid),
-        }
-    }
-
     pub fn appended(self, command: &mut Command) {
         command.arg(self.to_string());
     }

@@ -1,5 +1,4 @@
 use std::collections::BTreeSet;
-use std::num::NonZeroUsize;
 use std::process::Command;
 use std::time::{Duration, Instant};
 
@@ -54,10 +53,6 @@ impl Machine for LiveMachine<'_> {
         self.timed(Command::new(Self::UPTIME)).stdout().ok()
     }
 
-    fn cores(&self) -> NonZeroUsize {
-        std::thread::available_parallelism().unwrap_or(NonZeroUsize::MIN)
-    }
-
     fn signal(&self, signal: Signal, targets: &BTreeSet<Target>) {
         let mut kill = Command::new(Self::KILL);
         kill.args([signal.flag(), Self::END_OF_OPTIONS]);
@@ -90,7 +85,7 @@ mod tests {
     use crate::request::local::monitor::load_average::LoadAverage;
     use crate::request::local::monitor::machine::Machine;
     use crate::request::local::monitor::pid_list::PidList;
-    use crate::request::local::monitor::process_row::{Pid, ProcessRow};
+    use crate::request::local::monitor::process_row::{GroupId, Pid, ProcessRow};
     use crate::request::local::monitor::signal::Signal;
     use crate::request::local::monitor::target::Target;
 
@@ -106,7 +101,8 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let mut child =
             Command::new(SLEEP).arg(SECONDS).current_dir(root.path()).process_group(OWN_GROUP).spawn().unwrap();
-        let settings = MonitorSettings::merged(toml::Table::new(), Path::new(ROOT)).unwrap();
+        let root_path = Path::new(ROOT);
+        let settings = MonitorSettings::merged(toml::Table::new(), root_path, root_path, root_path).unwrap();
         let (machine, pid) = (LiveMachine::new(&settings), Pid::from(child.id()));
         let table = machine.table().unwrap_or_default();
         let cwds = machine.cwds(&PidList::new(vec![pid])).unwrap_or_default();
@@ -114,14 +110,13 @@ mod tests {
         let started = Instant::now();
         machine.pause(GRACE);
         let paused = started.elapsed();
-        machine.signal(Signal::Kill, &BTreeSet::from([Target::Group(pid)]));
+        machine.signal(Signal::Kill, &BTreeSet::from([Target::Group(GroupId::from(pid))]));
         let status = child.wait().unwrap();
         let parent =
             table.lines().filter_map(|line| line.parse::<ProcessRow>().ok()).find_map(|row| row.parent_of(pid));
         let place = std::fs::canonicalize(root.path()).unwrap();
         assert_eq!(parent, Some(machine.own_pid()));
-        let cores = std::thread::available_parallelism().ok();
-        assert!(cwds.contains(&*place.to_string_lossy()) && load.is_some() && cores == Some(machine.cores()));
+        assert!(cwds.contains(&*place.to_string_lossy()) && load.is_some());
         assert!(status.signal() == Some(KILLED) && paused >= GRACE);
     }
 }

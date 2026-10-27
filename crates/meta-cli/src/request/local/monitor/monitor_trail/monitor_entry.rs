@@ -21,6 +21,10 @@ impl MonitorEntry {
     pub fn age(&self, now: DateTime<Utc>) -> Duration {
         (now - self.at).to_std().unwrap_or_default()
     }
+
+    pub fn finding(&self) -> &Finding {
+        &self.finding
+    }
 }
 
 impl fmt::Display for MonitorEntry {
