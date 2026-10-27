@@ -4,6 +4,7 @@ use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 
 mod fake_batch;
+mod fake_roots;
 
 use super::alternates::Alternates;
 use super::cause::Cause;
@@ -21,6 +22,7 @@ use crate::request::local::local_clone::quarantine::Stamp;
 use crate::request::local::recorded_worktree::RecordedWorktree;
 use crate::request::local::worktree_id::WorktreeId;
 use fake_batch::FakeBatch;
+use fake_roots::FakeRoots;
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
 
@@ -100,6 +102,7 @@ pub struct FakeHost {
     raced: HashMap<&'static str, String>,
     relocation: RefCell<Option<[PathBuf; 2]>>,
     pseudo: Vec<&'static str>,
+    dangling: Vec<&'static str>,
     open: Vec<PathBuf>,
 }
 
@@ -121,6 +124,7 @@ impl FakeHost {
             raced: HashMap::new(),
             relocation: RefCell::new(None),
             pseudo: Vec::new(),
+            dangling: Vec::new(),
             open: Vec::new(),
         }
     }
@@ -190,6 +194,10 @@ impl FakeHost {
 
     pub fn holds(&mut self, pseudo: &[&'static str]) {
         self.pseudo.extend(pseudo);
+    }
+
+    pub fn dangles(&mut self, pseudo: &[&'static str]) {
+        self.dangling.extend(pseudo);
     }
 
     pub fn links(&mut self, paths: &[&str], node: SharedNode) {
@@ -268,7 +276,8 @@ impl Inspection for FakeHost {
         let raced = raced.map(|race| Ok(race.clone()));
         self.calls.borrow_mut().push(arguments.clone());
         self.relocate(&arguments);
-        let answer = raced.or_else(|| word.and_then(|word| self.answers.get(word).cloned()));
+        let rooted = FakeRoots::new(&self.pseudo, &self.dangling).verified(&arguments);
+        let answer = rooted.or(raced).or_else(|| word.and_then(|word| self.answers.get(word).cloned()));
         let answer = answer.map(|answer| self.resolved(answer, call));
         let listed = arguments.iter().any(|argument| argument == REV_LIST).then(|| Ok(Self::beyond(&arguments)));
         answer.or(listed).unwrap_or_else(|| Err(Kept::Uninspected(Cause::new(UNEXPECTED))))
@@ -278,6 +287,7 @@ impl Inspection for FakeHost {
         let listed = GIT_DIR_FILES
             .iter()
             .chain(&self.pseudo)
+            .chain(&self.dangling)
             .map(|name| Found::new(PathBuf::from(name), EntryKind::File, ByteCount::default()));
         if path.starts_with(COMMON) { listed.collect() } else { self.walk.clone() }
     }

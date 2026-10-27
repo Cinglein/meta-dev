@@ -16,8 +16,10 @@ const OPEN: &str = "task-00000000000000a2";
 const DIRTY: &str = "task-00000000000000a3";
 const BUSY: &str = "task-00000000000000a4";
 const GONE: &str = "task-00000000000000a5";
-const RECORDED: [&str; 5] = [MERGED, OPEN, DIRTY, BUSY, GONE];
-const ADDED: [&str; 4] = [MERGED, OPEN, DIRTY, BUSY];
+const PAUSED: &str = "task-00000000000000a6";
+const DANGLING: &str = "1111111111111111111111111111111111111111\n";
+const RECORDED: [&str; 6] = [MERGED, OPEN, DIRTY, BUSY, GONE, PAUSED];
+const ADDED: [&str; 5] = [MERGED, OPEN, DIRTY, BUSY, PAUSED];
 const STRAY: &str = "stray";
 const SEED: &str = "commit refs/heads/main
 committer t <t@meta.invalid> 1700000000 +0000
@@ -45,12 +47,14 @@ data <<END
 {"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskLinked","task":"task-00000000000000a2","pr":2}
 {"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskLinked","task":"task-00000000000000a3","pr":3}
 {"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskLinked","task":"task-00000000000000a4","pr":4}
+{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskOpened","task":"task-00000000000000a6","text":"x","division":"features-and-maintenance"}
+{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskLinked","task":"task-00000000000000a6","pr":5}
 END
 
 "#;
 const FAKE_GH: &str = r#"#!/bin/sh
 case "$1 $2" in
-"api graphql") echo '{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[{"number":2,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}]}},"linked":{"pr1":{"number":1,"state":"MERGED","baseRefName":"main","statusCheckRollup":null},"pr2":{"number":2,"state":"OPEN","baseRefName":"main","statusCheckRollup":null},"pr3":{"number":3,"state":"CLOSED","baseRefName":"main","statusCheckRollup":null},"pr4":{"number":4,"state":"MERGED","baseRefName":"main","statusCheckRollup":null}}}}' ;;
+"api graphql") echo '{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[{"number":2,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}]}},"linked":{"pr1":{"number":1,"state":"MERGED","baseRefName":"main","statusCheckRollup":null},"pr2":{"number":2,"state":"OPEN","baseRefName":"main","statusCheckRollup":null},"pr3":{"number":3,"state":"CLOSED","baseRefName":"main","statusCheckRollup":null},"pr4":{"number":4,"state":"MERGED","baseRefName":"main","statusCheckRollup":null},"pr5":{"number":5,"state":"MERGED","baseRefName":"main","statusCheckRollup":null}}}}' ;;
 "api repos/{owner}/{repo}/rules/branches/main") echo '[]' ;;
 esac
 "#;
@@ -61,7 +65,8 @@ const GC: [&str; 1] = ["gc"];
 const GC_RUN: [&str; 2] = ["heartbeat", "gc-run"];
 const PLANNED: Line = Line("would free ", MERGED, ": ");
 const CONFIG: &str = "remote = \"origin\"\n";
-const SWEPT: [Line; 6] = [
+const SWEPT: [Line; 7] = [
+    Line("kept ", PAUSED, ": am, rebase or cherry-pick in progress; pr #5 merged\n"),
     Line("freed ", MERGED, ": "),
     Line("kept ", OPEN, ": pr #2 open\n"),
     Line("kept ", DIRTY, ": commits not on the remote; pr #3 closed\n"),
@@ -71,7 +76,7 @@ const SWEPT: [Line; 6] = [
 ];
 const TRAIL: &str = ".git/meta-local/worktrees.jsonl";
 const TRAILED: [&str; 3] = ["\"change\":\"Freed\"", "\"change\":\"Refused\"", "\"change\":\"Closed\""];
-const KEPT: [&str; 4] = [OPEN, DIRTY, BUSY, STRAY];
+const KEPT: [&str; 5] = [OPEN, DIRTY, BUSY, STRAY, PAUSED];
 
 struct Line(&'static str, &'static str, &'static str);
 
@@ -156,7 +161,7 @@ impl Git {
             names.iter().flat_map(|name| ["reset ", prefix, name, "\nfrom refs/heads/main\n\n"]).collect()
         };
         let heads = branches("refs/heads/", &ADDED);
-        let tracking = branches("refs/remotes/origin/", &["main", MERGED, OPEN, DIRTY, BUSY]);
+        let tracking = branches("refs/remotes/origin/", &["main", MERGED, OPEN, DIRTY, BUSY, PAUSED]);
         Self::imported(origin, &[SEED, &heads, LOG].concat());
         Self::imported(clone, &[SEED, &heads, &tracking].concat());
     }
@@ -220,6 +225,7 @@ impl Scene {
         Git::run(&trees.join(DIRTY), &["update-ref", "WIP", "HEAD"]);
         Git::run(&trees.join(DIRTY), &["reset", "-q", "--hard", "HEAD~1"]);
         Git::run(&trees.join(DIRTY), &["update-ref", "-d", "ORIG_HEAD"]);
+        std::fs::write(self.clone.path().join(".git/worktrees").join(PAUSED).join("MERGE_HEAD"), DANGLING).unwrap();
         std::fs::create_dir_all(self.clone.path().join(".git/meta-local")).unwrap();
         let trail: String = RECORDED.iter().map(|task| Created(&trees, task).to_string()).collect();
         std::fs::write(self.clone.path().join(TRAIL), trail).unwrap();
