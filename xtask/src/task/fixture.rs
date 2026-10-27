@@ -47,6 +47,17 @@ impl Fixture {
         self
     }
 
+    pub fn bare(&self) -> PathBuf {
+        let bare = self.work.with_file_name("origin.git");
+        Self::ran(Self::git(&self.work).args(["init", "--quiet", "--bare"]).arg(&bare));
+        bare
+    }
+
+    pub fn pointed(&self, origin: &Path) -> &Fixture {
+        Self::ran(Self::git(&self.work).args(["config", "remote.origin.url"]).arg(origin));
+        self
+    }
+
     pub fn beside(&self) -> PathBuf {
         self.work.with_file_name("beside")
     }

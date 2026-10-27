@@ -40,6 +40,10 @@ impl GitLog {
         Self { remote: Remote::new(git.clone(), remote), git }
     }
 
+    pub fn tracked(&self) -> Result<Snapshot, LogFailure> {
+        self.read()
+    }
+
     fn commit(&self, tip: Option<&Sha>, content: &Content, record: &Record) -> Result<Sha, LogFailure> {
         let actor = record.actor().to_string();
         let identity = format!("{actor} <{actor}@meta.invalid> now");

@@ -43,6 +43,7 @@ use std::path::{Path, PathBuf};
 
 use task::{Branch, CommandLine, GateEnvName, GateStatus, Policy, Program, Stdout};
 
+use crate::task::ci::standing_log::StandingLog;
 use crate::task::failure::Failure;
 use crate::task::revision::Commit;
 use crate::task::surfaces::Surfaces;
@@ -98,6 +99,7 @@ impl LocalGate {
         let key = listed.main().unwrap_or(&self.root).join(Checkout::scope_of(&self.root));
         let target = GateLock::target(&parent, &key);
         let lock = GateLock::guarding(&target, policy.gate_wait()?)?;
+        StandingLog::prefetched(&self.root, policy)?;
         let checkout = self.checkout(&parent)?;
         let toolchain = checkout.toolchain()?;
         let child = GateChild::new(&parent, target, checkout.times().path().to_path_buf(), toolchain.clone())?

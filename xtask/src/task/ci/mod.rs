@@ -11,6 +11,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::time::Instant;
 
+use meta_log::LogStore;
 use strum::IntoEnumIterator;
 
 use crate::task::failure::Failure;
@@ -42,11 +43,13 @@ impl Ci {
                 let started = Instant::now();
                 let mut times = StepTimes::default();
                 let mut ledger = Ledger::default();
+                let log = StandingLog::git(workspace.root());
+                let read = || self.record.as_ref().map_or_else(|| log.read(), |_| log.tracked());
                 let outcome = CiStep::iter()
                     .try_for_each(|step| times.record(step, step.timed(workspace, selection, policy, &mut ledger)))
-                    .and_then(|()| StandingLog::counted(&StandingLog::git(workspace.root()), policy, &mut ledger))
+                    .and_then(|()| StandingLog::counted(read, policy, &mut ledger))
                     .and_then(|()| Ok(ledger.checked(policy, selection)?))
-                    .and_then(|()| Stranding::refuse_stranded(workspace.root(), policy));
+                    .and_then(|()| Stranding::refuse_stranded(workspace.root(), policy, read));
                 println!("ci: total {:.1?}", started.elapsed());
                 self.recorded(&times)?;
                 Surfaces::announce(workspace.root(), policy, self.summary.as_deref())
