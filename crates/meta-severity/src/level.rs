@@ -12,11 +12,6 @@ pub struct Level {
 
 impl Level {
     #[must_use]
-    pub fn top(name: LevelName, meaning: Text) -> Level {
-        Level { name, meaning, parent: None }
-    }
-
-    #[must_use]
     pub fn name(&self) -> &LevelName {
         &self.name
     }
