@@ -118,7 +118,8 @@ mod tests {
             table.lines().filter_map(|line| line.parse::<ProcessRow>().ok()).find_map(|row| row.parent_of(pid));
         let place = std::fs::canonicalize(root.path()).unwrap();
         assert_eq!(parent, Some(machine.own_pid()));
-        assert!(cwds.contains(&*place.to_string_lossy()) && load.is_some());
+        let cores = std::thread::available_parallelism().unwrap();
+        assert!(cwds.contains(&*place.to_string_lossy()) && load.is_some() && machine.cores() == cores);
         assert!(status.signal() == Some(KILLED) && started.elapsed() >= GRACE);
     }
 }

@@ -61,9 +61,9 @@ impl ProcessRow {
         let placed = self.cwd.as_deref().and_then(|cwd| settings.roots().iter().find_map(|root| root.holds(cwd)));
         let named = settings.roots().iter().find_map(|root| self.command.names(root.path()));
         let ownership = match (spared, placed, named) {
-            (None, Some(()), _) | (None, None, Some(())) => Ownership::Agent,
-            (Some(()), _, _) => Ownership::Outside,
-            (None, None, None) => Ownership::Unsure,
+            (None, Some(()), _) => Ownership::Agent,
+            (None, None, Some(())) => Ownership::Unsure,
+            (Some(()), _, _) | (None, None, None) => Ownership::Outside,
         };
         JudgedRow::new(self, ownership)
     }
