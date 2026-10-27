@@ -811,3 +811,4 @@
 {"at":"2026-10-27T23:35:54.081889Z","actor":"claude-payc","kind":"TaskDone","task":"task-efb4ee58cdddb16d"}
 {"at":"2026-10-27T23:48:32.886915Z","actor":"claude-gitcalls","kind":"TaskDone","task":"task-d20b17dd2838d3d9"}
 {"at":"2026-10-27T23:53:52.341635Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-36b92ec221ab3da1","text":"Untimed network calls: PostToolUse git push (project.rs:42) and gc vetting ls-remote (vetted.rs:118) have no timeout; meta gc can hang.","division":"features-and-maintenance","severity":"minor"}
+{"at":"2026-10-27T23:53:53.992405Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-c520d3e9edd9fbec","text":"Eight process runners (TimedCommand, GitCommand, local_clone::Git, Host::ran, Project::git_lines, direct Commands) differ in timeout, kill scope, env isolation, errors.","division":"features-and-maintenance","severity":"minor"}
