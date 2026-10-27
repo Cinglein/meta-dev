@@ -44,9 +44,9 @@ impl EventVisitor for Applying<'_> {
         self.state.task_mut(task.task())?.advance(|progress| progress.released(&self.stamp))
     }
 
-    fn task_blocked(self, block: Block) -> Self::Output {
+    fn task_blocked(self, block: &Block) -> Self::Output {
         self.state.vet_blocker(block)?;
-        self.state.task_mut(block.task())?.advance(|progress| progress.blocked(block.blocker(), self.stamp.actor()))
+        self.state.task_mut(block.task())?.advance(|progress| progress.blocked(block, self.stamp.actor()))
     }
 
     fn task_unblocked(self, task: TaskRef) -> Self::Output {

@@ -64,7 +64,7 @@ impl CiStatus {
                 Some("CI for your last push timed out: push a new commit to rerun it, then run `meta ci-wait`")
             }
             Self::Unavailable => {
-                Some("CI jobs for your last push never started: run `cargo xtask ci` and give its result")
+                Some("CI jobs for your last push never started: push a new commit to retry, then run `meta ci-wait`")
             }
             Self::Absent => {
                 Some("no CI run for your last push: push a new commit to start one, then run `meta ci-wait`")

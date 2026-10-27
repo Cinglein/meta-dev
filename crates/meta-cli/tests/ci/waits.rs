@@ -19,11 +19,6 @@ impl Unresolved {
         Planted::settled(repo, TIMED_OUT);
         repo.hook(STOP, COMMIT)
     }
-
-    fn after_next_commit(repo: &Repo) -> String {
-        Git::run(repo.clone.path(), &NEXT_COMMIT);
-        Self::pushed(repo)
-    }
 }
 
 #[test]
@@ -33,7 +28,8 @@ fn on_a_taskless_branch_a_wait_covers_only_the_head_it_was_recorded_at() {
     let unrecorded = Unresolved::pushed(&repo);
     repo.meta(&WAIT_ON_CI);
     let recorded = repo.hook(STOP, COMMIT);
-    let moved_on = Unresolved::after_next_commit(&repo);
+    Git::run(repo.clone.path(), &NEXT_COMMIT);
+    let moved_on = Unresolved::pushed(&repo);
     assert!(unrecorded.contains(TIMED_OUT_STOP) && unrecorded.contains(TASKLESS));
     assert!(serde_json::from_str::<serde_json::Value>(&unrecorded).is_ok() && !recorded.contains(BLOCK));
     assert!(moved_on.contains(TASKLESS));
@@ -56,7 +52,8 @@ fn a_branch_task_waiting_on_an_older_head_must_resume_and_a_done_one_reopen() {
     Git::run(repo.clone.path(), &TASK_BRANCH);
     Git::run(repo.clone.path(), &PUSH_WORDS);
     repo.meta(&WAIT_ON_CI);
-    let waiting = Unresolved::after_next_commit(&repo);
+    Git::run(repo.clone.path(), &NEXT_COMMIT);
+    let waiting = Unresolved::pushed(&repo);
     repo.meta(&DONE);
     let done = repo.hook(STOP, COMMIT);
     assert!(waiting.contains(RESUME_FIRST) && done.contains(REOPEN));

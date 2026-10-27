@@ -91,7 +91,7 @@ impl Watcher {
         let known = statuses.iter().find_map(|(_, status)| status.and_then(CiStatus::stop_reason));
         let unresolved = || {
             let unresolved = statuses.iter().find_map(|(_, status)| status.and_then(CiStatus::unresolved));
-            unresolved.and_then(|what| WaitOnCi::of_branch(project).stop_reason(what))
+            unresolved.and_then(|what| WaitOnCi::here(project).stop_reason(what))
         };
         unknown.or(unwritable).or(unpushed).or(unwatched).or(known).or_else(unresolved)
     }
