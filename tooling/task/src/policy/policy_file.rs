@@ -3,6 +3,7 @@ mod entries;
 use std::collections::BTreeMap;
 
 use enum_map::EnumMap;
+use meta_schema::Scales;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
@@ -45,6 +46,8 @@ pub struct PolicyFile {
     #[serde(default)]
     domains: Domains,
     #[serde(default)]
+    scales: Scales,
+    #[serde(default)]
     budgets: BudgetDrafts,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     spec: Option<SpecSettings>,
@@ -73,6 +76,7 @@ impl PolicyFile {
             mutant_millis: policy.mutant_millis.clone(),
             mutation: policy.mutation.clone(),
             domains: policy.domains.clone(),
+            scales: policy.scales.clone(),
             budgets: BudgetDrafts::from(policy.budgets.clone()),
             spec: policy.spec.clone(),
         }
@@ -200,6 +204,7 @@ impl PolicyFile {
             mutant_millis: self.mutant_millis,
             mutation: self.mutation,
             domains: self.domains,
+            scales: self.scales,
             budgets,
             deprecated,
             spec: self.spec,
