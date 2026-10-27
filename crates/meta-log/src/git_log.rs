@@ -9,6 +9,7 @@ mod tip;
 
 pub use sha::Sha;
 
+use std::cell::RefCell;
 use std::fmt;
 use std::path::PathBuf;
 use std::process::Output;
@@ -32,6 +33,7 @@ use tip::Tip;
 pub struct GitLog {
     git: Git,
     remote: Remote,
+    known: RefCell<Option<Fetched>>,
 }
 
 impl GitLog {
@@ -40,7 +42,7 @@ impl GitLog {
     #[must_use]
     pub fn new(repo: PathBuf, remote: RemoteName) -> Self {
         let git = Git::new(repo);
-        Self { remote: Remote::new(git.clone(), remote), git }
+        Self { remote: Remote::new(git.clone(), remote), git, known: RefCell::default() }
     }
 
     pub fn fetched_tip(&self) -> Result<Option<Sha>, LogFailure> {
@@ -71,21 +73,31 @@ impl GitLog {
         &self,
         decide: &mut dyn FnMut(&Snapshot) -> Result<Record, Failure>,
     ) -> Result<Outcome, Failure> {
-        let before = self.remote.fetch()?;
+        let known = self.known.borrow().clone();
+        let before = known.map_or_else(|| self.fresh(), Ok)?;
         let record = decide(&before.content().snapshot())?;
-        let commit =
-            self.commit(before.tip(), &before.content().appended(&record).map_err(LogFailure::from)?, &record)?;
+        let appended = before.content().appended(&record).map_err(LogFailure::from)?;
+        let commit = self.commit(before.tip(), &appended, &record)?;
         let pushed = self.remote.push(&commit)?;
         pushed
             .status
             .success()
-            .then(|| Outcome::Appended(record.clone()))
+            .then(|| {
+                self.known.replace(Some(Fetched::new(Some(commit), appended)));
+                Outcome::Appended(record.clone())
+            })
             .map_or_else(|| self.after_failed_push(&before, record, &pushed), Ok)
             .map_err(Failure::from)
     }
 
+    fn fresh(&self) -> Result<Fetched, LogFailure> {
+        let fetched = self.remote.fetch()?;
+        self.known.replace(Some(fetched.clone()));
+        Ok(fetched)
+    }
+
     fn after_failed_push(&self, before: &Fetched, record: Record, pushed: &Output) -> Result<Outcome, LogFailure> {
-        let now = self.remote.fetch()?;
+        let now = self.fresh()?;
         match (now.content().snapshot().records().contains(&record), now.tip() == before.tip()) {
             (true, _) => Ok(Outcome::Appended(record)),
             (false, true) => Err(LogFailure::Rejected(Stderr::from(pushed))),
@@ -96,7 +108,7 @@ impl GitLog {
 
 impl LogStore for GitLog {
     fn read(&self) -> Result<Snapshot, LogFailure> {
-        Ok(self.remote.fetch()?.content().snapshot())
+        Ok(self.fresh()?.content().snapshot())
     }
 
     fn append<Failure: From<LogFailure>>(
