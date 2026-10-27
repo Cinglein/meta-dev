@@ -8,13 +8,6 @@ impl GitLink {
     const ENTRY: &'static str = ".git";
     const PREFIX: &'static str = "gitdir:";
     const COMMON: &'static str = "commondir";
-    const HEAD: &'static str = "HEAD";
-    const ON_BRANCH: &'static str = "ref: refs/heads/";
-
-    pub fn current_branch(root: &Path) -> Option<String> {
-        let head = std::fs::read_to_string(Self::git_dir(root).join(Self::HEAD)).ok()?;
-        head.trim().strip_prefix(Self::ON_BRANCH).map(str::to_owned)
-    }
 
     fn git_dir(root: &Path) -> PathBuf {
         let entry = root.join(Self::ENTRY);
@@ -48,14 +41,12 @@ mod tests {
     use std::path::Path;
 
     const WORKTREE: &str = "linked";
-    const MAIN: &str = "main";
     const ENTRY: &str = ".git";
     const HEAD: &str = "HEAD";
     const COMMON: &str = "commondir";
     const ADMIN: &str = ".git/worktrees/linked";
     const MAIN_HEAD: &str = "ref: refs/heads/main\n";
     const LINKED_HEAD: &str = "ref: refs/heads/linked\n";
-    const DETACHED_HEAD: &str = "0123456789abcdef0123456789abcdef01234567\n";
     const BACK_TO_COMMON: &str = "../..\n";
 
     struct Layout;
@@ -80,15 +71,5 @@ mod tests {
         let expected = main.path().join(ENTRY).canonicalize().ok();
         assert_eq!(GitLink::common_dir(main.path()), expected);
         assert_eq!(GitLink::common_dir(&main.path().join(WORKTREE)), expected);
-    }
-
-    #[test]
-    fn the_current_branch_is_read_in_a_repository_and_a_linked_worktree_and_none_when_detached() {
-        let main = tempfile::tempdir().unwrap();
-        Layout::linked(main.path());
-        let named = [main.path(), &main.path().join(WORKTREE)].map(GitLink::current_branch);
-        std::fs::write(main.path().join(ENTRY).join(HEAD), DETACHED_HEAD).unwrap();
-        assert_eq!(named, [Some(MAIN.to_owned()), Some(WORKTREE.to_owned())]);
-        assert_eq!(GitLink::current_branch(main.path()), None);
     }
 }
