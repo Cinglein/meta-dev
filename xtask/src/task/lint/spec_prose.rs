@@ -1,7 +1,9 @@
+mod checked_file;
 mod prior_spec;
 mod prose_words;
 mod spec_drift;
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
@@ -10,6 +12,7 @@ use task::{Report, Site, SpecSettings, Violation};
 use crate::task::failure::Failure;
 use crate::task::prior_policy::PriorPolicy;
 use crate::task::revision::Revision;
+use checked_file::CheckedFile;
 use prior_spec::PriorSpec;
 use prose_words::ProseWords;
 use spec_drift::SpecDrift;
@@ -20,14 +23,16 @@ pub struct SpecProse;
 impl SpecProse {
     pub const LINT: &str = "spec-prose";
 
-    pub fn since(root: &Path, spec: &SpecSettings, base: &Revision) -> Result<[(&'static str, Report); 2], Failure> {
+    pub fn since(root: &Path, spec: &SpecSettings, base: &Revision) -> Result<BTreeMap<&'static str, Report>, Failure> {
         let written = fs::read_to_string(root.join(spec.file())).unwrap_or_default();
         let prior = PriorSpec::prose(base.file(Path::new(PriorPolicy::PATH)).as_deref(), |path| base.file(path))?;
-        let changed = written.contains(SpecSettings::CHECKED).then(|| base.changed_paths()).transpose()?;
-        Ok([
-            (Self::LINT, Self::report(spec, &written, prior.as_deref())),
-            (SpecDrift::LINT, SpecDrift::report(&written, prior.as_deref(), &changed.unwrap_or_default())),
-        ])
+        let changed = written
+            .lines()
+            .any(|line| line.parse::<CheckedFile>().is_ok_and(|file| file.named()))
+            .then(|| base.changed_paths())
+            .transpose()?;
+        let drift = SpecDrift::report(&written, prior.as_deref(), &changed.unwrap_or_default());
+        Ok([(Self::LINT, Self::report(spec, &written, prior.as_deref())), (SpecDrift::LINT, drift)].into())
     }
 
     pub fn report(spec: &SpecSettings, written: &str, prior: Option<&str>) -> Report {

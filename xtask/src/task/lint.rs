@@ -40,7 +40,7 @@ impl Lint {
         Ok(observed)
     }
 
-    fn gathered(files: &[SourceFile], policy: &Policy, spec: Option<[(&'static str, Report); 2]>) -> Lint {
+    fn gathered(files: &[SourceFile], policy: &Policy, spec: Option<BTreeMap<&'static str, Report>>) -> Lint {
         Lint {
             reports: LintName::iter()
                 .map(|lint| (<&'static str>::from(lint), lint.report(files, policy)))

@@ -19,14 +19,14 @@ pub enum Enforcement {
 
 impl Enforcement {
     #[must_use]
-    pub fn found(&self, root: &Path) -> bool {
+    pub fn lost(&self, root: &Path) -> Option<Enforcer> {
         match self {
-            Enforcement::Check(enforcer) => enforcer.found(root),
+            Enforcement::Check(enforcer) => (!enforcer.found(root)).then_some(*enforcer),
             Enforcement::Tracked
             | Enforcement::Defined
             | Enforcement::Lint(_)
             | Enforcement::CiStep(_)
-            | Enforcement::Type(_) => true,
+            | Enforcement::Type(_) => None,
         }
     }
 }
@@ -75,7 +75,7 @@ mod tests {
     fn each_rung_shows_its_enforcer_and_a_check_is_found_only_by_its_name_in_its_file() {
         assert_eq!(ALL.map(|enforcement| enforcement.to_string()), SHOWN);
         let root = SpecView::root();
-        assert!(ALL.iter().all(|enforcement| enforcement.found(&root)));
-        assert!(!MISSING.iter().any(|enforcement| enforcement.found(&root)));
+        assert!(ALL.iter().all(|enforcement| enforcement.lost(&root).is_none()));
+        assert!(MISSING.iter().all(|enforcement| enforcement.lost(&root).is_some()));
     }
 }

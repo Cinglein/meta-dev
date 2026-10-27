@@ -50,7 +50,7 @@ impl SpecView {
         let missing: Vec<String> = sections
             .iter()
             .flat_map(Section::rules)
-            .filter(|rule| !rule.enforcement().found(root))
+            .filter(|rule| rule.enforcement().lost(root).is_some())
             .map(|rule| rule.rule_id().to_string())
             .collect();
         let named = || io::Error::other(format!("{}{}", Self::MISSING, missing.join(", ")));

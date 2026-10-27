@@ -16,7 +16,7 @@ impl Enforcer {
 
     #[must_use]
     pub fn found(&self, root: &Path) -> bool {
-        fs::metadata(root.join(self.file)).is_ok()
+        fs::read_to_string(root.join(self.file)).is_ok_and(|text| text.contains(self.name))
     }
 }
 
