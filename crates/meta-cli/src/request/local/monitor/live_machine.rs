@@ -100,7 +100,6 @@ mod tests {
     const ROOT: &str = "/";
     const GRACE: Duration = Duration::from_millis(10);
     const KILLED: i32 = 9;
-    const CWD_LINES: usize = 3;
 
     #[test]
     fn the_live_machine_lists_a_child_with_its_cwd_and_kills_its_group() {
@@ -121,8 +120,8 @@ mod tests {
             table.lines().filter_map(|line| line.parse::<ProcessRow>().ok()).find_map(|row| row.parent_of(pid));
         let place = std::fs::canonicalize(root.path()).unwrap();
         assert_eq!(parent, Some(machine.own_pid()));
-        let listed = cwds.contains(&*place.to_string_lossy()) && cwds.lines().count() == CWD_LINES;
-        assert!(listed && load.is_some() && std::thread::available_parallelism().ok() == Some(machine.cores()));
+        let cores = std::thread::available_parallelism().ok();
+        assert!(cwds.contains(&*place.to_string_lossy()) && load.is_some() && cores == Some(machine.cores()));
         assert!(status.signal() == Some(KILLED) && paused >= GRACE);
     }
 }

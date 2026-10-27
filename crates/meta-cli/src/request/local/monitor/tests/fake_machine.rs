@@ -33,7 +33,8 @@ impl Machine for FakeMachine {
         (!tables.is_empty()).then(|| tables.remove(0).to_owned())
     }
 
-    fn cwds(&self, _: &PidList) -> Option<String> {
+    fn cwds(&self, pids: &PidList) -> Option<String> {
+        self.acts.borrow_mut().push(format!("cwds {pids}"));
         Some(self.cwds.to_owned())
     }
 

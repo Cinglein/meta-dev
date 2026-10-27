@@ -23,7 +23,7 @@ const STUBBORN: &str = "  100     1   100 18:00:05 4:51:05.00  27.0 bash -c whil
 const RUNAWAY_CWDS: &str =
     "p100\nfcwd\nn/agents/clone\np101\nn/agents/clone\np200\nn/home/owner\np60\nn/agents/clone\n";
 const HIGH_LOAD: &str = "12:00  up 26 days, 19:01, 1 user, load averages: 1.00 2.00 3.01\n";
-const STOPPED: &str = "-TERM -100\npause 5s\n-KILL -100\n";
+const STOPPED: &str = "cwds 100,101,200,300,60\n-TERM -100\npause 5s\ncwds 100\n-KILL -100\n";
 const RUNAWAY_FOUND: &str =
     "monitor sent -TERM to pid 100 orphaned past its limit, target -100: bash -c while true; do :; done
 monitor sent -KILL to pid 100 orphaned past its limit, target -100: bash -c while true; do :; done
@@ -48,7 +48,7 @@ const SURVIVORS: &str = "   12    50    12   01:00:06 1:00:06.00 401.0 cargo tes
 const LIMITS_CWDS: &str = "p10\nn/agents\np11\nn/agents\np12\nn/agents\np13\nn/home/owner\np14\nn/agents\np15\nn/agents
 p16\nn/agents\np17\nn/agents\np18\nn/home/owner\np50\nn/agents\np60\nn/agents\n";
 const LOAD_AT_LIMIT: &str = "12:00:00 up 1 day, 2 users, load average: 9.00, 9.00, 3.00\n";
-const LIMITED: &str = "-TERM -11 -15 12 17\npause 5s\n-KILL 12\n";
+const LIMITED: &str = "cwds 10,11,12,13,14,15,16,17,18,50,60\n-TERM -11 -15 12 17\npause 5s\ncwds 12,17\n-KILL 12\n";
 const LIMITS_FOUND: &str = "monitor sent -TERM to pid 11 orphaned past its limit, target -11: sh past-orphan-limit
 monitor sent -TERM to pid 12 past its cpu time limit, target 12: cargo test
 monitor sent -TERM to pid 15 past its wall time limit, target -15: sh past-wall-limit
