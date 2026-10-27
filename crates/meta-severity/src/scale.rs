@@ -13,10 +13,16 @@ pub struct Scale(Vec<Level>);
 
 impl Scale {
     const PAIR_LEN: usize = 2;
+    const DEFAULT_LEVELS: &str = include_str!("default_levels.json");
 
     #[must_use]
     pub fn new(levels: Vec<Level>) -> Scale {
         Scale(levels)
+    }
+
+    #[must_use]
+    pub fn top_default() -> Scale {
+        serde_json::from_str(Self::DEFAULT_LEVELS).unwrap_or_else(|_| Scale(Vec::new()))
     }
 
     #[must_use]
