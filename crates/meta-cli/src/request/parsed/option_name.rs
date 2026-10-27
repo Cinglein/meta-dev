@@ -17,6 +17,8 @@ pub enum OptionName {
     Flags,
     Worktree,
     DryRun,
+    Severity,
+    Scenario,
 }
 
 impl FromStr for OptionName {
@@ -36,6 +38,8 @@ impl FromStr for OptionName {
             "--flags" => Ok(Self::Flags),
             "--worktree" => Ok(Self::Worktree),
             "--dry-run" => Ok(Self::DryRun),
+            "--severity" => Ok(Self::Severity),
+            "--scenario" => Ok(Self::Scenario),
             other => Err(CliFailure::raised::<Misuse>(format!(
                 "unknown option {other}; put text starting with -- after a bare --"
             ))),
@@ -58,6 +62,8 @@ impl fmt::Display for OptionName {
             Self::Flags => "--flags",
             Self::Worktree => "--worktree",
             Self::DryRun => "--dry-run",
+            Self::Severity => "--severity",
+            Self::Scenario => "--scenario",
         };
         formatter.write_str(name)
     }

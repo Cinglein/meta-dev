@@ -1,7 +1,8 @@
 use std::fmt;
 
-use meta_schema::{NewConcern, Tag, Target, Text};
+use meta_schema::{LevelName, NewConcern, Tag, Target, Text};
 
+use crate::rated_item::RatedItem;
 use crate::stamp::Stamp;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -15,12 +16,20 @@ impl ConcernState {
         self.concern = self.concern.corrected(text);
     }
 
+    pub fn rerate(&mut self, level: LevelName) {
+        self.concern = self.concern.clone().rated(level);
+    }
+
     pub fn new(concern: NewConcern, identified: Stamp) -> Self {
         Self { concern, identified }
     }
 
     pub fn target(&self) -> Target {
         Target::Concern(self.concern.concern())
+    }
+
+    pub fn rated(&self) -> RatedItem {
+        RatedItem::new(self.target(), self.concern.placement().clone(), self.concern.rating())
     }
 
     pub fn new_concern(&self) -> &NewConcern {

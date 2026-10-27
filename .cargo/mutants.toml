@@ -4,6 +4,7 @@ exclude_re = [
     "Task::run",
     "CiStep::timed",
     "Ci::run",
+    "Stranding::refuse_stranded",
     "LocalGate::run",
     "Clippy::run",
     "Test::run",

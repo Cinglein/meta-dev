@@ -7,8 +7,9 @@ impl fmt::Display for Usage {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(
             "usage: meta <command> [options] [--] [words]\n\
-             \x20 concern <text> --division <path> [--source <text>] [--tag acceptance-candidate]\n\
-             \x20 issue <text> --division <path>\n\
+             \x20 concern <text> --division <path> [--source <text>] [--tag acceptance-candidate] [--severity <level>]\n\
+             \x20 issue <text> --division <path> [--severity <level>]\n\
+             \x20 rate <concern-id|issue-id> <level> [--scenario <text>]   (levels: the division's scale in tooling/policy.toml; raising needs the reproduction or failure scenario)\n\
              \x20 open <text> --division <path> [--addresses <concern-id|issue-id>]... [--effort <tokens>] [--due <rfc3339>]\n\
              \x20 claim <task-id> [--from <actor>] [--worktree]   (assigns you; several may hold a task; --worktree: new worktree on branch <task-id>, prints its path)\n\
              \x20 worktrees   (this clone's worktrees: task status, missing, unrecorded)\n\

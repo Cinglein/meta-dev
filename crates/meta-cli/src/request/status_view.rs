@@ -1,8 +1,9 @@
 use chrono::Utc;
 use meta_log::LogStore;
 use meta_pull_query::LiveQuery;
+use meta_severity::Scales;
 use meta_state::State;
-use meta_status::{Flags, Github, Status};
+use meta_status::{Flags, Github, SeverityTally, Status};
 
 use crate::request::cli_failure::CliFailure;
 use crate::request::output::{Listed, Output};
@@ -14,14 +15,20 @@ pub enum StatusView {
 }
 
 impl StatusView {
-    pub fn answer(self, log: &impl LogStore, github: impl FnOnce(&LiveQuery) -> Github) -> Result<Output, CliFailure> {
+    pub fn answer(
+        self,
+        log: &impl LogStore,
+        scales: &Scales,
+        github: impl FnOnce(&LiveQuery) -> Github,
+    ) -> Result<Output, CliFailure> {
         match self {
             Self::Tree => {
                 let snapshot = log.read()?;
                 let state = State::fold(snapshot.records());
                 let github = github(&Status::query(&state));
                 let status = Status::new(&state, &github, Utc::now().into());
-                Ok(Output::Listed(Listed::new(status).then(snapshot)))
+                let tally = SeverityTally::new(&state, scales);
+                Ok(Output::Listed(Listed::new(status).then(tally).then(snapshot)))
             }
             Self::Flags => Self::current_flags(log, github).map(|flags| Self::flagged(&flags)),
         }

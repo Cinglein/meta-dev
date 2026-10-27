@@ -23,7 +23,7 @@ impl Surfaces {
     pub fn changed(root: &Path, current: &[Surface], base: &BranchName) -> Result<Changed, Failure> {
         let revision = Revision::merge_base(root, base)?;
         let surfaces: Vec<Surface> =
-            current.iter().cloned().chain(PriorPolicy::read_at(&revision).surfaces()).collect();
+            current.iter().cloned().chain(PriorPolicy::read_at(&revision)?.surfaces()).collect();
         let paths = revision.changed_paths()?;
         Ok(Changed::new(paths.into_iter().filter(|path| surfaces.iter().any(|surface| surface.covers(path))).collect()))
     }

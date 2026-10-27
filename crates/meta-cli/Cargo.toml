@@ -17,6 +17,7 @@ meta-status.workspace = true
 meta-pull-query.workspace = true
 meta-pulls.workspace = true
 meta-state.workspace = true
+meta-severity.workspace = true
 meta-gh.workspace = true
 chrono.workspace = true
 serde.workspace = true

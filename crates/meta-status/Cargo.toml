@@ -9,6 +9,7 @@ license.workspace = true
 [dependencies]
 meta-schema.workspace = true
 meta-state.workspace = true
+meta-severity.workspace = true
 meta-pulls.workspace = true
 meta-pull-query.workspace = true
 serde.workspace = true

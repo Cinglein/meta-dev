@@ -404,6 +404,7 @@ dependencies = [
  "meta-pull-query",
  "meta-pulls",
  "meta-schema",
+ "meta-severity",
  "meta-state",
  "meta-status",
  "serde",
@@ -476,6 +477,7 @@ name = "meta-severity"
 version = "0.1.0"
 dependencies = [
  "meta-schema",
+ "meta-state",
  "serde",
  "serde_json",
  "strum",
@@ -510,6 +512,7 @@ dependencies = [
  "meta-pull-query",
  "meta-pulls",
  "meta-schema",
+ "meta-severity",
  "meta-state",
  "serde",
  "serde_json",
@@ -524,6 +527,7 @@ dependencies = [
  "crate_graph",
  "meta-log",
  "meta-schema",
+ "meta-severity",
  "meta-state",
  "mutant_costs",
  "mutation",

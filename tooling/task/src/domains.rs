@@ -102,6 +102,8 @@ mod tests {
         &[ScopeKind::Crates, ScopeKind::Paths],
         &[],
     ];
+    const UNIT: &str = "performance-and-cost/unit";
+    const SCALED: &str = "\n[[scales.\"performance-and-cost/unit\"]]\nname = \"a\"\nmeaning = \"x\"\nparent = \"critical\"\n\n[[scales.\"performance-and-cost/unit\"]]\nname = \"b\"\nmeaning = \"x\"\nparent = \"major\"\n\n[[scales.\"performance-and-cost/unit\"]]\nname = \"c\"\nmeaning = \"x\"\nparent = \"minor\"\n";
     const NESTED_DOMAIN: &str = "[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n";
     const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 50\ntolerance = 10\n";
     const REFUSED: [(&str, &str); 8] = [
@@ -167,6 +169,9 @@ mod tests {
         let written = toml::to_string(&nested).unwrap();
         assert_eq!(toml::from_str::<Policy>(&written).ok(), Some(nested));
         assert!(written.contains(NESTED_DOMAIN));
+        let scaled = Policy::with_added(SCALED).unwrap();
+        let unit: Division = UNIT.parse().unwrap();
+        assert_eq!(scaled.scales().owner(&unit), Some(&unit));
     }
 
     #[test]

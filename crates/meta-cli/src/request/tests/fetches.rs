@@ -2,6 +2,7 @@ use std::cell::RefCell;
 
 use meta_log::{LogFailure, LogStore, MemoryLog, Snapshot};
 use meta_schema::Record;
+use meta_severity::Scales;
 
 use super::{OPEN_DASHED, OWNER, PROGRAM};
 use crate::request::Request;
@@ -38,7 +39,10 @@ impl Counted {
     fn write(&self, words: &[&str]) {
         let args = std::iter::once(PROGRAM).chain(words.iter().copied()).map(String::from).collect::<Vec<_>>();
         let actor = || OWNER.parse().map_err(CliFailure::raised::<Invalid>);
-        Request::try_from(args).and_then(|request| request.answer_from(self, actor)).map(|_| ()).unwrap();
+        Request::try_from(args)
+            .and_then(|request| request.answer_from(self, &Scales::default(), actor))
+            .map(|_| ())
+            .unwrap();
     }
 }
 

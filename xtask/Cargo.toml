@@ -11,6 +11,7 @@ corpus_check = { path = "../tooling/corpus_check" }
 crate_graph = { path = "../tooling/lints/crate_graph" }
 meta-log = { path = "../crates/meta-log" }
 meta-schema = { path = "../crates/meta-schema" }
+meta-severity = { path = "../crates/meta-severity" }
 meta-state = { path = "../crates/meta-state" }
 mutant_costs = { path = "../tooling/mutant_costs" }
 mutation = { path = "../tooling/mutation" }

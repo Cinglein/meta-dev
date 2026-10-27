@@ -1,12 +1,18 @@
 use std::collections::BTreeMap;
 
-use meta_schema::{Division, LevelName, TopDivision};
+use meta_schema::{Division, Event, LevelName, Placement, TopDivision};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
+use crate::demotion::Demotion;
+use crate::demotions::Demotions;
 use crate::level::Level;
+use crate::rating_failure::RatingFailure;
 use crate::scale::Scale;
 use crate::scale_failure::ScaleFailure;
+use crate::stranded::Stranded;
+use crate::strands::Strands;
+use meta_state::{RatedItem, State};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(try_from = "BTreeMap<Division, Scale>", into = "BTreeMap<Division, Scale>")]
@@ -33,12 +39,77 @@ impl Scales {
     pub fn rolled_up(&self, from: &Division, level: &LevelName, onto: &Division) -> Option<LevelName> {
         let owner = self.owner(from)?;
         let target = self.owner(onto)?;
-        let mapped = self.scale(from)?.level(level)?;
-        match mapped.parent() {
-            _ if owner == target => Some(level.clone()),
-            Some(parent) => self.rolled_up(owner.lineage().iter().rev().nth(1)?, parent, onto),
-            None => None,
+        let mapped = self.scale(from)?.level(level);
+        match (mapped.map(Level::parent), self.home(owner, level)) {
+            (None, Some(home)) if target.strictly_contains(home) => self.rolled_up(home, level, onto),
+            (None, Some(home)) => self.finest_onto(target, home, level),
+            (None, None) => self.rolled_up(owner, self.0.get(owner)?.levels().first()?.name(), onto),
+            (Some(_), _) if owner == target => Some(level.clone()),
+            (Some(Some(parent)), _) => self.rolled_up(owner.lineage().iter().rev().nth(1)?, parent, onto),
+            (Some(None), _) => None,
         }
+    }
+
+    #[must_use]
+    pub fn demotions_from(&self, before: &Scales, state: &State) -> Demotions {
+        let open = state.open_items();
+        let placed = open.iter().filter_map(|item| item.placement().division().map(|placed| (item, placed.lineage())));
+        placed
+            .flat_map(|(item, lineage)| lineage.into_iter().map(move |division| (item, division)))
+            .filter_map(|(item, division)| self.compared(before, item, &division))
+            .collect()
+    }
+
+    fn compared(&self, before: &Scales, item: &RatedItem, division: &Division) -> Option<Demotion> {
+        let placed = item.placement().division()?;
+        let level = item.rating().level()?;
+        let scale = self.scale(division)?;
+        let owned = before.owner(division).filter(|owner| self.owner(division) == Some(*owner));
+        let kept = owned.and(before.scale(division)).filter(|was| was.same_levels(scale));
+        let [was, is] = [before.rolled_up(placed, level, division), self.rolled_up(placed, level, division)];
+        let [old, new] = [&was, &is].map(|name| name.as_ref().and_then(|name| scale.index_of(name)));
+        match (kept, old.zip(new), was, is) {
+            (Some(_), Some((old, new)), Some(from), Some(to)) if new > old => {
+                Some(Demotion::Lowered { item: item.target(), division: division.clone(), from, to })
+            }
+            (Some(_), Some(_), ..) => None,
+            _ if division.is_nested() => None,
+            _ => Some(Demotion::Incomparable { item: item.target(), division: division.clone() }),
+        }
+    }
+
+    #[must_use]
+    pub fn stranded(&self, state: &State) -> Strands {
+        let stranded = |item: &RatedItem| {
+            let owner = self.owner(item.placement().division()?)?;
+            let level = item.rating().level()?;
+            let scale = self.0.get(owner)?;
+            scale.level(level).is_none().then(|| Stranded::new(item.target(), owner.clone(), level.clone()))
+        };
+        state.open_items().iter().filter_map(stranded).collect()
+    }
+
+    fn finest_onto(&self, target: &Division, home: &Division, level: &LevelName) -> Option<LevelName> {
+        let rolls_to = |below: &&Level| self.rolled_up(target, below.name(), home).as_ref() == Some(level);
+        self.0.get(target)?.levels().iter().find(rolls_to).map(|below| below.name().clone())
+    }
+
+    fn home(&self, owner: &Division, level: &LevelName) -> Option<&Division> {
+        let lineage = owner.lineage();
+        let above = lineage.iter().rev().skip(1).filter_map(|above| self.owner(above));
+        above.into_iter().find(|above| self.0.get(*above).is_some_and(|scale| scale.level(level).is_some()))
+    }
+
+    pub fn for_item(&self, placement: &Placement) -> Result<&Scale, RatingFailure> {
+        placement.division().and_then(|division| self.scale(division)).ok_or(RatingFailure::Unscaled)
+    }
+
+    pub fn admits(&self, event: &Event) -> Result<(), RatingFailure> {
+        let level = event.proposed_rating().and_then(|rating| rating.level().cloned());
+        level.map_or(Ok(()), |level| {
+            let placed = event.placement().ok_or(RatingFailure::Unscaled)?;
+            self.for_item(placed)?.level(&level).map(|_| ()).ok_or(RatingFailure::UnknownLevel(level))
+        })
     }
 
     fn placed(&self, division: &Division, scale: &Scale) -> Result<(), ScaleFailure> {

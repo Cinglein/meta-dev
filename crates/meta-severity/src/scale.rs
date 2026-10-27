@@ -1,7 +1,10 @@
-use meta_schema::{Division, LevelName};
+use std::cmp::Ordering;
+
+use meta_schema::{Change, Division, LevelName, Rating, Scenario};
 use serde::{Deserialize, Serialize};
 
 use crate::level::Level;
+use crate::rating_failure::RatingFailure;
 use crate::scale_failure::ScaleFailure;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -24,6 +27,34 @@ impl Scale {
     #[must_use]
     pub fn level(&self, name: &LevelName) -> Option<&Level> {
         self.0.iter().find(|level| level.name() == name)
+    }
+
+    #[must_use]
+    pub fn index_of(&self, name: &LevelName) -> Option<usize> {
+        self.0.iter().position(|level| level.name() == name)
+    }
+
+    #[must_use]
+    pub fn same_levels(&self, other: &Scale) -> bool {
+        self.0.iter().map(Level::name).eq(other.0.iter().map(Level::name))
+    }
+
+    pub fn change(
+        &self,
+        current: &Rating,
+        level: LevelName,
+        scenario: Option<Scenario>,
+    ) -> Result<Change, RatingFailure> {
+        let rank = |name: &LevelName| self.0.iter().position(|known| known.name() == name);
+        let new = rank(&level).ok_or_else(|| RatingFailure::UnknownLevel(level.clone()))?;
+        match current.level().map(|from| (from.clone(), rank(from).map(|old| new.cmp(&old)))) {
+            None => Ok(Change::First { level }),
+            Some((_, Some(Ordering::Equal))) => Err(RatingFailure::Unchanged(level)),
+            Some((from, Some(Ordering::Greater))) => Ok(Change::Lowered { from, level }),
+            Some((from, Some(Ordering::Less) | None)) => scenario
+                .map(|scenario| Change::Raised { from: from.clone(), level, scenario })
+                .ok_or(RatingFailure::RaisedWithoutScenario(from)),
+        }
     }
 
     fn parent_index(&self, level: &Level) -> Option<usize> {
@@ -68,3 +99,6 @@ impl Scale {
         self.0.iter().find(|above| child.0.iter().all(|level| level.parent() != Some(above.name())))
     }
 }
+
+#[cfg(test)]
+mod tests;

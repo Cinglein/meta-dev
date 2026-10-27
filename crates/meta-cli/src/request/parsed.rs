@@ -5,11 +5,13 @@ mod word;
 
 use meta_listing::{Kind, Scope};
 use meta_schema::{
-    Actor, Blocker, Division, DueTime, Entry, Id, PullRequest, Tag, Target, Task, TaskLink, Text, Tokens,
+    Actor, Blocker, Division, DueTime, Entry, Id, LevelName, PullRequest, Scenario, Tag, Target, Task, TaskLink, Text,
+    Tokens,
 };
 
 use crate::request::ci::{Commit, SessionId};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
+use crate::request::rate::Rate;
 use crate::request::status_view::StatusView;
 pub use option_name::OptionName;
 use word::Word;
@@ -28,6 +30,8 @@ pub struct Parsed {
     due: Option<DueTime>,
     on: Option<Blocker>,
     view: StatusView,
+    severity: Option<LevelName>,
+    scenario: Option<Scenario>,
 }
 
 impl Parsed {
@@ -77,6 +81,13 @@ impl Parsed {
             (OptionName::On, [value, rest @ ..]) => {
                 Self { on: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
             }
+            (OptionName::Severity, [value, rest @ ..]) => {
+                Self { severity: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
+            }
+            (OptionName::Scenario, [value, rest @ ..]) => {
+                let scenario = value.parse::<Text>().map_err(CliFailure::raised::<Invalid>)?;
+                Self { scenario: Some(Scenario::from(scenario)), ..self }.take(rest)
+            }
         }
     }
 
@@ -120,6 +131,21 @@ impl Parsed {
 
     pub fn blocker(&self) -> Result<Blocker, CliFailure> {
         self.on.ok_or_else(|| CliFailure::raised::<Misuse>("--on <issue id|task id|review|ci|merge> is required"))
+    }
+
+    pub fn severity(&self) -> Option<LevelName> {
+        self.severity.clone()
+    }
+
+    pub fn rating(&self) -> Result<Rate, CliFailure> {
+        match self.words.as_slice() {
+            [item, level] => Ok(Rate::new(
+                item.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
+                level.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
+                self.scenario.clone(),
+            )),
+            _ => Err(CliFailure::raised::<Misuse>("expected a concern or issue id and a level")),
+        }
     }
 
     pub fn effort(&self) -> Option<Tokens> {
@@ -217,6 +243,8 @@ impl TryFrom<&[String]> for Parsed {
             due: None,
             on: None,
             view: StatusView::Tree,
+            severity: None,
+            scenario: None,
         };
         empty.take(args)
     }

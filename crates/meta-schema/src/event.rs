@@ -11,6 +11,9 @@ use crate::id::Id;
 use crate::new_concern::NewConcern;
 use crate::new_issue::NewIssue;
 use crate::new_task::NewTask;
+use crate::placement::Placement;
+use crate::rating::Rating;
+use crate::rerating::Rerating;
 use crate::schema_version::SchemaVersion;
 use crate::task_link::TaskLink;
 use crate::task_ref::TaskRef;
@@ -31,9 +34,28 @@ pub enum Event {
     EntryRetired(EntryNote),
     EntryCorrected(EntryNote),
     SchemaVersion(SchemaVersion),
+    ItemRated(Rerating),
 }
 
 impl Event {
+    #[must_use]
+    pub fn proposed_rating(&self) -> Option<Rating> {
+        match self {
+            Self::ConcernIdentified(concern) => Some(concern.rating()),
+            Self::IssueReported(issue) => Some(issue.rating()),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn placement(&self) -> Option<&Placement> {
+        match self {
+            Self::ConcernIdentified(concern) => Some(concern.placement()),
+            Self::IssueReported(issue) => Some(issue.placement()),
+            _ => None,
+        }
+    }
+
     #[must_use]
     pub fn claimed_task(&self) -> Option<Id<Task>> {
         match self {
@@ -73,6 +95,7 @@ impl Event {
             Self::EntryRetired(note) => visitor.entry_retired(note),
             Self::EntryCorrected(note) => visitor.entry_corrected(note),
             Self::SchemaVersion(version) => visitor.schema_versioned(*version),
+            Self::ItemRated(rerating) => visitor.item_rated(rerating),
         }
     }
 }
@@ -93,6 +116,7 @@ impl fmt::Display for Event {
             Self::EntryRetired(note) => write!(formatter, "EntryRetired {note}"),
             Self::EntryCorrected(note) => write!(formatter, "EntryCorrected {note}"),
             Self::SchemaVersion(version) => write!(formatter, "SchemaVersion {version}"),
+            Self::ItemRated(rerating) => write!(formatter, "ItemRated {rerating}"),
         }
     }
 }

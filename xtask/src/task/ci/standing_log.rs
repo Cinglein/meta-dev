@@ -11,12 +11,20 @@ pub struct StandingLog;
 
 impl StandingLog {
     const REMOTE: &str = "origin";
+    const GIT_ENTRY: &str = ".git";
     const PULL_REQUEST: &str = "PULL_REQUEST";
     const HEAD: &str = "GITHUB_HEAD_REF";
 
     pub fn git(root: &Path) -> GitLog {
         let Ok(remote) = Self::REMOTE.parse();
-        GitLog::new(root.to_path_buf(), remote)
+        let repository = root.ancestors().find(|dir| dir.join(Self::GIT_ENTRY).exists()).unwrap_or(root);
+        GitLog::new(repository.to_path_buf(), remote)
+    }
+
+    pub fn state(log: &impl LogStore) -> Result<State, Failure> {
+        let snapshot = log.read().map_err(Failure::StandingLog)?;
+        let records = snapshot.complete().map_err(Failure::StandingLog)?;
+        Ok(State::fold(Some(records).filter(|records| !records.is_empty()).ok_or(Failure::NoLog)?))
     }
 
     pub fn counted(log: &impl LogStore, policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
@@ -26,9 +34,7 @@ impl StandingLog {
     }
 
     fn standing(log: &impl LogStore) -> Result<Standing, Failure> {
-        let snapshot = log.read().map_err(Failure::StandingLog)?;
-        let records = snapshot.complete().map_err(Failure::StandingLog)?;
-        let state = State::fold(Some(records).filter(|records| !records.is_empty()).ok_or(Failure::NoLog)?);
+        let state = Self::state(log)?;
         let link = ChangeLink::new(
             env::var(Self::PULL_REQUEST).ok().and_then(|number| number.parse().ok()),
             env::var(Self::HEAD).ok().and_then(|branch| branch.parse().ok()),
