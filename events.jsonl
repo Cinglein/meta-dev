@@ -640,3 +640,4 @@
 {"at":"2026-10-27T17:32:49.977211Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-f97cfb0cd28ddbae","text":"Licence for meta-dev crates (currently unlicensed in a public repo): deferred by owner 2026-10-27 until the Blacksmith / new-repo move (issue-ffe4e6b3dd7d7eed).","division":"architecture-and-planning"}
 {"at":"2026-10-27T17:35:38.506244Z","actor":"claude-caps","kind":"TaskLinked","task":"task-2826801cf4379207","pr":49}
 {"at":"2026-10-27T17:35:56.082997Z","actor":"claude-usesmeta","kind":"TaskLinked","task":"task-74151ea135505567","pr":51}
+{"at":"2026-10-27T17:38:10.075419Z","actor":"claude-monitor","kind":"TaskLinked","task":"task-843b490c6c281d89","pr":50}
