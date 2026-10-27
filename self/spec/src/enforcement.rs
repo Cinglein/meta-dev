@@ -51,13 +51,14 @@ mod tests {
     use super::{Enforcement, Enforcer, LintName, RustType};
     use crate::SpecView;
 
-    const FILE: &str = "self/spec/src/enforcer.rs";
+    const FILE: &str = "self/spec/src/enforcement.rs";
+    const TEST: &str = "each_rung_shows_its_enforcer_and_a_check_is_found_only_by_its_name_in_its_file";
     const SHOWN: [&str; 6] = [
         "rung 1, no enforcer",
         "rung 2, no enforcer",
         "rung 3, lint no-comments",
         "rung 3, ci step spec",
-        "rung 3, check self/spec/src/enforcer.rs fn found",
+        "rung 3, check self/spec/src/enforcement.rs each_rung_shows_its_enforcer_and_a_check_is_found_only_by_its_name_in_its_file",
         "rung 4, type meta_spec::rust_type::RustType",
     ];
     const ALL: [Enforcement; 6] = [
@@ -65,11 +66,15 @@ mod tests {
         Enforcement::Defined,
         Enforcement::Lint(LintName::NoComments),
         Enforcement::CiStep(CiStep::Spec),
-        Enforcement::Check(Enforcer::new(FILE, "fn found")),
+        Enforcement::Check(Enforcer::new(FILE, TEST)),
         Enforcement::Type(RustType::naming::<RustType>()),
     ];
-    const MISSING: [Enforcement; 2] =
-        [Enforcement::Check(Enforcer::new(FILE, "fn lost")), Enforcement::Check(Enforcer::new("lost.rs", "fn found"))];
+    const MISSING: [Enforcement; 4] = [
+        Enforcement::Check(Enforcer::new(FILE, "each_rung_shows_its_enforcer")),
+        Enforcement::Check(Enforcer::new(FILE, "a_check_is_found_only_by_its_name_in_its_file")),
+        Enforcement::Check(Enforcer::new(FILE, "lost")),
+        Enforcement::Check(Enforcer::new("lost.rs", TEST)),
+    ];
 
     #[test]
     fn each_rung_shows_its_enforcer_and_a_check_is_found_only_by_its_name_in_its_file() {
