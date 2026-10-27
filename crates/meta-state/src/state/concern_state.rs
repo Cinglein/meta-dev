@@ -32,6 +32,10 @@ impl ConcernState {
         RatedItem::new(self.target(), self.concern.placement().clone(), self.concern.rating())
     }
 
+    pub fn new_concern(&self) -> &NewConcern {
+        &self.concern
+    }
+
     pub fn tagged(&self, tag: Tag) -> Option<&Self> {
         self.concern.tags().contains(&tag).then_some(self)
     }

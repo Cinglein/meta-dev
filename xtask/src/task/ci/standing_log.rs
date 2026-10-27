@@ -1,0 +1,87 @@
+use std::env;
+use std::path::Path;
+
+use meta_log::{GitLog, LogStore};
+use meta_state::State;
+use task::{ChangeLink, Ledger, Policy, Standing};
+
+use crate::task::failure::Failure;
+
+pub struct StandingLog;
+
+impl StandingLog {
+    const REMOTE: &str = "origin";
+    const GIT_ENTRY: &str = ".git";
+    const PULL_REQUEST: &str = "PULL_REQUEST";
+    const HEAD: &str = "GITHUB_HEAD_REF";
+
+    pub fn git(root: &Path) -> GitLog {
+        let Ok(remote) = Self::REMOTE.parse();
+        let repository = root.ancestors().find(|dir| dir.join(Self::GIT_ENTRY).exists()).unwrap_or(root);
+        GitLog::new(repository.to_path_buf(), remote)
+    }
+
+    pub fn state(log: &impl LogStore) -> Result<State, Failure> {
+        let snapshot = log.read().map_err(Failure::StandingLog)?;
+        let records = snapshot.complete().map_err(Failure::StandingLog)?;
+        Ok(State::fold(Some(records).filter(|records| !records.is_empty()).ok_or(Failure::NoLog)?))
+    }
+
+    pub fn counted(log: &impl LogStore, policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
+        let standing = policy.budgets().standing().then(|| Self::standing(log)).transpose()?;
+        ledger.count(standing);
+        Ok(())
+    }
+
+    fn standing(log: &impl LogStore) -> Result<Standing, Failure> {
+        let state = Self::state(log)?;
+        let link = ChangeLink::new(
+            env::var(Self::PULL_REQUEST).ok().and_then(|number| number.parse().ok()),
+            env::var(Self::HEAD).ok().and_then(|branch| branch.parse().ok()),
+        );
+        Ok(Standing::read(&state, &link))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use meta_log::{LogFailure, LogStore, MemoryLog, Snapshot};
+    use meta_schema::Record;
+    use settings::EmbeddedDefaults;
+    use task::{Ledger, Policy};
+
+    use super::StandingLog;
+
+    const CLOSED: &str = "standing budgets fail closed: meta/log";
+    const STANDING: &str = "\n[budgets.open-issues]\ndivision = \"features-and-maintenance\"\nmeasure = { open_items = { kind = \"issue\" } }\nallowance = { count = 20 }\nwindow = \"standing\"\n";
+
+    struct Offline;
+
+    impl LogStore for Offline {
+        fn read(&self) -> Result<Snapshot, LogFailure> {
+            Err(LogFailure::Contended)
+        }
+
+        fn append<Failure: From<LogFailure>>(
+            &self,
+            _: &mut dyn FnMut(&Snapshot) -> Result<Record, Failure>,
+        ) -> Result<Record, Failure> {
+            Err(LogFailure::Contended.into())
+        }
+    }
+
+    #[test]
+    fn an_unreadable_or_missing_log_fails_standing_budgets_closed_and_no_standing_budget_reads_nothing() {
+        let policy: Policy = toml::from_str(&format!("{}{STANDING}", Policy::DEFAULTS)).expect("standing policy");
+        assert!(StandingLog::counted(&Offline, &Policy::defaults(), &mut Ledger::default()).is_ok());
+        let refused = [
+            StandingLog::counted(&Offline, &policy, &mut Ledger::default()),
+            StandingLog::counted(&MemoryLog::default(), &policy, &mut Ledger::default()),
+        ];
+        assert!(
+            refused
+                .iter()
+                .all(|refused| refused.as_ref().err().is_some_and(|failure| failure.to_string().starts_with(CLOSED)))
+        );
+    }
+}

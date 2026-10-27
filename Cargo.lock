@@ -989,6 +989,7 @@ dependencies = [
  "enum-map",
  "meta-schema",
  "meta-severity",
+ "meta-state",
  "proc-macro2",
  "quote",
  "serde",

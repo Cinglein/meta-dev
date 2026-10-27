@@ -131,8 +131,15 @@ fn done_addresses_targets_and_reopen_undoes_it() {
         .then(OWNER, Event::ConcernIdentified(concern))
         .then(OWNER, Lifecycle::event(&task, OPENED))
         .then(ALICE, Events::claim(task.task(), None))
-        .then(ALICE, Lifecycle::event(&task, DONE));
-    assert_eq!(State::fold(&done.records).addressed_by(target), Some(task.task()));
+        .then(ALICE, Lifecycle::event(&task, DONE))
+        .then(OWNER, Event::IssueReported(Items::issue()));
+    let state = State::fold(&done.records);
+    assert_eq!(state.addressed_by(target), Some(task.task()));
+    let placed = [
+        state.concerns().first().and_then(|concern| concern.new_concern().placement().division().cloned()),
+        state.issues().first().and_then(|issue| issue.new_issue().placement().division().cloned()),
+    ];
+    assert_eq!(placed, [Some(Items::division()), Some(Items::division())]);
     let reopened = done.then(BOB, Lifecycle::event(&task, REOPENED));
     assert_eq!(State::fold(&reopened.records).addressed_by(target), None);
 }

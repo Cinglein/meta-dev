@@ -35,6 +35,14 @@ impl TaskStatus {
     }
 
     #[must_use]
+    pub fn discussion(&self) -> Option<Id<Issue>> {
+        match self {
+            Self::Discussion(issue) => Some(*issue),
+            _ => None,
+        }
+    }
+
+    #[must_use]
     pub fn waiting_on_task(&self) -> Option<Id<Task>> {
         match self {
             Self::WaitingOnTask(task) => Some(*task),

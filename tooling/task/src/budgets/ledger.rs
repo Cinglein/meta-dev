@@ -3,7 +3,9 @@ mod statement;
 
 use std::collections::BTreeMap;
 
-use super::budget::{Amount, Measure};
+use super::budget::{Amount, Budget, Measure};
+use super::standing::{Exposure, Standing};
+use crate::domains::Domains;
 use crate::failure::Failure;
 use crate::policy::Policy;
 use crate::selection::Selection;
@@ -13,11 +15,39 @@ use statement::Statement;
 #[derive(Debug, Default)]
 pub struct Ledger {
     spent: BTreeMap<Measure, Amount>,
+    standing: Option<Standing>,
 }
 
 impl Ledger {
     pub fn spend(&mut self, measure: Measure, amount: Amount) {
         self.spent.insert(measure, amount);
+    }
+
+    pub fn count(&mut self, standing: Option<Standing>) {
+        self.standing = standing;
+    }
+
+    #[must_use]
+    pub fn spend_of(&self, budget: &Budget) -> Option<Amount> {
+        budget.measure().item_filter().map_or_else(
+            || self.spent.get(&budget.measure()).cloned(),
+            |filter| {
+                self.standing
+                    .as_ref()
+                    .map(|standing| standing.spend(filter, budget.division()))
+            },
+        )
+    }
+
+    #[must_use]
+    pub fn exposure_of(&self, budget: &Budget, domains: &Domains) -> Exposure {
+        budget
+            .measure()
+            .item_filter()
+            .zip(self.standing.as_ref())
+            .map_or(Exposure::Diff, |(filter, standing)| {
+                standing.exposure(filter, budget.division(), domains)
+            })
     }
 
     pub fn checked(&self, policy: &Policy, selection: &Selection) -> Result<(), Failure> {
@@ -37,12 +67,8 @@ impl Ledger {
                     let lines = budgets
                         .amount(budget)
                         .and_then(|allowance| budget.lines(&allowance));
-                    Row::new(
-                        id,
-                        budget,
-                        lines,
-                        self.spent.get(&budget.measure()).cloned(),
-                    )
+                    Row::new(id, budget, lines, self.spend_of(budget))
+                        .within(self.exposure_of(budget, policy.domains()))
                 })
                 .collect(),
         )
@@ -53,14 +79,53 @@ impl Ledger {
 mod tests {
     use std::collections::BTreeSet;
 
+    use meta_schema::Record;
+    use meta_state::State;
     use settings::EmbeddedDefaults;
 
     use super::Ledger;
     use crate::budget::{Interval, Millis};
-    use crate::budgets::{Amount, Measure};
+    use crate::budgets::{Amount, Budgets, ChangeLink, Measure, Standing};
     use crate::percent::Percent;
     use crate::policy::{Most, Policy};
     use crate::selection::Selection;
+
+    const LOG: &str = include_str!("ledger/standing.jsonl");
+    const STANDING: &str = include_str!("ledger/standing.toml");
+    const TESTED: &str = "t-";
+    const ADDRESSING: &str = "8";
+    const STANDING_ROWS: [&str; 10] = [
+        "t-concerns         features-and-maintenance   open_items concerns                  1          3          5 ok",
+        "t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over, outside the linked task's division; a diff in its domain reaches it",
+        "t-cost-tasks       performance-and-cost       open_items tasks                     0          5          9 ok",
+        "t-discussion       features-and-maintenance   open_items in_discussion             1          1          2 ok",
+        "t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over, paid down by the linked task",
+        "t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over",
+        "t-nav-unheld       features-and-maintenance/nav open_items unheld_tasks              3          1          3 warn",
+        "t-open-tasks       features-and-maintenance   open_items tasks                     5          3          6 warn",
+        "t-planning-issues  architecture-and-planning  open_items issues                    1          0          0 over, outside the linked task's division",
+        "t-unheld           features-and-maintenance   open_items unheld_tasks              3          3          5 ok",
+    ];
+    const ALL_OVER: &[&str] = &[
+        "t-cost-concerns", "t-nav-concerns", "t-nav-tasks", "t-planning-issues",
+    ];
+    const UNREACHED: [(&str, &[&str]); 7] = [
+        ("", ALL_OVER),
+        ("7", &["t-nav-concerns", "t-nav-tasks"]),
+        ("task-0000000000000004", &["t-cost-concerns"]),
+        (ADDRESSING, &["t-nav-tasks"]),
+        ("9", ALL_OVER),
+        ("10", &["t-nav-concerns", "t-nav-tasks"]),
+        ("11", &["t-nav-concerns", "t-nav-tasks"]),
+    ];
+    const DIFF_REACHED: [(&str, &[&str]); 3] = [
+        (
+            "task-0000000000000004",
+            &["t-cost-concerns", "t-nav-concerns", "t-nav-tasks"],
+        ),
+        ("7", &["t-cost-concerns", "t-nav-concerns", "t-nav-tasks"]),
+        (ADDRESSING, &["t-cost-concerns", "t-nav-tasks"]),
+    ];
 
     const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
     const STATEMENT: &str = include_str!("ledger/statement.txt");
@@ -94,6 +159,72 @@ mod tests {
             );
             ledger
         }
+    }
+
+    impl Ledger {
+        fn standing(link: &str) -> Ledger {
+            let records: Vec<Record> = LOG
+                .lines()
+                .map(|line| serde_json::from_str(line).unwrap())
+                .collect();
+            let link = ChangeLink::new(link.parse().ok(), link.parse().ok());
+            let mut ledger = Ledger::default();
+            ledger.count(Some(Standing::read(&State::fold(&records), &link)));
+            ledger
+        }
+
+        fn blocking(&self, policy: &Policy, selection: &Selection) -> Vec<String> {
+            self.statement(policy)
+                .verdict(selection)
+                .violations()
+                .iter()
+                .filter_map(|violation| {
+                    violation
+                        .message()
+                        .split_whitespace()
+                        .next()
+                        .filter(|id| id.starts_with(TESTED))
+                        .map(str::to_owned)
+                })
+                .collect()
+        }
+    }
+
+    #[test]
+    fn a_standing_budget_counts_the_open_items_of_its_division_subtree() {
+        let policy: Policy = toml::from_str(&format!("{}{STANDING}", Policy::DEFAULTS)).unwrap();
+        let shown = Ledger::standing(ADDRESSING).statement(&policy).to_string();
+        let table: Vec<&str> = shown
+            .lines()
+            .filter(|line| line.starts_with(TESTED))
+            .collect();
+        assert_eq!(table, STANDING_ROWS);
+        let standing = [policy.budgets().standing(), Budgets::default().standing()];
+        assert_eq!(standing, [true, false]);
+    }
+
+    #[test]
+    fn an_over_standing_budget_blocks_a_change_linked_inside_its_division_unless_it_pays_down() {
+        let policy: Policy = toml::from_str(&format!("{}{STANDING}", Policy::DEFAULTS)).unwrap();
+        let unreached = Selection::Crates(BTreeSet::new());
+        let blocking = |selection: &Selection, (link, _): (&str, &[&str])| {
+            Ledger::standing(link).blocking(&policy, selection)
+        };
+        let expected = |(_, ids): (&str, &[&str])| -> Vec<String> {
+            ids.iter().map(|id| (*id).to_owned()).collect()
+        };
+        assert_eq!(
+            UNREACHED.map(|case| blocking(&unreached, case)),
+            UNREACHED.map(expected)
+        );
+        assert_eq!(
+            DIFF_REACHED.map(|case| blocking(&Selection::Workspace, case)),
+            DIFF_REACHED.map(expected)
+        );
+        assert_eq!(
+            Ledger::default().blocking(&policy, &unreached),
+            Vec::<String>::new()
+        );
     }
 
     #[test]

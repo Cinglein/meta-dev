@@ -31,6 +31,10 @@ impl IssueState {
     pub fn rated(&self) -> RatedItem {
         RatedItem::new(self.target(), self.issue.placement().clone(), self.issue.rating())
     }
+
+    pub fn new_issue(&self) -> &NewIssue {
+        &self.issue
+    }
 }
 
 impl fmt::Display for IssueState {

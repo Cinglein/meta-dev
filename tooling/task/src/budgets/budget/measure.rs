@@ -1,12 +1,17 @@
 mod enforcer;
+mod item_filter;
+mod item_kind;
 mod mutation_job;
 mod unit;
 
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
+use super::window::Window;
 use crate::domains::ScopeKind;
 pub use enforcer::Enforcer;
+pub use item_filter::ItemFilter;
+pub use item_kind::ItemKind;
 pub use mutation_job::MutationJob;
 pub use unit::Unit;
 
@@ -22,6 +27,8 @@ pub enum Measure {
     LintFindings,
     TestLineShare,
     TangleItems,
+    #[strum(to_string = "open_items {0}")]
+    OpenItems(ItemFilter),
 }
 
 impl Measure {
@@ -32,27 +39,58 @@ impl Measure {
                 Unit::Duration
             }
             Measure::MutantPrice | Measure::TestLineShare => Unit::Share,
-            Measure::TangleItems => Unit::Count,
+            Measure::TangleItems | Measure::OpenItems(_) => Unit::Count,
             Measure::LintFindings => Unit::Baseline,
         }
     }
 
     #[must_use]
-    pub const fn scope(self) -> ScopeKind {
+    pub const fn scope(self) -> Option<ScopeKind> {
         match self {
-            Measure::TestWallTime | Measure::SlowestTest => ScopeKind::Tests,
-            Measure::WorkflowWallTime(_) | Measure::MutantPrice => ScopeKind::Workflows,
-            Measure::TangleItems => ScopeKind::Crates,
-            Measure::LintFindings | Measure::TestLineShare => ScopeKind::Paths,
+            Measure::TestWallTime | Measure::SlowestTest => Some(ScopeKind::Tests),
+            Measure::WorkflowWallTime(_) | Measure::MutantPrice => Some(ScopeKind::Workflows),
+            Measure::TangleItems => Some(ScopeKind::Crates),
+            Measure::LintFindings | Measure::TestLineShare => Some(ScopeKind::Paths),
+            Measure::OpenItems(_) => None,
         }
     }
 
     #[must_use]
     pub const fn enforcer(self) -> Enforcer {
         match self {
-            Measure::TestWallTime | Measure::SlowestTest => Enforcer::Checker,
+            Measure::TestWallTime | Measure::SlowestTest | Measure::OpenItems(_) => {
+                Enforcer::Checker
+            }
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Enforcer::MutationJobs,
             Measure::LintFindings | Measure::TestLineShare | Measure::TangleItems => Enforcer::Lint,
+        }
+    }
+
+    #[must_use]
+    pub const fn item_filter(self) -> Option<ItemFilter> {
+        match self {
+            Measure::OpenItems(filter) => Some(filter),
+            Measure::TestWallTime
+            | Measure::SlowestTest
+            | Measure::WorkflowWallTime(_)
+            | Measure::MutantPrice
+            | Measure::LintFindings
+            | Measure::TestLineShare
+            | Measure::TangleItems => None,
+        }
+    }
+
+    #[must_use]
+    pub const fn window(self) -> Window {
+        match self {
+            Measure::OpenItems(_) => Window::Standing,
+            Measure::TestWallTime
+            | Measure::SlowestTest
+            | Measure::WorkflowWallTime(_)
+            | Measure::MutantPrice
+            | Measure::LintFindings
+            | Measure::TestLineShare
+            | Measure::TangleItems => Window::PerChange,
         }
     }
 }

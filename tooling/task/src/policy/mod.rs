@@ -196,6 +196,11 @@ impl Policy {
     }
 
     #[must_use]
+    pub fn domains(&self) -> &Domains {
+        &self.domains
+    }
+
+    #[must_use]
     pub fn deprecated(&self) -> &[LegacyKey] {
         &self.deprecated
     }

@@ -39,8 +39,8 @@ pub enum Failure {
     Identity(ForeignEmails),
     #[error("{0}")]
     Stranded(Strands),
-    #[error("stranded check: {0}")]
-    LogUnread(LogFailure),
-    #[error("stranded check: no git repository holds the workspace")]
-    NoRepository,
+    #[error("standing budgets fail closed: meta/log is unreadable: {0}")]
+    StandingLog(LogFailure),
+    #[error("standing budgets fail closed: meta/log has no events on the remote")]
+    NoLog,
 }
