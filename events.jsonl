@@ -566,3 +566,4 @@
 {"at":"2026-10-27T12:47:41.060085Z","actor":"claude-deflake","kind":"TaskOpened","task":"task-d7d92ddd54600ef3","text":"Deflake absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them","division":"features-and-maintenance","addresses":["issue-4d1cc3a0b106ccea"]}
 {"at":"2026-10-27T12:47:58.660474Z","actor":"claude-deflake","kind":"TaskClaimed","task":"task-d7d92ddd54600ef3"}
 {"at":"2026-10-27T13:10:20.659177Z","actor":"claude-deflake","kind":"TaskLinked","task":"task-d7d92ddd54600ef3","pr":47}
+{"at":"2026-10-27T13:10:27.552508Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-06845f1048ec706d","text":"After #46: Sha accepts any string, so a hand-typed --log=<ref> reads a moving ref or an old tip, and a value starting with - reaches git ls-tree; accept only a 40-hex commit id. Also refuse --status with --log, and word the no-meta/log error by the check that needed it.","division":"features-and-maintenance"}
