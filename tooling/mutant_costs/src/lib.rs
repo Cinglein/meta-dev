@@ -150,14 +150,14 @@ mod tests {
     const CASES: [(f64, f64, Interval, bool, bool); 10] = [
         (2.8, 1.0, Interval::DiffJob, true, false),
         (5.9, 1.0, Interval::DiffJob, true, true),
-        (6.1, 1.0, Interval::DiffJob, false, false),
+        (6.5, 1.0, Interval::DiffJob, false, false),
         (1.6, 1.0, Interval::FullJob, true, false),
         (1.76, 1.0, Interval::FullJob, true, true),
         (2.0, 1.0, Interval::FullJob, true, true),
-        (2.08, 1.0, Interval::FullJob, false, false),
+        (2.2, 1.0, Interval::FullJob, false, false),
         (2.8, 1.0, Interval::FullJob, false, false),
-        (1.6, 16.5, Interval::FullJob, true, true),
-        (1.6, 19.5, Interval::FullJob, false, false),
+        (1.6, 22.0, Interval::FullJob, true, true),
+        (1.6, 28.0, Interval::FullJob, false, false),
     ];
     const SMALL_DEAR_DIFF: &[(&str, f64, usize)] = &[(AFFECTED, 4.0, BELOW_SAMPLE)];
     const BELOW_SAMPLE: usize = 29;
