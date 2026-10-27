@@ -565,3 +565,4 @@
 {"at":"2026-10-27T12:45:00.779640Z","actor":"claude-lead","kind":"IssueReported","issue":"issue-4d1cc3a0b106ccea","text":"Flaky test: crates/meta-cli/tests/ci.rs absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them (timing-based, from #45) failed once on CI in PR #46 run 40505234889 attempt 1, passed on rerun and 3/3 locally. A flaky test makes main red at random.","division":"features-and-maintenance"}
 {"at":"2026-10-27T12:47:41.060085Z","actor":"claude-deflake","kind":"TaskOpened","task":"task-d7d92ddd54600ef3","text":"Deflake absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them","division":"features-and-maintenance","addresses":["issue-4d1cc3a0b106ccea"]}
 {"at":"2026-10-27T12:47:58.660474Z","actor":"claude-deflake","kind":"TaskClaimed","task":"task-d7d92ddd54600ef3"}
+{"at":"2026-10-27T13:10:20.659177Z","actor":"claude-deflake","kind":"TaskLinked","task":"task-d7d92ddd54600ef3","pr":47}
