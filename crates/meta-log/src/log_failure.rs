@@ -4,6 +4,7 @@ use std::time::Duration;
 use thiserror::Error;
 
 use crate::command_line::CommandLine;
+use crate::git_log::Sha;
 use crate::remote_name::RemoteName;
 use crate::skipped_line::LineNumber;
 use crate::stderr::Stderr;
@@ -18,6 +19,8 @@ pub enum LogFailure {
     Unreadable(LineNumber),
     #[error("meta/log on {0} must hold only events.jsonl; nothing written")]
     Malformed(RemoteName),
+    #[error("meta/log {0} is not in this clone; fetch it first")]
+    Unfetched(Sha),
     #[error("git: {command}: {stderr}")]
     Git { command: CommandLine, stderr: Stderr },
     #[error("meta/log push rejected: {0}")]

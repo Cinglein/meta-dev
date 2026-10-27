@@ -1,5 +1,7 @@
 use std::cell::LazyCell;
+use std::panic::resume_unwind;
 use std::path::Path;
+use std::thread::{Scope, ScopedJoinHandle};
 
 use super::assessed::Assessed;
 use super::candidate::Candidate;
@@ -54,6 +56,33 @@ impl<'run, Host: Inspection> Sweeper<'run, Host> {
                 Err(kept) => Assessed::Settled(Verdict::Refused { sweep, path, kept, ending }),
             },
         }
+    }
+
+    pub fn assessed_together<'census>(&self, chunk: &'census [Tracked], census: &Census) -> Vec<Assessed<'census>>
+    where
+        Host: Sync,
+    {
+        std::thread::scope(|scope| {
+            let running: Vec<_> = chunk.iter().map(|tracked| self.started(scope, tracked, census)).collect();
+            running.into_iter().map(Self::joined).collect()
+        })
+    }
+
+    fn started<'scope, 'census>(
+        &'scope self,
+        scope: &'scope Scope<'scope, '_>,
+        tracked: &'census Tracked,
+        census: &'scope Census,
+    ) -> ScopedJoinHandle<'scope, Assessed<'census>>
+    where
+        Host: Sync,
+        'census: 'scope,
+    {
+        scope.spawn(move || self.assessed(tracked, census))
+    }
+
+    fn joined<'census>(run: ScopedJoinHandle<'_, Assessed<'census>>) -> Assessed<'census> {
+        run.join().unwrap_or_else(|panic| resume_unwind(panic))
     }
 
     pub fn freed(

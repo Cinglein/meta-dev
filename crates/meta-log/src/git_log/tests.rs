@@ -22,6 +22,7 @@ const REJECTED_PREFIX: &str = "meta/log push rejected";
 const REFUSE_PUSHES: [&str; 2] = ["/usr/bin/false", "hooks/pre-receive"];
 const STATUS: [&str; 3] = ["status", "--porcelain", "--branch"];
 const COUNT: [&str; 3] = ["rev-list", "--count", "meta/log"];
+const REWIND: [&str; 3] = ["update-ref", "refs/heads/meta/log", "refs/heads/meta/log~1"];
 const FIRST: usize = 0;
 const SECOND: usize = 1;
 const PAIR: usize = 2;
@@ -145,4 +146,16 @@ fn refusals_write_nothing_and_rejected_or_offline_writes_fail() {
     assert!(failure().starts_with(REJECTED_PREFIX));
     Git::run(fixture.clones[FIRST].path(), &OFFLINE);
     assert!(failure().starts_with(OFFLINE_PREFIX));
+}
+
+#[test]
+fn a_write_after_the_remote_rewound_retries_on_the_fresh_tip_and_brings_nothing_back() {
+    let fixture = Fixture::new(SINGLE);
+    let log = fixture.log(FIRST);
+    let appended = || log.append::<LogFailure>(&mut |_| Ok(Fixture::record())).unwrap();
+    let kept = appended();
+    appended();
+    Git::run(fixture.origin.path(), &REWIND);
+    let written = appended();
+    assert_eq!(fixture.log(FIRST).read().unwrap().records(), [kept, written]);
 }
