@@ -71,3 +71,20 @@ impl GitCommand {
         Ok(content.as_ref().parse().unwrap_or_else(|never| match never {}))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::process::Command;
+
+    use super::GitCommand;
+
+    const PAST_PIPE_BUFFER: usize = 1 << 17;
+
+    #[test]
+    fn output_past_the_pipe_buffer_is_returned() {
+        let mut command = Command::new("head");
+        command.args(["-c", &PAST_PIPE_BUFFER.to_string(), "/dev/zero"]);
+        let output = GitCommand::new(command).timed_output().map(|output| output.stdout.len());
+        assert_eq!(output.ok(), Some(PAST_PIPE_BUFFER));
+    }
+}
