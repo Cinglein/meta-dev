@@ -8,11 +8,14 @@ const NESTED: &str = r#"{
   "features-and-maintenance/nav": [
     {"name": "lost", "meaning": "x", "parent": "critical"},
     {"name": "wrong-turn", "meaning": "x", "parent": "critical"},
-    {"name": "slow", "meaning": "x", "parent": "major"}
+    {"name": "slow", "meaning": "x", "parent": "major"},
+    {"name": "typo", "meaning": "x", "parent": "minor"}
   ],
   "features-and-maintenance/nav/offline": [
     {"name": "no-map", "meaning": "x", "parent": "lost"},
-    {"name": "stale", "meaning": "x", "parent": "slow"}
+    {"name": "no-turn", "meaning": "x", "parent": "wrong-turn"},
+    {"name": "stale", "meaning": "x", "parent": "slow"},
+    {"name": "blurry", "meaning": "x", "parent": "typo"}
   ]
 }"#;
 const TOP: &str = "features-and-maintenance";
@@ -29,7 +32,11 @@ const ROLLED: [(&str, &str, &str, Option<&str>); 6] = [
     ("features-and-maintenance/nav/offline/x", "stale", BELOW_NAV, Some("slow")),
     (TOP, "critical", NAV, None),
 ];
-const REFUSED: [(&str, &str); 6] = [
+const REFUSED: [(&str, &str); 7] = [
+    (
+        r#"{"features-and-maintenance/a": [{"name": "b", "meaning": "x", "parent": "minor"}]}"#,
+        "scale features-and-maintenance/a: no level maps onto critical",
+    ),
     (
         r#"{"features-and-maintenance/a": [{"name": "b", "meaning": "x", "parent": "minor"}, {"name": "c", "meaning": "x", "parent": "major"}]}"#,
         "scale features-and-maintenance/a: c maps above a more severe level",
