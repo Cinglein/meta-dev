@@ -21,12 +21,13 @@ const SCENE: &str = "  400     1   400 2-00:00:00   0:10.00   1.0 /Applications/
   502   501   502   09:00:00   0:01.00   0.0 node mcp-server
   503   501   503      00:10   0:00.00   0.0 /bin/zsh -c source /h/.claude/shell-snapshots/snapshot-zsh-1.sh && eval 'cargo test'
   504   503   503   05:00:00 0:40:00.00  99.0 cargo test
-  505   503   503   05:00:00 0:40:00.00  99.0 cargo test
   100     1   100   18:00:00 4:51:00.00  27.0 bash -c while true; do :; done
   101   100   100      00:01   0:00.00   0.0 sleep 1
   106     1   106   05:00:00 0:40:00.00  50.0 cargo test
   110     1   110      10:00   0:00.00   0.0 sleep 600
   120     1   120   18:00:00   0:01.00   0.0 tail -f /p/log
+  130     1   130      09:00 0:40:00.00  99.0 cargo run
+  140     1   140   18:00:00   0:01.00   0.0 /bin/bash -c source env.sh && make
   200     1   200   18:00:00 4:00:00.00  27.0 bash -c while true; do :; done
   300     1   300   18:00:00 4:00:00.00  27.0 bash -c while true; do :; done
    60     1    60      00:01   0:00.00   0.0 /tmp/meta monitor tick
@@ -38,44 +39,47 @@ const AFTER: &str = "  100     1   100   18:00:05 4:51:05.00  27.0 bash -c while
 const CWDS: &str =
     "p500\nn/p\np501\nn/p\np502\nn/p\np503\nn/p-worktrees/t\np504\nn/p-worktrees/t\np505\nn/p-worktrees/t
 p100\nn/p-worktrees/t\np101\nn/p-worktrees/t\np105\nn/p-worktrees/t\np106\nn/other\np110\nn/p-worktrees/t\np120\nn/other
-p200\nn/p\np201\nn/p\np300\nn/other\np102\nn/other\np60\nn/p\n";
+p130\nn/p\np140\nn/p\np200\nn/p\np201\nn/p\np300\nn/other\np102\nn/other\np60\nn/p\n";
 const UPTIME: &str = "12:00  up 26 days, 19:01, 1 user, load averages: 1.00 2.00 3.01\n";
-const LOOKED: &str = "cwds 400,500,501,502,503,504,505,100,101,106,110,120,200,300,60\n";
+const LOOKED: &str = "cwds 400,500,501,502,503,504,100,101,106,110,120,130,140,200,300,60\n";
 const STOPPING: &str = "stop = [\"orphaned\", \"cpu-time\", \"wall-time\"]\nspared = []";
-const STOPPED: &str = "cwds 400,500,501,502,503,504,505,100,101,106,110,120,200,300,60\n-TERM -100\npause 5s\ncwds 100,102,105\n-KILL 100\n";
+const STOPPED: &str = "cwds 400,500,501,502,503,504,100,101,106,110,120,130,140,200,300,60\n-TERM -100\npause 5s\ncwds 100,102,105\n-KILL 100\n";
 const REPORT: &str = "monitor 2026-10-27 12:00Z, machine load 3.01 over 15 min (context only)
 obvious:
   monitor: agent work pid 100 orphaned past its limit, target -100: bash -c while true; do :; done
   monitor: no agent marker under a root, pid 120 orphaned past its limit, target 120: tail -f log
+  monitor: no agent marker under a root, pid 140 orphaned past its limit, target 140: bash -c source env.sh && make
   monitor: no agent marker under a root, pid 200 orphaned past its limit, target 200: bash -c while true; do :; done
 watch:
   pid 504 cargo test: cpu 2400s flat, 1 ticks since 2026-10-27 12:00Z, last 2026-10-27 12:00Z
-  pid 505 cargo test: cpu 2400s flat, 1 ticks since 2026-10-27 12:00Z, last 2026-10-27 12:00Z
 processes under this project's roots:
   not agent work, no marker, root p, pid 500 age 36000s cpu 1s 0.00: -zsh
   not agent work, no marker, root p, pid 501 age 36000s cpu 7200s 0.05: claude
   not agent work, no marker, root p, pid 502 age 32400s cpu 1s 0.00: node mcp-server
   agent, session alive, marker, root p-worktrees, pid 503 age 10s cpu 0s 0.00: zsh -c source snapshot-zsh-1.sh && eval 'cargo t
   agent, session alive, marker, root p-worktrees, pid 504 age 18000s cpu 2400s 0.99: cargo test
-  agent, session alive, marker, root p-worktrees, pid 505 age 18000s cpu 2400s 0.99: cargo test
   agent, marker, root p-worktrees, pid 100 orphaned age 64800s cpu 17460s 0.27: bash -c while true; do :; done
   agent, marker, root p-worktrees, pid 101 age 1s cpu 0s 0.00: sleep 1
   agent, marker, root p-worktrees, pid 110 orphaned age 600s cpu 0s 0.00: sleep 600
   unsure, no marker, no root, pid 120 orphaned age 64800s cpu 1s 0.00: tail -f log
+  unsure, no marker, root p, pid 130 orphaned age 540s cpu 2400s 0.99: cargo run
+  unsure, no marker, root p, pid 140 orphaned age 64800s cpu 1s 0.00: bash -c source env.sh && make
   unsure, no marker, root p, pid 200 orphaned age 64800s cpu 14400s 0.27: bash -c while true; do :; done
   not agent work, no marker, root p, pid 60 orphaned age 1s cpu 0s 0.00: meta monitor tick
 ";
-const PROMOTING: &str = "watch_ticks = 2\nkept_entries = 4";
-const TRAIL: &str = "2026-10-27 12:05Z monitor: watched long enough, pid 504 cargo test: cpu 2700s rising, 2 ticks since 2026-10-27 12:00Z, last 2026-10-27 12:05Z
-2026-10-27 12:05Z monitor: watched long enough, pid 505 cargo test: cpu 2700s rising, 2 ticks since 2026-10-27 12:00Z, last 2026-10-27 12:05Z
-2026-10-27 12:10Z monitor: no agent marker under a root, pid 120 orphaned past its limit, target 120: tail -f log
+const PROMOTING: &str = "watch_ticks = 2\nkept_entries = 6";
+const TRAIL: &str = "2026-10-27 12:05Z monitor: no agent marker under a root, pid 201 orphaned past its limit, target 201: bash -c while true; do :; done
+2026-10-27 12:05Z monitor: watched long enough, pid 504 cargo test: cpu 2700s rising, 2 ticks since 2026-10-27 12:00Z, last 2026-10-27 12:05Z
+2026-10-27 12:10Z monitor: watched long enough, pid 505 cargo test: cpu 2700s flat, 2 ticks since 2026-10-27 12:05Z, last 2026-10-27 12:10Z
 2026-10-27 13:01Z monitor: process table unreadable
-2026-10-27 13:01Z monitor failed: settings unreadable
+2026-10-27 13:02Z monitor failed: settings unreadable
 ";
 const LOOP: [&str; 2] = ["  100     1   100", "  201     1   201"];
+const JOINED: [&str; 2] =
+    ["  101   100   100", "  505   503   503   05:00:00 0:40:00.00  99.0 cargo test\n  101   100   100"];
 const RISING: [&str; 2] = ["0:40:00.00  99.0", "0:45:00.00  99.0"];
-const LATER: [TimeDelta; 4] =
-    [TimeDelta::zero(), TimeDelta::minutes(5), TimeDelta::minutes(10), TimeDelta::minutes(61)];
+const LATER: [TimeDelta; 5] =
+    [TimeDelta::zero(), TimeDelta::minutes(5), TimeDelta::minutes(10), TimeDelta::minutes(61), TimeDelta::minutes(62)];
 const BROKEN: &str = "settings unreadable";
 const GIT: &str = ".git";
 
@@ -116,8 +120,8 @@ fn watch_items_persist_into_obvious_and_the_trail_keeps_no_repeats_failures_or_b
     let checkout = tempfile::tempdir().unwrap();
     let clone = LocalClone::new(checkout.path().to_path_buf(), checkout.path().join(GIT));
     let git_dir = clone.git_dir().as_ref();
-    let later = SCENE.replace(LOOP[0], LOOP[1]).replace(RISING[0], RISING[1]);
-    let scenes = [Some(SCENE), Some(later.as_str()), Some(later.as_str()), None];
+    let later = SCENE.replace(LOOP[0], LOOP[1]).replace(JOINED[0], JOINED[1]).replace(RISING[0], RISING[1]);
+    let scenes = [Some(SCENE), Some(later.as_str()), Some(later.as_str()), None, None];
     let ticks: Vec<Output> = scenes
         .iter()
         .zip(LATER)
@@ -125,10 +129,10 @@ fn watch_items_persist_into_obvious_and_the_trail_keeps_no_repeats_failures_or_b
             Watch::patrolled(&FakeMachine::new(scene.as_slice(), CWDS, UPTIME), git_dir, PROMOTING, offset)
         })
         .collect();
-    let last = NOW.parse::<DateTime<Utc>>().unwrap() + LATER[3];
+    let last = NOW.parse::<DateTime<Utc>>().unwrap() + LATER[4];
     Monitor::noted(&clone, &CliFailure::raised::<Setup>(BROKEN), last);
     let recent = Monitor::recent(&clone, last).unwrap();
     let report = Monitor::Report.answer(&clone).unwrap().to_string();
-    assert!(ticks.iter().all(|tick| matches!(tick, Output::Flagged(_))) && report == ticks[3].to_string());
+    assert!(ticks.iter().all(|tick| matches!(tick, Output::Flagged(_))) && report == ticks[4].to_string());
     assert_eq!(Output::Listed(Listed::new("")).raised_with(recent).to_string(), TRAIL);
 }
