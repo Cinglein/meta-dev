@@ -101,6 +101,7 @@ mod tests {
     use task::{CommandLine, GateEnvName, Program, Stdout};
 
     use super::GateChild;
+    use crate::task::ci::run_kind::RunKind;
     use crate::task::fixture::Fixture;
 
     const SHELL: &str = "sh";
@@ -110,6 +111,7 @@ mod tests {
     const TARGET: &str = "gate-target";
     const KNOWN: &str = "GATE_KNOWN_NAME";
     const KNOWN_VALUE: &str = "known7value";
+    const BRANCH: &str = "task-00000000000000a1";
 
     #[test]
     fn the_child_gets_an_empty_home_of_its_own_no_config_home_and_only_allowed_names_with_the_callers_values() {
@@ -119,17 +121,19 @@ mod tests {
         let ambient: BTreeMap<String, OsString> =
             CommandLine::ambient().into_iter().chain([(KNOWN.to_owned(), OsString::from(KNOWN_VALUE))]).collect();
         let child = |toolchain| GateChild::new(&fixture.beside(), TARGET.into(), PathBuf::new(), toolchain).unwrap();
-        let shown = |child: &GateChild, script: [&str; 2]| {
+        let shown = |child: &GateChild, script: [&str; 2], variable: &str| {
             let line = child.line(Program::Executable(SHELL.into()), fixture.beside());
-            line.arguments(script).argument(&name).captured::<Stdout>().unwrap_or_default()
+            line.arguments(script).argument(variable).captured::<Stdout>().unwrap_or_default()
         };
         let plain = child(TOOLCHAIN.parse().unwrap()).seeing(ambient.clone());
         let passing = child(TOOLCHAIN.parse().unwrap()).seeing(ambient).passing(std::slice::from_ref(&name));
-        let home = plain.home.path();
-        assert_eq!(shown(&plain, SHOWN), format!("{}||{TOOLCHAIN}|{TARGET}", home.display()));
+        let (home, passing) = (plain.home.path(), passing.heading(BRANCH.parse().ok()));
+        assert_eq!(shown(&plain, SHOWN, KNOWN), format!("{}||{TOOLCHAIN}|{TARGET}", home.display()));
         let fresh = fs::read_dir(home).is_ok_and(|mut entries| entries.next().is_none());
         assert!(fresh && env::home_dir().is_none_or(|real| real != home) && home.starts_with(fixture.beside()));
-        assert_eq!([shown(&passing, PRINT), shown(&plain, PRINT)], [KNOWN_VALUE, ""]);
+        let printed = [(&passing, KNOWN), (&plain, KNOWN), (&passing, RunKind::GATE_BRANCH)]
+            .map(|(child, variable)| shown(child, PRINT, variable));
+        assert_eq!(printed, [KNOWN_VALUE, "", BRANCH]);
     }
 
     #[test]
