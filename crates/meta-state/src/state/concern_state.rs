@@ -23,6 +23,10 @@ impl ConcernState {
         Target::Concern(self.concern.concern())
     }
 
+    pub fn new_concern(&self) -> &NewConcern {
+        &self.concern
+    }
+
     pub fn tagged(&self, tag: Tag) -> Option<&Self> {
         self.concern.tags().contains(&tag).then_some(self)
     }

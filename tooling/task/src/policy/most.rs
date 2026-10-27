@@ -14,6 +14,11 @@ impl Most {
     }
 
     #[must_use]
+    pub fn plus(self, other: Most) -> Option<Most> {
+        self.0.checked_add(other.0).map(Most)
+    }
+
+    #[must_use]
     pub fn counted<Count: From<usize>>(self) -> Count {
         Count::from(self.0)
     }

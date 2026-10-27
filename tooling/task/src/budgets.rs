@@ -3,6 +3,7 @@ mod budget_drafts;
 mod budget_id;
 mod ledger;
 mod legacy_key;
+mod standing;
 mod tree_failure;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -11,12 +12,14 @@ use serde::{Deserialize, Serialize};
 
 use super::domains::Domains;
 use super::percent::Percent;
+use super::policy::Most;
 use budget::Budget;
 pub use budget::{Amount, Measure};
 pub use budget_drafts::BudgetDrafts;
 use budget_id::BudgetId;
 pub use ledger::Ledger;
 pub use legacy_key::LegacyKey;
+pub use standing::{ChangeLink, Standing};
 pub use tree_failure::TreeFailure;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -51,6 +54,44 @@ impl Budgets {
             .resolved(|parent| self.0.get(parent).and_then(|parent| self.amount(parent)))
     }
 
+    #[must_use]
+    pub fn standing(&self) -> bool {
+        self.0.values().any(|budget| budget.standing_in().is_some())
+    }
+
+    fn split(&self, parent: &BudgetId) -> Result<(), TreeFailure> {
+        let oversubscribed = || Err(TreeFailure::Oversubscribed(parent.clone()));
+        let shares = Percent::total(
+            self.0
+                .values()
+                .filter_map(|budget| budget.allowance().share_of(parent)),
+        );
+        let counts: Vec<Most> = self
+            .0
+            .values()
+            .filter_map(|budget| budget.allowance().count_of(parent))
+            .collect();
+        let counted = counts
+            .iter()
+            .try_fold(Most::from(0), |sum, count| sum.plus(*count));
+        let whole = self
+            .0
+            .get(parent)
+            .and_then(|budget| self.amount(budget))
+            .and_then(|amount| amount.count());
+        match (shares, counted) {
+            (None, _) | (_, None) => oversubscribed(),
+            (Some(shares), _) if shares.is_more_than_whole() => oversubscribed(),
+            (Some(shares), _) if shares > Percent::NONE && !counts.is_empty() => {
+                Err(TreeFailure::MixedParts(parent.clone()))
+            }
+            (_, Some(counted)) if whole.map_or(!counts.is_empty(), |whole| counted > whole) => {
+                oversubscribed()
+            }
+            (Some(_), Some(_)) => Ok(()),
+        }
+    }
+
     pub fn measurable(&self, domains: &Domains) -> Result<(), TreeFailure> {
         self.0
             .iter()
@@ -69,25 +110,17 @@ impl TryFrom<BTreeMap<BudgetId, Budget>> for Budgets {
         let duplicate = budgets.iter().find_map(|(id, budget)| {
             budget
                 .top_measure()
-                .filter(|measure| !measured.insert(*measure))
-                .map(|_| id)
+                .filter(|measure| !measured.insert((*measure, budget.standing_in().cloned())))
+                .map(|_| id.clone())
         });
-        let shared = |parent: &BudgetId| {
-            Percent::total(
-                budgets
-                    .values()
-                    .filter_map(|budget| budget.allowance().share_of(parent)),
-            )
-        };
+        let tree = Budgets(budgets);
         match (
             duplicate,
-            budgets
-                .keys()
-                .find(|parent| shared(parent).is_none_or(Percent::is_more_than_whole)),
+            tree.0.keys().find_map(|parent| tree.split(parent).err()),
         ) {
-            (Some(id), _) => Err(TreeFailure::Duplicate(id.clone())),
-            (None, Some(parent)) => Err(TreeFailure::Oversubscribed(parent.clone())),
-            (None, None) => Ok(Budgets(budgets)),
+            (Some(id), _) => Err(TreeFailure::Duplicate(id)),
+            (None, Some(failure)) => Err(failure),
+            (None, None) => Ok(tree),
         }
     }
 }

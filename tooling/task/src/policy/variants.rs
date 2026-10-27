@@ -16,9 +16,39 @@ const PRICE: &str = "allowance = { share = 100 }\n";
 const WINDOW: &str = "window = \"per_change\"\n";
 const CI: &str = "source = \"ci\"\n";
 
-const REFUSED: [(&str, &str, &str, &str); 20] = [
+const REFUSED: [(&str, &str, &str, &str); 25] = [
     (
-        "meta", WINDOW, "window = \"standing\"\n", "unknown variant `standing`",
+        "meta", WINDOW, "window = \"standing\"\n", "open items take a standing window",
+    ),
+    (
+        "meta",
+        END,
+        "\n[budgets.issues]\ndivision = \"features-and-maintenance\"\nmeasure = { open_items = { kind = \"task\" } }\nallowance = { count = 2 }\nwindow = \"per_change\"\n",
+        "open items take a standing window",
+    ),
+    (
+        "meta",
+        END,
+        "\n[budgets.issues]\ndivision = \"features-and-maintenance\"\nmeasure = { open_items = { kind = \"task\" } }\nallowance = { count = 2 }\nwindow = \"standing\"\n\n[budgets.more-issues]\ndivision = \"features-and-maintenance\"\nmeasure = { open_items = { kind = \"task\" } }\nallowance = { count = 3 }\nwindow = \"standing\"\n",
+        "another top-level budget has its measure",
+    ),
+    (
+        "meta",
+        END,
+        "\n[budgets.issues]\ndivision = \"features-and-maintenance\"\nmeasure = { open_items = { kind = \"task\" } }\nallowance = { count = 2 }\nwindow = \"standing\"\n\n[budgets.a]\ndivision = \"features-and-maintenance/a\"\nmeasure = { open_items = { kind = \"task\" } }\nallowance = { of = \"issues\", count = 2 }\nwindow = \"standing\"\n\n[budgets.b]\ndivision = \"features-and-maintenance/b\"\nmeasure = { open_items = { kind = \"task\" } }\nallowance = { of = \"issues\", count = 1 }\nwindow = \"standing\"\n",
+        "budget issues: its parts add up to more than all of it",
+    ),
+    (
+        "meta",
+        END,
+        "\n[budgets.issues]\ndivision = \"features-and-maintenance\"\nmeasure = { open_items = { kind = \"task\" } }\nallowance = { count = 2 }\nwindow = \"standing\"\n\n[budgets.a]\ndivision = \"features-and-maintenance/a\"\nmeasure = { open_items = { kind = \"task\" } }\nallowance = { of = \"issues\", count = 1 }\nwindow = \"standing\"\n\n[budgets.b]\ndivision = \"features-and-maintenance/b\"\nmeasure = { open_items = { kind = \"task\" } }\nallowance = { of = \"issues\", percent = 10 }\nwindow = \"standing\"\n",
+        "budget issues: its parts are split by both percent and count",
+    ),
+    (
+        "meta",
+        END,
+        "\n[domains.\"performance-and-cost/x\"]\ntests = [\"meta_*\"]\n\n[budgets.x-time]\ndivision = \"performance-and-cost/x\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", count = 50 }\nwindow = \"per_change\"\n",
+        "budget x-time: its allowance is not in its measure's unit",
     ),
     (
         "meta", WINDOW, "window = { rolling = 604800000 }\n", "unknown variant `rolling`",

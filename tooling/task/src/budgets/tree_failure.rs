@@ -31,4 +31,8 @@ pub enum TreeFailure {
     Overflow(BudgetId),
     #[error("budget {0}: a baseline budget has no parts")]
     BaselinePart(BudgetId),
+    #[error("budget {0}: open items take a standing window; every other measure, per change")]
+    OtherWindow(BudgetId),
+    #[error("budget {0}: its parts are split by both percent and count")]
+    MixedParts(BudgetId),
 }

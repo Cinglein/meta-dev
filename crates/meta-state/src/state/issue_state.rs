@@ -22,6 +22,10 @@ impl IssueState {
     pub fn target(&self) -> Target {
         Target::Issue(self.issue.issue())
     }
+
+    pub fn new_issue(&self) -> &NewIssue {
+        &self.issue
+    }
 }
 
 impl fmt::Display for IssueState {
