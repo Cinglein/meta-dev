@@ -1,7 +1,12 @@
+mod pipe_bytes;
+
 use std::ffi::OsStr;
-use std::io::{self, Write as _};
+use std::io::{self, Read, Write as _};
 use std::process::{Command, Output, Stdio};
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
+
+use pipe_bytes::PipeBytes;
 
 use crate::command_line::CommandLine;
 use crate::git_log::content::Content;
@@ -32,15 +37,26 @@ impl GitCommand {
         Self { input: Some(content), ..self }
     }
 
+    fn drain(pipe: Option<impl Read + Send + 'static>) -> JoinHandle<io::Result<PipeBytes>> {
+        std::thread::spawn(move || PipeBytes::read_all(pipe))
+    }
+
+    fn drained(handle: JoinHandle<io::Result<PipeBytes>>) -> io::Result<PipeBytes> {
+        handle.join().unwrap_or_else(|_| Err(io::Error::other("output reader panicked")))
+    }
+
     pub fn timed_output(mut self) -> Result<Output, LogFailure> {
         let mut child = self.command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
+        let stdout = Self::drain(child.stdout.take());
+        let stderr = Self::drain(child.stderr.take());
         let deadline = Instant::now() + Self::NETWORK_TIMEOUT;
         let finished = std::iter::from_fn(|| deadline.checked_duration_since(Instant::now())).find_map(|_| {
             std::thread::sleep(Self::POLL);
             child.try_wait().transpose()
         });
         if let Some(status) = finished {
-            status.and_then(|_| child.wait_with_output()).map_err(LogFailure::from)
+            let status = status?;
+            Ok(Self::drained(stdout)?.into_output(status, Self::drained(stderr)?))
         } else {
             child.kill()?;
             Err(LogFailure::TimedOut { command: CommandLine::from(&self.command), after: Self::NETWORK_TIMEOUT })
