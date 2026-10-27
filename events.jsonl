@@ -558,3 +558,4 @@
 {"at":"2026-10-27T11:07:45.811960Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-c4bff9e950e2dfe2"}
 {"at":"2026-10-27T11:07:47.428435Z","actor":"claude-lead","kind":"TaskDone","task":"task-c4bff9e950e2dfe2"}
 {"at":"2026-10-27T11:23:26.593554Z","actor":"claude-lead","kind":"TaskOpened","task":"task-b4df9ef75a2c45a0","text":"Test-line share is at its 18% ceiling (about 6 lines of headroom after #42), so every feature PR has to squeeze its tests. Consolidate tests (table-driven cases, proptest, shared fixtures) to get back toward 60% of the allowance, with mutants at 0 missed and test time not rising. Start after #42 and #44 merge, to avoid conflicts.","division":"performance-and-cost"}
+{"at":"2026-10-27T12:27:10.787732Z","actor":"claude-gatelog","kind":"TaskOpened","task":"task-81d7dc26920b5fa8","text":"Local gate cannot read meta/log from a private origin; checks that need no log still read it","division":"features-and-maintenance"}
