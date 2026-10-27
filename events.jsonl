@@ -641,3 +641,4 @@
 {"at":"2026-10-27T17:35:38.506244Z","actor":"claude-caps","kind":"TaskLinked","task":"task-2826801cf4379207","pr":49}
 {"at":"2026-10-27T17:35:56.082997Z","actor":"claude-usesmeta","kind":"TaskLinked","task":"task-74151ea135505567","pr":51}
 {"at":"2026-10-27T17:38:10.075419Z","actor":"claude-monitor","kind":"TaskLinked","task":"task-843b490c6c281d89","pr":50}
+{"at":"2026-10-27T17:42:36.303736Z","actor":"claude-lead","kind":"TaskOpened","task":"task-2fcb95cb7eb36cdf","text":"meta init / meta upgrade write every new policy key with its default explicitly into the project's tooling/policy.toml (no hidden code defaults; owner 2026-10-27: always max explicit).","division":"features-and-maintenance","addresses":["issue-98555e731a32d5d4"]}
