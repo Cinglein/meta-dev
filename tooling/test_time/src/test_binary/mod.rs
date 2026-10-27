@@ -46,11 +46,11 @@ impl TestBinary {
             .collect())
     }
 
-    pub(super) fn timings(&self) -> Result<Vec<TestTiming>, Failure> {
-        self.tests()?
-            .into_iter()
-            .map(|test| self.timed(test))
-            .collect()
+    pub(super) fn timings(&self) -> Vec<Result<TestTiming, Failure>> {
+        self.tests().map_or_else(
+            |failure| vec![Err(failure)],
+            |tests| tests.into_iter().map(|test| self.timed(test)).collect(),
+        )
     }
 
     fn tests(&self) -> Result<Vec<ListedTest>, Failure> {

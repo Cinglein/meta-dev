@@ -1,5 +1,6 @@
 mod no_tests;
 mod test_binary;
+mod test_runs;
 mod test_timing;
 
 use std::cmp::Reverse;
@@ -7,6 +8,7 @@ use std::time::Duration;
 
 use no_tests::NoTests;
 use test_binary::TestBinary;
+use test_runs::TestRuns;
 use test_timing::TestTiming;
 
 use task::Failure;
@@ -38,11 +40,9 @@ impl TestTime {
             |selection| {
                 let timings = TestBinary::discover(workspace, selection, policy)?
                     .iter()
-                    .map(TestBinary::timings)
-                    .collect::<Result<Vec<Vec<TestTiming>>, Failure>>()?
-                    .into_iter()
-                    .flatten()
-                    .collect();
+                    .flat_map(TestBinary::timings)
+                    .collect::<TestRuns>()
+                    .passed()?;
                 TestTime { timings }.recorded(policy, ledger).verdict()
             },
         )

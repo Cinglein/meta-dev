@@ -140,10 +140,12 @@ impl CommandLine {
         if output.status.success() {
             Ok(output)
         } else {
-            Err(Failure::Command(format!(
-                "{self}: {}",
-                String::from_utf8_lossy(&output.stderr).trim()
-            )))
+            let printed: Vec<String> = [&output.stdout, &output.stderr]
+                .into_iter()
+                .map(|stream| String::from_utf8_lossy(stream).trim().to_owned())
+                .filter(|text| !text.is_empty())
+                .collect();
+            Err(Failure::Command(format!("{self}: {}", printed.join("\n"))))
         }
     }
 

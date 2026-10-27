@@ -5,7 +5,6 @@ use strum::{Display, EnumIter, EnumString};
 use crate::task::clippy::Clippy;
 use crate::task::failure::Failure;
 use crate::task::lint::Lint;
-use crate::task::test::Test;
 use task::Ledger;
 use task::Policy;
 use task::Selection;
@@ -20,7 +19,6 @@ pub enum CiStep {
     Fmt,
     Clippy,
     Test,
-    TestTime,
     Lint,
     Spec,
 }
@@ -43,8 +41,7 @@ impl CiStep {
                 .run()
                 .map_err(Failure::from),
             CiStep::Clippy => Clippy::run(workspace, selection, policy).map_err(Failure::from),
-            CiStep::Test => Test::run(workspace, selection, policy).map_err(Failure::from),
-            CiStep::TestTime => TestTime::run(workspace, selection, policy, ledger).map_err(Failure::from),
+            CiStep::Test => TestTime::run(workspace, selection, policy, ledger).map_err(Failure::from),
             CiStep::Lint => workspace
                 .source_files()
                 .map_err(Failure::from)
