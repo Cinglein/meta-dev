@@ -24,6 +24,14 @@ impl Output {
             Self::Flagged(_) => ExitCode::FAILURE,
         }
     }
+
+    #[must_use]
+    pub fn raised_with(self, local: Option<Listed>) -> Self {
+        match (self, local) {
+            (Self::Listed(listed) | Self::Flagged(listed), Some(local)) => Self::Flagged(listed.then(local)),
+            (output, _) => output,
+        }
+    }
 }
 
 impl fmt::Display for Output {

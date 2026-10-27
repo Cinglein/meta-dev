@@ -1,0 +1,14 @@
+scratch = []
+spared = []
+stop = []
+orphan_seconds = 600
+cpu_seconds = 3600
+wall_seconds = 28800
+grace_seconds = 5
+probe_seconds = 20
+recent_seconds = 3600
+kept_entries = 500
+watch_percent = 50
+watch_ticks = 6
+mark_seconds = 600
+start_slack_seconds = 2
