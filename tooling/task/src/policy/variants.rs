@@ -16,7 +16,7 @@ const PRICE: &str = "allowance = { share = 100 }\n";
 const WINDOW: &str = "window = \"per_change\"\n";
 const CI: &str = "source = \"ci\"\n";
 
-const REFUSED: [(&str, &str, &str, &str); 29] = [
+const REFUSED: [(&str, &str, &str, &str); 31] = [
     (
         "meta",
         END,
@@ -36,13 +36,25 @@ const REFUSED: [(&str, &str, &str, &str); 29] = [
         "budget a: its measure is not the measure of the budget it is part of",
     ),
     (
-        "meta", WINDOW, "window = \"standing\"\n", "open items take a standing window",
+        "meta", WINDOW, "window = \"standing\"\n", "take a standing window",
     ),
     (
         "meta",
         END,
         "\n[budgets.issues]\ndivision = \"features-and-maintenance\"\nmeasure = { open_items = { kind = \"task\" } }\nallowance = { count = 2 }\nwindow = \"per_change\"\n",
-        "open items take a standing window",
+        "take a standing window",
+    ),
+    (
+        "meta",
+        END,
+        "\n[budgets.lines]\ndivision = \"features-and-maintenance\"\nmeasure = \"words\"\nallowance = { count = 2 }\nwindow = \"per_change\"\n",
+        "take a standing window",
+    ),
+    (
+        "meta",
+        END,
+        "\n[domains.\"features-and-maintenance/x\"]\ncrates = [\"*\"]\n\n[budgets.x-words]\ndivision = \"features-and-maintenance/x\"\nmeasure = \"words\"\nallowance = { of = \"prose-words\", count = 1 }\nwindow = \"standing\"\n",
+        "x-words: its measure needs paths",
     ),
     (
         "meta",

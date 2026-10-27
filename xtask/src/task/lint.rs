@@ -70,6 +70,12 @@ mod tests {
 
     const LINT_FINDINGS: &str = "lint-findings";
     const MEASURED_OK: &str = "-                     - ok";
+    const PROSE_WORDS: &str = "prose-words ";
+    const PROSE_SPENT: &str = " words                                6 ";
+    const PROSE: &str = "a b c\n";
+    const TRACKED: &str = "notes.md";
+    const UNTRACKED: &str = "docs/more.md";
+    const NOT_PROSE: &str = "notes.txt";
     const LINT: &str = "no-comments";
     const HEADLINE: &str = "comments go";
     const ALLOWED: &str = "no-comments = 1";
@@ -93,16 +99,18 @@ mod tests {
     }
 
     #[test]
-    fn a_baseline_above_the_findings_fails_until_shrunk_to_them() {
+    fn a_baseline_above_the_findings_fails_until_shrunk_to_them_and_markdown_prose_is_counted() {
         let fixture = Fixture::new();
-        fixture.write(BASELINE, ALLOWED).branch();
+        fixture.write(BASELINE, ALLOWED).write(TRACKED, PROSE).branch();
+        fixture.write(UNTRACKED, PROSE).write(NOT_PROSE, PROSE);
         let (policy, mut ledger) = (Policy::defaults(), Ledger::default());
         assert!(Lint::run(fixture.root(), &[], &policy, &mut ledger).is_err());
         Lint::shrink(fixture.root(), &[], &policy).unwrap();
         assert_eq!(fs::read_to_string(fixture.path(BASELINE)).ok().as_deref(), Some(""));
         let passed = Lint::run(fixture.root(), &[], &policy, &mut ledger).is_ok();
         let statement = ledger.statement(&policy).to_string();
-        assert!(passed && statement.lines().any(|row| row.starts_with(LINT_FINDINGS) && row.ends_with(MEASURED_OK)));
+        let counted = statement.lines().any(|row| row.starts_with(PROSE_WORDS) && row.contains(PROSE_SPENT));
+        assert!(passed && counted && statement.lines().any(|row| row.starts_with(LINT_FINDINGS) && row.ends_with(MEASURED_OK)));
     }
 
     #[test]

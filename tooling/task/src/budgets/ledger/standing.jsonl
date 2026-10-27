@@ -1,9 +1,9 @@
-{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"ConcernIdentified","concern":"concern-0000000000000001","text":"x","division":"features-and-maintenance/nav","severity":"lost"}
+{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"ConcernIdentified","concern":"concern-0000000000000001","text":"a b c d","division":"features-and-maintenance/nav","severity":"lost"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"ConcernIdentified","concern":"concern-0000000000000002","text":"x","division":"features-and-maintenance","severity":"critical"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"EntryRetired","entry":"concern-0000000000000002","text":"x"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"ConcernIdentified","concern":"concern-0000000000000003","text":"x"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"ConcernIdentified","concern":"concern-0000000000000004","text":"x","division":"performance-and-cost"}
-{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"IssueReported","issue":"issue-0000000000000001","text":"x","division":"features-and-maintenance/nav","severity":"slow"}
+{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"IssueReported","issue":"issue-0000000000000001","text":"a b c d","division":"features-and-maintenance/nav","severity":"slow"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"IssueReported","issue":"issue-0000000000000002","text":"x","division":"performance-and-cost","severity":"critical"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"IssueReported","issue":"issue-0000000000000003","text":"x","division":"architecture-and-planning"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000001","text":"x","division":"features-and-maintenance/nav"}
@@ -12,7 +12,7 @@
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000002","text":"x","division":"features-and-maintenance"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskClaimed","task":"task-0000000000000002"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskBlocked","task":"task-0000000000000002","on":{"Discussion":"issue-0000000000000001"}}
-{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000003","text":"x","division":"features-and-maintenance/nav"}
+{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000003","text":"a b c d","division":"features-and-maintenance/nav"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000004","text":"x","division":"performance-and-cost"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskClaimed","task":"task-0000000000000004"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskDone","task":"task-0000000000000004"}
@@ -21,7 +21,7 @@
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000006","text":"x","division":"features-and-maintenance/nav","addresses":["concern-0000000000000001"]}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskLinked","task":"task-0000000000000006","pr":9}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"EntryRetired","entry":"task-0000000000000006","text":"x"}
-{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000007","text":"x","division":"features-and-maintenance/nav"}
+{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000007","text":"a b c","division":"features-and-maintenance/nav"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskLinked","task":"task-0000000000000007","pr":10}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskLinked","task":"task-0000000000000005","pr":10}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000008","text":"x","division":"features-and-maintenance/nav"}

@@ -124,6 +124,7 @@ impl Ledger {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
+    use std::path::PathBuf;
 
     use meta_schema::Record;
     use meta_state::State;
@@ -131,7 +132,7 @@ mod tests {
 
     use super::Ledger;
     use crate::budget::{Interval, Millis};
-    use crate::budgets::{Amount, Budgets, ChangeLink, Measure, Standing};
+    use crate::budgets::{Amount, Budgets, ChangeLink, Contents, Measure, Standing};
     use crate::percent::Percent;
     use crate::policy::{Most, Policy};
     use crate::selection::Selection;
@@ -141,7 +142,7 @@ mod tests {
     const TESTED: &str = "t-";
     const CRITICAL: &str = "open_items critical";
     pub(super) const ADDRESSING: &str = "8";
-    const STANDING_ROWS: [&str; 13] = [
+    const STANDING_ROWS: [&str; 16] = [
         "architecture-and-planning-critical architecture-and-planning  open_items critical                  0          0          0 ok",
         "features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, paid down by the linked task",
         "performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over, outside the linked task's division; a diff in its domain reaches it",
@@ -152,30 +153,34 @@ mod tests {
         "t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over, paid down by the linked task",
         "t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over",
         "t-nav-unheld       features-and-maintenance/nav open_items unheld_tasks              3          1          3 warn",
+        "t-nav-words        features-and-maintenance/nav words                                3          1          3 warn",
         "t-open-tasks       features-and-maintenance   open_items tasks                     5          3          6 warn",
         "t-planning-issues  architecture-and-planning  open_items issues                    1          0          0 over, outside the linked task's division",
         "t-unheld           features-and-maintenance   open_items unheld_tasks              3          3          5 ok",
+        "t-verbose          features-and-maintenance   open_items verbose 3                 3          2          4 warn",
+        "t-words            features-and-maintenance   words                                7          3          6 over",
     ];
     const ALL_OVER: &[&str] = &[
-        "t-cost-concerns", "t-nav-concerns", "t-nav-tasks", "t-planning-issues",
+        "t-cost-concerns", "t-nav-concerns", "t-nav-tasks", "t-planning-issues", "t-words",
     ];
     const UNREACHED: [(&str, &[&str]); 7] = [
         ("", ALL_OVER),
-        ("7", &["t-nav-concerns", "t-nav-tasks"]),
+        ("7", &["t-nav-concerns", "t-nav-tasks", "t-words"]),
         ("task-0000000000000004", &["t-cost-concerns"]),
-        (ADDRESSING, &["t-nav-tasks"]),
+        (ADDRESSING, &["t-nav-tasks", "t-words"]),
         ("9", ALL_OVER),
-        ("10", &["t-nav-concerns", "t-nav-tasks"]),
-        ("11", &["t-nav-concerns", "t-nav-tasks"]),
+        ("10", &["t-nav-concerns", "t-nav-tasks", "t-words"]),
+        ("11", &["t-nav-concerns", "t-nav-tasks", "t-words"]),
     ];
     const DIFF_REACHED: [(&str, &[&str]); 3] = [
         (
             "task-0000000000000004",
-            &["t-cost-concerns", "t-nav-concerns", "t-nav-tasks"],
+            &["t-cost-concerns", "t-nav-concerns", "t-nav-tasks", "t-words"],
         ),
-        ("7", &["t-cost-concerns", "t-nav-concerns", "t-nav-tasks"]),
-        (ADDRESSING, &["t-cost-concerns", "t-nav-tasks"]),
+        ("7", &["t-cost-concerns", "t-nav-concerns", "t-nav-tasks", "t-words"]),
+        (ADDRESSING, &["t-cost-concerns", "t-nav-tasks", "t-words"]),
     ];
+    const PROSE: [(&str, &str); 2] = [("crates/a.md", "a b c"), ("README.md", "a b c d")];
 
     const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
     const STATEMENT: &str = include_str!("ledger/statement.txt");
@@ -224,6 +229,8 @@ mod tests {
                 &link,
                 policy.scales(),
             )));
+            let texts = PROSE.map(|(path, text)| (PathBuf::from(path), text.to_owned()));
+            ledger.measure(Contents::read(texts, policy.spec()));
             ledger
         }
 
