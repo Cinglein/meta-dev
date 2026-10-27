@@ -11,7 +11,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use meta_log::LogStore;
+use meta_log::{GitLog, LogFailure, LogStore, Snapshot};
 use strum::IntoEnumIterator;
 
 use crate::task::failure::Failure;
@@ -44,7 +44,7 @@ impl Ci {
                 let mut times = StepTimes::default();
                 let mut ledger = Ledger::default();
                 let log = StandingLog::git(workspace.root());
-                let read = || self.record.as_ref().map_or_else(|| log.read(), |_| log.tracked());
+                let read = || self.logged(&log);
                 let outcome = CiStep::iter()
                     .try_for_each(|step| times.record(step, step.timed(workspace, selection, policy, &mut ledger)))
                     .and_then(|()| StandingLog::counted(read, policy, &mut ledger))
@@ -58,6 +58,10 @@ impl Ci {
             },
             |gate| gate.run(policy, self.summary.as_deref()),
         )
+    }
+
+    fn logged(&self, log: &GitLog) -> Result<Snapshot, LogFailure> {
+        self.record.as_ref().map_or_else(|| log.read(), |_| log.tracked())
     }
 
     fn recorded(&self, times: &StepTimes) -> Result<(), Failure> {

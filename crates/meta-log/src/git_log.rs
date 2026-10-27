@@ -41,7 +41,7 @@ impl GitLog {
     }
 
     pub fn tracked(&self) -> Result<Snapshot, LogFailure> {
-        self.read()
+        Ok(self.remote.tracked()?.snapshot())
     }
 
     fn commit(&self, tip: Option<&Sha>, content: &Content, record: &Record) -> Result<Sha, LogFailure> {

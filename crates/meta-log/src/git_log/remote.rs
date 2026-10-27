@@ -33,6 +33,10 @@ impl Remote {
         self.git.command(["push", "--quiet"]).arg(self.name.to_string()).arg(target).timed_output()
     }
 
+    pub fn tracked(&self) -> Result<Content, LogFailure> {
+        self.blob_at(self.tracking_tip().as_ref())
+    }
+
     fn fetch_once(&self) -> Result<Option<Fetched>, LogFailure> {
         let refspec = format!("+refs/heads/meta/*:refs/remotes/{}/meta/*", self.name);
         let fetched = self

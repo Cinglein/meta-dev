@@ -47,9 +47,11 @@ impl Fixture {
         self
     }
 
-    pub fn bare(&self) -> PathBuf {
+    pub fn shared_origin(&self, other: &Fixture) -> PathBuf {
         let bare = self.work.with_file_name("origin.git");
         Self::ran(Self::git(&self.work).args(["init", "--quiet", "--bare"]).arg(&bare));
+        self.pointed(&bare);
+        other.pointed(&bare);
         bare
     }
 

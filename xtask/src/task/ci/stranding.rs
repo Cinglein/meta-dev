@@ -21,7 +21,8 @@ impl Stranding {
     }
 
     pub fn rescaling(root: &Path, policy: &Policy) -> Result<Option<Scales>, Failure> {
-        Ok(Some(PriorPolicy::read_at(&Revision::merge_base(root, policy.branch(Branch::Base))?)?.scales()))
+        let before = PriorPolicy::read_at(&Revision::merge_base(root, policy.branch(Branch::Base))?)?.scales();
+        Ok(Some(before).filter(|before| before != policy.scales()))
     }
 
     fn judged(before: &Scales, now: &Scales, snapshot: Result<Snapshot, LogFailure>) -> Result<(), Failure> {
@@ -37,7 +38,7 @@ impl Stranding {
 
 #[cfg(test)]
 mod tests {
-    use meta_log::{LogFailure, LogStore, MemoryLog};
+    use meta_log::Snapshot;
     use meta_schema::{Event, NewConcern, Record};
     use meta_severity::Scales;
 
@@ -54,16 +55,11 @@ mod tests {
     const OVERRIDDEN: &str =
         r#"{"features-and-maintenance": [{"name": "blocker", "meaning": "x"}, {"name": "nuisance", "meaning": "x"}]}"#;
 
-    struct Logged;
-
-    impl Logged {
-        fn rated(division: &str, level: &str) -> MemoryLog {
-            let log = MemoryLog::default();
+    impl Stranding {
+        pub fn rated(division: &str, level: &str) -> Record {
             let concern = NewConcern::new(division.parse().unwrap(), TOP.parse().unwrap(), None, vec![])
                 .rated(level.parse().unwrap());
-            let record = Record::new(TOP.parse().unwrap(), Event::ConcernIdentified(concern));
-            log.append::<LogFailure>(&mut |_| Ok(record.clone())).unwrap();
-            log
+            Record::new(TOP.parse().unwrap(), Event::ConcernIdentified(concern))
         }
     }
 
@@ -71,11 +67,11 @@ mod tests {
     fn a_policy_change_that_strands_lowers_or_reorders_fails_and_an_empty_log_fails_closed() {
         let [defaults, overridden, finer]: [Scales; 3] =
             [Scales::default(), serde_json::from_str(OVERRIDDEN).unwrap(), serde_json::from_str(FINER).unwrap()];
-        let empty = Stranding::judged(&defaults, &defaults, MemoryLog::default().read()).unwrap_err().to_string();
-        let [nested, top] = [Logged::rated(NAV, CRITICAL), Logged::rated(TOP, MAJOR)];
-        let stranded = Stranding::judged(&defaults, &finer, nested.read()).unwrap_err().to_string();
-        let reordered = Stranding::judged(&defaults, &overridden, top.read()).unwrap_err().to_string();
+        let empty = Stranding::judged(&defaults, &defaults, Ok(Snapshot::default())).unwrap_err().to_string();
+        let logged = |division, level| Ok(Snapshot::default().with_record(Stranding::rated(division, level)));
+        let stranded = Stranding::judged(&defaults, &finer, logged(NAV, CRITICAL)).unwrap_err().to_string();
+        let reordered = Stranding::judged(&defaults, &overridden, logged(TOP, MAJOR)).unwrap_err().to_string();
         assert!(stranded.contains(STRANDED) && reordered.contains(NOT_COMPARABLE) && empty.contains(CLOSED));
-        assert!(Stranding::judged(&finer, &finer, nested.read()).is_ok());
+        assert!(Stranding::judged(&finer, &finer, logged(NAV, CRITICAL)).is_ok());
     }
 }
