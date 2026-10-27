@@ -3,6 +3,7 @@ use std::process::Command;
 use std::str::FromStr;
 
 use meta_schema::Email;
+use meta_trace::SpawnSpan;
 
 use crate::request::output::Listed;
 
@@ -20,7 +21,7 @@ impl Identity {
 
     fn foreign_in(directory: &Path) -> Option<Identity> {
         Self::IDENTS.iter().find_map(|ident| {
-            let shown = Command::new("git").arg("-C").arg(directory).args(["var", ident]).output().ok()?;
+            let shown = SpawnSpan::output_of(Command::new("git").arg("-C").arg(directory).args(["var", ident])).ok()?;
             let Ok(identity) = String::from_utf8_lossy(&shown.stdout).parse::<Identity>();
             Some(identity).filter(|identity| !identity.0.noreply())
         })

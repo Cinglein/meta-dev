@@ -3,6 +3,8 @@ use std::io::{self, Write as _};
 use std::process::{Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
+use meta_trace::SpawnSpan;
+
 use crate::command_line::CommandLine;
 use crate::git_log::content::Content;
 use crate::git_log::sha::Sha;
@@ -33,6 +35,7 @@ impl GitCommand {
     }
 
     pub fn timed_output(mut self) -> Result<Output, LogFailure> {
+        let span = SpawnSpan::opened(&self.command);
         let mut child = self.command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
         let deadline = Instant::now() + Self::NETWORK_TIMEOUT;
         let finished = std::iter::from_fn(|| deadline.checked_duration_since(Instant::now())).find_map(|_| {
@@ -40,15 +43,19 @@ impl GitCommand {
             child.try_wait().transpose()
         });
         if let Some(status) = finished {
-            status.and_then(|_| child.wait_with_output()).map_err(LogFailure::from)
+            let output = status.and_then(|_| child.wait_with_output());
+            span.ended(output.as_ref().ok().map(|output| &output.status));
+            output.map_err(LogFailure::from)
         } else {
             child.kill()?;
+            span.ended(None);
             Err(LogFailure::TimedOut { command: CommandLine::from(&self.command), after: Self::NETWORK_TIMEOUT })
         }
     }
 
     pub fn content(mut self) -> Result<Content, LogFailure> {
         let command = CommandLine::from(&self.command);
+        let span = SpawnSpan::opened(&self.command);
         let stdin = self.input.as_ref().map_or_else(Stdio::null, |_| Stdio::piped());
         let mut child = self.command.stdin(stdin).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
         self.input
@@ -57,6 +64,7 @@ impl GitCommand {
             .map(|(content, mut pipe)| pipe.write_all(content.as_ref().as_bytes()))
             .transpose()?;
         let output = child.wait_with_output()?;
+        span.ended(Some(&output.status));
         if output.status.success() {
             String::from_utf8(output.stdout)
                 .map(Content::from)

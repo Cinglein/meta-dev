@@ -12,6 +12,8 @@ use std::io::{ErrorKind, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
+use meta_trace::{SpanKind, SpawnSpan};
+
 use super::alternates::Alternates;
 use super::cause::Cause;
 use super::entry_kind::EntryKind;
@@ -33,12 +35,16 @@ pub struct Host {
 impl Host {
     const LISTING: [&'static str; 3] = ["-w", "-F", "n"];
     const RECURSIVE: &'static str = "+D";
+    const WALK: &'static str = "walk";
 
     fn ran(mut command: Command, input: Option<&str>) -> std::io::Result<Output> {
+        let span = SpawnSpan::opened(&command);
         let piped = input.map_or_else(Stdio::null, |_| Stdio::piped());
         let mut child = command.stdin(piped).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
         input.zip(child.stdin.take()).map(|(input, mut pipe)| pipe.write_all(input.as_bytes())).transpose()?;
-        child.wait_with_output()
+        let output = child.wait_with_output();
+        span.ended(output.as_ref().ok().map(|output| &output.status));
+        output
     }
 
     fn lenders(&self, root: &Path) -> Vec<Alternates> {
@@ -82,6 +88,7 @@ impl Inspection for Host {
     }
 
     fn walked(&self, path: &Path) -> Vec<Found> {
+        let _walk = SpanKind::Fs.entered(&Self::WALK);
         Walker::new(path).descended(Path::new(""))
     }
 
@@ -96,7 +103,7 @@ impl Inspection for Host {
 
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
         let scanned = paths.iter().flat_map(|path| [OsStr::new(Self::RECURSIVE), path.as_os_str()]);
-        match Command::new("lsof").args(Self::LISTING).args(scanned).output() {
+        match SpawnSpan::output_of(Command::new("lsof").args(Self::LISTING).args(scanned)) {
             Ok(listed) if listed.stderr.is_empty() => {
                 let Ok(occupancy) = String::from_utf8_lossy(&listed.stdout).parse();
                 occupancy

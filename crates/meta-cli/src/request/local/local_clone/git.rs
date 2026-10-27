@@ -3,6 +3,8 @@ use std::fmt;
 use std::path::Path;
 use std::process::Command;
 
+use meta_trace::SpawnSpan;
+
 use crate::request::cli_failure::{CliFailure, Setup};
 
 #[derive(Debug)]
@@ -14,8 +16,8 @@ impl<'dir> Git<'dir> {
     }
 
     pub fn output(&self, words: &[&OsStr]) -> Result<String, CliFailure> {
-        let output =
-            Command::new("git").arg("-C").arg(self.0).args(words).output().map_err(CliFailure::raised::<Setup>)?;
+        let output = SpawnSpan::output_of(Command::new("git").arg("-C").arg(self.0).args(words))
+            .map_err(CliFailure::raised::<Setup>)?;
         let shown = |stream: &[u8]| String::from_utf8_lossy(stream).trim().to_owned();
         output.status.success().then(|| shown(&output.stdout)).ok_or_else(|| {
             let line: Vec<_> = words.iter().map(|word| word.to_string_lossy()).collect();

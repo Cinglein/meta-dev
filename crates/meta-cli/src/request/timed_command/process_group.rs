@@ -1,6 +1,8 @@
 use std::fmt;
 use std::process::{Child, Command};
 
+use meta_trace::SpawnSpan;
+
 #[derive(Clone, Copy, Debug)]
 pub struct ProcessGroup(u32);
 
@@ -14,7 +16,8 @@ impl ProcessGroup {
     }
 
     pub fn kill(self) {
-        Command::new(Self::KILL).args([Self::SIGNAL, Self::END_OF_OPTIONS, &self.to_string()]).status().ok();
+        let mut kill = Command::new(Self::KILL);
+        SpawnSpan::status_of(kill.args([Self::SIGNAL, Self::END_OF_OPTIONS, &self.to_string()])).ok();
     }
 }
 

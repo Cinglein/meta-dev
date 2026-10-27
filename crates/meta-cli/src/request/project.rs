@@ -6,6 +6,7 @@ use std::process::Command;
 use std::str::FromStr;
 
 use meta_log::GitLog;
+use meta_trace::SpawnSpan;
 
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
 use crate::request::cli_failure::{CliFailure, Setup};
@@ -39,12 +40,9 @@ impl Project {
     pub fn push_failure(&self) -> Option<Listed> {
         let remote = self.config.remote().ok()?.to_string();
         let unprotected = self.unprotected_branch()?;
-        let pushed = Command::new("git")
-            .arg("-C")
-            .arg(&self.root)
-            .args(["push", "--quiet", "-u", &remote, &unprotected.to_string()])
-            .output()
-            .ok()?;
+        let mut push = Command::new("git");
+        push.arg("-C").arg(&self.root).args(["push", "--quiet", "-u", &remote, &unprotected.to_string()]);
+        let pushed = SpawnSpan::output_of(&mut push).ok()?;
         (!pushed.status.success()).then(|| {
             Listed::new(format!("push of {unprotected} failed: {}", String::from_utf8_lossy(&pushed.stderr).trim()))
         })
@@ -108,11 +106,7 @@ impl Project {
     }
 
     fn git_lines<Line: FromStr>(&self, words: impl IntoIterator<Item = OsString>) -> Option<Vec<Line>> {
-        let output = Command::new("git")
-            .arg("-C")
-            .arg(&self.root)
-            .args(words)
-            .output()
+        let output = SpawnSpan::output_of(Command::new("git").arg("-C").arg(&self.root).args(words))
             .ok()
             .filter(|output| output.status.success())?;
         Some(String::from_utf8_lossy(&output.stdout).lines().filter_map(|line| line.parse().ok()).collect())
@@ -127,7 +121,9 @@ impl Project {
     }
 
     pub fn unprotected_branch(&self) -> Option<BranchName> {
-        let current = Command::new("git").arg("-C").arg(&self.root).args(["branch", "--show-current"]).output().ok()?;
+        let mut branch = Command::new("git");
+        branch.arg("-C").arg(&self.root).args(["branch", "--show-current"]);
+        let current = SpawnSpan::output_of(&mut branch).ok()?;
         let branch: BranchName = String::from_utf8_lossy(&current.stdout).trim().parse().ok()?;
         Some(branch).filter(|branch| !branch.to_string().is_empty() && self.config.protects(branch).is_none())
     }

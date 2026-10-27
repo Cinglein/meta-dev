@@ -13,6 +13,7 @@ mod relocate;
 mod scale_policy;
 mod status_view;
 mod timed_command;
+mod trace_view;
 mod writing;
 
 use std::path::PathBuf;
@@ -21,13 +22,14 @@ use chrono::Utc;
 use meta_listing::{Kind, Scope};
 use meta_log::LogStore;
 use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, TaskRef};
+use meta_trace::{CommandWord, TraceSwitch};
 
 use ci::{Commit, FailureLog, SessionId, Watcher};
 use cli_failure::{CliFailure, Invalid, Misuse, Setup};
 use heartbeat::Heartbeat;
 use hook::HookEvent;
 use live_github::LiveGithub;
-use local::{LocalClone, Monitor, Sweep};
+use local::{LocalClone, Monitor, Sweep, TraceRecord};
 use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
 use project::Project;
@@ -35,6 +37,7 @@ use rate::Rate;
 use relocate::Relocate;
 use scale_policy::ScalePolicy;
 use status_view::StatusView;
+use trace_view::TraceView;
 use writing::Writing;
 
 #[derive(Debug)]
@@ -55,6 +58,7 @@ pub enum Request {
     WatchCi(SessionId, Commit),
     WaitCi(SessionId),
     CiLog(SessionId),
+    Trace(TraceView),
 }
 
 impl TryFrom<Vec<String>> for Request {
@@ -137,12 +141,23 @@ impl TryFrom<Vec<String>> for Request {
             "ci-watch" => parsed.allowing(&[])?.session_and_commit(Self::WatchCi),
             "ci-wait" => Self::session().map(Self::WaitCi),
             "ci-log" => Self::session().map(Self::CiLog),
+            "trace" => Ok(Self::Trace(parsed.allowing(&[])?.text()?.to_string().parse()?)),
             other => Err(CliFailure::raised::<Misuse>(format!("unknown command `{other}`"))),
         }
     }
 }
 
 impl Request {
+    pub fn traced(args: Vec<String>) -> Result<Output, CliFailure> {
+        let switch = TraceSwitch::ambient().map_err(CliFailure::raised::<Misuse>)?;
+        let word = CommandWord::from(&args[..]);
+        let keep = |trace| match TraceRecord::kept_here(&trace, &word) {
+            Ok(()) => {}
+            Err(failure) => eprintln!("meta: trace not kept: {failure}"),
+        };
+        switch.recorded(&word, || Self::try_from(args).and_then(Self::answer), keep)
+    }
+
     pub fn answer(self) -> Result<Output, CliFailure> {
         match self {
             Self::Hook(event) => event.respond(),
@@ -159,6 +174,7 @@ impl Request {
             Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
             Self::WaitCi(session) => Watcher::wait(project, &session),
             Self::CiLog(session) => FailureLog::excerpt(project, &session),
+            Self::Trace(TraceView::Last) => TraceRecord::in_project(project)?.last(),
             Self::Status(view) => {
                 let local = match view {
                     StatusView::Flags => Monitor::recent(&LocalClone::try_from(project)?, Utc::now())?,
@@ -206,6 +222,7 @@ impl Request {
             | Self::WatchCi(..)
             | Self::WaitCi(_)
             | Self::CiLog(_)
+            | Self::Trace(_)
             | Self::Status(_)
             | Self::ClaimWorktree(_)
             | Self::Worktrees

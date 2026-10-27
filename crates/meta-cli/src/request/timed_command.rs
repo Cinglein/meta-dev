@@ -6,6 +6,8 @@ use std::os::unix::process::CommandExt as _;
 use std::process::{Command, Stdio};
 use std::time::Instant;
 
+use meta_trace::SpawnSpan;
+
 use crate::request::output::Listed;
 use drain::Drain;
 pub use finished::Finished;
@@ -29,6 +31,7 @@ impl TimedCommand {
     }
 
     pub fn finished(mut self) -> Result<Finished, Listed> {
+        let span = SpawnSpan::opened(&self.command);
         let mut child = self
             .command
             .stdin(Stdio::null())
@@ -43,6 +46,7 @@ impl TimedCommand {
         let output = output.within(self.deadline, group);
         let errors = errors.within(self.deadline, group);
         let status = child.wait().map_err(Listed::new)?;
+        span.ended(Some(&status));
         (status.success() || self.deadline.checked_duration_since(Instant::now()).is_some())
             .then(|| Finished::new(status, output, errors))
             .ok_or_else(|| Listed::new(Self::TIMED_OUT))

@@ -4,6 +4,7 @@ mod monitor_settings;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use meta_trace::Retention;
 use serde::Deserialize;
 
 use super::local_file::LocalFile;
@@ -20,6 +21,8 @@ pub struct LocalSettings {
     identity: Option<Identity>,
     #[serde(default)]
     monitor: toml::Table,
+    #[serde(default)]
+    trace_kept: Retention,
 }
 
 impl LocalSettings {
@@ -48,6 +51,10 @@ impl LocalSettings {
             .ok_or_else(|| CliFailure::raised::<Setup>("monitor: $HOME is unset"))?;
         MonitorSettings::merged(self.monitor.clone(), checkout, &self.worktree_root(checkout), &home)
             .map_err(|failure| CliFailure::raised::<Setup>(format!("{} [monitor]: {failure}", Self::FILE)))
+    }
+
+    pub fn trace_kept(&self) -> Retention {
+        self.trace_kept
     }
 
     pub fn identity(&self) -> Result<&Identity, CliFailure> {

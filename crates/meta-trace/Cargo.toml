@@ -1,0 +1,20 @@
+[package]
+name = "meta-trace"
+description = "Timed spans for commands, process spawns and file work, kept as Chrome trace-event JSON."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

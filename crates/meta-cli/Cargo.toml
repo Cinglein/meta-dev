@@ -19,6 +19,7 @@ meta-pulls.workspace = true
 meta-state.workspace = true
 meta-severity.workspace = true
 meta-gh.workspace = true
+meta-trace.workspace = true
 chrono.workspace = true
 serde.workspace = true
 serde_json.workspace = true

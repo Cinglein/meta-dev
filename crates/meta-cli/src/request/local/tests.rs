@@ -11,7 +11,7 @@ use super::worktrees::Worktrees;
 
 const CHECKOUT: &str = "/work/clone";
 const SIBLING: &str = "/work/clone-worktrees";
-const RELATIVE: &str = "worktree_root = \"trees\"";
+const RELATIVE: &str = "worktree_root = \"trees\"\ntrace_kept = 1";
 const NESTED: &str = "/work/clone/trees";
 const NOWHERE: &str = "/nonexistent/clone";
 const NOT_A_DIRECTORY: &str = "/dev/null";
@@ -55,7 +55,8 @@ fn settings_default_to_a_sibling_root_resolve_relative_roots_and_refuse_foreign_
     let absent = LocalSettings::read(Path::new(NOWHERE)).unwrap();
     let relative: LocalSettings = RELATIVE.parse().unwrap();
     let roots = [absent.worktree_root(checkout), relative.worktree_root(checkout)];
-    assert_eq!(roots, [PathBuf::from(SIBLING), PathBuf::from(NESTED)]);
+    let kept = [absent.trace_kept(), relative.trace_kept()];
+    assert_eq!((roots, kept[0] == kept[1]), ([PathBuf::from(SIBLING), PathBuf::from(NESTED)], false));
     assert!(absent.identity().is_err() && LocalTrail::read(Path::new(NOWHERE)).unwrap().current().is_empty());
     let unreadable = LocalSettings::read(Path::new(NOT_A_DIRECTORY)).unwrap_err().to_string();
     assert!(REFUSED.iter().all(|text| text.parse::<LocalSettings>().is_err()) && unreadable.contains(NOT_A_DIRECTORY));

@@ -12,6 +12,8 @@ use std::os::unix::process::CommandExt as _;
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
+use meta_trace::SpawnSpan;
+
 use super::ci_status::CiStatus;
 use super::commit::Commit;
 use super::session_dir::SessionDir;
@@ -48,16 +50,15 @@ impl Watcher {
         let status = dir.status_of(commit).map_or_else(|| dir.watch(commit).map(|()| CiStatus::Running), Ok);
         let idle = status.map_err(unwatched)?.finished().is_none().then(|| dir.claim(commit).map(drop)).flatten();
         idle.map_or(Ok(()), |()| {
-            Command::new(std::env::current_exe().map_err(unwatched)?)
+            let mut watch = Command::new(std::env::current_exe().map_err(unwatched)?);
+            watch
                 .args(["ci-watch", &session.to_string(), &commit.to_string()])
                 .current_dir(project.root())
                 .stdin(Stdio::null())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
-                .process_group(i32::default())
-                .spawn()
-                .map(|_| ())
-                .map_err(unwatched)
+                .process_group(i32::default());
+            SpawnSpan::detached(&mut watch).map(|_| ()).map_err(unwatched)
         })
     }
 

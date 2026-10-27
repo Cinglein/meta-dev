@@ -3,7 +3,7 @@ use std::process::ExitCode;
 use meta_cli::Request;
 
 fn main() -> ExitCode {
-    match Request::try_from(std::env::args().collect::<Vec<_>>()).and_then(Request::answer) {
+    match Request::traced(std::env::args().collect()) {
         Ok(output) => {
             print!("{output}");
             output.exit_code()
