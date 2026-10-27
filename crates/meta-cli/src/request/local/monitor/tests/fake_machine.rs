@@ -12,20 +12,20 @@ use super::super::target::Target;
 const ME: &str = "60";
 
 #[derive(Debug)]
-pub struct FakeMachine {
-    tables: RefCell<Vec<&'static str>>,
-    cwds: &'static str,
-    uptime: &'static str,
+pub struct FakeMachine<'scene> {
+    tables: RefCell<Vec<&'scene str>>,
+    cwds: &'scene str,
+    uptime: &'scene str,
     acts: RefCell<Vec<String>>,
 }
 
-impl FakeMachine {
-    pub fn new(tables: &[&'static str], cwds: &'static str, uptime: &'static str) -> Self {
+impl<'scene> FakeMachine<'scene> {
+    pub fn new(tables: &[&'scene str], cwds: &'scene str, uptime: &'scene str) -> Self {
         Self { tables: RefCell::new(tables.to_vec()), cwds, uptime, acts: RefCell::default() }
     }
 }
 
-impl Machine for FakeMachine {
+impl Machine for FakeMachine<'_> {
     fn table(&self) -> Option<String> {
         let mut tables = self.tables.borrow_mut();
         (!tables.is_empty()).then(|| tables.remove(0).to_owned())
@@ -54,7 +54,7 @@ impl Machine for FakeMachine {
     }
 }
 
-impl fmt::Display for FakeMachine {
+impl fmt::Display for FakeMachine<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.acts.borrow().iter().try_for_each(|act| writeln!(formatter, "{act}"))
     }

@@ -70,9 +70,9 @@ impl Monitor {
         }
     }
 
-    pub fn noted(clone: &LocalClone, failure: &CliFailure) {
+    pub fn noted(clone: &LocalClone, failure: &CliFailure, at: DateTime<Utc>) {
         let failed = Finding::Failed(Fault::shown(failure));
-        MonitorTrail::new(clone.git_dir().as_ref()).noted(Utc::now(), failed).ok();
+        MonitorTrail::new(clone.git_dir().as_ref()).noted(at, failed).ok();
     }
 
     pub fn recent(clone: &LocalClone, now: DateTime<Utc>) -> Result<Option<Listed>, CliFailure> {

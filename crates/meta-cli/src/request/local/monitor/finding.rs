@@ -25,7 +25,6 @@ impl Finding {
             }
             (Self::Watched(seen), Self::Watched(before)) => seen.same(before),
             (Self::Blind, Self::Blind) => Some(()),
-            (Self::Failed(seen), Self::Failed(before)) => (seen == before).then_some(()),
             _ => None,
         }
     }

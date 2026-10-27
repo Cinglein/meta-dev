@@ -2,10 +2,11 @@ mod fake_machine;
 
 use std::path::Path;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 
 use super::Monitor;
 use super::patrol::Patrol;
+use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::local_settings::MonitorSettings;
 use crate::request::local::{LocalClone, LocalFile};
 use crate::request::output::{Listed, Output};
@@ -13,82 +14,121 @@ use fake_machine::FakeMachine;
 
 const NOW: &str = "2026-10-27T12:00:00Z";
 const STATE: &str = "meta-local/monitor-state.json";
-const MARKED_100: &str = r#"{"marked":[100],"watched":[]}"#;
+const MARKED: &str = r#"{"marked":[100,106,110],"watched":[]}"#;
 const SCENE: &str = "  400     1   400 2-00:00:00   0:10.00   1.0 /Applications/Warp.app/Contents/MacOS/stable
   500   400   500   10:00:00   0:01.00   0.0 -zsh
-  501   500   501   10:00:00 2:00:00.00   5.0 claude
+  501   500   501   10:00:00 2:00:00.00   5.0 /usr/local/bin/claude
   502   501   502   09:00:00   0:01.00   0.0 node mcp-server
   503   501   503      00:10   0:00.00   0.0 /bin/zsh -c source /h/.claude/shell-snapshots/snapshot-zsh-1.sh && eval 'cargo test'
   504   503   503   05:00:00 0:40:00.00  99.0 cargo test
+  505   503   503   05:00:00 0:40:00.00  99.0 cargo test
   100     1   100   18:00:00 4:51:00.00  27.0 bash -c while true; do :; done
   101   100   100      00:01   0:00.00   0.0 sleep 1
+  106     1   106   05:00:00 0:40:00.00  50.0 cargo test
+  110     1   110      10:00   0:00.00   0.0 sleep 600
+  120     1   120   18:00:00   0:01.00   0.0 tail -f /p/log
   200     1   200   18:00:00 4:00:00.00  27.0 bash -c while true; do :; done
   300     1   300   18:00:00 4:00:00.00  27.0 bash -c while true; do :; done
    60     1    60      00:01   0:00.00   0.0 /tmp/meta monitor tick
 ";
 const AFTER: &str = "  100     1   100   18:00:05 4:51:05.00  27.0 bash -c while true; do :; done
   102     1   100      00:01   0:00.00   0.0 vim notes
+  105     1   100      00:01   0:00.00   0.0 bash -c while true; do :; done
 ";
 const CWDS: &str =
-    "p500\nn/p\np501\nn/p\np502\nn/p\np503\nn/p-worktrees/t\np504\nn/p-worktrees/t\np100\nn/p-worktrees/t
-p101\nn/p-worktrees/t\np200\nn/p\np300\nn/other\np102\nn/other\np60\nn/p\n";
+    "p500\nn/p\np501\nn/p\np502\nn/p\np503\nn/p-worktrees/t\np504\nn/p-worktrees/t\np505\nn/p-worktrees/t
+p100\nn/p-worktrees/t\np101\nn/p-worktrees/t\np105\nn/p-worktrees/t\np106\nn/other\np110\nn/p-worktrees/t\np120\nn/other
+p200\nn/p\np201\nn/p\np300\nn/other\np102\nn/other\np60\nn/p\n";
 const UPTIME: &str = "12:00  up 26 days, 19:01, 1 user, load averages: 1.00 2.00 3.01\n";
-const LOOKED: &str = "cwds 400,500,501,502,503,504,100,101,200,300,60\n";
+const LOOKED: &str = "cwds 400,500,501,502,503,504,505,100,101,106,110,120,200,300,60\n";
 const STOPPING: &str = "stop = [\"orphaned\", \"cpu-time\", \"wall-time\"]\nspared = []";
-const STOPPED: &str =
-    "cwds 400,500,501,502,503,504,100,101,200,300,60\n-TERM -100\npause 5s\ncwds 100,102\n-KILL 100\n";
-const OVER: &str =
-    "  monitor: agent work pid 100 orphaned past its limit, target -100: bash -c while true; do :; done\n";
-const UNKNOWN: &str = "  monitor: no agent marker under a root, pid 200 orphaned past its limit, target 200: bash";
-const WATCH: &str =
-    "watch:\n  pid 504 cargo test: cpu 2400s flat, 1 ticks since 2026-10-27 12:00Z, last 2026-10-27 12:00Z\n";
-const PROMOTING: &str = "watch_ticks = 2\nkept_entries = 2";
-const TRAIL: &str = "2026-10-27 12:00Z monitor: no agent marker under a root, pid 200 orphaned past its limit, target 200: bash -c while true; do :; done
-2026-10-27 12:00Z monitor: watched long enough, pid 504 cargo test: cpu 2400s flat, 2 ticks since 2026-10-27 12:00Z, last 2026-10-27 12:00Z\n";
+const STOPPED: &str = "cwds 400,500,501,502,503,504,505,100,101,106,110,120,200,300,60\n-TERM -100\npause 5s\ncwds 100,102,105\n-KILL 100\n";
+const REPORT: &str = "monitor 2026-10-27 12:00Z, machine load 3.01 over 15 min (context only)
+obvious:
+  monitor: agent work pid 100 orphaned past its limit, target -100: bash -c while true; do :; done
+  monitor: no agent marker under a root, pid 120 orphaned past its limit, target 120: tail -f log
+  monitor: no agent marker under a root, pid 200 orphaned past its limit, target 200: bash -c while true; do :; done
+watch:
+  pid 504 cargo test: cpu 2400s flat, 1 ticks since 2026-10-27 12:00Z, last 2026-10-27 12:00Z
+  pid 505 cargo test: cpu 2400s flat, 1 ticks since 2026-10-27 12:00Z, last 2026-10-27 12:00Z
+processes under this project's roots:
+  not agent work, no marker, root p, pid 500 age 36000s cpu 1s 0.00: -zsh
+  not agent work, no marker, root p, pid 501 age 36000s cpu 7200s 0.05: claude
+  not agent work, no marker, root p, pid 502 age 32400s cpu 1s 0.00: node mcp-server
+  agent, session alive, marker, root p-worktrees, pid 503 age 10s cpu 0s 0.00: zsh -c source snapshot-zsh-1.sh && eval 'cargo t
+  agent, session alive, marker, root p-worktrees, pid 504 age 18000s cpu 2400s 0.99: cargo test
+  agent, session alive, marker, root p-worktrees, pid 505 age 18000s cpu 2400s 0.99: cargo test
+  agent, marker, root p-worktrees, pid 100 orphaned age 64800s cpu 17460s 0.27: bash -c while true; do :; done
+  agent, marker, root p-worktrees, pid 101 age 1s cpu 0s 0.00: sleep 1
+  agent, marker, root p-worktrees, pid 110 orphaned age 600s cpu 0s 0.00: sleep 600
+  unsure, no marker, no root, pid 120 orphaned age 64800s cpu 1s 0.00: tail -f log
+  unsure, no marker, root p, pid 200 orphaned age 64800s cpu 14400s 0.27: bash -c while true; do :; done
+  not agent work, no marker, root p, pid 60 orphaned age 1s cpu 0s 0.00: meta monitor tick
+";
+const PROMOTING: &str = "watch_ticks = 2\nkept_entries = 4";
+const TRAIL: &str = "2026-10-27 12:05Z monitor: watched long enough, pid 504 cargo test: cpu 2700s rising, 2 ticks since 2026-10-27 12:00Z, last 2026-10-27 12:05Z
+2026-10-27 12:05Z monitor: watched long enough, pid 505 cargo test: cpu 2700s rising, 2 ticks since 2026-10-27 12:00Z, last 2026-10-27 12:05Z
+2026-10-27 12:10Z monitor: no agent marker under a root, pid 120 orphaned past its limit, target 120: tail -f log
+2026-10-27 13:01Z monitor: process table unreadable
+2026-10-27 13:01Z monitor failed: settings unreadable
+";
+const LOOP: [&str; 2] = ["  100     1   100", "  201     1   201"];
+const RISING: [&str; 2] = ["0:40:00.00  99.0", "0:45:00.00  99.0"];
+const LATER: [TimeDelta; 4] =
+    [TimeDelta::zero(), TimeDelta::minutes(5), TimeDelta::minutes(10), TimeDelta::minutes(61)];
+const BROKEN: &str = "settings unreadable";
 const GIT: &str = ".git";
-const OTHER_PROJECT: &str = "pid 300";
 
 struct Watch;
 
 impl Watch {
-    fn patrolled(host: &FakeMachine, git_dir: &Path, overrides: &str) -> Output {
-        let now = NOW.parse::<DateTime<Utc>>().unwrap();
+    fn patrolled(host: &FakeMachine, git_dir: &Path, overrides: &str, offset: TimeDelta) -> Output {
+        let now = NOW.parse::<DateTime<Utc>>().unwrap() + offset;
         let checkout = [Path::new("/p"), Path::new("/p-worktrees"), Path::new("/h")];
         let settings =
             MonitorSettings::merged(toml::from_str(overrides).unwrap(), checkout[0], checkout[1], checkout[2]);
         let state = LocalFile::new(git_dir.join(STATE));
-        state.text().unwrap().is_empty().then(|| state.replaced(MARKED_100).unwrap());
+        state.text().unwrap().is_empty().then(|| state.replaced(MARKED).unwrap());
         Monitor::patrolled(git_dir, &Patrol::new(&settings.unwrap(), host), now).unwrap()
     }
 }
 
 #[test]
-fn by_default_the_monitor_signals_nothing_and_reports_obvious_and_watched_work() {
+fn by_default_the_monitor_signals_nothing_and_reports_this_projects_processes_in_two_tiers() {
     let git_dir = tempfile::tempdir().unwrap();
     let host = FakeMachine::new(&[SCENE, AFTER], CWDS, UPTIME);
-    let report = Watch::patrolled(&host, git_dir.path(), "").to_string();
+    let report = Watch::patrolled(&host, git_dir.path(), "", TimeDelta::zero());
     assert_eq!(host.to_string(), LOOKED);
-    assert!(report.contains(OVER) && report.contains(UNKNOWN) && report.contains(WATCH));
-    assert!(!report.contains(OTHER_PROJECT));
+    assert_eq!(report.to_string(), REPORT);
 }
 
 #[test]
 fn opted_in_stopping_spares_the_owner_shell_claude_its_children_other_projects_and_a_mixed_group() {
     let git_dir = tempfile::tempdir().unwrap();
     let host = FakeMachine::new(&[SCENE, AFTER], CWDS, UPTIME);
-    let found = Watch::patrolled(&host, git_dir.path(), STOPPING);
+    let found = Watch::patrolled(&host, git_dir.path(), STOPPING, TimeDelta::zero());
     assert_eq!(host.to_string(), STOPPED);
     assert!(matches!(found, Output::Flagged(_)));
 }
 
 #[test]
-fn a_watch_item_that_persists_becomes_obvious_and_the_trail_keeps_no_repeats_within_its_cap() {
+fn watch_items_persist_into_obvious_and_the_trail_keeps_no_repeats_failures_or_blind_ticks_within_its_cap() {
     let checkout = tempfile::tempdir().unwrap();
     let clone = LocalClone::new(checkout.path().to_path_buf(), checkout.path().join(GIT));
     let git_dir = clone.git_dir().as_ref();
-    let ticks =
-        [SCENE, SCENE].map(|scene| Watch::patrolled(&FakeMachine::new(&[scene], CWDS, UPTIME), git_dir, PROMOTING));
-    let recent = Monitor::recent(&clone, NOW.parse().unwrap()).unwrap();
-    assert!(ticks.iter().all(|tick| matches!(tick, Output::Flagged(_))));
+    let later = SCENE.replace(LOOP[0], LOOP[1]).replace(RISING[0], RISING[1]);
+    let scenes = [Some(SCENE), Some(later.as_str()), Some(later.as_str()), None];
+    let ticks: Vec<Output> = scenes
+        .iter()
+        .zip(LATER)
+        .map(|(scene, offset)| {
+            Watch::patrolled(&FakeMachine::new(scene.as_slice(), CWDS, UPTIME), git_dir, PROMOTING, offset)
+        })
+        .collect();
+    let last = NOW.parse::<DateTime<Utc>>().unwrap() + LATER[3];
+    Monitor::noted(&clone, &CliFailure::raised::<Setup>(BROKEN), last);
+    let recent = Monitor::recent(&clone, last).unwrap();
+    let report = Monitor::Report.answer(&clone).unwrap().to_string();
+    assert!(ticks.iter().all(|tick| matches!(tick, Output::Flagged(_))) && report == ticks[3].to_string());
     assert_eq!(Output::Listed(Listed::new("")).raised_with(recent).to_string(), TRAIL);
 }

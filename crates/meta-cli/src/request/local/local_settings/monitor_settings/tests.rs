@@ -1,14 +1,14 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::MonitorSettings;
 
-const TOO_WIDE: [&str; 7] = ["", ".", "/", "~", "..", "~/..", "~/gone/../.."];
-const TOO_LONG: [&str; 3] = ["grace_seconds = 31", "probe_seconds = 31", "watch_percent = 101"];
-const SCRATCH: &str = "scratch = [\"~/scratch\"]\nspared = []";
+const TOO_WIDE: [&str; 8] = ["", ".", "/", "~", "..", "~/..", "~/gone/../..", "~/p"];
+const TOO_LONG: [&str; 4] = ["grace_seconds = 31", "probe_seconds = 31", "watch_percent = 101", "watch_percent = 0"];
+const SCRATCH: &str = "scratch = [\"~/scratch\", \"work\"]\nspared = []";
 const CLAUDE: &str = "claude";
 const HOME: &str = "h";
 const CHECKOUT: &str = "p";
-const SCRATCH_DIR: &str = "scratch";
+const SCRATCH_DIRS: [&str; 2] = ["scratch", "p/work"];
 
 struct Home<'home>(&'home Path);
 
@@ -28,7 +28,8 @@ fn scratch_roots_wider_than_the_project_and_unbounded_waits_are_refused_and_spar
     let wide = TOO_WIDE.map(|root| place.merged(&format!("scratch = [{root:?}]")).is_none());
     let long = TOO_LONG.map(|text| place.merged(text).is_none());
     let kept = place.merged(SCRATCH).unwrap();
+    let roots: Vec<PathBuf> = kept.roots().iter().skip(2).map(|root| root.path().to_path_buf()).collect();
     assert!(wide.iter().chain(&long).all(|refused| *refused));
-    assert_eq!(kept.roots().last().map(|root| root.path().to_path_buf()), Some(home.join(SCRATCH_DIR)));
+    assert_eq!(roots, SCRATCH_DIRS.map(|dir| home.join(dir)));
     assert!(kept.spared().iter().any(|name| name.text() == CLAUDE));
 }

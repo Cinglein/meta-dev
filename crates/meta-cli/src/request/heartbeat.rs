@@ -61,7 +61,7 @@ impl Heartbeat {
         let clone = LocalClone::try_from(project)?;
         match self {
             Self::Tick => {
-                Monitor::Tick.answer(&clone).map_err(|failure| Monitor::noted(&clone, &failure)).ok();
+                Monitor::Tick.answer(&clone).map_err(|failure| Monitor::noted(&clone, &failure, Utc::now())).ok();
                 let ticked = Tick::supervised(Self::inner(project, Self::TICK_RUN)?, settings.tick_limit());
                 let gc = GcHook::supervised(
                     Self::inner(project, Self::GC_RUN)?,
