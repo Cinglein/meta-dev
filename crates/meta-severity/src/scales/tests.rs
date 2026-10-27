@@ -32,7 +32,11 @@ const ROLLED: [(&str, &str, &str, Option<&str>); 6] = [
     ("features-and-maintenance/nav/offline/x", "stale", BELOW_NAV, Some("slow")),
     (TOP, "critical", NAV, None),
 ];
-const REFUSED: [(&str, &str); 7] = [
+const REFUSED: [(&str, &str); 8] = [
+    (
+        r#"{"features-and-maintenance/pay": [{"name": "outage", "meaning": "x", "parent": "critical"}, {"name": "degraded", "meaning": "x", "parent": "major"}, {"name": "critical", "meaning": "x", "parent": "minor"}]}"#,
+        "scale features-and-maintenance/pay: critical names a parent level but maps onto another",
+    ),
     (
         r#"{"features-and-maintenance/a": [{"name": "b", "meaning": "x", "parent": "minor"}]}"#,
         "scale features-and-maintenance/a: no level maps onto critical",
