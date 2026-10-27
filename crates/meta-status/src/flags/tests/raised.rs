@@ -1,7 +1,9 @@
+use meta_pull_query::WorkflowName;
 use meta_schema::{DueTime, Id, PullRequest, Task};
 
 use crate::flag::Flag;
 
+const WORKFLOW: &str = r#""ci""#;
 const TASK: &str = "task-00000000000000c0";
 const DUE: &str = "2026-10-01T00:00:00Z";
 const ORPHAN: &str = "16";
@@ -12,6 +14,8 @@ pub enum Raised {
     Orphan,
     Red,
     Stalled,
+    HeldDone,
+    TrunkRed,
 }
 
 impl Raised {
@@ -21,6 +25,8 @@ impl Raised {
             Self::Orphan => Flag::Orphan(ORPHAN.parse::<PullRequest>().unwrap()),
             Self::Red => Flag::RedUnheld(task(), RED.parse::<PullRequest>().unwrap()),
             Self::Stalled => Flag::Stalled(task(), DUE.parse::<DueTime>().unwrap()),
+            Self::HeldDone => Flag::HeldDone(task()),
+            Self::TrunkRed => Flag::TrunkRed(serde_json::from_str::<WorkflowName>(WORKFLOW).unwrap()),
         }
     }
 }

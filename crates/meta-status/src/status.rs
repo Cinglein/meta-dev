@@ -106,3 +106,6 @@ mod tests;
 
 #[cfg(test)]
 mod lifetime_tests;
+
+#[cfg(test)]
+mod done_tests;

@@ -8,6 +8,9 @@ mod rulebook;
 #[cfg(test)]
 mod live_tests;
 
+#[cfg(test)]
+mod trunk_tests;
+
 pub use live_data::LiveData;
 pub use live_query::LiveQuery;
 pub use live_reply::LiveReply;
