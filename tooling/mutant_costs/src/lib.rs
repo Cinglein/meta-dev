@@ -125,6 +125,9 @@ impl MutantCosts {
 impl fmt::Display for MutantCosts {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let costliest = self.prices.values().max().copied().unwrap_or_default();
+        writeln!(formatter, "[millis]")?;
+        writeln!(formatter, "per_crate = {}", self.baseline.rounded_up_to(Self::STEP))?;
+        writeln!(formatter)?;
         writeln!(formatter, "[mutant_millis]")?;
         writeln!(formatter, "default = {}", costliest.rounded_up_to(Self::STEP))?;
         writeln!(formatter)?;
@@ -147,14 +150,14 @@ mod tests {
     const CASES: [(f64, f64, Interval, bool, bool); 10] = [
         (2.8, 1.0, Interval::DiffJob, true, false),
         (5.9, 1.0, Interval::DiffJob, true, true),
-        (6.1, 1.0, Interval::DiffJob, false, false),
+        (6.5, 1.0, Interval::DiffJob, false, false),
         (1.6, 1.0, Interval::FullJob, true, false),
         (1.76, 1.0, Interval::FullJob, true, true),
         (2.0, 1.0, Interval::FullJob, true, true),
-        (2.08, 1.0, Interval::FullJob, false, false),
+        (2.2, 1.0, Interval::FullJob, false, false),
         (2.8, 1.0, Interval::FullJob, false, false),
-        (1.6, 16.5, Interval::FullJob, true, true),
-        (1.6, 19.5, Interval::FullJob, false, false),
+        (1.6, 22.0, Interval::FullJob, true, true),
+        (1.6, 28.0, Interval::FullJob, false, false),
     ];
     const SMALL_DEAR_DIFF: &[(&str, f64, usize)] = &[(AFFECTED, 4.0, BELOW_SAMPLE)];
     const BELOW_SAMPLE: usize = 29;
@@ -165,7 +168,7 @@ mod tests {
     const SLICE: &[(&str, f64, usize)] = &[(LISTED, 5.8, 25)];
     const SLICES: usize = 11;
     const SLICED_PRICE: &str = "meta-cli = 5800\n";
-    const TABLE: &str = "[mutant_millis]\ndefault = 3100\n\n[mutant_millis.crates]\nlog = 3100\nstate = 2000\n";
+    const TABLE: &str = "[millis]\nper_crate = 15000\n\n[mutant_millis]\ndefault = 3100\n\n[mutant_millis.crates]\nlog = 3100\nstate = 2000\n";
     const SCRATCH: &str = "meta-costs";
     const NESTED: [&str; 3] = ["a", "b", "outcomes.json"];
     const DECOY: &str = "other.json";
