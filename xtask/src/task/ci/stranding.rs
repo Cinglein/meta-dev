@@ -51,6 +51,7 @@ mod tests {
     const PRIOR: &str = "[[scales.features-and-maintenance]]\nname = \"blocker\"\nmeaning = \"x\"\n\n[[scales.features-and-maintenance]]\nname = \"nuisance\"\nmeaning = \"x\"\n";
     const TOP: &str = "features-and-maintenance";
     const MAJOR: &str = "major";
+    const CAPS: &str = "\n[budgets.features-and-maintenance-critical]";
     const CLOSED: &str = "fail closed";
     const NAV: &str = "features-and-maintenance/nav";
     const CRITICAL: &str = "critical";
@@ -84,7 +85,8 @@ mod tests {
     fn scales_changed_since_the_merge_base_are_judged_against_its_scales_and_unchanged_ones_are_not() {
         let fixture = Fixture::new();
         fixture.write(PriorPolicy::PATH, PRIOR).branch();
-        let same: Policy = toml::from_str(&format!("{}\n{PRIOR}", Policy::DEFAULTS)).unwrap();
+        let uncapped = Policy::DEFAULTS.split(CAPS).next().unwrap_or_default();
+        let same: Policy = toml::from_str(&format!("{uncapped}\n{PRIOR}")).unwrap();
         let before: Scales = serde_json::from_str(OVERRIDDEN).unwrap();
         assert_eq!(Stranding::rescaling(fixture.root(), &Policy::defaults()).unwrap(), Some(before));
         assert_eq!(Stranding::rescaling(fixture.root(), &same).unwrap(), None);
