@@ -28,7 +28,7 @@ fn a_fix_pays_down_a_cap_at_its_item_level_or_a_less_severe_one_and_never_a_more
         let link = ChangeLink::new(pull_request.parse().ok(), None);
         let filter = ItemFilter::Severity(SeverityFilter::AtLevel(level.parse().unwrap()));
         Standing::read(&state, &link, policy.scales()).exposure(
-            &filter,
+            Some(&filter),
             &TOP.parse().unwrap(),
             policy.domains(),
         )

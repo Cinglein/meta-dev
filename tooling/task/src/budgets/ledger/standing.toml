@@ -2,16 +2,10 @@
 [domains."features-and-maintenance/nav"]
 paths = ["crates*"]
 
-[budgets.t-words]
-division = "features-and-maintenance"
-measure = "words"
-allowance = { count = 6 }
-window = "standing"
-
 [budgets.t-nav-words]
 division = "features-and-maintenance/nav"
 measure = "words"
-allowance = { of = "t-words", count = 3 }
+allowance = { of = "prose-words", count = 2 }
 window = "standing"
 
 [budgets.t-verbose]

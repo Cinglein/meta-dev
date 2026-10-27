@@ -83,7 +83,29 @@ Newer versions stop `ra-ap-rustc_lexer` from compiling. Do not update `unicode-i
 
 ## Standing budgets
 
-A standing budget counts items in the `meta/log` branch, for example the open concerns of one severity.
+A standing budget measures the current state. It does not measure the change in a pull request.
+There are two kinds of standing measure:
+
+- `open_items` counts the open items in the `meta/log` branch, for example the open concerns of one severity.
+  `{ open_items = { verbose = 25 } }` counts the open concerns, issues and tasks that have more than 25 words.
+- `words` counts the words in the Markdown files (`*.md`) in the `paths` of the domain of the division.
+  In the spec file (`[spec]` in the policy), the rule lines and the "Not yet converted" heading do not count.
+
+Example: a budget for the words in `CLAUDE.md` and `context/`.
+
+```toml
+[domains."features-and-maintenance/context"]
+paths = ["CLAUDE.md", "context/*"]
+
+[budgets.context-words]
+division = "features-and-maintenance/context"
+measure = "words"
+allowance = { of = "prose-words", count = 5600 }
+window = "standing"
+```
+
+A budget in a nested division is a part of a budget in its parent division. Here, `prose-words` measures `words` in `features-and-maintenance`.
+Each standing budget has two lines. Above the warning line, the budget table shows `warn`. Above the allowance, it shows `over` and the budget blocks pull requests in its reach.
 CI enforces a standing budget from the policy at the merge base, not from the policy in the pull request.
 The policy in the pull request must only parse and be valid.
 A cap that a pull request adds or makes stricter starts to apply to the next pull request.

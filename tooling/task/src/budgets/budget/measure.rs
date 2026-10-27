@@ -2,6 +2,7 @@ mod enforcer;
 mod item_filter;
 mod item_kind;
 mod mutation_job;
+mod tally;
 mod unit;
 
 use serde::{Deserialize, Serialize};
@@ -13,6 +14,7 @@ pub use enforcer::Enforcer;
 pub use item_filter::ItemFilter;
 pub use item_kind::ItemKind;
 pub use mutation_job::MutationJob;
+pub use tally::Tally;
 pub use unit::Unit;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Display, Serialize, Deserialize)]
@@ -29,6 +31,7 @@ pub enum Measure {
     TangleItems,
     #[strum(to_string = "open_items {0}")]
     OpenItems(ItemFilter),
+    Words,
 }
 
 impl Measure {
@@ -39,7 +42,7 @@ impl Measure {
                 Unit::Duration
             }
             Measure::MutantPrice | Measure::TestLineShare => Unit::Share,
-            Measure::TangleItems | Measure::OpenItems(_) => Unit::Count,
+            Measure::TangleItems | Measure::OpenItems(_) | Measure::Words => Unit::Count,
             Measure::LintFindings => Unit::Baseline,
         }
     }
@@ -50,7 +53,9 @@ impl Measure {
             Measure::TestWallTime | Measure::SlowestTest => Some(ScopeKind::Tests),
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Some(ScopeKind::Workflows),
             Measure::TangleItems => Some(ScopeKind::Crates),
-            Measure::LintFindings | Measure::TestLineShare => Some(ScopeKind::Paths),
+            Measure::LintFindings | Measure::TestLineShare | Measure::Words => {
+                Some(ScopeKind::Paths)
+            }
             Measure::OpenItems(_) => None,
         }
     }
@@ -58,9 +63,10 @@ impl Measure {
     #[must_use]
     pub const fn enforcer(&self) -> Enforcer {
         match self {
-            Measure::TestWallTime | Measure::SlowestTest | Measure::OpenItems(_) => {
-                Enforcer::Checker
-            }
+            Measure::TestWallTime
+            | Measure::SlowestTest
+            | Measure::OpenItems(_)
+            | Measure::Words => Enforcer::Checker,
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Enforcer::MutationJobs,
             Measure::LintFindings | Measure::TestLineShare | Measure::TangleItems => Enforcer::Lint,
         }
@@ -76,14 +82,30 @@ impl Measure {
             | Measure::MutantPrice
             | Measure::LintFindings
             | Measure::TestLineShare
-            | Measure::TangleItems => None,
+            | Measure::TangleItems
+            | Measure::Words => None,
+        }
+    }
+
+    #[must_use]
+    pub const fn tally(&self) -> Tally {
+        match self {
+            Measure::Words => Tally::DomainFiles,
+            Measure::TestWallTime
+            | Measure::SlowestTest
+            | Measure::WorkflowWallTime(_)
+            | Measure::MutantPrice
+            | Measure::LintFindings
+            | Measure::TestLineShare
+            | Measure::TangleItems
+            | Measure::OpenItems(_) => Tally::WholeScope,
         }
     }
 
     #[must_use]
     pub const fn window(&self) -> Window {
         match self {
-            Measure::OpenItems(_) => Window::Standing,
+            Measure::OpenItems(_) | Measure::Words => Window::Standing,
             Measure::TestWallTime
             | Measure::SlowestTest
             | Measure::WorkflowWallTime(_)

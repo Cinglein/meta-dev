@@ -1,5 +1,7 @@
 mod pattern;
 
+use std::path::Path;
+
 use meta_schema::TopDivision;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
@@ -55,6 +57,12 @@ impl Domain {
             patterns if patterns.contains(&Pattern::everything()) => Extent::Whole,
             _ => Extent::Partial,
         }
+    }
+
+    #[must_use]
+    pub fn holds(&self, path: &Path) -> bool {
+        path.to_str()
+            .is_some_and(|name| self.paths.iter().any(|pattern| pattern.matches(name)))
     }
 
     #[must_use]

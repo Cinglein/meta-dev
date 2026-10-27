@@ -1,11 +1,11 @@
 mod budget;
 mod budget_drafts;
 mod budget_id;
-mod contents;
 mod ledger;
 mod legacy_key;
 mod standing;
 mod tree_failure;
+mod word_count;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -19,7 +19,6 @@ use budget::Budget;
 pub use budget::{Amount, Measure};
 pub use budget_drafts::BudgetDrafts;
 use budget_id::BudgetId;
-pub use contents::Contents;
 pub use ledger::Ledger;
 pub use legacy_key::LegacyKey;
 pub use standing::{ChangeLink, Standing};

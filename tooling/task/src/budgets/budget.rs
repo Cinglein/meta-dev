@@ -19,7 +19,7 @@ use allowance::Allowance;
 pub use allowance::Amount;
 pub use lines::Lines;
 use measure::{Enforcer, Unit};
-pub use measure::{ItemFilter, ItemKind, Measure, MutationJob};
+pub use measure::{ItemFilter, ItemKind, Measure, MutationJob, Tally};
 use meta_schema::{Division, TopDivision};
 use meta_severity::{Scales, SeverityFilter};
 use overspend::Overspend;
@@ -133,6 +133,7 @@ impl Budget {
                 .map(|domain| domain.extent(needed))
             {
                 Some(Extent::Whole) => Ok(()),
+                Some(Extent::Partial) if self.measure.tally() == Tally::DomainFiles => Ok(()),
                 Some(Extent::Partial) => Err(TreeFailure::PartlyMeasurable(id.clone(), needed)),
                 Some(Extent::Undeclared) | None => {
                     Err(TreeFailure::Unmeasurable(id.clone(), needed))

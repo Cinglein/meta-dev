@@ -16,7 +16,7 @@ fn standing_budgets_are_enforced_from_the_merge_base_and_a_new_cap_waits() {
     ledger.enforce_from(Some(BASE)).unwrap();
     let shown = ledger.statement(&policy).to_string();
     let blocking = ledger.blocking(&policy, &Selection::Workspace);
-    assert_eq!(blocking, ["t-gone", "t-open-tasks"]);
+    assert_eq!(blocking, ["t-docs-words", "t-gone", "t-open-tasks"]);
     assert!(shown.contains(WAITING) && !shown.contains("t-extra"));
     ledger.report_only();
     let reported = ledger.statement(&policy).to_string();

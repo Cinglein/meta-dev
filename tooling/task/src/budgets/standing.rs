@@ -35,6 +35,7 @@ impl Standing {
                     vec![ItemFilter::Kind(ItemKind::Concern)],
                     state.rated_item(concern.target()),
                 )
+                .worded(concern.new_concern().text())
             });
         let issues = state
             .issues()
@@ -47,6 +48,7 @@ impl Standing {
                     vec![ItemFilter::Kind(ItemKind::Issue)],
                     state.rated_item(issue.target()),
                 )
+                .worded(issue.new_issue().text())
             });
         let tasks = state
             .tasks()
@@ -73,11 +75,11 @@ impl Standing {
     #[must_use]
     pub fn exposure(
         &self,
-        filter: &ItemFilter,
+        filter: Option<&ItemFilter>,
         division: &Division,
         domains: &Domains,
     ) -> Exposure {
-        if self.paid_down(filter, division) {
+        if filter.is_some_and(|filter| self.paid_down(filter, division)) {
             Exposure::PaysDown
         } else if self.within(division) {
             Exposure::Within
@@ -109,6 +111,7 @@ impl Standing {
             marks.into_iter().flatten().collect(),
             None,
         )
+        .worded(task.new_task().text())
     }
 
     fn paid_down(&self, filter: &ItemFilter, division: &Division) -> bool {
