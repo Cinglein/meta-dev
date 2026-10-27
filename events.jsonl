@@ -433,3 +433,4 @@
 {"at":"2026-10-27T01:57:19.548529Z","actor":"claude-prices-2","kind":"TaskLinked","task":"task-59a2c318c974fc55","pr":34}
 {"at":"2026-10-27T02:00:53.682938Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-3de30cc240748809","from":"claude-heartbeat"}
 {"at":"2026-10-27T02:00:55.313914Z","actor":"claude-lead","kind":"TaskDone","task":"task-3de30cc240748809"}
+{"at":"2026-10-27T02:00:56.918955Z","actor":"claude-lead","kind":"TaskOpened","task":"task-7da95286b7c471f9","text":"meta status flags: (1) default branch red (the latest CI or mutation run on main failed); (2) held but done (a holder with every linked PR merged or closed, or no activity past due). Agent prompts use meta claim --worktree so branches are named after their task.","division":"features-and-maintenance"}
