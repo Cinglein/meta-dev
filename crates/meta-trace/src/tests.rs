@@ -27,7 +27,8 @@ const SWITCHED: [Result<TraceSwitch, bool>; 4] =
     [Ok(TraceSwitch::On), Ok(TraceSwitch::Off), Ok(TraceSwitch::Off), Err(true)];
 const UNKNOWN: &str = "META_TRACE must be on or off";
 const COUNTED: &str = "spawns git 1\n";
-const INSTANT_COMMAND: &str = " 0.000ms command status";
+const COMMAND: &str = "ms command status";
+const INSTANT: &str = " 0.000ms";
 const FIXTURE: &str = r#"{"traceEvents": [
 {"name": "git fetch origin", "cat": "spawn", "ph": "X", "ts": 0, "dur": 3000, "pid": 1, "tid": 1, "args": {"program": "git", "network": true}},
 {"name": "lsof", "cat": "spawn", "ph": "X", "ts": 3100, "dur": 800, "pid": 1, "tid": 1, "args": {"program": "lsof"}},
@@ -73,7 +74,8 @@ fn a_recorded_run_holds_a_redacted_span_per_spawn_and_nothing_when_off() {
     assert!(SEEN.iter().all(|fragment| seen.contains(fragment)) && seen.contains(DETACHED_SEEN));
     assert_eq!((exited, TraceSwitch::Off.recorded(&word, || 0, |_| panic!())), (Some(3), 0));
     let shown = serde_json::from_str::<Trace>(seen).unwrap().to_string();
-    assert!(shown.contains(COUNTED) && !shown.contains(INSTANT_COMMAND));
+    let root = shown.lines().nth(1).unwrap_or_default();
+    assert!(shown.contains(COUNTED) && root.ends_with(COMMAND) && !root.contains(INSTANT));
 }
 
 #[test]
