@@ -556,3 +556,4 @@
 {"at":"2026-10-27T11:07:27.119682Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-6093dc893bc6b066","text":"Stop hook fetches meta/log inside the 10 s Claude Code hook timeout; a timed-out Stop hook lets the stop pass silently (fail open). Keep the hook well under the timeout and measure it; stop_hook_active is still ignored.","division":"features-and-maintenance"}
 {"at":"2026-10-27T11:07:44.275425Z","actor":"claude-lead","kind":"SchemaVersion","version":5}
 {"at":"2026-10-27T11:07:45.811960Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-c4bff9e950e2dfe2"}
+{"at":"2026-10-27T11:07:47.428435Z","actor":"claude-lead","kind":"TaskDone","task":"task-c4bff9e950e2dfe2"}
