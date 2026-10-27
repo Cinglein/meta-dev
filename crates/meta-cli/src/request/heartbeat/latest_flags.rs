@@ -37,8 +37,9 @@ impl LatestFlags {
         let skewed = snapshot.ahead(now).and_then(|ahead| {
             settings.skew_limit().passed_by(ahead).map(|limit| HeartbeatFlag::ClockSkew { ahead, limit })
         });
-        let stale =
-            skewed.or_else(|| settings.stale_limit().passed_by(age).map(|limit| HeartbeatFlag::Stale { age, limit }));
+        let stale = skewed
+            .or_else(|| settings.stale_limit().passed_by(age).map(|limit| HeartbeatFlag::Stale { age, limit }))
+            .or_else(|| settings.gc_mode().sweep().map_or(Some(HeartbeatFlag::GcDisabled), |_| None));
         Self { seen: Some(snapshot), age, stale }
     }
 

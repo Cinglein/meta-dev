@@ -1,4 +1,5 @@
 mod path_line;
+mod root_ref;
 mod scope;
 mod step;
 mod worktree_config;
@@ -13,8 +14,10 @@ use crate::request::local::local_clone::vetting::entry_kind::EntryKind;
 use crate::request::local::local_clone::vetting::git_call::GitCall;
 use crate::request::local::local_clone::vetting::inspection::Inspection;
 use crate::request::local::local_clone::vetting::kept::Kept;
+use crate::request::local::local_clone::vetting::thaw::Thaw;
 use crate::request::local::worktree_id::WorktreeId;
 use path_line::PathLine;
+use root_ref::RootRef;
 pub use scope::Scope;
 pub use step::Step;
 use worktree_config::WorktreeConfig;
@@ -37,7 +40,7 @@ impl Link {
     const PAUSED_DIRS: [&'static str; 3] = ["rebase-merge", "rebase-apply", "sequencer"];
     const PAUSED_REFS: [&'static str; 4] = ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD"];
     const CONFIG: &'static str = "config.worktree";
-    const ORIG_HEAD: &'static str = "ORIG_HEAD";
+    const REFTABLE: &'static str = "reftable";
     const RESOLVE: [&'static str; 3] = ["rev-parse", "--verify", "-q"];
     const HEAD: [&'static str; 3] = ["rev-parse", "--verify", "HEAD"];
     const REFS: [&'static str; 5] =
@@ -78,8 +81,13 @@ impl Link {
         let head = RefLine::head(&self.git(host, Scope::Worktree, &Self::HEAD.map(OsStr::new))?);
         let named = Self::REFS.map(OsStr::new).into_iter().chain([OsStr::new(branch)]).collect::<Vec<_>>();
         let local = self.git(host, Scope::Worktree, &named)?.parse::<RefList>()?.headed(head);
-        let orig = self.resolved(host, Self::ORIG_HEAD).map(|object| RefLine::pseudo(Self::ORIG_HEAD, &object));
-        Ok(orig.into_iter().fold(local, RefList::headed))
+        let listed = host.walked(&self.git_dir);
+        let named = listed.iter().filter(|found| found.kind() == EntryKind::File);
+        let roots = named
+            .filter_map(|found| found.path().to_str()?.parse::<RootRef>().ok())
+            .map(|root| root.peeled())
+            .filter_map(|peeled| self.resolved(host, &peeled).map(|object| RefLine::pseudo(&peeled, &object)));
+        Ok(roots.fold(local, RefList::headed))
     }
 
     pub fn path(&self) -> &Path {
@@ -100,6 +108,10 @@ impl Link {
         GitCall::common(&self.common, &words)
     }
 
+    pub fn thaw_plan(&self, origin: &Path) -> Thaw {
+        Thaw::planned(origin, Thaw::ledger_of(&self.path, &self.common))
+    }
+
     pub fn unbranch(&self, branch: &RefLine) -> GitCall {
         let words = Self::UNBRANCH.map(OsStr::new).into_iter().chain(branch.deletion()).collect::<Vec<_>>();
         GitCall::common(&self.common, &words)
@@ -115,6 +127,7 @@ impl Link {
             |dirs: &[&Path], name: &str| dirs.iter().all(|dir| host.entry(&dir.join(name)) == EntryKind::Missing);
         let both = [self.git_dir.as_path(), self.common.as_path()];
         absent(&[&self.git_dir], Self::LOCKED).then_some(()).ok_or(Kept::Locked)?;
+        absent(&[&self.git_dir], Self::REFTABLE).then_some(()).ok_or(Kept::Unlistable)?;
         absent(&both, Self::ALTERNATES).then_some(()).ok_or(Kept::Borrowed)?;
         absent(&both, Self::MODULES).then_some(()).ok_or(Kept::Submodules)?;
         (Self::PAUSED_DIRS.iter().all(|pause| absent(&[&self.git_dir], pause))

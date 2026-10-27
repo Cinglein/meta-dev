@@ -18,9 +18,9 @@ const KEPT_QUARANTINE: &str = "/trees/.gc-kept-2x0";
 const LISTED: [&str; 4] = [PATH, STRAY, "/trees/.gc-lost-1x0", "/trees/.gc-old-9x9"];
 const SWEPT: [&str; 6] = [PATH, ESCAPED, GONE, LIVE, LOST, KEPT_QUARANTINE];
 const PLANNED: &str =
-    "STRANDED in quarantine /trees/.gc-lost-1x0: left alone, move it back by hand; record follows from /trees/lost
-STRANDED in quarantine /trees/.gc-kept-2x0: left alone, move it back by hand
-STRANDED in quarantine /trees/.gc-old-9x9: left alone, move it back by hand
+    "STRANDED in quarantine /trees/.gc-lost-1x0: may be read-only and locked; restore: meta gc restore /trees/.gc-lost-1x0; record follows from /trees/lost
+STRANDED in quarantine /trees/.gc-kept-2x0: may be read-only and locked; restore: meta gc restore /trees/.gc-kept-2x0
+STRANDED in quarantine /trees/.gc-old-9x9: may be read-only and locked; restore: meta gc restore /trees/.gc-old-9x9
 would free /trees/task-00000000000000b1: 1160 bytes; pr #1 merged
 kept /elsewhere/task-00000000000000b1: path escapes the worktree root; pr #1 merged
 would close /trees/gone: missing
@@ -100,7 +100,8 @@ fn a_sweep_re_vets_removes_the_worktree_then_its_branch_and_trails_each_removal_
         "{trailed:?}"
     );
     let calls = scene.host.calls();
-    assert!(calls.iter().rev().take(2).rev().zip(REMOVALS).all(|(call, removal)| call.ends_with(removal)), "{calls:?}");
+    let removed = REMOVALS.map(|removal| calls.iter().position(|call| call.ends_with(removal)));
+    assert!(removed[0].zip(removed[1]).is_some_and(|(remove, unbranch)| remove < unbranch), "{calls:?}");
 }
 
 #[test]

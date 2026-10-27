@@ -2,6 +2,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use super::gc_hook::GcHook;
 use super::snapshot::Snapshot;
 use crate::request::cli_failure::CliFailure;
 use crate::request::local::LocalFile;
@@ -28,6 +29,10 @@ impl HeartbeatRecord {
     pub fn write(&self, git_dir: &Path) -> Result<(), CliFailure> {
         let file = LocalFile::new(git_dir.join(Self::FILE));
         file.replaced(&serde_json::to_string(self).map_err(|failure| file.failure(failure))?)
+    }
+
+    pub fn reported(self, gc: GcHook) -> Self {
+        Self { latest: self.latest.reported(gc), ..self }
     }
 
     pub fn latest(&self) -> &Snapshot {

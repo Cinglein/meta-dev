@@ -1,4 +1,5 @@
 mod flags;
+mod gc;
 mod plist;
 mod scene;
 mod settings;
@@ -10,6 +11,7 @@ mod tick;
 use chrono::{DateTime, TimeDelta, Utc};
 
 use crate::request::cli_failure::CliFailure;
+use crate::request::heartbeat::{GcHook, Pulse};
 use crate::request::project::{Config, HeartbeatSettings};
 use scene::Scene;
 
@@ -21,6 +23,10 @@ struct Beat;
 impl Beat {
     pub fn after(offset: TimeDelta) -> DateTime<Utc> {
         START.parse::<DateTime<Utc>>().unwrap_or_default() + offset
+    }
+
+    pub fn pulse(offset: TimeDelta) -> Pulse {
+        Pulse::new(Self::after(offset), GcHook::Pending)
     }
 
     pub fn settings(text: &str) -> Result<HeartbeatSettings, CliFailure> {

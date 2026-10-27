@@ -9,6 +9,8 @@ mod host;
 mod inspection;
 mod kept;
 mod occupancy;
+mod shared_node;
+mod thaw;
 mod vetted;
 
 pub use context::Context;
@@ -24,5 +26,7 @@ pub use vetted::Vetted;
 pub mod fake_host;
 #[cfg(test)]
 mod quarantine_tests;
+#[cfg(test)]
+mod restore_tests;
 #[cfg(test)]
 mod tests;

@@ -31,7 +31,7 @@ use collection::{Census, Collection, Sweeper, Tracked};
 use gc_lock::GcLock;
 use git::Git;
 use git_dir::GitDir;
-use vetting::{Context, Host};
+use vetting::{Context, Deletable, Host};
 
 #[derive(Debug)]
 pub struct LocalClone {
@@ -150,6 +150,13 @@ impl LocalClone {
         let collection = Collection::swept(&Sweeper::new(sweep, &context, &Host::default()), &census);
         collection.trailed(Utc::now()).iter().try_for_each(|entry| LocalTrail::append(self.git_dir.as_ref(), entry))?;
         Ok(Output::Listed(Listed::new(collection)))
+    }
+
+    pub fn unstranded(&self, quarantine: &Path) -> Result<Output, CliFailure> {
+        let quarantine = std::fs::canonicalize(quarantine).map_err(CliFailure::raised::<Setup>)?;
+        let origin = Deletable::unstranded(&quarantine, self.git_dir.as_ref(), &Host::default())
+            .map_err(CliFailure::raised::<Setup>)?;
+        Ok(Output::Listed(Listed::new(format!("restored {} to {}\n", quarantine.display(), origin.display()))))
     }
 
     fn listed(&self) -> Result<Vec<PathBuf>, CliFailure> {

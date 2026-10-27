@@ -1,8 +1,14 @@
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
+
+use super::cause::Cause;
 use super::context::Context;
 use super::entry_kind::EntryKind;
+use super::git_call::GitCall;
 use super::inspection::Inspection;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
+use super::thaw::Thaw;
 use super::vetted::{Link, Step, Vetted};
 use crate::request::local::byte_count::ByteCount;
 use crate::request::local::local_clone::quarantine::Quarantine;
@@ -12,6 +18,9 @@ use crate::request::local::recorded_worktree::RecordedWorktree;
 pub struct Deletable(Vetted);
 
 impl Deletable {
+    const UNLOCK: [&'static str; 2] = ["worktree", "unlock"];
+    const MOVE: [&'static str; 2] = ["worktree", "move"];
+
     pub fn confirmed(first: Vetted, occupancy: &Occupancy, again: Result<Vetted, Kept>) -> Result<Self, Kept> {
         occupancy.vacant(first.link().path())?;
         (again? == first).then_some(Self(first)).ok_or(Kept::Changed)
@@ -36,12 +45,31 @@ impl Deletable {
         Ok(self.0.bytes())
     }
 
+    pub fn unstranded(quarantine: &Path, common: &Path, host: &impl Inspection) -> Result<PathBuf, Kept> {
+        let ledger = host.text(&Thaw::ledger_of(quarantine, common)).ok_or(Kept::NotFound)?;
+        let thaw: Thaw = serde_json::from_str(&ledger).map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
+        host.thawed(&thaw);
+        let unlock = [Self::UNLOCK.map(OsStr::new).as_slice(), &[quarantine.as_os_str()]].concat();
+        let _unlocked = host.git(&GitCall::common(common, &unlock));
+        let back =
+            [Self::MOVE.map(OsStr::new).as_slice(), &[quarantine.as_os_str(), thaw.origin().as_os_str()]].concat();
+        host.git(&GitCall::common(common, &back)).map(|_| thaw.origin().to_path_buf())
+    }
+
     fn quarantined(&self, held: &Link, proved: Result<Link, Kept>, host: &impl Inspection) -> Result<(), Kept> {
         (proved? == *held).then_some(()).ok_or(Kept::Changed)?;
         host.git(&held.step(Step::Lock))?;
-        self.0.rechecked(held, host)?;
-        host.git(&held.step(Step::Unlock))?;
-        host.git(&held.step(Step::Remove)).map(drop)
+        let thaw = host.frozen(held.path(), held.thaw_plan(self.0.link().path()))?;
+        let quarantine = held.path().to_path_buf();
+        let removed = self
+            .0
+            .rechecked(held, host)
+            .and_then(|()| host.occupancy(std::slice::from_ref(&quarantine)).vacant(&quarantine))
+            .and_then(|()| host.git(&held.step(Step::Unlock)))
+            .and_then(|_| host.git(&held.step(Step::Remove)))
+            .map(drop);
+        host.thawed(&thaw);
+        removed
     }
 
     fn restored(link: &Link, held: &Link, kept: Kept, host: &impl Inspection) -> Kept {

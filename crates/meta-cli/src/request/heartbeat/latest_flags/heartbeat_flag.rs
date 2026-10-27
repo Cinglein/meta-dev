@@ -6,6 +6,7 @@ pub enum HeartbeatFlag {
     NeverTicked,
     Stale { age: Duration, limit: Duration },
     ClockSkew { ahead: Duration, limit: Duration },
+    GcDisabled,
 }
 
 impl fmt::Display for HeartbeatFlag {
@@ -24,6 +25,9 @@ impl fmt::Display for HeartbeatFlag {
                 ahead.as_secs(),
                 limit.as_secs()
             ),
+            Self::GcDisabled => {
+                writeln!(formatter, "heartbeat gc disabled: [heartbeat] gc must be \"dry-run\" or \"free\"")
+            }
         }
     }
 }

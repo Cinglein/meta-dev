@@ -15,7 +15,7 @@ const FAR_BEFORE: TimeDelta = TimeDelta::seconds(-3600);
 fn a_snapshot_a_little_in_the_future_is_tolerated() {
     let git_dir = tempfile::tempdir().unwrap();
     let limit = Beat::settings(SETTINGS).unwrap();
-    Tick::answer(git_dir.path(), &MemoryLog::default(), Scene::Quiet.answering(), Beat::after(ZERO)).unwrap();
+    Tick::answer(git_dir.path(), &MemoryLog::default(), Scene::Quiet.answering(), Beat::pulse(ZERO)).unwrap();
     let shown = LatestFlags::answer(git_dir.path(), &limit, Beat::after(SLIGHTLY_BEFORE)).unwrap();
     assert!(matches!(&shown, Output::Listed(_)) && shown.to_string() == TOLERATED);
 }
@@ -24,7 +24,7 @@ fn a_snapshot_a_little_in_the_future_is_tolerated() {
 fn a_snapshot_far_in_the_future_is_a_clock_skew_flag() {
     let git_dir = tempfile::tempdir().unwrap();
     let limit = Beat::settings(SETTINGS).unwrap();
-    Tick::answer(git_dir.path(), &MemoryLog::default(), Scene::Quiet.answering(), Beat::after(ZERO)).unwrap();
+    Tick::answer(git_dir.path(), &MemoryLog::default(), Scene::Quiet.answering(), Beat::pulse(ZERO)).unwrap();
     let shown = LatestFlags::answer(git_dir.path(), &limit, Beat::after(FAR_BEFORE)).unwrap();
     assert!(matches!(&shown, Output::Flagged(_)) && shown.to_string().contains(SKEWED));
 }

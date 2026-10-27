@@ -12,10 +12,14 @@ use super::git_call::GitCall;
 use super::inspection::Inspection;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
+use super::shared_node::SharedNode;
+use super::thaw::{Thaw, Thawed};
 use crate::request::local::byte_count::ByteCount;
 use crate::request::local::local_clone::quarantine::Stamp;
 use crate::request::local::recorded_worktree::RecordedWorktree;
 use crate::request::local::worktree_id::WorktreeId;
+use std::fs::Permissions;
+use std::os::unix::fs::PermissionsExt;
 
 pub const TASK: &str = "task-00000000000000b1";
 pub const PATH: &str = "/trees/task-00000000000000b1";
@@ -72,9 +76,14 @@ const UNEXPECTED: &str = "unexpected git call";
 const OFFLINE: &str = "offline";
 const SPACE: &str = " ";
 const MOVE: &str = "move";
-const PSEUDO: [&str; 5] = ["ORIG_HEAD", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD"];
+const GIT_DIR_FILES: [&str; 5] = ["HEAD", "commondir", "gitdir", "index", "COMMIT_EDITMSG"];
+const PEELED: &str = "^{commit}";
+const ROOT_HEAD: &str = "HEAD";
 const HELD: &str = "c7\n";
 const STAMP: &str = "1x0";
+const FROZEN: &str = "frozen";
+const NO_MODE: u32 = 0o0;
+const THAWED: &str = "thawed";
 
 #[derive(Debug)]
 pub struct FakeHost {
@@ -90,6 +99,7 @@ pub struct FakeHost {
     raced: HashMap<&'static str, String>,
     relocation: RefCell<Option<[PathBuf; 2]>>,
     pseudo: Vec<&'static str>,
+    open: Vec<PathBuf>,
 }
 
 impl FakeHost {
@@ -110,6 +120,7 @@ impl FakeHost {
             raced: HashMap::new(),
             relocation: RefCell::new(None),
             pseudo: Vec::new(),
+            open: Vec::new(),
         }
     }
 
@@ -180,6 +191,15 @@ impl FakeHost {
         self.pseudo.extend(pseudo);
     }
 
+    pub fn links(&mut self, paths: &[&str], node: SharedNode) {
+        let linked = paths.iter().map(|path| Found::new(PathBuf::from(path), EntryKind::File, ByteCount::default()));
+        self.walk.extend(linked.map(|found| found.sharing(node)));
+    }
+
+    pub fn opens(&mut self, path: PathBuf) {
+        self.open.push(path);
+    }
+
     pub fn relocate(&self, arguments: &[OsString]) {
         let moved: Vec<PathBuf> =
             arguments.iter().skip_while(|argument| *argument != MOVE).skip(1).map(PathBuf::from).collect();
@@ -203,8 +223,22 @@ impl FakeHost {
     }
 
     fn pseudo_answer(&self, arguments: &[OsString]) -> Option<Result<String, Kept>> {
-        let named = PSEUDO.iter().find(|name| arguments.iter().any(|argument| argument == **name))?;
-        Some(self.pseudo.contains(named).then(|| HELD.to_owned()).ok_or_else(|| Kept::Uninspected(Cause::new(""))))
+        let root = |argument: &OsString| {
+            let name = argument.to_string_lossy();
+            let name = name.strip_suffix(PEELED).unwrap_or(&name).to_owned();
+            (name != ROOT_HEAD
+                && !name.is_empty()
+                && name.chars().all(|letter| letter.is_ascii_uppercase() || letter == '_' || letter == '-'))
+            .then_some(name)
+        };
+        let named = arguments.iter().find_map(root)?;
+        Some(
+            self.pseudo
+                .iter()
+                .any(|pseudo| *pseudo == named)
+                .then(|| HELD.to_owned())
+                .ok_or_else(|| Kept::Uninspected(Cause::new(""))),
+        )
     }
 
     fn beyond(arguments: &[OsString]) -> String {
@@ -249,8 +283,12 @@ impl Inspection for FakeHost {
         answer.or(listed).unwrap_or_else(|| Err(Kept::Uninspected(Cause::new(UNEXPECTED))))
     }
 
-    fn walked(&self, _path: &Path) -> Vec<Found> {
-        self.walk.clone()
+    fn walked(&self, path: &Path) -> Vec<Found> {
+        let listed = GIT_DIR_FILES
+            .iter()
+            .chain(&self.pseudo)
+            .map(|name| Found::new(PathBuf::from(name), EntryKind::File, ByteCount::default()));
+        if path.starts_with(COMMON) { listed.collect() } else { self.walk.clone() }
     }
 
     fn neighbours(&self, root: &Path) -> Vec<Alternates> {
@@ -259,7 +297,17 @@ impl Inspection for FakeHost {
 
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
         self.scans.borrow_mut().push(paths.to_vec());
-        Occupancy::Listed(Vec::new())
+        Occupancy::Listed(self.open.clone())
+    }
+
+    fn frozen(&self, quarantine: &Path, plan: Thaw) -> Result<Thaw, Kept> {
+        self.calls.borrow_mut().push(vec![OsString::from(FROZEN), quarantine.as_os_str().to_os_string()]);
+        Ok(plan.holding(vec![Thawed::new(quarantine.to_path_buf(), &Permissions::from_mode(NO_MODE))]))
+    }
+
+    fn thawed(&self, thaw: &Thaw) {
+        let thawed = thaw.files().iter().map(|thawed| thawed.path().as_os_str().to_os_string());
+        self.calls.borrow_mut().push([OsString::from(THAWED)].into_iter().chain(thawed).collect());
     }
 
     fn stamp(&self) -> Stamp {

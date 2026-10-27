@@ -18,6 +18,10 @@ impl Snapshot {
         Self { taken, flags, gc }
     }
 
+    pub fn reported(self, gc: GcHook) -> Self {
+        Self { gc, ..self }
+    }
+
     pub fn taken(&self) -> DateTime<Utc> {
         self.taken
     }

@@ -18,6 +18,8 @@ const MOVED_OUT: &str = "worktree move /trees/task-00000000000000b1 /trees/.gc-t
 const MOVED_BACK: &str = "worktree move /trees/.gc-task-00000000000000b1";
 const RESTORED: &str = " /trees/task-00000000000000b1";
 const REMOVE: &str = "worktree remove";
+const FROZEN: &str = "frozen /trees/.gc-task-00000000000000b1-1x0";
+const THAWED: &str = "thawed /trees/.gc-task-00000000000000b1-1x0";
 const INHERITED: [&str; 3] = ["GIT_DIR", "HOME", "GIT_INDEX_FILE"];
 const ISOLATED: [(&str, Option<&str>); 5] = [
     ("GIT_CONFIG_GLOBAL", Some("/dev/null")),
@@ -27,7 +29,7 @@ const ISOLATED: [(&str, Option<&str>); 5] = [
     ("GIT_INDEX_FILE", None),
 ];
 const STAT_PINS: [&str; 2] = ["core.trustctime=true", "core.checkStat=default"];
-const REFUSALS: [&str; 2] = ["no recorded worktree id", "changed during checks"];
+const REFUSALS: [&str; 3] = ["no recorded worktree id", "changed during checks", "in use"];
 
 struct Sweep(FakeHost);
 
@@ -55,6 +57,7 @@ fn a_file_or_commit_made_after_the_vet_is_caught_in_quarantine_and_the_worktree_
             calls.iter().any(|call| call.contains(MOVED_OUT))
                 && calls.last().is_some_and(|call| call.contains(MOVED_BACK) && call.ends_with(RESTORED))
                 && !calls.iter().any(|call| call.contains(REMOVE))
+                && [FROZEN, THAWED].iter().all(|step| calls.iter().any(|call| call == step))
         }),
         "{calls:?}"
     );
@@ -78,5 +81,10 @@ fn an_unidentified_record_or_an_occupied_quarantine_keeps_the_worktree() {
     let refused = Vetted::proved(&unidentified, &host.context(), &host).err().map(|kept| kept.to_string());
     let mut occupied = FakeHost::clean();
     occupied.entry_is(QUARANTINE, EntryKind::Dir);
-    assert_eq!([refused, Sweep(occupied).refusal()], REFUSALS.map(|reason| Some(reason.to_owned())));
+    let mut followed = FakeHost::clean();
+    followed.opens(PathBuf::from(QUARANTINE).join(LATE));
+    let followed = Sweep(followed);
+    let refusals = [refused, Sweep(occupied).refusal(), followed.refusal()];
+    assert_eq!(refusals, REFUSALS.map(|reason| Some(reason.to_owned())));
+    assert!(followed.0.calls().last().is_some_and(|call| call.contains(MOVED_BACK) && call.ends_with(RESTORED)));
 }
