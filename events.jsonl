@@ -557,3 +557,4 @@
 {"at":"2026-10-27T11:07:44.275425Z","actor":"claude-lead","kind":"SchemaVersion","version":5}
 {"at":"2026-10-27T11:07:45.811960Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-c4bff9e950e2dfe2"}
 {"at":"2026-10-27T11:07:47.428435Z","actor":"claude-lead","kind":"TaskDone","task":"task-c4bff9e950e2dfe2"}
+{"at":"2026-10-27T11:23:26.593554Z","actor":"claude-lead","kind":"TaskOpened","task":"task-b4df9ef75a2c45a0","text":"Test-line share is at its 18% ceiling (about 6 lines of headroom after #42), so every feature PR has to squeeze its tests. Consolidate tests (table-driven cases, proptest, shared fixtures) to get back toward 60% of the allowance, with mutants at 0 missed and test time not rising. Start after #42 and #44 merge, to avoid conflicts.","division":"performance-and-cost"}
