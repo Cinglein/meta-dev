@@ -1,6 +1,7 @@
 mod baseline_file;
 mod bit_boundary;
 mod floor;
+mod key_name;
 mod least;
 mod limit;
 mod most;
@@ -257,7 +258,6 @@ mod tests {
     const CHECK: &str = "check";
     const LONG_ENOUGH: &str = "report";
     const TEST_TIME: &str = "extra-time";
-    const MISSING: [&str; 5] = ["parameters", "fn_name", "tests_per_hundred_files", "granted", "sample_every"];
     const BUDGET: &str = "\n[domains.\"performance-and-cost/extra\"]\ntests = [\"*\"]\n\n[budgets.extra-time]\ndivision = \"performance-and-cost/extra\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
 
     #[test]
@@ -277,18 +277,6 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         assert_eq!(Policy::read(&root).unwrap(), Policy::defaults());
         assert!(Policy::read(&root.join("tooling")).is_err());
-    }
-
-    #[test]
-    fn a_missing_key_in_each_of_the_five_tables_is_named() {
-        let report = |key: &str| {
-            let kept: Vec<&str> = Policy::DEFAULTS
-                .lines()
-                .filter(|line| !line.starts_with(&format!("{key} =")))
-                .collect();
-            toml::from_str::<Policy>(&kept.join("\n")).unwrap_err().to_string()
-        };
-        assert!(MISSING.iter().all(|key| report(key).contains(key)));
     }
 
     #[test]
