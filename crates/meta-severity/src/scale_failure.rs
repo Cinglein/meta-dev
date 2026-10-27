@@ -13,4 +13,6 @@ pub enum ScaleFailure {
     Unmapped(Division, LevelName),
     #[error("scale {0}: {1} maps above a more severe level")]
     OrderBroken(Division, LevelName),
+    #[error("scale {0}: no level maps onto {1}")]
+    Uncovered(Division, LevelName),
 }

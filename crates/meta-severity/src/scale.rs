@@ -47,13 +47,19 @@ impl Scale {
             .windows(Self::PAIR_LEN)
             .zip(self.0.iter().skip(1))
             .find(|(pair, _)| matches!(pair, [Some(above), Some(below)] if below < above));
-        match (self.0.first(), top_mapped, unmapped, twice, broken) {
+        let uncovered = parent.and_then(|parent| parent.uncovered_by(self));
+        match (self.0.first(), top_mapped, unmapped, twice, broken, uncovered) {
             (None, ..) => Err(ScaleFailure::Empty(division.clone())),
             (Some(_), Some(level), ..) => Err(refused(ScaleFailure::TopMapped, level)),
             (Some(_), None, Some((level, _)), ..) => Err(refused(ScaleFailure::Unmapped, level)),
-            (Some(_), None, None, Some((_, level)), _) => Err(refused(ScaleFailure::Twice, level)),
-            (Some(_), None, None, None, Some((_, level))) => Err(refused(ScaleFailure::OrderBroken, level)),
-            (Some(_), None, None, None, None) => Ok(()),
+            (Some(_), None, None, Some((_, level)), ..) => Err(refused(ScaleFailure::Twice, level)),
+            (Some(_), None, None, None, Some((_, level)), _) => Err(refused(ScaleFailure::OrderBroken, level)),
+            (Some(_), None, None, None, None, Some(above)) => Err(refused(ScaleFailure::Uncovered, above)),
+            (Some(_), None, None, None, None, None) => Ok(()),
         }
+    }
+
+    fn uncovered_by(&self, child: &Scale) -> Option<&Level> {
+        self.0.iter().find(|above| child.0.iter().all(|level| level.parent() != Some(above.name())))
     }
 }
