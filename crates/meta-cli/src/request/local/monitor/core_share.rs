@@ -1,0 +1,31 @@
+use std::fmt;
+use std::str::FromStr;
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct CoreShare(u64);
+
+impl CoreShare {
+    const HUNDRED: u64 = 100;
+    const DIGITS: usize = 2;
+
+    #[must_use]
+    pub fn hundredth(self) -> Self {
+        Self(self.0 / Self::HUNDRED)
+    }
+}
+
+impl FromStr for CoreShare {
+    type Err = std::num::ParseIntError;
+
+    fn from_str(cores: &str) -> Result<Self, Self::Err> {
+        let (whole, fraction) = cores.trim().split_once('.').unwrap_or((cores.trim(), ""));
+        let digits: String = fraction.chars().chain(std::iter::repeat('0')).take(Self::DIGITS).collect();
+        Ok(Self(whole.parse::<u64>()?.saturating_mul(Self::HUNDRED).saturating_add(digits.parse::<u64>()?)))
+    }
+}
+
+impl fmt::Display for CoreShare {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}.{:02}", self.0 / Self::HUNDRED, self.0 % Self::HUNDRED)
+    }
+}
