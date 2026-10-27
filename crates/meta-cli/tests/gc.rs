@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
+use std::thread::JoinHandle;
 
 #[path = "support/skeleton.rs"]
 mod skeleton;
@@ -169,20 +170,22 @@ impl Git {
     }
 
     fn added(scene: &Scene) {
-        let clone = scene.clone.path();
-        let trees = scene.trees();
-        let added: Vec<Output> = std::thread::scope(|scope| {
-            let spawned: Vec<_> = ADDED
-                .iter()
-                .map(|task| {
-                    let tree = trees.join(task);
-                    scope.spawn(move || Self::run(clone, &["worktree", "add", "-q", tree.to_str().unwrap(), task]))
-                })
-                .collect();
-            Self::run(clone, &["worktree", "add", "-q", "--detach", trees.join(STRAY).to_str().unwrap()]);
-            spawned.into_iter().map(|worktree| worktree.join().unwrap()).collect()
-        });
-        assert!(added.iter().all(|output| output.status.success()));
+        let adding = Adding(scene.clone.path().to_path_buf(), scene.trees());
+        let spawned: Vec<JoinHandle<Output>> = ADDED.iter().map(|task| adding.detached(task)).collect();
+        Self::run(&adding.0, &["worktree", "add", "-q", "--detach", adding.1.join(STRAY).to_str().unwrap()]);
+        assert!(spawned.into_iter().all(|worktree| worktree.join().unwrap().status.success()));
+    }
+}
+
+struct Adding(PathBuf, PathBuf);
+
+impl Adding {
+    fn detached(&self, task: &'static str) -> JoinHandle<Output> {
+        let clone = self.0.clone();
+        let trees = self.1.clone();
+        std::thread::spawn(move || {
+            Git::run(&clone, &["worktree", "add", "-q", trees.join(task).to_str().unwrap(), task])
+        })
     }
 }
 
