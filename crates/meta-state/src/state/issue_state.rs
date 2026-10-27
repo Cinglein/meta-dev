@@ -1,6 +1,6 @@
 use std::fmt;
 
-use meta_schema::{LevelName, NewIssue, Target, Text};
+use meta_schema::{Division, LevelName, NewIssue, Target, Text};
 
 use crate::rated_item::RatedItem;
 use crate::stamp::Stamp;
@@ -18,6 +18,10 @@ impl IssueState {
 
     pub fn rerate(&mut self, level: LevelName) {
         self.issue = self.issue.clone().rated(level);
+    }
+
+    pub fn relocate(&mut self, division: Division, level: Option<LevelName>) {
+        self.issue = level.into_iter().fold(self.issue.clone().placed(division), NewIssue::rated);
     }
 
     pub fn new(issue: NewIssue, reported: Stamp) -> Self {

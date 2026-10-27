@@ -1,4 +1,4 @@
-use meta_schema::{Actor, Entry, Id, PullRequest, Rating, SchemaVersion, Target, Task};
+use meta_schema::{Actor, Division, Entry, Id, PullRequest, Rating, SchemaVersion, Target, Task};
 use thiserror::Error;
 
 #[derive(Clone, Debug, PartialEq, Eq, Error)]
@@ -39,4 +39,8 @@ pub enum Refusal {
     Retired(Entry),
     #[error("the item is {0} now; rate it again")]
     RatedSince(Rating),
+    #[error("the item has moved since; move it again")]
+    MovedSince,
+    #[error("the item is already in {0}")]
+    AlreadyIn(Division),
 }

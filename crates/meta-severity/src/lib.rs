@@ -1,3 +1,4 @@
+mod carrying;
 mod demotion;
 mod demotions;
 mod level;
@@ -9,6 +10,7 @@ mod severity_filter;
 mod stranded;
 mod strands;
 
+pub use carrying::Carrying;
 pub use demotion::Demotion;
 pub use demotions::Demotions;
 pub use level::Level;

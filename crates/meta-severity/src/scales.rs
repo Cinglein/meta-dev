@@ -104,6 +104,11 @@ impl Scales {
         placement.division().and_then(|division| self.scale(division)).ok_or(RatingFailure::Unscaled)
     }
 
+    #[must_use]
+    pub fn declares(&self, division: &Division) -> bool {
+        self.0.contains_key(division)
+    }
+
     pub fn admits(&self, event: &Event) -> Result<(), RatingFailure> {
         let level = event.proposed_rating().and_then(|rating| rating.level().cloned());
         level.map_or(Ok(()), |level| {

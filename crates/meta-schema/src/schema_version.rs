@@ -11,7 +11,14 @@ pub struct SchemaVersion {
 impl SchemaVersion {
     #[must_use]
     pub fn current() -> Self {
-        Self { version: NonZeroU32::MIN.saturating_add(1).saturating_add(1).saturating_add(1).saturating_add(1) }
+        Self {
+            version: NonZeroU32::MIN
+                .saturating_add(1)
+                .saturating_add(1)
+                .saturating_add(1)
+                .saturating_add(1)
+                .saturating_add(1),
+        }
     }
 }
 

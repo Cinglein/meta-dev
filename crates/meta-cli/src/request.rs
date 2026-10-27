@@ -9,6 +9,7 @@ mod output;
 mod parsed;
 mod project;
 mod rate;
+mod relocate;
 mod scale_policy;
 mod status_view;
 mod timed_command;
@@ -26,11 +27,11 @@ use heartbeat::Heartbeat;
 use hook::HookEvent;
 use live_github::LiveGithub;
 use local::{LocalClone, Sweep};
-use meta_severity::Scales;
 use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
 use project::Project;
 use rate::Rate;
+use relocate::Relocate;
 use scale_policy::ScalePolicy;
 use status_view::StatusView;
 use writing::Writing;
@@ -40,6 +41,7 @@ pub enum Request {
     Write(Event),
     Wait(Block),
     Rate(Rate),
+    Move(Relocate),
     ClaimWorktree(Claim),
     Worktrees,
     Gc(Sweep),
@@ -81,6 +83,10 @@ impl TryFrom<Vec<String>> for Request {
                 Ok(Self::Write(Event::IssueReported(parsed.severity().into_iter().fold(issue, NewIssue::rated))))
             }
             "rate" => Ok(Self::Rate(parsed.allowing(&[OptionName::Scenario])?.rating()?)),
+            "move" => {
+                let parsed = parsed.allowing(&[OptionName::Division, OptionName::Severity, OptionName::Scenario])?;
+                Ok(Self::Move(parsed.relocation()?))
+            }
             "open" => {
                 let parsed = parsed.allowing(&[
                     OptionName::Addresses,
@@ -150,14 +156,14 @@ impl Request {
             Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
             Self::WaitCi(session) => Watcher::wait(project, &session),
             Self::CiLog(session) => FailureLog::excerpt(project, &session),
-            Self::Status(view) => view.answer(&project.log()?, &ScalePolicy::read(project.root())?, |query| {
+            Self::Status(view) => view.answer(&project.log()?, ScalePolicy::read(project.root())?.scales(), |query| {
                 LiveGithub::for_project(project).read(query)
             }),
             Self::ClaimWorktree(claim) => LocalClone::try_from(project)?.claimed(project, claim, Self::actor()?),
             Self::Worktrees => LocalClone::try_from(project)?.worktrees(project),
             Self::Gc(sweep) => LocalClone::try_from(project)?.collected(project, sweep),
             Self::GcRestore(quarantine) => LocalClone::try_from(project)?.unstranded(&quarantine),
-            logged @ (Self::List(..) | Self::Write(_) | Self::Rate(_)) => {
+            logged @ (Self::List(..) | Self::Write(_) | Self::Rate(_) | Self::Move(_)) => {
                 logged.answer_from(&project.log()?, &ScalePolicy::read(project.root())?, Self::actor)
             }
             Self::Wait(block) => {
@@ -170,17 +176,18 @@ impl Request {
     fn answer_from(
         self,
         log: &impl LogStore,
-        scales: &Scales,
+        policy: &ScalePolicy,
         actor: impl FnOnce() -> Result<Actor, CliFailure>,
     ) -> Result<Output, CliFailure> {
         match self {
             Self::Write(event) => {
-                scales.admits(&event).map_err(CliFailure::raised::<Invalid>)?;
+                policy.scales().admits(&event).map_err(CliFailure::raised::<Invalid>)?;
                 Writing::new(log, actor()?, event).entered()
             }
-            Self::Rate(rate) => rate.answer(log, scales, actor()?),
+            Self::Rate(rate) => rate.answer(log, policy.scales(), actor()?),
+            Self::Move(relocate) => relocate.answer(log, policy, actor()?),
             Self::List(kind, scope) => Listed::from_log(log, kind, scope).map(Output::Listed),
-            Self::Wait(block) => Self::Write(Event::TaskBlocked(block)).answer_from(log, scales, actor),
+            Self::Wait(block) => Self::Write(Event::TaskBlocked(block)).answer_from(log, policy, actor),
             Self::Hook(_)
             | Self::Heartbeat(_)
             | Self::WatchCi(..)

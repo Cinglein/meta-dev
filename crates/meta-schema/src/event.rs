@@ -13,6 +13,7 @@ use crate::new_issue::NewIssue;
 use crate::new_task::NewTask;
 use crate::placement::Placement;
 use crate::rating::Rating;
+use crate::relocation::Relocation;
 use crate::rerating::Rerating;
 use crate::schema_version::SchemaVersion;
 use crate::task_link::TaskLink;
@@ -35,6 +36,7 @@ pub enum Event {
     EntryCorrected(EntryNote),
     SchemaVersion(SchemaVersion),
     ItemRated(Rerating),
+    ItemMoved(Relocation),
 }
 
 impl Event {
@@ -96,6 +98,7 @@ impl Event {
             Self::EntryCorrected(note) => visitor.entry_corrected(note),
             Self::SchemaVersion(version) => visitor.schema_versioned(*version),
             Self::ItemRated(rerating) => visitor.item_rated(rerating),
+            Self::ItemMoved(relocation) => visitor.item_moved(relocation),
         }
     }
 }
@@ -117,6 +120,7 @@ impl fmt::Display for Event {
             Self::EntryCorrected(note) => write!(formatter, "EntryCorrected {note}"),
             Self::SchemaVersion(version) => write!(formatter, "SchemaVersion {version}"),
             Self::ItemRated(rerating) => write!(formatter, "ItemRated {rerating}"),
+            Self::ItemMoved(relocation) => write!(formatter, "ItemMoved {relocation}"),
         }
     }
 }
