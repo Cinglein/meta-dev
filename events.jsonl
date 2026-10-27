@@ -804,3 +804,4 @@
 {"at":"2026-10-27T23:21:49.868430Z","actor":"claude-lead","kind":"TaskOpened","task":"task-4f588a769bed934d","text":"Domains only scope measurement, in types: Domain consumed only by measure evaluation; PR division only from task placement; crate_graph lint forbids reach code depending on domains.","division":"features-and-maintenance"}
 {"at":"2026-10-27T23:22:15.106887Z","actor":"claude-effects","kind":"TaskLinked","task":"task-67bef320ab546a08","pr":67}
 {"at":"2026-10-27T23:22:17.604554Z","actor":"claude-effects","kind":"TaskLinked","task":"task-4155849b1ac2396b","pr":67}
+{"at":"2026-10-27T23:24:29.813921Z","actor":"claude-lead","kind":"TaskOpened","task":"task-00f50509d10cc491","text":"Follow-up to #66: test that ci/mod.rs wires run.link() into the standing check; remove ChangeLink's unused pull-request field.","division":"features-and-maintenance"}
