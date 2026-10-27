@@ -1,15 +1,26 @@
+mod cargo_build;
+mod cargo_test;
 mod no_tests;
-mod test_binary;
+mod runner_config;
+mod test_run;
+mod test_runner;
+mod test_runs;
 mod test_timing;
 
 use std::cmp::Reverse;
+use std::fs;
 use std::time::Duration;
 
+use cargo_build::CargoBuild;
+use cargo_test::CargoTest;
 use no_tests::NoTests;
-use test_binary::TestBinary;
+use runner_config::RunnerConfig;
+pub use test_runner::TestRunner;
+use test_runs::TestRuns;
 use test_timing::TestTiming;
 
 use task::Failure;
+use task::Program;
 use task::Report;
 use task::Selection;
 use task::Site;
@@ -36,13 +47,34 @@ impl TestTime {
                 Ok(())
             },
             |selection| {
-                let timings = TestBinary::discover(workspace, selection, policy)?
-                    .iter()
-                    .map(TestBinary::timings)
-                    .collect::<Result<Vec<Vec<TestTiming>>, Failure>>()?
-                    .into_iter()
-                    .flatten()
-                    .collect();
+                let runs = tempfile::NamedTempFile::new().map_err(|error| Failure::Io {
+                    site: Site::Workspace,
+                    error,
+                })?;
+                let line = || workspace.line(Program::Cargo);
+                selection
+                    .within(workspace.packages().with_examples())
+                    .reaching()
+                    .map_or(Ok(()), |examples| {
+                        CargoBuild::examples(line(), examples, policy).run()
+                    })?;
+                let cargo = |selection| CargoTest::new(line(), selection, policy);
+                let ran = cargo(selection)
+                    .through(&RunnerConfig::current()?)
+                    .environment(TestRunner::RUNS, runs.path())
+                    .run();
+                let documented = selection.within(workspace.packages().doctested());
+                let documented_ran = documented
+                    .reaching()
+                    .map_or(Ok(()), |documented| cargo(documented).doctests().run());
+                let timings = fs::read_to_string(runs.path())
+                    .map_err(|error| Failure::Io {
+                        site: Site::File(runs.path().to_path_buf()),
+                        error,
+                    })?
+                    .parse::<TestRuns>()?
+                    .passed()?;
+                ran.and(documented_ran)?;
                 TestTime { timings }.recorded(policy, ledger).verdict()
             },
         )
@@ -82,11 +114,17 @@ impl TestTime {
 
 #[cfg(test)]
 mod tests {
-    use super::{TestTime, TestTiming};
+    use super::{CargoBuild, CargoTest, RunnerConfig, TestTime, TestTiming};
     use settings::EmbeddedDefaults;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
     use std::time::Duration;
-    use task::{Interval, Ledger, Policy, Report, Selection};
+    use task::{CommandLine, Interval, Ledger, Policy, Program, Report, Selection};
+    const RUNNER: &str = "target/debug/x\"task";
+    const RUNNER_KEY: &str = "--config";
+    const DOCTESTS: &str = "--doc";
+    const BUILD: &str = " build --workspace ";
+    const EXAMPLES: &str = "--examples --profile test";
+    const THROUGH: &str = "--no-fail-fast --tests --config target.'cfg(all())'.runner = [\"target/debug/x\\\"task\", \"test-runner\"]";
     const NAMES: [&str; 4] = ["target/debug/deps/bin-1a2b3c", "exact", "slow", "bulk"];
     const TICK: Duration = Duration::from_millis(1);
     const WHOLE_IN_UNITS: usize = 4;
@@ -123,5 +161,19 @@ mod tests {
             "{over}"
         );
         assert!(TestTime::over_budget(Vec::new(), &policy).lists_exactly(&NOTHING_TIMED));
+    }
+
+    #[test]
+    fn libtest_targets_go_through_the_runner_and_doctests_run_without_it() {
+        let (policy, base) = (Policy::defaults(), CommandLine::new(Program::Cargo));
+        let cargo = |line| CargoTest::new(line, &Selection::Workspace, &policy);
+        let runner = RunnerConfig::new(PathBuf::from(RUNNER));
+        let shown = cargo(base.clone()).through(&runner).to_string();
+        let docs = cargo(base.clone()).doctests().to_string();
+        let built = CargoBuild::examples(base, &Selection::Workspace, &policy).to_string();
+        let plain = docs.ends_with(DOCTESTS) && !docs.contains(RUNNER_KEY);
+        let through = shown.ends_with(THROUGH) && !shown.contains(DOCTESTS);
+        let examples = built.contains(BUILD) && built.ends_with(EXAMPLES);
+        assert!(through && plain && examples, "{shown}\n{docs}\n{built}");
     }
 }

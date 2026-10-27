@@ -1,7 +1,9 @@
+mod built_target;
 mod dependency;
 
 use std::path::{Path, PathBuf};
 
+use built_target::BuiltTarget;
 use dependency::Dependency;
 use serde::Deserialize;
 
@@ -12,11 +14,26 @@ pub struct Package {
     name: CrateName,
     manifest_path: PathBuf,
     dependencies: Vec<Dependency>,
+    #[serde(default)]
+    targets: Vec<BuiltTarget>,
 }
 
 impl Package {
     pub fn name(&self) -> &CrateName {
         &self.name
+    }
+
+    pub fn doctested(&self) -> bool {
+        self.targets
+            .iter()
+            .find_map(BuiltTarget::doctested)
+            .is_some()
+    }
+
+    pub fn example(&self) -> Option<&BuiltTarget> {
+        self.targets
+            .iter()
+            .find(|target| target.example().is_some())
     }
 
     pub fn directory(&self, workspace_root: &Path) -> PathBuf {
