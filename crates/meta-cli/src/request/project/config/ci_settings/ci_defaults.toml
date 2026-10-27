@@ -1,5 +1,8 @@
 program = "gh"
 poll_millis = 15000
+expected_millis = 300000
+backoff_millis = 30000
+backoff_cap_millis = 900000
 timeout_millis = 3600000
 appear_millis = 120000
 remote_millis = 5000

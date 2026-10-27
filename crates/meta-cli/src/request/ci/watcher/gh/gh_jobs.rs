@@ -5,9 +5,9 @@ use serde::Deserialize;
 
 use crate::request::output::Listed;
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct GhJobs {
-    #[serde(default)]
+    #[serde(default, rename = "nodes")]
     jobs: Vec<GhJob>,
 }
 
@@ -35,9 +35,9 @@ mod tests {
     use super::GhJobs;
 
     const STARTED: &str =
-        r#"{"jobs":[{"name":"ci","conclusion":"failure","steps":[{"name":"t","conclusion":"failure"}]}]}"#;
-    const UNSTARTED: &str = r#"{"jobs":[{"name":"ci","conclusion":"failure","steps":[]}]}"#;
-    const EMPTY: &str = r#"{"jobs":[]}"#;
+        r#"{"nodes":[{"name":"ci","conclusion":"FAILURE","steps":{"nodes":[{"name":"t","conclusion":"FAILURE"}]}}]}"#;
+    const UNSTARTED: &str = r#"{"nodes":[{"name":"ci","conclusion":"FAILURE","steps":{"nodes":[]}}]}"#;
+    const EMPTY: &str = r#"{"nodes":[]}"#;
 
     #[test]
     fn a_failed_job_without_steps_never_started() {

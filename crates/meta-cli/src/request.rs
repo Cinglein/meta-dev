@@ -10,6 +10,7 @@ mod parsed;
 mod project;
 mod rate;
 mod relocate;
+mod repository;
 mod scale_policy;
 mod status_view;
 mod timed_command;

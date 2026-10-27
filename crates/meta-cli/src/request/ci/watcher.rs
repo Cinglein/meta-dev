@@ -45,6 +45,7 @@ impl Watcher {
         let unwatched = |error: std::io::Error| Listed::new(format!("CI not watched: {error}"));
         let dir =
             SessionDir::for_session(project, session).ok_or_else(|| Listed::new("CI not watched: no git directory"))?;
+        dir.writable().map_err(unwatched)?;
         let status = dir.status_of(commit).map_or_else(|| dir.watch(commit).map(|()| CiStatus::Running), Ok);
         let idle = status.map_err(unwatched)?.finished().is_none().then(|| dir.claim(commit).map(drop)).flatten();
         idle.map_or(Ok(()), |()| {
@@ -101,19 +102,23 @@ impl Watcher {
         let _lock = dir.claim(&commit).ok_or_else(|| CliFailure::raised::<Invalid>("another watcher has it"))?;
         let settled = dir.status_of(&commit).and_then(CiStatus::finished);
         settled.map_or(Ok(()), |status| Err(CliFailure::raised::<Invalid>(format!("already {status}"))))?;
+        let repository = project.repository().ok_or_else(|| CliFailure::raised::<Setup>("no remote URL"))?;
         let settings = project.config().ci_settings();
         let clock = WatchClock::start(&settings);
-        let gh = Gh::new(settings.program().clone(), project.root().to_path_buf(), clock.deadline());
+        let gh = Gh::new(settings.program().clone(), project.root().to_path_buf(), clock.deadline(), repository);
+        let waits = settings.poll_schedule().waits(dir.expected());
         let watcher = Self { dir, commit, gh, clock, settings: settings.clone(), appeared: OnceCell::new() };
-        let interval = settings.poll_interval();
-        let finished = std::iter::from_fn(|| {
-            watcher.clock.remaining(&settings)?;
-            std::thread::sleep(interval.duration());
-            let observed = watcher.gh.observe(&watcher.commit);
-            let in_time = watcher.clock.remaining(&settings);
-            observed.is_ok().then_some(()).or(in_time).map(|()| observed)
-        })
-        .try_fold(None, |reported, observed| watcher.step(reported, observed));
+        let finished = waits
+            .map_while(|wait| {
+                watcher.clock.remaining(&settings)?;
+                watcher.clock.pause(wait, &settings);
+                let observed = watcher.gh.observe(&watcher.commit);
+                let learned = observed.as_ref().ok().and_then(Observation::expected);
+                learned.map(|expected| watcher.dir.learn(expected).ok());
+                let in_time = watcher.clock.remaining(&settings);
+                observed.is_ok().then_some(()).or(in_time).map(|()| observed)
+            })
+            .try_fold(None, |reported, observed| watcher.step(reported, observed));
         Ok(watcher.conclude(finished.break_value().as_ref()))
     }
 

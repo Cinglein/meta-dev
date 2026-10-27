@@ -1,5 +1,6 @@
 mod log_window;
 mod millis;
+mod poll_schedule;
 mod program_name;
 
 use std::time::{Duration, Instant};
@@ -8,6 +9,7 @@ use serde::Deserialize;
 
 pub use log_window::LogWindow;
 pub use millis::Millis;
+use poll_schedule::PollSchedule;
 pub use program_name::ProgramName;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize)]
@@ -17,6 +19,8 @@ pub struct CiSettings {
     timeout_millis: Millis,
     appear_millis: Millis,
     remote_millis: Millis,
+    #[serde(flatten)]
+    poll_schedule: PollSchedule,
     #[serde(flatten)]
     log_window: LogWindow,
 }
@@ -30,6 +34,10 @@ impl CiSettings {
 
     pub fn poll_interval(&self) -> Millis {
         self.poll_millis
+    }
+
+    pub fn poll_schedule(&self) -> PollSchedule {
+        self.poll_schedule
     }
 
     pub fn run_overdue(&self, waited: Duration) -> Option<()> {

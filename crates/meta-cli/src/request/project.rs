@@ -10,6 +10,7 @@ use meta_log::GitLog;
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
+use crate::request::repository::Repository;
 use crate::request::timed_command::TimedCommand;
 pub use config::{BranchName, CiSettings, Config, GcMode, HeartbeatSettings, LogWindow, ProgramName, TickLimit};
 #[cfg(test)]
@@ -105,6 +106,12 @@ impl Project {
     pub fn head(&self) -> Option<Commit> {
         let heads: Vec<Commit> = self.git_lines(["rev-parse", "HEAD"].map(OsString::from))?;
         heads.into_iter().next()
+    }
+
+    pub fn repository(&self) -> Option<Repository> {
+        let remote = OsString::from(self.config.remote().ok()?.to_string());
+        let urls: Vec<Repository> = self.git_lines([OsString::from("remote"), OsString::from("get-url"), remote])?;
+        urls.into_iter().next()
     }
 
     fn git_lines<Line: FromStr>(&self, words: impl IntoIterator<Item = OsString>) -> Option<Vec<Line>> {

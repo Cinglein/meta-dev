@@ -5,9 +5,12 @@ use super::{BLOCK, COMMIT, Git, NEXT_COMMIT, POST, Planted, Repo, STOP, SUCCESS,
 
 const TIMED_OUT: &str = "timed-out";
 const SLOW: &str = "slow";
-const HOUR: &str = "timeout_millis = 3600000\n";
 const CALLS: &str = "calls";
-const CALLS_PER_COMMIT: usize = 10;
+const CALL_LOG_MAX_LEN: usize = 10;
+const STATE_ROOT: &str = ".git/meta-ci";
+const EXPECTED: &str = "expected";
+const PLANTED: &str = "60000";
+const LEARNED: &str = "240000";
 const DETACH: [&str; 3] = ["checkout", "-q", "--detach"];
 const PUSH_HEAD: [&str; 4] = ["push", "-q", "origin", "HEAD:refs/heads/pushed"];
 const WAIT_ON_CI: [&str; 4] = ["wait", TASK, "--on", "ci"];
@@ -40,11 +43,16 @@ fn on_a_detached_head_a_wait_covers_only_the_head_it_was_recorded_at() {
 
 #[test]
 fn a_watched_commit_makes_at_most_ten_network_calls_and_one_per_poll() {
-    let repo = Repo::limited(SLOW, HOUR);
+    let repo = Repo::new(SLOW);
+    let state = repo.clone.path().join(STATE_ROOT);
+    std::fs::create_dir_all(&state).unwrap();
+    std::fs::write(state.join(EXPECTED), PLANTED).unwrap();
     repo.hook(POST, COMMIT);
     let settled = repo.settled();
     let calls = std::fs::read_to_string(repo.clone.path().join(CALLS)).unwrap_or_default();
     let polls: BTreeSet<&str> = calls.lines().collect();
-    assert!(settled.contains(TIMED_OUT) && (1..=CALLS_PER_COMMIT).contains(&calls.lines().count()));
+    let learned = std::fs::read_to_string(state.join(EXPECTED)).unwrap_or_default();
+    assert!(settled.contains(TIMED_OUT) && (1..=CALL_LOG_MAX_LEN).contains(&calls.lines().count()));
     assert_eq!(polls.len(), calls.lines().count());
+    assert_eq!([calls.lines().next(), Some(learned.as_str())], [Some(PLANTED), Some(LEARNED)]);
 }
