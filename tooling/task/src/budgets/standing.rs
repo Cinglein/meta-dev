@@ -123,3 +123,6 @@ impl Standing {
             .filter(move |item| item.counts_in(filter, division))
     }
 }
+
+#[cfg(test)]
+mod tests;
