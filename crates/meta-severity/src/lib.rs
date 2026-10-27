@@ -1,3 +1,5 @@
+mod demotion;
+mod demotions;
 mod level;
 mod rating_failure;
 mod scale;
@@ -7,6 +9,8 @@ mod severity_filter;
 mod stranded;
 mod strands;
 
+pub use demotion::Demotion;
+pub use demotions::Demotions;
 pub use level::Level;
 pub use rating_failure::RatingFailure;
 pub use scale::Scale;

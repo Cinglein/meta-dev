@@ -7,6 +7,7 @@ use meta_severity::Scales;
 use serde::Deserialize;
 use task::{BaselineFile, Surface};
 
+use crate::task::failure::Failure;
 use crate::task::revision::Revision;
 use prior_budget::PriorBudget;
 
@@ -26,6 +27,10 @@ impl PriorPolicy {
 
     pub fn read_at(revision: &Revision) -> PriorPolicy {
         revision.file(Path::new(Self::PATH)).and_then(|text| toml::from_str(&text).ok()).unwrap_or_default()
+    }
+
+    fn parsed(text: Option<String>) -> Result<PriorPolicy, Failure> {
+        Ok(text.and_then(|text| toml::from_str(&text).ok()).unwrap_or_default())
     }
 
     pub fn scales(self) -> Scales {
@@ -48,12 +53,14 @@ mod tests {
     use super::PriorPolicy;
 
     const NAV: &str = "features-and-maintenance/nav";
+    const UNREADABLE: &str = "surfaces = 3";
     const SCALED: &str = "[[scales.\"features-and-maintenance/nav\"]]\nname = \"a\"\nmeaning = \"x\"\nparent = \"critical\"\n\n[[scales.\"features-and-maintenance/nav\"]]\nname = \"b\"\nmeaning = \"x\"\nparent = \"major\"\n\n[[scales.\"features-and-maintenance/nav\"]]\nname = \"c\"\nmeaning = \"x\"\nparent = \"minor\"\n";
 
     #[test]
-    fn the_merge_base_policy_keeps_its_scales() {
+    fn the_merge_base_policy_keeps_its_scales_is_absent_as_defaults_and_fails_closed_when_unreadable() {
         let nav: Division = NAV.parse().unwrap();
-        let prior: PriorPolicy = toml::from_str(SCALED).unwrap();
+        let prior = PriorPolicy::parsed(Some(SCALED.to_owned())).unwrap();
         assert_eq!(prior.scales().owner(&nav), Some(&nav));
+        assert!(PriorPolicy::parsed(None).is_ok() && PriorPolicy::parsed(Some(UNREADABLE.to_owned())).is_err());
     }
 }

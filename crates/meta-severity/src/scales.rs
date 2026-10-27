@@ -4,6 +4,7 @@ use meta_schema::{Division, Event, LevelName, Placement, TopDivision};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
+use crate::demotions::Demotions;
 use crate::level::Level;
 use crate::rating_failure::RatingFailure;
 use crate::scale::Scale;
@@ -46,6 +47,11 @@ impl Scales {
             (Some(Some(parent)), _) => self.rolled_up(owner.lineage().iter().rev().nth(1)?, parent, onto),
             (Some(None), _) => None,
         }
+    }
+
+    #[must_use]
+    pub fn demotions_from(&self, before: &Scales, state: &State) -> Demotions {
+        state.open_items().iter().filter(|_| before == self).filter_map(|_| None).collect()
     }
 
     #[must_use]
