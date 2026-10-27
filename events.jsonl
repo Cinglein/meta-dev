@@ -428,3 +428,4 @@
 {"at":"2026-10-27T01:46:01.054212Z","actor":"claude-lead","kind":"IssueReported","issue":"issue-80d8339558c4907c","text":"Merged meta-dev #30 (division domains and typed budget fields) after review (MERGE). #31 (the budget checker) is blocked on three ways a policy edit drops or loosens a limit.","division":"features-and-maintenance"}
 {"at":"2026-10-27T01:53:06.614259Z","actor":"claude-test-speed-2","kind":"TaskOpened","task":"task-2f66b925d7311e53","text":"Cut full-suite test time to 60 percent of budget","division":"performance-and-cost"}
 {"at":"2026-10-27T01:53:10.354805Z","actor":"claude-test-speed-2","kind":"TaskClaimed","task":"task-2f66b925d7311e53"}
+{"at":"2026-10-27T01:53:22.703657Z","actor":"claude-prices-2","kind":"TaskOpened","task":"task-59a2c318c974fc55","text":"Regenerate mutant prices incl. per_crate from measured full runs","division":"performance-and-cost"}
