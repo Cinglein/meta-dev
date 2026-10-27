@@ -561,3 +561,4 @@
 {"at":"2026-10-27T12:27:10.787732Z","actor":"claude-gatelog","kind":"TaskOpened","task":"task-81d7dc26920b5fa8","text":"Local gate cannot read meta/log from a private origin; checks that need no log still read it","division":"features-and-maintenance"}
 {"at":"2026-10-27T12:27:28.771314Z","actor":"claude-gatelog","kind":"TaskClaimed","task":"task-81d7dc26920b5fa8"}
 {"at":"2026-10-27T12:30:54.679308Z","actor":"claude-gatelog","kind":"TaskLinked","task":"task-81d7dc26920b5fa8","pr":46}
+{"at":"2026-10-27T12:43:32.258067Z","actor":"claude-gatelog","kind":"TaskDone","task":"task-81d7dc26920b5fa8"}
