@@ -9,6 +9,10 @@ use serde::Deserialize;
 use crate::live_data::LiveData;
 use crate::pull_alias::PullAlias;
 use crate::rulebook::Rulebook;
+use crate::trunk::Trunk;
+use crate::trunk_run::TrunkRun;
+use crate::trunk_verdict::TrunkVerdict;
+use crate::workflow_name::WorkflowName;
 use open_repository::OpenRepository;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -16,6 +20,8 @@ pub struct Pulls {
     open: OpenRepository,
     #[serde(default)]
     linked: HashMap<PullAlias, Option<LivePull>>,
+    #[serde(default)]
+    trunk: Option<Trunk>,
 }
 
 impl Pulls {
@@ -41,6 +47,12 @@ impl Pulls {
     pub fn pull(&self, pull_request: PullRequest) -> Option<&LivePull> {
         let linked = self.linked.get(&PullAlias::new(pull_request)).and_then(Option::as_ref);
         linked.or_else(|| self.open.pull_requests().nodes().find(|pull| pull.number() == pull_request))
+    }
+
+    #[must_use]
+    pub fn trunk_run(&self, workflow: WorkflowName) -> TrunkRun {
+        let verdict = self.trunk.as_ref().map_or(TrunkVerdict::Unknown, |trunk| trunk.verdict(&workflow));
+        TrunkRun::new(workflow, verdict)
     }
 
     #[must_use]

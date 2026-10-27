@@ -10,7 +10,7 @@ use crate::request::project::Config;
 const FAKE_GH: &str = r#"#!/bin/sh
 printf '%s\n' "$@" >> "$0.args"
 case "$1 $2 $FAKE" in
-"api graphql partial"|"api graphql norules") echo '{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[{"number":3,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}]}}},"errors":[]}'; echo 'gh: not found' >&2; exit 1 ;;
+"api graphql partial"|"api graphql norules") echo '{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[{"number":3,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}]}},"trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}},"errors":[]}'; echo 'gh: not found' >&2; exit 1 ;;
 "api graphql garbage") echo 'not json' ;;
 "api graphql down") echo 'HTTP 502: Bad Gateway' >&2; exit 1 ;;
 "api repos/{owner}/{repo}/rules/branches/main partial") echo '["ci"]' ;;

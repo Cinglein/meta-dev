@@ -12,6 +12,7 @@ impl LiveQuery {
     const REPOSITORY: &'static str = "repository(owner:$owner,name:$name){";
     const PULL: &'static str = "number state baseRefName statusCheckRollup{contexts(first:100){pageInfo{hasNextPage} nodes{...on CheckRun{name result:conclusion}...on StatusContext{name:context result:state}}}}";
     const OPEN: &'static str = "pullRequests(states:OPEN,first:100){pageInfo{hasNextPage} nodes{";
+    const TRUNK: &'static str = "trunk:repository(owner:$owner,name:$name){defaultBranchRef{target{...on Commit{history(first:20){pageInfo{hasNextPage} nodes{checkSuites(first:50){pageInfo{hasNextPage} nodes{conclusion workflowRun{workflow{name}}}}}}}}}}";
     const LINKED: &'static str = "linked:";
     const CLOSING: &'static str = "}";
 
@@ -31,6 +32,7 @@ impl LiveQuery {
 impl fmt::Display for LiveQuery {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{}open:{}{}{}}}}}}}", Self::OPENING, Self::REPOSITORY, Self::OPEN, Self::PULL)?;
+        formatter.write_str(Self::TRUNK)?;
         self.0.first().map_or(Ok(()), |_| write!(formatter, "{}{}", Self::LINKED, Self::REPOSITORY))?;
         self.0.iter().try_for_each(|pull_request| {
             let number = pull_request.number();

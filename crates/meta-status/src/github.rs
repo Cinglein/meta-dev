@@ -1,6 +1,6 @@
 mod sight;
 
-use meta_pull_query::LiveData;
+use meta_pull_query::{LiveData, TrunkRun, TrunkVerdict};
 use meta_schema::PullRequest;
 
 use crate::flag::Flag;
@@ -27,6 +27,25 @@ impl Github {
         match self {
             Self::Reached(data) => data.orphans(linked),
             Self::Unreached(_) => Vec::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn trunk(&self) -> Vec<Flag> {
+        match self {
+            Self::Reached(data) => data.trunk().iter().filter_map(Self::trunk_flag).collect(),
+            Self::Unreached(_) => Vec::new(),
+        }
+    }
+
+    fn trunk_flag(run: &TrunkRun) -> Option<Flag> {
+        match run.verdict() {
+            TrunkVerdict::Green => None,
+            TrunkVerdict::Red => Some(Flag::TrunkRed(run.workflow().clone())),
+            TrunkVerdict::Unknown => {
+                let unseen = format!("no completed {} run on the default branch", run.workflow());
+                Some(Flag::Unreached(GithubFailure::new(unseen)))
+            }
         }
     }
 

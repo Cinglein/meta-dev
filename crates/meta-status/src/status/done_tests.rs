@@ -88,7 +88,8 @@ fn an_unreachable_github_never_reads_a_task_as_done() {
 fn a_red_default_branch_run_is_flagged_and_an_unseen_one_reads_unknown_github() {
     let state = State::default();
     let red = Board::reached(&format!(r#"{{"data":{{{NO_PULLS},{TRUNK_RED}}}}}"#));
-    let expected = "trunk red ci: latest completed run failed\nunknown github: no completed mutants run on the default branch\n";
+    let expected =
+        "trunk red ci: latest completed run failed\nunknown github: no completed mutants run on the default branch\n";
     assert_eq!(Status::new(&state, &red, NOW.parse().unwrap()).flags().to_string(), expected);
     let green = Board::reached(&format!(r#"{{"data":{{{NO_PULLS},{TRUNK_GREEN}}}}}"#));
     assert_eq!(Status::new(&state, &green, NOW.parse().unwrap()).flags().raised(), None);
