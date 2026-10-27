@@ -67,6 +67,7 @@ const MIXED: &str = "mixed";
 const HANG: &str = "hang";
 const FROZEN: &str = "frozen";
 const INJECTED: &str = " (injected clock)";
+const FOURTH_POLL: &str = ": failed after 4s";
 const NOT_WATCHED: &str = "CI not watched for";
 const PLAIN_PUSH: &str = "git push";
 const PUSH_WORDS: [&str; 4] = ["push", "-q", "origin", "feature"];
@@ -434,7 +435,8 @@ fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
     assert!(
         broken.contains(LIST_ERROR)
             && broken.contains(VIEW_ERROR)
-            && [&broken, &mixed].iter().all(|settled| settled.contains(FAILED_EVENT))
+            && broken.contains(FAILED_EVENT)
+            && mixed.contains(FOURTH_POLL)
             && [broken, frozen].iter().all(|settled| settled.lines().all(|line| line.contains(INJECTED)))
             && !hung.contains(INJECTED)
     );
