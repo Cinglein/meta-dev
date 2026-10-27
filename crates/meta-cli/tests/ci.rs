@@ -9,6 +9,7 @@ use std::time::Duration;
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 2\n";
 const PATIENT: &str = "appear_millis = 60\ntimeout_millis = 300\nremote_millis = 300\n";
+const ERRING: &str = "appear_millis = 60\ntimeout_millis = 150\nremote_millis = 150\n";
 const STALLED: &str = "appear_millis = 60\ntimeout_millis = 300\nremote_millis = 40\n";
 const QUICK: &str = "appear_millis = 20\ntimeout_millis = 80\nremote_millis = 80\n";
 const FAKE_GH: &str = r#"#!/bin/sh
@@ -411,7 +412,7 @@ fn passing_or_unstarted_runs_let_the_agent_stop() {
 
 #[test]
 fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
-    let repos = [(NONE, QUICK), (LATE, QUICK), (BROKEN, PATIENT), (MIXED, PATIENT), (HANG, QUICK)]
+    let repos = [(NONE, QUICK), (LATE, QUICK), (BROKEN, ERRING), (MIXED, PATIENT), (HANG, QUICK)]
         .map(|(scenario, limits)| Started::building(scenario, limits))
         .map(|started| started.join().unwrap());
     let [absent, late, broken, mixed, hung] = repos.each_ref().map(Repo::settled);
