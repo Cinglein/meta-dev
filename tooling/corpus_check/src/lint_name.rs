@@ -19,6 +19,7 @@ use no_parameter_bags::NoParameterBags;
 use primitive_boundary::PrimitiveBoundary;
 use private_fns::PrivateFns;
 use public_surface::PublicSurface;
+use repeated_methods::RepeatedMethods;
 use settings_shape::SettingsShape;
 use state_graph::StateGraph;
 use task::Policy;
@@ -52,6 +53,7 @@ pub enum LintName {
     PrimitiveBoundary,
     PrivateFns,
     PublicSurface,
+    RepeatedMethods,
     SettingsShape,
     StateGraph,
     TestBudget,
@@ -83,6 +85,7 @@ impl LintName {
             LintName::PrimitiveBoundary => PrimitiveBoundary::report(files, policy),
             LintName::PrivateFns => PrivateFns::report(files, policy),
             LintName::PublicSurface => PublicSurface::report(files),
+            LintName::RepeatedMethods => RepeatedMethods::report(files, policy),
             LintName::SettingsShape => SettingsShape::report(files),
             LintName::StateGraph => StateGraph::report(files, policy),
             LintName::TestBudget => TestBudget::report(files, policy),

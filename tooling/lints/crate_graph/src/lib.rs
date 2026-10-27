@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::path::{Component, Path, PathBuf};
 
-use task::{Amount, Most, Policy, Report, SourceFile};
+use task::{Amount, Most, Percent, Policy, Report, SourceFile};
 
 use crate_summary::CrateSummary;
 use graph_report::GraphReport;
@@ -40,6 +40,16 @@ impl CrateGraph {
             .max()
             .unwrap_or_default();
         Amount::Count(Most::from(largest.count()))
+    }
+
+    #[must_use]
+    pub fn effect_share(files: &[SourceFile]) -> Amount {
+        Amount::Share(Percent::from(files.len()))
+    }
+
+    #[must_use]
+    pub fn effect_dispersion(files: &[SourceFile]) -> Amount {
+        Amount::Count(Most::from(files.len()))
     }
 
     #[must_use]
@@ -93,5 +103,49 @@ mod tests {
         let files = FILES.map(|(path, text)| SourceFile::parse(path, text.to_owned()).unwrap());
         assert_eq!(CrateGraph::graphs(&files).to_string(), REPORT);
         assert_eq!(CrateGraph::largest_tangle(&files).to_string(), LARGEST);
+    }
+
+    const EFFECT_FILES: [(&str, &str); 3] = [
+        (
+            "crates/core/src/lib.rs",
+            "use std::time::Duration; pub struct Board(toml::Value, Duration); pub fn rank() { Duration::ZERO; chrono::Utc::today(); }",
+        ),
+        (
+            "crates/adapter/src/lib.rs",
+            "use std::fs::{self, File}; pub struct Store; impl Store { pub fn load() { fs::read(PATH); } } pub struct Plain;",
+        ),
+        (
+            "crates/dispersed/src/lib.rs",
+            "use std::process::Command as Run; use std::env; use chrono::Utc;
+            pub struct Spawner; impl Spawner { pub fn go() { Run::new(NAME); } }
+            pub struct Reader; impl Reader { pub fn go() { env::var(NAME); } }
+            pub struct Timer; impl Timer { pub fn go() { Utc::now(); std::time::Instant::now(); } }
+            pub fn parse() { toml::from_str(TEXT); serde_json::to_string(TEXT); }
+            pub fn quit() { std::process::exit(CODE); }
+            pub struct Unix(std::os::unix::process::ExitStatusExt); pub struct Pure;",
+        ),
+    ];
+    const WIDEST: [&str; 2] = ["72%", "3"];
+    const EFFECTS: &str = "  effects";
+    const EFFECT_LINES: [&str; 2] = [
+        "  effects: 1 of 2 units, share 0%: files 1",
+        "  effects: 6 of 7 units, share 72%: process 3, environment 1, clock 1, parsing 1",
+    ];
+
+    #[test]
+    fn effects_count_units_per_crate_past_one_adapter_and_the_widest_family() {
+        let files =
+            EFFECT_FILES.map(|(path, text)| SourceFile::parse(path, text.to_owned()).unwrap());
+        let widest = [
+            CrateGraph::effect_share(&files),
+            CrateGraph::effect_dispersion(&files),
+        ];
+        assert_eq!(widest.map(|amount| amount.to_string()), WIDEST);
+        let shown = CrateGraph::graphs(&files).to_string();
+        let lines: Vec<&str> = shown
+            .lines()
+            .filter(|line| line.starts_with(EFFECTS))
+            .collect();
+        assert_eq!(lines, EFFECT_LINES);
     }
 }

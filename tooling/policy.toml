@@ -56,6 +56,7 @@ lines_per_test = 20
 literals_per_test = 4
 largest_integer = 64
 slowest_shown = 5
+types_per_method_shape = 2
 
 [floors]
 fn_name = 3

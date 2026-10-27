@@ -68,6 +68,7 @@ pub enum Task {
     PrimitiveBoundary,
     PrivateFns,
     PublicSurface,
+    RepeatedMethods,
     SettingsShape,
     Stacked,
     StateGraph,

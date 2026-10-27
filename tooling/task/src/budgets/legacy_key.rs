@@ -104,7 +104,8 @@ impl LegacyKey {
             | Limit::LinesPerTest
             | Limit::LiteralsPerTest
             | Limit::LargestInteger
-            | Limit::SlowestShown => None,
+            | Limit::SlowestShown
+            | Limit::TypesPerMethodShape => None,
         }
     }
 }
