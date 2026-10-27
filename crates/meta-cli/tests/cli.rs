@@ -41,6 +41,7 @@ const IGNORED: &str = "not gitignored";
 const GIT_CALL: &str = "git -C /";
 const TRACE: &str = "GIT_TRACE2_EVENT";
 const STARTED: &str = "\"event\":\"start\"";
+const LISTING: &str = "\"hierarchy\":\"ls-remote\"";
 const READ_PROCESSES: [&str; 3] = ["ls-remote", "upload-pack", "cat-file"];
 
 #[path = "support/skeleton.rs"]
@@ -94,6 +95,17 @@ struct Run(Output);
 struct Complaint(String);
 
 struct Written(String);
+
+struct Traced(Run, String);
+
+impl Traced {
+    fn run(project: &Project, words: &[&str]) -> Self {
+        let trace = tempfile::NamedTempFile::new().unwrap();
+        let mut command = Command::new(META);
+        command.current_dir(project.clone.path()).args(words).env("META_ACTOR", OWNER).env(TRACE, trace.path());
+        Self(Run(command.output().unwrap()), std::fs::read_to_string(trace.path()).unwrap())
+    }
+}
 
 impl Run {
     const ACTOR_INDEX: usize = 2;
@@ -168,15 +180,14 @@ fn writes_go_to_the_remote_as_meta_actor_else_owner_and_offline_writes_are_refus
 }
 
 #[test]
-fn a_read_of_an_unchanged_meta_log_spawns_at_most_three_git_processes() {
+fn a_first_write_lists_the_remote_once_and_a_read_of_an_unchanged_meta_log_spawns_at_most_three_git_processes() {
     let project = Project::new();
-    let written = project.meta(OWNER, &ISSUE).written().0;
-    let trace = tempfile::NamedTempFile::new().unwrap();
-    let mut command = Command::new(META);
-    command.current_dir(project.clone.path()).args(LIST_ISSUES).env(TRACE, trace.path());
-    let listed = Run(command.output().unwrap()).to_string();
-    let started = std::fs::read_to_string(trace.path()).unwrap().matches(STARTED).count();
-    assert!(listed.contains(&written) && (1..=READ_PROCESSES.len()).contains(&started), "{started} git processes");
+    let written = Traced::run(&project, &ISSUE);
+    let listed = Traced::run(&project, &LIST_ISSUES);
+    let started = listed.1.matches(STARTED).count();
+    assert_eq!(written.1.matches(LISTING).count(), 1);
+    assert!(listed.0.to_string().contains(&written.0.written().0), "{}", listed.0);
+    assert!((1..=READ_PROCESSES.len()).contains(&started), "{started} git processes");
 }
 
 #[test]
