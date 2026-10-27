@@ -2,8 +2,7 @@ use meta_severity::Scales;
 
 use super::ScalePolicy;
 
-const POLICY: &str =
-    "[[scales.\"features-and-maintenance/nav\"]]\nname = \"lost\"\nmeaning = \"no map\"\nparent = \"critical\"\n";
+const POLICY: &str = "[[scales.\"features-and-maintenance/nav\"]]\nname = \"lost\"\nmeaning = \"no map\"\nparent = \"critical\"\n\n[[scales.\"features-and-maintenance/nav\"]]\nname = \"slow\"\nmeaning = \"late\"\nparent = \"major\"\n\n[[scales.\"features-and-maintenance/nav\"]]\nname = \"typo\"\nmeaning = \"text\"\nparent = \"minor\"\n";
 const NAV: &str = "features-and-maintenance/nav";
 const UNMAPPED: &str = "maps onto no level";
 

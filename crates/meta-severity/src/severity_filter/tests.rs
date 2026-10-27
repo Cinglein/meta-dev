@@ -7,7 +7,8 @@ use crate::{Scale, Scales, SeverityFilter};
 
 const SCALES: &str = r#"{"features-and-maintenance/nav": [
     {"name": "lost", "meaning": "x", "parent": "critical"},
-    {"name": "slow", "meaning": "x", "parent": "major"}
+    {"name": "slow", "meaning": "x", "parent": "major"},
+    {"name": "typo", "meaning": "x", "parent": "minor"}
 ]}"#;
 const TOP: &str = "features-and-maintenance";
 const NAV: &str = "features-and-maintenance/nav";
