@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 
 use super::budget::{Amount, Budget, Measure};
 use super::standing::{Exposure, Standing};
+use crate::domains::Domains;
 use crate::failure::Failure;
 use crate::policy::Policy;
 use crate::selection::Selection;
@@ -39,13 +40,13 @@ impl Ledger {
     }
 
     #[must_use]
-    pub fn exposure_of(&self, budget: &Budget) -> Exposure {
+    pub fn exposure_of(&self, budget: &Budget, domains: &Domains) -> Exposure {
         budget
             .measure()
             .item_filter()
             .zip(self.standing.as_ref())
             .map_or(Exposure::Diff, |(filter, standing)| {
-                standing.exposure(filter, budget.division())
+                standing.exposure(filter, budget.division(), domains)
             })
     }
 
@@ -67,7 +68,7 @@ impl Ledger {
                         .amount(budget)
                         .and_then(|allowance| budget.lines(&allowance));
                     Row::new(id, budget, lines, self.spend_of(budget))
-                        .within(self.exposure_of(budget))
+                        .within(self.exposure_of(budget, policy.domains()))
                 })
                 .collect(),
         )

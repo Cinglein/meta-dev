@@ -16,7 +16,13 @@ const PRICE: &str = "allowance = { share = 100 }\n";
 const WINDOW: &str = "window = \"per_change\"\n";
 const CI: &str = "source = \"ci\"\n";
 
-const REFUSED: [(&str, &str, &str, &str); 26] = [
+const REFUSED: [(&str, &str, &str, &str); 27] = [
+    (
+        "meta",
+        END,
+        "\n[budgets.a]\ndivision = \"features-and-maintenance/a\"\nmeasure = { open_items = { kind = \"task\" } }\nallowance = { of = \"tangle-items\", percent = 10 }\nwindow = \"standing\"\n",
+        "budget a: its measure is not the measure of the budget it is part of",
+    ),
     (
         "meta",
         END,

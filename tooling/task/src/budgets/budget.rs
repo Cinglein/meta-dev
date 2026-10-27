@@ -170,6 +170,11 @@ impl Budget {
             (_, Some(Some(parent))) if parent.measure.unit() != unit => {
                 refused(TreeFailure::OtherUnit)
             }
+            (_, Some(Some(parent)))
+                if parent.measure != self.measure && self.standing_in().is_some() =>
+            {
+                refused(TreeFailure::OtherMeasure)
+            }
             (_, None | Some(Some(_))) => Ok(()),
         }
     }

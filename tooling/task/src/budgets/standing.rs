@@ -6,6 +6,7 @@ use meta_schema::{Division, NewTask};
 use meta_state::{State, TaskState};
 
 use super::budget::{Amount, ItemFilter, ItemKind};
+use crate::domains::Domains;
 use crate::policy::Most;
 pub use change_link::ChangeLink;
 pub use exposure::Exposure;
@@ -15,6 +16,7 @@ use open_item::OpenItem;
 pub struct Standing {
     items: Vec<OpenItem>,
     linked: Vec<NewTask>,
+    paying: Vec<NewTask>,
 }
 
 impl Standing {
@@ -48,12 +50,17 @@ impl Standing {
             .iter()
             .filter(|task| open(task.entry()))
             .map(|task| Self::task(state, task));
+        let linked: Vec<&TaskState> = state
+            .tasks()
+            .iter()
+            .filter(|task| link.links(task) && state.retirement(task.entry()).is_none())
+            .collect();
         Standing {
             items: concerns.chain(issues).chain(tasks).collect(),
-            linked: state
-                .tasks()
+            linked: linked.iter().map(|task| task.new_task().clone()).collect(),
+            paying: linked
                 .iter()
-                .filter(|task| link.links(task))
+                .filter(|task| open(task.entry()))
                 .map(|task| task.new_task().clone())
                 .collect(),
         }
@@ -65,11 +72,16 @@ impl Standing {
     }
 
     #[must_use]
-    pub fn exposure(&self, filter: ItemFilter, division: &Division) -> Exposure {
+    pub fn exposure(&self, filter: ItemFilter, division: &Division, domains: &Domains) -> Exposure {
         if self.paid_down(filter, division) {
             Exposure::PaysDown
         } else if self.within(division) {
             Exposure::Within
+        } else if domains
+            .domain(division)
+            .is_some_and(|domain| !domain.is_empty())
+        {
+            Exposure::CodeOutside
         } else {
             Exposure::Outside
         }
@@ -95,10 +107,11 @@ impl Standing {
     }
 
     fn paid_down(&self, filter: ItemFilter, division: &Division) -> bool {
-        self.linked.iter().any(|task| {
-            self.counted(filter, division)
-                .any(|item| item.addressed_by(task))
-        })
+        !self.paying.is_empty()
+            && self.paying.iter().all(|task| {
+                self.counted(filter, division)
+                    .any(|item| item.addressed_by(task))
+            })
     }
 
     fn within(&self, division: &Division) -> bool {

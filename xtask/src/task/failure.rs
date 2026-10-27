@@ -38,4 +38,6 @@ pub enum Failure {
     Identity(ForeignEmails),
     #[error("standing budgets fail closed: meta/log is unreadable: {0}")]
     StandingLog(LogFailure),
+    #[error("standing budgets fail closed: meta/log has no events on the remote")]
+    NoLog,
 }

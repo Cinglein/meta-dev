@@ -27,7 +27,8 @@ impl StandingLog {
 
     fn standing(log: &impl LogStore) -> Result<Standing, Failure> {
         let snapshot = log.read().map_err(Failure::StandingLog)?;
-        let state = State::fold(snapshot.complete().map_err(Failure::StandingLog)?);
+        let records = snapshot.complete().map_err(Failure::StandingLog)?;
+        let state = State::fold(Some(records).filter(|records| !records.is_empty()).ok_or(Failure::NoLog)?);
         let link = ChangeLink::new(
             env::var(Self::PULL_REQUEST).ok().and_then(|number| number.parse().ok()),
             env::var(Self::HEAD).ok().and_then(|branch| branch.parse().ok()),
