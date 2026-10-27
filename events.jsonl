@@ -527,3 +527,4 @@
 {"at":"2026-10-27T06:25:18.614734Z","actor":"claude-severity","kind":"TaskDone","task":"task-a607a687f5daa839"}
 {"at":"2026-10-27T06:27:45.927853Z","actor":"claude-standing-budgets","kind":"TaskDone","task":"task-6aa1474d4fad63f9"}
 {"at":"2026-10-27T06:35:17.135480Z","actor":"claude-lead","kind":"TaskOpened","task":"task-475d2c0b4a17042c","text":"Standing budgets miss undivided items: 22 of 23 open issues and 44 of 49 open concerns have no division, so no budget counts them and nothing can set a division. Order: add a log write that places or moves an item into a division (never blocked), triage the old items, then count root items toward every top-division budget. Owner decision pending on the meta move design.","division":"architecture-and-planning"}
+{"at":"2026-10-27T06:36:01.251580Z","actor":"claude-standing-budgets","kind":"TaskReopened","task":"task-6aa1474d4fad63f9"}
