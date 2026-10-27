@@ -1,7 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use meta_log::{GitLog, LogStore, Sha, Snapshot};
+use meta_log::{GitLog, LogStore, NotCommitId, Sha, Snapshot};
 
 use crate::task::failure::Failure;
 
@@ -27,13 +27,15 @@ impl LogSource {
 }
 
 impl FromStr for LogSource {
-    type Err = std::convert::Infallible;
+    type Err = task::Failure;
 
     fn from_str(text: &str) -> Result<LogSource, Self::Err> {
         Ok(match text {
             Self::ORIGIN => LogSource::Origin,
             Self::UNFETCHED => LogSource::Unfetched,
-            tip => LogSource::Prefetched(tip.parse()?),
+            tip => LogSource::Prefetched(
+                tip.parse().map_err(|error: NotCommitId| task::Failure::Refused(error.to_string()))?,
+            ),
         })
     }
 }

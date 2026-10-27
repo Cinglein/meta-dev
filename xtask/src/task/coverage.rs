@@ -21,21 +21,22 @@ impl Coverage {
     const STATUS_FLAG: &str = "--status";
     const KNOWN: &str = "--affected, --status, --log=<origin|unfetched|tip> (ci only)";
     const PARTIAL: &str = "--status needs the full gate; drop --affected";
+    const OWN_LOG: &str = "--status fetches its own meta/log; drop --log";
 
     pub fn from_flags(task: Task, mut flags: impl Iterator<Item = String>) -> Result<Coverage, task::Failure> {
         flags
             .try_fold(Self::EVERYTHING, |coverage, flag| match (flag.as_str(), flag.strip_prefix(LogSource::FLAG)) {
                 (Self::AFFECTED_FLAG, _) => Ok(Coverage { changes: Changes::SinceMain, ..coverage }),
                 (Self::STATUS_FLAG, _) if task == Task::Ci => Ok(Coverage { posting: Posting::Requested, ..coverage }),
-                (_, Some(source)) if task == Task::Ci => {
-                    let Ok(log) = source.parse();
-                    Ok(Coverage { log, ..coverage })
-                }
+                (_, Some(source)) if task == Task::Ci => Ok(Coverage { log: source.parse()?, ..coverage }),
                 _ => Err(task::Failure::UnknownFlag { flag, known: Self::KNOWN }),
             })
             .and_then(|coverage| match coverage {
                 Coverage { changes: Changes::SinceMain, posting: Posting::Requested, .. } => {
                     Err(task::Failure::Refused(Self::PARTIAL.to_owned()))
+                }
+                Coverage { posting: Posting::Requested, ref log, .. } if *log != LogSource::Origin => {
+                    Err(task::Failure::Refused(Self::OWN_LOG.to_owned()))
                 }
                 whole => Ok(whole),
             })
@@ -70,6 +71,8 @@ mod tests {
     const AFFECTED: &str = "--affected";
     const STATUS: &str = "--status";
     const UNKNOWN: &str = "--all";
+    const UNFETCHED: &str = "--log=unfetched";
+    const REF: &str = "--log=HEAD";
 
     impl Coverage {
         fn parsed(task: Task, flags: &[&str]) -> Result<Coverage, Failure> {
@@ -96,16 +99,9 @@ mod tests {
     }
 
     #[test]
-    fn the_status_flag_refuses_a_partial_gate() {
-        assert!(matches!(Coverage::parsed(Task::Ci, &[STATUS, AFFECTED]), Err(Failure::Refused(_))));
-        assert!(matches!(Coverage::parsed(Task::Ci, &[AFFECTED, STATUS]), Err(Failure::Refused(_))));
-    }
-
-    #[test]
-    fn the_status_flag_refuses_another_log_and_the_log_flag_refuses_a_ref() {
-        let unfetched = "--log=unfetched";
-        assert!(matches!(Coverage::parsed(Task::Ci, &[STATUS, unfetched]), Err(Failure::Refused(_))));
-        assert!(matches!(Coverage::parsed(Task::Ci, &[unfetched, STATUS]), Err(Failure::Refused(_))));
-        assert!(matches!(Coverage::parsed(Task::Ci, &["--log=HEAD"]), Err(Failure::Refused(_))));
+    fn the_status_flag_refuses_a_partial_gate_or_another_log_and_the_log_flag_refuses_a_ref() {
+        let refused = [[STATUS, AFFECTED], [AFFECTED, STATUS], [STATUS, UNFETCHED], [UNFETCHED, STATUS], [REF, STATUS]];
+        assert!(refused.iter().all(|flags| matches!(Coverage::parsed(Task::Ci, flags), Err(Failure::Refused(_)))));
+        assert!(matches!(Coverage::parsed(Task::Ci, &[REF]), Err(Failure::Refused(_))));
     }
 }

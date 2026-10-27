@@ -83,7 +83,7 @@ impl Remote {
         let lines = listed.status.success().then(|| String::from_utf8_lossy(&listed.stdout).into_owned());
         let lines = lines.ok_or_else(offline)?;
         let tip = lines.lines().filter_map(|line| line.split_once(Self::SEPARATOR)).find(|(_, name)| *name == branch);
-        Ok(tip.map(|(sha, _)| sha.parse().unwrap_or_else(|never| match never {})))
+        Ok(tip.map(|(sha, _)| sha.parse()).transpose()?)
     }
 }
 

@@ -1,11 +1,16 @@
+mod not_commit_id;
+
 use std::fmt;
 use std::str::FromStr;
+
+pub use not_commit_id::NotCommitId;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Sha(String);
 
 impl Sha {
     const HEX_LENGTH_PER_BYTE: usize = 2;
+    const HEX_LENGTH: usize = 40;
 
     pub(crate) fn digest_length(&self) -> usize {
         self.0.len() / Self::HEX_LENGTH_PER_BYTE
@@ -13,10 +18,14 @@ impl Sha {
 }
 
 impl FromStr for Sha {
-    type Err = std::convert::Infallible;
+    type Err = NotCommitId;
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        Ok(Self(text.trim().to_owned()))
+        let id = text.trim();
+        Some(id)
+            .filter(|id| id.len() == Self::HEX_LENGTH && id.chars().all(|digit| digit.is_ascii_hexdigit()))
+            .map(|id| Self(id.to_owned()))
+            .ok_or_else(|| NotCommitId::new(id))
     }
 }
 
@@ -31,12 +40,19 @@ mod tests {
     use super::Sha;
 
     const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
+    const PADDED: &str = "0123456789abcdef0123456789abcdef01234567\n";
+    const REFUSED: [&str; 6] = [
+        "HEAD",
+        "-p0123456789abcdef0123456789abcdef012345",
+        "0123456789abcdef0123456789abcdef0123456",
+        "0123456789abcdef0123456789abcdef012345678",
+        "g123456789abcdef0123456789abcdef01234567",
+        "",
+    ];
 
     #[test]
     fn only_a_forty_hex_commit_id_parses() {
-        let refused =
-            ["", "HEAD", "origin/meta/log", "-p", &COMMIT[1..], &format!("{COMMIT}0"), &COMMIT.replace('0', "g")];
-        assert!(refused.iter().all(|text| text.parse::<Sha>().is_err()));
-        assert_eq!(format!("{COMMIT}\n").parse::<Sha>().map(|sha| sha.to_string()).ok().as_deref(), Some(COMMIT));
+        assert!(REFUSED.iter().all(|text| text.parse::<Sha>().is_err()));
+        assert_eq!(PADDED.parse::<Sha>().map(|sha| sha.to_string()).ok().as_deref(), Some(COMMIT));
     }
 }

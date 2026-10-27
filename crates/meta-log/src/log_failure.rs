@@ -4,7 +4,7 @@ use std::time::Duration;
 use thiserror::Error;
 
 use crate::command_line::CommandLine;
-use crate::git_log::Sha;
+use crate::git_log::{NotCommitId, Sha};
 use crate::remote_name::RemoteName;
 use crate::skipped_line::LineNumber;
 use crate::stderr::Stderr;
@@ -27,6 +27,8 @@ pub enum LogFailure {
     Rejected(Stderr),
     #[error("meta/log kept moving; gave up")]
     Contended,
+    #[error("{0}")]
+    NotCommit(#[from] NotCommitId),
     #[error("{0}")]
     Io(#[from] io::Error),
     #[error("{0}")]
