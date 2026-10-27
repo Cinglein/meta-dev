@@ -2,7 +2,6 @@ use std::fmt;
 use std::path::Path;
 
 use corpus_check::LintName;
-use task::SpecSettings;
 
 use crate::enforcer::Enforcer;
 use crate::rust_type::RustType;
@@ -41,8 +40,8 @@ impl fmt::Display for Enforcement {
             Enforcement::Lint(lint) => write!(formatter, "rung 3, lint {lint}"),
             Enforcement::CiStep(step) => write!(formatter, "rung 3, ci step {step}"),
             Enforcement::Check(first, more) => {
-                write!(formatter, "{}{first}", SpecSettings::CHECKED)?;
-                more.iter().try_for_each(|enforcer| write!(formatter, "{}{enforcer}", SpecSettings::ALSO_CHECKED))
+                write!(formatter, "rung 3, check {first}")?;
+                more.iter().try_for_each(|enforcer| write!(formatter, ", check {enforcer}"))
             }
             Enforcement::Type(rust_type) => write!(formatter, "rung 4, type {rust_type}"),
         }

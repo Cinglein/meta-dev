@@ -1075,7 +1075,7 @@ pub const SECTIONS: &[Section] = &[
                 RuleId::new("ci-tracked-work"),
                 FeaturesAndMaintenance,
                 Wording::new(
-                    "CI fails a pull request whose work is not tracked in meta: its branch must name a claimed task (task-74151ea135505567).",
+                    "CI fails a pull request whose work is not tracked in meta: its branch must name a claimed or done task (task-74151ea135505567).",
                 ),
                 Check(
                     Enforcer::new(
@@ -1213,7 +1213,7 @@ pub const SECTIONS: &[Section] = &[
                 RuleId::new("standing-merge-base-policy"),
                 ArchitectureAndPlanning,
                 Wording::new(
-                    "Standing budgets on a pull request are enforced from the merge-base policy; on other runs they are only reported (task-bc3f3a49821699b0, lead design for owner confirmation).",
+                    "Standing budgets on a pull request are enforced from the merge-base policy; on other runs they are only reported (task-bc3f3a49821699b0).",
                 ),
                 Tracked,
             ),
@@ -1238,20 +1238,6 @@ pub const SECTIONS: &[Section] = &[
                         "self/spec/src/enforcement.rs",
                         "each_rung_shows_its_enforcer_and_a_check_is_found_only_by_its_name_in_its_file",
                     )],
-                ),
-            ),
-            Rule::new(
-                RuleId::new("spec-enforcer-drift"),
-                FeaturesAndMaintenance,
-                Wording::new(
-                    "CI fails when a pull request changes a rule's enforcer file but not that rule's record (task-adbcd43d30f4f41b).",
-                ),
-                Check(
-                    Enforcer::new(
-                        "xtask/src/task/lint/spec_prose/spec_drift.rs",
-                        "a_changed_enforcer_fails_only_while_its_rule_record_is_unchanged_since_the_merge_base",
-                    ),
-                    &[],
                 ),
             ),
         ],

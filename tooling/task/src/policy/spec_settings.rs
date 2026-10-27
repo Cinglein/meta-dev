@@ -15,9 +15,6 @@ impl SpecSettings {
     pub const UNCONVERTED: &str = "# Not yet converted: hand-written prose, ";
     pub const RULE: &str = "- `";
     pub const CHECK: &str = "check";
-    pub const CHECKED: &str = "rung 3, check ";
-    pub const ALSO_CHECKED: &str = ", check ";
-    pub const WORDING: &str = "): ";
 
     #[must_use]
     pub fn package(&self) -> &CrateName {
