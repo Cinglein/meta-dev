@@ -1,11 +1,11 @@
-mod finding;
+mod no_tests;
 mod test_binary;
 mod test_timing;
 
 use std::cmp::Reverse;
 use std::time::Duration;
 
-use finding::Finding;
+use no_tests::NoTests;
 use test_binary::TestBinary;
 use test_timing::TestTiming;
 
@@ -15,7 +15,8 @@ use task::Selection;
 use task::Site;
 use task::Violation;
 use task::Workspace;
-use task::{Interval, Limit, Policy};
+use task::{Amount, Ledger, Measure, Millis};
+use task::{Limit, Policy};
 
 #[derive(Debug)]
 pub struct TestTime {
@@ -27,6 +28,7 @@ impl TestTime {
         workspace: &Workspace,
         selection: &Selection,
         policy: &Policy,
+        ledger: &mut Ledger,
     ) -> Result<(), Failure> {
         selection.reaching().map_or_else(
             || {
@@ -41,12 +43,12 @@ impl TestTime {
                     .into_iter()
                     .flatten()
                     .collect();
-                TestTime { timings }.report(policy).verdict()
+                TestTime { timings }.recorded(policy, ledger).verdict()
             },
         )
     }
 
-    fn report(mut self, policy: &Policy) -> Report {
+    fn recorded(mut self, policy: &Policy, ledger: &mut Ledger) -> Report {
         self.timings.sort_by_key(|timing| Reverse(timing.elapsed()));
         let total: Duration = self.timings.iter().map(TestTiming::elapsed).sum();
         println!(
@@ -58,36 +60,23 @@ impl TestTime {
             .iter()
             .take(policy.limit(Limit::SlowestShown).count())
             .for_each(|timing| println!("  {timing}"));
-        let slow = self
+        let slowest = self
             .timings
-            .iter()
-            .filter(|timing| timing.elapsed() > policy.interval(Interval::PerTest).duration())
-            .map(|timing| {
-                Violation::new(
-                    Site::Workspace,
-                    Finding::SlowTest {
-                        timing: timing.clone(),
-                        allowed: policy.interval(Interval::PerTest).duration(),
-                    },
-                )
-            });
-        let whole = (total > policy.interval(Interval::Total).duration()).then(|| {
-            Violation::new(
-                Site::Workspace,
-                Finding::SlowSuite {
-                    total,
-                    allowed: policy.interval(Interval::Total).duration(),
-                },
-            )
-        });
+            .first()
+            .map_or(Duration::ZERO, TestTiming::elapsed);
+        ledger.spend(
+            Measure::TestWallTime,
+            Amount::Duration(Millis::rounded_up(total)),
+        );
+        ledger.spend(
+            Measure::SlowestTest,
+            Amount::Duration(Millis::rounded_up(slowest)),
+        );
         let none = self
             .timings
             .is_empty()
-            .then(|| Violation::new(Site::Workspace, Finding::NoTests));
-        Report::new(
-            "test time budget exceeded",
-            slow.chain(whole).chain(none).collect(),
-        )
+            .then(|| Violation::new(Site::Workspace, NoTests));
+        Report::new("no tests timed", none.into_iter().collect())
     }
 }
 
@@ -97,26 +86,42 @@ mod tests {
     use settings::EmbeddedDefaults;
     use std::path::Path;
     use std::time::Duration;
-    use task::{Interval, Policy};
+    use task::{Interval, Ledger, Policy, Report, Selection};
     const NAMES: [&str; 4] = ["target/debug/deps/bin-1a2b3c", "exact", "slow", "bulk"];
     const TICK: Duration = Duration::from_millis(1);
     const WHOLE_IN_UNITS: usize = 4;
-    const REPORTED: [&str; 3] = ["bin bulk took", "bin slow took", "the suite took"];
+    const REPORTED: [&str; 2] = ["slowest-test", "test-time"];
+    const NOTHING_TIMED: [&str; 1] = ["no tests were found to time"];
+    const HEADLINE: &str = "timed";
+
+    impl TestTime {
+        fn over_budget(timings: Vec<TestTiming>, policy: &Policy) -> Report {
+            let mut ledger = Ledger::default();
+            let found = TestTime { timings }.recorded(policy, &mut ledger);
+            let verdict = ledger.statement(policy).verdict(&Selection::Workspace);
+            Report::new(
+                HEADLINE,
+                [found.violations(), verdict.violations()].concat(),
+            )
+        }
+    }
+
     #[test]
-    fn a_test_over_its_allowance_and_a_suite_over_its_total_are_reported_but_the_limits_pass() {
+    fn a_test_over_its_allowance_and_a_suite_over_its_total_are_over_budget_and_the_limits_pass() {
         let policy = Policy::defaults();
         let limit = policy.interval(Interval::PerTest).duration();
         let [binary, exact, slow, bulk] = NAMES;
         let timing = |name: &str, elapsed| TestTiming::new(Path::new(binary), name, elapsed);
         let exact = (0..WHOLE_IN_UNITS).map(|_| timing(exact, limit)).collect();
-        let timings = vec![
-            timing(slow, limit + TICK),
-            timing(bulk, policy.interval(Interval::Total).duration()),
-        ];
-        let over = TestTime { timings }.report(&policy);
+        let total = policy.interval(Interval::Total).duration();
+        let over = TestTime::over_budget(
+            vec![timing(slow, limit + TICK), timing(bulk, total)],
+            &policy,
+        );
         assert!(
-            TestTime { timings: exact }.report(&policy).is_clean() && over.lists_exactly(&REPORTED),
+            TestTime::over_budget(exact, &policy).is_clean() && over.lists_exactly(&REPORTED),
             "{over}"
         );
+        assert!(TestTime::over_budget(Vec::new(), &policy).lists_exactly(&NOTHING_TIMED));
     }
 }

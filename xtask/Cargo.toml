@@ -18,6 +18,7 @@ serde_json = "1"
 stacked = { path = "../tooling/stacked" }
 strum = { version = "0.28", features = ["derive"] }
 tempfile = "3"
+test_budget = { path = "../tooling/lints/test_budget" }
 thiserror = "2"
 task = { path = "../tooling/task" }
 test_time = { path = "../tooling/test_time" }

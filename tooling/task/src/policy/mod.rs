@@ -1,16 +1,17 @@
 mod baseline_file;
 mod bit_boundary;
-mod budgets;
-mod domains;
 mod floor;
 mod least;
 mod limit;
 mod most;
-mod percent;
+mod policy_failure;
+mod policy_file;
 mod share;
 mod spec_settings;
 mod surface;
 mod vague;
+#[cfg(test)]
+mod variants;
 mod vocabulary;
 mod wire_type;
 
@@ -30,14 +31,15 @@ use std::fs;
 use std::num::NonZeroU64;
 use std::path::Path;
 
+use crate::budgets::{Budgets, LegacyKey};
+use crate::domains::Domains;
+use crate::percent::Percent;
 use bit_boundary::BitBoundary;
-use budgets::Budgets;
-use domains::Domains;
 use enum_map::EnumMap;
 use least::Least;
-use percent::Percent;
-use serde::de::Error;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use policy_failure::PolicyFailure;
+use policy_file::PolicyFile;
+use serde::{Deserialize, Serialize, Serializer};
 #[cfg(any(test, feature = "test-policy"))]
 use settings::EmbeddedDefaults;
 use vague::Vague;
@@ -52,8 +54,8 @@ use crate::failure::Failure;
 use crate::name::Name;
 use crate::site::Site;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(remote = "Self", deny_unknown_fields)]
+#[derive(Debug, PartialEq, Deserialize)]
+#[serde(try_from = "PolicyFile")]
 pub struct Policy {
     vague: Vec<String>,
     wire_types: Vec<String>,
@@ -61,11 +63,9 @@ pub struct Policy {
     surfaces: Vec<Surface>,
     branches: EnumMap<Branch, BranchName>,
     baseline: BaselineFile,
-    #[serde(default)]
+    price_line: Percent,
     gate: Option<GateStatus>,
-    #[serde(default)]
     gate_wait: Option<Millis>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     gate_env: Vec<GateEnvName>,
     limits: EnumMap<Limit, Most>,
     floors: EnumMap<Floor, Least>,
@@ -74,11 +74,9 @@ pub struct Policy {
     millis: EnumMap<Interval, Millis>,
     mutant_millis: MutantMillis,
     mutation: MutationCadence,
-    #[serde(default)]
     domains: Domains,
-    #[serde(default)]
     budgets: Budgets,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    deprecated: Vec<LegacyKey>,
     spec: Option<SpecSettings>,
 }
 
@@ -87,20 +85,17 @@ impl EmbeddedDefaults for Policy {
     const DEFAULTS: &str = include_str!("../../../policy.toml");
 }
 
-impl<'de> Deserialize<'de> for Policy {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Policy, D::Error> {
-        let policy = Policy::deserialize(deserializer)?;
-        policy
-            .budgets
-            .measurable(&policy.domains)
-            .map_err(D::Error::custom)?;
-        Ok(policy)
+impl TryFrom<PolicyFile> for Policy {
+    type Error = PolicyFailure;
+
+    fn try_from(file: PolicyFile) -> Result<Policy, PolicyFailure> {
+        file.resolved()
     }
 }
 
 impl Serialize for Policy {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        Policy::serialize(self, serializer)
+        PolicyFile::written(self).serialize(serializer)
     }
 }
 
@@ -170,7 +165,9 @@ impl Policy {
 
     #[must_use]
     pub fn tolerated(&self, price: Millis) -> Millis {
-        self.floors[Floor::PriceTolerance].percent_above(price)
+        price
+            .scaled(self.price_line)
+            .unwrap_or_else(|| price.times(self.price_line.into()))
     }
 
     #[must_use]
@@ -189,6 +186,11 @@ impl Policy {
     #[must_use]
     pub fn budgets(&self) -> &Budgets {
         &self.budgets
+    }
+
+    #[must_use]
+    pub fn deprecated(&self) -> &[LegacyKey] {
+        &self.deprecated
     }
 
     #[must_use]
@@ -242,8 +244,8 @@ mod tests {
     use std::path::Path;
     const CHECK: &str = "check";
     const LONG_ENOUGH: &str = "report";
-    const TEST_TIME: &str = "test-time";
-    const BUDGET: &str = "\n[budgets.test-time]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
+    const TEST_TIME: &str = "extra-time";
+    const BUDGET: &str = "\n[domains.\"performance-and-cost/extra\"]\ntests = [\"*\"]\n\n[budgets.extra-time]\ndivision = \"performance-and-cost/extra\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
 
     #[test]
     fn the_checked_in_policy_round_trips_and_knows_a_vague_name_from_a_said_one() {

@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::path::{Component, Path, PathBuf};
 
-use task::{Policy, Report, SourceFile};
+use task::{Amount, Most, Policy, Report, SourceFile};
 
 use crate_summary::CrateSummary;
 use graph_report::GraphReport;
@@ -30,6 +30,16 @@ impl CrateGraph {
                 .flat_map(|summary| summary.violations(policy))
                 .collect(),
         )
+    }
+
+    #[must_use]
+    pub fn largest_tangle(files: &[SourceFile]) -> Amount {
+        let largest = Self::summaries(files)
+            .iter()
+            .map(CrateSummary::largest_tangle)
+            .max()
+            .unwrap_or_default();
+        Amount::Count(Most::from(largest.count()))
     }
 
     #[must_use]
@@ -75,11 +85,13 @@ mod tests {
         ),
         ("crates/two/src/lib.rs", "pub struct Elk;"),
     ];
+    const LARGEST: &str = "2";
     const REPORT: &str = "crates/one: 3 items, 3 edges\n  cycle of 2 items: Ant Bee\n  best cut: conductance 1.000 between 2 items [Ant Bee] and 1 items [Cow]\ncrates/two: 1 items, 0 edges\n";
 
     #[test]
     fn the_graph_shows_each_crate_with_its_cycles_and_best_cut() {
         let files = FILES.map(|(path, text)| SourceFile::parse(path, text.to_owned()).unwrap());
         assert_eq!(CrateGraph::graphs(&files).to_string(), REPORT);
+        assert_eq!(CrateGraph::largest_tangle(&files).to_string(), LARGEST);
     }
 }

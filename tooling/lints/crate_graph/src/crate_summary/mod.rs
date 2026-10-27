@@ -45,6 +45,14 @@ impl CrateSummary {
         }
     }
 
+    pub fn largest_tangle(&self) -> ItemCount {
+        self.tangles
+            .iter()
+            .map(Tangle::items)
+            .max()
+            .unwrap_or_default()
+    }
+
     pub fn violations(&self, policy: &Policy) -> Vec<Violation> {
         let site = || Site::File(self.root.clone());
         let tangles = self

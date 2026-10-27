@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::full_run::FullRun;
 use meta_schema::TopDivision;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MutationCadence {
     full_run: BTreeSet<FullRun>,

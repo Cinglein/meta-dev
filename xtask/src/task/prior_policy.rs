@@ -1,15 +1,21 @@
+mod prior_budget;
+
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use serde::Deserialize;
 use task::{BaselineFile, Surface};
 
 use crate::task::revision::Revision;
+use prior_budget::PriorBudget;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct PriorPolicy {
     #[serde(default)]
     surfaces: Vec<Surface>,
     baseline: Option<BaselineFile>,
+    #[serde(default)]
+    budgets: BTreeMap<String, PriorBudget>,
 }
 
 impl PriorPolicy {
@@ -24,6 +30,6 @@ impl PriorPolicy {
     }
 
     pub fn baseline(&self) -> Option<&BaselineFile> {
-        self.baseline.as_ref()
+        self.baseline.as_ref().or_else(|| self.budgets.values().find_map(PriorBudget::baseline))
     }
 }

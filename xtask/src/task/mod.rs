@@ -16,7 +16,7 @@ use std::env;
 use std::path::PathBuf;
 
 use strum::{EnumString, IntoStaticStr, VariantNames};
-use task::{Branch, Policy, Program, Selection, Workspace};
+use task::{Branch, Ledger, Policy, Program, Selection, Workspace};
 
 use crate::task::clippy::Clippy;
 use crate::task::coverage::Coverage;
@@ -98,6 +98,14 @@ impl Task {
             _ => Affected::selection(&workspace, coverage.changes(), policy.branch(Branch::Base))?,
         };
         let summary = env::var_os(Surfaces::SUMMARY).map(PathBuf::from);
+        let mut ledger = Ledger::default();
+        policy.deprecated().iter().for_each(|key| {
+            eprintln!(
+                "policy: {key} is deprecated; read as budget {} ({}); declare that budget instead",
+                key.budget_id(),
+                key.measure()
+            );
+        });
         match self {
             Task::Affected => Ok(Affected::selection(&workspace, Changes::SinceMain, policy.branch(Branch::Base))
                 .map(|reached| println!("{reached}"))?),
@@ -111,7 +119,8 @@ impl Task {
             .run(&workspace, &selection, &policy),
             Task::Clippy => Ok(Clippy::run(&workspace, &selection, &policy)?),
             Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
-            Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy),
+            Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy, &mut ledger)
+                .and_then(|()| Ok(ledger.checked(&policy, &selection)?)),
             Task::MutantCosts => Ok(MutantCosts::measure(
                 &Some(flags.map(PathBuf::from).collect::<Vec<PathBuf>>())
                     .filter(|runs| !runs.is_empty())
@@ -136,7 +145,8 @@ impl Task {
             Task::Stacked => Ok(Stacked::run(&policy)?),
             Task::Surfaces => Surfaces::announce(workspace.root(), &policy, summary.as_deref()),
             Task::Test => Ok(Test::run(&workspace, &selection, &policy)?),
-            Task::TestTime => Ok(TestTime::run(&workspace, &selection, &policy)?),
+            Task::TestTime => Ok(TestTime::run(&workspace, &selection, &policy, &mut ledger)
+                .and_then(|()| ledger.checked(&policy, &selection))?),
             lint => Ok(<&'static str>::from(lint)
                 .parse::<LintName>()
                 .map_or(Ok(()), |lint| lint.report(&workspace.source_files()?, &policy).verdict())?),

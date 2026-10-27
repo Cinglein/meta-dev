@@ -1,0 +1,110 @@
+mod row;
+mod statement;
+
+use std::collections::BTreeMap;
+
+use super::budget::{Amount, Measure};
+use crate::failure::Failure;
+use crate::policy::Policy;
+use crate::selection::Selection;
+use row::Row;
+use statement::Statement;
+
+#[derive(Debug, Default)]
+pub struct Ledger {
+    spent: BTreeMap<Measure, Amount>,
+}
+
+impl Ledger {
+    pub fn spend(&mut self, measure: Measure, amount: Amount) {
+        self.spent.insert(measure, amount);
+    }
+
+    pub fn checked(&self, policy: &Policy, selection: &Selection) -> Result<(), Failure> {
+        let statement = self.statement(policy);
+        print!("{statement}");
+        statement.verdict(selection).verdict()
+    }
+
+    #[must_use]
+    pub fn statement<'policy>(&self, policy: &'policy Policy) -> Statement<'policy> {
+        let budgets = policy.budgets();
+        Statement::new(
+            budgets
+                .0
+                .iter()
+                .map(|(id, budget)| {
+                    let lines = budgets
+                        .amount(budget)
+                        .and_then(|allowance| budget.lines(&allowance));
+                    Row::new(
+                        id,
+                        budget,
+                        lines,
+                        self.spent.get(&budget.measure()).cloned(),
+                    )
+                })
+                .collect(),
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use settings::EmbeddedDefaults;
+
+    use super::Ledger;
+    use crate::budget::{Interval, Millis};
+    use crate::budgets::{Amount, Measure};
+    use crate::percent::Percent;
+    use crate::policy::{Most, Policy};
+    use crate::selection::Selection;
+
+    const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
+    const STATEMENT: &str = include_str!("ledger/statement.txt");
+    const MILLI: Millis = Millis::new(1);
+    const BASELINED_SHARE: usize = 25;
+    const BASELINED_TANGLE: usize = 64;
+
+    impl Ledger {
+        fn nested() -> Policy {
+            toml::from_str(&format!("{}{NESTED}", Policy::DEFAULTS)).unwrap()
+        }
+
+        fn overspent(policy: &Policy) -> Ledger {
+            let mut ledger = Ledger::default();
+            let warned = policy
+                .interval(Interval::PerTest)
+                .checked_minus(MILLI)
+                .unwrap_or_default();
+            ledger.spend(
+                Measure::TestWallTime,
+                Amount::Duration(policy.interval(Interval::Total).plus(MILLI)),
+            );
+            ledger.spend(Measure::SlowestTest, Amount::Duration(warned));
+            ledger.spend(
+                Measure::TestLineShare,
+                Amount::Share(Percent::from(BASELINED_SHARE)),
+            );
+            ledger.spend(
+                Measure::TangleItems,
+                Amount::Count(Most::from(BASELINED_TANGLE * 2)),
+            );
+            ledger
+        }
+    }
+
+    #[test]
+    fn an_overspend_fails_a_change_within_reach_and_a_nested_part_is_measured() {
+        let policy = Ledger::nested();
+        let ledger = Ledger::overspent(&policy);
+        assert_eq!(ledger.statement(&policy).to_string(), STATEMENT);
+        let unreached = Selection::Crates(BTreeSet::new());
+        assert!(
+            ledger.checked(&policy, &Selection::Workspace).is_err()
+                && ledger.checked(&policy, &unreached).is_ok()
+        );
+    }
+}

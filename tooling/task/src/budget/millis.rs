@@ -4,6 +4,8 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
+use crate::percent::Percent;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Millis(u64);
@@ -12,6 +14,12 @@ impl Millis {
     #[must_use]
     pub const fn new(millis: u64) -> Millis {
         Millis(millis)
+    }
+
+    #[must_use]
+    pub fn rounded_up(elapsed: Duration) -> Millis {
+        let nanos_per_milli = u128::from(Duration::from_millis(1).subsec_nanos());
+        Millis(u64::try_from(elapsed.as_nanos().div_ceil(nanos_per_milli)).unwrap_or(u64::MAX))
     }
 
     #[must_use]
@@ -26,7 +34,17 @@ impl Millis {
 
     #[must_use]
     pub fn times(self, count: usize) -> Millis {
-        Millis(self.0 * u64::try_from(count).unwrap_or(u64::MAX))
+        Millis(
+            self.0
+                .saturating_mul(u64::try_from(count).unwrap_or(u64::MAX)),
+        )
+    }
+
+    #[must_use]
+    pub fn scaled(self, percent: Percent) -> Option<Millis> {
+        let [percent, whole] =
+            [percent, Percent::ALL].map(|share| u64::try_from(usize::from(share)).ok());
+        Some(Millis(self.0.checked_mul(percent?)? / whole?))
     }
 
     #[must_use]
