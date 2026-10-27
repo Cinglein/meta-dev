@@ -3,7 +3,7 @@ architecture-and-planning-critical architecture-and-planning  open_items critica
 architecture-and-planning-major architecture-and-planning  open_items major                     -          2          4 -
 architecture-and-planning-minor architecture-and-planning  open_items minor                     -          4          8 -
 architecture-and-planning-unrated architecture-and-planning  open_items unrated                   -          1          2 -
-context-words      features-and-maintenance/context words                                -       3360       5600 -
+context-words      features-and-maintenance/context words                                -       2400       4000 -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  -          0          0 -
 features-and-maintenance-major features-and-maintenance   open_items major                     -          2          4 -
 features-and-maintenance-minor features-and-maintenance   open_items minor                     -          4          8 -
@@ -16,10 +16,10 @@ performance-and-cost-critical performance-and-cost       open_items critical    
 performance-and-cost-major performance-and-cost       open_items major                     -          2          4 -
 performance-and-cost-minor performance-and-cost       open_items minor                     -          4          8 -
 performance-and-cost-unrated performance-and-cost       open_items unrated                   -          1          2 -
-prose-words        features-and-maintenance   words                                -       4260       7100 -
+prose-words        features-and-maintenance   words                                -       3000       5000 -
 slowest-test       performance-and-cost       slowest_test                     999ms      600ms     1000ms warn
 tangle-items       features-and-maintenance   tangle_items                       128         49         83 ok
 test-line-share    features-and-maintenance   test_line_share                    25%        10%        18% ok
 test-time          performance-and-cost       test_wall_time                  4001ms     2400ms     4000ms over
 unit-time          performance-and-cost/unit  test_wall_time                  4001ms     1200ms     2000ms over
-verbose-items      features-and-maintenance   open_items verbose 25                -         30         50 -
+verbose-items      features-and-maintenance   open_items verbose 25                -         21         35 -
