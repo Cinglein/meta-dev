@@ -100,4 +100,12 @@ mod tests {
         assert!(matches!(Coverage::parsed(Task::Ci, &[STATUS, AFFECTED]), Err(Failure::Refused(_))));
         assert!(matches!(Coverage::parsed(Task::Ci, &[AFFECTED, STATUS]), Err(Failure::Refused(_))));
     }
+
+    #[test]
+    fn the_status_flag_refuses_another_log_and_the_log_flag_refuses_a_ref() {
+        let unfetched = "--log=unfetched";
+        assert!(matches!(Coverage::parsed(Task::Ci, &[STATUS, unfetched]), Err(Failure::Refused(_))));
+        assert!(matches!(Coverage::parsed(Task::Ci, &[unfetched, STATUS]), Err(Failure::Refused(_))));
+        assert!(matches!(Coverage::parsed(Task::Ci, &["--log=HEAD"]), Err(Failure::Refused(_))));
+    }
 }

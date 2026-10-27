@@ -56,7 +56,7 @@ mod tests {
     use crate::task::Task;
     use crate::task::coverage::Coverage;
 
-    const FLAGS: [&str; 3] = ["--log=origin", "--log=unfetched", "--log=0a1b2c"];
+    const FLAGS: [&str; 3] = ["--log=origin", "--log=unfetched", "--log=0a1b2c3d4e5f60718293a4b5c6d7e8f901234567"];
 
     #[test]
     fn every_source_round_trips_through_the_ci_flag_and_other_tasks_refuse_it() {

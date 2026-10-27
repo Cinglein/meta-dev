@@ -25,3 +25,18 @@ impl fmt::Display for Sha {
         formatter.write_str(&self.0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Sha;
+
+    const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
+
+    #[test]
+    fn only_a_forty_hex_commit_id_parses() {
+        let refused =
+            ["", "HEAD", "origin/meta/log", "-p", &COMMIT[1..], &format!("{COMMIT}0"), &COMMIT.replace('0', "g")];
+        assert!(refused.iter().all(|text| text.parse::<Sha>().is_err()));
+        assert_eq!(format!("{COMMIT}\n").parse::<Sha>().map(|sha| sha.to_string()).ok().as_deref(), Some(COMMIT));
+    }
+}

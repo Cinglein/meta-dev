@@ -125,6 +125,15 @@ mod tests {
     }
 
     #[test]
+    fn an_empty_log_names_the_check_that_needed_it() {
+        let reader = Fixture::new();
+        reader.shared_origin(reader.write(UNREACHABLE, TOP));
+        let gate = StandingLog::prefetched(reader.root()).map(drop);
+        let standing = StandingLog::state(Ok(Snapshot::default())).map(drop);
+        assert!(StandingLog::closed(&[gate], GATE_CLOSED) && StandingLog::closed(&[standing], CLOSED));
+    }
+
+    #[test]
     fn the_isolated_run_reads_exactly_the_fetched_tip_and_an_unreachable_or_unfetched_log_fails_closed() {
         let [writer, reader] = [Fixture::new(), Fixture::new()];
         writer.shared_origin(reader.write(UNREACHABLE, TOP));
