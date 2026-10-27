@@ -4,12 +4,16 @@ use meta_log::LogStore as _;
 use meta_schema::{CommitId, ExternalKind, Id, Task};
 use meta_state::{State, TaskStatus};
 
+use crate::request::ci::ci_status::CiStatus;
+use crate::request::ci::{Commit, SessionDir};
+use crate::request::cli_failure::CliFailure;
 use crate::request::output::Listed;
 use crate::request::project::Project;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WaitOnCi {
     Recorded,
+    NotHead(CommitId),
     Unrecorded(Id<Task>),
     Waiting(Id<Task>, TaskStatus),
     Done(Id<Task>),
@@ -20,18 +24,41 @@ impl WaitOnCi {
     const ON_CI: TaskStatus = TaskStatus::WaitingOnExternal(ExternalKind::Ci);
     const READY: [TaskStatus; 2] = [TaskStatus::Open, TaskStatus::Assigned];
 
-    pub fn here(project: &Project) -> Self {
-        let state = project.log().ok().and_then(|log| log.read().ok()).map(|read| State::fold(read.records()));
+    pub fn stop_reason(project: &Project, dir: &SessionDir, commits: &[Commit]) -> Option<Listed> {
+        let unresolved = |commit: &Commit| dir.status_of(commit).and_then(CiStatus::unresolved);
+        commits.iter().find_map(unresolved)?;
+        let state =
+            project.log().and_then(|log| log.read().map_err(CliFailure::from)).map(|read| State::fold(read.records()));
         let head = project.head().and_then(|head| head.commit_id());
         let task = project.unprotected_branch().and_then(|branch| branch.task());
-        state.map_or(Self::Taskless, |state| Self::in_state(&state, head.as_ref(), task))
+        commits.iter().find_map(|commit| {
+            let what = unresolved(commit)?;
+            Self::judging(&state, commit, head.as_ref(), task).map_or_else(Some, |wait| wait.reason(what))
+        })
     }
 
-    fn in_state(state: &State, head: Option<&CommitId>, task: Option<Id<Task>>) -> Self {
-        let covered = state.tasks().iter().find(|known| {
-            state.status_of(known) == Self::ON_CI && head.is_some_and(|head| known.progress().waited_at() == Some(head))
+    fn judging(
+        state: &Result<State, CliFailure>,
+        commit: &Commit,
+        head: Option<&CommitId>,
+        task: Option<Id<Task>>,
+    ) -> Result<Self, Listed> {
+        state
+            .as_ref()
+            .map(|state| Self::in_state(state, commit.commit_id().as_ref(), head, task))
+            .map_err(|failure| Listed::new(format!("meta/log unreadable: {failure}; fix it or ask the owner")))
+    }
+
+    fn in_state(state: &State, commit: Option<&CommitId>, head: Option<&CommitId>, task: Option<Id<Task>>) -> Self {
+        let covered = commit.and_then(|commit| {
+            state
+                .tasks()
+                .iter()
+                .find(|known| state.status_of(known) == Self::ON_CI && known.progress().waited_at() == Some(commit))
         });
-        covered.map_or_else(|| task.map_or(Self::Taskless, |task| Self::of_task(state, task)), |_| Self::Recorded)
+        let elsewhere = commit.filter(|commit| Some(*commit) != head).map(|commit| Self::NotHead(commit.clone()));
+        let advice = || task.map_or(Self::Taskless, |task| Self::of_task(state, task));
+        covered.map(|_| Self::Recorded).or(elsewhere).unwrap_or_else(advice)
     }
 
     fn of_task(state: &State, task: Id<Task>) -> Self {
@@ -45,10 +72,10 @@ impl WaitOnCi {
         })
     }
 
-    pub fn stop_reason(self, unresolved: &str) -> Option<Listed> {
+    fn reason(self, unresolved: &str) -> Option<Listed> {
         match self {
             Self::Recorded => None,
-            Self::Unrecorded(_) | Self::Waiting(..) | Self::Done(_) | Self::Taskless => {
+            Self::NotHead(_) | Self::Unrecorded(_) | Self::Waiting(..) | Self::Done(_) | Self::Taskless => {
                 Some(Listed::new(unresolved).then(self))
             }
         }
@@ -59,6 +86,10 @@ impl fmt::Display for WaitOnCi {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Recorded => Ok(()),
+            Self::NotHead(commit) => write!(
+                formatter,
+                " ({commit}, not HEAD); or run `git checkout --detach {commit}`, then `meta wait <task> --on ci` there"
+            ),
             Self::Unrecorded(task) => write!(
                 formatter,
                 "; or run `meta wait {task} --on ci` here (`meta claim {task}` first if you do not hold it)"

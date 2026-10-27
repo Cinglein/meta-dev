@@ -77,11 +77,10 @@ impl Watcher {
             Listed::new(format!("HEAD {commit} is not pushed: push it, then run `meta ci-wait`; or ask the owner"))
         });
         let statuses: Vec<(Commit, Option<CiStatus>)> = commits
-            .into_iter()
+            .iter()
             .map(|commit| {
-                Self::spawn(project, session, &commit).ok();
-                let status = dir.status_of(&commit);
-                (commit, status)
+                Self::spawn(project, session, commit).ok();
+                (commit.clone(), dir.status_of(commit))
             })
             .collect();
         let unwatched = statuses
@@ -89,10 +88,7 @@ impl Watcher {
             .find(|(_, status)| status.is_none())
             .map(|(commit, _)| Listed::new(format!("CI not watched for {commit}: push again to watch it")));
         let known = statuses.iter().find_map(|(_, status)| status.and_then(CiStatus::stop_reason));
-        let unresolved = || {
-            let unresolved = statuses.iter().find_map(|(_, status)| status.and_then(CiStatus::unresolved));
-            unresolved.and_then(|what| WaitOnCi::here(project).stop_reason(what))
-        };
+        let unresolved = || WaitOnCi::stop_reason(project, &dir, &commits);
         unknown.or(unwritable).or(unpushed).or(unwatched).or(known).or_else(unresolved)
     }
 

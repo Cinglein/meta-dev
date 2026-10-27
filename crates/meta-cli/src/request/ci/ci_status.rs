@@ -40,7 +40,7 @@ impl CiStatus {
 
     pub fn detail(self) -> &'static str {
         match self {
-            Self::Unavailable => ": jobs never started; give the local gate result instead",
+            Self::Unavailable => ": jobs never started; push a new commit to retry, then run `meta ci-wait`",
             Self::Absent => ": no run for this commit; no CI for this push",
             Self::Running | Self::Passed | Self::Failed | Self::TimedOut => "",
         }

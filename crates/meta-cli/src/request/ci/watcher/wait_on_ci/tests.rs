@@ -12,7 +12,6 @@ const HEAD: &str = "0123456789abcdef0123456789abcdef01234567";
 const RESUME: &str = "`meta resume task-";
 const REOPEN: &str = "`meta reopen task-";
 const BROKEN: &str = "fetch refused";
-const TIMED_OUT: &str = "CI timed out";
 const CHECKOUT_OLD: &str = "`git checkout --detach 6c1ea3b4d9f1f48d98517b891f4283d6f0e55b94`";
 const UNREADABLE: &str = "meta/log unreadable: ";
 
@@ -67,7 +66,7 @@ fn a_wait_at_head_leaves_another_unresolved_commit_blocked_and_an_unreadable_log
     let state = State::fold(&Board::claimed().waiting_at(HEAD).records);
     let elsewhere = WaitOnCi::in_state(&state, Some(&OLD.parse().unwrap()), Some(&HEAD.parse().unwrap()), None);
     let Ok(old) = OLD.parse::<Commit>();
-    let unreadable = WaitOnCi::judging(Err(CliFailure::raised::<Invalid>(BROKEN)), None, None, [(&old, TIMED_OUT)]);
+    let unreadable = WaitOnCi::judging(&Err(CliFailure::raised::<Invalid>(BROKEN)), &old, None, None);
     assert!(elsewhere.to_string().contains(CHECKOUT_OLD));
-    assert!(unreadable.unwrap().to_string().starts_with(UNREADABLE));
+    assert!(unreadable.unwrap_err().to_string().starts_with(UNREADABLE));
 }
