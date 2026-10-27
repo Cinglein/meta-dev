@@ -89,7 +89,7 @@ impl std::fmt::Display for Project {
 }
 
 #[test]
-fn opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_a_traced_status_flags_the_rest() {
+fn opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_the_rest() {
     let project = Project::new();
     SeededLog::CLAIMED.plant(project.origin.path());
     let elsewhere = tempfile::tempdir().unwrap();
