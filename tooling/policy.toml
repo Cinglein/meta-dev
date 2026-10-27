@@ -154,7 +154,7 @@ source = "ci"
 default = 11000
 
 [mutant_millis.crates]
-affected = 1800
+affected = 1700
 crate_graph = 2800
 expression_flow = 1700
 fn_shape = 1600

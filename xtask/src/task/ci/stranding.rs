@@ -41,9 +41,15 @@ mod tests {
     use meta_log::Snapshot;
     use meta_schema::{Event, NewConcern, Record};
     use meta_severity::Scales;
+    use settings::EmbeddedDefaults;
+    use task::Policy;
 
     use super::Stranding;
+    use crate::task::fixture::Fixture;
+    use crate::task::prior_policy::PriorPolicy;
 
+    const NOTES: &str = "notes";
+    const PRIOR: &str = "[[scales.features-and-maintenance]]\nname = \"blocker\"\nmeaning = \"x\"\n\n[[scales.features-and-maintenance]]\nname = \"nuisance\"\nmeaning = \"x\"\n";
     const TOP: &str = "features-and-maintenance";
     const MAJOR: &str = "major";
     const CLOSED: &str = "fail closed";
@@ -73,5 +79,16 @@ mod tests {
         let reordered = Stranding::judged(&defaults, &overridden, logged(TOP, MAJOR)).unwrap_err().to_string();
         assert!(stranded.contains(STRANDED) && reordered.contains(NOT_COMPARABLE) && empty.contains(CLOSED));
         assert!(Stranding::judged(&finer, &finer, logged(NAV, CRITICAL)).is_ok());
+    }
+
+    #[test]
+    fn scales_changed_since_the_merge_base_are_judged_against_its_scales_and_unchanged_ones_are_not() {
+        let [scaled, plain] = [Fixture::new(), Fixture::new()];
+        scaled.write(PriorPolicy::PATH, PRIOR).branch();
+        plain.write(NOTES, NOTES).branch();
+        let policy = Policy::defaults();
+        let before: Scales = serde_json::from_str(OVERRIDDEN).unwrap();
+        assert_eq!(Stranding::rescaling(scaled.root(), &policy).unwrap(), Some(before));
+        assert_eq!(Stranding::rescaling(plain.root(), &policy).unwrap(), None);
     }
 }
