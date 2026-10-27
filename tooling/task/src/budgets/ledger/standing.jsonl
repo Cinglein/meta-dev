@@ -24,3 +24,8 @@
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000007","text":"x","division":"features-and-maintenance/nav"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskLinked","task":"task-0000000000000007","pr":10}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskLinked","task":"task-0000000000000005","pr":10}
+{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000008","text":"x","division":"features-and-maintenance/nav"}
+{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskClaimed","task":"task-0000000000000008"}
+{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskLinked","task":"task-0000000000000008","pr":11}
+{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskDone","task":"task-0000000000000008"}
+{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskLinked","task":"task-0000000000000005","pr":11}
