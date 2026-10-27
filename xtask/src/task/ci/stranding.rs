@@ -21,7 +21,7 @@ impl Stranding {
     }
 
     pub fn rescaling(root: &Path, policy: &Policy) -> Result<Option<Scales>, Failure> {
-        let before = PriorPolicy::read_at(&Revision::merge_base(root, policy.branch(Branch::Base))?)?.scales();
+        let before = PriorPolicy::scales_at(&Revision::merge_base(root, policy.branch(Branch::Base))?)?;
         Ok(Some(before).filter(|before| before != policy.scales()))
     }
 
@@ -49,7 +49,6 @@ mod tests {
     use crate::task::prior_policy::PriorPolicy;
 
     const PRIOR: &str = "[[scales.features-and-maintenance]]\nname = \"blocker\"\nmeaning = \"x\"\n\n[[scales.features-and-maintenance]]\nname = \"nuisance\"\nmeaning = \"x\"\n";
-    const DEFAULT_LEVELS: &str = "crates/meta-severity/src/default_levels.json";
     const OLD_LEVELS: &str = r#"[{"name": "blocker", "meaning": "x"}, {"name": "nuisance", "meaning": "x"}]"#;
     const TOP: &str = "features-and-maintenance";
     const MAJOR: &str = "major";
@@ -87,7 +86,7 @@ mod tests {
     fn scales_changed_since_the_merge_base_policy_or_default_levels_are_judged_and_unchanged_ones_are_not() {
         let [fixture, relevelled] = [Fixture::new(), Fixture::new()];
         fixture.write(PriorPolicy::PATH, PRIOR).branch();
-        relevelled.write(DEFAULT_LEVELS, OLD_LEVELS).branch();
+        relevelled.write(PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS).branch();
         let uncapped = Policy::DEFAULTS.split(CAPS).next().unwrap_or_default();
         let same: Policy = toml::from_str(&format!("{uncapped}\n{PRIOR}")).unwrap();
         let before: Scales = serde_json::from_str(OVERRIDDEN).unwrap();
