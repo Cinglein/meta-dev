@@ -18,6 +18,7 @@ use task::Site;
 use task::Violation;
 use task::Workspace;
 use task::{Amount, Ledger, Measure, Millis};
+use task::{CargoArgument, CargoTool, CommandLine};
 use task::{Limit, Policy};
 
 #[derive(Debug)]
@@ -46,6 +47,17 @@ impl TestTime {
                 TestTime { timings }.recorded(policy, ledger).verdict()
             },
         )
+    }
+
+    fn cargo_test(line: CommandLine, selection: &Selection, policy: &Policy) -> CommandLine {
+        line.argument(CargoArgument::Test)
+            .arguments(selection.arguments::<CargoTool>())
+            .argument(CargoArgument::AllFeatures)
+            .argument(CargoArgument::Jobs)
+            .argument(policy.compiler_tasks())
+            .argument(CargoArgument::NoRun)
+            .argument(CargoArgument::Color)
+            .argument(CargoArgument::Never)
     }
 
     fn recorded(mut self, policy: &Policy, ledger: &mut Ledger) -> Report {
@@ -86,7 +98,9 @@ mod tests {
     use settings::EmbeddedDefaults;
     use std::path::Path;
     use std::time::Duration;
-    use task::{Interval, Ledger, Policy, Report, Selection};
+    use task::{CommandLine, Interval, Ledger, Policy, Program, Report, Selection};
+    const RUNS_EVERYTHING: [&str; 2] = ["--no-fail-fast", "test-runner"];
+    const SKIPS_DOCTESTS: &str = "--no-run";
     const NAMES: [&str; 4] = ["target/debug/deps/bin-1a2b3c", "exact", "slow", "bulk"];
     const TICK: Duration = Duration::from_millis(1);
     const WHOLE_IN_UNITS: usize = 4;
@@ -123,5 +137,14 @@ mod tests {
             "{over}"
         );
         assert!(TestTime::over_budget(Vec::new(), &policy).lists_exactly(&NOTHING_TIMED));
+    }
+
+    #[test]
+    fn the_one_cargo_test_run_runs_doctests_and_hands_each_test_binary_to_the_runner() {
+        let base = CommandLine::new(Program::Cargo);
+        let line = TestTime::cargo_test(base, &Selection::Workspace, &Policy::defaults());
+        let shown = line.to_string();
+        let whole = RUNS_EVERYTHING.iter().all(|part| shown.contains(part));
+        assert!(whole && !shown.contains(SKIPS_DOCTESTS), "{shown}");
     }
 }

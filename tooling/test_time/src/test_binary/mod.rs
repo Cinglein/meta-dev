@@ -9,12 +9,13 @@ use built_binary::BuiltBinary;
 use listed_test::ListedTest;
 use test_argument::TestArgument;
 
+use super::TestTime;
 use super::test_timing::TestTiming;
 use task::Failure;
 use task::Policy;
+use task::Selection;
 use task::Workspace;
-use task::{CargoArgument, CommandLine, Program, Stderr, Stdout};
-use task::{CargoTool, Selection};
+use task::{CommandLine, Program, Stderr, Stdout};
 
 pub(super) struct TestBinary {
     path: PathBuf,
@@ -26,16 +27,7 @@ impl TestBinary {
         selection: &Selection,
         policy: &Policy,
     ) -> Result<Vec<TestBinary>, Failure> {
-        let built = workspace
-            .line(Program::Cargo)
-            .argument(CargoArgument::Test)
-            .arguments(selection.arguments::<CargoTool>())
-            .argument(CargoArgument::AllFeatures)
-            .argument(CargoArgument::Jobs)
-            .argument(policy.compiler_tasks())
-            .argument(CargoArgument::NoRun)
-            .argument(CargoArgument::Color)
-            .argument(CargoArgument::Never)
+        let built = TestTime::cargo_test(workspace.line(Program::Cargo), selection, policy)
             .captured::<Stderr>()?;
         Ok(built
             .lines()
