@@ -572,3 +572,4 @@
 {"at":"2026-10-27T13:18:46.347441Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-6eb5524d6d5e1b9f","text":"Basho's browser-time budget had to move out of tooling/policy.toml into tooling/browser-budget.toml (Basho #97), because meta-xtask budgets now need a measure and none fits a step's wall time. Two budget files break single source of truth; add a step/workflow wall-time measure (budget step 2) and move it back.","division":"performance-and-cost"}
 {"at":"2026-10-27T13:37:55.976518Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-d7d92ddd54600ef3"}
 {"at":"2026-10-27T13:37:57.954723Z","actor":"claude-lead","kind":"TaskDone","task":"task-d7d92ddd54600ef3"}
+{"at":"2026-10-27T13:38:15.068801Z","actor":"claude-deflake","kind":"TaskOpened","task":"task-3dbcb926170ebf47","text":"Deflake remaining ci.rs wall-clock tests","division":"features-and-maintenance","addresses":["issue-143012e004ce8d47"]}
