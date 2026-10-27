@@ -4,10 +4,12 @@ use std::path::Path;
 use meta_log::{GitLog, Snapshot};
 use meta_severity::Scales;
 use meta_state::State;
-use task::{ChangeLink, Ledger, Policy, Standing};
+use task::{Branch, ChangeLink, Ledger, Policy, Standing};
 
 use crate::task::ci::log_source::LogSource;
 use crate::task::failure::Failure;
+use crate::task::prior_policy::PriorPolicy;
+use crate::task::revision::Revision;
 
 pub struct StandingLog;
 
@@ -38,9 +40,15 @@ impl StandingLog {
         policy: &Policy,
         ledger: &mut Ledger,
     ) -> Result<(), Failure> {
-        let standing = policy.budgets().standing().then(|| Self::standing(read(), policy.scales())).transpose()?;
+        let standing = ledger.reads_standing(policy).then(|| Self::standing(read(), policy.scales())).transpose()?;
         ledger.count(standing);
         Ok(())
+    }
+
+    pub fn enforced_from(root: &Path, policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
+        let base = Revision::merge_base(root, policy.branch(Branch::Base))?;
+        let text = base.file(Path::new(PriorPolicy::PATH));
+        ledger.enforce_from(text.as_deref()).map_err(Failure::PriorPolicy)
     }
 
     fn standing(snapshot: Result<Snapshot, Failure>, scales: &Scales) -> Result<Standing, Failure> {

@@ -79,6 +79,14 @@ pub const SECTIONS: &[Section] = &[
                 Tracked,
             ),
             Rule::new(
+                RuleId::new("budget-enforce-standing-base"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Standing budgets are enforced from the merge-base policy; the PR's own policy only has to parse and validate. A cap that the PR adds or tightens takes effect from the next PR. A cap that the PR loosens or drops still binds the PR itself, because the merge-base cap applies. The budget table marks a new cap as enforced from the next change.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
                 RuleId::new("budget-enforce-per-task"),
                 ArchitectureAndPlanning,
                 Wording::new(

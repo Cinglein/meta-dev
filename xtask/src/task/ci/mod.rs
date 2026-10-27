@@ -64,6 +64,7 @@ impl Ci {
                     .try_for_each(|step| times.record(step, step.timed(workspace, selection, policy, &mut ledger)));
                 let outcome = tracked
                     .and(stepped)
+                    .and_then(|()| StandingLog::enforced_from(workspace.root(), policy, &mut ledger))
                     .and_then(|()| StandingLog::counted(read, policy, &mut ledger))
                     .and_then(|()| Ok(ledger.checked(policy, selection)?))
                     .and_then(|()| Stranding::refuse_stranded(workspace.root(), policy, read));

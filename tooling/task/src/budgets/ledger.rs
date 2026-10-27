@@ -5,12 +5,13 @@ mod statement;
 use std::collections::BTreeMap;
 
 use super::budget::{Amount, Budget, Measure};
+use super::budget_id::BudgetId;
 use super::standing::{Exposure, Standing};
 use crate::domains::Domains;
 use crate::failure::Failure;
 use crate::policy::Policy;
 use crate::selection::Selection;
-pub use prior_standing::PriorStanding;
+use prior_standing::PriorStanding;
 use row::Row;
 use statement::Statement;
 
@@ -22,8 +23,9 @@ pub struct Ledger {
 }
 
 impl Ledger {
-    pub fn enforce_from(&mut self, prior: PriorStanding) {
-        self.prior = Some(prior);
+    pub fn enforce_from(&mut self, policy_text: Option<&str>) -> Result<(), toml::de::Error> {
+        self.prior = Some(policy_text.map_or_else(|| Ok(PriorStanding::default()), str::parse)?);
+        Ok(())
     }
 
     #[must_use]
@@ -73,21 +75,36 @@ impl Ledger {
     }
 
     #[must_use]
-    pub fn statement<'policy>(&self, policy: &'policy Policy) -> Statement<'policy> {
-        let budgets = policy.budgets();
-        Statement::new(
-            budgets
-                .0
-                .iter()
-                .map(|(id, budget)| {
-                    let lines = budgets
-                        .amount(budget)
-                        .and_then(|allowance| budget.lines(&allowance));
-                    Row::new(id, budget, lines, self.spend_of(budget))
-                        .within(self.exposure_of(budget, policy.domains()))
-                })
-                .collect(),
-        )
+    pub fn statement<'view>(&'view self, policy: &'view Policy) -> Statement<'view> {
+        let current = policy.budgets();
+        let prior = self.prior.as_ref().map(PriorStanding::budgets);
+        let waiting = |id: &BudgetId, budget: &Budget| {
+            prior.is_some_and(|prior| budget.standing_in().is_some() && !prior.0.contains_key(id))
+        };
+        let enforced = |id: &BudgetId, budget: &Budget| {
+            prior.is_none_or(|_| budget.standing_in().is_none() || waiting(id, budget))
+        };
+        let own = current.0.iter().filter(|(id, budget)| enforced(id, budget));
+        let held = prior.into_iter().flat_map(|prior| prior.0.iter());
+        let rows: BTreeMap<&BudgetId, Row> = own
+            .map(|(id, budget)| (current, id, budget))
+            .chain(held.map(|(id, budget)| (prior.unwrap_or(current), id, budget)))
+            .map(|(budgets, id, budget)| {
+                let lines = budgets
+                    .amount(budget)
+                    .and_then(|allowance| budget.lines(&allowance));
+                let exposure = if waiting(id, budget) {
+                    Exposure::Pending
+                } else {
+                    self.exposure_of(budget, policy.domains())
+                };
+                (
+                    id,
+                    Row::new(id, budget, lines, self.spend_of(budget)).within(exposure),
+                )
+            })
+            .collect();
+        Statement::new(rows.into_values().collect())
     }
 }
 

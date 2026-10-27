@@ -81,6 +81,15 @@ Do these steps at the root of your workspace.
 Your lockfile gets `unicode-ident 1.0.24`. meta-development sets this exact version.
 Newer versions stop `ra-ap-rustc_lexer` from compiling. Do not update `unicode-ident` until meta-development removes this limit.
 
+## Standing budgets
+
+A standing budget counts items in the `meta/log` branch, for example the open concerns of one severity.
+CI enforces a standing budget from the policy at the merge base, not from the policy in the pull request.
+The policy in the pull request must only parse and be valid.
+A cap that a pull request adds or makes stricter starts to apply to the next pull request.
+A cap that a pull request makes looser or removes still applies to that pull request.
+The budget table marks a new cap as "enforced from the next change".
+
 ## Versions
 
 - All crates have the same version. The version is in `[workspace.package]` in `Cargo.toml`.

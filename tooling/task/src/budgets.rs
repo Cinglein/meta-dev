@@ -18,7 +18,7 @@ use budget::Budget;
 pub use budget::{Amount, Measure};
 pub use budget_drafts::BudgetDrafts;
 use budget_id::BudgetId;
-pub use ledger::{Ledger, PriorStanding};
+pub use ledger::Ledger;
 pub use legacy_key::LegacyKey;
 pub use standing::{ChangeLink, Standing};
 pub use tree_failure::TreeFailure;
