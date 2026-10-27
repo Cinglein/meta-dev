@@ -31,9 +31,9 @@ impl Amount {
     #[must_use]
     pub fn part(&self, percent: Percent) -> Option<Amount> {
         match self {
-            Amount::Count(most) => Some(Amount::Count(percent.applied_to(most.count()))),
-            Amount::Duration(millis) => Some(Amount::Duration(percent.portion_of(*millis))),
-            Amount::Share(share) => Some(Amount::Share(percent.applied_to(*share))),
+            Amount::Count(most) => percent.scaled(most.count()).map(Amount::Count),
+            Amount::Duration(millis) => millis.scaled(percent).map(Amount::Duration),
+            Amount::Share(share) => percent.scaled(*share).map(Amount::Share),
             Amount::Baseline(_) => None,
         }
     }

@@ -1,3 +1,4 @@
+mod enforcer;
 mod mutation_job;
 mod unit;
 
@@ -5,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use strum::Display;
 
 use crate::domains::ScopeKind;
+pub use enforcer::Enforcer;
 pub use mutation_job::MutationJob;
 pub use unit::Unit;
 
@@ -42,6 +44,15 @@ impl Measure {
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => ScopeKind::Workflows,
             Measure::TangleItems => ScopeKind::Crates,
             Measure::LintFindings | Measure::TestLineShare => ScopeKind::Paths,
+        }
+    }
+
+    #[must_use]
+    pub const fn enforcer(self) -> Enforcer {
+        match self {
+            Measure::TestWallTime | Measure::SlowestTest => Enforcer::Checker,
+            Measure::WorkflowWallTime(_) | Measure::MutantPrice => Enforcer::MutationJobs,
+            Measure::LintFindings | Measure::TestLineShare | Measure::TangleItems => Enforcer::Lint,
         }
     }
 }

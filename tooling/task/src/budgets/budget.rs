@@ -18,6 +18,7 @@ use crate::percent::Percent;
 use allowance::Allowance;
 pub use allowance::Amount;
 pub use lines::Lines;
+use measure::{Enforcer, Unit};
 pub use measure::{Measure, MutationJob};
 use meta_schema::Division;
 use overspend::Overspend;
@@ -93,6 +94,19 @@ impl Budget {
     }
 
     #[must_use]
+    pub fn top_measure(&self) -> Option<Measure> {
+        (!self.division.is_nested() && self.allowance.whole().is_some()).then_some(self.measure)
+    }
+
+    #[must_use]
+    pub fn blocking_line(&self) -> Option<Amount> {
+        self.allowance
+            .whole()
+            .and_then(|allowance| self.lines(allowance))
+            .map(|lines| lines.blocking().clone())
+    }
+
+    #[must_use]
     pub fn lines(&self, allowance: &Amount) -> Option<Lines> {
         let blocking = Percent::total([Percent::ALL, self.tolerance.unwrap_or(Percent::NONE)])?;
         Some(Lines::new(
@@ -103,9 +117,13 @@ impl Budget {
 
     pub fn measurable(&self, id: &BudgetId, domains: &Domains) -> Result<(), TreeFailure> {
         let needed = self.measure.scope();
-        match domains.domain(&self.division) {
-            Some(domain) if domain.extent(needed) != Extent::Undeclared => Ok(()),
-            Some(_) | None => Err(TreeFailure::Unmeasurable(id.clone(), needed)),
+        match domains
+            .domain(&self.division)
+            .map(|domain| domain.extent(needed))
+        {
+            Some(Extent::Whole) => Ok(()),
+            Some(Extent::Partial) => Err(TreeFailure::PartlyMeasurable(id.clone(), needed)),
+            Some(Extent::Undeclared) | None => Err(TreeFailure::Unmeasurable(id.clone(), needed)),
         }
     }
 
@@ -120,9 +138,20 @@ impl Budget {
             self.allowance.whole(),
             self.allowance.part().map(|part| budgets.get(part.parent())),
         ) {
+            _ if self.tolerance.is_some() && self.measure.enforcer() == Enforcer::Lint => {
+                refused(TreeFailure::LintTolerance)
+            }
             (Some(amount), _) if amount.unit() != unit => refused(TreeFailure::OtherUnit),
+            (Some(amount), _) if unit != Unit::Baseline && self.lines(amount).is_none() => {
+                refused(TreeFailure::Overflow)
+            }
             (_, None) if self.division.is_nested() => refused(TreeFailure::NestedWhole),
             (_, Some(None)) => refused(TreeFailure::NoParent),
+            (_, Some(Some(parent)))
+                if parent.measure.unit() == Unit::Baseline || unit == Unit::Baseline =>
+            {
+                refused(TreeFailure::BaselinePart)
+            }
             (_, Some(Some(parent))) if !parent.division.strictly_contains(&self.division) => {
                 refused(TreeFailure::NotNested)
             }

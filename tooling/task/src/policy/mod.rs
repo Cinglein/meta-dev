@@ -63,6 +63,7 @@ pub struct Policy {
     surfaces: Vec<Surface>,
     branches: EnumMap<Branch, BranchName>,
     baseline: BaselineFile,
+    price_line: Percent,
     gate: Option<GateStatus>,
     gate_wait: Option<Millis>,
     gate_env: Vec<GateEnvName>,
@@ -164,7 +165,9 @@ impl Policy {
 
     #[must_use]
     pub fn tolerated(&self, price: Millis) -> Millis {
-        self.floors[Floor::PriceTolerance].percent_above(price)
+        price
+            .scaled(self.price_line)
+            .unwrap_or_else(|| price.times(self.price_line.into()))
     }
 
     #[must_use]
@@ -183,11 +186,6 @@ impl Policy {
     #[must_use]
     pub fn budgets(&self) -> &Budgets {
         &self.budgets
-    }
-
-    #[must_use]
-    pub fn domains(&self) -> &Domains {
-        &self.domains
     }
 
     #[must_use]
@@ -247,7 +245,7 @@ mod tests {
     const CHECK: &str = "check";
     const LONG_ENOUGH: &str = "report";
     const TEST_TIME: &str = "extra-time";
-    const BUDGET: &str = "\n[budgets.extra-time]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
+    const BUDGET: &str = "\n[domains.\"performance-and-cost/extra\"]\ntests = [\"*\"]\n\n[budgets.extra-time]\ndivision = \"performance-and-cost/extra\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"local_gate\"\n";
 
     #[test]
     fn the_checked_in_policy_round_trips_and_knows_a_vague_name_from_a_said_one() {

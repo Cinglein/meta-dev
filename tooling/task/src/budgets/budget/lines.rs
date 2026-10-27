@@ -16,6 +16,11 @@ impl Lines {
     }
 
     #[must_use]
+    pub fn blocking(&self) -> &Amount {
+        &self.blocking
+    }
+
+    #[must_use]
     pub fn state(&self, spend: &Amount) -> State {
         if *spend > self.blocking {
             State::Over

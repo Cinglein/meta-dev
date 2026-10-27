@@ -108,20 +108,31 @@ const ACCEPTED: [(&str, &str, &str); 4] = [
 ];
 
 impl Policy {
-    fn variant(base: &str, found: &str, put: &str) -> Result<Policy, String> {
+    fn variant(base: &str, found: &str, put: &str) -> Result<Policy, toml::de::Error> {
         let text = if base == "old" { OLD } else { Policy::DEFAULTS };
         let text = if found.is_empty() {
             format!("{text}{put}")
         } else {
             text.replacen(found, put, 1)
         };
-        toml::from_str::<Policy>(&text).map_err(|error| error.message().to_owned())
+        toml::from_str::<Policy>(&text)
+    }
+
+    fn disagreements(&self) -> Vec<String> {
+        LegacyKey::iter()
+            .filter(|key| self.enforced(*key).map(|amount| amount.to_string()) != self.tabled(*key))
+            .map(|key| key.to_string())
+            .collect()
     }
 }
 
 #[test]
 fn every_variant_that_drops_or_loosens_a_limit_is_refused_when_read() {
-    let refused = REFUSED.map(|(base, found, put, _)| Policy::variant(base, found, put).err());
+    let refused = REFUSED.map(|(base, found, put, _)| {
+        Policy::variant(base, found, put)
+            .err()
+            .map(|error| error.message().to_owned())
+    });
     let expected = REFUSED.map(|(_, _, _, refusal)| refusal);
     let unrefused: Vec<&str> = expected
         .iter()
@@ -183,20 +194,17 @@ fn the_table_shows_the_line_each_check_enforces_for_every_budget_kind() {
     let disagreements: Vec<String> = AGREED
         .iter()
         .filter_map(|(base, found, put)| Policy::variant(base, found, put).ok())
-        .flat_map(|policy| {
-            LegacyKey::iter()
-                .filter(|key| {
-                    policy.enforced(*key).map(|amount| amount.to_string()) != policy.tabled(*key)
-                })
-                .map(|key| key.to_string())
-                .collect::<Vec<String>>()
-        })
+        .flat_map(|policy| policy.disagreements())
         .collect();
     assert!(disagreements.is_empty(), "{disagreements:?}");
 }
 
 #[test]
 fn the_kept_forms_and_edges_are_read() {
-    let read = ACCEPTED.map(|(base, found, put)| Policy::variant(base, found, put).err());
+    let read = ACCEPTED.map(|(base, found, put)| {
+        Policy::variant(base, found, put)
+            .err()
+            .map(|error| error.to_string())
+    });
     assert_eq!(read, [None, None, None, None]);
 }

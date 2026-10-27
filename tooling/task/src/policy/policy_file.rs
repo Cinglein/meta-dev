@@ -133,11 +133,11 @@ impl PolicyFile {
             .filter(|key| self.legacy(*key).is_some())
             .collect();
         budgets.measurable(&self.domains)?;
-        let amount = |key: Option<LegacyKey>| {
-            key.and_then(|key| budgets.whole(key.measure()))
-                .and_then(|budget| budget.allowance().whole())
-                .cloned()
-        };
+        let amount =
+            |key: Option<LegacyKey>| key.and_then(|key| budgets.blocking_line(key.measure()));
+        let baseline = budgets
+            .whole(Measure::LintFindings)
+            .and_then(|budget| budget.allowance().whole().cloned());
         let tolerance = budgets
             .whole(Measure::MutantPrice)
             .map(|budget| budget.tolerance().unwrap_or(Percent::NONE));
@@ -147,11 +147,16 @@ impl PolicyFile {
             bit_boundary: self.bit_boundary,
             surfaces: self.surfaces,
             branches: self.branches,
-            baseline: amount(Some(LegacyKey::Baseline))
+            baseline: baseline
                 .as_ref()
                 .and_then(Amount::baseline)
                 .cloned()
                 .ok_or(PolicyFailure::Missing(Self::BASELINE))?,
+            price_line: budgets
+                .blocking_line(Measure::MutantPrice)
+                .as_ref()
+                .and_then(Amount::share)
+                .ok_or(PolicyFailure::Missing(Self::PRICE))?,
             gate: self.gate,
             gate_wait: self.gate_wait,
             gate_env: self.gate_env,
@@ -198,6 +203,7 @@ impl PolicyFile {
     }
 
     const BASELINE: &str = "baseline";
+    const PRICE: &str = "budgets.mutant-price";
     const LIMITS: &str = "limits";
     const FLOORS: &str = "floors";
     const SHARES: &str = "shares";

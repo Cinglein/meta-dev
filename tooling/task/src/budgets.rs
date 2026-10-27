@@ -4,7 +4,7 @@ mod ledger;
 mod legacy_key;
 mod tree_failure;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -32,11 +32,14 @@ impl Budgets {
 
     #[must_use]
     pub fn whole(&self, measure: Measure) -> Option<&Budget> {
-        self.0.values().find(|budget| {
-            budget.measure() == measure
-                && !budget.division().is_nested()
-                && budget.allowance().whole().is_some()
-        })
+        self.0
+            .values()
+            .find(|budget| budget.top_measure() == Some(measure))
+    }
+
+    #[must_use]
+    pub fn blocking_line(&self, measure: Measure) -> Option<Amount> {
+        self.whole(measure).and_then(Budget::blocking_line)
     }
 
     #[must_use]
@@ -75,6 +78,13 @@ impl TryFrom<BTreeMap<BudgetId, Budget>> for Budgets {
         budgets
             .iter()
             .try_for_each(|(id, budget)| budget.placed(id, &budgets))?;
+        let mut measured = BTreeSet::new();
+        let duplicate = budgets.iter().find_map(|(id, budget)| {
+            budget
+                .top_measure()
+                .filter(|measure| !measured.insert(*measure))
+                .map(|_| id)
+        });
         let shared = |parent: &BudgetId| {
             Percent::total(
                 budgets
@@ -82,12 +92,15 @@ impl TryFrom<BTreeMap<BudgetId, Budget>> for Budgets {
                     .filter_map(|budget| budget.allowance().share_of(parent)),
             )
         };
-        match budgets
-            .keys()
-            .find(|parent| shared(parent).is_none_or(Percent::is_more_than_whole))
-        {
-            Some(parent) => Err(TreeFailure::Oversubscribed(parent.clone())),
-            None => Ok(Budgets(budgets)),
+        match (
+            duplicate,
+            budgets
+                .keys()
+                .find(|parent| shared(parent).is_none_or(Percent::is_more_than_whole)),
+        ) {
+            (Some(id), _) => Err(TreeFailure::Duplicate(id.clone())),
+            (None, Some(parent)) => Err(TreeFailure::Oversubscribed(parent.clone())),
+            (None, None) => Ok(Budgets(budgets)),
         }
     }
 }
@@ -117,7 +130,7 @@ measure = "test_wall_time"
 allowance = { of = "ci", percent = 60 }
 window = { rolling = 604800000 }
 source = "ci"
-overspend = "escalate"
+overspend = "block"
 
 [ci-lints]
 division = "performance-and-cost/lints"
@@ -128,7 +141,7 @@ source = "local_gate"
 warning = 50
 tolerance = 10
 "#;
-    const WRITTEN: &str = "[ci]\ndivision = \"performance-and-cost\"\nsource = \"ci\"\nwarning = 60\noverspend = \"block\"\n\n[ci.measure]\nworkflow_wall_time = \"diff_job\"\n\n[ci.allowance]\nduration = 4000\n\n[ci.window]\nrolling = 604800000\n\n[ci-lints]\ndivision = \"performance-and-cost/lints\"\nmeasure = \"slowest_test\"\nsource = \"local_gate\"\nwarning = 50\ntolerance = 10\noverspend = \"block\"\n\n[ci-lints.allowance]\nof = \"ci\"\npercent = 40\n\n[ci-lints.window]\nrolling = 604800000\n\n[ci-tests]\ndivision = \"performance-and-cost/tests\"\nmeasure = \"test_wall_time\"\nsource = \"ci\"\nwarning = 60\noverspend = \"escalate\"\n\n[ci-tests.allowance]\nof = \"ci\"\npercent = 60\n\n[ci-tests.window]\nrolling = 604800000\n";
+    const WRITTEN: &str = "[ci]\ndivision = \"performance-and-cost\"\nsource = \"ci\"\nwarning = 60\noverspend = \"block\"\n\n[ci.measure]\nworkflow_wall_time = \"diff_job\"\n\n[ci.allowance]\nduration = 4000\n\n[ci.window]\nrolling = 604800000\n\n[ci-lints]\ndivision = \"performance-and-cost/lints\"\nmeasure = \"slowest_test\"\nsource = \"local_gate\"\nwarning = 50\ntolerance = 10\noverspend = \"block\"\n\n[ci-lints.allowance]\nof = \"ci\"\npercent = 40\n\n[ci-lints.window]\nrolling = 604800000\n\n[ci-tests]\ndivision = \"performance-and-cost/tests\"\nmeasure = \"test_wall_time\"\nsource = \"ci\"\nwarning = 60\noverspend = \"block\"\n\n[ci-tests.allowance]\nof = \"ci\"\npercent = 60\n\n[ci-tests.window]\nrolling = 604800000\n";
     const WINDOW: &str = "window = ";
     const MEASURED: &str = "measure = \"tangle_items\"\nsource = \"ci\"\nwindow = ";
     const PART: &str = "ci-tests";
@@ -177,7 +190,7 @@ tolerance = 10
         let budgets: Budgets = toml::from_str(TREE).unwrap();
         assert_eq!(toml::to_string(&budgets).unwrap(), WRITTEN);
         let [part, whole] = [PART, WHOLE].map(|id| budgets.budget(&id.parse().unwrap()).unwrap());
-        assert!(!part.blocks(OVER) && whole.blocks(OVER) && !whole.blocks(WARN));
+        assert!(part.blocks(OVER) && whole.blocks(OVER) && !whole.blocks(WARN));
         assert_eq!(
             budgets
                 .amount(part)

@@ -21,4 +21,16 @@ pub enum TreeFailure {
     Taken(BudgetId),
     #[error("budget {0}: its measure needs {1}, which its division's domain does not declare")]
     Unmeasurable(BudgetId, ScopeKind),
+    #[error(
+        "budget {0}: its division's domain covers only part of {1}; partial domains are not measured yet"
+    )]
+    PartlyMeasurable(BudgetId, ScopeKind),
+    #[error("budget {0}: another top-level budget has its measure")]
+    Duplicate(BudgetId),
+    #[error("budget {0}: a lint enforces its measure; it takes no tolerance")]
+    LintTolerance(BudgetId),
+    #[error("budget {0}: its blocking line overflows")]
+    Overflow(BudgetId),
+    #[error("budget {0}: a baseline budget has no parts")]
+    BaselinePart(BudgetId),
 }

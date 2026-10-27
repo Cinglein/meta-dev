@@ -38,7 +38,14 @@ impl Percent {
     }
 
     pub fn applied_to<Whole: Into<usize>, Part: From<usize>>(self, whole: Whole) -> Part {
-        Part::from(whole.into() * self.0 / Self::WHOLE)
+        Part::from(whole.into().saturating_mul(self.0) / Self::WHOLE)
+    }
+
+    pub fn scaled<Whole: Into<usize>, Part: From<usize>>(self, whole: Whole) -> Option<Part> {
+        whole
+            .into()
+            .checked_mul(self.0)
+            .map(|scaled| Part::from(scaled / Self::WHOLE))
     }
 
     #[must_use]
