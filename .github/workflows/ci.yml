@@ -25,7 +25,7 @@ jobs:
           workspaces: |
             . -> target
             examples/consumer -> target
-      - run: cargo xtask ci
+      - run: cargo xtask ci ${{ github.event_name == 'pull_request' && '--affected' || '' }}
       - run: cargo xtask ci
         working-directory: examples/consumer
 
