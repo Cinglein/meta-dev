@@ -38,7 +38,7 @@ impl Scale {
         match current.level() {
             None => Ok(Change::First { level }),
             Some(from) if *from == level => Err(RatingFailure::Unchanged(level)),
-            Some(from) if rank(from).is_some_and(|old| new != old) => Ok(Change::Lowered { from: from.clone(), level }),
+            Some(from) if rank(from).is_some_and(|old| new > old) => Ok(Change::Lowered { from: from.clone(), level }),
             Some(from) => scenario
                 .map(|scenario| Change::Raised { from: from.clone(), level, scenario })
                 .ok_or_else(|| RatingFailure::RaisedWithoutScenario(from.clone())),
