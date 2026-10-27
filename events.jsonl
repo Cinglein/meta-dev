@@ -462,3 +462,4 @@
 {"at":"2026-10-27T05:43:12.879831Z","actor":"claude-severity","kind":"TaskClaimed","task":"task-a607a687f5daa839"}
 {"at":"2026-10-27T05:43:29.568252Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-ae8c1c0a2f1e513f","from":"claude-edge-mutants"}
 {"at":"2026-10-27T05:43:31.105773Z","actor":"claude-lead","kind":"TaskDone","task":"task-ae8c1c0a2f1e513f"}
+{"at":"2026-10-27T05:46:13.193803Z","actor":"owner","kind":"TaskLinked","task":"task-a607a687f5daa839","pr":38}
