@@ -49,7 +49,9 @@ impl Remote {
     fn fetch_once(&self) -> Result<Option<Fetched>, LogFailure> {
         let tip = self.listed_tip()?;
         let held = self.held(tip.as_ref())?;
-        let refetched = || self.fetched()?.map_or(Ok(None), |()| self.held(tip.as_ref()));
+        let missing = || tip.clone().map_or(LogFailure::Contended, LogFailure::Unfetched);
+        let refetched =
+            || self.fetched()?.map_or(Ok(None), |()| self.held(tip.as_ref())?.ok_or_else(missing).map(Some));
         let content = held.map_or_else(refetched, |content| Ok(Some(content)))?;
         Ok(content.map(|content| Fetched::new(tip, content)))
     }
