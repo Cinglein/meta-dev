@@ -1,6 +1,7 @@
 use std::io;
 use std::path::PathBuf;
 
+use meta_log::LogFailure;
 use meta_severity::Strands;
 use thiserror::Error;
 
@@ -38,4 +39,6 @@ pub enum Failure {
     Identity(ForeignEmails),
     #[error("{0}")]
     Stranded(Strands),
+    #[error("stranded check: {0}")]
+    LogUnread(LogFailure),
 }

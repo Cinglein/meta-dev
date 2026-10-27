@@ -43,7 +43,7 @@ impl Ci {
                 let outcome = CiStep::iter()
                     .try_for_each(|step| times.record(step, step.timed(workspace, selection, policy, &mut ledger)))
                     .and_then(|()| Ok(ledger.checked(policy, selection)?))
-                    .and_then(|()| Stranding::refuse_stranded(workspace.root(), policy.scales()));
+                    .and_then(|()| Stranding::refuse_stranded(workspace.root(), policy));
                 println!("ci: total {:.1?}", started.elapsed());
                 self.recorded(&times)?;
                 Surfaces::announce(workspace.root(), policy, self.summary.as_deref())
