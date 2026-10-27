@@ -1,74 +1,109 @@
 use std::fmt;
+use std::path::PathBuf;
+use std::str::FromStr;
 
+use super::test_run::TestRun;
 use super::test_timing::TestTiming;
 use task::Failure;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(super) struct TestRuns {
     passed: Vec<TestTiming>,
-    failed: Vec<Failure>,
+    failed: Vec<String>,
+    unlisted: Vec<PathBuf>,
 }
 
 impl TestRuns {
     pub(super) fn passed(self) -> Result<Vec<TestTiming>, Failure> {
-        self.failed
-            .iter()
-            .for_each(|failure| eprintln!("{failure}"));
-        if self.failed.is_empty() {
+        if self.failed.is_empty() && self.unlisted.is_empty() {
             Ok(self.passed)
         } else {
-            Err(Failure::Command(self.to_string()))
+            Err(Failure::Tests(self.to_string()))
         }
+    }
+
+    pub(super) fn passing(mut self, timing: TestTiming) -> TestRuns {
+        self.passed.push(timing);
+        self
+    }
+
+    pub(super) fn failing(mut self, test: &str) -> TestRuns {
+        self.failed.push(test.to_owned());
+        self
+    }
+
+    pub(super) fn unlisting(mut self, binary: PathBuf) -> TestRuns {
+        self.unlisted.push(binary);
+        self
     }
 }
 
-impl FromIterator<Result<TestTiming, Failure>> for TestRuns {
-    fn from_iter<I: IntoIterator<Item = Result<TestTiming, Failure>>>(runs: I) -> TestRuns {
-        let (passed, failed): (Vec<_>, Vec<_>) = runs.into_iter().partition(Result::is_ok);
-        TestRuns {
-            passed: passed.into_iter().flatten().collect(),
-            failed: failed.into_iter().filter_map(Result::err).collect(),
-        }
+impl FromIterator<TestRun> for TestRuns {
+    fn from_iter<I: IntoIterator<Item = TestRun>>(runs: I) -> TestRuns {
+        runs.into_iter()
+            .fold(TestRuns::default(), |runs, run| run.filed(runs))
+    }
+}
+
+impl FromStr for TestRuns {
+    type Err = Failure;
+
+    fn from_str(recorded: &str) -> Result<TestRuns, Failure> {
+        recorded
+            .lines()
+            .map(str::parse)
+            .collect::<Result<Vec<TestRun>, Failure>>()
+            .map(TestRuns::from_iter)
     }
 }
 
 impl fmt::Display for TestRuns {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "{} of {} tests",
-            self.failed.len(),
-            self.failed.len() + self.passed.len()
-        )
+        let tests = self.failed.len() + self.passed.len();
+        write!(formatter, "{} of {tests} tests failed", self.failed.len())?;
+        match self.unlisted.len() {
+            0 => Ok(()),
+            unlisted => write!(
+                formatter,
+                "; {unlisted} test binaries did not list their tests"
+            ),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
     use std::time::Duration;
 
-    use super::{TestRuns, TestTiming};
-    use task::Failure;
+    use super::{TestRun, TestRuns, TestTiming};
 
     const BINARY: &str = "target/debug/deps/bin-1a2b3c";
     const NAMES: [&str; 2] = ["passes", "fails"];
     const TICK: Duration = Duration::from_millis(1);
-    const FAILED: &str = "1 of 2 tests failed";
+    const FAILED: &str = "1 of 2 tests failed; 1 test binaries did not list their tests";
+    const LINE_BREAK: &str = "\n";
+    const NOT_RUNS: [&str; 3] = ["passed\tsoon\tx\ty", "skipped\tx", "unlisted"];
 
     #[test]
-    fn a_failing_test_fails_the_one_run_and_only_a_clean_run_is_timed() {
-        let [passes, fails] = NAMES;
-        let timing = || Ok(TestTiming::new(Path::new(BINARY), passes, TICK));
-        let failing: TestRuns = [timing(), Err(Failure::Command(fails.to_owned()))]
-            .into_iter()
-            .collect();
-        let shown = failing.passed().map(|timings| timings.len());
-        assert_eq!(
-            shown.map_err(|failure| failure.to_string()),
-            Err(FAILED.to_owned())
-        );
-        let clean: TestRuns = [timing()].into_iter().collect();
-        assert!(clean.passed().is_ok_and(|timings| timings.len() == 1));
+    fn recorded_runs_read_back_and_a_failing_test_or_an_unlisted_binary_fails_the_one_run() {
+        let [passed, failed] = NAMES.map(|name| TestTiming::new(Path::new(BINARY), name, TICK));
+        let read = |runs: Vec<TestRun>| {
+            let lines: Vec<String> = runs.iter().map(ToString::to_string).collect();
+            lines.join(LINE_BREAK).parse().and_then(TestRuns::passed)
+        };
+        let gone = TestRun::Unlisted(PathBuf::from(BINARY));
+        let failing = read(vec![
+            TestRun::Passed(passed.clone()),
+            TestRun::Failed(failed),
+            gone,
+        ]);
+        let shown = failing.map_err(|failure| failure.to_string()).err();
+        let refused = NOT_RUNS
+            .iter()
+            .all(|line| line.parse::<TestRuns>().is_err());
+        let clean = read(vec![TestRun::Passed(passed.clone())]);
+        assert!(refused && shown.as_deref() == Some(FAILED));
+        assert!(clean.is_ok_and(|timings| timings == [passed]));
     }
 }

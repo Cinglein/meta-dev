@@ -33,7 +33,7 @@ use failure::Failure;
 use mutant_costs::MutantCosts;
 use mutation::{Mutants, Scope, ShardPlan, TriggerEvent};
 use stacked::Stacked;
-use test_time::TestTime;
+use test_time::{TestRunner, TestTime};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "kebab-case")]
@@ -74,6 +74,7 @@ pub enum Task {
     Surfaces,
     Test,
     TestBudget,
+    TestRunner,
     TestTime,
     ThinMain,
     TypeShape,
@@ -86,8 +87,14 @@ impl Task {
         Failure::from(task::Failure::from(Usage))
     }
 
-    pub fn run(self, mut flags: impl Iterator<Item = String>) -> Result<(), Failure> {
-        let workspace = Workspace::locate()?;
+    pub fn run(self, flags: impl Iterator<Item = String>) -> Result<(), Failure> {
+        match self {
+            Task::TestRunner => Ok(TestRunner::run(flags)?),
+            task => task.run_in_workspace(&Workspace::locate()?, flags),
+        }
+    }
+
+    fn run_in_workspace(self, workspace: &Workspace, mut flags: impl Iterator<Item = String>) -> Result<(), Failure> {
         let policy = Policy::read(workspace.root())?;
         let coverage = match self {
             Task::MutantCosts => Coverage::EVERYTHING,
@@ -95,7 +102,7 @@ impl Task {
         };
         let selection = match self {
             Task::MutantCosts => Selection::Workspace,
-            _ => Affected::selection(&workspace, coverage.changes(), policy.branch(Branch::Base))?,
+            _ => Affected::selection(workspace, coverage.changes(), policy.branch(Branch::Base))?,
         };
         let summary = env::var_os(Surfaces::SUMMARY).map(PathBuf::from);
         let mut ledger = Ledger::default();
@@ -107,7 +114,7 @@ impl Task {
             );
         });
         match self {
-            Task::Affected => Ok(Affected::selection(&workspace, Changes::SinceMain, policy.branch(Branch::Base))
+            Task::Affected => Ok(Affected::selection(workspace, Changes::SinceMain, policy.branch(Branch::Base))
                 .map(|reached| println!("{reached}"))?),
             Task::Baseline => Lint::shrink(workspace.root(), &workspace.source_files()?, &policy)
                 .map(|kept| println!("baseline: {} violations", kept.total())),
@@ -116,8 +123,8 @@ impl Task {
                 coverage.gate(workspace.root(), &policy)?,
                 env::var_os(LocalGate::TIMES).map(PathBuf::from),
             )
-            .run(&workspace, &selection, &policy),
-            Task::Clippy => Ok(Clippy::run(&workspace, &selection, &policy)?),
+            .run(workspace, &selection, &policy),
+            Task::Clippy => Ok(Clippy::run(workspace, &selection, &policy)?),
             Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
             Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy, &mut ledger)
                 .and_then(|()| Ok(ledger.checked(&policy, &selection)?)),
@@ -133,19 +140,19 @@ impl Task {
                 eprintln!("{}", costs.within_tolerance(&policy, TriggerEvent::priced_job(TriggerEvent::current())));
             })?
             .priced_within(&policy, TriggerEvent::priced_job(TriggerEvent::current()))?),
-            Task::Mutants => Ok(Mutants::run(&workspace, Scope::ChangedLines, &policy)?),
-            Task::MutantsFull => Ok(Mutants::run(&workspace, Scope::Workspace, &policy)?),
+            Task::Mutants => Ok(Mutants::run(workspace, Scope::ChangedLines, &policy)?),
+            Task::MutantsFull => Ok(Mutants::run(workspace, Scope::Workspace, &policy)?),
             Task::MutantsPlan => Ok(ShardPlan::full(
                 workspace.line(Program::Cargo),
                 &policy,
                 TriggerEvent::current().and_then(TriggerEvent::full_run),
             )
             .map(|plan| println!("{plan}"))?),
-            Task::MutantsDiffPlan => Ok(ShardPlan::changed_lines(&workspace, &policy).map(|plan| println!("{plan}"))?),
+            Task::MutantsDiffPlan => Ok(ShardPlan::changed_lines(workspace, &policy).map(|plan| println!("{plan}"))?),
             Task::Stacked => Ok(Stacked::run(&policy)?),
             Task::Surfaces => Surfaces::announce(workspace.root(), &policy, summary.as_deref()),
-            Task::Test => Ok(Test::run(&workspace, &selection, &policy)?),
-            Task::TestTime => Ok(TestTime::run(&workspace, &selection, &policy, &mut ledger)
+            Task::Test => Ok(Test::run(workspace, &selection, &policy)?),
+            Task::TestTime => Ok(TestTime::run(workspace, &selection, &policy, &mut ledger)
                 .and_then(|()| ledger.checked(&policy, &selection))?),
             lint => Ok(<&'static str>::from(lint)
                 .parse::<LintName>()

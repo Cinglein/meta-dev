@@ -2,6 +2,7 @@ mod cargo_argument;
 mod git_argument;
 mod mutants_argument;
 mod program;
+#[cfg(test)]
 mod stderr;
 mod stdout;
 mod stream;
@@ -10,6 +11,7 @@ pub use cargo_argument::CargoArgument;
 pub use git_argument::GitArgument;
 pub use mutants_argument::MutantsArgument;
 pub use program::Program;
+#[cfg(test)]
 pub use stderr::Stderr;
 pub use stdout::Stdout;
 pub use stream::Stream;

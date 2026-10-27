@@ -3,6 +3,7 @@ pub struct Greeting;
 
 impl Greeting {
     #[must_use]
+    #[doc = "```\nassert_eq!(greeting::Greeting::text(), \"hello\");\n```"]
     pub fn text() -> &'static str {
         "hello"
     }

@@ -69,11 +69,14 @@ mod tests {
     use strum::IntoEnumIterator;
 
     use super::CiStep;
+    use crate::task::Task;
+    use test_time::TestRunner;
 
     const STEPS: [&str; 5] = ["fmt", "clippy", "test", "lint", "spec"];
 
     #[test]
-    fn the_suite_runs_once_in_the_one_step_that_also_times_it() {
+    fn the_suite_runs_once_in_the_one_step_that_also_times_it_through_the_runner_task() {
         assert!(CiStep::iter().map(|step| step.to_string()).eq(STEPS));
+        assert_eq!(TestRunner::TASK.parse::<Task>(), Ok(Task::TestRunner));
     }
 }

@@ -29,6 +29,10 @@ pub enum CargoArgument {
     AllFeatures,
     #[strum(serialize = "--no-run")]
     NoRun,
+    #[strum(serialize = "--no-fail-fast")]
+    NoFailFast,
+    #[strum(serialize = "--config")]
+    Config,
     #[strum(serialize = "--color")]
     Color,
     #[strum(serialize = "never")]

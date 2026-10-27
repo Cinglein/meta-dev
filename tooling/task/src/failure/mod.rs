@@ -30,6 +30,8 @@ pub enum Failure {
     #[error("{0} failed")]
     Command(String),
     #[error("{0}")]
+    Tests(String),
+    #[error("{0}")]
     Runs(FailedRuns),
     #[error("gh failed: {0}")]
     GitHub(String),
