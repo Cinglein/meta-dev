@@ -652,3 +652,4 @@
 {"at":"2026-10-27T17:55:20.757449Z","actor":"claude-monitor","kind":"TaskDone","task":"task-843b490c6c281d89"}
 {"at":"2026-10-27T17:55:43.905115Z","actor":"claude-mainred","kind":"TaskLinked","task":"task-b4df9ef75a2c45a0","pr":52}
 {"at":"2026-10-27T17:55:49.701385Z","actor":"claude-usesmeta","kind":"TaskDone","task":"task-74151ea135505567"}
+{"at":"2026-10-27T17:58:35.877632Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-15761e89811112e8","text":"Test-line share only counts files declared with #[cfg(test)] mod plus inline test modules; integration tests under tests/ (e.g. crates/meta-cli/tests/ci.rs) are not counted, so test bloat can move there unmeasured (found while fixing main's overrun in #52).","division":"performance-and-cost"}
