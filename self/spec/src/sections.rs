@@ -1,8 +1,12 @@
-use crate::enforcement::Enforcement::Tracked;
+use meta_schema::Placement;
+
+use crate::enforcement::Enforcement::{Check, Tracked, Type};
+use crate::enforcer::Enforcer;
 use crate::rule::{Rule, RuleId};
+use crate::rust_type::RustType;
 use crate::section::Section;
 use crate::wording::Wording;
-use task::TopDivision::ArchitectureAndPlanning;
+use task::TopDivision::{ArchitectureAndPlanning, FeaturesAndMaintenance, PerformanceAndCost};
 
 pub const SECTIONS: &[Section] = &[
     Section::new(
@@ -18,9 +22,9 @@ pub const SECTIONS: &[Section] = &[
             ),
             Rule::new(
                 RuleId::new("budget-unit"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("Unit, exactly one per budget: Count, Duration, Share (later maybe Money or CI minutes)."),
-                Tracked,
+                Check(Enforcer::new("tooling/task/src/budgets.rs", "a_budget_without_exactly_one_unit_does_not_parse")),
             ),
             Rule::new(
                 RuleId::new("budget-window"),
@@ -60,23 +64,32 @@ pub const SECTIONS: &[Section] = &[
             ),
             Rule::new(
                 RuleId::new("budget-enforce-ci"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("Budgets are enforced in CI (the local gate where Actions can't run)."),
-                Tracked,
+                Check(Enforcer::new(
+                    "tooling/task/src/budgets/ledger.rs",
+                    "an_overspend_fails_a_change_within_reach_and_a_nested_part_is_measured",
+                )),
             ),
             Rule::new(
                 RuleId::new("budget-enforce-per-change"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("Per-change budgets: measured fresh by CI."),
-                Tracked,
+                Check(Enforcer::new(
+                    "xtask/src/task/ci/ci_step.rs",
+                    "the_suite_runs_once_in_the_one_step_that_also_times_it_through_the_runner_task",
+                )),
             ),
             Rule::new(
                 RuleId::new("budget-enforce-standing"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "Standing budgets are derived from the log (open Criticals, waivers in force, concern backlog): CI folds meta/log read-only on every run. An over-budget standing budget blocks only PRs in its division, but a division whose property all code affects (for example CI performance) blocks every PR that could affect it.",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "tooling/task/src/budgets/ledger.rs",
+                    "an_over_standing_budget_blocks_a_change_linked_inside_its_division_unless_it_pays_down",
+                )),
             ),
             Rule::new(
                 RuleId::new("budget-enforce-per-task"),
@@ -123,17 +136,20 @@ pub const SECTIONS: &[Section] = &[
             ),
             Rule::new(
                 RuleId::new("division-nesting"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("Divisions nest arbitrarily. A child gets a subset of its parent's budget."),
-                Tracked,
+                Check(Enforcer::new(
+                    "tooling/task/src/budgets.rs",
+                    "a_part_names_a_defined_parent_sits_inside_its_division_and_fits_its_share",
+                )),
             ),
             Rule::new(
                 RuleId::new("division-membership"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "Every concern, issue and task belongs to exactly one division. An unplaced item belongs to the project root; growth there signals a missing division.",
                 ),
-                Tracked,
+                Type(RustType::naming::<Placement>()),
             ),
             Rule::new(
                 RuleId::new("division-top-level"),
@@ -169,41 +185,56 @@ pub const SECTIONS: &[Section] = &[
             ),
             Rule::new(
                 RuleId::new("domain-declared"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "Only what is measured can be budgeted, so every division declares its domain as typed scopes in policy: crates, paths, CI workflows, tests, plus its implicit items (log entries labelled with it).",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "tooling/task/src/domains.rs",
+                    "a_nested_domain_inside_its_parent_and_a_budget_on_a_declared_scope_are_read",
+                )),
             ),
             Rule::new(
                 RuleId::new("domain-subset"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("A child's domain is a strict subset of its parent's."),
-                Tracked,
+                Check(Enforcer::new(
+                    "tooling/task/src/domains.rs",
+                    "domains_outside_their_parent_planning_code_unmeasurable_budgets_and_unordered_scales_are_refused",
+                )),
             ),
             Rule::new(
                 RuleId::new("domain-defaults"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "Defaults: all code belongs to features-and-maintenance and, through CI performance (which is always measured, unlike app performance), to performance-and-cost. Architecture-and-planning has no code.",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "tooling/task/src/domains.rs",
+                    "by_default_ci_owns_tests_and_workflows_code_owns_crates_and_paths_and_planning_nothing",
+                )),
             ),
             Rule::new(
                 RuleId::new("domain-budget-measure"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "A budget is a measure over its division's domain (test or workflow wall time, lint findings over crates or paths, open Criticals over items). A budget whose measure needs a scope the division doesn't declare is refused when the policy is read.",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "tooling/task/src/domains.rs",
+                    "domains_outside_their_parent_planning_code_unmeasurable_budgets_and_unordered_scales_are_refused",
+                )),
             ),
             Rule::new(
                 RuleId::new("domain-reach"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "A PR is within a budget's reach when its diff touches the domain or its linked task is in the division.",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "tooling/task/src/budgets/ledger.rs",
+                    "an_over_standing_budget_blocks_a_change_linked_inside_its_division_unless_it_pays_down",
+                )),
             ),
             Rule::new(
                 RuleId::new("domain-scope-kinds"),
@@ -263,9 +294,12 @@ pub const SECTIONS: &[Section] = &[
             ),
             Rule::new(
                 RuleId::new("concern-closing"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("Closing: resolved or retired."),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-state/src/state/tests.rs",
+                    "done_addresses_targets_and_reopen_undoes_it",
+                )),
             ),
             Rule::new(
                 RuleId::new("rule-decomposition"),
@@ -475,19 +509,25 @@ pub const SECTIONS: &[Section] = &[
             ),
             Rule::new(
                 RuleId::new("status-local-settings"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "Settings (worktree root, target-dir layout, gc retention) live in a gitignored local config per clone, such as meta.local.toml (ignore rule committed, defaults when absent).",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-cli/src/request/local/tests.rs",
+                    "settings_default_to_a_sibling_root_resolve_relative_roots_and_refuse_foreign_emails",
+                )),
             ),
             Rule::new(
                 RuleId::new("status-local-record"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "The record of worktrees and target dirs (paths, creation, local trail) is typed, written only by meta, and kept inside the clone's git dir, never pushed.",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-cli/src/request/local/tests.rs",
+                    "appends_after_a_torn_line_start_a_new_line_and_reads_skip_the_torn_line_with_a_warning",
+                )),
             ),
             Rule::new(
                 RuleId::new("status-local-claim-worktree"),
@@ -499,15 +539,21 @@ pub const SECTIONS: &[Section] = &[
             ),
             Rule::new(
                 RuleId::new("status-local-join"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("Status joins the record to the log by task id."),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-cli/src/request/local/tests.rs",
+                    "worktrees_join_the_current_trail_to_task_status_and_flag_missing_and_unrecorded_paths",
+                )),
             ),
             Rule::new(
                 RuleId::new("status-local-lost-record"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("If the record is lost, gc deletes nothing and reports leftovers."),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-cli/tests/gc.rs",
+                    "gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_with_reasons",
+                )),
             ),
         ],
     ),
@@ -516,11 +562,14 @@ pub const SECTIONS: &[Section] = &[
         &[
             Rule::new(
                 RuleId::new("status-external-live"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "PR and CI state is read live from GitHub on each run, with one batched query per project, and is never copied into the log (GitHub is its single home).",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-cli/src/request/live_github/tests.rs",
+                    "one_graphql_call_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_its_own_pull_requests",
+                )),
             ),
             Rule::new(
                 RuleId::new("status-external-history"),
@@ -530,11 +579,14 @@ pub const SECTIONS: &[Section] = &[
             ),
             Rule::new(
                 RuleId::new("status-external-unknown"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "If GitHub can't be reached, the state shows as unknown, and the heartbeat treats unknown as needing attention.",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-status/src/status/tests.rs",
+                    "an_unreachable_github_is_one_flag_and_every_pull_request_reads_unknown",
+                )),
             ),
         ],
     ),
@@ -543,35 +595,50 @@ pub const SECTIONS: &[Section] = &[
         &[
             Rule::new(
                 RuleId::new("status-links-branch"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("`meta claim` names the task's branch."),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-cli/tests/cli.rs",
+                    "failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_and_a_noreply_worktree_is_listed",
+                )),
             ),
             Rule::new(
                 RuleId::new("status-links-event"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "When a PR is opened from a claimed task's branch, the hook writes a TaskLinked { task, pr } event to the log.",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-cli/tests/status.rs",
+                    "opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_the_rest",
+                )),
             ),
             Rule::new(
                 RuleId::new("status-links-several"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("A task can link several PRs, as in a gh stack."),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-state/src/state/tests/links.rs",
+                    "a_task_links_several_pull_requests_once_each_and_only_known_tasks_link",
+                )),
             ),
             Rule::new(
                 RuleId::new("status-links-orphan-pr"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("Status flags any open PR that has no task."),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-status/src/status/tests.rs",
+                    "flags_name_late_red_unknown_truncated_and_orphan_pull_requests_and_red_ones_on_done_tasks",
+                )),
             ),
             Rule::new(
                 RuleId::new("status-links-pr-state-live"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("PR state itself is still read live from GitHub (part 2)."),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-pull-query/src/live_tests.rs",
+                    "the_query_asks_for_open_pull_requests_and_each_linked_one_once",
+                )),
             ),
         ],
     ),
@@ -626,11 +693,14 @@ pub const SECTIONS: &[Section] = &[
             ),
             Rule::new(
                 RuleId::new("status-worktree-lifetime"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "A worktree belongs to a PR's branch; gc deletes it when that PR is merged, closed or stalled (resuming is cheap: recreate it from the remote), after the final check that all work is on the remote and nothing has it open.",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-cli/tests/gc.rs",
+                    "gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_with_reasons",
+                )),
             ),
         ],
     ),
@@ -639,17 +709,23 @@ pub const SECTIONS: &[Section] = &[
         &[
             Rule::new(
                 RuleId::new("status-discussion-typed"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "Discussion is its own fully typed task status, not a free-form blocker: a task waiting on an owner discussion is in Discussion(issue id) and is never counted as stalled.",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-state/src/state/tests/blocking.rs",
+                    "only_discussion_never_stalls_and_every_wait_is_a_typed_status",
+                )),
             ),
             Rule::new(
                 RuleId::new("status-waits-typed"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("Other waits are typed too (on another task, on something external)."),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-state/src/state/tests/blocking.rs",
+                    "only_discussion_never_stalls_and_every_wait_is_a_typed_status",
+                )),
             ),
             Rule::new(
                 RuleId::new("status-tokens-transcripts"),
@@ -680,11 +756,14 @@ pub const SECTIONS: &[Section] = &[
         &[
             Rule::new(
                 RuleId::new("status-heartbeat-job"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "A launchd job runs `meta status` and `meta gc` every few minutes, writing flags to the local record at no token cost.",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-cli/src/request/tests/heartbeat/plist.rs",
+                    "the_plist_runs_tick_in_the_clone_on_the_policy_interval_and_escapes_markup",
+                )),
             ),
             Rule::new(
                 RuleId::new("status-heartbeat-wake"),
@@ -696,11 +775,14 @@ pub const SECTIONS: &[Section] = &[
             ),
             Rule::new(
                 RuleId::new("status-output"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "Output: a terminal tree of divisions down to tasks (state, PR and CI, assigned capacity, effort against due time), with flags on top; a live dashboard page later if needed.",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-status/src/status/tests.rs",
+                    "the_tree_runs_from_divisions_down_to_tasks_with_pull_requests_holders_effort_and_due",
+                )),
             ),
         ],
     ),
@@ -793,39 +875,54 @@ pub const SECTIONS: &[Section] = &[
         &[
             Rule::new(
                 RuleId::new("identity-noreply-only"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("No commit may carry an email that isn't a GitHub noreply address."),
-                Tracked,
+                Check(Enforcer::new(
+                    "xtask/src/task/lint.rs",
+                    "every_commit_off_the_base_branch_has_noreply_author_and_committer_emails",
+                )),
             ),
             Rule::new(
                 RuleId::new("identity-hook"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "Enforced in three places, (1): the PreToolUse hook refuses git commit, and rebase or amend that rewrite commits, when the effective identity isn't noreply, naming the git config commands that fix it.",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-cli/tests/hooks.rs",
+                    "pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_wherever_they_run",
+                )),
             ),
             Rule::new(
                 RuleId::new("identity-ci"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "Enforced in three places, (2): cargo xtask ci (lint) fails on any commit in the PR range whose author or committer email isn't noreply.",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "xtask/src/task/lint.rs",
+                    "every_commit_off_the_base_branch_has_noreply_author_and_committer_emails",
+                )),
             ),
             Rule::new(
                 RuleId::new("identity-claim"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new(
                     "Enforced in three places, (3): `meta claim` sets the noreply identity on worktrees it creates.",
                 ),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-cli/tests/cli.rs",
+                    "failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_and_a_noreply_worktree_is_listed",
+                )),
             ),
             Rule::new(
                 RuleId::new("identity-address-source"),
-                ArchitectureAndPlanning,
+                FeaturesAndMaintenance,
                 Wording::new("The noreply address comes from local config, not from the repo."),
-                Tracked,
+                Check(Enforcer::new(
+                    "crates/meta-cli/src/request/local/tests.rs",
+                    "settings_default_to_a_sibling_root_resolve_relative_roots_and_refuse_foreign_emails",
+                )),
             ),
         ],
     ),
@@ -895,6 +992,153 @@ pub const SECTIONS: &[Section] = &[
                 ArchitectureAndPlanning,
                 Wording::new("Spend is counted against the performance-and-cost budget."),
                 Tracked,
+            ),
+        ],
+    ),
+    Section::new(
+        Wording::new("Decisions (owner, 2026-10-27)"),
+        &[
+            Rule::new(
+                RuleId::new("ci-tracked-work"),
+                FeaturesAndMaintenance,
+                Wording::new(
+                    "CI fails a pull request whose work is not tracked in meta: its branch must name a claimed task.",
+                ),
+                Check(Enforcer::new(
+                    "xtask/src/task/ci/tracked_work.rs",
+                    "no_branch_no_task_unknown_retired_or_unclaimed_tasks_and_an_unreadable_log_fail_with_the_remedy",
+                )),
+            ),
+            Rule::new(
+                RuleId::new("hook-claimed-writes"),
+                ArchitectureAndPlanning,
+                Wording::new("Agent hooks refuse file writes and commits outside a claimed task."),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("hook-rules-injected"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Agent hooks inject the branch's task, a short status and the rules into every session and subagent.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("monitor-report-only"),
+                PerformanceAndCost,
+                Wording::new(
+                    "The monitor reports this project's processes in two tiers (obvious, watch) and stops nothing unless stopping is opted in.",
+                ),
+                Check(Enforcer::new(
+                    "crates/meta-cli/src/request/local/monitor/tests.rs",
+                    "by_default_the_monitor_signals_nothing_and_reports_this_projects_processes_in_two_tiers",
+                )),
+            ),
+            Rule::new(
+                RuleId::new("init-rust-idempotent"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "`meta init` adopts Rust projects only and is idempotent: a set-up project is a no-op and a partial one gets only its missing steps.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("init-explicit-keys"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "`meta init` and `meta upgrade` write every file and policy key explicitly; no default stays hidden in code.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("init-baseline-seeding"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "CI allows the lint baseline to be created once, in the adoption PR whose merge base has no meta setup; later PRs may only shrink it.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("init-ruleset-confirmed"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "`meta init` applies the main ruleset only after the owner confirms it; run by an agent, it prints the command instead.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("init-actions-gate"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "The required gate is the GitHub Actions ci-gate by default; switching to the local gate is explicit and visible.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("init-existing-ci"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "`meta init` adds its CI job beside a project's existing jobs and makes ci-gate need them all, so adoption never loosens a check.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("meta-pinned-xtask"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Hooks, the monitor and agents run meta through the project's pinned xtask; there is no global install.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("meta-upgrade"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "`meta upgrade` moves the meta-dev pin and rewrites the setup with the init writer, adding new policy keys with their defaults.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("dispatch-route-b"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Subagents go through `meta dispatch` in hooks: none without a claimed task, and each gets the rules block, a tier and a lease.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("standing-merge-base-policy"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Standing budgets on a pull request are enforced from the merge-base policy; on other runs they are only reported.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("acceptance-list-current"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "The acceptance list in self/spec stays current: every postmortem lesson is an entry, met (naming its enforcer) or pending (naming its open concern).",
+                ),
+                Tracked,
+            ),
+            Rule::new(
+                RuleId::new("spec-enforcer-exists"),
+                FeaturesAndMaintenance,
+                Wording::new("CI fails when a rule names an enforcer that does not exist."),
+                Check(Enforcer::new(
+                    "self/spec/src/spec_view.rs",
+                    "the_checked_in_spec_passes_its_check_rule_ids_are_unique_and_a_lost_enforcer_is_named",
+                )),
+            ),
+            Rule::new(
+                RuleId::new("spec-enforcer-drift"),
+                FeaturesAndMaintenance,
+                Wording::new("CI fails when a pull request changes a rule's enforcer file but not that rule's record."),
+                Check(Enforcer::new(
+                    "xtask/src/task/lint/spec_prose/spec_drift.rs",
+                    "a_changed_enforcer_fails_only_while_its_rule_record_is_unchanged_since_the_merge_base",
+                )),
             ),
         ],
     ),

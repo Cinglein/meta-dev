@@ -18,7 +18,7 @@ pub struct SpecView {
 }
 
 impl SpecView {
-    const HEADER: &str = "# Meta-development repo: spec (draft, started 2026-10-22)\n\nSections down to the next top-level heading are rendered from the rule records in `self/spec`; edit those, then run `cargo run -p meta-spec`. Each rule shows its id, division, ladder rung and enforcer.\n\n";
+    const HEADER: &str = "# Meta-development repo: spec (draft, started 2026-10-22)\n\nRendered from the rule records in `self/spec` down to the next top-level heading; edit those, then run `cargo run -p meta-spec`. Each rule shows id, division, rung and enforcer.\n\n";
     const UNSET: &str = "no [spec] file in tooling/policy.toml";
     const STALE: &str = "the spec file differs from its render: run `cargo run -p meta-spec`";
     const MISSING: &str = "these rules name an enforcer that does not exist: ";

@@ -1,18 +1,18 @@
 # Meta-development repo: spec (draft, started 2026-10-22)
 
-Sections down to the next top-level heading are rendered from the rule records in `self/spec`; edit those, then run `cargo run -p meta-spec`. Each rule shows its id, division, ladder rung and enforcer.
+Rendered from the rule records in `self/spec` down to the next top-level heading; edit those, then run `cargo run -p meta-spec`. Each rule shows id, division, rung and enforcer.
 
 ## Budgets (owner, 2026-10-26)
 - `budget-definition` (architecture-and-planning, rung 1, no enforcer): A budget is a typed definition with an id, in tooling/policy.toml. Spend events in the log point at it.
-- `budget-unit` (architecture-and-planning, rung 1, no enforcer): Unit, exactly one per budget: Count, Duration, Share (later maybe Money or CI minutes).
+- `budget-unit` (features-and-maintenance, rung 3, check tooling/task/src/budgets.rs a_budget_without_exactly_one_unit_does_not_parse): Unit, exactly one per budget: Count, Duration, Share (later maybe Money or CI minutes).
 - `budget-window` (architecture-and-planning, rung 1, no enforcer): Window: per change (ratchet against the merge base), rolling per period, or standing (open items at any time).
 - `budget-overspend` (architecture-and-planning, rung 1, no enforcer): Overspend action is part of the definition: block (default) or escalate to DISCUSS.
 - `budget-measured-spend` (architecture-and-planning, rung 1, no enforcer): Spend is recorded by measurement only (CI and tools). Severity is the judged exception, checked later by calibration.
 - `budget-raise` (architecture-and-planning, rung 1, no enforcer): Raising a budget is owner-only.
 - `budget-waivers` (architecture-and-planning, rung 1, no enforcer): Waivers are spend from the waiver budget of the division whose rule they bend. They replace raw lint baselines.
-- `budget-enforce-ci` (architecture-and-planning, rung 1, no enforcer): Budgets are enforced in CI (the local gate where Actions can't run).
-- `budget-enforce-per-change` (architecture-and-planning, rung 1, no enforcer): Per-change budgets: measured fresh by CI.
-- `budget-enforce-standing` (architecture-and-planning, rung 1, no enforcer): Standing budgets are derived from the log (open Criticals, waivers in force, concern backlog): CI folds meta/log read-only on every run. An over-budget standing budget blocks only PRs in its division, but a division whose property all code affects (for example CI performance) blocks every PR that could affect it.
+- `budget-enforce-ci` (features-and-maintenance, rung 3, check tooling/task/src/budgets/ledger.rs an_overspend_fails_a_change_within_reach_and_a_nested_part_is_measured): Budgets are enforced in CI (the local gate where Actions can't run).
+- `budget-enforce-per-change` (features-and-maintenance, rung 3, check xtask/src/task/ci/ci_step.rs the_suite_runs_once_in_the_one_step_that_also_times_it_through_the_runner_task): Per-change budgets: measured fresh by CI.
+- `budget-enforce-standing` (features-and-maintenance, rung 3, check tooling/task/src/budgets/ledger.rs an_over_standing_budget_blocks_a_change_linked_inside_its_division_unless_it_pays_down): Standing budgets are derived from the log (open Criticals, waivers in force, concern backlog): CI folds meta/log read-only on every run. An over-budget standing budget blocks only PRs in its division, but a division whose property all code affects (for example CI performance) blocks every PR that could affect it.
 - `budget-enforce-per-task` (architecture-and-planning, rung 1, no enforcer): Per-task budgets (effort, due): CI finds the PR's task via TaskLinked or the branch, and fails on overspend with no recorded extension; a PR with no task fails.
 - `budget-enforce-spend-source` (architecture-and-planning, rung 1, no enforcer): Spend comes from local measurement (heartbeat from transcripts) written to the log; CI trusts it under the honest-mistakes threat model.
 - `budget-enforce-machine-timing` (architecture-and-planning, rung 1, no enforcer): Machine budgets (CPU, memory, agents, disk) are runtime controls enforced by hooks and leases, not CI. Timing budgets are measured only on CI or in the local gate's clean run.
@@ -20,17 +20,17 @@ Sections down to the next top-level heading are rendered from the rule records i
 ## Divisions (owner, 2026-10-26)
 - `division-is-a-property` (architecture-and-planning, rung 1, no enforcer): A division is any behaviour or invariant made first class (e.g. Basho navigation). It is a named property, not a code area: divisions overlap freely in code and are isolated by tracking (own items, budgets, checks, status).
 - `division-context` (architecture-and-planning, rung 1, no enforcer): An agent on a division sees only that division's context.
-- `division-nesting` (architecture-and-planning, rung 1, no enforcer): Divisions nest arbitrarily. A child gets a subset of its parent's budget.
-- `division-membership` (architecture-and-planning, rung 1, no enforcer): Every concern, issue and task belongs to exactly one division. An unplaced item belongs to the project root; growth there signals a missing division.
+- `division-nesting` (features-and-maintenance, rung 3, check tooling/task/src/budgets.rs a_part_names_a_defined_parent_sits_inside_its_division_and_fits_its_share): Divisions nest arbitrarily. A child gets a subset of its parent's budget.
+- `division-membership` (features-and-maintenance, rung 4, type meta_schema::placement::Placement): Every concern, issue and task belongs to exactly one division. An unplaced item belongs to the project root; growth there signals a missing division.
 - `division-top-level` (architecture-and-planning, rung 1, no enforcer): Top level, in every project: (1) features and maintenance (navigation, the tracker, guarding lints and mutants); (2) performance and cost (CI and test time, mutation time, Actions minutes and money, disk, agent wall time); (3) architecture and planning (the spec, DISCUSS items, the ladder; feeds 1 and 2). Architecture and planning is anything not yet at the specificity of code. A code PR is never architecture. A rule moves out once it is enforced. Limits enforced in code belong to (1) or (2). A rule sits in (3) at rung 1-2, and moves to the division that owns the property once enforced (rung 3-4).
 - `division-ownership` (architecture-and-planning, rung 1, no enforcer): Each top-level division owns its status tracking and metrics, and controls its own soundness, testing and measurability.
 - `division-dogfood` (architecture-and-planning, rung 1, no enforcer): meta-dev is an ordinary project with the same three divisions (principle 4). The steward and triage sit in its architecture and planning division.
 - `division-promotion` (architecture-and-planning, rung 1, no enforcer): Promotion: a concern that reaches ladder rung 2 (a precise property) may become a division; architecture and planning does the typing.
-- `domain-declared` (architecture-and-planning, rung 1, no enforcer): Only what is measured can be budgeted, so every division declares its domain as typed scopes in policy: crates, paths, CI workflows, tests, plus its implicit items (log entries labelled with it).
-- `domain-subset` (architecture-and-planning, rung 1, no enforcer): A child's domain is a strict subset of its parent's.
-- `domain-defaults` (architecture-and-planning, rung 1, no enforcer): Defaults: all code belongs to features-and-maintenance and, through CI performance (which is always measured, unlike app performance), to performance-and-cost. Architecture-and-planning has no code.
-- `domain-budget-measure` (architecture-and-planning, rung 1, no enforcer): A budget is a measure over its division's domain (test or workflow wall time, lint findings over crates or paths, open Criticals over items). A budget whose measure needs a scope the division doesn't declare is refused when the policy is read.
-- `domain-reach` (architecture-and-planning, rung 1, no enforcer): A PR is within a budget's reach when its diff touches the domain or its linked task is in the division.
+- `domain-declared` (features-and-maintenance, rung 3, check tooling/task/src/domains.rs a_nested_domain_inside_its_parent_and_a_budget_on_a_declared_scope_are_read): Only what is measured can be budgeted, so every division declares its domain as typed scopes in policy: crates, paths, CI workflows, tests, plus its implicit items (log entries labelled with it).
+- `domain-subset` (features-and-maintenance, rung 3, check tooling/task/src/domains.rs domains_outside_their_parent_planning_code_unmeasurable_budgets_and_unordered_scales_are_refused): A child's domain is a strict subset of its parent's.
+- `domain-defaults` (features-and-maintenance, rung 3, check tooling/task/src/domains.rs by_default_ci_owns_tests_and_workflows_code_owns_crates_and_paths_and_planning_nothing): Defaults: all code belongs to features-and-maintenance and, through CI performance (which is always measured, unlike app performance), to performance-and-cost. Architecture-and-planning has no code.
+- `domain-budget-measure` (features-and-maintenance, rung 3, check tooling/task/src/domains.rs domains_outside_their_parent_planning_code_unmeasurable_budgets_and_unordered_scales_are_refused): A budget is a measure over its division's domain (test or workflow wall time, lint findings over crates or paths, open Criticals over items). A budget whose measure needs a scope the division doesn't declare is refused when the policy is read.
+- `domain-reach` (features-and-maintenance, rung 3, check tooling/task/src/budgets/ledger.rs an_over_standing_budget_blocks_a_change_linked_inside_its_division_unless_it_pays_down): A PR is within a budget's reach when its diff touches the domain or its linked task is in the division.
 - `domain-scope-kinds` (architecture-and-planning, rung 1, no enforcer): Which scope kinds a budget needs depends on the budget; wall-time budgets on tests and workflows are the easiest first case.
 - `concern-definition` (architecture-and-planning, rung 1, no enforcer): A concern is anything noticed that might matter, vague or precise, and is the only entity that carries a ladder rung.
 - `concern-rungs` (architecture-and-planning, rung 1, no enforcer): Rungs: 1 identified (text); 2 defined (points at a spec rule); 3 checked or budgeted (a named enforcer: lint, test or CI step); 4 impossible by construction (a type).
@@ -38,7 +38,7 @@ Sections down to the next top-level heading are rendered from the rule records i
 - `concern-division` (architecture-and-planning, rung 1, no enforcer): A concern's division is architecture-and-planning at rungs 1-2, then the owning division at 3-4.
 - `concern-resting` (architecture-and-planning, rung 1, no enforcer): Concerns may rest at any rung, but resting is budgeted with a ratchet (exact shape being decided).
 - `concern-rung-only-axis` (architecture-and-planning, rung 1, no enforcer): Rung is the only typed axis; confidence is not separate, because climbing from rung 1 to 2 already narrows it.
-- `concern-closing` (architecture-and-planning, rung 1, no enforcer): Closing: resolved or retired.
+- `concern-closing` (features-and-maintenance, rung 3, check crates/meta-state/src/state/tests.rs done_addresses_targets_and_reopen_undoes_it): Closing: resolved or retired.
 - `rule-decomposition` (architecture-and-planning, rung 1, no enforcer): 'Spec rule' is decomposed into four things: claim, definition, plan and decision. PR #28 (the rung audit of the old rules) is paused as input to the split.
 
 ## Severity per division (owner, 2026-10-26)
@@ -74,23 +74,23 @@ Sections down to the next top-level heading are rendered from the rule records i
 
 ## Status, part 1: local state (owner, 2026-10-26)
 - `status-local-never-remote` (architecture-and-planning, rung 1, no enforcer): Local file-tree facts and settings never go to the remote.
-- `status-local-settings` (architecture-and-planning, rung 1, no enforcer): Settings (worktree root, target-dir layout, gc retention) live in a gitignored local config per clone, such as meta.local.toml (ignore rule committed, defaults when absent).
-- `status-local-record` (architecture-and-planning, rung 1, no enforcer): The record of worktrees and target dirs (paths, creation, local trail) is typed, written only by meta, and kept inside the clone's git dir, never pushed.
+- `status-local-settings` (features-and-maintenance, rung 3, check crates/meta-cli/src/request/local/tests.rs settings_default_to_a_sibling_root_resolve_relative_roots_and_refuse_foreign_emails): Settings (worktree root, target-dir layout, gc retention) live in a gitignored local config per clone, such as meta.local.toml (ignore rule committed, defaults when absent).
+- `status-local-record` (features-and-maintenance, rung 3, check crates/meta-cli/src/request/local/tests.rs appends_after_a_torn_line_start_a_new_line_and_reads_skip_the_torn_line_with_a_warning): The record of worktrees and target dirs (paths, creation, local trail) is typed, written only by meta, and kept inside the clone's git dir, never pushed.
 - `status-local-claim-worktree` (architecture-and-planning, rung 1, no enforcer): `meta claim` creates the task's worktree under the configured root and records it. Agents make no ad-hoc clones.
-- `status-local-join` (architecture-and-planning, rung 1, no enforcer): Status joins the record to the log by task id.
-- `status-local-lost-record` (architecture-and-planning, rung 1, no enforcer): If the record is lost, gc deletes nothing and reports leftovers.
+- `status-local-join` (features-and-maintenance, rung 3, check crates/meta-cli/src/request/local/tests.rs worktrees_join_the_current_trail_to_task_status_and_flag_missing_and_unrecorded_paths): Status joins the record to the log by task id.
+- `status-local-lost-record` (features-and-maintenance, rung 3, check crates/meta-cli/tests/gc.rs gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_with_reasons): If the record is lost, gc deletes nothing and reports leftovers.
 
 ## Status, part 2: external state (owner, 2026-10-26)
-- `status-external-live` (architecture-and-planning, rung 1, no enforcer): PR and CI state is read live from GitHub on each run, with one batched query per project, and is never copied into the log (GitHub is its single home).
+- `status-external-live` (features-and-maintenance, rung 3, check crates/meta-cli/src/request/live_github/tests.rs one_graphql_call_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_its_own_pull_requests): PR and CI state is read live from GitHub on each run, with one batched query per project, and is never copied into the log (GitHub is its single home).
 - `status-external-history` (architecture-and-planning, rung 1, no enforcer): History such as time red or review rounds is also derived from GitHub.
-- `status-external-unknown` (architecture-and-planning, rung 1, no enforcer): If GitHub can't be reached, the state shows as unknown, and the heartbeat treats unknown as needing attention.
+- `status-external-unknown` (features-and-maintenance, rung 3, check crates/meta-status/src/status/tests.rs an_unreachable_github_is_one_flag_and_every_pull_request_reads_unknown): If GitHub can't be reached, the state shows as unknown, and the heartbeat treats unknown as needing attention.
 
 ## Status, part 3: task-to-PR links (owner, 2026-10-26)
-- `status-links-branch` (architecture-and-planning, rung 1, no enforcer): `meta claim` names the task's branch.
-- `status-links-event` (architecture-and-planning, rung 1, no enforcer): When a PR is opened from a claimed task's branch, the hook writes a TaskLinked { task, pr } event to the log.
-- `status-links-several` (architecture-and-planning, rung 1, no enforcer): A task can link several PRs, as in a gh stack.
-- `status-links-orphan-pr` (architecture-and-planning, rung 1, no enforcer): Status flags any open PR that has no task.
-- `status-links-pr-state-live` (architecture-and-planning, rung 1, no enforcer): PR state itself is still read live from GitHub (part 2).
+- `status-links-branch` (features-and-maintenance, rung 3, check crates/meta-cli/tests/cli.rs failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_and_a_noreply_worktree_is_listed): `meta claim` names the task's branch.
+- `status-links-event` (features-and-maintenance, rung 3, check crates/meta-cli/tests/status.rs opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_the_rest): When a PR is opened from a claimed task's branch, the hook writes a TaskLinked { task, pr } event to the log.
+- `status-links-several` (features-and-maintenance, rung 3, check crates/meta-state/src/state/tests/links.rs a_task_links_several_pull_requests_once_each_and_only_known_tasks_link): A task can link several PRs, as in a gh stack.
+- `status-links-orphan-pr` (features-and-maintenance, rung 3, check crates/meta-status/src/status/tests.rs flags_name_late_red_unknown_truncated_and_orphan_pull_requests_and_red_ones_on_done_tasks): Status flags any open PR that has no task.
+- `status-links-pr-state-live` (features-and-maintenance, rung 3, check crates/meta-pull-query/src/live_tests.rs the_query_asks_for_open_pull_requests_and_each_linked_one_once): PR state itself is still read live from GitHub (part 2).
 
 ## Status, part 4: agents, metrics and worktree lifetime (owner, 2026-10-26)
 - `status-agents-independent` (architecture-and-planning, rung 1, no enforcer): Agents are an implementation detail, independent of tasks (rotating agents or dedicated pools, never 1:1); a claim becomes an assignment of agent capacity to a task.
@@ -99,19 +99,19 @@ Sections down to the next top-level heading are rendered from the rule records i
 - `status-metrics-compute-pool` (architecture-and-planning, rung 1, no enforcer): Compute (CPU and memory) is drawn from a central machine budget just as agents are drawn from a central pool.
 - `status-task-budgets` (architecture-and-planning, rung 1, no enforcer): Task budgets: effort (tokens plus compute) and a due time set by priority.
 - `status-stalled` (architecture-and-planning, rung 1, no enforcer): Stalled means a small-scale stall, past due with no assigned capacity, or effort spent with no recorded extension.
-- `status-worktree-lifetime` (architecture-and-planning, rung 1, no enforcer): A worktree belongs to a PR's branch; gc deletes it when that PR is merged, closed or stalled (resuming is cheap: recreate it from the remote), after the final check that all work is on the remote and nothing has it open.
+- `status-worktree-lifetime` (features-and-maintenance, rung 3, check crates/meta-cli/tests/gc.rs gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_with_reasons): A worktree belongs to a PR's branch; gc deletes it when that PR is merged, closed or stalled (resuming is cheap: recreate it from the remote), after the final check that all work is on the remote and nothing has it open.
 
 ## Status, part 5: discussion status, tokens, compute (owner, 2026-10-26)
-- `status-discussion-typed` (architecture-and-planning, rung 1, no enforcer): Discussion is its own fully typed task status, not a free-form blocker: a task waiting on an owner discussion is in Discussion(issue id) and is never counted as stalled.
-- `status-waits-typed` (architecture-and-planning, rung 1, no enforcer): Other waits are typed too (on another task, on something external).
+- `status-discussion-typed` (features-and-maintenance, rung 3, check crates/meta-state/src/state/tests/blocking.rs only_discussion_never_stalls_and_every_wait_is_a_typed_status): Discussion is its own fully typed task status, not a free-form blocker: a task waiting on an owner discussion is in Discussion(issue id) and is never counted as stalled.
+- `status-waits-typed` (features-and-maintenance, rung 3, check crates/meta-state/src/state/tests/blocking.rs only_discussion_never_stalls_and_every_wait_is_a_typed_status): Other waits are typed too (on another task, on something external).
 - `status-tokens-transcripts` (architecture-and-planning, rung 1, no enforcer): Tokens are measured from Claude Code's local transcripts: each assistant message carries a usage record (input, cache, output tokens), and each subagent has its own transcript; hooks get transcript_path.
 - `status-tokens-storage` (architecture-and-planning, rung 1, no enforcer): Per-task totals go to the log; raw transcripts stay local.
 - `status-compute-lease` (architecture-and-planning, rung 1, no enforcer): Compute is budgeted, not recorded: a task must hold a CPU and memory lease from a local, per-machine pool before running heavy commands (builds, test suites, mutants, Chrome checks); the pool is sized to the machine, and anything without a lease waits.
 
 ## Status, part 6: heartbeat and output (owner, 2026-10-26)
-- `status-heartbeat-job` (architecture-and-planning, rung 1, no enforcer): A launchd job runs `meta status` and `meta gc` every few minutes, writing flags to the local record at no token cost.
+- `status-heartbeat-job` (features-and-maintenance, rung 3, check crates/meta-cli/src/request/tests/heartbeat/plist.rs the_plist_runs_tick_in_the_clone_on_the_policy_interval_and_escapes_markup): A launchd job runs `meta status` and `meta gc` every few minutes, writing flags to the local record at no token cost.
 - `status-heartbeat-wake` (architecture-and-planning, rung 1, no enforcer): Flags needing judgement (stalled, red PR with no capacity, past due, stuck command) wake a lead Claude session, which acts and goes back to sleep; for now that is the lead's scheduled wakeups.
-- `status-output` (architecture-and-planning, rung 1, no enforcer): Output: a terminal tree of divisions down to tasks (state, PR and CI, assigned capacity, effort against due time), with flags on top; a live dashboard page later if needed.
+- `status-output` (features-and-maintenance, rung 3, check crates/meta-status/src/status/tests.rs the_tree_runs_from_divisions_down_to_tasks_with_pull_requests_holders_effort_and_due): Output: a terminal tree of divisions down to tasks (state, PR and CI, assigned capacity, effort against due time), with flags on top; a live dashboard page later if needed.
 
 ## Machine layer (owner, 2026-10-26)
 - `machine-ownership` (architecture-and-planning, rung 1, no enforcer): The machine layer is per machine and owned by no project.
@@ -129,11 +129,11 @@ Sections down to the next top-level heading are rendered from the rule records i
 - `tokens-budgeting-deferred` (architecture-and-planning, rung 1, no enforcer): Budgeting is DEFERRED: the unit in multiples of the Claude Pro plan's limit, calibration from limit hits (first anchor 2026-10-26 about 16:10Z), and headroom.
 
 ## Commit identity guard (owner, 2026-10-26)
-- `identity-noreply-only` (architecture-and-planning, rung 1, no enforcer): No commit may carry an email that isn't a GitHub noreply address.
-- `identity-hook` (architecture-and-planning, rung 1, no enforcer): Enforced in three places, (1): the PreToolUse hook refuses git commit, and rebase or amend that rewrite commits, when the effective identity isn't noreply, naming the git config commands that fix it.
-- `identity-ci` (architecture-and-planning, rung 1, no enforcer): Enforced in three places, (2): cargo xtask ci (lint) fails on any commit in the PR range whose author or committer email isn't noreply.
-- `identity-claim` (architecture-and-planning, rung 1, no enforcer): Enforced in three places, (3): `meta claim` sets the noreply identity on worktrees it creates.
-- `identity-address-source` (architecture-and-planning, rung 1, no enforcer): The noreply address comes from local config, not from the repo.
+- `identity-noreply-only` (features-and-maintenance, rung 3, check xtask/src/task/lint.rs every_commit_off_the_base_branch_has_noreply_author_and_committer_emails): No commit may carry an email that isn't a GitHub noreply address.
+- `identity-hook` (features-and-maintenance, rung 3, check crates/meta-cli/tests/hooks.rs pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_wherever_they_run): Enforced in three places, (1): the PreToolUse hook refuses git commit, and rebase or amend that rewrite commits, when the effective identity isn't noreply, naming the git config commands that fix it.
+- `identity-ci` (features-and-maintenance, rung 3, check xtask/src/task/lint.rs every_commit_off_the_base_branch_has_noreply_author_and_committer_emails): Enforced in three places, (2): cargo xtask ci (lint) fails on any commit in the PR range whose author or committer email isn't noreply.
+- `identity-claim` (features-and-maintenance, rung 3, check crates/meta-cli/tests/cli.rs failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_and_a_noreply_worktree_is_listed): Enforced in three places, (3): `meta claim` sets the noreply identity on worktrees it creates.
+- `identity-address-source` (features-and-maintenance, rung 3, check crates/meta-cli/src/request/local/tests.rs settings_default_to_a_sibling_root_resolve_relative_roots_and_refuse_foreign_emails): The noreply address comes from local config, not from the repo.
 
 ## Agent pool and model tiers (owner, 2026-10-26)
 - `pool-shared` (architecture-and-planning, rung 1, no enforcer): Agents are drawn from one shared pool, allocated centrally.
@@ -145,6 +145,25 @@ Sections down to the next top-level heading are rendered from the rule records i
 - `tier-typed-field` (architecture-and-planning, rung 1, no enforcer): The rating is a typed field on the task that the agent-pool allocator reads.
 - `tier-escalation` (architecture-and-planning, rung 1, no enforcer): When a cheap tier fails review or CI, the task escalates one tier and the miss is recorded, so ratings calibrate over time.
 - `tier-spend` (architecture-and-planning, rung 1, no enforcer): Spend is counted against the performance-and-cost budget.
+
+## Decisions (owner, 2026-10-27)
+- `ci-tracked-work` (features-and-maintenance, rung 3, check xtask/src/task/ci/tracked_work.rs no_branch_no_task_unknown_retired_or_unclaimed_tasks_and_an_unreadable_log_fail_with_the_remedy): CI fails a pull request whose work is not tracked in meta: its branch must name a claimed task.
+- `hook-claimed-writes` (architecture-and-planning, rung 1, no enforcer): Agent hooks refuse file writes and commits outside a claimed task.
+- `hook-rules-injected` (architecture-and-planning, rung 1, no enforcer): Agent hooks inject the branch's task, a short status and the rules into every session and subagent.
+- `monitor-report-only` (performance-and-cost, rung 3, check crates/meta-cli/src/request/local/monitor/tests.rs by_default_the_monitor_signals_nothing_and_reports_this_projects_processes_in_two_tiers): The monitor reports this project's processes in two tiers (obvious, watch) and stops nothing unless stopping is opted in.
+- `init-rust-idempotent` (architecture-and-planning, rung 1, no enforcer): `meta init` adopts Rust projects only and is idempotent: a set-up project is a no-op and a partial one gets only its missing steps.
+- `init-explicit-keys` (architecture-and-planning, rung 1, no enforcer): `meta init` and `meta upgrade` write every file and policy key explicitly; no default stays hidden in code.
+- `init-baseline-seeding` (architecture-and-planning, rung 1, no enforcer): CI allows the lint baseline to be created once, in the adoption PR whose merge base has no meta setup; later PRs may only shrink it.
+- `init-ruleset-confirmed` (architecture-and-planning, rung 1, no enforcer): `meta init` applies the main ruleset only after the owner confirms it; run by an agent, it prints the command instead.
+- `init-actions-gate` (architecture-and-planning, rung 1, no enforcer): The required gate is the GitHub Actions ci-gate by default; switching to the local gate is explicit and visible.
+- `init-existing-ci` (architecture-and-planning, rung 1, no enforcer): `meta init` adds its CI job beside a project's existing jobs and makes ci-gate need them all, so adoption never loosens a check.
+- `meta-pinned-xtask` (architecture-and-planning, rung 1, no enforcer): Hooks, the monitor and agents run meta through the project's pinned xtask; there is no global install.
+- `meta-upgrade` (architecture-and-planning, rung 1, no enforcer): `meta upgrade` moves the meta-dev pin and rewrites the setup with the init writer, adding new policy keys with their defaults.
+- `dispatch-route-b` (architecture-and-planning, rung 1, no enforcer): Subagents go through `meta dispatch` in hooks: none without a claimed task, and each gets the rules block, a tier and a lease.
+- `standing-merge-base-policy` (architecture-and-planning, rung 1, no enforcer): Standing budgets on a pull request are enforced from the merge-base policy; on other runs they are only reported.
+- `acceptance-list-current` (architecture-and-planning, rung 1, no enforcer): The acceptance list in self/spec stays current: every postmortem lesson is an entry, met (naming its enforcer) or pending (naming its open concern).
+- `spec-enforcer-exists` (features-and-maintenance, rung 3, check self/spec/src/spec_view.rs the_checked_in_spec_passes_its_check_rule_ids_are_unique_and_a_lost_enforcer_is_named): CI fails when a rule names an enforcer that does not exist.
+- `spec-enforcer-drift` (features-and-maintenance, rung 3, check xtask/src/task/lint/spec_prose/spec_drift.rs a_changed_enforcer_fails_only_while_its_rule_record_is_unchanged_since_the_merge_base): CI fails when a pull request changes a rule's enforcer file but not that rule's record.
 
 # Not yet converted: hand-written prose, 1846 words
 
