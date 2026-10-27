@@ -241,14 +241,28 @@ impl Scene {
 
 #[test]
 fn gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_with_reasons() {
+    let started = std::time::Instant::now();
     let scene = Scene::new();
+    let setup = started.elapsed();
+    let probe = |program: &str, args: &[&str]| {
+        let begun = std::time::Instant::now();
+        (0..10).for_each(|_| drop(Command::new(program).args(args).output()));
+        begun.elapsed() / 10
+    };
+    let lsof = probe("lsof", &["-w", "-F", "n", "+D", scene.trees.path().to_str().unwrap()]);
+    let git = probe("git", &["--version"]);
+    let meta = probe(META, &["nonexistent"]);
     let trees = scene.trees();
     let _held = File::open(trees.join(BUSY).join(".git")).unwrap();
     let shows = |shown: &str, lines: &[Line]| lines.iter().all(|line| shown.contains(&Shown(line, &trees).to_string()));
     let freed = Freed(&trees).to_string();
+    let before_dry = started.elapsed();
     let ticked = scene.meta(&GC_RUN);
+    let dry = started.elapsed();
     assert!(ticked.contains(&Shown(&PLANNED, &trees).to_string()) && trees.join(MERGED).exists(), "{ticked}");
     let swept = scene.meta(&GC);
+    let real = started.elapsed();
+    assert!(false, "PROBE setup {setup:?} dry_run {:?} real_run {:?} lsof {lsof:?} git {git:?} meta {meta:?} probes {:?}", dry - before_dry, real - dry, before_dry - setup);
     let trail = std::fs::read_to_string(scene.clone.path().join(TRAIL)).unwrap();
     let branch = Git::run(scene.clone.path(), &["branch", "--list", MERGED]).stdout;
     assert!(
