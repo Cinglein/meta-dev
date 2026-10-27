@@ -7,7 +7,7 @@ use std::str::FromStr;
 
 use meta_log::GitLog;
 
-use crate::request::ci::{Commit, ReflogEntry, StartMoment};
+use crate::request::ci::{Commit, GitLink, ReflogEntry, StartMoment};
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
 use crate::request::timed_command::TimedCommand;
@@ -36,7 +36,7 @@ impl Project {
         &self.config
     }
 
-    pub fn push_current_branch(&self) -> Option<Result<Commit, Listed>> {
+    pub fn push_failure(&self) -> Option<Listed> {
         let remote = self.config.remote().ok()?.to_string();
         let unprotected = self.unprotected_branch()?;
         let pushed = Command::new("git")
@@ -45,14 +45,8 @@ impl Project {
             .args(["push", "--quiet", "-u", &remote, &unprotected.to_string()])
             .output()
             .ok()?;
-        let head = Command::new("git").arg("-C").arg(&self.root).args(["rev-parse", "HEAD"]).output().ok()?;
-        Some(if pushed.status.success() {
-            String::from_utf8_lossy(&head.stdout).parse().map_err(|never| match never {})
-        } else {
-            Err(Listed::new(format!(
-                "push of {unprotected} failed: {}",
-                String::from_utf8_lossy(&pushed.stderr).trim()
-            )))
+        (!pushed.status.success()).then(|| {
+            Listed::new(format!("push of {unprotected} failed: {}", String::from_utf8_lossy(&pushed.stderr).trim()))
         })
     }
 
@@ -133,8 +127,7 @@ impl Project {
     }
 
     pub fn unprotected_branch(&self) -> Option<BranchName> {
-        let current = Command::new("git").arg("-C").arg(&self.root).args(["branch", "--show-current"]).output().ok()?;
-        let branch: BranchName = String::from_utf8_lossy(&current.stdout).trim().parse().ok()?;
+        let branch: BranchName = GitLink::current_branch(&self.root)?.parse().ok()?;
         Some(branch).filter(|branch| !branch.to_string().is_empty() && self.config.protects(branch).is_none())
     }
 }

@@ -10,7 +10,7 @@ use super::commit::Commit;
 use super::session_id::SessionId;
 use crate::request::output::Listed;
 use crate::request::project::Project;
-use git_link::GitLink;
+pub use git_link::GitLink;
 use watch_state::WatchState;
 
 #[derive(Clone, Debug)]

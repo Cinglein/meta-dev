@@ -10,7 +10,7 @@ mod watcher;
 
 pub use commit::Commit;
 pub use reflog_entry::ReflogEntry;
-pub use session_dir::SessionDir;
+pub use session_dir::{GitLink, SessionDir};
 pub use session_id::SessionId;
 pub use session_start::SessionStart;
 pub use start_moment::StartMoment;
