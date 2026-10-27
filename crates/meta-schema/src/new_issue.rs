@@ -32,6 +32,11 @@ impl NewIssue {
     }
 
     #[must_use]
+    pub fn placed(self, division: Division) -> Self {
+        Self { division: Placement::new(division), ..self }
+    }
+
+    #[must_use]
     pub fn rating(&self) -> Rating {
         Rating::from(self.severity.clone())
     }

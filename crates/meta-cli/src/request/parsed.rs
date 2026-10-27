@@ -12,6 +12,7 @@ use meta_schema::{
 use crate::request::ci::{Commit, SessionId};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
 use crate::request::rate::Rate;
+use crate::request::relocate::Relocate;
 use crate::request::status_view::StatusView;
 pub use option_name::OptionName;
 use word::Word;
@@ -145,6 +146,21 @@ impl Parsed {
                 self.scenario.clone(),
             )),
             _ => Err(CliFailure::raised::<Misuse>("expected a concern or issue id and a level")),
+        }
+    }
+
+    pub fn relocation(&self) -> Result<Relocate, CliFailure> {
+        match self.words.as_slice() {
+            [_] if self.severity.is_none() && self.scenario.is_some() => {
+                Err(CliFailure::raised::<Misuse>("--scenario needs --severity"))
+            }
+            [item] => Ok(Relocate::new(
+                item.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
+                self.division()?,
+                self.severity(),
+                self.scenario.clone(),
+            )),
+            _ => Err(CliFailure::raised::<Misuse>("expected one concern or issue id")),
         }
     }
 

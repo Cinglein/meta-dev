@@ -1,6 +1,6 @@
 use std::fmt;
 
-use meta_schema::{LevelName, NewConcern, Tag, Target, Text};
+use meta_schema::{Division, LevelName, NewConcern, Tag, Target, Text};
 
 use crate::rated_item::RatedItem;
 use crate::stamp::Stamp;
@@ -18,6 +18,10 @@ impl ConcernState {
 
     pub fn rerate(&mut self, level: LevelName) {
         self.concern = self.concern.clone().rated(level);
+    }
+
+    pub fn relocate(&mut self, division: Division, level: Option<LevelName>) {
+        self.concern = level.into_iter().fold(self.concern.clone().placed(division), NewConcern::rated);
     }
 
     pub fn new(concern: NewConcern, identified: Stamp) -> Self {

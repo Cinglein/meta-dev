@@ -1,11 +1,18 @@
-use meta_schema::{Change, Event, LevelName, Rating, Rerating, Target};
+use meta_schema::{Change, Event, LevelName, Placement, Rating, Rerating, Target};
 
 use super::{Events, Items, OWNER, Script};
+use crate::rated_item::RatedItem;
 use crate::refusal::Refusal;
 use crate::state::State;
 
 const MAJOR: &str = "major";
 const MINOR: &str = "minor";
+const COST: &str = "performance-and-cost";
+const ISSUE: &str = "issue-00000000000000bb";
+const REPORTED: &str =
+    r#"{"kind":"IssueReported","issue":"issue-00000000000000bb","text":"x","division":"features-and-maintenance"}"#;
+const MOVED: &str = r#"{"kind":"ItemMoved","item":"issue-00000000000000bb","from":"features-and-maintenance","division":"performance-and-cost","carry":{"step":"unrated"}}"#;
+const RATED: &str = r#"{"kind":"ItemRated","item":"issue-00000000000000bb","division":"features-and-maintenance","change":{"step":"first","level":"minor"}}"#;
 
 struct Levels;
 
@@ -15,7 +22,7 @@ impl Levels {
     }
 
     fn rated(item: Target, change: Change) -> Event {
-        Event::ItemRated(Rerating::new(item, change))
+        Event::ItemRated(Rerating::new(item, Items::division(), change))
     }
 
     fn rating(script: &Script, item: Target) -> Option<Rating> {
@@ -40,6 +47,19 @@ fn a_change_applies_only_over_the_rating_it_replaces() {
     );
     let stale = [rated.vet(OWNER, first), lower.vet(OWNER, Levels::rated(reported, lowered))];
     assert_eq!(stale, [MAJOR, MINOR].map(|level| Err(Refusal::RatedSince(Rating::Rated(Levels::named(level))))));
+}
+
+#[test]
+fn a_move_and_a_rating_built_from_the_same_state_never_both_apply() {
+    let event = |line: &str| serde_json::from_str::<Event>(line).unwrap();
+    let reported = Script::default().then(OWNER, event(REPORTED));
+    let [moved, rated] = [MOVED, RATED].map(|line| reported.clone().then(OWNER, event(line)));
+    let minor = Rating::Rated(Levels::named(MINOR));
+    let item = Target::Issue(ISSUE.parse().unwrap());
+    let placed = RatedItem::new(item, Placement::new(COST.parse().unwrap()), Rating::Unrated);
+    assert_eq!(State::fold(&moved.records).rated_item(item), Some(placed));
+    let refusals = [moved.vet(OWNER, event(RATED)), rated.vet(OWNER, event(MOVED)), moved.vet(OWNER, event(MOVED))];
+    assert_eq!(refusals, [Err(Refusal::MovedSince), Err(Refusal::RatedSince(minor)), Err(Refusal::MovedSince)]);
 }
 
 #[test]
