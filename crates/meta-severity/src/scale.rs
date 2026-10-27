@@ -69,15 +69,20 @@ impl Scale {
             .zip(self.0.iter().skip(1))
             .find(|(pair, _)| matches!(pair, [Some(above), Some(below)] if below < above));
         let uncovered = parent.and_then(|parent| parent.uncovered_by(self));
-        match (self.0.first(), top_mapped, unmapped, twice, broken, uncovered) {
-            (None, ..) => Err(ScaleFailure::Empty(division.clone())),
-            (Some(_), Some(level), ..) => Err(refused(ScaleFailure::TopMapped, level)),
-            (Some(_), None, Some((level, _)), ..) => Err(refused(ScaleFailure::Unmapped, level)),
-            (Some(_), None, None, Some((_, level)), ..) => Err(refused(ScaleFailure::Twice, level)),
-            (Some(_), None, None, None, Some((_, level)), _) => Err(refused(ScaleFailure::OrderBroken, level)),
-            (Some(_), None, None, None, None, Some(above)) => Err(refused(ScaleFailure::Uncovered, above)),
-            (Some(_), None, None, None, None, None) => Ok(()),
-        }
+        let renamed = parent.and_then(|parent| parent.renamed_in(self));
+        let empty = self.0.first().map_or(Some(ScaleFailure::Empty(division.clone())), |_| None);
+        let failure = empty
+            .or_else(|| top_mapped.map(|level| refused(ScaleFailure::TopMapped, level)))
+            .or_else(|| unmapped.map(|(level, _)| refused(ScaleFailure::Unmapped, level)))
+            .or_else(|| renamed.map(|level| refused(ScaleFailure::Renamed, level)))
+            .or_else(|| twice.map(|(_, level)| refused(ScaleFailure::Twice, level)))
+            .or_else(|| broken.map(|(_, level)| refused(ScaleFailure::OrderBroken, level)))
+            .or_else(|| uncovered.map(|above| refused(ScaleFailure::Uncovered, above)));
+        failure.map_or(Ok(()), Err)
+    }
+
+    fn renamed_in<'child>(&self, child: &'child Scale) -> Option<&'child Level> {
+        child.0.iter().find(|level| self.level(level.name()).is_some() && level.parent() != Some(level.name()))
     }
 
     fn uncovered_by(&self, child: &Scale) -> Option<&Level> {
