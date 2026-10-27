@@ -97,10 +97,10 @@ const REFUSED: [Case; 62] = [
     Case("per-worktree refs cannot be listed (reftable)", |host| {
         host.entry_is("/clone/.git/worktrees/task-00000000000000b1/reftable", EntryKind::Dir);
     }),
-    Case(PAUSED, |host| host.holds(&["CHERRY_PICK_HEAD"])),
-    Case(PAUSED, |host| host.holds(&["MERGE_HEAD"])),
-    Case(PAUSED, |host| host.holds(&["REVERT_HEAD"])),
-    Case(PAUSED, |host| host.holds(&["REBASE_HEAD"])),
+    Case(PAUSED, |host| host.entry_is("/clone/.git/worktrees/task-00000000000000b1/CHERRY_PICK_HEAD", EntryKind::File)),
+    Case(PAUSED, |host| host.entry_is("/clone/.git/worktrees/task-00000000000000b1/MERGE_HEAD", EntryKind::File)),
+    Case(PAUSED, |host| host.entry_is("/clone/.git/worktrees/task-00000000000000b1/REVERT_HEAD", EntryKind::File)),
+    Case(PAUSED, |host| host.entry_is("/clone/.git/worktrees/task-00000000000000b1/REBASE_HEAD", EntryKind::File)),
     Case(PAUSED, |host| host.entry_is("/clone/.git/worktrees/task-00000000000000b1/rebase-merge", EntryKind::Dir)),
     Case(PAUSED, |host| host.entry_is("/clone/.git/worktrees/task-00000000000000b1/rebase-apply", EntryKind::Dir)),
     Case(PAUSED, |host| host.entry_is("/clone/.git/worktrees/task-00000000000000b1/sequencer", EntryKind::Dir)),
