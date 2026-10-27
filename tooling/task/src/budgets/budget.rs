@@ -95,7 +95,7 @@ impl Budget {
 
     #[must_use]
     pub fn top_measure(&self) -> Option<Measure> {
-        (!self.division.is_nested() && self.allowance.whole().is_some()).then_some(self.measure)
+        self.allowance.whole().map(|_| self.measure)
     }
 
     #[must_use]
@@ -147,9 +147,7 @@ impl Budget {
             }
             (_, None) if self.division.is_nested() => refused(TreeFailure::NestedWhole),
             (_, Some(None)) => refused(TreeFailure::NoParent),
-            (_, Some(Some(parent)))
-                if parent.measure.unit() == Unit::Baseline || unit == Unit::Baseline =>
-            {
+            (_, Some(Some(parent))) if parent.measure.unit() == Unit::Baseline => {
                 refused(TreeFailure::BaselinePart)
             }
             (_, Some(Some(parent))) if !parent.division.strictly_contains(&self.division) => {

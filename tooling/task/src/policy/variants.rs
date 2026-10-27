@@ -15,7 +15,13 @@ const TANGLES: &str = "allowance = { count = 83 }\n";
 const LOCAL: &str = "source = \"local_gate\"\n";
 const PRICE: &str = "allowance = { share = 100 }\n";
 
-const REFUSED: [(&str, &str, &str, &str); 16] = [
+const REFUSED: [(&str, &str, &str, &str); 17] = [
+    (
+        "meta",
+        END,
+        "\n[budgets.x-findings]\ndivision = \"performance-and-cost/x\"\nmeasure = \"lint_findings\"\nallowance = { of = \"test-time\", percent = 10 }\nwindow = \"per_change\"\nsource = \"ci\"\n",
+        "its allowance is not in its measure's unit",
+    ),
     (
         "meta",
         END,
