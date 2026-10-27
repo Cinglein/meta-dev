@@ -265,9 +265,9 @@ fn gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_wit
     assert!(
         real < setup,
         "PROBE setup {setup:?} dry_run {:?} real_run {:?} lsof {lsof:?} git {git:?} meta {meta:?} probes {:?}",
-        dry - before_dry,
-        real - dry,
-        before_dry - setup
+        dry.saturating_sub(before_dry),
+        real.saturating_sub(dry),
+        before_dry.saturating_sub(setup)
     );
     let trail = std::fs::read_to_string(scene.clone.path().join(TRAIL)).unwrap();
     let branch = Git::run(scene.clone.path(), &["branch", "--list", MERGED]).stdout;
