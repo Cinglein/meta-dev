@@ -581,3 +581,4 @@
 {"at":"2026-10-27T17:08:52.787479Z","actor":"claude-monitor","kind":"TaskClaimed","task":"task-843b490c6c281d89"}
 {"at":"2026-10-27T17:15:37.537976Z","actor":"claude-lead","kind":"SchemaVersion","version":6}
 {"at":"2026-10-27T17:15:40.009498Z","actor":"claude-lead","kind":"ItemMoved","item":"concern-331d5a90708fde77","division":"performance-and-cost","carry":{"step":"changed","change":{"step":"first","level":"minor"}}}
+{"at":"2026-10-27T17:15:42.328657Z","actor":"claude-lead","kind":"ItemMoved","item":"concern-bee0d30d1c1fca28","division":"features-and-maintenance","carry":{"step":"changed","change":{"step":"first","level":"minor"}}}
