@@ -15,10 +15,10 @@ pub struct BudgetDrafts(BTreeMap<BudgetId, Budget>);
 
 impl BudgetDrafts {
     #[must_use]
-    pub fn measures(&self, measure: Measure) -> bool {
+    pub fn measures(&self, measure: &Measure) -> bool {
         self.0
             .values()
-            .any(|budget| budget.top_measure() == Some(measure))
+            .any(|budget| budget.top_measure().as_ref() == Some(measure))
     }
 
     pub fn adding(

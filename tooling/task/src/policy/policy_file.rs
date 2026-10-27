@@ -109,7 +109,7 @@ impl PolicyFile {
     }
 
     fn placed(&self, key: LegacyKey) -> Result<(), PolicyFailure> {
-        match (self.legacy(key), self.budgets.measures(key.measure())) {
+        match (self.legacy(key), self.budgets.measures(&key.measure())) {
             (Some(_), true) => Err(PolicyFailure::Twice(key)),
             (None, false) => Err(PolicyFailure::Unset(key)),
             (Some(_), false) | (None, true) => Ok(()),
@@ -141,13 +141,14 @@ impl PolicyFile {
             .filter(|key| self.legacy(*key).is_some())
             .collect();
         budgets.measurable(&self.domains)?;
+        budgets.leveled(&self.scales)?;
         let amount =
-            |key: Option<LegacyKey>| key.and_then(|key| budgets.blocking_line(key.measure()));
+            |key: Option<LegacyKey>| key.and_then(|key| budgets.blocking_line(&key.measure()));
         let baseline = budgets
-            .whole(Measure::LintFindings)
+            .whole(&Measure::LintFindings)
             .and_then(|budget| budget.allowance().whole().cloned());
         let tolerance = budgets
-            .whole(Measure::MutantPrice)
+            .whole(&Measure::MutantPrice)
             .map(|budget| budget.tolerance().unwrap_or(Percent::NONE));
         Ok(Policy {
             vague: self.vague,
@@ -161,7 +162,7 @@ impl PolicyFile {
                 .cloned()
                 .ok_or(PolicyFailure::Missing(Self::BASELINE))?,
             price_line: budgets
-                .blocking_line(Measure::MutantPrice)
+                .blocking_line(&Measure::MutantPrice)
                 .as_ref()
                 .and_then(Amount::share)
                 .ok_or(PolicyFailure::Missing(Self::PRICE))?,

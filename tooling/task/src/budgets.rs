@@ -8,6 +8,7 @@ mod tree_failure;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use meta_severity::Scales;
 use serde::{Deserialize, Serialize};
 
 use super::domains::Domains;
@@ -36,14 +37,14 @@ impl Budgets {
     }
 
     #[must_use]
-    pub fn whole(&self, measure: Measure) -> Option<&Budget> {
+    pub fn whole(&self, measure: &Measure) -> Option<&Budget> {
         self.0
             .values()
-            .find(|budget| budget.top_measure() == Some(measure))
+            .find(|budget| budget.top_measure().as_ref() == Some(measure))
     }
 
     #[must_use]
-    pub fn blocking_line(&self, measure: Measure) -> Option<Amount> {
+    pub fn blocking_line(&self, measure: &Measure) -> Option<Amount> {
         self.whole(measure).and_then(Budget::blocking_line)
     }
 
@@ -97,6 +98,12 @@ impl Budgets {
             .iter()
             .try_for_each(|(id, budget)| budget.measurable(id, domains))
     }
+
+    pub fn leveled(&self, scales: &Scales) -> Result<(), TreeFailure> {
+        self.0
+            .iter()
+            .try_for_each(|(id, budget)| budget.leveled(id, scales))
+    }
 }
 
 impl TryFrom<BTreeMap<BudgetId, Budget>> for Budgets {
@@ -110,7 +117,9 @@ impl TryFrom<BTreeMap<BudgetId, Budget>> for Budgets {
         let duplicate = budgets.iter().find_map(|(id, budget)| {
             budget
                 .top_measure()
-                .filter(|measure| !measured.insert((*measure, budget.standing_in().cloned())))
+                .filter(|measure| {
+                    !measured.insert((measure.clone(), budget.standing_in().cloned()))
+                })
                 .map(|_| id.clone())
         });
         let tree = Budgets(budgets);
