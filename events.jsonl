@@ -676,3 +676,4 @@
 {"at":"2026-10-27T19:01:29.413036Z","actor":"claude-lead","kind":"TaskDone","task":"task-ba8dab8b4563667d"}
 {"at":"2026-10-27T19:04:41.987141Z","actor":"claude-chess","kind":"TaskClaimed","task":"task-4c14b6e81a6c8af4"}
 {"at":"2026-10-27T19:08:08.432271Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-0a244bf0ba2c20d3","text":"superseded (owner OK 2026-10-27): stage 0 (meta/log, schema, meta CLI, hooks) is built and merged in later PRs; holder long gone"}
+{"at":"2026-10-27T19:08:12.074117Z","actor":"claude-lead","kind":"TaskOpened","task":"task-511e01fba4cfff25","text":"Count undivided root items toward budgets (leftover of task-475d2c0b after meta move #42): finish placing the remaining root items via triage, then make root items count toward every top division's standing budgets so a missing division can't hide debt.","division":"features-and-maintenance"}
