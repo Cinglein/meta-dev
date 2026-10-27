@@ -1,4 +1,3 @@
-#[cfg(test)]
 mod cargo_build;
 mod cargo_test;
 mod no_tests;
@@ -12,7 +11,6 @@ use std::cmp::Reverse;
 use std::fs;
 use std::time::Duration;
 
-#[cfg(test)]
 use cargo_build::CargoBuild;
 use cargo_test::CargoTest;
 use no_tests::NoTests;
@@ -53,8 +51,14 @@ impl TestTime {
                     site: Site::Workspace,
                     error,
                 })?;
-                let cargo =
-                    |selection| CargoTest::new(workspace.line(Program::Cargo), selection, policy);
+                let line = || workspace.line(Program::Cargo);
+                selection
+                    .within(workspace.packages().with_examples())
+                    .reaching()
+                    .map_or(Ok(()), |examples| {
+                        CargoBuild::examples(line(), examples, policy).run()
+                    })?;
+                let cargo = |selection| CargoTest::new(line(), selection, policy);
                 let ran = cargo(selection)
                     .through(&RunnerConfig::current()?)
                     .environment(TestRunner::RUNS, runs.path())

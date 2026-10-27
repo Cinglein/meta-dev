@@ -30,6 +30,12 @@ impl Package {
             .is_some()
     }
 
+    pub fn example(&self) -> Option<&BuiltTarget> {
+        self.targets
+            .iter()
+            .find(|target| target.example().is_some())
+    }
+
     pub fn directory(&self, workspace_root: &Path) -> PathBuf {
         self.manifest_path
             .parent()

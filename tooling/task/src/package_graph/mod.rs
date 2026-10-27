@@ -7,12 +7,15 @@ use metadata::Metadata;
 
 use crate::crate_name::CrateName;
 use crate::failure::Failure;
+#[cfg(test)]
+use crate::selection::Selection;
 
 #[derive(Debug)]
 pub struct PackageGraph {
     directories: BTreeMap<CrateName, PathBuf>,
     dependents: BTreeMap<CrateName, BTreeSet<CrateName>>,
     doctested: BTreeSet<CrateName>,
+    with_examples: BTreeSet<CrateName>,
 }
 
 impl PackageGraph {
@@ -33,12 +36,8 @@ impl PackageGraph {
             },
         );
         Ok(PackageGraph {
-            doctested: metadata
-                .packages()
-                .iter()
-                .filter(|package| package.doctested())
-                .map(|package| package.name().clone())
-                .collect(),
+            doctested: metadata.names_where(metadata::Package::doctested),
+            with_examples: metadata.names_where(|package| package.example().is_some()),
             directories: metadata
                 .packages()
                 .iter()
@@ -69,6 +68,10 @@ impl PackageGraph {
     #[must_use]
     pub fn doctested(&self) -> &BTreeSet<CrateName> {
         &self.doctested
+    }
+
+    pub fn with_examples(&self) -> impl Iterator<Item = &CrateName> {
+        self.with_examples.iter()
     }
 
     #[must_use]
@@ -102,11 +105,11 @@ impl PackageGraph {
 
 #[cfg(test)]
 mod tests {
-    use super::PackageGraph;
+    use super::{PackageGraph, Selection};
     use std::collections::BTreeSet;
     use std::path::Path;
     const METADATA: &str = r#"{"workspace_root": "/w", "packages": [
-        {"name": "board", "manifest_path": "/w/crates/board/Cargo.toml", "dependencies": [{"name": "serde", "path": null}], "targets": [{"doctest": true}]},
+        {"name": "board", "manifest_path": "/w/crates/board/Cargo.toml", "dependencies": [{"name": "serde", "path": null}], "targets": [{"doctest": true, "kind": ["lib"]}, {"doctest": false, "kind": ["example"]}]},
         {"name": "search", "manifest_path": "/w/crates/search/Cargo.toml", "dependencies": [{"name": "board", "path": "/w/crates/board"}]},
         {"name": "engine", "manifest_path": "/w/crates/engine/Cargo.toml", "dependencies": [{"name": "search", "path": "/w/crates/search"}]}
     ]}"#;
@@ -133,17 +136,11 @@ mod tests {
     #[test]
     fn a_path_belongs_to_the_package_whose_manifest_directory_contains_it() {
         let graph = PackageGraph::from_metadata(METADATA).unwrap();
-        assert_eq!(
-            (
-                graph.containing(Path::new(INSIDE)),
-                graph.containing(Path::new(OUTSIDE)),
-                graph
-                    .doctested()
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<String>>()
-            ),
-            (BOARD.parse().ok().as_ref(), None, vec![BOARD.to_owned()])
-        );
+        let board = BOARD.parse().ok();
+        let inside = graph.containing(Path::new(INSIDE)) == board.as_ref();
+        let examples = Selection::Workspace.within(graph.with_examples());
+        let targets = examples == Selection::Crates(graph.doctested().clone());
+        assert!(inside && graph.containing(Path::new(OUTSIDE)).is_none() && targets);
+        assert_eq!(examples.to_string(), BOARD);
     }
 }

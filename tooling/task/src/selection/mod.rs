@@ -32,13 +32,15 @@ impl Selection {
     }
 
     #[must_use]
-    pub fn within(&self, names: &BTreeSet<CrateName>) -> Selection {
-        match self {
-            Selection::Workspace => Selection::Crates(names.clone()),
-            Selection::Crates(crates) => {
-                Selection::Crates(crates.intersection(names).cloned().collect())
-            }
-        }
+    pub fn within<'names>(&self, names: impl IntoIterator<Item = &'names CrateName>) -> Selection {
+        let names = names.into_iter();
+        Selection::Crates(match self {
+            Selection::Workspace => names.cloned().collect(),
+            Selection::Crates(crates) => names
+                .filter(|name| crates.contains(name))
+                .cloned()
+                .collect(),
+        })
     }
 
     #[must_use]

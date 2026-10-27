@@ -35,6 +35,12 @@ pub enum CargoArgument {
     Tests,
     #[strum(serialize = "--doc")]
     Doc,
+    #[strum(serialize = "build")]
+    Build,
+    #[strum(serialize = "--examples")]
+    Examples,
+    #[strum(serialize = "--profile")]
+    Profile,
     #[strum(serialize = "--config")]
     Config,
     #[strum(serialize = "--color")]
