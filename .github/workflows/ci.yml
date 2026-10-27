@@ -32,6 +32,8 @@ jobs:
           PULL_REQUEST: ${{ github.event.pull_request.number }}
       - run: cargo xtask ci
         working-directory: examples/consumer
+        env:
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
 
   stacked:
     if: github.event_name == 'pull_request'

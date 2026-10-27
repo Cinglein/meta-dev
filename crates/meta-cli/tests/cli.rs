@@ -39,6 +39,10 @@ const LOCAL_SETTINGS_RULE: &str = "/meta.local.toml\n";
 const NOT_A_DIRECTORY: &str = "/dev/null";
 const IGNORED: &str = "not gitignored";
 const GIT_CALL: &str = "git -C /";
+const TRACE: &str = "GIT_TRACE2_EVENT";
+const STARTED: &str = "\"event\":\"start\"";
+const LISTING: &str = "\"hierarchy\":\"ls-remote\"";
+const READ_PROCESSES: [&str; 3] = ["ls-remote", "upload-pack", "cat-file"];
 
 #[path = "support/skeleton.rs"]
 mod skeleton;
@@ -92,6 +96,18 @@ struct Complaint(String);
 
 struct Written(String);
 
+struct Traced(Run, String);
+
+impl Traced {
+    fn run(project: &Project, words: &[&str]) -> Self {
+        let trace = tempfile::NamedTempFile::new().unwrap();
+        let mut command = Command::new(META);
+        command.current_dir(project.clone.path()).args(words).env_remove("META_ACTOR").env("USER", LOCAL_NAME);
+        command.env(TRACE, trace.path());
+        Self(Run(command.output().unwrap()), std::fs::read_to_string(trace.path()).unwrap())
+    }
+}
+
 impl Run {
     const ACTOR_INDEX: usize = 2;
     const ID_INDEX: usize = 4;
@@ -144,20 +160,16 @@ impl Project {
     fn meta(&self, actor: &str, words: &[&str]) -> Run {
         Run(Command::new(META).current_dir(self.clone.path()).args(words).env("META_ACTOR", actor).output().unwrap())
     }
-
-    fn meta_unset(&self, words: &[&str]) -> Run {
-        let mut command = Command::new(META);
-        command.current_dir(self.clone.path()).args(words).env_remove("META_ACTOR").env("USER", LOCAL_NAME);
-        Run(command.output().unwrap())
-    }
 }
 
 #[test]
-fn writes_go_to_the_remote_as_meta_actor_else_owner_and_offline_writes_are_refused() {
+fn writes_go_to_the_remote_as_meta_actor_else_owner_listing_it_once_and_offline_writes_are_refused() {
     let project = Project::new();
-    let opened = project.meta_unset(&ISSUE);
-    let listed = project.meta(OWNER, &LIST_ISSUES).to_string();
-    assert!(opened.actor().as_deref() == Some(OWNER) && listed.contains(&opened.written().0));
+    let opened = Traced::run(&project, &ISSUE);
+    let listed = Traced::run(&project, &LIST_ISSUES);
+    let started = listed.1.matches(STARTED).count();
+    assert!(opened.0.actor().as_deref() == Some(OWNER) && listed.0.to_string().contains(&opened.0.written().0));
+    assert!(opened.1.matches(LISTING).count() == 1 && (1..=READ_PROCESSES.len()).contains(&started), "{started}");
     assert!(Run(Git::run(project.origin.path(), &COUNT)).to_string().starts_with(WRITES));
     assert_eq!(project.meta(WRITER, &ISSUE).actor().as_deref(), Some(WRITER));
     Git::run(project.clone.path(), &NOWHERE);

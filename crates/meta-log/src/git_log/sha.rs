@@ -4,6 +4,14 @@ use std::str::FromStr;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Sha(String);
 
+impl Sha {
+    const HEX_LENGTH_PER_BYTE: usize = 2;
+
+    pub(crate) fn digest_length(&self) -> usize {
+        self.0.len() / Self::HEX_LENGTH_PER_BYTE
+    }
+}
+
 impl FromStr for Sha {
     type Err = std::convert::Infallible;
 
