@@ -1,4 +1,5 @@
 mod identity;
+mod monitor_settings;
 
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -8,6 +9,7 @@ use serde::Deserialize;
 use super::local_file::LocalFile;
 use crate::request::cli_failure::{CliFailure, Setup};
 use identity::Identity;
+pub use monitor_settings::{AgentRoot, Cause, MonitorSettings, SparedName, TickCount};
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -16,11 +18,14 @@ pub struct LocalSettings {
     worktree_root: Option<PathBuf>,
     #[serde(default)]
     identity: Option<Identity>,
+    #[serde(default)]
+    monitor: toml::Table,
 }
 
 impl LocalSettings {
     pub const FILE: &'static str = "meta.local.toml";
     const SIBLING_SUFFIX: &'static str = "-worktrees";
+    const HOME: &'static str = "HOME";
 
     pub fn read(checkout: &Path) -> Result<Self, CliFailure> {
         let file = LocalFile::new(checkout.join(Self::FILE));
@@ -35,6 +40,14 @@ impl LocalSettings {
             },
             |root| checkout.join(root),
         )
+    }
+
+    pub fn monitor(&self, checkout: &Path) -> Result<MonitorSettings, CliFailure> {
+        let home = std::env::var_os(Self::HOME)
+            .map(PathBuf::from)
+            .ok_or_else(|| CliFailure::raised::<Setup>("monitor: $HOME is unset"))?;
+        MonitorSettings::merged(self.monitor.clone(), checkout, &self.worktree_root(checkout), &home)
+            .map_err(|failure| CliFailure::raised::<Setup>(format!("{} [monitor]: {failure}", Self::FILE)))
     }
 
     pub fn identity(&self) -> Result<&Identity, CliFailure> {
