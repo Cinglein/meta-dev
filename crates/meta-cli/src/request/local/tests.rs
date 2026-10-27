@@ -21,6 +21,7 @@ const DIVISION: &str = "features-and-maintenance";
 const GONE: &str = "/nonexistent/gone";
 const DROPPED: &str = "/nonexistent/dropped";
 const STRAY: &str = "/nonexistent/stray";
+const QUARANTINED: &str = "/nonexistent/.gc-gone-1x0";
 const MISSING: &str = " missing";
 const UNRECORDED: &str = "unrecorded ";
 const TRAIL_DIR: &str = "meta-local";
@@ -86,9 +87,11 @@ fn appends_after_a_torn_line_start_a_new_line_and_reads_skip_the_torn_line_with_
     std::fs::write(git_dir.path().join(TRAIL), TORN).unwrap();
     let created =
         [GONE, STRAY].map(|path| TrailEntry::Created(RecordedWorktree::new(PathBuf::from(path), Id::generate())));
-    assert!(created.iter().all(|entry| LocalTrail::append(git_dir.path(), entry).is_ok()));
+    let moved = TrailEntry::Moved { path: PathBuf::from(GONE), to: PathBuf::from(QUARANTINED), at: chrono::Utc::now() };
+    assert!(created.iter().chain([&moved]).all(|entry| LocalTrail::append(git_dir.path(), entry).is_ok()));
     let trail = LocalTrail::read(git_dir.path()).unwrap();
     let torn: Vec<String> = trail.torn().iter().map(ToString::to_string).collect();
     assert!(torn.len() == 1 && torn.iter().all(|line| line.starts_with(WARNING)));
-    assert_eq!(trail.current().len(), created.len());
+    let paths: Vec<PathBuf> = trail.current().iter().map(|worktree| worktree.path().to_path_buf()).collect();
+    assert_eq!(paths, [QUARANTINED, STRAY].map(PathBuf::from));
 }

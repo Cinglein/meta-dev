@@ -1,5 +1,6 @@
 mod ci;
 mod cli_failure;
+mod heartbeat;
 mod hook;
 mod live_github;
 mod local;
@@ -10,15 +11,18 @@ mod status_view;
 mod timed_command;
 mod writing;
 
+use std::path::PathBuf;
+
 use meta_listing::{Kind, Scope};
 use meta_log::LogStore;
 use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, TaskRef};
 
 use ci::{Commit, FailureLog, SessionId, Watcher};
 use cli_failure::{CliFailure, Invalid, Misuse, Setup};
+use heartbeat::Heartbeat;
 use hook::HookEvent;
 use live_github::LiveGithub;
-use local::LocalClone;
+use local::{LocalClone, Sweep};
 use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
 use project::Project;
@@ -30,9 +34,12 @@ pub enum Request {
     Write(Event),
     ClaimWorktree(Claim),
     Worktrees,
+    Gc(Sweep),
+    GcRestore(PathBuf),
     List(Option<Kind>, Scope),
     Status(StatusView),
     Hook(HookEvent),
+    Heartbeat(Heartbeat),
     WatchCi(SessionId, Commit),
     WaitCi(SessionId),
     CiLog(SessionId),
@@ -87,6 +94,11 @@ impl TryFrom<Vec<String>> for Request {
                 })
             }
             "worktrees" => parsed.allowing(&[]).map(|_| Self::Worktrees),
+            "gc" => {
+                let parsed = parsed.allowing(&[OptionName::DryRun])?;
+                let planned = parsed.flagged(OptionName::DryRun).map_or(Sweep::Done, |()| Sweep::Planned);
+                Ok(parsed.restored().map_or(Self::Gc(planned), Self::GcRestore))
+            }
             "release" => Ok(Self::Write(Event::TaskReleased(task()?))),
             "done" => Ok(Self::Write(Event::TaskDone(task()?))),
             "reopen" => Ok(Self::Write(Event::TaskReopened(task()?))),
@@ -99,6 +111,7 @@ impl TryFrom<Vec<String>> for Request {
             "list" => Ok(Self::List(parsed.kind()?, parsed.allowing(&[OptionName::All])?.scope())),
             "status" => Ok(Self::Status(parsed.allowing(&[OptionName::Flags])?.view())),
             "hook" => Ok(Self::Hook(parsed.allowing(&[])?.text()?.to_string().parse()?)),
+            "heartbeat" => Ok(Self::Heartbeat(parsed.allowing(&[])?.text()?.to_string().parse()?)),
             "ci-watch" => parsed.allowing(&[])?.session_and_commit(Self::WatchCi),
             "ci-wait" => Self::session().map(Self::WaitCi),
             "ci-log" => Self::session().map(Self::CiLog),
@@ -120,12 +133,15 @@ impl Request {
     pub fn answer_in(self, project: &Project) -> Result<Output, CliFailure> {
         match self {
             Self::Hook(event) => event.respond(),
+            Self::Heartbeat(command) => command.answer(project),
             Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
             Self::WaitCi(session) => Watcher::wait(project, &session),
             Self::CiLog(session) => FailureLog::excerpt(project, &session),
             Self::Status(view) => view.answer(&project.log()?, |query| LiveGithub::for_project(project).read(query)),
             Self::ClaimWorktree(claim) => LocalClone::try_from(project)?.claimed(project, claim, Self::actor()?),
             Self::Worktrees => LocalClone::try_from(project)?.worktrees(project),
+            Self::Gc(sweep) => LocalClone::try_from(project)?.collected(project, sweep),
+            Self::GcRestore(quarantine) => LocalClone::try_from(project)?.unstranded(&quarantine),
             logged => logged.answer_from(&project.log()?, Self::actor),
         }
     }
@@ -139,12 +155,15 @@ impl Request {
             Self::Write(event) => Writing::new(log, actor()?, event).entered(),
             Self::List(kind, scope) => Listed::from_log(log, kind, scope).map(Output::Listed),
             Self::Hook(_)
+            | Self::Heartbeat(_)
             | Self::WatchCi(..)
             | Self::WaitCi(_)
             | Self::CiLog(_)
             | Self::Status(_)
             | Self::ClaimWorktree(_)
-            | Self::Worktrees => Err(CliFailure::raised::<Misuse>("not a meta/log request")),
+            | Self::Worktrees
+            | Self::Gc(_)
+            | Self::GcRestore(_) => Err(CliFailure::raised::<Misuse>("not a meta/log request")),
         }
     }
 

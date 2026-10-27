@@ -24,6 +24,11 @@ impl<'pull> RuledPull<'pull> {
     }
 
     #[must_use]
+    pub fn state(self) -> PullState {
+        self.pull.state
+    }
+
+    #[must_use]
     pub fn red(self) -> Option<Self> {
         self.open()?;
         self.checks().failing().map(|_| self)

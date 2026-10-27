@@ -12,6 +12,8 @@ impl fmt::Display for Usage {
              \x20 open <text> --division <path> [--addresses <concern-id|issue-id>]... [--effort <tokens>] [--due <rfc3339>]\n\
              \x20 claim <task-id> [--from <actor>] [--worktree]   (assigns you; several may hold a task; --worktree: new worktree on branch <task-id>, prints its path)\n\
              \x20 worktrees   (this clone's worktrees: task status, missing, unrecorded)\n\
+             \x20 gc [--dry-run]   (frees recorded worktrees whose pr is merged or closed or whose task stalled, once all work is on the remote and nothing has them open)\n\
+             \x20 gc restore <quarantine>   (puts a stranded quarantine's file modes back, unlocks it and moves it home)\n\
              \x20 release <task-id>   (unassigns you)\n\
              \x20 done|reopen <task-id>\n\
              \x20 wait <task-id> --on <issue-id|task-id|review|ci|merge> | resume <task-id>\n\
@@ -20,6 +22,7 @@ impl fmt::Display for Usage {
              \x20 correct <id> <text>   (replaces the entry's text)\n\
              \x20 list [tasks|issues|concerns] [--all]\n\
              \x20 status [--flags]   (divisions down to tasks, live PR and CI; --flags: flags only, exit 1 if any)\n\
+             \x20 heartbeat tick|flags|plist   (tick: one timed run of status, writes the local snapshot, prints new flags, exit 1 if any needs judgement | flags: latest snapshot and age, stale is a flag | plist: launchd job for this clone, printed only)\n\
              \x20 hook session-start|pre-tool-use|post-tool-use|stop   (Claude Code hook JSON on stdin)\n\
              \x20 ci-wait | ci-log   (this session's CI: wait for failure or completion | failed step output)\n\
              actor: $META_ACTOR, else owner",

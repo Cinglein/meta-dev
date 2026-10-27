@@ -16,6 +16,7 @@ pub enum OptionName {
     On,
     Flags,
     Worktree,
+    DryRun,
 }
 
 impl FromStr for OptionName {
@@ -34,6 +35,7 @@ impl FromStr for OptionName {
             "--on" => Ok(Self::On),
             "--flags" => Ok(Self::Flags),
             "--worktree" => Ok(Self::Worktree),
+            "--dry-run" => Ok(Self::DryRun),
             other => Err(CliFailure::raised::<Misuse>(format!(
                 "unknown option {other}; put text starting with -- after a bare --"
             ))),
@@ -55,6 +57,7 @@ impl fmt::Display for OptionName {
             Self::On => "--on",
             Self::Flags => "--flags",
             Self::Worktree => "--worktree",
+            Self::DryRun => "--dry-run",
         };
         formatter.write_str(name)
     }

@@ -1,8 +1,12 @@
 use std::fmt;
 
-use crate::flag::Flag;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+use crate::flag::Flag;
+use crate::judgement::Judgement;
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct Flags(Vec<Flag>);
 
 impl Flags {
@@ -15,6 +19,22 @@ impl Flags {
     pub fn raised(&self) -> Option<&Self> {
         self.0.first().map(|_| self)
     }
+
+    #[must_use]
+    pub fn since(&self, previous: &Self) -> Self {
+        Self(
+            self.0
+                .iter()
+                .filter(|flag| !previous.0.iter().any(|earlier| flag.repeats(earlier).is_some()))
+                .cloned()
+                .collect(),
+        )
+    }
+
+    #[must_use]
+    pub fn awaiting_judgement(&self) -> Self {
+        Self(self.0.iter().filter(|flag| flag.judgement() == Judgement::Needed).cloned().collect())
+    }
 }
 
 impl fmt::Display for Flags {
@@ -22,3 +42,8 @@ impl fmt::Display for Flags {
         self.0.iter().try_for_each(|flag| writeln!(formatter, "{flag}"))
     }
 }
+
+#[cfg(test)]
+mod kinds;
+#[cfg(test)]
+mod tests;

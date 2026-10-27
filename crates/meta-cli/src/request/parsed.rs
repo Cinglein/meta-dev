@@ -1,4 +1,6 @@
 mod option_name;
+
+use std::path::PathBuf;
 mod word;
 
 use meta_listing::{Kind, Scope};
@@ -29,6 +31,8 @@ pub struct Parsed {
 }
 
 impl Parsed {
+    const RESTORE: &'static str = "restore";
+
     fn take(self, args: &[String]) -> Result<Self, CliFailure> {
         match args {
             [] => Ok(self),
@@ -45,7 +49,7 @@ impl Parsed {
         match (name, args) {
             (OptionName::All, rest) => Self { scope: Scope::All, ..self }.take(rest),
             (OptionName::Flags, rest) => Self { view: StatusView::Flags, ..self }.take(rest),
-            (OptionName::Worktree, rest) => self.take(rest),
+            (OptionName::Worktree | OptionName::DryRun, rest) => self.take(rest),
             (_, []) => Err(CliFailure::raised::<Misuse>(format!("{name} needs a value"))),
             (OptionName::Source, [value, rest @ ..]) => {
                 Self { source: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
@@ -171,6 +175,13 @@ impl Parsed {
 
     pub fn addresses(&self) -> Vec<Target> {
         self.addresses.clone()
+    }
+
+    pub fn restored(&self) -> Option<PathBuf> {
+        match self.words.as_slice() {
+            [verb, path] if verb.to_string() == Self::RESTORE => Some(PathBuf::from(path.to_string())),
+            _ => None,
+        }
     }
 
     pub fn previous_claimant(&self) -> Option<Actor> {

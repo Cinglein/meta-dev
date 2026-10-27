@@ -1,5 +1,6 @@
 mod branch_name;
 mod ci_settings;
+mod heartbeat_settings;
 
 use meta_log::RemoteName;
 use serde::Deserialize;
@@ -7,6 +8,7 @@ use serde::Deserialize;
 use crate::request::cli_failure::{CliFailure, Setup};
 pub use branch_name::BranchName;
 pub use ci_settings::{CiSettings, LogWindow, ProgramName};
+pub use heartbeat_settings::{GcMode, HeartbeatSettings, TickLimit};
 
 #[derive(Debug, Default, Deserialize)]
 pub struct Config {
@@ -18,6 +20,8 @@ pub struct Config {
     log_branches: Vec<BranchName>,
     #[serde(default)]
     ci: toml::Table,
+    #[serde(default)]
+    heartbeat: toml::Table,
 }
 
 impl Config {

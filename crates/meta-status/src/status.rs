@@ -4,12 +4,14 @@ mod tree;
 use std::fmt;
 
 use meta_pull_query::LiveQuery;
-use meta_schema::{DueTime, PullRequest};
+use meta_schema::{DueTime, Id, PullRequest, Task};
 use meta_state::{Stalling, State, TaskState};
 
+use crate::ending::Ending;
 use crate::flag::Flag;
 use crate::flags::Flags;
 use crate::github::Github;
+use crate::lifetime::Lifetime;
 use effort_spend::EffortSpend;
 use tree::Tree;
 
@@ -32,12 +34,29 @@ impl<'view> Status<'view> {
     }
 
     #[must_use]
+    pub fn linked_query(state: &State, tasks: &[Id<Task>]) -> LiveQuery {
+        let linked = state.tasks().iter().filter(|task| tasks.contains(&task.new_task().task()));
+        LiveQuery::new(linked.flat_map(|task| task.pull_requests().to_vec()).collect())
+    }
+
+    #[must_use]
     pub fn flags(&self) -> Flags {
         let linked: Vec<PullRequest> =
             self.state.tasks().iter().flat_map(|task| task.pull_requests().to_vec()).collect();
         let orphans = self.github.orphans(&linked).into_iter().map(Flag::Orphan);
         let tasks = self.shown().flat_map(|task| self.task_flags(task));
         Flags::new(self.github.flag().into_iter().chain(tasks).chain(orphans).collect())
+    }
+
+    #[must_use]
+    pub fn lifetime(&self, task: Id<Task>) -> Lifetime {
+        let found = self.state.tasks().iter().find(|known| known.new_task().task() == task);
+        let flags = found.into_iter().flat_map(|known| self.task_flags(known));
+        let stalled = flags.filter_map(|flag| flag.stalled()).map(|due| Lifetime::Ended(Ending::Stalled(due))).next();
+        let pulls = found.into_iter().flat_map(TaskState::pull_requests);
+        let lifetimes: Vec<Lifetime> =
+            pulls.map(|pull_request| self.github.sight(*pull_request).lifetime(*pull_request)).collect();
+        found.map_or(Lifetime::Unlogged, |_| stalled.unwrap_or_else(|| Lifetime::of_pulls(&lifetimes)))
     }
 
     fn active(state: &State) -> impl Iterator<Item = &TaskState> {
@@ -84,3 +103,6 @@ impl fmt::Display for Status<'_> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod lifetime_tests;

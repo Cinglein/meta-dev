@@ -8,7 +8,7 @@ use meta_schema::PullRequest;
 use serde::Deserialize;
 
 pub use base_branch::BaseBranch;
-use pull_state::PullState;
+pub use pull_state::PullState;
 use rollup::Rollup;
 pub use ruled_pull::RuledPull;
 
