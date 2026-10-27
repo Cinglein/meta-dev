@@ -53,7 +53,7 @@ fn a_root_item_moves_into_a_division_then_rates_and_lists_counts_and_moves_with_
     assert!(meta.run(OWNER, &[MOVE, ISSUE, TO, DIVISION]).unwrap().contains(&format!("ItemMoved {ISSUE}")));
     meta.run(OWNER, &["rate", ISSUE, "major"]).unwrap();
     assert!(meta.run(OWNER, &["list", "issues"]).unwrap().contains(RATED_PLACED));
-    meta.run(OWNER, &[MOVE, ISSUE, TO, COST]).unwrap();
+    assert!(meta.run(OWNER, &[MOVE, ISSUE, TO, COST]).unwrap().trim_end().ends_with("to @performance-and-cost !major"));
     let written = meta.0.read().unwrap().records().len();
     let refusals = [[MOVE, ISSUE, TO, COST], [MOVE, ISSUE, TO, NOWHERE], [MOVE, ISSUE, "--severity", "major"]];
     assert!(refusals.iter().all(|words| meta.run(OWNER, words).is_err()));
