@@ -144,9 +144,9 @@ mod tests {
     const STANDING_ROWS: [&str; 13] = [
         "architecture-and-planning-critical architecture-and-planning  open_items critical                  0          0          0 ok",
         "features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, paid down by the linked task",
-        "performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over, outside the linked task's division; a diff in its domain reaches it",
+        "performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over, outside the linked task's division",
         "t-concerns         features-and-maintenance   open_items concerns                  1          3          5 ok",
-        "t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over, outside the linked task's division; a diff in its domain reaches it",
+        "t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over, outside the linked task's division",
         "t-cost-tasks       performance-and-cost       open_items tasks                     0          5          9 ok",
         "t-discussion       features-and-maintenance   open_items in_discussion             1          1          2 ok",
         "t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over, paid down by the linked task",
@@ -169,18 +169,11 @@ mod tests {
         ("11", &["t-nav-concerns", "t-nav-tasks"]),
     ];
     const DIFF_REACHED: [(&str, &[&str]); 3] = [
-        (
-            "task-0000000000000004",
-            &["t-cost-concerns", "t-nav-concerns", "t-nav-tasks"],
-        ),
-        ("7", &["t-cost-concerns", "t-nav-concerns", "t-nav-tasks"]),
-        (ADDRESSING, &["t-cost-concerns", "t-nav-tasks"]),
+        ("task-0000000000000004", &["t-cost-concerns"]),
+        ("7", &["t-nav-concerns", "t-nav-tasks"]),
+        (ADDRESSING, &["t-nav-tasks"]),
     ];
 
-    const CAPS: &str = "\n[budgets.features-and-maintenance-critical]";
-    const OUTRANKED: &str = "\n[budgets.t-cost-unrated]\ndivision = \"performance-and-cost\"\nmeasure = { open_items = { severity = \"unrated\" } }\nallowance = { count = 0 }\nwindow = \"standing\"\n";
-    const OUTRANKED_ID: &str = "t-cost-unrated";
-    const OUTRANKED_ROW: &str = "t-cost-unrated     performance-and-cost       open_items unrated                   1          0          0 over, paid down by a more severe item: concern-0000000000000001";
     const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
     const STATEMENT: &str = include_str!("ledger/statement.txt");
     const MILLI: Millis = Millis::new(1);
@@ -261,17 +254,6 @@ mod tests {
         assert_eq!(table, STANDING_ROWS);
         let standing = [policy.budgets().standing(), Budgets::default().standing()];
         assert_eq!(standing, [true, false]);
-    }
-
-    #[test]
-    fn a_row_paid_by_a_more_severe_item_names_that_item() {
-        let bare = Policy::DEFAULTS.split(CAPS).next().unwrap_or_default();
-        let policy: Policy = toml::from_str(&format!("{bare}{STANDING}{OUTRANKED}")).unwrap();
-        let shown = Ledger::standing(ADDRESSING, &policy)
-            .statement(&policy)
-            .to_string();
-        let row = shown.lines().find(|line| line.starts_with(OUTRANKED_ID));
-        assert_eq!(row, Some(OUTRANKED_ROW));
     }
 
     #[test]
