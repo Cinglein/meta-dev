@@ -28,10 +28,9 @@ impl StandingLog {
     fn standing(log: &impl LogStore) -> Result<Standing, Failure> {
         let snapshot = log.read().map_err(Failure::StandingLog)?;
         let state = State::fold(snapshot.complete().map_err(Failure::StandingLog)?);
-        let read = |name: &str| env::var(name).ok().filter(|value| !value.is_empty());
         let link = ChangeLink::new(
-            read(Self::PULL_REQUEST).and_then(|number| number.parse().ok()),
-            read(Self::HEAD).and_then(|branch| branch.parse().ok()),
+            env::var(Self::PULL_REQUEST).ok().and_then(|number| number.parse().ok()),
+            env::var(Self::HEAD).ok().and_then(|branch| branch.parse().ok()),
         );
         Ok(Standing::read(&state, &link))
     }
