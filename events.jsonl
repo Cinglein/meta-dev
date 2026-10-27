@@ -531,3 +531,4 @@
 {"at":"2026-10-27T06:36:02.684818Z","actor":"claude-standing-budgets","kind":"TaskClaimed","task":"task-6aa1474d4fad63f9"}
 {"at":"2026-10-27T06:50:08.824656Z","actor":"claude-standing-budgets","kind":"TaskDone","task":"task-6aa1474d4fad63f9"}
 {"at":"2026-10-27T07:44:35.128967Z","actor":"claude-lead","kind":"SchemaVersion","version":3}
+{"at":"2026-10-27T07:44:36.675769Z","actor":"claude-lead","kind":"ItemRated","item":"concern-197b7d5d3de582fc","change":{"step":"first","level":"minor"}}
