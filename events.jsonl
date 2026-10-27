@@ -793,3 +793,4 @@
 {"at":"2026-10-27T23:02:33.173427Z","actor":"claude-paymaj","kind":"TaskOpened","task":"task-b09d2d33e6ab2e85","text":"Prior policy, spec and baseline reads at the merge base fail closed on git errors","division":"features-and-maintenance","addresses":["concern-cba24287a74d1a9f"]}
 {"at":"2026-10-27T23:02:43.345995Z","actor":"claude-paymaj","kind":"TaskClaimed","task":"task-b09d2d33e6ab2e85"}
 {"at":"2026-10-27T23:03:48.899901Z","actor":"claude-paymaj","kind":"TaskLinked","task":"task-b09d2d33e6ab2e85","pr":65}
+{"at":"2026-10-27T23:08:53.188624Z","actor":"claude-paymaj","kind":"TaskOpened","task":"task-66a9b45cc93afaf8","text":"Standing caps resolve the task from the same HeadBranch as tracked work, covering stacked branches and the local gate","division":"features-and-maintenance","addresses":["concern-1e48e65d629de74f"]}
