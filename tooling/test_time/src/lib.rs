@@ -62,6 +62,11 @@ impl TestTime {
                 let ran = cargo(selection)
                     .through(&RunnerConfig::current()?)
                     .environment(TestRunner::RUNS, runs.path())
+                    .environment("GIT_CONFIG_COUNT", "2")
+                    .environment("GIT_CONFIG_KEY_0", "core.fsync")
+                    .environment("GIT_CONFIG_VALUE_0", "none")
+                    .environment("GIT_CONFIG_KEY_1", "gc.auto")
+                    .environment("GIT_CONFIG_VALUE_1", "0")
                     .run();
                 let documented = selection.within(workspace.packages().doctested());
                 let documented_ran = documented
