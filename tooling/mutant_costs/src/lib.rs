@@ -125,6 +125,9 @@ impl MutantCosts {
 impl fmt::Display for MutantCosts {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let costliest = self.prices.values().max().copied().unwrap_or_default();
+        writeln!(formatter, "[millis]")?;
+        writeln!(formatter, "per_crate = {}", self.baseline.rounded_up_to(Self::STEP))?;
+        writeln!(formatter)?;
         writeln!(formatter, "[mutant_millis]")?;
         writeln!(formatter, "default = {}", costliest.rounded_up_to(Self::STEP))?;
         writeln!(formatter)?;
@@ -165,7 +168,7 @@ mod tests {
     const SLICE: &[(&str, f64, usize)] = &[(LISTED, 5.8, 25)];
     const SLICES: usize = 11;
     const SLICED_PRICE: &str = "meta-cli = 5800\n";
-    const TABLE: &str = "[mutant_millis]\ndefault = 3100\n\n[mutant_millis.crates]\nlog = 3100\nstate = 2000\n";
+    const TABLE: &str = "[millis]\nper_crate = 15000\n\n[mutant_millis]\ndefault = 3100\n\n[mutant_millis.crates]\nlog = 3100\nstate = 2000\n";
     const SCRATCH: &str = "meta-costs";
     const NESTED: [&str; 3] = ["a", "b", "outcomes.json"];
     const DECOY: &str = "other.json";
