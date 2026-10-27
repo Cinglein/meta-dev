@@ -18,10 +18,12 @@ impl SessionCommits {
         let created = created.ok_or_else(|| Listed::new(Self::REFLOG_OFF))?;
         let remote = created.first().filter(|_| reach == Reach::Remote).map(|_| project.remote_heads());
         let heads = remote.transpose()?.unwrap_or_default();
-        let unpushed_head = created.first().and_then(|_| project.head()).filter(|head| {
-            created.contains(head) && project.pushed_tips(std::slice::from_ref(head), &heads).is_empty()
-        });
-        Ok(Self { pushed: project.pushed_tips(&created, &heads), unpushed_head })
+        let pushed = project.pushed_among(&created, &heads);
+        let unpushed_head = created
+            .first()
+            .and_then(|_| project.head())
+            .filter(|head| created.contains(head) && !pushed.contains(head));
+        Ok(Self { pushed: project.independent_tips(pushed), unpushed_head })
     }
 
     pub fn pushed(&self) -> &[Commit] {

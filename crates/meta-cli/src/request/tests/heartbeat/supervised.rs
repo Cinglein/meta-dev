@@ -6,7 +6,7 @@ use crate::request::output::Output;
 use crate::request::project::TickLimit;
 
 const PATIENT: Duration = Duration::from_secs(10);
-const IMPATIENT: Duration = Duration::from_millis(100);
+const IMPATIENT: Duration = Duration::from_millis(10);
 const SHELL: &str = "sh";
 const CLEAN: &str = "echo clean";
 const RAISED: &str = "echo raised; exit 1";
