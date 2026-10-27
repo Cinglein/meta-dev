@@ -51,8 +51,6 @@ pub enum Failure {
     GateFetch(LogFailure),
     #[error("local gate fails closed: this run needs meta/log but the gate did not fetch it")]
     Unfetched,
-    #[error(
-        "untracked work fails closed: {0}. Track it in meta: meta open \"<title>\" --division <path>, then meta claim <task> --worktree, then work on the branch that claim makes"
-    )]
+    #[error("untracked work fails closed: {0}")]
     Untracked(Untracked),
 }

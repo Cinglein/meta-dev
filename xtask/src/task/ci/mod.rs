@@ -56,9 +56,14 @@ impl Ci {
                 let log = StandingLog::git(workspace.root());
                 let read = || self.log.snapshot(&log);
                 let tracked = TrackedWork::refuse_untracked(&RunKind::from_ambient(&CommandLine::ambient()), read);
-                let outcome = CiStep::iter()
-                    .try_for_each(|step| times.record(step, step.timed(workspace, selection, policy, &mut ledger)))
-                    .and(tracked)
+                let stepped = tracked
+                    .is_ok()
+                    .then(CiStep::iter)
+                    .into_iter()
+                    .flatten()
+                    .try_for_each(|step| times.record(step, step.timed(workspace, selection, policy, &mut ledger)));
+                let outcome = tracked
+                    .and(stepped)
                     .and_then(|()| StandingLog::counted(read, policy, &mut ledger))
                     .and_then(|()| Ok(ledger.checked(policy, selection)?))
                     .and_then(|()| Stranding::refuse_stranded(workspace.root(), policy, read));

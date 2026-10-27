@@ -30,7 +30,7 @@ impl FromStr for HeadBranch {
 
     fn from_str(text: &str) -> Result<HeadBranch, Infallible> {
         let name = text.trim();
-        let cut = name.match_indices('-').nth(1).map_or(name.len(), |(at, _)| at);
+        let cut = name.match_indices(['-', '/']).nth(1).map_or(name.len(), |(at, _)| at);
         let Ok(branch) = name.parse();
         Ok(HeadBranch { name: branch, task: name.get(..cut).and_then(|id| id.parse().ok()) })
     }

@@ -36,6 +36,7 @@ Principles, ladder and design: `context/SPEC.md`. Build stages: `context/BOOTSTR
   and task takes `--division <path>` (a path under a top division, see `meta` usage).
 - One task, one small PR off `main`. Stack only a truly atomic sequence, and then only with
   `gh stack`, never `--base <branch>`. A small good PR never waits on a large one.
+- Stacked branches are added with `gh stack add task-<id>-N`, so CI finds the task.
 - Push your own branch right after every commit so CI runs.
 - Never merge, approve, or push to `main`; the owner merges. Hooks deny merges, force pushes,
   and pushes to protected branches. Only `meta` writes `meta/log`.
