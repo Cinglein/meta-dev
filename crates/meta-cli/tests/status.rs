@@ -4,6 +4,10 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
+#[path = "support/skeleton.rs"]
+mod skeleton;
+use skeleton::Skeleton;
+
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const OWNER: &str = "owner";
 const TASK: &str = "task-00000000000000a1";
@@ -25,13 +29,6 @@ esac
 struct Git;
 
 impl Git {
-    const IDENTITY: [&'static str; 6] =
-        ["-c", "user.name=test", "-c", "user.email=test@meta.invalid", "-c", "init.defaultBranch=main"];
-
-    fn run(dir: &Path, words: &[&str]) -> Output {
-        Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
-    }
-
     fn seed(bare: &Path, lines: &[&str]) {
         let events = [lines.join("\n"), String::new()].join("\n");
         let stream = format!(
@@ -55,9 +52,14 @@ impl Project {
     fn new() -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Git::run(origin.path(), &["init", "-q", "--bare"]);
-        Git::run(clone.path(), &["init", "-q"]);
-        Git::run(clone.path(), &["remote", "add", "origin", origin.path().to_str().unwrap()]);
+        Skeleton::Bare.lay(origin.path(), "main");
+        Skeleton::Working.lay(clone.path(), TASK);
+        let remote = format!(
+            "[remote \"origin\"]\n\turl = {}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n",
+            origin.path().display()
+        );
+        let config = clone.path().join(".git/config");
+        std::fs::write(&config, [std::fs::read_to_string(&config).unwrap(), remote].concat()).unwrap();
         std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
         let bin = clone.path().join("bin");
         std::fs::create_dir(&bin).unwrap();
@@ -89,7 +91,6 @@ impl std::fmt::Display for Project {
 fn opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_the_rest() {
     let project = Project::new();
     Git::seed(project.origin.path(), &CLAIMED_LOG);
-    Git::run(project.clone.path(), &["switch", "-q", "-c", TASK]);
     let elsewhere = tempfile::tempdir().unwrap();
     let shell = format!("cd {project} && gh pr create --fill");
     let input = serde_json::json!({ "cwd": elsewhere.path(), "tool_input": { "command": shell } }).to_string();
