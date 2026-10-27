@@ -110,7 +110,7 @@ mod tests {
     use std::path::Path;
     const METADATA: &str = r#"{"workspace_root": "/w", "packages": [
         {"name": "board", "manifest_path": "/w/crates/board/Cargo.toml", "dependencies": [{"name": "serde", "path": null}], "targets": [{"doctest": true, "kind": ["lib"]}, {"doctest": false, "kind": ["example"]}]},
-        {"name": "search", "manifest_path": "/w/crates/search/Cargo.toml", "dependencies": [{"name": "board", "path": "/w/crates/board"}]},
+        {"name": "search", "manifest_path": "/w/crates/search/Cargo.toml", "dependencies": [{"name": "board", "path": "/w/crates/board"}], "targets": [{"doctest": false, "kind": ["bin"]}]},
         {"name": "engine", "manifest_path": "/w/crates/engine/Cargo.toml", "dependencies": [{"name": "search", "path": "/w/crates/search"}]}
     ]}"#;
     const BOARD: &str = "board";
