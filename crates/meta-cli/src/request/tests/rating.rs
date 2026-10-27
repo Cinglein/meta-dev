@@ -8,7 +8,7 @@ const OVERRIDDEN: &str =
     r#"{"features-and-maintenance": [{"name": "blocker", "meaning": "x"}, {"name": "nuisance", "meaning": "x"}]}"#;
 const BLOCKER: &str = "blocker";
 const NUISANCE: &str = "nuisance";
-const STRANDED: &str = "stranded: concern-";
+const RAISED_FROM_MAJOR: &str = "blocker (raised from major";
 
 impl Meta {
     fn under(&self, scales: &Scales, words: &[&str]) -> Result<String, CliFailure> {
@@ -21,13 +21,13 @@ impl Meta {
 }
 
 #[test]
-fn writes_wait_while_the_policy_strands_a_rated_item_and_rating_it_again_frees_them() {
+fn writes_go_through_while_the_policy_strands_a_rated_item_and_it_can_be_rated_again() {
     let meta = Meta::default();
     let concern = meta.written(OWNER, &[&RATED_CONCERN[..], &[MAJOR]].concat());
     let overridden: Scales = serde_json::from_str(OVERRIDDEN).unwrap();
-    let refused = meta.under(&overridden, &[&RATED_ISSUE[..], &[NUISANCE]].concat()).unwrap_err().to_string();
-    meta.under(&overridden, &[&[RATE, concern.as_str(), BLOCKER][..], &SCENARIO[..]].concat()).unwrap();
-    assert!(refused.contains(STRANDED) && meta.under(&overridden, &[&RATED_ISSUE[..], &[NUISANCE]].concat()).is_ok());
+    let written = meta.under(&overridden, &[&RATED_ISSUE[..], &[NUISANCE]].concat()).unwrap();
+    let rated = meta.under(&overridden, &[&[RATE, concern.as_str(), BLOCKER][..], &SCENARIO[..]].concat()).unwrap();
+    assert!(written.contains(NUISANCE) && rated.contains(RAISED_FROM_MAJOR));
 }
 
 const RATED_CONCERN: [&str; 6] = ["concern", "map", "lost", "--division", DIVISION, "--severity"];

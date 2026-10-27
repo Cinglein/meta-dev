@@ -55,6 +55,6 @@ mod tests {
         let overridden: Scales = serde_json::from_str(OVERRIDDEN).unwrap();
         assert!(Stranding::judged(&overridden, log.read()).unwrap_err().to_string().contains(MAJOR));
         assert!(Stranding::judged(&Scales::default(), log.read()).is_ok());
-        assert!(Stranding::judged(&overridden, Err(LogFailure::from(std::io::Error::other(TOP)))).is_ok());
+        assert!(Stranding::judged(&overridden, Err(LogFailure::from(std::io::Error::other(TOP)))).is_err());
     }
 }
