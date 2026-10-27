@@ -374,7 +374,8 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_pus
     let stop = repo.hook(STOP, COMMIT);
     let settled = repo.settled();
     let shown = format!("{posted}{}{stop}{}", waited.0, repo.hook(PRE, COMMIT));
-    assert!(shown.contains(JOB_FAILED) && !waited.1.success() && stop.contains(BLOCK_REASON));
+    let told = [&posted, &waited.0].iter().filter(|told| told.contains(JOB_FAILED)).count();
+    assert!(told == 1 && !waited.1.success() && stop.contains(BLOCK_REASON));
     assert!(settled.contains(STEP_LISTED) && shown.contains(STEP_LISTED) && shown.contains(CI_LOG_HINT));
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     let log = repo.session_command(CI_LOG).0;
@@ -438,6 +439,8 @@ fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
             && broken.contains(FAILED_EVENT)
             && mixed.contains(FOURTH_POLL)
             && [broken, frozen].iter().all(|settled| settled.lines().all(|line| line.contains(INJECTED)))
-            && !hung.contains(INJECTED)
+            && ![hung, hanging.hook(STOP, COMMIT), hanging.session_command(CI_WAIT).0]
+                .iter()
+                .any(|real| real.contains(INJECTED))
     );
 }
