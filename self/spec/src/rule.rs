@@ -25,6 +25,11 @@ impl Rule {
     pub fn rule_id(&self) -> RuleId {
         self.id
     }
+
+    #[must_use]
+    pub fn enforcement(&self) -> Enforcement {
+        self.enforcement
+    }
 }
 
 impl fmt::Display for Rule {
