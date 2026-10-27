@@ -74,6 +74,7 @@ mod tests {
     const CLOSED: &str = "standing budgets fail closed: meta/log";
     const GATE_CLOSED: &str = "local gate fails closed";
     const NOTHING: &str = "";
+    const POLICY: &str = "tooling/policy.toml";
     const CAPS: &str = "\n[budgets.features-and-maintenance-critical]";
     const TOP: &str = "features-and-maintenance";
     const MINOR: &str = "minor";
@@ -89,6 +90,15 @@ mod tests {
         fn closed(refused: &[Result<(), Failure>], prefix: &str) -> bool {
             refused.iter().all(|refused| refused.as_ref().is_err_and(|failure| failure.to_string().starts_with(prefix)))
         }
+    }
+
+    #[test]
+    fn the_merge_base_policy_decides_whether_standing_budgets_are_enforced() {
+        let fixture = Fixture::new();
+        fixture.write(POLICY, STANDING).branch();
+        let (bare, mut ledger) = (StandingLog::policy(NOTHING), Ledger::default());
+        let enforced = StandingLog::enforced_from(fixture.root(), &bare, &mut ledger);
+        assert!(enforced.is_ok() && ledger.reads_standing(&bare));
     }
 
     #[test]
