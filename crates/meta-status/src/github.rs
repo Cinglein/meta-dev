@@ -1,4 +1,5 @@
 mod sight;
+mod unseen_run;
 
 use meta_pull_query::{LiveData, TrunkRun, TrunkVerdict};
 use meta_schema::PullRequest;
@@ -6,6 +7,7 @@ use meta_schema::PullRequest;
 use crate::flag::Flag;
 use crate::github_failure::GithubFailure;
 use sight::Sight;
+use unseen_run::UnseenRun;
 
 #[derive(Clone, Debug)]
 pub enum Github {
@@ -42,11 +44,14 @@ impl Github {
         match run.verdict() {
             TrunkVerdict::Green => None,
             TrunkVerdict::Red => Some(Flag::TrunkRed(run.workflow().clone())),
-            TrunkVerdict::Unknown => {
-                let unseen = format!("no completed {} run on the default branch", run.workflow());
-                Some(Flag::Unreached(GithubFailure::new(unseen)))
-            }
+            TrunkVerdict::Unknown => Some(Flag::Unreached(GithubFailure::new(UnseenRun::new(run.workflow())))),
         }
+    }
+
+    #[must_use]
+    pub fn finished(&self, linked: &[PullRequest]) -> Option<()> {
+        linked.first()?;
+        linked.iter().all(|pull_request| self.sight(*pull_request).ended().is_some()).then_some(())
     }
 
     #[must_use]

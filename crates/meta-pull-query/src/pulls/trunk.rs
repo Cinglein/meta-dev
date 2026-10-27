@@ -1,10 +1,4 @@
 mod branch;
-mod commit;
-mod conclusion;
-mod suite;
-mod target;
-mod workflow;
-mod workflow_run;
 
 use serde::Deserialize;
 
@@ -21,7 +15,6 @@ pub struct Trunk {
 impl Trunk {
     #[must_use]
     pub fn verdict(&self, workflow: &WorkflowName) -> TrunkVerdict {
-        let mut suites = self.branch.iter().flat_map(Branch::suites);
-        suites.find_map(|suite| suite.verdict(workflow)).unwrap_or(TrunkVerdict::Unknown)
+        self.branch.as_ref().map_or(TrunkVerdict::Unknown, |branch| branch.verdict(workflow))
     }
 }

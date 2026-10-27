@@ -1,4 +1,6 @@
+use std::convert::Infallible;
 use std::fmt;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
@@ -6,12 +8,11 @@ use serde::{Deserialize, Serialize};
 #[serde(transparent)]
 pub struct WorkflowName(String);
 
-impl WorkflowName {
-    const REQUIRED: [&'static str; 2] = ["ci", "mutants"];
+impl FromStr for WorkflowName {
+    type Err = Infallible;
 
-    #[must_use]
-    pub fn required() -> Vec<Self> {
-        Self::REQUIRED.iter().map(|name| Self((*name).to_owned())).collect()
+    fn from_str(name: &str) -> Result<Self, Self::Err> {
+        Ok(Self(name.to_owned()))
     }
 }
 

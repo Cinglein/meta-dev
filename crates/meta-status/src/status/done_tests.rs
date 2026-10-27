@@ -27,6 +27,7 @@ const CASES: [(bool, &[&str], bool); 8] = [
     (true, &["2"], false),
     (true, &["3"], true),
 ];
+const WORKFLOWS: [&str; 2] = ["ci", "mutants"];
 const DONE: &str = "held, every linked pr merged or closed";
 
 struct Board {
@@ -57,7 +58,8 @@ impl Board {
     fn reached(reply: &str) -> Github {
         let pulls = serde_json::from_str::<LiveReply>(reply).unwrap().answered().unwrap();
         let rules = [(serde_json::from_str(r#""main""#).unwrap(), serde_json::from_str("[]").unwrap())];
-        Github::Reached(pulls.ruled(rules.into_iter().collect()).unwrap())
+        let required = WORKFLOWS.map(|name| name.parse().unwrap()).to_vec();
+        Github::Reached(pulls.ruled(rules.into_iter().collect()).unwrap().requiring(required))
     }
 
     fn flags(&self, github: &Github) -> String {

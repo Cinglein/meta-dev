@@ -24,9 +24,9 @@ impl Sight<'_> {
     }
 
     #[must_use]
-    pub fn ended(self) -> Option<()> {
+    pub fn ended(self) -> Option<PullState> {
         match self {
-            Self::Seen(pull) => (pull.state() != PullState::Open).then_some(()),
+            Self::Seen(pull) => Some(pull.state()).filter(|state| *state != PullState::Open),
             Self::Missing | Self::Unreached => None,
         }
     }

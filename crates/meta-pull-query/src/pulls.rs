@@ -1,4 +1,5 @@
 mod open_repository;
+mod trunk;
 
 use std::collections::HashMap;
 
@@ -9,11 +10,11 @@ use serde::Deserialize;
 use crate::live_data::LiveData;
 use crate::pull_alias::PullAlias;
 use crate::rulebook::Rulebook;
-use crate::trunk::Trunk;
 use crate::trunk_run::TrunkRun;
 use crate::trunk_verdict::TrunkVerdict;
 use crate::workflow_name::WorkflowName;
 use open_repository::OpenRepository;
+use trunk::Trunk;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Pulls {

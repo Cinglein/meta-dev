@@ -5,7 +5,7 @@ use serde::Deserialize;
 pub use page_info::PageInfo;
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(bound(deserialize = "Node: Deserialize<'de>"))]
+#[serde(bound(deserialize = "Node: Deserialize<'de>"), deny_unknown_fields)]
 pub struct Page<Node> {
     nodes: Vec<Node>,
     #[serde(rename = "pageInfo")]

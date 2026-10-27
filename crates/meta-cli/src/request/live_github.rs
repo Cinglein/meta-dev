@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
 
-use meta_pull_query::{LiveData, LiveQuery, LiveReply, Pulls, Rulebook};
+use meta_pull_query::{LiveData, LiveQuery, LiveReply, Pulls, Rulebook, WorkflowName};
 use meta_pulls::{BaseBranch, RequiredChecks};
 use meta_schema::PullRequest;
 use meta_status::{Github, GithubFailure};
@@ -16,6 +16,7 @@ pub struct LiveGithub {
     program: ProgramName,
     root: PathBuf,
     deadline: Instant,
+    workflows: Vec<WorkflowName>,
 }
 
 impl LiveGithub {
@@ -29,13 +30,15 @@ impl LiveGithub {
         ["--json", "number,isCrossRepository", "--jq", ".[] | select(.isCrossRepository | not) | .number"];
     const UNRULED: &'static str = "a base branch's rules were not read";
 
-    pub fn new(program: ProgramName, root: PathBuf, deadline: Instant) -> Self {
-        Self { program, root, deadline }
+    pub fn new(program: ProgramName, root: PathBuf, deadline: Instant, workflows: Vec<WorkflowName>) -> Self {
+        Self { program, root, deadline, workflows }
     }
 
     pub fn for_project(project: &Project) -> Self {
-        let settings = project.config().ci_settings();
-        Self::new(settings.program().clone(), project.root().to_path_buf(), settings.remote_deadline())
+        let config = project.config();
+        let settings = config.ci_settings();
+        let workflows = config.required_workflows().to_vec();
+        Self::new(settings.program().clone(), project.root().to_path_buf(), settings.remote_deadline(), workflows)
     }
 
     pub fn read(&self, query: &LiveQuery) -> Github {
@@ -55,7 +58,8 @@ impl LiveGithub {
             .into_iter()
             .map(|base| self.rules(&base).map(|required| (base, required)))
             .collect::<Result<_, _>>()?;
-        pulls.ruled(rules).ok_or_else(|| GithubFailure::new(Self::UNRULED))
+        let data = pulls.ruled(rules).ok_or_else(|| GithubFailure::new(Self::UNRULED))?;
+        Ok(data.requiring(self.workflows.clone()))
     }
 
     fn pulls(&self, query: &LiveQuery) -> Result<Pulls, GithubFailure> {

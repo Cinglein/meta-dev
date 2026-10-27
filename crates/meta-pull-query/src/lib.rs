@@ -4,7 +4,6 @@ mod live_reply;
 mod pull_alias;
 mod pulls;
 mod rulebook;
-mod trunk;
 mod trunk_run;
 mod trunk_verdict;
 mod workflow_name;
