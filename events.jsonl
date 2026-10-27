@@ -506,3 +506,4 @@
 {"at":"2026-10-27T06:07:51.815586Z","actor":"claude-lead","kind":"TaskDone","task":"task-9852e462c1c22b8f"}
 {"at":"2026-10-27T06:07:53.619756Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-ab9d79e38f4e801c"}
 {"at":"2026-10-27T06:07:55.381452Z","actor":"claude-lead","kind":"TaskDone","task":"task-ab9d79e38f4e801c"}
+{"at":"2026-10-27T06:07:57.366210Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-ad68df1d6ed24840","text":"triage tier: Duplicate with successor in log; successor(s) ['task-04c5ae40d18b52e7'] exist in log (states: task-04c5ae40d18b52e7=open)"}
