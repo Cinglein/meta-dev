@@ -13,11 +13,11 @@ impl SpecDrift {
 
     pub fn report(written: &str, prior: Option<&str>, changed: &[PathBuf]) -> Report {
         let kept: BTreeSet<&str> = prior.map(|prior| prior.lines().collect()).unwrap_or_default();
-        let enforcer = |line: &str| line.parse::<CheckedFile>().ok().and_then(|file| file.among(changed));
+        let enforcers = |line: &str| line.parse::<CheckedFile>().map(|files| files.among(changed)).unwrap_or_default();
         let drifted = written
             .lines()
             .filter(|line| kept.contains(line))
-            .filter_map(|line| enforcer(line).map(|file| Violation::new(Site::File(file), line)));
+            .flat_map(|line| enforcers(line).into_iter().map(move |file| Violation::new(Site::File(file), line)));
         Report::new(
             "an enforcer changed but the rule that names it did not; review that rule's record",
             drifted.collect(),
@@ -32,10 +32,12 @@ mod tests {
     use super::{CheckedFile, SpecDrift};
 
     const PROSE: &str = "- `unchecked` (a, rung 1, no enforcer): x";
-    const PRIOR: &str = "- `kept` (a, rung 3, check a.rs fn a): x\n- `moved` (a, rung 3, check b.rs fn b): x\n";
-    const WRITTEN: &str = "- `kept` (a, rung 3, check a.rs fn a): x\n- `moved` (a, rung 3, check b.rs fn c): x\n";
+    const PRIOR: &str =
+        "- `kept` (a, rung 3, check z.rs z, check a.rs a): x, check c.rs\n- `moved` (a, rung 3, check b.rs b): x\n";
+    const WRITTEN: &str =
+        "- `kept` (a, rung 3, check z.rs z, check a.rs a): x, check c.rs\n- `moved` (a, rung 3, check b.rs c): x\n";
     const CHANGED: [&str; 3] = ["a.rs", "b.rs", "c.rs"];
-    const SHOWN: [&str; 1] = ["a.rs: - `kept` (a, rung 3, check a.rs fn a): x"];
+    const SHOWN: [&str; 1] = ["a.rs: - `kept` (a, rung 3, check z.rs z, check a.rs a): x, check c.rs"];
 
     #[test]
     fn a_changed_enforcer_fails_only_while_its_rule_record_is_unchanged_since_the_merge_base() {

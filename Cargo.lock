@@ -489,7 +489,6 @@ name = "meta-spec"
 version = "0.1.0"
 dependencies = [
  "corpus_check",
- "meta-schema",
  "meta-xtask",
  "strum",
  "task",

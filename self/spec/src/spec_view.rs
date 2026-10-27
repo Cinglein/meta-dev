@@ -104,7 +104,7 @@ mod tests {
         RuleId::new("lost"),
         PerformanceAndCost,
         Wording::new("Says."),
-        Check(Enforcer::new("lost.rs", "a")),
+        Check(Enforcer::new("lost.rs", "a"), &[]),
     )];
     const NAMED: &str = "does not exist: lost";
     const CHECK: Option<&str> = Some(SpecSettings::CHECK);
