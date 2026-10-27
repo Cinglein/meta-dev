@@ -544,3 +544,4 @@
 {"at":"2026-10-27T10:06:44.777645Z","actor":"claude-lead","kind":"ItemRated","item":"concern-4e0152a484b69b8c","change":{"step":"first","level":"major"}}
 {"at":"2026-10-27T10:06:46.541343Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-8a225d46dbc6f839","text":"owner triage 2026-10-27: not an issue"}
 {"at":"2026-10-27T10:08:37.429375Z","actor":"claude-stopgate","kind":"TaskOpened","task":"task-c4bff9e950e2dfe2","text":"Stop gate fails closed when CI timed out, never ran or is unreachable","division":"features-and-maintenance","addresses":["issue-8f094e4ba7d7fcb7"]}
+{"at":"2026-10-27T10:08:52.653706Z","actor":"claude-stopgate","kind":"TaskClaimed","task":"task-c4bff9e950e2dfe2"}
