@@ -8,9 +8,10 @@ const LEGACY_TASK: &str = r#"{"task":"task-0000000000000001","text":"x"}"#;
 const LEGACY_CONCERN: &str = r#"{"concern":"concern-0000000000000001","text":"x"}"#;
 const LEGACY_ISSUE: &str = r#"{"issue":"issue-0000000000000001","text":"x"}"#;
 const TASK: &str = "task-0000000000000002";
-const BLOCKED: &str = "TaskBlocked task-0000000000000002 on ci";
+const HEAD: &str = "6c1ea3b4d9f1f48d98517b891f4283d6f0e55b94";
+const BLOCKED: &str = "TaskBlocked task-0000000000000002 on ci at 6c1ea3b4d9f1f48d98517b891f4283d6f0e55b94";
 const LINKED: &str = "TaskLinked task-0000000000000002 #7";
-const MARKER: &str = "SchemaVersion 3";
+const MARKER: &str = "SchemaVersion 5";
 
 #[test]
 fn new_items_carry_their_division_and_tasks_their_effort_and_due_time() {
@@ -46,9 +47,11 @@ fn old_items_stay_at_the_root_and_are_written_back_without_a_division() {
 #[test]
 fn blocks_and_links_show_their_task_and_what_they_point_at() {
     let task = TASK.parse().unwrap();
-    let blocked = Event::TaskBlocked(Block::new(task, Blocker::External(ExternalKind::Ci)));
+    let blocked =
+        Event::TaskBlocked(Block::new(task, Blocker::External(ExternalKind::Ci)).at_head(HEAD.parse().unwrap()));
     let linked = Event::TaskLinked(TaskLink::new(task, "7".parse().unwrap()));
     let marker = Event::SchemaVersion(SchemaVersion::current());
     assert_eq!([blocked.to_string(), linked.to_string(), marker.to_string()], [BLOCKED, LINKED, MARKER]);
     assert!(marker.schema_version().is_some() && blocked.schema_version().is_none());
+    assert_eq!(serde_json::from_str::<Event>(&serde_json::to_string(&blocked).unwrap()).unwrap(), blocked);
 }
