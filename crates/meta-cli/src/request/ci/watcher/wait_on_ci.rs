@@ -77,3 +77,6 @@ impl fmt::Display for WaitOnCi {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
