@@ -80,11 +80,14 @@ mod tests {
         ),
         Enforcement::Type(RustType::naming::<RustType>()),
     ];
-    const MISSING: [Enforcement; 4] = [
+    const IGNORED: &str = "self/spec/src/enforcer/ignored_tests.txt";
+    const MISSING: [Enforcement; 6] = [
         Enforcement::Check(Enforcer::new(FILE, "each_rung_shows_its_enforcer"), &[]),
         Enforcement::Check(Enforcer::new(FILE, "a_check_is_found_only_by_its_name_in_its_file"), &[]),
         Enforcement::Check(Enforcer::new(FILE, TEST), &[Enforcer::new(FILE, "lost")]),
         Enforcement::Check(Enforcer::new("lost.rs", TEST), &[]),
+        Enforcement::Check(Enforcer::new(IGNORED, "ignored_after_test"), &[]),
+        Enforcement::Check(Enforcer::new(IGNORED, "ignored_before_test"), &[]),
     ];
 
     #[test]

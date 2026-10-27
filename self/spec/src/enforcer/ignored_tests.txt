@@ -1,0 +1,7 @@
+#[test]
+#[ignore]
+fn ignored_after_test() {}
+
+#[ignore = "slow"]
+#[test]
+fn ignored_before_test() {}
