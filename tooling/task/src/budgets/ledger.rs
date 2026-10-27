@@ -117,7 +117,11 @@ mod tests {
         ("9", ALL_OVER),
         ("10", &["t-nav-concerns", "t-nav-tasks"]),
     ];
-    const DIFF_REACHED: [(&str, &[&str]); 2] = [
+    const DIFF_REACHED: [(&str, &[&str]); 3] = [
+        (
+            "task-0000000000000004",
+            &["t-cost-concerns", "t-nav-concerns", "t-nav-tasks"],
+        ),
         ("7", &["t-cost-concerns", "t-nav-concerns", "t-nav-tasks"]),
         (ADDRESSING, &["t-cost-concerns", "t-nav-tasks"]),
     ];

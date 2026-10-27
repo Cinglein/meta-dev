@@ -1,4 +1,7 @@
 
+[domains."features-and-maintenance/nav"]
+paths = ["crates*"]
+
 [budgets.t-open-tasks]
 division = "features-and-maintenance"
 measure = { open_items = { kind = "task" } }
