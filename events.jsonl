@@ -683,3 +683,4 @@
 {"at":"2026-10-27T19:53:29.350514Z","actor":"claude-chess","kind":"TaskDone","task":"task-4c14b6e81a6c8af4"}
 {"at":"2026-10-27T19:55:10.516679Z","actor":"claude-lead","kind":"TaskOpened","task":"task-adbcd43d30f4f41b","text":"Spec audit and drift check (owner 2026-10-27): record each rule's real enforcer, rung and owning division (no rewording); add the 2026-10-27 decisions as new rules for owner review in the PR; CI fails when a rule names a missing enforcer, and when a PR changes an enforcement surface without touching the rule it enforces.","division":"features-and-maintenance"}
 {"at":"2026-10-27T19:57:12.727800Z","actor":"claude-specaudit","kind":"TaskClaimed","task":"task-adbcd43d30f4f41b"}
+{"at":"2026-10-27T20:04:11.974805Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-7b7dc3bdb138864a","text":"triage 2026-10-27 (both drafts): fixed; PackageGraph::containing now picks the deepest matching directory"}
