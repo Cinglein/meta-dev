@@ -138,3 +138,6 @@ impl Standing {
             .filter(move |item| item.counts_in(filter, division, &self.scales))
     }
 }
+
+#[cfg(test)]
+mod tests;

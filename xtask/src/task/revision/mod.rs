@@ -32,6 +32,10 @@ impl Revision {
             .ok()
     }
 
+    pub fn present(&self, path: &Path) -> Result<Option<String>, Failure> {
+        Ok(self.file(path))
+    }
+
     pub fn changed_paths(&self) -> Result<Vec<PathBuf>, Failure> {
         let listed = Self::git(&self.root)
             .arguments(["diff", "--name-only", "--no-renames", "--relative", "-z"])
@@ -63,6 +67,9 @@ impl Revision {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
+    use super::Revision;
     use crate::task::fixture::Fixture;
     use crate::task::ratchet::Baseline;
     use crate::task::surfaces::Surfaces;
@@ -80,6 +87,8 @@ mod tests {
     const LISTED: &str = "- tooling/policy.toml\n";
     const CONSUMER: &str = "consumer";
     const BASE: &str = "origin/main";
+    const LOST: &str = "0123abc";
+    const ABSENT: &str = "absent.toml";
     const CHANGED: &str =
         "surfaces = [\"tooling/policy.toml\"]\nbaseline = \"lint-baseline.toml\"\nbit_boundary = []\n";
 
@@ -95,5 +104,17 @@ mod tests {
         let listed = Surfaces::changed(&root, &surfaces, &base).map(|changed| changed.to_string()).unwrap_or_default();
         assert!(listed.ends_with(LISTED));
         assert!(Baseline::admitted(&root, &BaselineFile::from(PARENT_BASELINE), &base).is_err());
+    }
+
+    #[test]
+    fn a_file_absent_at_the_revision_is_none_and_a_git_failure_is_an_error() {
+        let fixture = Fixture::new();
+        fixture.write(PARENT_POLICY, PARENT_TEXT).branch();
+        let Ok(base) = BASE.parse::<BranchName>();
+        let real = Revision::merge_base(fixture.root(), &base).unwrap();
+        let lost = Revision { root: fixture.root().to_path_buf(), commit: LOST.parse().unwrap() };
+        let read = |revision: &Revision, path: &str| revision.present(Path::new(path)).map(|text| text.is_some()).ok();
+        let found = [read(&real, PARENT_POLICY), read(&real, ABSENT), read(&lost, PARENT_POLICY)];
+        assert_eq!(found, [Some(true), Some(false), None]);
     }
 }

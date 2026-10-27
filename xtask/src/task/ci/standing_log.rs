@@ -96,7 +96,8 @@ mod tests {
     impl StandingLog {
         fn policy(extra: &str) -> Policy {
             let bare = Policy::DEFAULTS.split(CAPS).next().unwrap_or_default();
-            toml::from_str(&format!("{bare}{extra}")).expect("policy")
+            let own_base = bare.replace("base = \"origin/main\"", "base = \"HEAD\"");
+            toml::from_str(&format!("{own_base}{extra}")).expect("policy")
         }
 
         fn closed(refused: &[Result<(), Failure>], prefix: &str) -> bool {
@@ -108,6 +109,7 @@ mod tests {
     fn the_merge_base_policy_decides_whether_standing_budgets_are_enforced() {
         let fixture = Fixture::new();
         fixture.write(POLICY, STANDING).branch();
+        fixture.write(POLICY, NOTHING).committed();
         let (bare, mut pull, mut push) = (StandingLog::policy(NOTHING), Ledger::default(), Ledger::default());
         let enforced = StandingLog::enforcing(&RunKind::Pull(None), fixture.root(), &bare, &mut pull);
         let reported = StandingLog::enforcing(&RunKind::Other, fixture.root(), &bare, &mut push);
