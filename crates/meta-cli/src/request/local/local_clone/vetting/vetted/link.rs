@@ -37,8 +37,8 @@ impl Link {
     const LOCKED: &'static str = "locked";
     const ALTERNATES: &'static str = "objects/info/alternates";
     const MODULES: &'static str = "modules";
-    const PAUSED_ENTRIES: [&'static str; 7] =
-        ["rebase-merge", "rebase-apply", "sequencer", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD"];
+    const PAUSED_DIRS: [&'static str; 3] = ["rebase-merge", "rebase-apply", "sequencer"];
+    const PAUSED_REFS: [&'static str; 4] = ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD"];
     const CONFIG: &'static str = "config.worktree";
     const REFTABLE: &'static str = "reftable";
     const RESOLVE: [&'static str; 3] = ["rev-parse", "--verify", "-q"];
@@ -130,7 +130,10 @@ impl Link {
         absent(&[&self.git_dir], Self::REFTABLE).then_some(()).ok_or(Kept::Unlistable)?;
         absent(&both, Self::ALTERNATES).then_some(()).ok_or(Kept::Borrowed)?;
         absent(&both, Self::MODULES).then_some(()).ok_or(Kept::Submodules)?;
-        Self::PAUSED_ENTRIES.iter().all(|pause| absent(&[&self.git_dir], pause)).then_some(()).ok_or(Kept::Paused)?;
+        (Self::PAUSED_DIRS.iter().all(|pause| absent(&[&self.git_dir], pause))
+            && Self::PAUSED_REFS.iter().all(|name| self.resolved(host, name).is_none()))
+        .then_some(())
+        .ok_or(Kept::Paused)?;
         let Ok(config) = host.text(&self.git_dir.join(Self::CONFIG)).unwrap_or_default().parse::<WorktreeConfig>();
         config.unredirected()
     }
