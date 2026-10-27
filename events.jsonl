@@ -799,3 +799,4 @@
 {"at":"2026-10-27T23:09:37.180721Z","actor":"claude-lead","kind":"TaskOpened","task":"task-4155849b1ac2396b","text":"Extract-a-trait findings lint: a public method shape repeated on 3+ types is a finding (first: report on 25 lint types, a missing Lint trait).","division":"features-and-maintenance"}
 {"at":"2026-10-27T23:10:35.456265Z","actor":"claude-paymaj","kind":"TaskLinked","task":"task-66a9b45cc93afaf8","pr":66}
 {"at":"2026-10-27T23:11:45.291611Z","actor":"claude-effects","kind":"TaskClaimed","task":"task-67bef320ab546a08"}
+{"at":"2026-10-27T23:20:02.367253Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-7efcb6cd5857b31f","text":"Missed mutant on main: Policy::domains (tooling/task/src/policy/mod.rs:200) survives the full mutants run.","division":"features-and-maintenance","severity":"minor"}
