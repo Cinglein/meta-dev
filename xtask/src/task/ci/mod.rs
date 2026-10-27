@@ -1,12 +1,16 @@
 mod ci_step;
 mod local_gate;
 mod log_source;
+mod run_kind;
 mod standing_log;
 mod step_times;
 mod stranding;
+mod tracked_work;
+mod untracked;
 
 pub use local_gate::{Busy, LocalGate, OutsideConfig, Posting, Unready};
 pub use log_source::LogSource;
+pub use untracked::Untracked;
 
 use std::fs::File;
 use std::io::Write;
@@ -18,13 +22,16 @@ use strum::IntoEnumIterator;
 use crate::task::failure::Failure;
 use crate::task::surfaces::Surfaces;
 pub use ci_step::CiStep;
+use run_kind::RunKind;
 use standing_log::StandingLog;
 use step_times::StepTimes;
 use stranding::Stranding;
+use task::CommandLine;
 use task::Ledger;
 use task::Policy;
 use task::Selection;
 use task::Workspace;
+use tracked_work::TrackedWork;
 
 pub struct Ci {
     summary: Option<PathBuf>,
@@ -47,8 +54,10 @@ impl Ci {
                 let mut ledger = Ledger::default();
                 let log = StandingLog::git(workspace.root());
                 let read = || self.log.snapshot(&log);
+                let tracked = TrackedWork::refuse_untracked(&RunKind::from_ambient(&CommandLine::ambient()), read);
                 let outcome = CiStep::iter()
                     .try_for_each(|step| times.record(step, step.timed(workspace, selection, policy, &mut ledger)))
+                    .and(tracked)
                     .and_then(|()| StandingLog::counted(read, policy, &mut ledger))
                     .and_then(|()| Ok(ledger.checked(policy, selection)?))
                     .and_then(|()| Stranding::refuse_stranded(workspace.root(), policy, read));

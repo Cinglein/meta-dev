@@ -5,7 +5,7 @@ use meta_log::LogFailure;
 use meta_severity::{Demotions, Strands};
 use thiserror::Error;
 
-use crate::task::ci::{Busy, OutsideConfig, Unready};
+use crate::task::ci::{Busy, OutsideConfig, Unready, Untracked};
 use crate::task::ratchet::{Raised, Ratchet};
 use crate::task::revision::ForeignEmails;
 
@@ -51,4 +51,8 @@ pub enum Failure {
     GateFetch(LogFailure),
     #[error("local gate fails closed: this run needs meta/log but the gate did not fetch it")]
     Unfetched,
+    #[error(
+        "untracked work fails closed: {0}. Track it in meta: meta open \"<title>\" --division <path>, then meta claim <task> --worktree, then work on the branch that claim makes"
+    )]
+    Untracked(Untracked),
 }
