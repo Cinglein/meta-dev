@@ -1,10 +1,11 @@
 use std::collections::BTreeMap;
 
-use meta_schema::{Division, LevelName, TopDivision};
+use meta_schema::{Division, Event, LevelName, Placement, TopDivision};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
 use crate::level::Level;
+use crate::rating_failure::RatingFailure;
 use crate::scale::Scale;
 use crate::scale_failure::ScaleFailure;
 
@@ -41,6 +42,18 @@ impl Scales {
             }
             Some(_) | None => None,
         }
+    }
+
+    pub fn for_item(&self, placement: &Placement) -> Result<&Scale, RatingFailure> {
+        placement.division().and_then(|division| self.scale(division)).ok_or(RatingFailure::Unscaled)
+    }
+
+    pub fn admits(&self, event: &Event) -> Result<(), RatingFailure> {
+        let level = event.proposed_rating().and_then(|rating| rating.level().cloned());
+        level.map_or(Ok(()), |level| {
+            let placed = event.placement().ok_or(RatingFailure::Unscaled)?;
+            self.for_item(placed)?.level(&level).map(|_| ()).ok_or(RatingFailure::UnknownLevel(level))
+        })
     }
 
     fn placed(&self, division: &Division, scale: &Scale) -> Result<(), ScaleFailure> {

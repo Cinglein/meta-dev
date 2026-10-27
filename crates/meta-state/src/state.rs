@@ -8,9 +8,10 @@ mod vetting;
 use std::collections::HashMap;
 
 use meta_schema::{
-    Actor, Block, Entry, EntryNote, Id, PullRequest, Record, SchemaVersion, Target, Task, TaskLink, Text,
+    Actor, Block, Entry, EntryNote, Id, PullRequest, Record, Rerating, SchemaVersion, Target, Task, TaskLink, Text,
 };
 
+use crate::rated_item::RatedItem;
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
 use crate::task_state::{TaskState, TaskStatus};
@@ -186,6 +187,39 @@ impl State {
                     .map(|known| known.correct(text.clone()))
             })
             .ok_or(Refusal::UnknownEntry(entry))
+    }
+
+    pub(crate) fn rerate(&mut self, rerating: &Rerating) -> Result<(), Refusal> {
+        let item = rerating.target();
+        let change = rerating.change();
+        let current = self.rated_item(item).ok_or(Refusal::UnknownTarget(item))?.rating().clone();
+        self.retirement(item.entry()).map_or(Ok(()), |_| Err(Refusal::Retired(item.entry())))?;
+        (current == change.before()).then_some(()).ok_or(Refusal::RatedSince(current))?;
+        let index = self.index_of.get(&item.entry()).copied().unwrap_or_default();
+        let level = change.level();
+        self.concerns
+            .get_mut(index)
+            .filter(|known| known.target() == item)
+            .map(|known| known.rerate(level.clone()))
+            .or_else(|| {
+                let issue = self.issues.get_mut(index).filter(|known| known.target() == item);
+                issue.map(|known| known.rerate(level.clone()))
+            })
+            .ok_or(Refusal::UnknownTarget(item))
+    }
+
+    #[must_use]
+    pub fn rated_item(&self, item: Target) -> Option<RatedItem> {
+        let index = self.index_of.get(&item.entry()).copied()?;
+        let concern = self.concerns.get(index).filter(|known| known.target() == item).map(ConcernState::rated);
+        concern.or_else(|| self.issues.get(index).filter(|known| known.target() == item).map(IssueState::rated))
+    }
+
+    #[must_use]
+    pub fn open_items(&self) -> Vec<RatedItem> {
+        let concerns = self.concerns.iter().map(ConcernState::target);
+        let targets = concerns.chain(self.issues.iter().map(IssueState::target));
+        targets.filter(|item| self.closed(item.entry()).is_none()).filter_map(|item| self.rated_item(item)).collect()
     }
 
     #[must_use]

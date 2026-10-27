@@ -1,0 +1,47 @@
+use crate::{Change, Event, LevelName, NewConcern, NewIssue, Rating, Rerating};
+
+const ACCEPTED_LEVELS: [&str; 3] = ["minor", "p1", "wrong-turn"];
+const REFUSED_LEVELS: [&str; 5] = ["", "12", "Major", "wrong_turn", "-"];
+
+const LEGACY_CONCERN: &str = r#"{"concern":"concern-0000000000000001","text":"x"}"#;
+const LEGACY_ISSUE: &str = r#"{"issue":"issue-0000000000000001","text":"x"}"#;
+const DIVISION: &str = "features-and-maintenance/nav";
+const MAJOR: &str = "major";
+const MINOR: &str = "minor";
+const ISSUE: &str = "issue-0000000000000001";
+const RAISED: &str = r#"{"kind":"ItemRated","item":"issue-0000000000000001","change":{"step":"raised","from":"minor","level":"major","scenario":"the map is lost offline"}}"#;
+const RAISED_SHOWN: &str = "ItemRated issue-0000000000000001 major (raised from minor: the map is lost offline)";
+const LOWERED_SHOWN: &str = "issue-0000000000000001 minor (lowered from major)";
+
+#[test]
+fn old_items_fold_as_unrated_and_a_rated_item_keeps_its_level_when_written() {
+    let concern: NewConcern = serde_json::from_str(LEGACY_CONCERN).unwrap();
+    let issue: NewIssue = serde_json::from_str(LEGACY_ISSUE).unwrap();
+    assert_eq!([concern.rating(), issue.rating()], [Rating::Unrated, Rating::Unrated]);
+    let rated = NewIssue::new(DIVISION.parse().unwrap(), MAJOR.parse().unwrap()).rated(MAJOR.parse().unwrap());
+    let read: NewIssue = serde_json::from_str(&serde_json::to_string(&rated).unwrap()).unwrap();
+    assert!(
+        read == rated
+            && read.rating() == Rating::Rated(MAJOR.parse().unwrap())
+            && read.to_string().ends_with(" !major")
+    );
+}
+
+#[test]
+fn a_level_name_is_lowercase_letters_digits_and_hyphens_with_a_letter() {
+    let accepted = ACCEPTED_LEVELS.map(|name| name.parse::<LevelName>().map(|level| level.to_string()).ok());
+    assert_eq!(accepted, ACCEPTED_LEVELS.map(|name| Some(name.to_owned())));
+    assert!(REFUSED_LEVELS.iter().all(|name| name.parse::<LevelName>().is_err()));
+    assert!(serde_json::from_str::<LevelName>(r#""Major""#).is_err());
+}
+
+#[test]
+fn a_change_reads_back_shows_its_step_and_knows_the_rating_it_replaces() {
+    let raised: Event = serde_json::from_str(RAISED).unwrap();
+    assert_eq!([raised.to_string(), serde_json::to_string(&raised).unwrap()], [RAISED_SHOWN, RAISED]);
+    let [minor, major] = [MINOR, MAJOR].map(|level| level.parse().unwrap());
+    let lowered = Rerating::new(ISSUE.parse().unwrap(), Change::Lowered { from: major, level: minor });
+    let first = Change::First { level: lowered.change().level().clone() };
+    assert_eq!([first.before(), lowered.change().before()], [Rating::Unrated, Rating::Rated(MAJOR.parse().unwrap())]);
+    assert_eq!((lowered.to_string(), first.to_string()), (LOWERED_SHOWN.to_owned(), MINOR.to_owned()));
+}

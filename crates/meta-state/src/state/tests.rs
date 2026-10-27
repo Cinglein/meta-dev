@@ -3,6 +3,7 @@ mod blocking;
 mod board;
 mod dissolving;
 mod links;
+mod rating;
 mod schema;
 mod waiting_rules;
 

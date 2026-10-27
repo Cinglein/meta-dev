@@ -1,5 +1,5 @@
 use meta_schema::{
-    Block, Claim, EntryNote, EventVisitor, NewConcern, NewIssue, NewTask, SchemaVersion, TaskLink, TaskRef,
+    Block, Claim, EntryNote, EventVisitor, NewConcern, NewIssue, NewTask, Rerating, SchemaVersion, TaskLink, TaskRef,
 };
 
 use crate::refusal::Refusal;
@@ -72,6 +72,10 @@ impl EventVisitor for Applying<'_> {
     fn schema_versioned(self, version: SchemaVersion) -> Self::Output {
         self.state.note_schema(version);
         Ok(())
+    }
+
+    fn item_rated(self, rerating: &Rerating) -> Self::Output {
+        self.state.rerate(rerating)
     }
 
     fn task_reopened(self, task: TaskRef) -> Self::Output {

@@ -3,10 +3,13 @@ mod gc_restore;
 mod heartbeat;
 mod notices;
 #[cfg(test)]
+mod rating;
+#[cfg(test)]
 mod status;
 mod usage;
 
 use meta_log::{LogStore, MemoryLog};
+use meta_severity::Scales;
 
 use super::Request;
 use super::cli_failure::{CliFailure, Invalid};
@@ -58,7 +61,10 @@ impl Meta {
     fn run(&self, actor: &str, words: &[&str]) -> Result<String, CliFailure> {
         let args = std::iter::once(PROGRAM).chain(words.iter().copied()).map(String::from).collect::<Vec<_>>();
         Request::try_from(args)
-            .and_then(|request| request.answer_from(&self.0, || actor.parse().map_err(CliFailure::raised::<Invalid>)))
+            .and_then(|request| {
+                request
+                    .answer_from(&self.0, &Scales::default(), || actor.parse().map_err(CliFailure::raised::<Invalid>))
+            })
             .map(|output| output.to_string())
     }
 
