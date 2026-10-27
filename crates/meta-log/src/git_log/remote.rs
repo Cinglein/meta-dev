@@ -1,3 +1,5 @@
+mod objects;
+
 use std::fmt;
 use std::process::Output;
 
@@ -10,6 +12,7 @@ use super::tip::Tip;
 use crate::log_failure::LogFailure;
 use crate::remote_name::RemoteName;
 use crate::stderr::Stderr;
+use objects::Objects;
 
 #[derive(Clone, Debug)]
 pub struct Remote {
@@ -20,22 +23,22 @@ pub struct Remote {
 impl Remote {
     pub const FILE: &'static str = "events.jsonl";
     const BRANCH: &'static str = "meta/log";
+    const SEPARATOR: char = '\t';
 
     pub fn new(git: Git, name: RemoteName) -> Self {
         Self { git, name }
     }
 
     pub fn fetch(&self) -> Result<Fetched, LogFailure> {
-        let tip = self.fetch_tip()?.sha();
-        self.blob_at(tip.as_ref()).map(|content| Fetched::new(tip, content))
-    }
-
-    pub fn fetch_tip(&self) -> Result<Tip, LogFailure> {
         Attempt::sequence().find_map(|attempt| attempt.settled(self.fetch_once())).unwrap_or(Err(LogFailure::Contended))
     }
 
+    pub fn fetch_tip(&self) -> Result<Tip, LogFailure> {
+        self.fetch().map(|fetched| Tip::new(fetched.tip().cloned()))
+    }
+
     pub fn content_at(&self, tip: &Sha) -> Result<Content, LogFailure> {
-        self.blob_at(Some(tip))
+        self.held(Some(tip))?.ok_or_else(|| LogFailure::Unfetched(tip.clone()))
     }
 
     pub fn push(&self, commit: &Sha) -> Result<Output, LogFailure> {
@@ -43,7 +46,15 @@ impl Remote {
         self.git.command(["push", "--quiet"]).arg(self.name.to_string()).arg(target).timed_output()
     }
 
-    fn fetch_once(&self) -> Result<Option<Tip>, LogFailure> {
+    fn fetch_once(&self) -> Result<Option<Fetched>, LogFailure> {
+        let tip = self.listed_tip()?;
+        let held = self.held(tip.as_ref())?;
+        let refetched = || self.fetched()?.map_or(Ok(None), |()| self.held(tip.as_ref()));
+        let content = held.map_or_else(refetched, |content| Ok(Some(content)))?;
+        Ok(content.map(|content| Fetched::new(tip, content)))
+    }
+
+    fn fetched(&self) -> Result<Option<()>, LogFailure> {
         let refspec = format!("+refs/heads/meta/*:refs/remotes/{}/meta/*", self.name);
         let fetched = self
             .git
@@ -51,35 +62,24 @@ impl Remote {
             .arg(self.name.to_string())
             .arg(refspec)
             .timed_output()?;
-        if fetched.status.success() {
-            Ok(Some(Tip::new(self.tracking_tip())))
-        } else {
-            self.after_failed_fetch(&fetched)
-        }
+        Ok(fetched.status.success().then_some(()))
     }
 
-    fn after_failed_fetch(&self, fetched: &Output) -> Result<Option<Tip>, LogFailure> {
-        let probe = self.git.command(["ls-remote"]).arg(self.name.to_string()).timed_output()?;
-        probe
-            .status
-            .success()
-            .then_some(None)
-            .ok_or_else(|| LogFailure::Offline { remote: self.name.clone(), stderr: Stderr::from(fetched) })
-    }
-
-    fn tracking_tip(&self) -> Option<Sha> {
-        let tracking = format!("refs/remotes/{}/{}^{{commit}}", self.name, Self::BRANCH);
-        self.git.command(["rev-parse", "--verify", "--quiet"]).arg(tracking).sha().ok()
-    }
-
-    fn blob_at(&self, tip: Option<&Sha>) -> Result<Content, LogFailure> {
-        tip.map_or(Ok(Content::default()), |commit| {
-            let files = self.git.command(["ls-tree", "--name-only", "-z"]).arg(commit.to_string()).content()?;
-            (files == Content::from(format!("{}\0", Self::FILE)))
-                .then_some(())
-                .ok_or_else(|| LogFailure::Malformed(self.name.clone()))?;
-            self.git.command(["cat-file", "blob"]).arg(format!("{commit}:{}", Self::FILE)).content()
+    fn held(&self, tip: Option<&Sha>) -> Result<Option<Content>, LogFailure> {
+        tip.map_or(Ok(Some(Content::default())), |tip| {
+            let answered = self.git.command(["cat-file", "--batch-command"]).input(Objects::request(tip)).content()?;
+            answered.as_ref().parse::<Objects>()?.content(&self.name)
         })
+    }
+
+    fn listed_tip(&self) -> Result<Option<Sha>, LogFailure> {
+        let branch = format!("refs/heads/{}", Self::BRANCH);
+        let listed = self.git.command(["ls-remote"]).arg(self.name.to_string()).arg(&branch).timed_output()?;
+        let offline = || LogFailure::Offline { remote: self.name.clone(), stderr: Stderr::from(&listed) };
+        let lines = listed.status.success().then(|| String::from_utf8_lossy(&listed.stdout).into_owned());
+        let lines = lines.ok_or_else(offline)?;
+        let tip = lines.lines().filter_map(|line| line.split_once(Self::SEPARATOR)).find(|(_, name)| *name == branch);
+        Ok(tip.map(|(sha, _)| sha.parse().unwrap_or_else(|never| match never {})))
     }
 }
 
