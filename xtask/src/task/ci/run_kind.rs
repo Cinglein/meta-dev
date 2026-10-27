@@ -32,7 +32,7 @@ impl RunKind {
 
     pub fn link(&self) -> ChangeLink {
         let task = match self {
-            RunKind::Pull(Some(head)) => head.to_string().parse().ok(),
+            RunKind::Pull(Some(head)) => head.task().ok(),
             RunKind::Pull(None) | RunKind::Other => None,
         };
         ChangeLink::new(None, task)
