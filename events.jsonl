@@ -773,3 +773,4 @@
 {"at":"2026-10-27T22:47:40.839985Z","actor":"claude-prose","kind":"TaskClaimed","task":"task-31622d6129b903d1"}
 {"at":"2026-10-27T22:51:46.458304Z","actor":"claude-lead","kind":"TaskOpened","task":"task-67bef320ab546a08","text":"Elegance measures (owner high prio): reference graph via rust-analyzer SCIP; reuse ratio, normalized-AST compressibility, Martin distance, pass-through chains; report-only, calibrate, then budget.","division":"features-and-maintenance"}
 {"at":"2026-10-27T22:52:57.128460Z","actor":"claude-prose","kind":"TaskLinked","task":"task-31622d6129b903d1","pr":63}
+{"at":"2026-10-27T22:52:59.664293Z","actor":"claude-lead","kind":"TaskOpened","task":"task-3f07f5216636765b","text":"Unify: one BaseSnapshot per run (merge base, prior policy); one fail-closed revision reader; one base branch. See scratchpad unify-checks.md.","division":"features-and-maintenance"}
