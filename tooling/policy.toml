@@ -258,13 +258,13 @@ window = "standing"
 [budgets.prose-words]
 division = "features-and-maintenance"
 measure = "words"
-allowance = { count = 7100 }
+allowance = { count = 5000 }
 window = "standing"
 
 [budgets.context-words]
 division = "features-and-maintenance/context"
 measure = "words"
-allowance = { of = "prose-words", count = 5600 }
+allowance = { of = "prose-words", count = 4000 }
 window = "standing"
 
 [budgets.effect-share]
@@ -284,5 +284,5 @@ window = "standing"
 [budgets.verbose-items]
 division = "features-and-maintenance"
 measure = { open_items = { verbose = 25 } }
-allowance = { count = 50 }
+allowance = { count = 35 }
 window = "standing"
