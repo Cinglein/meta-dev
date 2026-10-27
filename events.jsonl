@@ -588,3 +588,4 @@
 {"at":"2026-10-27T17:15:49.685229Z","actor":"claude-lead","kind":"ItemMoved","item":"issue-0ec2ae52a2248a57","division":"features-and-maintenance","carry":{"step":"changed","change":{"step":"first","level":"minor"}}}
 {"at":"2026-10-27T17:15:51.714129Z","actor":"claude-lead","kind":"ItemMoved","item":"issue-5d02348a5c0bc98d","division":"features-and-maintenance","carry":{"step":"changed","change":{"step":"first","level":"minor"}}}
 {"at":"2026-10-27T17:15:53.894565Z","actor":"claude-lead","kind":"ItemMoved","item":"issue-8f094e4ba7d7fcb7","division":"features-and-maintenance","carry":{"step":"changed","change":{"step":"first","level":"major"}}}
+{"at":"2026-10-27T17:15:55.803066Z","actor":"claude-lead","kind":"ItemMoved","item":"concern-5bc8cecd9314317c","division":"features-and-maintenance","carry":{"step":"changed","change":{"step":"first","level":"major"}}}
