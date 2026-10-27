@@ -1,4 +1,5 @@
 mod listed_test;
+mod listing;
 mod test_argument;
 
 use std::fmt;
@@ -6,6 +7,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use listed_test::ListedTest;
+use listing::Listing;
 use test_argument::TestArgument;
 
 use crate::test_run::TestRun;
@@ -30,44 +32,33 @@ impl TestBinary {
     }
 
     pub(super) fn runs(&self) -> Vec<TestRun> {
-        self.tests().map_or_else(
+        self.listing().map_or_else(
             |failure| {
                 eprintln!("{failure}");
                 vec![TestRun::Unlisted(self.path.clone())]
             },
-            |tests| self.listed_runs(tests),
+            |listing| listing.runs(self),
         )
     }
 
-    fn listed_runs(&self, tests: Vec<ListedTest>) -> Vec<TestRun> {
-        if tests.is_empty() {
-            vec![self.timed(&self.line().arguments(&self.arguments), Self::WHOLE)]
-        } else {
-            tests
-                .into_iter()
-                .map(|test| {
-                    let line = self
-                        .line()
-                        .argument(TestArgument::Exact)
-                        .argument(&test)
-                        .argument(TestArgument::Quiet);
-                    self.timed(&line, test)
-                })
-                .collect()
-        }
+    pub(in crate::test_runner::test_binary) fn listed(&self, test: ListedTest) -> TestRun {
+        let line = self
+            .line()
+            .argument(TestArgument::Exact)
+            .argument(&test)
+            .argument(TestArgument::Quiet);
+        self.timed(&line, test)
     }
 
-    fn tests(&self) -> Result<Vec<ListedTest>, Failure> {
-        let listed = self
-            .line()
+    pub(in crate::test_runner::test_binary) fn whole(&self) -> TestRun {
+        self.timed(&self.line().arguments(&self.arguments), Self::WHOLE)
+    }
+
+    fn listing(&self) -> Result<Listing, Failure> {
+        self.line()
             .argument(TestArgument::List)
-            .argument(TestArgument::Format)
-            .argument(TestArgument::Terse)
-            .captured::<Stdout>()?;
-        Ok(listed
-            .lines()
-            .filter_map(|line| line.parse::<ListedTest>().ok())
-            .collect())
+            .captured::<Stdout>()?
+            .parse()
     }
 
     fn timed(&self, line: &CommandLine, test: impl fmt::Display) -> TestRun {

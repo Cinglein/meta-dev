@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use task::Failure;
 
+#[derive(Debug)]
 pub(super) struct ListedTest(String);
 
 impl ListedTest {
