@@ -11,6 +11,8 @@ mod status_view;
 mod timed_command;
 mod writing;
 
+use std::path::PathBuf;
+
 use meta_listing::{Kind, Scope};
 use meta_log::LogStore;
 use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, TaskRef};
@@ -33,6 +35,7 @@ pub enum Request {
     ClaimWorktree(Claim),
     Worktrees,
     Gc(Sweep),
+    GcRestore(PathBuf),
     List(Option<Kind>, Scope),
     Status(StatusView),
     Hook(HookEvent),
@@ -92,8 +95,9 @@ impl TryFrom<Vec<String>> for Request {
             }
             "worktrees" => parsed.allowing(&[]).map(|_| Self::Worktrees),
             "gc" => {
-                let planned = parsed.allowing(&[OptionName::DryRun])?.flagged(OptionName::DryRun);
-                Ok(Self::Gc(planned.map_or(Sweep::Done, |()| Sweep::Planned)))
+                let parsed = parsed.allowing(&[OptionName::DryRun])?;
+                let planned = parsed.flagged(OptionName::DryRun).map_or(Sweep::Done, |()| Sweep::Planned);
+                Ok(parsed.restored().map_or(Self::Gc(planned), Self::GcRestore))
             }
             "release" => Ok(Self::Write(Event::TaskReleased(task()?))),
             "done" => Ok(Self::Write(Event::TaskDone(task()?))),
@@ -137,6 +141,7 @@ impl Request {
             Self::ClaimWorktree(claim) => LocalClone::try_from(project)?.claimed(project, claim, Self::actor()?),
             Self::Worktrees => LocalClone::try_from(project)?.worktrees(project),
             Self::Gc(sweep) => LocalClone::try_from(project)?.collected(project, sweep),
+            Self::GcRestore(quarantine) => LocalClone::try_from(project)?.unstranded(&quarantine),
             logged => logged.answer_from(&project.log()?, Self::actor),
         }
     }
@@ -157,7 +162,8 @@ impl Request {
             | Self::Status(_)
             | Self::ClaimWorktree(_)
             | Self::Worktrees
-            | Self::Gc(_) => Err(CliFailure::raised::<Misuse>("not a meta/log request")),
+            | Self::Gc(_)
+            | Self::GcRestore(_) => Err(CliFailure::raised::<Misuse>("not a meta/log request")),
         }
     }
 

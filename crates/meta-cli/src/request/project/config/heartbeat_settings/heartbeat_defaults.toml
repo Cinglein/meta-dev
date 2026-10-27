@@ -3,3 +3,4 @@ tick_seconds = 60
 stale_seconds = 900
 skew_seconds = 60
 gc = "dry-run"
+gc_seconds = 120

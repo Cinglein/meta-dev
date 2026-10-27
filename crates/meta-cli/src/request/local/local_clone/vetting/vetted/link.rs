@@ -14,6 +14,7 @@ use crate::request::local::local_clone::vetting::entry_kind::EntryKind;
 use crate::request::local::local_clone::vetting::git_call::GitCall;
 use crate::request::local::local_clone::vetting::inspection::Inspection;
 use crate::request::local::local_clone::vetting::kept::Kept;
+use crate::request::local::local_clone::vetting::thaw::Thaw;
 use crate::request::local::worktree_id::WorktreeId;
 use path_line::PathLine;
 use root_ref::RootRef;
@@ -105,6 +106,10 @@ impl Link {
     pub fn step(&self, step: Step) -> GitCall {
         let words = step.words().iter().map(OsStr::new).chain([self.path.as_os_str()]).collect::<Vec<_>>();
         GitCall::common(&self.common, &words)
+    }
+
+    pub fn thaw_plan(&self, origin: &Path) -> Thaw {
+        Thaw::planned(origin, Thaw::ledger_of(&self.path, &self.common))
     }
 
     pub fn unbranch(&self, branch: &RefLine) -> GitCall {

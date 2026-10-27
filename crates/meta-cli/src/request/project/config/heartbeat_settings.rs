@@ -1,3 +1,4 @@
+mod gc_limit;
 mod gc_mode;
 mod seconds;
 mod skew_limit;
@@ -9,6 +10,7 @@ use serde::{Deserialize, Deserializer};
 
 use super::Config;
 use crate::request::cli_failure::{CliFailure, Setup};
+use gc_limit::GcLimit;
 pub use gc_mode::GcMode;
 pub use seconds::Seconds;
 pub use skew_limit::SkewLimit;
@@ -22,11 +24,16 @@ pub struct HeartbeatSettings {
     stale: StaleLimit,
     skew: SkewLimit,
     gc: GcMode,
+    gc_limit: GcLimit,
 }
 
 impl HeartbeatSettings {
     pub fn gc_mode(&self) -> GcMode {
         self.gc
+    }
+
+    pub fn gc_limit(&self) -> GcLimit {
+        self.gc_limit
     }
 
     const DEFAULTS: &'static str = include_str!("heartbeat_settings/heartbeat_defaults.toml");
@@ -75,11 +82,13 @@ impl<'de> Deserialize<'de> for HeartbeatSettings {
             #[serde(rename = "skew_seconds")]
             skew: SkewLimit,
             gc: GcMode,
+            #[serde(rename = "gc_seconds")]
+            gc_limit: GcLimit,
         }
-        let Fields { interval, tick, stale, skew, gc } = Fields::deserialize(source)?;
+        let Fields { interval, tick, stale, skew, gc, gc_limit } = Fields::deserialize(source)?;
         tick.under(interval)
             .and(stale.over(interval))
-            .map(|()| Self { interval, tick, stale, skew, gc })
+            .map(|()| Self { interval, tick, stale, skew, gc, gc_limit })
             .ok_or_else(|| Source::Error::custom(Self::UNORDERED))
     }
 }

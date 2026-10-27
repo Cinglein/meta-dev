@@ -7,6 +7,7 @@ use super::entry_kind::EntryKind;
 use super::fake_host::FakeHost;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
+use super::shared_node::{LinkCount, NodeId, SharedNode};
 use super::vetted::Vetted;
 
 struct Case(&'static str, fn(&mut FakeHost));
@@ -29,7 +30,7 @@ const NO_BRANCH: &str = "task branch missing";
 const SHARED: &str = "branch checked out elsewhere";
 const STRANGER: &str = "a different worktree at the recorded path";
 const OWN_CHECKOUTS: &str = "worktree /clone\nHEAD c0\nbranch refs/heads/main\n\nworktree /trees/task-00000000000000b1\nHEAD c1\nbranch refs/heads/task-00000000000000b1\n";
-const REFUSED: [Case; 61] = [
+const REFUSED: [Case; 62] = [
     Case("symlink", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::Symlink)),
     Case("not found", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::Missing)),
     Case("unreadable entry", |host| host.entry_is("/trees/task-00000000000000b1", EntryKind::File)),
@@ -89,6 +90,10 @@ const REFUSED: [Case; 61] = [
     Case("commits not on the remote", |host| host.holds(&["ORIG_HEAD"])),
     Case("commits not on the remote", |host| host.holds(&["WIP"])),
     Case("commits not on the remote", |host| host.holds(&["MY-WIP"])),
+    Case("files hard-linked outside the worktree", |host| {
+        host.links(&["notes-a", "notes-b"], SharedNode::new(NodeId::new(1, 8), LinkCount::new(2)));
+        host.links(&["notes-c"], SharedNode::new(NodeId::new(2, 8), LinkCount::new(2)));
+    }),
     Case("per-worktree refs cannot be listed (reftable)", |host| {
         host.entry_is("/clone/.git/worktrees/task-00000000000000b1/reftable", EntryKind::Dir);
     }),
@@ -126,7 +131,8 @@ const REFUSED: [Case; 61] = [
         host.answer_is("list", "worktree /clone\nHEAD c1\nbranch refs/heads/task-00000000000000b1\n");
     }),
 ];
-const ACCEPTED: [fn(&mut FakeHost); 5] = [
+const ACCEPTED: [fn(&mut FakeHost); 6] = [
+    |host| host.links(&["notes-a", "notes-b"], SharedNode::new(NodeId::new(1, 8), LinkCount::new(2))),
     |_| {},
     |host| host.answer_is("list", OWN_CHECKOUTS),
     |host| host.answer_is("ls-remote", "c1\trefs/heads/main\n"),

@@ -13,6 +13,7 @@ impl fmt::Display for Usage {
              \x20 claim <task-id> [--from <actor>] [--worktree]   (assigns you; several may hold a task; --worktree: new worktree on branch <task-id>, prints its path)\n\
              \x20 worktrees   (this clone's worktrees: task status, missing, unrecorded)\n\
              \x20 gc [--dry-run]   (frees recorded worktrees whose pr is merged or closed or whose task stalled, once all work is on the remote and nothing has them open)\n\
+             \x20 gc restore <quarantine>   (puts a stranded quarantine's file modes back, unlocks it and moves it home)\n\
              \x20 release <task-id>   (unassigns you)\n\
              \x20 done|reopen <task-id>\n\
              \x20 wait <task-id> --on <issue-id|task-id|review|ci|merge> | resume <task-id>\n\

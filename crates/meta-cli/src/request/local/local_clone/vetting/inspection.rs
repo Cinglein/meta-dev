@@ -18,6 +18,6 @@ pub trait Inspection {
     fn neighbours(&self, root: &Path) -> Vec<Alternates>;
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy;
     fn stamp(&self) -> Stamp;
-    fn frozen(&self, path: &Path) -> Result<Thaw, Kept>;
+    fn frozen(&self, quarantine: &Path, plan: Thaw) -> Result<Thaw, Kept>;
     fn thawed(&self, thaw: &Thaw);
 }

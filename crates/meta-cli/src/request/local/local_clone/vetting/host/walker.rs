@@ -1,9 +1,11 @@
 use std::fs::{DirEntry, ReadDir};
+use std::os::unix::fs::MetadataExt as _;
 use std::path::Path;
 
 use crate::request::local::byte_count::ByteCount;
 use crate::request::local::local_clone::vetting::entry_kind::EntryKind;
 use crate::request::local::local_clone::vetting::found::Found;
+use crate::request::local::local_clone::vetting::shared_node::{LinkCount, NodeId, SharedNode};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Walker<'root>(&'root Path);
@@ -33,6 +35,10 @@ impl<'root> Walker<'root> {
                 [vec![found(EntryKind::Dir, ByteCount::default())], self.descended(&path)].concat()
             }
             Ok(meta) if meta.is_symlink() => vec![found(EntryKind::Symlink, ByteCount::new(meta.len()))],
+            Ok(meta) if meta.nlink() > 1 => {
+                let shared = SharedNode::new(NodeId::new(meta.dev(), meta.ino()), LinkCount::new(meta.nlink()));
+                vec![found(EntryKind::File, ByteCount::new(meta.len())).sharing(shared)]
+            }
             Ok(meta) => vec![found(EntryKind::File, ByteCount::new(meta.len()))],
             Err(_) => Self::unreadable(&path),
         }

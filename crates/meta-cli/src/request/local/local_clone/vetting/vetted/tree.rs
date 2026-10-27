@@ -7,6 +7,7 @@ use crate::request::local::byte_count::ByteCount;
 use crate::request::local::local_clone::vetting::entry_kind::EntryKind;
 use crate::request::local::local_clone::vetting::found::Found;
 use crate::request::local::local_clone::vetting::kept::Kept;
+use crate::request::local::local_clone::vetting::shared_node::SharedNode;
 use cargo_layout::CargoLayout;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -36,7 +37,8 @@ impl Tree {
             EntryKind::Symlink if !tracked_links.iter().any(|link| link == found.path()) => Some(Kept::Symlink),
             EntryKind::Symlink | EntryKind::Dir | EntryKind::File => None,
         });
-        failures.into_iter().next().map_or(Ok(()), Err)
+        failures.into_iter().next().map_or(Ok(()), Err)?;
+        self.inward().then_some(()).ok_or(Kept::HardLinked)
     }
 
     pub fn cargo_target(&self, dir: &Path, tag: Option<&str>) -> Result<(), Kept> {
@@ -50,6 +52,13 @@ impl Tree {
             .all(|(inner, kind)| layout.owns(inner, kind))
             .then_some(())
             .ok_or(Kept::Ignored)
+    }
+
+    fn inward(&self) -> bool {
+        let shared: Vec<SharedNode> = self.0.iter().filter_map(Found::shared).collect();
+        shared
+            .iter()
+            .all(|node| node.links().seen_all(shared.iter().filter(|other| other.node() == node.node()).count()))
     }
 
     fn kinds(&self) -> HashMap<&Path, EntryKind> {

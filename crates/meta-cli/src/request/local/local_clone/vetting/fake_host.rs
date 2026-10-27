@@ -12,6 +12,7 @@ use super::git_call::GitCall;
 use super::inspection::Inspection;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
+use super::shared_node::SharedNode;
 use super::thaw::{Thaw, Thawed};
 use crate::request::local::byte_count::ByteCount;
 use crate::request::local::local_clone::quarantine::Stamp;
@@ -190,6 +191,11 @@ impl FakeHost {
         self.pseudo.extend(pseudo);
     }
 
+    pub fn links(&mut self, paths: &[&str], node: SharedNode) {
+        let linked = paths.iter().map(|path| Found::new(PathBuf::from(path), EntryKind::File, ByteCount::default()));
+        self.walk.extend(linked.map(|found| found.sharing(node)));
+    }
+
     pub fn opens(&mut self, path: PathBuf) {
         self.open.push(path);
     }
@@ -294,9 +300,9 @@ impl Inspection for FakeHost {
         Occupancy::Listed(self.open.clone())
     }
 
-    fn frozen(&self, path: &Path) -> Result<Thaw, Kept> {
-        self.calls.borrow_mut().push(vec![OsString::from(FROZEN), path.as_os_str().to_os_string()]);
-        Ok(Thaw::new(vec![Thawed::new(path.to_path_buf(), Permissions::from_mode(NO_MODE))]))
+    fn frozen(&self, quarantine: &Path, plan: Thaw) -> Result<Thaw, Kept> {
+        self.calls.borrow_mut().push(vec![OsString::from(FROZEN), quarantine.as_os_str().to_os_string()]);
+        Ok(plan.holding(vec![Thawed::new(quarantine.to_path_buf(), &Permissions::from_mode(NO_MODE))]))
     }
 
     fn thawed(&self, thaw: &Thaw) {

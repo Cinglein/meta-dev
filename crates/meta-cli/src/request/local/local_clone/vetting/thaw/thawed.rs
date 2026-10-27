@@ -1,15 +1,22 @@
 use std::fs::Permissions;
+use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+use serde::{Deserialize, Serialize};
+
+mod mode;
+
+use mode::Mode;
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Thawed {
     path: PathBuf,
-    permissions: Permissions,
+    mode: Mode,
 }
 
 impl Thawed {
-    pub fn new(path: PathBuf, permissions: Permissions) -> Self {
-        Self { path, permissions }
+    pub fn new(path: PathBuf, permissions: &Permissions) -> Self {
+        Self { path, mode: Mode::new(permissions.mode()) }
     }
 
     pub fn path(&self) -> &Path {
@@ -17,6 +24,6 @@ impl Thawed {
     }
 
     pub fn permissions(&self) -> Permissions {
-        self.permissions.clone()
+        Permissions::from_mode(self.mode.bits())
     }
 }

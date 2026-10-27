@@ -21,6 +21,7 @@ use super::inspection::Inspection;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
 use super::thaw::{Thaw, Thawed};
+use crate::request::local::LocalFile;
 use crate::request::local::local_clone::quarantine::Stamp;
 use walker::Walker;
 
@@ -97,19 +98,24 @@ impl Inspection for Host {
         }
     }
 
-    fn frozen(&self, path: &Path) -> Result<Thaw, Kept> {
-        let files = self.walked(path).into_iter().filter(|found| found.kind() == EntryKind::File);
-        let frozen: Vec<std::io::Result<Thawed>> = files
-            .map(|found| path.join(found.path()))
-            .map(|file| {
-                let original = file.symlink_metadata()?.permissions();
-                let mut read_only = original.clone();
-                read_only.set_readonly(true);
-                std::fs::set_permissions(&file, read_only).map(|()| Thawed::new(file, original))
-            })
-            .collect();
-        let thaw = Thaw::new(frozen.iter().filter_map(|frozen| frozen.as_ref().ok().cloned()).collect());
-        frozen.into_iter().find_map(Result::err).map_or(Ok(thaw.clone()), |failure| {
+    fn frozen(&self, quarantine: &Path, plan: Thaw) -> Result<Thaw, Kept> {
+        let found = self.walked(quarantine).into_iter();
+        let files = found.filter(|found| found.kind() == EntryKind::File && found.shared().is_none());
+        let originals = files.map(|found| {
+            let file = quarantine.join(found.path());
+            file.symlink_metadata().map(|entry| Thawed::new(file, &entry.permissions()))
+        });
+        let thaw = plan.holding(
+            originals.collect::<std::io::Result<_>>().map_err(|failure| Kept::Uninspected(Cause::new(failure)))?,
+        );
+        let ledger = serde_json::to_string(&thaw).map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
+        LocalFile::new(thaw.ledger()).replaced(&ledger).map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
+        let failed = thaw.files().iter().find_map(|thawed| {
+            let mut read_only = thawed.permissions();
+            read_only.set_readonly(true);
+            std::fs::set_permissions(thawed.path(), read_only).err()
+        });
+        failed.map_or(Ok(thaw.clone()), |failure| {
             self.thawed(&thaw);
             Err(Kept::Uninspected(Cause::new(failure)))
         })
@@ -117,6 +123,7 @@ impl Inspection for Host {
 
     fn thawed(&self, thaw: &Thaw) {
         thaw.files().iter().for_each(|thawed| drop(std::fs::set_permissions(thawed.path(), thawed.permissions())));
+        drop(std::fs::remove_file(thaw.ledger()));
     }
 
     fn stamp(&self) -> Stamp {

@@ -15,7 +15,6 @@ use crate::request::cli_failure::{CliFailure, Misuse, Setup};
 use crate::request::local::LocalClone;
 use crate::request::output::{Listed, Output};
 use crate::request::project::{HeartbeatSettings, Project};
-#[cfg(test)]
 pub use gc_hook::GcHook;
 #[cfg(test)]
 pub use heartbeat_record::HeartbeatRecord;
@@ -31,6 +30,7 @@ pub use tick::Tick;
 pub enum Heartbeat {
     Tick,
     TickRun,
+    GcRun,
     Flags,
     Plist,
 }
@@ -42,6 +42,7 @@ impl FromStr for Heartbeat {
         match name {
             "tick" => Ok(Self::Tick),
             "tick-run" => Ok(Self::TickRun),
+            "gc-run" => Ok(Self::GcRun),
             "flags" => Ok(Self::Flags),
             "plist" => Ok(Self::Plist),
             other => Err(CliFailure::raised::<Misuse>(format!("unknown heartbeat command `{other}`"))),
@@ -50,20 +51,38 @@ impl FromStr for Heartbeat {
 }
 
 impl Heartbeat {
+    const HEARTBEAT: &'static str = "heartbeat";
+    const TICK_RUN: &'static str = "tick-run";
+    const GC_RUN: &'static str = "gc-run";
+    const DISABLED: &'static str = "gc disabled";
+
     pub fn answer(self, project: &Project) -> Result<Output, CliFailure> {
         let settings = HeartbeatSettings::try_from(project.config())?;
         let clone = LocalClone::try_from(project)?;
         match self {
-            Self::Tick => Tick::supervised(Self::inner_tick(project)?, settings.tick_limit()),
-            Self::TickRun => Tick::live(project, &clone, settings.gc_mode()),
+            Self::Tick => {
+                let ticked = Tick::supervised(Self::inner(project, Self::TICK_RUN)?, settings.tick_limit());
+                let gc = GcHook::supervised(
+                    Self::inner(project, Self::GC_RUN)?,
+                    settings.gc_limit().deadline(),
+                    settings.gc_mode(),
+                );
+                Tick::reported(clone.git_dir().as_ref(), gc)?;
+                ticked
+            }
+            Self::TickRun => Tick::live(project, &clone),
+            Self::GcRun => settings.gc_mode().sweep().map_or_else(
+                || Ok(Output::Listed(Listed::new(Self::DISABLED))),
+                |sweep| clone.collected(project, sweep),
+            ),
             Self::Flags => LatestFlags::answer(clone.git_dir().as_ref(), &settings, Utc::now()),
             Self::Plist => Self::plist(&clone, &settings),
         }
     }
 
-    fn inner_tick(project: &Project) -> Result<Command, CliFailure> {
+    fn inner(project: &Project, run: &str) -> Result<Command, CliFailure> {
         let mut command = Command::new(std::env::current_exe().map_err(CliFailure::raised::<Setup>)?);
-        command.args(["heartbeat", "tick-run"]).current_dir(project.root());
+        command.args([Self::HEARTBEAT, run]).current_dir(project.root());
         Ok(command)
     }
 

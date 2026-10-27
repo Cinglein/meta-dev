@@ -71,7 +71,11 @@ impl fmt::Display for Verdict {
             Self::Refused { path, kept, ending, .. } => write!(formatter, "kept {}: {kept}; {ending}", path.display()),
             Self::Unrecorded { path } => write!(formatter, "unrecorded {}: left alone", path.display()),
             Self::Stranded { path, record, .. } => {
-                write!(formatter, "STRANDED in quarantine {}: left alone, move it back by hand", path.display())?;
+                let shown = path.display();
+                write!(
+                    formatter,
+                    "STRANDED in quarantine {shown}: may be read-only and locked; restore: meta gc restore {shown}"
+                )?;
                 record.as_ref().map_or(Ok(()), |record| write!(formatter, "; record follows from {}", record.display()))
             }
         }

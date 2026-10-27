@@ -16,7 +16,7 @@ use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::live_github::LiveGithub;
 use crate::request::local::LocalClone;
 use crate::request::output::{Listed, Output};
-use crate::request::project::{GcMode, Project, TickLimit};
+use crate::request::project::{Project, TickLimit};
 use crate::request::status_view::StatusView;
 use crate::request::timed_command::TimedCommand;
 use gave_up::GaveUp;
@@ -50,9 +50,12 @@ impl Tick {
         finished.verdict().answered(&finished)
     }
 
-    pub fn live(project: &Project, clone: &LocalClone, mode: GcMode) -> Result<Output, CliFailure> {
+    pub fn live(project: &Project, clone: &LocalClone) -> Result<Output, CliFailure> {
         let github = |query: &LiveQuery| LiveGithub::for_project(project).read(query);
-        let pulse = Pulse::new(Utc::now(), GcHook::run(project, clone, mode));
-        Self::answer(clone.git_dir().as_ref(), &project.log()?, github, pulse)
+        Self::answer(clone.git_dir().as_ref(), &project.log()?, github, Pulse::new(Utc::now(), GcHook::Pending))
+    }
+
+    pub fn reported(git_dir: &Path, gc: GcHook) -> Result<(), CliFailure> {
+        HeartbeatRecord::read(git_dir)?.map_or(Ok(()), |record| record.reported(gc).write(git_dir))
     }
 }
