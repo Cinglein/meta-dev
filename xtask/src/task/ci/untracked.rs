@@ -18,6 +18,8 @@ pub enum Untracked {
     Retired(Id<Task>),
     #[error("{0} has no assignee; meta claim {0}")]
     Unclaimed(Id<Task>),
+    #[error("{0} is done and not linked to this pull request; {OPEN}", OPEN = Untracked::OPEN)]
+    DoneElsewhere(Id<Task>),
 }
 
 impl Untracked {
