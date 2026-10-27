@@ -75,8 +75,9 @@ impl Ledger {
             .measure()
             .item_filter()
             .zip(self.standing.as_ref())
-            .map_or(Exposure::Diff, |(filter, standing)| {
-                standing.exposure(filter, budget.division(), domains)
+            .map_or(Exposure::Diff, |(filter, standing)| match self.mode {
+                Mode::Reporting => Exposure::Reported,
+                Mode::Enforcing => standing.exposure(filter, budget.division(), domains),
             })
     }
 
@@ -105,10 +106,10 @@ impl Ledger {
                 let lines = budgets
                     .amount(budget)
                     .and_then(|allowance| budget.lines(&allowance));
-                let exposure = match (self.mode, waiting(id, budget)) {
-                    (Mode::Reporting, _) if budget.standing_in().is_some() => Exposure::Reported,
-                    (_, true) => Exposure::Pending,
-                    _ => self.exposure_of(budget, policy.domains()),
+                let exposure = if waiting(id, budget) {
+                    Exposure::Pending
+                } else {
+                    self.exposure_of(budget, policy.domains())
                 };
                 (
                     id,
