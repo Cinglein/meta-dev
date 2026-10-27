@@ -16,7 +16,6 @@ use open_item::OpenItem;
 pub struct Standing {
     items: Vec<OpenItem>,
     linked: Vec<NewTask>,
-    paying: Vec<NewTask>,
 }
 
 impl Standing {
@@ -50,17 +49,12 @@ impl Standing {
             .iter()
             .filter(|task| open(task.entry()))
             .map(|task| Self::task(state, task));
-        let linked: Vec<&TaskState> = state
-            .tasks()
-            .iter()
-            .filter(|task| link.links(task) && state.retirement(task.entry()).is_none())
-            .collect();
         Standing {
             items: concerns.chain(issues).chain(tasks).collect(),
-            linked: linked.iter().map(|task| task.new_task().clone()).collect(),
-            paying: linked
+            linked: state
+                .tasks()
                 .iter()
-                .filter(|task| open(task.entry()))
+                .filter(|task| link.links(task) && state.retirement(task.entry()).is_none())
                 .map(|task| task.new_task().clone())
                 .collect(),
         }
@@ -107,8 +101,8 @@ impl Standing {
     }
 
     fn paid_down(&self, filter: ItemFilter, division: &Division) -> bool {
-        !self.paying.is_empty()
-            && self.paying.iter().all(|task| {
+        !self.linked.is_empty()
+            && self.linked.iter().all(|task| {
                 self.counted(filter, division)
                     .any(|item| item.addressed_by(task))
             })
