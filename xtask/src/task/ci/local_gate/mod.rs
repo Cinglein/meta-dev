@@ -62,6 +62,7 @@ impl LocalGate {
     const CHANGES: [&str; 3] = ["status", "--porcelain", "--untracked-files=all"];
     const PUSHED: [&str; 4] = ["branch", "--remotes", "--contains", "HEAD"];
     const HEAD: [&str; 2] = ["rev-parse", "HEAD"];
+    const BRANCH: [&str; 4] = ["symbolic-ref", "--quiet", "--short", "HEAD"];
     const POST: [&str; 4] = ["api", "--method", "POST", "--silent"];
     const GATE: [&str; 2] = ["xtask", "ci"];
     const FIELD: &str = "-f";
@@ -100,11 +101,13 @@ impl LocalGate {
         let target = GateLock::target(&parent, &key);
         let lock = GateLock::guarding(&target, policy.gate_wait()?)?;
         let checkout = self.checkout(&parent)?;
-        let log = StandingLog::prefetched(&checkout.root(), &Policy::read(&checkout.root())?)?;
+        let log = StandingLog::prefetched(&checkout.root())?;
         let toolchain = checkout.toolchain()?;
+        let branch = Self::git(&self.root).arguments(Self::BRANCH).captured::<Stdout>().ok();
         let child = GateChild::new(&parent, target, checkout.times().path().to_path_buf(), toolchain.clone())?
             .seeing(CommandLine::ambient())
-            .passing(&self.passed);
+            .passing(&self.passed)
+            .heading(branch.and_then(|name| name.parse().ok()));
         let cargo = || child.line(Program::Executable(PathBuf::from(Self::CARGO)), checkout.root());
         let metadata: CargoMetadata = cargo().arguments(Self::METADATA).captured::<Stdout>()?.parse()?;
         OutsideConfig::around(checkout.above().unwrap_or(&parent), child.cargo_home())

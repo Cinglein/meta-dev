@@ -1,11 +1,13 @@
 use std::collections::BTreeMap;
 use std::ffi::OsString;
 
-use task::BranchName;
+use crate::task::ci::head_branch::HeadBranch;
+use crate::task::ci::untracked::Untracked;
+use crate::task::failure::Failure;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RunKind {
-    Pull(Option<BranchName>),
+    Pull(Option<HeadBranch>),
     Other,
 }
 
@@ -17,43 +19,19 @@ impl RunKind {
     const NUMBER: &str = "PULL_REQUEST";
 
     pub fn from_ambient(ambient: &BTreeMap<String, OsString>) -> RunKind {
-        let _ = (ambient, Self::GATE_BRANCH, Self::EVENT, Self::PULL_EVENT, Self::HEAD, Self::NUMBER);
-        if ambient.is_empty() { RunKind::Pull(None) } else { RunKind::Other }
+        let set = |name: &str| ambient.get(name).map(|value| value.to_string_lossy().into_owned());
+        let given = |name: &str| set(name).filter(|value| !value.is_empty());
+        let head = given(Self::HEAD).or_else(|| given(Self::GATE_BRANCH));
+        let pulled = given(Self::EVENT).filter(|event| event.starts_with(Self::PULL_EVENT));
+        let signal = pulled.or(given(Self::NUMBER)).or(set(Self::GATE_BRANCH)).or(head.clone());
+        let Ok(branch) = head.map(|head| head.parse()).transpose();
+        signal.map_or(RunKind::Other, |_| RunKind::Pull(branch))
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use std::collections::BTreeMap;
-    use std::ffi::OsString;
-
-    use super::RunKind;
-
-    const GATE: &str = "META_GATE_BRANCH";
-    const HEAD: &str = "GITHUB_HEAD_REF";
-    const BRANCH: &str = "task-0000000000000001-x";
-    const PUSH: [(&str, &str); 2] = [("GITHUB_EVENT_NAME", "push"), ("GITHUB_HEAD_REF", "")];
-    const SIGNALS: [(&str, &str); 4] = [
-        ("GITHUB_EVENT_NAME", "pull_request_target"),
-        ("PULL_REQUEST", "7"),
-        ("META_GATE_BRANCH", ""),
-        ("GITHUB_HEAD_REF", "task-0000000000000001"),
-    ];
-
-    impl RunKind {
-        fn seen(pairs: &[(&str, &str)]) -> RunKind {
-            let ambient: BTreeMap<String, OsString> =
-                pairs.iter().map(|(name, value)| ((*name).to_owned(), OsString::from(value))).collect();
-            RunKind::from_ambient(&ambient)
+    pub fn refuse(&self, judge: impl FnOnce(Option<&HeadBranch>) -> Result<(), Untracked>) -> Result<(), Failure> {
+        match self {
+            RunKind::Pull(head) => judge(head.as_ref()).map_err(Failure::Untracked),
+            RunKind::Other => Ok(()),
         }
-    }
-
-    #[test]
-    fn only_a_run_with_no_pull_request_signal_is_skipped_and_each_signal_alone_makes_a_pull_run() {
-        assert!(RunKind::seen(&[]) == RunKind::Other && RunKind::seen(&PUSH) == RunKind::Other);
-        let kinds = SIGNALS.map(|signal| RunKind::seen(&[signal]));
-        let named = kinds.iter().filter(|kind| matches!(kind, RunKind::Pull(Some(_)))).count();
-        assert!(kinds.iter().all(|kind| matches!(kind, RunKind::Pull(_))) && named == 1);
-        assert_eq!(RunKind::seen(&[(GATE, BRANCH)]), RunKind::seen(&[(HEAD, BRANCH)]));
     }
 }

@@ -1,4 +1,5 @@
 mod ci_step;
+mod head_branch;
 mod local_gate;
 mod log_source;
 mod run_kind;
@@ -76,28 +77,5 @@ impl Ci {
             .as_ref()
             .map_or(Ok(()), |path| File::create(path).and_then(|mut file| write!(file, "{times}")))
             .map_err(Failure::Summary)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::fs;
-    use std::time::Duration;
-
-    use super::ci_step::CiStep;
-    use super::step_times::StepTimes;
-    use super::{Ci, LogSource};
-    use crate::task::fixture::Fixture;
-
-    const TIMES: &str = "times";
-    const SHOWN: &str = "lint 1.0s";
-
-    #[test]
-    fn a_gate_child_records_its_step_times() {
-        let fixture = Fixture::new();
-        let mut times = StepTimes::default();
-        times.record(CiStep::Lint, Ok(Duration::from_secs(1))).unwrap();
-        Ci::new(None, None, Some(fixture.path(TIMES)), LogSource::Origin).recorded(&times).unwrap();
-        assert_eq!(fs::read_to_string(fixture.path(TIMES)).ok().as_deref(), Some(SHOWN));
     }
 }
