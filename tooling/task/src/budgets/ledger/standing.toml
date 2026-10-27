@@ -61,3 +61,18 @@ division = "architecture-and-planning"
 measure = { open_items = { kind = "issue" } }
 allowance = { count = 0 }
 window = "standing"
+
+[[scales."features-and-maintenance/nav"]]
+name = "lost"
+meaning = "x"
+parent = "critical"
+
+[[scales."features-and-maintenance/nav"]]
+name = "slow"
+meaning = "x"
+parent = "major"
+
+[[scales."features-and-maintenance/nav"]]
+name = "typo"
+meaning = "x"
+parent = "minor"

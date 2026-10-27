@@ -171,7 +171,7 @@ mod tests {
         let derived = DEPRECATED.map(|key| {
             old.budgets()
                 .budget(&key.budget_id())
-                .map(|budget| (budget.measure(), budget.tolerance()))
+                .map(|budget| (budget.measure().clone(), budget.tolerance()))
         });
         assert_eq!(derived, DERIVED);
     }

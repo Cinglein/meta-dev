@@ -16,7 +16,7 @@ const PRICE: &str = "allowance = { share = 100 }\n";
 const WINDOW: &str = "window = \"per_change\"\n";
 const CI: &str = "source = \"ci\"\n";
 
-const REFUSED: [(&str, &str, &str, &str); 28] = [
+const REFUSED: [(&str, &str, &str, &str); 29] = [
     (
         "meta",
         END,
@@ -161,9 +161,15 @@ const REFUSED: [(&str, &str, &str, &str); 28] = [
         "\n[domains.architecture-and-planning]\n\n[domains.\"architecture-and-planning/x\"]\ntests = [\"a\"]\n",
         "planning has no code scopes",
     ),
+    (
+        "meta",
+        END,
+        "\n[budgets.typo]\ndivision = \"features-and-maintenance\"\nmeasure = { open_items = { severity = { at_level = \"critcal\" } } }\nallowance = { count = 0 }\nwindow = \"standing\"\n",
+        "critcal is not a level of its division's scale",
+    ),
 ];
 
-const ACCEPTED: [(&str, &str, &str); 5] = [
+const ACCEPTED: [(&str, &str, &str); 6] = [
     (
         "old",
         END,
@@ -173,6 +179,9 @@ const ACCEPTED: [(&str, &str, &str); 5] = [
     ("old", END, END),
     ("meta", PRICE, "allowance = { share = 50 }\n"),
     ("meta", CI, "source = \"ci\"\nwarning = 0\n"),
+    (
+        "meta", TIMED, "allowance = { duration = 4000 }\ntolerance = 10\n",
+    ),
 ];
 
 impl Policy {
@@ -211,14 +220,6 @@ fn every_variant_that_drops_or_loosens_a_limit_is_refused_when_read() {
     assert!(unrefused.is_empty(), "{unrefused:?}\n{refused:?}");
 }
 
-const AGREED: [(&str, &str, &str); 4] = [
-    ("meta", END, END),
-    ("old", END, END),
-    ("meta", PRICE, "allowance = { share = 50 }\n"),
-    (
-        "meta", TIMED, "allowance = { duration = 4000 }\ntolerance = 10\n",
-    ),
-];
 const PRICED: Millis = Millis::new(64);
 const PERCENT: char = '%';
 
@@ -258,21 +259,16 @@ impl Policy {
 }
 
 #[test]
-fn the_table_shows_the_line_each_check_enforces_for_every_budget_kind() {
-    let disagreements: Vec<String> = AGREED
+fn the_kept_forms_are_read_and_the_table_shows_the_line_each_check_enforces() {
+    let variants = ACCEPTED.map(|(base, found, put)| Policy::variant(base, found, put));
+    let read = variants
+        .each_ref()
+        .map(|variant| variant.as_ref().err().map(ToString::to_string));
+    assert_eq!(read, [None, None, None, None, None, None]);
+    let disagreements: Vec<String> = variants
         .iter()
-        .filter_map(|(base, found, put)| Policy::variant(base, found, put).ok())
-        .flat_map(|policy| policy.disagreements())
+        .flatten()
+        .flat_map(Policy::disagreements)
         .collect();
     assert!(disagreements.is_empty(), "{disagreements:?}");
-}
-
-#[test]
-fn the_kept_forms_and_edges_are_read() {
-    let read = ACCEPTED.map(|(base, found, put)| {
-        Policy::variant(base, found, put)
-            .err()
-            .map(|error| error.to_string())
-    });
-    assert_eq!(read, [None, None, None, None, None]);
 }

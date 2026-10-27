@@ -80,6 +80,14 @@ pub const SECTIONS: &[Section] = &[
                 Tracked,
             ),
             Rule::new(
+                RuleId::new("budget-enforce-standing-base"),
+                ArchitectureAndPlanning,
+                Wording::new(
+                    "Standing budgets are enforced from the merge-base policy; the PR's own policy only has to parse and validate. A cap that the PR adds or tightens takes effect from the next PR. A cap that the PR loosens or drops still binds the PR itself, because the merge-base cap applies. The budget table marks a new cap as enforced from the next change. The merge base is the one with origin's default branch (origin/HEAD), never a branch that the PR names; a base policy that git cannot read fails the run, while a base without the file means no standing budgets. A PR whose task addresses an open item at the cap's level or more severe is paid down for that cap. A run that is not a pull request (a push to main) reports standing budgets in the table, marks the over-cap rows, and never fails: the debt rule blocks PRs, it does not turn main red.",
+                ),
+                Tracked,
+            ),
+            Rule::new(
                 RuleId::new("budget-enforce-per-task"),
                 ArchitectureAndPlanning,
                 Wording::new(

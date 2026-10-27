@@ -1,3 +1,4 @@
+use meta_schema::LevelName;
 use thiserror::Error;
 
 use super::budget_id::BudgetId;
@@ -37,4 +38,6 @@ pub enum TreeFailure {
     OtherMeasure(BudgetId),
     #[error("budget {0}: its parts are split by both percent and count")]
     MixedParts(BudgetId),
+    #[error("budget {0}: {1} is not a level of its division's scale")]
+    UnknownLevel(BudgetId, LevelName),
 }

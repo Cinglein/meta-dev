@@ -2,16 +2,21 @@ use std::env;
 use std::path::Path;
 
 use meta_log::{GitLog, Snapshot};
+use meta_severity::Scales;
 use meta_state::State;
 use task::{ChangeLink, Ledger, Policy, Standing};
 
 use crate::task::ci::log_source::LogSource;
+use crate::task::ci::run_kind::RunKind;
 use crate::task::failure::Failure;
+use crate::task::prior_policy::PriorPolicy;
+use crate::task::revision::Revision;
 
 pub struct StandingLog;
 
 impl StandingLog {
     const REMOTE: &str = "origin";
+    const DEFAULT_BRANCH: &str = "origin/HEAD";
     const GIT_ENTRY: &str = ".git";
     const PULL_REQUEST: &str = "PULL_REQUEST";
     const HEAD: &str = "GITHUB_HEAD_REF";
@@ -37,18 +42,36 @@ impl StandingLog {
         policy: &Policy,
         ledger: &mut Ledger,
     ) -> Result<(), Failure> {
-        let standing = policy.budgets().standing().then(|| Self::standing(read())).transpose()?;
+        let standing = ledger.reads_standing(policy).then(|| Self::standing(read(), policy.scales())).transpose()?;
         ledger.count(standing);
         Ok(())
     }
 
-    fn standing(snapshot: Result<Snapshot, Failure>) -> Result<Standing, Failure> {
+    pub fn enforcing(run: &RunKind, root: &Path, ledger: &mut Ledger) -> Result<(), Failure> {
+        run.by_kind(
+            ledger,
+            |ledger| Self::enforced_from(root, ledger),
+            |ledger| {
+                ledger.report_only();
+                Ok(())
+            },
+        )
+    }
+
+    pub fn enforced_from(root: &Path, ledger: &mut Ledger) -> Result<(), Failure> {
+        let Ok(default_branch) = Self::DEFAULT_BRANCH.parse();
+        let base = Revision::merge_base(root, &default_branch)?;
+        let text = base.present(Path::new(PriorPolicy::PATH))?;
+        ledger.enforce_from(text.as_deref()).map_err(Failure::PriorPolicy)
+    }
+
+    fn standing(snapshot: Result<Snapshot, Failure>, scales: &Scales) -> Result<Standing, Failure> {
         let state = Self::state(snapshot)?;
         let link = ChangeLink::new(
             env::var(Self::PULL_REQUEST).ok().and_then(|number| number.parse().ok()),
             env::var(Self::HEAD).ok().and_then(|branch| branch.parse().ok()),
         );
-        Ok(Standing::read(&state, &link))
+        Ok(Standing::read(&state, &link, scales))
     }
 }
 
@@ -58,12 +81,15 @@ mod tests {
     use settings::EmbeddedDefaults;
     use task::{Ledger, Policy};
 
-    use super::{Failure, LogSource, StandingLog};
+    use super::{Failure, LogSource, RunKind, StandingLog};
     use crate::task::ci::stranding::Stranding;
     use crate::task::fixture::Fixture;
 
     const CLOSED: &str = "standing budgets fail closed: meta/log";
     const GATE_CLOSED: &str = "local gate fails closed";
+    const NOTHING: &str = "";
+    const POLICY: &str = "tooling/policy.toml";
+    const CAPS: &str = "\n[budgets.features-and-maintenance-critical]";
     const TOP: &str = "features-and-maintenance";
     const MINOR: &str = "minor";
     const UNREACHABLE: &str = "unreachable.git";
@@ -71,7 +97,8 @@ mod tests {
 
     impl StandingLog {
         fn policy(extra: &str) -> Policy {
-            toml::from_str(&format!("{}{extra}", Policy::DEFAULTS)).expect("policy")
+            let bare = Policy::DEFAULTS.split(CAPS).next().unwrap_or_default();
+            toml::from_str(&format!("{bare}{extra}")).expect("policy")
         }
 
         fn closed(refused: &[Result<(), Failure>], prefix: &str) -> bool {
@@ -80,10 +107,22 @@ mod tests {
     }
 
     #[test]
+    fn the_merge_base_policy_decides_whether_standing_budgets_are_enforced() {
+        let fixture = Fixture::new();
+        fixture.write(POLICY, STANDING).branch();
+        fixture.write(POLICY, NOTHING).committed();
+        let (bare, mut pull, mut push) = (StandingLog::policy(NOTHING), Ledger::default(), Ledger::default());
+        let enforced = StandingLog::enforcing(&RunKind::Pull(None), fixture.root(), &mut pull);
+        let reported = StandingLog::enforcing(&RunKind::Other, fixture.root(), &mut push);
+        assert!(enforced.is_ok() && pull.reads_standing(&bare) && !pull.reports_only());
+        assert!(reported.is_ok() && push.reports_only());
+    }
+
+    #[test]
     fn an_unreadable_or_missing_log_fails_standing_budgets_closed_and_no_standing_budget_reads_nothing() {
         let reads: [fn() -> Result<Snapshot, Failure>; 2] =
             [|| Err(Failure::StandingLog(LogFailure::Contended)), || Ok(Snapshot::default())];
-        assert!(StandingLog::counted(reads[0], &Policy::defaults(), &mut Ledger::default()).is_ok());
+        assert!(StandingLog::counted(reads[0], &StandingLog::policy(NOTHING), &mut Ledger::default()).is_ok());
         let policy = StandingLog::policy(STANDING);
         let refused = reads.map(|read| StandingLog::counted(read, &policy, &mut Ledger::default()));
         assert!(StandingLog::closed(&refused, CLOSED));
