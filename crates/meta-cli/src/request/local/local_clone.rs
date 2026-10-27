@@ -24,6 +24,7 @@ use super::trail_entry::TrailEntry;
 use super::worktree_id::WorktreeId;
 use super::worktree_identity::WorktreeIdentity;
 use super::worktrees::Worktrees;
+use crate::request::ci::GitLink;
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::live_github::LiveGithub;
 use crate::request::output::{Listed, Output};
@@ -213,9 +214,8 @@ impl TryFrom<&Project> for LocalClone {
     type Error = CliFailure;
 
     fn try_from(project: &Project) -> Result<Self, Self::Error> {
-        let common = ["rev-parse", "--path-format=absolute", "--git-common-dir"].map(OsStr::new);
-        let shown = Git::new(project.root()).output(&common)?;
-        let git_dir = std::fs::canonicalize(shown).map_err(CliFailure::raised::<Setup>)?;
+        let git_dir =
+            GitLink::common_dir(project.root()).ok_or_else(|| CliFailure::raised::<Setup>("no git directory"))?;
         let checkout =
             git_dir.parent().map(Path::to_path_buf).ok_or_else(|| CliFailure::raised::<Setup>("no checkout"))?;
         Ok(Self::new(checkout, git_dir))
