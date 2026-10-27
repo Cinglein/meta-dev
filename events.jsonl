@@ -700,3 +700,4 @@
 {"at":"2026-10-27T21:18:26.104165Z","actor":"claude-lead","kind":"ItemRated","item":"concern-6093dc893bc6b066","division":"features-and-maintenance","change":{"step":"first","level":"major"}}
 {"at":"2026-10-27T21:18:28.070019Z","actor":"claude-lead","kind":"ItemRated","item":"concern-15d5aaf1d306f5d2","division":"performance-and-cost","change":{"step":"first","level":"major"}}
 {"at":"2026-10-27T21:18:30.963833Z","actor":"claude-lead","kind":"ItemRated","item":"concern-be820ca7e77035de","division":"features-and-maintenance","change":{"step":"first","level":"major"}}
+{"at":"2026-10-27T21:18:32.554888Z","actor":"claude-lead","kind":"EntryRetired","entry":"issue-5d02348a5c0bc98d","text":"lead call 2026-10-27 (drafts split): the listed ratchet bypasses are deliberate, outside the honest-mistakes threat model, or already removed (9e09a15 dropped xtask.toml and meta-lints)"}
