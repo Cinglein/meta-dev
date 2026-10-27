@@ -32,7 +32,7 @@ impl Baseline {
         let prior_policy = PriorPolicy::read_at(&revision)?;
         let prior_file = prior_policy.baseline().unwrap_or(file);
         let prior: Baseline =
-            revision.file(prior_file.path()).map(|text| toml::from_str(&text)).transpose()?.unwrap_or_default();
+            revision.present(prior_file.path())?.map(|text| toml::from_str(&text)).transpose()?.unwrap_or_default();
         let raised: Vec<Drift> = allowed.drifts(&prior).into_iter().filter(Drift::grew).collect();
         if raised.is_empty() { Ok(allowed) } else { Err(Failure::Raised(Raised::new(raised))) }
     }
