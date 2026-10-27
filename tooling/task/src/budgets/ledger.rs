@@ -66,12 +66,15 @@ mod tests {
     use super::Ledger;
     use crate::budget::{Interval, Millis};
     use crate::budgets::{Amount, Measure};
-    use crate::policy::Policy;
+    use crate::percent::Percent;
+    use crate::policy::{Most, Policy};
     use crate::selection::Selection;
 
-    const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"local_gate\"\n";
+    const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
     const STATEMENT: &str = include_str!("ledger/statement.txt");
     const MILLI: Millis = Millis::new(1);
+    const BASELINED_SHARE: usize = 25;
+    const BASELINED_TANGLE: usize = 64;
 
     impl Ledger {
         fn nested() -> Policy {
@@ -89,6 +92,14 @@ mod tests {
                 Amount::Duration(policy.interval(Interval::Total).plus(MILLI)),
             );
             ledger.spend(Measure::SlowestTest, Amount::Duration(warned));
+            ledger.spend(
+                Measure::TestLineShare,
+                Amount::Share(Percent::from(BASELINED_SHARE)),
+            );
+            ledger.spend(
+                Measure::TangleItems,
+                Amount::Count(Most::from(BASELINED_TANGLE * 2)),
+            );
             ledger
         }
     }

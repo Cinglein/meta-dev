@@ -12,10 +12,20 @@ const ALL_TESTS: &str = "tests = [\"*\"]";
 const SOME_TESTS: &str = "tests = [\"meta_*\"]";
 const TIMED: &str = "allowance = { duration = 4000 }\n";
 const TANGLES: &str = "allowance = { count = 83 }\n";
-const LOCAL: &str = "source = \"local_gate\"\n";
 const PRICE: &str = "allowance = { share = 100 }\n";
+const WINDOW: &str = "window = \"per_change\"\n";
+const CI: &str = "source = \"ci\"\n";
 
-const REFUSED: [(&str, &str, &str, &str); 17] = [
+const REFUSED: [(&str, &str, &str, &str); 20] = [
+    (
+        "meta", WINDOW, "window = \"standing\"\n", "unknown variant `standing`",
+    ),
+    (
+        "meta", WINDOW, "window = { rolling = 604800000 }\n", "unknown variant `rolling`",
+    ),
+    (
+        "meta", CI, "source = \"local_gate\"\n", "unknown variant `local_gate`",
+    ),
     (
         "meta",
         END,
@@ -36,8 +46,7 @@ const REFUSED: [(&str, &str, &str, &str); 17] = [
     ),
     ("meta", ALL_TESTS, SOME_TESTS, "covers only part of tests"),
     (
-        "meta", LOCAL, "source = \"local_gate\"\noverspend = \"escalate\"\n",
-        "unknown variant `escalate`",
+        "meta", CI, "source = \"ci\"\noverspend = \"escalate\"\n", "unknown variant `escalate`",
     ),
     (
         "meta", TANGLES, "allowance = { count = 83 }\ntolerance = 50\n",
@@ -106,11 +115,16 @@ const REFUSED: [(&str, &str, &str, &str); 17] = [
     ),
 ];
 
-const ACCEPTED: [(&str, &str, &str); 4] = [
+const ACCEPTED: [(&str, &str, &str); 5] = [
+    (
+        "old",
+        END,
+        "\n[domains.\"performance-and-cost/x\"]\ntests = [\"*\"]\n\n[budgets.x-time]\ndivision = \"performance-and-cost/x\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\n",
+    ),
     ("meta", END, END),
     ("old", END, END),
     ("meta", PRICE, "allowance = { share = 50 }\n"),
-    ("meta", LOCAL, "source = \"local_gate\"\nwarning = 0\n"),
+    ("meta", CI, "source = \"ci\"\nwarning = 0\n"),
 ];
 
 impl Policy {
@@ -212,5 +226,5 @@ fn the_kept_forms_and_edges_are_read() {
             .err()
             .map(|error| error.to_string())
     });
-    assert_eq!(read, [None, None, None, None]);
+    assert_eq!(read, [None, None, None, None, None]);
 }
