@@ -595,7 +595,10 @@ pub const SECTIONS: &[Section] = &[
                         "an_unreachable_github_is_one_flag_and_every_pull_request_reads_unknown",
                     ),
                     &[
-                        Enforcer::new("crates/meta-status/src/flags/tests.rs", "only_orphans_never_await_judgement"),
+                        Enforcer::new(
+                            "crates/meta-status/src/flags/tests.rs",
+                            "only_orphans_never_await_judgement_and_flags_survive_a_round_trip_through_json",
+                        ),
                         Enforcer::new(
                             "crates/meta-cli/src/request/tests/heartbeat/tick.rs",
                             "a_tick_prints_only_new_flags_and_exits_non_zero_only_for_flags_needing_judgement",
