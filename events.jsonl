@@ -626,3 +626,4 @@
 {"at":"2026-10-27T17:27:07.946116Z","actor":"claude-lead","kind":"ItemMoved","item":"concern-00639c4eca65869a","division":"architecture-and-planning","carry":{"step":"changed","change":{"step":"first","level":"minor"}}}
 {"at":"2026-10-27T17:27:10.778774Z","actor":"claude-lead","kind":"ItemMoved","item":"concern-6736a1556e108486","division":"features-and-maintenance","carry":{"step":"changed","change":{"step":"first","level":"minor"}}}
 {"at":"2026-10-27T17:27:13.273900Z","actor":"claude-lead","kind":"ItemMoved","item":"concern-778b6387845c9a2c","division":"features-and-maintenance","carry":{"step":"changed","change":{"step":"first","level":"minor"}}}
+{"at":"2026-10-27T17:27:16.265687Z","actor":"claude-lead","kind":"ItemMoved","item":"concern-bb96aaca4f3a7c51","division":"architecture-and-planning","carry":{"step":"changed","change":{"step":"first","level":"minor"}}}
