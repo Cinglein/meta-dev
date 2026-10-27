@@ -21,12 +21,12 @@ s="$FAKE_GH_SCENARIO"
 case "$1 $2" in
 "run list")
   n=$((n + 1)); echo "$n" > "$count"
-  echo "${n}000" > "$FAKE_GH_DIR/clock"
+  if [ "$s" = slow ]; then echo "${n}00000"; else echo "${n}000"; fi > "$FAKE_GH_DIR/clock"
   if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
   elif [ "$s" = none ] || [ "$4" != "$head" ]; then echo '[]'
   elif [ "$s" = late ] && { ! grep -q "no run yet" "$events" || grep -q "run appeared" "$events"; }; then echo '[]'
   elif [ "$n" -lt 2 ]; then echo '[]'
-  elif [ "$s" = late ] || [ "$s" = broken ] || [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
+  elif [ "$s" = late ] || [ "$s" = broken ] || [ "$s" = slow ] || [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
   elif [ "$s" = success ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"success"}]'
   elif [ "$s" = mixed ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"failure"},{"databaseId":8,"status":"completed","conclusion":"failure"}]'
   else echo '[{"databaseId":7,"status":"completed","conclusion":"failure"}]'; fi ;;
@@ -39,6 +39,7 @@ case "$1 $2" in
   elif [ "$s" = unstarted ] || [ "$s" = mixed ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[]}]}'
   else echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"success"}]}'; fi ;;
 esac
+read -r now < "$FAKE_GH_DIR/clock"; echo "$now" >> "$FAKE_GH_DIR/calls"
 "#;
 const FAILED_LOG: &str = "ci\tcargo xtask ci\t2026-10-25T06:40:01.0000000Z    Compiling meta-cli v0.0.0 (/home/runner/work/meta-development/crates/meta-cli)
 ci\tcargo xtask ci\t2026-10-25T06:40:09.0000000Z running 3 tests
