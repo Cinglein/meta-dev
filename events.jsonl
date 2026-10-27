@@ -738,3 +738,4 @@
 {"at":"2026-10-27T21:50:14.382425Z","actor":"claude-payb","kind":"TaskLinked","task":"task-ae6e747e2f49de5a","pr":57}
 {"at":"2026-10-27T21:50:22.742628Z","actor":"claude-payc","kind":"TaskOpened","task":"task-464affc0dabf3941","text":"Judge merge-base scales with its own default levels","division":"features-and-maintenance","addresses":["concern-920369030952e506"]}
 {"at":"2026-10-27T21:50:40.012540Z","actor":"claude-payc","kind":"TaskClaimed","task":"task-464affc0dabf3941"}
+{"at":"2026-10-27T21:51:33.200095Z","actor":"claude-lead","kind":"TaskOpened","task":"task-c1f74b366df027a4","text":"CI perf: cap the mutant matrices' max-parallel (about 24-28 of ~40 runner slots) so PR ci and gate jobs aren't queued behind full mutation runs (waits up to 1282 s seen; ~2600 s of PR queueing on 2026-10-27).","division":"performance-and-cost"}
