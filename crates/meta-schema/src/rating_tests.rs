@@ -10,8 +10,8 @@ const RAISED: &str = r#"{"kind":"ItemRated","item":"issue-0000000000000001","cha
 const RAISED_SHOWN: &str = "ItemRated issue-0000000000000001 major (raised from minor: the map is lost offline)";
 const LOWERED_SHOWN: &str = "issue-0000000000000001 minor (lowered from major)";
 const MOVED: [&str; 2] = [
-    r#"{"kind":"ItemMoved","item":"issue-0000000000000001","division":"performance-and-cost"}"#,
-    r#"{"kind":"ItemMoved","item":"issue-0000000000000001","from":"features-and-maintenance","division":"performance-and-cost","change":{"step":"lowered","from":"major","level":"minor"}}"#,
+    r#"{"kind":"ItemMoved","item":"issue-0000000000000001","division":"performance-and-cost","carry":{"step":"unrated"}}"#,
+    r#"{"kind":"ItemMoved","item":"issue-0000000000000001","from":"features-and-maintenance","division":"performance-and-cost","carry":{"step":"changed","change":{"step":"lowered","from":"major","level":"minor"}}}"#,
 ];
 const MOVED_SHOWN: [&str; 2] = [
     "ItemMoved issue-0000000000000001 to @performance-and-cost",

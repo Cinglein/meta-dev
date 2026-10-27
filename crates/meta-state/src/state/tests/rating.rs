@@ -1,4 +1,4 @@
-use meta_schema::{Change, Division, Event, LevelName, Placement, Rating, Relocation, Rerating, Target};
+use meta_schema::{Change, Event, LevelName, Placement, Rating, Rerating, Target};
 
 use super::{Events, Items, OWNER, Script};
 use crate::rated_item::RatedItem;
@@ -8,6 +8,11 @@ use crate::state::State;
 const MAJOR: &str = "major";
 const MINOR: &str = "minor";
 const COST: &str = "performance-and-cost";
+const ISSUE: &str = "issue-00000000000000bb";
+const REPORTED: &str =
+    r#"{"kind":"IssueReported","issue":"issue-00000000000000bb","text":"x","division":"features-and-maintenance"}"#;
+const MOVED: &str = r#"{"kind":"ItemMoved","item":"issue-00000000000000bb","from":"features-and-maintenance","division":"performance-and-cost","carry":{"step":"unrated"}}"#;
+const RATED: &str = r#"{"kind":"ItemRated","item":"issue-00000000000000bb","division":"features-and-maintenance","change":{"step":"first","level":"minor"}}"#;
 
 struct Levels;
 
@@ -45,24 +50,16 @@ fn a_change_applies_only_over_the_rating_it_replaces() {
 }
 
 #[test]
-fn a_move_applies_only_from_the_placement_and_rating_it_replaces() {
-    let issue = Items::issue().rated(Levels::named(MAJOR));
-    let item = Target::Issue(issue.issue());
-    let here = Items::division();
-    let there: Division = COST.parse().unwrap();
-    let moved = |from: &Division, to: &Division, change: Option<Change>| {
-        Event::ItemMoved(Relocation::new(item, Placement::new(from.clone()), to.clone(), change))
-    };
-    let lowered = Change::Lowered { from: Levels::named(MAJOR), level: Levels::named(MINOR) };
-    let gone = Script::default()
-        .then(OWNER, Event::IssueReported(issue))
-        .then(OWNER, moved(&here, &there, Some(lowered.clone())));
+fn a_move_and_a_rating_built_from_the_same_state_never_both_apply() {
+    let event = |line: &str| serde_json::from_str::<Event>(line).unwrap();
+    let reported = Script::default().then(OWNER, event(REPORTED));
+    let [moved, rated] = [MOVED, RATED].map(|line| reported.clone().then(OWNER, event(line)));
     let minor = Rating::Rated(Levels::named(MINOR));
-    let placed = RatedItem::new(item, Placement::new(there.clone()), minor.clone());
-    assert_eq!(State::fold(&gone.records).rated_item(item), Some(placed));
-    let refusals = [moved(&here, &there, None), moved(&there, &there, None), moved(&there, &here, Some(lowered))]
-        .map(|event| gone.vet(OWNER, event));
-    assert_eq!(refusals, [Err(Refusal::MovedSince), Err(Refusal::AlreadyIn(there)), Err(Refusal::RatedSince(minor))]);
+    let item = Target::Issue(ISSUE.parse().unwrap());
+    let placed = RatedItem::new(item, Placement::new(COST.parse().unwrap()), Rating::Unrated);
+    assert_eq!(State::fold(&moved.records).rated_item(item), Some(placed));
+    let refusals = [moved.vet(OWNER, event(RATED)), rated.vet(OWNER, event(MOVED)), moved.vet(OWNER, event(MOVED))];
+    assert_eq!(refusals, [Err(Refusal::MovedSince), Err(Refusal::RatedSince(minor)), Err(Refusal::MovedSince)]);
 }
 
 #[test]
