@@ -41,9 +41,11 @@ impl Remote {
         self.held(Some(tip))?.ok_or_else(|| LogFailure::Unfetched(tip.clone()))
     }
 
-    pub fn push(&self, commit: &Sha) -> Result<Output, LogFailure> {
+    pub fn push(&self, commit: &Sha, base: Option<&Sha>) -> Result<Output, LogFailure> {
         let target = format!("{commit}:refs/heads/{}", Self::BRANCH);
-        self.git.command(["push", "--quiet"]).arg(self.name.to_string()).arg(target).timed_output()
+        let expected = base.map(ToString::to_string).unwrap_or_default();
+        let lease = format!("--force-with-lease=refs/heads/{}:{expected}", Self::BRANCH);
+        self.git.command(["push", "--quiet"]).arg(lease).arg(self.name.to_string()).arg(target).timed_output()
     }
 
     fn fetch_once(&self) -> Result<Option<Fetched>, LogFailure> {

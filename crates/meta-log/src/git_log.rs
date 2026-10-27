@@ -78,7 +78,7 @@ impl GitLog {
         let record = decide(&before.content().snapshot())?;
         let appended = before.content().appended(&record).map_err(LogFailure::from)?;
         let commit = self.commit(before.tip(), &appended, &record)?;
-        let pushed = self.remote.push(&commit)?;
+        let pushed = self.remote.push(&commit, before.tip())?;
         pushed
             .status
             .success()
