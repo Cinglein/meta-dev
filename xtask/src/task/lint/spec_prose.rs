@@ -1,5 +1,6 @@
 mod prior_spec;
 mod prose_words;
+mod spec_drift;
 
 use std::fs;
 use std::path::Path;
@@ -11,6 +12,7 @@ use crate::task::prior_policy::PriorPolicy;
 use crate::task::revision::Revision;
 use prior_spec::PriorSpec;
 use prose_words::ProseWords;
+use spec_drift::SpecDrift;
 
 #[derive(Debug)]
 pub struct SpecProse;
@@ -18,10 +20,14 @@ pub struct SpecProse;
 impl SpecProse {
     pub const LINT: &str = "spec-prose";
 
-    pub fn since(root: &Path, spec: &SpecSettings, base: &Revision) -> Result<Report, Failure> {
+    pub fn since(root: &Path, spec: &SpecSettings, base: &Revision) -> Result<[(&'static str, Report); 2], Failure> {
         let written = fs::read_to_string(root.join(spec.file())).unwrap_or_default();
         let prior = PriorSpec::prose(base.file(Path::new(PriorPolicy::PATH)).as_deref(), |path| base.file(path))?;
-        Ok(Self::report(spec, &written, prior.as_deref()))
+        let changed = written.contains(SpecSettings::CHECKED).then(|| base.changed_paths()).transpose()?;
+        Ok([
+            (Self::LINT, Self::report(spec, &written, prior.as_deref())),
+            (SpecDrift::LINT, SpecDrift::report(&written, prior.as_deref(), &changed.unwrap_or_default())),
+        ])
     }
 
     pub fn report(spec: &SpecSettings, written: &str, prior: Option<&str>) -> Report {
