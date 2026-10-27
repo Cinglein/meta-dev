@@ -8,7 +8,6 @@ use std::collections::BTreeMap;
 use super::budget::{Amount, Budget, Measure};
 use super::budget_id::BudgetId;
 use super::standing::{Exposure, Standing};
-use crate::domains::Domains;
 use crate::failure::Failure;
 use crate::policy::Policy;
 use crate::selection::Selection;
@@ -70,14 +69,14 @@ impl Ledger {
     }
 
     #[must_use]
-    pub fn exposure_of(&self, budget: &Budget, domains: &Domains) -> Exposure {
+    pub fn exposure_of(&self, budget: &Budget) -> Exposure {
         budget
             .measure()
             .item_filter()
             .zip(self.standing.as_ref())
             .map_or(Exposure::Diff, |(filter, standing)| match self.mode {
                 Mode::Reporting => Exposure::Reported,
-                Mode::Enforcing => standing.exposure(filter, budget.division(), domains),
+                Mode::Enforcing => standing.exposure(filter, budget.division()),
             })
     }
 
@@ -109,7 +108,7 @@ impl Ledger {
                 let exposure = if waiting(id, budget) {
                     Exposure::Pending
                 } else {
-                    self.exposure_of(budget, policy.domains())
+                    self.exposure_of(budget)
                 };
                 (
                     id,
