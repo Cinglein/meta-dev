@@ -1,6 +1,7 @@
 mod listed_test;
 mod test_argument;
 
+use std::fmt;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -15,11 +16,17 @@ use task::{CommandLine, Program, Stdout};
 #[derive(Debug)]
 pub(super) struct TestBinary {
     path: PathBuf,
+    arguments: Vec<String>,
 }
 
 impl TestBinary {
-    pub(super) fn new(path: PathBuf) -> TestBinary {
-        TestBinary { path }
+    const WHOLE: &str = "main";
+
+    pub(super) fn new(path: PathBuf, arguments: impl IntoIterator<Item = String>) -> TestBinary {
+        TestBinary {
+            path,
+            arguments: arguments.into_iter().collect(),
+        }
     }
 
     pub(super) fn runs(&self) -> Vec<TestRun> {
@@ -28,8 +35,26 @@ impl TestBinary {
                 eprintln!("{failure}");
                 vec![TestRun::Unlisted(self.path.clone())]
             },
-            |tests| tests.into_iter().map(|test| self.timed(test)).collect(),
+            |tests| self.listed_runs(tests),
         )
+    }
+
+    fn listed_runs(&self, tests: Vec<ListedTest>) -> Vec<TestRun> {
+        if tests.is_empty() {
+            vec![self.timed(&self.line().arguments(&self.arguments), Self::WHOLE)]
+        } else {
+            tests
+                .into_iter()
+                .map(|test| {
+                    let line = self
+                        .line()
+                        .argument(TestArgument::Exact)
+                        .argument(&test)
+                        .argument(TestArgument::Quiet);
+                    self.timed(&line, test)
+                })
+                .collect()
+        }
     }
 
     fn tests(&self) -> Result<Vec<ListedTest>, Failure> {
@@ -45,14 +70,9 @@ impl TestBinary {
             .collect())
     }
 
-    fn timed(&self, test: ListedTest) -> TestRun {
+    fn timed(&self, line: &CommandLine, test: impl fmt::Display) -> TestRun {
         let started = Instant::now();
-        let ran = self
-            .line()
-            .argument(TestArgument::Exact)
-            .argument(&test)
-            .argument(TestArgument::Quiet)
-            .captured::<Stdout>();
+        let ran = line.captured::<Stdout>();
         let timing = TestTiming::new(&self.path, test, started.elapsed());
         let outcome: fn(TestTiming) -> TestRun = ran
             .inspect_err(|failure| eprintln!("{failure}"))

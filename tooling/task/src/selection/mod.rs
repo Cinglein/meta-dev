@@ -32,6 +32,16 @@ impl Selection {
     }
 
     #[must_use]
+    pub fn within(&self, names: &BTreeSet<CrateName>) -> Selection {
+        match self {
+            Selection::Workspace => Selection::Crates(names.clone()),
+            Selection::Crates(crates) => {
+                Selection::Crates(crates.intersection(names).cloned().collect())
+            }
+        }
+    }
+
+    #[must_use]
     pub fn reaching(&self) -> Option<&Selection> {
         match self {
             Selection::Crates(crates) if crates.is_empty() => None,
@@ -88,6 +98,9 @@ mod tests {
                 SHOWN.map(String::from)
             )
         );
-        assert!(empty.reaching().is_none() && crates.reaching() == Some(&crates));
+        let eval = BTreeSet::from([EVAL.parse().unwrap()]);
+        let within = [&whole, &crates, &empty].map(|picked| picked.within(&eval).to_string());
+        let reached = empty.reaching().is_none() && crates.reaching() == Some(&crates);
+        assert!(reached && within == [EVAL, EVAL, SHOWN[1]]);
     }
 }

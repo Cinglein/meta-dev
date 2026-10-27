@@ -12,6 +12,7 @@ use crate::failure::Failure;
 pub struct PackageGraph {
     directories: BTreeMap<CrateName, PathBuf>,
     dependents: BTreeMap<CrateName, BTreeSet<CrateName>>,
+    doctested: BTreeSet<CrateName>,
 }
 
 impl PackageGraph {
@@ -32,6 +33,12 @@ impl PackageGraph {
             },
         );
         Ok(PackageGraph {
+            doctested: metadata
+                .packages()
+                .iter()
+                .filter(|package| package.doctested())
+                .map(|package| package.name().clone())
+                .collect(),
             directories: metadata
                 .packages()
                 .iter()
@@ -57,6 +64,11 @@ impl PackageGraph {
     #[must_use]
     pub fn names(&self) -> BTreeSet<CrateName> {
         self.dependents.keys().cloned().collect()
+    }
+
+    #[must_use]
+    pub fn doctested(&self) -> &BTreeSet<CrateName> {
+        &self.doctested
     }
 
     #[must_use]
@@ -94,7 +106,7 @@ mod tests {
     use std::collections::BTreeSet;
     use std::path::Path;
     const METADATA: &str = r#"{"workspace_root": "/w", "packages": [
-        {"name": "board", "manifest_path": "/w/crates/board/Cargo.toml", "dependencies": [{"name": "serde", "path": null}]},
+        {"name": "board", "manifest_path": "/w/crates/board/Cargo.toml", "dependencies": [{"name": "serde", "path": null}], "targets": [{"doctest": true}]},
         {"name": "search", "manifest_path": "/w/crates/search/Cargo.toml", "dependencies": [{"name": "board", "path": "/w/crates/board"}]},
         {"name": "engine", "manifest_path": "/w/crates/engine/Cargo.toml", "dependencies": [{"name": "search", "path": "/w/crates/search"}]}
     ]}"#;
@@ -124,9 +136,14 @@ mod tests {
         assert_eq!(
             (
                 graph.containing(Path::new(INSIDE)),
-                graph.containing(Path::new(OUTSIDE))
+                graph.containing(Path::new(OUTSIDE)),
+                graph
+                    .doctested()
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<String>>()
             ),
-            (BOARD.parse().ok().as_ref(), None)
+            (BOARD.parse().ok().as_ref(), None, vec![BOARD.to_owned()])
         );
     }
 }

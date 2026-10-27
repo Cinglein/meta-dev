@@ -147,7 +147,10 @@ impl CommandLine {
                 .map(|stream| String::from_utf8_lossy(stream).trim().to_owned())
                 .filter(|text| !text.is_empty())
                 .collect();
-            Err(Failure::Command(format!("{self}: {}", printed.join("\n"))))
+            Err(Failure::Printed {
+                command: self.to_string(),
+                printed: printed.join("\n"),
+            })
         }
     }
 
@@ -191,7 +194,8 @@ mod tests {
     const READS_PACKAGE: [&str; 2] = ["-c", "read line && [ \"$line\" = \"[package]\" ]"];
     const PRINTS_AND_FAILS: [&str; 2] =
         ["-c", "echo out | tr o O; echo err | tr e E >&2; exit 101"];
-    const PRINTED: [&str; 2] = ["Out", "Err"];
+    const OUT: &str = "Out";
+    const ERR: &str = "Err";
 
     #[test]
     fn a_command_line_prints_its_program_and_arguments_in_order() {
@@ -221,7 +225,7 @@ mod tests {
             .captured::<Stdout>()
             .unwrap_err()
             .to_string();
-        let printed = PRINTED.iter().all(|printed| failure.contains(printed));
+        let printed = failure.contains(OUT) && failure.ends_with(ERR);
         assert!(complained.ok().as_deref() == Some(SAID) && printed);
     }
 

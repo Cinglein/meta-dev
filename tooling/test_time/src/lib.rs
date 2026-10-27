@@ -1,3 +1,4 @@
+mod cargo_test;
 mod no_tests;
 mod runner_config;
 mod test_run;
@@ -9,6 +10,7 @@ use std::cmp::Reverse;
 use std::fs;
 use std::time::Duration;
 
+use cargo_test::CargoTest;
 use no_tests::NoTests;
 use runner_config::RunnerConfig;
 pub use test_runner::TestRunner;
@@ -16,13 +18,13 @@ use test_runs::TestRuns;
 use test_timing::TestTiming;
 
 use task::Failure;
+use task::Program;
 use task::Report;
 use task::Selection;
 use task::Site;
 use task::Violation;
 use task::Workspace;
 use task::{Amount, Ledger, Measure, Millis};
-use task::{CargoArgument, CargoTool, CommandLine, Program};
 use task::{Limit, Policy};
 
 #[derive(Debug)]
@@ -47,11 +49,16 @@ impl TestTime {
                     site: Site::Workspace,
                     error,
                 })?;
-                let line = workspace.line(Program::Cargo);
-                let runner = RunnerConfig::current(workspace.target().path())?;
-                let ran = TestTime::cargo_test(line, selection, policy, &runner)
+                let cargo =
+                    |selection| CargoTest::new(workspace.line(Program::Cargo), selection, policy);
+                let ran = cargo(selection)
+                    .through(&RunnerConfig::current()?)
                     .environment(TestRunner::RUNS, runs.path())
                     .run();
+                let documented = selection.within(workspace.packages().doctested());
+                let documented_ran = documented
+                    .reaching()
+                    .map_or(Ok(()), |documented| cargo(documented).doctests().run());
                 let timings = fs::read_to_string(runs.path())
                     .map_err(|error| Failure::Io {
                         site: Site::File(runs.path().to_path_buf()),
@@ -59,26 +66,10 @@ impl TestTime {
                     })?
                     .parse::<TestRuns>()?
                     .passed()?;
-                ran?;
+                ran.and(documented_ran)?;
                 TestTime { timings }.recorded(policy, ledger).verdict()
             },
         )
-    }
-
-    fn cargo_test(
-        line: CommandLine,
-        selection: &Selection,
-        policy: &Policy,
-        runner: &RunnerConfig,
-    ) -> CommandLine {
-        line.argument(CargoArgument::Test)
-            .arguments(selection.arguments::<CargoTool>())
-            .argument(CargoArgument::AllFeatures)
-            .argument(CargoArgument::Jobs)
-            .argument(policy.compiler_tasks())
-            .argument(CargoArgument::NoFailFast)
-            .argument(CargoArgument::Config)
-            .argument(runner)
     }
 
     fn recorded(mut self, policy: &Policy, ledger: &mut Ledger) -> Report {
@@ -115,19 +106,19 @@ impl TestTime {
 
 #[cfg(test)]
 mod tests {
-    use super::{RunnerConfig, TestTime, TestTiming};
+    use super::{CargoTest, RunnerConfig, TestTime, TestTiming};
     use settings::EmbeddedDefaults;
     use std::path::{Path, PathBuf};
     use std::time::Duration;
     use task::{CommandLine, Interval, Ledger, Policy, Program, Report, Selection};
     const RUNNER: &str = "target/debug/x\"task";
-    const TARGET: &str = "target";
+    const RUNNER_KEY: &str = "--config";
+    const DOCTESTS: &str = "--doc";
     const RUNS_EVERYTHING: [&str; 3] = [
-        "--no-fail-fast",
-        "--config",
-        "target.'cfg(all())'.runner = [\"target/debug/x\\\"task\", \"test-runner\", \"target\"]",
+        "--no-fail-fast --tests --config",
+        "target.'cfg(all())'.runner = [\"target/debug/x\\\"task\", \"test-runner\"]",
+        "--workspace",
     ];
-    const SKIPS_DOCTESTS: &str = "--no-run";
     const NAMES: [&str; 4] = ["target/debug/deps/bin-1a2b3c", "exact", "slow", "bulk"];
     const TICK: Duration = Duration::from_millis(1);
     const WHOLE_IN_UNITS: usize = 4;
@@ -167,12 +158,24 @@ mod tests {
     }
 
     #[test]
-    fn the_one_cargo_test_run_runs_doctests_and_hands_each_test_binary_to_the_runner() {
-        let base = CommandLine::new(Program::Cargo);
-        let runner = RunnerConfig::new(PathBuf::from(RUNNER), Path::new(TARGET));
-        let line = TestTime::cargo_test(base, &Selection::Workspace, &Policy::defaults(), &runner);
-        let shown = line.to_string();
-        let whole = RUNS_EVERYTHING.iter().all(|part| shown.contains(part));
-        assert!(whole && !shown.contains(SKIPS_DOCTESTS), "{shown}");
+    fn libtest_targets_go_through_the_runner_and_doctests_run_without_it() {
+        let policy = Policy::defaults();
+        let cargo = || {
+            CargoTest::new(
+                CommandLine::new(Program::Cargo),
+                &Selection::Workspace,
+                &policy,
+            )
+        };
+        let shown = cargo()
+            .through(&RunnerConfig::new(PathBuf::from(RUNNER)))
+            .to_string();
+        let docs = cargo().doctests().to_string();
+        let through = RUNS_EVERYTHING.iter().all(|part| shown.contains(part));
+        let plain = docs.ends_with(DOCTESTS) && !docs.contains(RUNNER_KEY);
+        assert!(
+            through && plain && !shown.contains(DOCTESTS),
+            "{shown}\n{docs}"
+        );
     }
 }

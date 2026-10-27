@@ -29,6 +29,8 @@ pub enum Failure {
     Unset(&'static str),
     #[error("{0} failed")]
     Command(String),
+    #[error("{command} failed:\n{printed}")]
+    Printed { command: String, printed: String },
     #[error("{0}")]
     Tests(String),
     #[error("{0}")]
