@@ -1,10 +1,10 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use super::alternates::Alternates;
 use super::cause::Cause;
 use super::deletable::Deletable;
 use super::entry_kind::EntryKind;
-use super::fake_host::FakeHost;
+use super::fake_host::{FakeHost, PATH};
 use super::kept::Kept;
 use super::occupancy::Occupancy;
 use super::shared_node::{LinkCount, NodeId, SharedNode};
@@ -156,7 +156,8 @@ const OPEN: [&[&str]; 4] = [
 ];
 const MOVED_REFS: &str = "c1 refs/heads/task-00000000000000b1\nc1 refs/worktree/bisect\n";
 const NO_LSOF: &str = "no lsof";
-const CONFIRMATIONS: [&str; 5] = ["in use", "", "changed during checks", "locked", "cannot inspect: no lsof"];
+const CONFIRMATIONS: [&str; 3] = ["", "changed during checks", "locked"];
+const VACANCIES: [&str; 5] = ["in use", "", "", "", "cannot inspect: no lsof"];
 
 #[test]
 fn only_a_clean_pushed_linked_worktree_under_the_root_is_vetted_and_its_bytes_include_its_target_dir() {
@@ -185,16 +186,23 @@ fn every_hazard_keeps_the_worktree_with_its_reason() {
 }
 
 #[test]
-fn only_a_vacant_worktree_that_vets_the_same_again_becomes_deletable() {
+fn only_a_worktree_that_vets_the_same_again_becomes_deletable() {
     let host = FakeHost::clean();
     let mut moved = FakeHost::clean();
     moved.answer_is("for-each-ref", MOVED_REFS);
     let vet = |host: &FakeHost| Vetted::proved(&FakeHost::worktree(), &host.context(), host);
-    let scans = OPEN.map(|open| Occupancy::Listed(open.iter().map(PathBuf::from).collect()));
-    let scans = [&scans[..], &[Occupancy::Unlisted(Cause::new(NO_LSOF))]].concat();
-    let agains = [vet(&host), vet(&host), vet(&moved), Err(Kept::Locked), vet(&host)];
-    let shown = scans.iter().zip(agains).map(|(scan, again)| {
-        Deletable::confirmed(vet(&host).unwrap(), scan, again).err().map(|kept| kept.to_string()).unwrap_or_default()
+    let agains = [vet(&host), vet(&moved), Err(Kept::Locked)];
+    let shown = agains.into_iter().map(|again| {
+        Deletable::confirmed(vet(&host).unwrap(), again).err().map(|kept| kept.to_string()).unwrap_or_default()
     });
     assert_eq!(shown.collect::<Vec<_>>(), CONFIRMATIONS);
+}
+
+#[test]
+fn only_open_files_under_the_worktree_block_it_and_a_failed_scan_blocks_every_worktree() {
+    let scans = OPEN.map(|open| Occupancy::Listed(open.iter().map(PathBuf::from).collect()));
+    let scans = [&scans[..], &[Occupancy::Unlisted(Cause::new(NO_LSOF))]].concat();
+    let shown =
+        scans.iter().map(|scan| scan.vacant(Path::new(PATH)).err().map(|kept| kept.to_string()).unwrap_or_default());
+    assert_eq!(shown.collect::<Vec<_>>(), VACANCIES);
 }

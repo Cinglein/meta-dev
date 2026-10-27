@@ -7,7 +7,6 @@ use super::entry_kind::EntryKind;
 use super::git_call::GitCall;
 use super::inspection::Inspection;
 use super::kept::Kept;
-use super::occupancy::Occupancy;
 use super::thaw::Thaw;
 use super::vetted::{Link, Step, Vetted};
 use crate::request::local::byte_count::ByteCount;
@@ -21,8 +20,7 @@ impl Deletable {
     const UNLOCK: [&'static str; 2] = ["worktree", "unlock"];
     const MOVE: [&'static str; 2] = ["worktree", "move"];
 
-    pub fn confirmed(first: Vetted, occupancy: &Occupancy, again: Result<Vetted, Kept>) -> Result<Self, Kept> {
-        occupancy.vacant(first.link().path())?;
+    pub fn confirmed(first: Vetted, again: Result<Vetted, Kept>) -> Result<Self, Kept> {
         (again? == first).then_some(Self(first)).ok_or(Kept::Changed)
     }
 
