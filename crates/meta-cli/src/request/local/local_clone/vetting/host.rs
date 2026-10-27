@@ -8,9 +8,9 @@ mod tests;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::io::ErrorKind;
+use std::io::{ErrorKind, Write as _};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Output, Stdio};
 
 use super::alternates::Alternates;
 use super::cause::Cause;
@@ -33,6 +33,13 @@ pub struct Host {
 impl Host {
     const LISTING: [&'static str; 3] = ["-w", "-F", "n"];
     const RECURSIVE: &'static str = "+D";
+
+    fn ran(mut command: Command, input: Option<&str>) -> std::io::Result<Output> {
+        let piped = input.map_or_else(Stdio::null, |_| Stdio::piped());
+        let mut child = command.stdin(piped).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
+        input.zip(child.stdin.take()).map(|(input, mut pipe)| pipe.write_all(input.as_bytes())).transpose()?;
+        child.wait_with_output()
+    }
 
     fn lenders(&self, root: &Path) -> Vec<Alternates> {
         let found = self.walked(root).into_iter().filter(|found| found.kind() == EntryKind::File && found.lends());
@@ -64,7 +71,8 @@ impl Inspection for Host {
     }
 
     fn git(&self, call: &GitCall) -> Result<String, Kept> {
-        let ran = call.command(std::env::vars_os().map(|(name, _)| name)).output();
+        let command = call.command(std::env::vars_os().map(|(name, _)| name));
+        let ran = Self::ran(command, call.input());
         let ran = ran.map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
         let shown = |stream: &[u8]| String::from_utf8_lossy(stream).into_owned();
         ran.status

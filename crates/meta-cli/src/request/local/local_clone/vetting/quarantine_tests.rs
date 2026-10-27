@@ -6,7 +6,6 @@ use super::deletable::Deletable;
 use super::entry_kind::EntryKind;
 use super::fake_host::{FakeHost, PATH, TASK};
 use super::git_call::GitCall;
-use super::occupancy::Occupancy;
 use super::vetted::Vetted;
 use crate::request::local::recorded_worktree::RecordedWorktree;
 
@@ -29,14 +28,14 @@ const ISOLATED: [(&str, Option<&str>); 5] = [
     ("GIT_INDEX_FILE", None),
 ];
 const STAT_PINS: [&str; 2] = ["core.trustctime=true", "core.checkStat=default"];
-const REFUSALS: [&str; 3] = ["no recorded worktree id", "changed during checks", "in use"];
+const REFUSALS: [&str; 4] = ["no recorded worktree id", "changed during checks", "in use", "in use"];
 
 struct Sweep(FakeHost);
 
 impl Sweep {
     fn refusal(&self) -> Option<String> {
         let vet = || Vetted::proved(&FakeHost::worktree(), &self.0.context(), &self.0);
-        let deletable = Deletable::confirmed(vet().unwrap(), &Occupancy::Listed(vec![]), vet());
+        let deletable = Deletable::confirmed(vet().unwrap(), vet());
         let removed =
             deletable.and_then(|deletable| deletable.removed(&FakeHost::worktree(), &self.0.context(), &self.0));
         removed.err().map(|kept| kept.to_string())
@@ -84,7 +83,11 @@ fn an_unidentified_record_or_an_occupied_quarantine_keeps_the_worktree() {
     let mut followed = FakeHost::clean();
     followed.opens(PathBuf::from(QUARANTINE).join(LATE));
     let followed = Sweep(followed);
-    let refusals = [refused, Sweep(occupied).refusal(), followed.refusal()];
+    let mut busy = FakeHost::clean();
+    busy.opens(PathBuf::from(PATH).join(LATE));
+    let busy = Sweep(busy);
+    let refusals = [refused, Sweep(occupied).refusal(), followed.refusal(), busy.refusal()];
     assert_eq!(refusals, REFUSALS.map(|reason| Some(reason.to_owned())));
     assert!(followed.0.calls().last().is_some_and(|call| call.contains(MOVED_BACK) && call.ends_with(RESTORED)));
+    assert!(!busy.0.calls().iter().any(|call| call.contains(MOVED_OUT)));
 }
