@@ -55,7 +55,8 @@ mod tests {
 
     const CANNOT_LIST: &str = "false";
     const LISTS_NOTHING: &str = "true";
-    const RECORDED: [&str; 2] = ["unlisted\tfalse", "passed\t"];
+    const UNLISTED_THEN_PASSED: &str = "unlisted\tfalse\npassed\t";
+    const RAN_ONCE: &str = "\tmain\ttrue\n";
 
     #[test]
     fn a_binary_that_cannot_list_fails_and_one_that_lists_nothing_runs_once_as_one_test() {
@@ -65,11 +66,9 @@ mod tests {
         };
         assert!(recorded(CANNOT_LIST).is_err() && recorded(LISTS_NOTHING).is_ok());
         let read = fs::read_to_string(runs.path()).unwrap();
-        let lines: Vec<&str> = read.lines().collect();
-        let starts = lines
-            .iter()
-            .zip(RECORDED)
-            .all(|(line, start)| line.starts_with(start));
-        assert!(lines.len() == RECORDED.len() && starts, "{read}");
+        assert!(
+            read.starts_with(UNLISTED_THEN_PASSED) && read.ends_with(RAN_ONCE),
+            "{read}"
+        );
     }
 }

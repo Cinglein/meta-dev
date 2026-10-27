@@ -114,11 +114,7 @@ mod tests {
     const RUNNER: &str = "target/debug/x\"task";
     const RUNNER_KEY: &str = "--config";
     const DOCTESTS: &str = "--doc";
-    const RUNS_EVERYTHING: [&str; 3] = [
-        "--no-fail-fast --tests --config",
-        "target.'cfg(all())'.runner = [\"target/debug/x\\\"task\", \"test-runner\"]",
-        "--workspace",
-    ];
+    const THROUGH: &str = "--no-fail-fast --tests --config target.'cfg(all())'.runner = [\"target/debug/x\\\"task\", \"test-runner\"]";
     const NAMES: [&str; 4] = ["target/debug/deps/bin-1a2b3c", "exact", "slow", "bulk"];
     const TICK: Duration = Duration::from_millis(1);
     const WHOLE_IN_UNITS: usize = 4;
@@ -159,23 +155,13 @@ mod tests {
 
     #[test]
     fn libtest_targets_go_through_the_runner_and_doctests_run_without_it() {
-        let policy = Policy::defaults();
-        let cargo = || {
-            CargoTest::new(
-                CommandLine::new(Program::Cargo),
-                &Selection::Workspace,
-                &policy,
-            )
-        };
-        let shown = cargo()
-            .through(&RunnerConfig::new(PathBuf::from(RUNNER)))
-            .to_string();
-        let docs = cargo().doctests().to_string();
-        let through = RUNS_EVERYTHING.iter().all(|part| shown.contains(part));
+        let (policy, base) = (Policy::defaults(), CommandLine::new(Program::Cargo));
+        let cargo = |line| CargoTest::new(line, &Selection::Workspace, &policy);
+        let runner = RunnerConfig::new(PathBuf::from(RUNNER));
+        let shown = cargo(base.clone()).through(&runner).to_string();
+        let docs = cargo(base).doctests().to_string();
         let plain = docs.ends_with(DOCTESTS) && !docs.contains(RUNNER_KEY);
-        assert!(
-            through && plain && !shown.contains(DOCTESTS),
-            "{shown}\n{docs}"
-        );
+        let through = shown.ends_with(THROUGH) && !shown.contains(DOCTESTS);
+        assert!(through && plain, "{shown}\n{docs}");
     }
 }

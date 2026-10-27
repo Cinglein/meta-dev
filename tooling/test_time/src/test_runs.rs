@@ -76,6 +76,7 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::time::Duration;
 
+    use super::TestRun::{Failed, Passed};
     use super::{TestRun, TestRuns, TestTiming};
 
     const BINARY: &str = "target/debug/deps/bin-1a2b3c";
@@ -84,7 +85,7 @@ mod tests {
     const FAILED: &str = "1 of 2 tests failed; 1 test binaries did not list their tests";
     const LINE_BREAK: &str = "\n";
     const SLOWEST: &str = "bin passes took 1.0ms";
-    const NOT_RUNS: [&str; 3] = ["passed\tsoon\tx\ty", "skipped\tx", "unlisted"];
+    const BAD: [&str; 3] = ["passed\tsoon\tx\ty", "skipped\tx", "unlisted"];
 
     #[test]
     fn recorded_runs_read_back_and_a_failing_test_or_an_unlisted_binary_fails_the_one_run() {
@@ -94,16 +95,10 @@ mod tests {
             lines.join(LINE_BREAK).parse().and_then(TestRuns::passed)
         };
         let gone = TestRun::Unlisted(PathBuf::from(BINARY));
-        let failing = read(vec![
-            TestRun::Passed(passed.clone()),
-            TestRun::Failed(failed),
-            gone,
-        ]);
+        let failing = read(vec![Passed(passed.clone()), Failed(failed), gone]);
         let shown = failing.map_err(|failure| failure.to_string()).err();
-        let refused = NOT_RUNS
-            .iter()
-            .all(|line| line.parse::<TestRuns>().is_err());
-        let clean = read(vec![TestRun::Passed(passed.clone())]);
+        let refused = BAD.iter().all(|line| line.parse::<TestRuns>().is_err());
+        let clean = read(vec![Passed(passed.clone())]);
         assert!(refused && shown.as_deref() == Some(FAILED) && passed.to_string() == SLOWEST);
         assert!(clean.is_ok_and(|timings| timings == [passed]));
     }
