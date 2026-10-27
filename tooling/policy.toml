@@ -156,7 +156,7 @@ default = 11000
 [mutant_millis.crates]
 affected = 1700
 crate_graph = 2800
-expression_flow = 1700
+expression_flow = 2300
 fn_shape = 1600
 meta-cli = 3400
 meta-log = 4600
