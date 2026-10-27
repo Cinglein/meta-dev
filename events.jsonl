@@ -817,3 +817,4 @@
 {"at":"2026-10-27T23:55:06.037794Z","actor":"claude-speed2","kind":"TaskClaimed","task":"task-7a76a62a454853b4"}
 {"at":"2026-10-27T23:55:16.614654Z","actor":"claude-runner","kind":"TaskClaimed","task":"task-9752c00c8d3104ae"}
 {"at":"2026-10-27T23:55:18.346504Z","actor":"claude-payw","kind":"TaskClaimed","task":"task-d756f2d83ad6b351"}
+{"at":"2026-10-27T23:58:54.239611Z","actor":"claude-payw","kind":"TaskLinked","task":"task-d756f2d83ad6b351","pr":68}
