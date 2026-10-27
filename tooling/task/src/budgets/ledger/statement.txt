@@ -16,10 +16,10 @@ performance-and-cost-critical performance-and-cost       open_items critical    
 performance-and-cost-major performance-and-cost       open_items major                     -          2          4 -
 performance-and-cost-minor performance-and-cost       open_items minor                     -          4          8 -
 performance-and-cost-unrated performance-and-cost       open_items unrated                   -          1          2 -
-prose-words        features-and-maintenance   words                                -       4140       6900 -
+prose-words        features-and-maintenance   words                                -       4260       7100 -
 slowest-test       performance-and-cost       slowest_test                     999ms      600ms     1000ms warn
 tangle-items       features-and-maintenance   tangle_items                       128         49         83 ok
 test-line-share    features-and-maintenance   test_line_share                    25%        10%        18% ok
 test-time          performance-and-cost       test_wall_time                  4001ms     2400ms     4000ms over
 unit-time          performance-and-cost/unit  test_wall_time                  4001ms     1200ms     2000ms over
-verbose-items      features-and-maintenance   open_items verbose 25                -         28         48 -
+verbose-items      features-and-maintenance   open_items verbose 25                -         30         50 -

@@ -4,7 +4,7 @@ measure = { open_items = { kind = "task" } }
 allowance = { count = 4 }
 window = "standing"
 
-[domains."features-and-maintenance/docs"]
+[domains."features-and-maintenance/nav"]
 paths = ["README*"]
 
 [budgets.t-words]
@@ -13,10 +13,10 @@ measure = "words"
 allowance = { count = 9 }
 window = "standing"
 
-[budgets.t-docs-words]
-division = "features-and-maintenance/docs"
+[budgets.t-nav-docs]
+division = "features-and-maintenance/nav"
 measure = "words"
-allowance = { of = "t-words", count = 1 }
+allowance = { of = "t-words", count = 3 }
 window = "standing"
 
 [budgets.t-gone]

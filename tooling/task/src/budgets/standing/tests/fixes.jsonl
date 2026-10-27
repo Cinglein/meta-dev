@@ -4,3 +4,5 @@
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskLinked","task":"task-0000000000000001","pr":7}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000002","text":"x","division":"features-and-maintenance","addresses":["concern-0000000000000002"]}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskLinked","task":"task-0000000000000002","pr":8}
+{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000003","text":"x","division":"performance-and-cost"}
+{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskLinked","task":"task-0000000000000003","pr":9}

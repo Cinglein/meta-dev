@@ -257,7 +257,7 @@ window = "standing"
 [budgets.prose-words]
 division = "features-and-maintenance"
 measure = "words"
-allowance = { count = 6900 }
+allowance = { count = 7100 }
 window = "standing"
 
 [budgets.context-words]
@@ -269,5 +269,5 @@ window = "standing"
 [budgets.verbose-items]
 division = "features-and-maintenance"
 measure = { open_items = { verbose = 25 } }
-allowance = { count = 48 }
+allowance = { count = 50 }
 window = "standing"

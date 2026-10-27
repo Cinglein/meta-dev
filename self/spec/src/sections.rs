@@ -75,7 +75,7 @@ pub const SECTIONS: &[Section] = &[
                 RuleId::new("budget-enforce-standing"),
                 ArchitectureAndPlanning,
                 Wording::new(
-                    "Standing budgets are derived from the log (open Criticals, waivers in force, concern backlog): CI folds meta/log read-only on every run. An over-budget standing budget blocks only PRs in its division, but a division whose property all code affects (for example CI performance) blocks every PR that could affect it.",
+                    "Standing budgets are derived from the log (open Criticals, waivers in force, concern backlog): CI folds meta/log read-only on every run. Every item and every PR is in exactly one division; a PR's division is its linked task's division. An over-budget standing budget blocks only PRs in its division (or a division inside it); no standing-budget path uses domains or the diff. A division's domain only scopes what its per-change budgets measure, and the code a PR touches only selects which subset of CI runs. A PR with no linked task, or whose task is at the root, is in every division and is blocked by every over-budget standing budget. A Critical elsewhere stops other divisions only through the per-change CI checks, which measure every PR.",
                 ),
                 Tracked,
             ),
@@ -83,7 +83,7 @@ pub const SECTIONS: &[Section] = &[
                 RuleId::new("budget-enforce-standing-base"),
                 ArchitectureAndPlanning,
                 Wording::new(
-                    "Standing budgets are enforced from the merge-base policy; the PR's own policy only has to parse and validate. A cap that the PR adds or tightens takes effect from the next PR. A cap that the PR loosens or drops still binds the PR itself, because the merge-base cap applies. The budget table marks a new cap as enforced from the next change. The merge base is the one with origin's default branch (origin/HEAD), never a branch that the PR names; a base policy that git cannot read fails the run, while a base without the file means no standing budgets. A PR whose task addresses an open item at the cap's level or more severe is paid down for that cap. A run that is not a pull request (a push to main) reports standing budgets in the table, marks the over-cap rows, and never fails: the debt rule blocks PRs, it does not turn main red.",
+                    "Standing budgets are enforced from the merge-base policy; the PR's own policy only has to parse and validate. A cap that the PR adds or tightens takes effect from the next PR. A cap that the PR loosens or drops still binds the PR itself, because the merge-base cap applies. The budget table marks a new cap as enforced from the next change. The merge base is the one with origin's default branch (origin/HEAD), never a branch that the PR names; a base policy that git cannot read fails the run, while a base without the file means no standing budgets. A standing cap reaches a PR only through its linked task's division, never through its diff. A PR whose task addresses an open item in the cap's division at the cap's level or more severe is paid down for that cap. A run that is not a pull request (a push to main) reports standing budgets in the table, marks the over-cap rows, and never fails: the debt rule blocks PRs, it does not turn main red.",
                 ),
                 Tracked,
             ),
@@ -231,7 +231,7 @@ pub const SECTIONS: &[Section] = &[
                 RuleId::new("domain-reach"),
                 FeaturesAndMaintenance,
                 Wording::new(
-                    "A PR is within a budget's reach when its diff touches the domain or its linked task is in the division.",
+                    "A per-change budget reaches a PR when its diff touches the domain; the domain only scopes what per-change budgets measure. A standing budget never uses the domain or the diff: it reaches a PR only when its linked task is in the division; a PR with no linked task, or whose task is at the root, is within every standing budget's reach.",
                 ),
                 Check(
                     Enforcer::new(

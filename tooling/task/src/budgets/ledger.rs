@@ -84,16 +84,15 @@ impl Ledger {
     }
 
     #[must_use]
-    pub fn exposure_of(&self, budget: &Budget, domains: &Domains) -> Exposure {
-        budget.standing_in().zip(self.standing.as_ref()).map_or(
-            Exposure::Diff,
-            |(division, standing)| match self.mode {
-                Mode::Reporting => Exposure::Reported,
-                Mode::Enforcing => {
-                    standing.exposure(budget.measure().item_filter(), division, domains)
-                }
-            },
-        )
+    pub fn exposure_of(&self, budget: &Budget) -> Exposure {
+        match (budget.standing_in(), self.mode, self.standing.as_ref()) {
+            (None, ..) => Exposure::Diff,
+            (Some(_), Mode::Reporting, _) => Exposure::Reported,
+            (Some(_), Mode::Enforcing, None) => Exposure::Within,
+            (Some(division), Mode::Enforcing, Some(standing)) => {
+                standing.exposure(budget.measure().item_filter(), division)
+            }
+        }
     }
 
     pub fn checked(&self, policy: &Policy, selection: &Selection) -> Result<(), Failure> {
@@ -123,7 +122,7 @@ impl Ledger {
             let exposure = if waiting(id, budget) {
                 Exposure::Pending
             } else {
-                self.exposure_of(budget, domains)
+                self.exposure_of(budget)
             };
             let spend = self.spend_of(budget, domains);
             (id, Row::new(id, budget, lines, spend).within(exposure))
@@ -170,9 +169,9 @@ mod tests {
     const STANDING_ROWS: [&str; 15] = [
         "architecture-and-planning-critical architecture-and-planning  open_items critical                  0          0          0 ok",
         "features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, paid down by the linked task",
-        "performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over, outside the linked task's division; a diff in its domain reaches it",
+        "performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over, outside the linked task's division",
         "t-concerns         features-and-maintenance   open_items concerns                  1          3          5 ok",
-        "t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over, outside the linked task's division; a diff in its domain reaches it",
+        "t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over, outside the linked task's division",
         "t-cost-tasks       performance-and-cost       open_items tasks                     0          5          9 ok",
         "t-discussion       features-and-maintenance   open_items in_discussion             1          1          2 ok",
         "t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over, paid down by the linked task",
@@ -198,22 +197,9 @@ mod tests {
         ("11", NAV_OVER),
     ];
     const DIFF_REACHED: [(&str, &[&str]); 3] = [
-        (
-            "task-0000000000000004",
-            &[
-                "t-cost-concerns", "t-nav-concerns", "t-nav-tasks", "t-nav-words",
-            ],
-        ),
-        (
-            "7",
-            &[
-                "t-cost-concerns", "t-nav-concerns", "t-nav-tasks", "t-nav-words",
-            ],
-        ),
-        (
-            ADDRESSING,
-            &["t-cost-concerns", "t-nav-tasks", "t-nav-words"],
-        ),
+        ("task-0000000000000004", &["t-cost-concerns"]),
+        ("7", NAV_OVER),
+        (ADDRESSING, &["t-nav-tasks", "t-nav-words"]),
     ];
     const PROSE: [(&str, &str); 2] = [("crates/a.md", "a b c"), ("README.md", "a b c d")];
 
