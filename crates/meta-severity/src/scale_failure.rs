@@ -1,7 +1,5 @@
+use meta_schema::{Division, LevelName};
 use thiserror::Error;
-
-use crate::division::Division;
-use crate::level_name::LevelName;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ScaleFailure {

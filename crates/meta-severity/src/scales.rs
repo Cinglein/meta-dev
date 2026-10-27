@@ -1,14 +1,12 @@
 use std::collections::BTreeMap;
 
+use meta_schema::{Division, LevelName, TopDivision};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
-use crate::division::Division;
 use crate::level::Level;
-use crate::level_name::LevelName;
 use crate::scale::Scale;
 use crate::scale_failure::ScaleFailure;
-use crate::top_division::TopDivision;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(try_from = "BTreeMap<Division, Scale>", into = "BTreeMap<Division, Scale>")]
@@ -22,20 +20,24 @@ impl Scales {
     ];
 
     #[must_use]
-    pub fn effective(&self, division: &Division) -> Option<(&Division, &Scale)> {
-        division.lineage().iter().rev().find_map(|owner| self.0.get_key_value(owner))
+    pub fn owner(&self, division: &Division) -> Option<&Division> {
+        division.lineage().iter().rev().find_map(|owner| self.0.get_key_value(owner)).map(|(owner, _)| owner)
+    }
+
+    #[must_use]
+    pub fn scale(&self, division: &Division) -> Option<&Scale> {
+        self.owner(division).and_then(|owner| self.0.get(owner))
     }
 
     #[must_use]
     pub fn rolled_up(&self, from: &Division, level: &LevelName, onto: &Division) -> Option<LevelName> {
-        let (owner, scale) = self.effective(from)?;
-        let (target, _) = self.effective(onto)?;
-        let mapped = scale.level(level)?;
+        let owner = self.owner(from)?;
+        let target = self.owner(onto)?;
+        let mapped = self.scale(from)?.level(level)?;
         match mapped.parent() {
             _ if owner == target => Some(level.clone()),
             Some(parent) if target.strictly_contains(owner) => {
-                let lineage = owner.lineage();
-                self.rolled_up(lineage.iter().rev().nth(1)?, parent, onto)
+                self.rolled_up(owner.lineage().iter().rev().nth(1)?, parent, onto)
             }
             Some(_) | None => None,
         }
@@ -43,8 +45,8 @@ impl Scales {
 
     fn placed(&self, division: &Division, scale: &Scale) -> Result<(), ScaleFailure> {
         let lineage = division.lineage();
-        let parent = lineage.iter().rev().nth(1).and_then(|parent| self.effective(parent));
-        scale.mapped_onto(division, parent.map(|(_, scale)| scale))
+        let parent = lineage.iter().rev().nth(1).and_then(|parent| self.scale(parent));
+        scale.mapped_onto(division, parent)
     }
 }
 
@@ -64,7 +66,7 @@ impl TryFrom<BTreeMap<Division, Scale>> for Scales {
     fn try_from(declared: BTreeMap<Division, Scale>) -> Result<Scales, ScaleFailure> {
         let mut scales = Scales::default();
         scales.0.extend(declared);
-        let _unchecked = scales.0.iter().try_for_each(|(division, scale)| scales.placed(division, scale));
+        scales.0.iter().try_for_each(|(division, scale)| scales.placed(division, scale))?;
         Ok(scales)
     }
 }

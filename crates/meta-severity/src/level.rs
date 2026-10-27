@@ -1,7 +1,5 @@
+use meta_schema::{LevelName, Text};
 use serde::{Deserialize, Serialize};
-
-use crate::level_name::LevelName;
-use crate::text::Text;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

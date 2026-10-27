@@ -3,7 +3,7 @@ mod entries;
 use std::collections::BTreeMap;
 
 use enum_map::EnumMap;
-use meta_schema::Scales;
+use meta_severity::Scales;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
