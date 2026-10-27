@@ -14,15 +14,22 @@ impl Fixture {
     pub fn new() -> Fixture {
         let directory = TempDir::new().expect("temp dir");
         let work = directory.path().join("work");
-        Self::ran(Self::git(directory.path()).args(["init", "--quiet", "--initial-branch", "change"]).arg(&work));
+        let git_dir = work.join(".git");
+        fs::create_dir_all(git_dir.join("objects")).expect("objects dir");
+        fs::create_dir_all(git_dir.join("refs/heads")).expect("refs dir");
+        fs::write(git_dir.join("HEAD"), "ref: refs/heads/change\n").expect("write HEAD");
+        fs::write(git_dir.join("config"), "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = false\n")
+            .expect("write config");
         Fixture { _directory: directory, work }
     }
 
     pub fn branch(&self) {
         self.committed();
-        Self::ran(Self::git(&self.work).args(["update-ref", "refs/remotes/origin/main", "HEAD"]));
-        fs::write(self.work.join(".git/refs/remotes/origin/HEAD"), "ref: refs/remotes/origin/main\n")
-            .expect("write origin HEAD");
+        let tip = fs::read_to_string(self.work.join(".git/refs/heads/change")).expect("read branch tip");
+        let remote = self.work.join(".git/refs/remotes/origin");
+        fs::create_dir_all(&remote).expect("remote refs dir");
+        fs::write(remote.join("main"), tip).expect("write origin main");
+        fs::write(remote.join("HEAD"), "ref: refs/remotes/origin/main\n").expect("write origin HEAD");
     }
 
     pub fn committed(&self) -> &Fixture {
@@ -45,6 +52,10 @@ impl Fixture {
     }
 
     pub fn revision(&self, name: &str) -> String {
+        let tip = fs::read_to_string(self.work.join(".git/refs/heads/change")).ok();
+        if let Some(tip) = tip.filter(|_| name == "HEAD") {
+            return tip;
+        }
         let output = Self::git(&self.work).args(["rev-parse", name]).output().expect("run git");
         String::from_utf8_lossy(&output.stdout).into_owned()
     }
