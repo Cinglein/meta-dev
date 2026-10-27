@@ -58,6 +58,21 @@ impl CiStatus {
         }
     }
 
+    pub fn unresolved(self) -> Option<&'static str> {
+        match self {
+            Self::TimedOut => {
+                Some("CI for your last push timed out: push a new commit to rerun it, then run `meta ci-wait`")
+            }
+            Self::Unavailable => {
+                Some("CI jobs for your last push never started: run `cargo xtask ci` and give its result")
+            }
+            Self::Absent => {
+                Some("no CI run for your last push: push a new commit to start one, then run `meta ci-wait`")
+            }
+            Self::Running | Self::Passed | Self::Failed => None,
+        }
+    }
+
     pub fn finished(self) -> Option<Self> {
         match self {
             Self::Running => None,

@@ -90,11 +90,10 @@ const EVENT_PREFIX: &str = "CI ";
 const TIMED_OUT: &str = "timed-out after";
 const UNAVAILABLE: &str = ": jobs never started; give the local gate result instead";
 const ABSENT: &str = ": no run for this commit; no CI for this push";
-const NO_RUN_YET: &str = "no run yet; Stop passes until one appears";
-const ABSENT_STOP: &str = "no CI run for your last push: push a new commit to start one, then run `meta ci-wait`";
+const NO_RUN_YET: &str = "no run yet; Stop stays blocked until one appears or the wait is recorded";
+const ABSENT_STOP: &str = "no CI run for your last push: push a new commit to start one, then run `meta ci-wait`; or claim a task (`meta claim <task> --worktree`), then run `meta wait <task> --on ci`";
 const TIMED_OUT_STOP: &str = "CI for your last push timed out: push a new commit to rerun it, then run `meta ci-wait`";
 const UNSTARTED_STOP: &str = "CI jobs for your last push never started: run `cargo xtask ci` and give its result";
-const TASKLESS_WAY_OUT: &str = "or claim a task (`meta claim <task> --worktree`), then run `meta wait <task> --on ci`";
 const RUN_APPEARED: &str = "run appeared";
 const LIST_ERROR: &str = "gh failed: HTTP 502: Bad Gateway";
 const VIEW_ERROR: &str = "gh failed: HTTP 401: Bad credentials";
@@ -102,6 +101,8 @@ const FAILED_EVENT: &str = ": failed after";
 const COMPLETIONS: [&str; 5] =
     [": passed after", ": failed after", ": timed-out after", ": unavailable after", ": absent after"];
 
+#[path = "support/seeded_log.rs"]
+mod seeded_log;
 #[path = "support/skeleton.rs"]
 mod skeleton;
 use skeleton::Skeleton;
@@ -340,7 +341,12 @@ impl Repo {
         self.meta(&[command])
     }
 
-    fn meta(&self, words: &[&str]) -> Waited {
+    pub fn passing(self) -> Self {
+        FailingHead::copy_from(&self, self.clone.path());
+        Self { scenario: SUCCESS, ..self }
+    }
+
+    pub fn meta(&self, words: &[&str]) -> Waited {
         let output = Command::new(META)
             .args(words)
             .current_dir(self.clone.path())
@@ -389,6 +395,7 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_pus
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     let log = repo.session_command(CI_LOG).0;
     Git::run(repo.clone.path(), &NEXT_COMMIT);
+    let repo = repo.passing();
     repo.hook(POST, COMMIT);
     repo.session_command(CI_WAIT);
     let fixed = repo.hook(STOP, COMMIT);

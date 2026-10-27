@@ -3,6 +3,7 @@ mod failure_log;
 mod gh;
 mod reach;
 mod session_commits;
+mod wait_on_ci;
 
 use std::cell::OnceCell;
 use std::ops::ControlFlow;
@@ -22,6 +23,7 @@ pub use failure_log::FailureLog;
 use gh::{Gh, Observation};
 use reach::Reach;
 use session_commits::SessionCommits;
+use wait_on_ci::WaitOnCi;
 
 #[derive(Debug)]
 pub struct Watcher {
@@ -34,7 +36,7 @@ pub struct Watcher {
 }
 
 impl Watcher {
-    const NO_RUN_YET: &'static str = "no run yet; Stop passes until one appears";
+    const NO_RUN_YET: &'static str = "no run yet; Stop stays blocked until one appears or the wait is recorded";
     const RUN_APPEARED: &'static str = "run appeared";
 
     pub fn spawn(project: &Project, session: &SessionId, commit: &Commit) -> Result<(), Listed> {
@@ -87,7 +89,11 @@ impl Watcher {
             .find(|(_, status)| status.is_none())
             .map(|(commit, _)| Listed::new(format!("CI not watched for {commit}: push again to watch it")));
         let known = statuses.iter().find_map(|(_, status)| status.and_then(CiStatus::stop_reason));
-        unknown.or(unwritable).or(unpushed).or(unwatched).or(known)
+        let unresolved = || {
+            let unresolved = statuses.iter().find_map(|(_, status)| status.and_then(CiStatus::unresolved));
+            unresolved.and_then(|what| WaitOnCi::of_branch(project).stop_reason(what))
+        };
+        unknown.or(unwritable).or(unpushed).or(unwatched).or(known).or_else(unresolved)
     }
 
     pub fn watch(project: &Project, session: &SessionId, commit: Commit) -> Result<Output, CliFailure> {
