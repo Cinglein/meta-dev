@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod cargo_build;
 mod cargo_test;
 mod no_tests;
 mod runner_config;
@@ -10,6 +12,8 @@ use std::cmp::Reverse;
 use std::fs;
 use std::time::Duration;
 
+#[cfg(test)]
+use cargo_build::CargoBuild;
 use cargo_test::CargoTest;
 use no_tests::NoTests;
 use runner_config::RunnerConfig;
@@ -106,7 +110,7 @@ impl TestTime {
 
 #[cfg(test)]
 mod tests {
-    use super::{CargoTest, RunnerConfig, TestTime, TestTiming};
+    use super::{CargoBuild, CargoTest, RunnerConfig, TestTime, TestTiming};
     use settings::EmbeddedDefaults;
     use std::path::{Path, PathBuf};
     use std::time::Duration;
@@ -114,6 +118,8 @@ mod tests {
     const RUNNER: &str = "target/debug/x\"task";
     const RUNNER_KEY: &str = "--config";
     const DOCTESTS: &str = "--doc";
+    const BUILD: &str = " build --workspace ";
+    const EXAMPLES: &str = "--examples --profile test";
     const THROUGH: &str = "--no-fail-fast --tests --config target.'cfg(all())'.runner = [\"target/debug/x\\\"task\", \"test-runner\"]";
     const NAMES: [&str; 4] = ["target/debug/deps/bin-1a2b3c", "exact", "slow", "bulk"];
     const TICK: Duration = Duration::from_millis(1);
@@ -159,9 +165,11 @@ mod tests {
         let cargo = |line| CargoTest::new(line, &Selection::Workspace, &policy);
         let runner = RunnerConfig::new(PathBuf::from(RUNNER));
         let shown = cargo(base.clone()).through(&runner).to_string();
-        let docs = cargo(base).doctests().to_string();
+        let docs = cargo(base.clone()).doctests().to_string();
+        let built = CargoBuild::examples(base, &Selection::Workspace, &policy).to_string();
         let plain = docs.ends_with(DOCTESTS) && !docs.contains(RUNNER_KEY);
         let through = shown.ends_with(THROUGH) && !shown.contains(DOCTESTS);
-        assert!(through && plain, "{shown}\n{docs}");
+        let examples = built.contains(BUILD) && built.ends_with(EXAMPLES);
+        assert!(through && plain && examples, "{shown}\n{docs}\n{built}");
     }
 }
