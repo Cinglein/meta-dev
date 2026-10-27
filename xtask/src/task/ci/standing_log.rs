@@ -7,6 +7,7 @@ use meta_state::State;
 use task::{Branch, ChangeLink, Ledger, Policy, Standing};
 
 use crate::task::ci::log_source::LogSource;
+use crate::task::ci::run_kind::RunKind;
 use crate::task::failure::Failure;
 use crate::task::prior_policy::PriorPolicy;
 use crate::task::revision::Revision;
@@ -45,6 +46,10 @@ impl StandingLog {
         Ok(())
     }
 
+    pub fn enforcing(_run: &RunKind, root: &Path, policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
+        Self::enforced_from(root, policy, ledger)
+    }
+
     pub fn enforced_from(root: &Path, policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
         let base = Revision::merge_base(root, policy.branch(Branch::Base))?;
         let text = base.file(Path::new(PriorPolicy::PATH));
@@ -67,7 +72,7 @@ mod tests {
     use settings::EmbeddedDefaults;
     use task::{Ledger, Policy};
 
-    use super::{Failure, LogSource, StandingLog};
+    use super::{Failure, LogSource, RunKind, StandingLog};
     use crate::task::ci::stranding::Stranding;
     use crate::task::fixture::Fixture;
 
@@ -96,9 +101,11 @@ mod tests {
     fn the_merge_base_policy_decides_whether_standing_budgets_are_enforced() {
         let fixture = Fixture::new();
         fixture.write(POLICY, STANDING).branch();
-        let (bare, mut ledger) = (StandingLog::policy(NOTHING), Ledger::default());
-        let enforced = StandingLog::enforced_from(fixture.root(), &bare, &mut ledger);
-        assert!(enforced.is_ok() && ledger.reads_standing(&bare));
+        let (bare, mut pull, mut push) = (StandingLog::policy(NOTHING), Ledger::default(), Ledger::default());
+        let enforced = StandingLog::enforcing(&RunKind::Pull(None), fixture.root(), &bare, &mut pull);
+        let reported = StandingLog::enforcing(&RunKind::Other, fixture.root(), &bare, &mut push);
+        assert!(enforced.is_ok() && pull.reads_standing(&bare) && !pull.reports_only());
+        assert!(reported.is_ok() && push.reports_only());
     }
 
     #[test]

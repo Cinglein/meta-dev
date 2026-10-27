@@ -20,9 +20,19 @@ pub struct Ledger {
     spent: BTreeMap<Measure, Amount>,
     standing: Option<Standing>,
     prior: Option<PriorStanding>,
+    reporting: bool,
 }
 
 impl Ledger {
+    pub fn report_only(&mut self) {
+        self.reporting = true;
+    }
+
+    #[must_use]
+    pub fn reports_only(&self) -> bool {
+        self.reporting
+    }
+
     pub fn enforce_from(&mut self, policy_text: Option<&str>) -> Result<(), toml::de::Error> {
         self.prior = Some(policy_text.map_or_else(|| Ok(PriorStanding::default()), str::parse)?);
         Ok(())
