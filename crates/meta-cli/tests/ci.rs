@@ -91,6 +91,10 @@ const TIMED_OUT: &str = "timed-out after";
 const UNAVAILABLE: &str = ": jobs never started; give the local gate result instead";
 const ABSENT: &str = ": no run for this commit; no CI for this push";
 const NO_RUN_YET: &str = "no run yet; Stop passes until one appears";
+const ABSENT_STOP: &str = "no CI run for your last push: push a new commit to start one, then run `meta ci-wait`";
+const TIMED_OUT_STOP: &str = "CI for your last push timed out: push a new commit to rerun it, then run `meta ci-wait`";
+const UNSTARTED_STOP: &str = "CI jobs for your last push never started: run `cargo xtask ci` and give its result";
+const TASKLESS_WAY_OUT: &str = "or claim a task (`meta claim <task> --worktree`), then run `meta wait <task> --on ci`";
 const RUN_APPEARED: &str = "run appeared";
 const LIST_ERROR: &str = "gh failed: HTTP 502: Bad Gateway";
 const VIEW_ERROR: &str = "gh failed: HTTP 401: Bad credentials";
@@ -109,6 +113,8 @@ mod pushes;
 mod review;
 #[path = "ci/sessions.rs"]
 mod sessions;
+#[path = "ci/waits.rs"]
+mod waits;
 
 struct Git;
 
@@ -225,11 +231,11 @@ impl Planted {
     const REFUSE: &'static str = "#!/bin/sh\nexit 1\n";
     const RUNNING: &'static str = "running";
 
-    fn running(repo: &Repo) {
+    fn settled(repo: &Repo, ci: &str) {
         let head = Git::head(repo.clone.path());
         let states = repo.clone.path().join(Self::STATES);
         std::fs::create_dir_all(&states).unwrap();
-        std::fs::write(states.join(head.trim()), format!("{} {}", head.trim(), Self::RUNNING)).unwrap();
+        std::fs::write(states.join(head.trim()), format!("{} {ci}", head.trim())).unwrap();
     }
 
     fn refusal(origin: &Path) {
@@ -331,8 +337,12 @@ impl Repo {
     }
 
     fn session_command(&self, command: &str) -> Waited {
+        self.meta(&[command])
+    }
+
+    fn meta(&self, words: &[&str]) -> Waited {
         let output = Command::new(META)
-            .arg(command)
+            .args(words)
             .current_dir(self.clone.path())
             .env("META_SESSION", SESSION)
             .env(
@@ -386,7 +396,7 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_pus
 }
 
 #[test]
-fn passing_or_unstarted_runs_let_the_agent_stop() {
+fn passing_runs_let_the_agent_stop_and_unstarted_ones_do_not() {
     let unstarted = Started::building(UNSTARTED, PATIENT);
     let repo = Repo::new(SUCCESS);
     Git::run(repo.clone.path(), &PUSH_WORDS);
@@ -404,27 +414,28 @@ fn passing_or_unstarted_runs_let_the_agent_stop() {
     let unwatched = repo.hook(STOP, COMMIT);
     assert!(
         settled.contains(UNAVAILABLE)
-            && !unstarted.hook(STOP, COMMIT).contains(BLOCK)
+            && unstarted.hook(STOP, COMMIT).contains(UNSTARTED_STOP)
             && !wait.success()
             && unwatched.contains(NOT_WATCHED)
     );
 }
 
 #[test]
-fn only_a_run_that_never_appears_waives_ci_and_gh_errors_never_do() {
+fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
     let repos = [(NONE, QUICK), (LATE, QUICK), (BROKEN, ERRING), (MIXED, PATIENT), (HANG, QUICK)]
         .map(|(scenario, limits)| Started::building(scenario, limits))
         .map(|started| started.join().unwrap());
     let [absent, late, broken, mixed, hung] = repos.each_ref().map(Repo::settled);
-    let [none, ..] = &repos;
+    let [none, appeared, _, _, hanging] = &repos;
     assert!(
         absent.contains(ABSENT)
             && absent.split_once(NO_RUN_YET).is_some_and(|(_, after)| !after.contains(NO_RUN_YET))
-            && !none.hook(STOP, COMMIT).contains(BLOCK)
+            && none.hook(STOP, COMMIT).contains(ABSENT_STOP)
             && !none.session_command(CI_WAIT).1.success()
     );
     assert!(
         [&late, &hung].iter().all(|settled| settled.contains(TIMED_OUT))
+            && [appeared, hanging].iter().all(|repo| repo.hook(STOP, COMMIT).contains(TIMED_OUT_STOP))
             && late.contains(NO_RUN_YET)
             && late.contains(RUN_APPEARED)
     );
