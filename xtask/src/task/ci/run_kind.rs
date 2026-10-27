@@ -28,6 +28,13 @@ impl RunKind {
         signal.map_or(RunKind::Other, |_| RunKind::Pull(branch))
     }
 
+    pub fn by_kind<T, R>(&self, target: &mut T, pull: impl FnOnce(&mut T) -> R, other: impl FnOnce(&mut T) -> R) -> R {
+        match self {
+            RunKind::Pull(_) => pull(target),
+            RunKind::Other => other(target),
+        }
+    }
+
     pub fn refuse(&self, judge: impl FnOnce(Option<&HeadBranch>) -> Result<(), Untracked>) -> Result<(), Failure> {
         match self {
             RunKind::Pull(head) => judge(head.as_ref()).map_err(Failure::Untracked),

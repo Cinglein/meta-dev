@@ -1,4 +1,5 @@
 mod enforcement;
+mod enforcer;
 mod rule;
 mod rust_type;
 mod section;
@@ -7,6 +8,7 @@ mod spec_view;
 mod wording;
 
 pub use enforcement::Enforcement;
+pub use enforcer::Enforcer;
 pub use rule::Rule;
 pub use rust_type::RustType;
 pub use section::Section;
