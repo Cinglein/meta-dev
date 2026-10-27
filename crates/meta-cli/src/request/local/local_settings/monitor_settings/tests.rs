@@ -46,5 +46,5 @@ fn scratch_roots_wider_than_the_project_and_unbounded_waits_are_refused_and_spar
     let roots: Vec<PathBuf> = kept.roots().iter().skip(2).map(|root| root.path().to_path_buf()).collect();
     assert!(wide.iter().chain(&long).all(|refused| *refused));
     assert_eq!(roots, SCRATCH_DIRS.map(|dir| home.join(dir)));
-    assert!(kept.spared().iter().any(|name| name.text() == CLAUDE));
+    assert!(kept.spared().iter().any(|name| name.text() == CLAUDE) && kept.paced(&heartbeat).is_some());
 }
