@@ -1,7 +1,13 @@
 use chrono::TimeDelta;
 
-use super::{FakeMachine, STATE, UPTIME, Watch};
-use crate::request::local::LocalFile;
+use super::{BROKEN, FakeMachine, GIT, Monitor, NOW, STATE, UPTIME, Watch};
+use crate::request::cli_failure::{CliFailure, Setup};
+use crate::request::local::local_settings::LocalSettings;
+use crate::request::local::{LocalClone, LocalFile};
+
+const UNREADABLE: &str = "[monitor]\ngrace_seconds = 31\n";
+const TRAIL: &str = "meta-local/monitor.jsonl";
+const TRAIL_LEN: usize = 1;
 
 const WALL: &str = "stop = [\"wall-time\"]";
 const TABLE: &str = "  700   650   700   10:00:00   0:01.00   0.0 -zsh
@@ -27,4 +33,17 @@ fn a_remembered_mark_is_dropped_when_its_leader_changed_it_went_unseen_or_left_t
     Watch::patrolled(&host, git_dir.path(), WALL, TimeDelta::zero());
     assert_eq!(host.to_string(), ACTS);
     assert_eq!(state.text().unwrap(), AFTER);
+}
+
+#[test]
+fn a_failure_is_noted_once_even_when_the_local_settings_are_unreadable() {
+    let checkout = tempfile::tempdir().unwrap();
+    LocalFile::new(checkout.path().join(LocalSettings::FILE)).replaced(UNREADABLE).unwrap();
+    let clone = LocalClone::new(checkout.path().to_path_buf(), checkout.path().join(GIT));
+    let failure = CliFailure::raised::<Setup>(BROKEN);
+    Monitor::noted(&clone, &failure, NOW.parse().unwrap());
+    Monitor::noted(&clone, &failure, NOW.parse().unwrap());
+    let trail = LocalFile::new(clone.git_dir().as_ref().join(TRAIL)).text().unwrap();
+    assert_eq!(trail.lines().count(), TRAIL_LEN);
+    assert!(trail.contains(BROKEN));
 }
