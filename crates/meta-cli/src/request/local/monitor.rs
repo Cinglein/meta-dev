@@ -30,9 +30,10 @@ use std::str::FromStr;
 use chrono::{DateTime, Utc};
 
 use super::LocalClone;
-use crate::request::cli_failure::{CliFailure, Misuse};
+use crate::request::cli_failure::{CliFailure, Misuse, Setup};
 use crate::request::local::local_settings::MonitorSettings;
 use crate::request::output::{Listed, Output};
+use crate::request::project::HeartbeatSettings;
 use fault::Fault;
 use finding::Finding;
 use live_machine::LiveMachine;
@@ -61,11 +62,15 @@ impl FromStr for Monitor {
 }
 
 impl Monitor {
-    pub fn answer(self, clone: &LocalClone) -> Result<Output, CliFailure> {
+    const UNPACED: &'static str =
+        "meta.local.toml [monitor] mark_seconds must be at least meta.toml [heartbeat] interval_seconds";
+
+    pub fn answer(self, clone: &LocalClone, heartbeat: &HeartbeatSettings) -> Result<Output, CliFailure> {
         let git_dir = clone.git_dir().as_ref();
         match self {
             Self::Tick => {
                 let settings = clone.monitor_settings()?;
+                settings.paced(heartbeat).ok_or_else(|| CliFailure::raised::<Setup>(Self::UNPACED))?;
                 Self::patrolled(git_dir, &Patrol::new(&settings, &LiveMachine::new(&settings)), Utc::now())
             }
             Self::Report => Ok(Output::Listed(Listed::new(MonitorReport::latest(git_dir)?))),

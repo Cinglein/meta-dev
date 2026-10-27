@@ -11,6 +11,7 @@ use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::local_settings::MonitorSettings;
 use crate::request::local::{LocalClone, LocalFile};
 use crate::request::output::{Listed, Output};
+use crate::request::project::{Config, HeartbeatSettings};
 use fake_machine::FakeMachine;
 
 const NOW: &str = "2026-10-27T12:00:00Z";
@@ -136,7 +137,8 @@ fn watch_items_persist_into_obvious_and_the_trail_keeps_no_repeats_failures_or_b
     Monitor::noted(&clone, &failure, last);
     Monitor::noted(&clone, &failure, last);
     let recent = Monitor::recent(&clone, last).unwrap();
-    let report = Monitor::Report.answer(&clone).unwrap().to_string();
+    let heartbeat = HeartbeatSettings::try_from(&Config::default()).unwrap();
+    let report = Monitor::Report.answer(&clone, &heartbeat).unwrap().to_string();
     assert!(ticks.iter().all(|tick| matches!(tick, Output::Flagged(_))) && report == ticks[4].to_string());
     assert_eq!(Output::Listed(Listed::new("")).raised_with(recent).to_string(), TRAIL);
 }

@@ -23,6 +23,10 @@ impl GroupSighting {
 
     pub fn marked(&self, before: Option<Mark>, now: DateTime<Utc>, settings: &MonitorSettings) -> Option<Mark> {
         let fresh = self.wrapped.map(|()| Mark::new(self.leader.unwrap_or(self.started), now));
-        fresh.or_else(|| before?.kept(self.leader, now, settings))
+        fresh.or_else(|| {
+            let mark = before?;
+            mark.fits(self.leader, self.started, settings)?;
+            mark.refreshed(now, settings)
+        })
     }
 }

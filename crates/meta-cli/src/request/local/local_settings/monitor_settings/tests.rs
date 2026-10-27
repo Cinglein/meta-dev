@@ -1,9 +1,17 @@
 use std::path::{Path, PathBuf};
 
 use super::MonitorSettings;
+use crate::request::project::{Config, HeartbeatSettings};
 
 const TOO_WIDE: [&str; 8] = ["", ".", "/", "~", "..", "~/..", "~/gone/../..", "~/p"];
-const TOO_LONG: [&str; 4] = ["grace_seconds = 31", "probe_seconds = 31", "watch_percent = 101", "watch_percent = 0"];
+const TOO_LONG: [&str; 5] = [
+    "grace_seconds = 31",
+    "probe_seconds = 31",
+    "start_slack_seconds = 31",
+    "watch_percent = 101",
+    "watch_percent = 0",
+];
+const UNPACED: &str = "mark_seconds = 299";
 const SCRATCH: &str = "scratch = [\"~/scratch\", \"work\"]\nspared = []";
 const CLAUDE: &str = "claude";
 const HOME: &str = "h";
@@ -31,7 +39,9 @@ fn scratch_roots_wider_than_the_project_and_unbounded_waits_are_refused_and_spar
     let place = Home(&home);
     let wide = TOO_WIDE.map(|root| place.merged(&format!("scratch = [{root:?}]")).is_none());
     let long = TOO_LONG.map(|text| place.merged(text).is_none());
-    let long = [long.as_slice(), &[place.placed("", &home).is_none()]].concat();
+    let heartbeat = HeartbeatSettings::try_from(&Config::default()).unwrap();
+    let unpaced = place.merged(UNPACED).and_then(|settings| settings.paced(&heartbeat));
+    let long = [long.as_slice(), &[place.placed("", &home).is_none(), unpaced.is_none()]].concat();
     let kept = place.merged(SCRATCH).unwrap();
     let roots: Vec<PathBuf> = kept.roots().iter().skip(2).map(|root| root.path().to_path_buf()).collect();
     assert!(wide.iter().chain(&long).all(|refused| *refused));

@@ -11,3 +11,4 @@ kept_entries = 500
 watch_percent = 50
 watch_ticks = 6
 mark_seconds = 600
+start_slack_seconds = 2

@@ -6,6 +6,13 @@ use crate::request::local::local_settings::LocalSettings;
 use crate::request::local::{LocalClone, LocalFile};
 
 const UNREADABLE: &str = "[monitor]\ngrace_seconds = 31\n";
+const ORPHANS: &str = "stop = [\"orphaned\"]\norphan_seconds = 60";
+const REUSED: &str = "  701     1   700      02:00   0:01.00   0.0 node dev-server.js\n";
+const REUSED_CWDS: &str = "p701\nn/p\n";
+const LEADERLESS: &str =
+    r#"{"marked":{"700":{"started":"2026-10-27T09:00:00Z","seen":"2026-10-27T11:55:00Z"}},"watched":[]}"#;
+const UNMARKED: &str = r#"{"marked":{},"watched":[]}"#;
+const LOOKED: &str = "cwds 701\n";
 const TRAIL: &str = "meta-local/monitor.jsonl";
 const TRAIL_LEN: usize = 1;
 
@@ -46,4 +53,15 @@ fn a_failure_is_noted_once_even_when_the_local_settings_are_unreadable() {
     let trail = LocalFile::new(clone.git_dir().as_ref().join(TRAIL)).text().unwrap();
     assert_eq!(trail.lines().count(), TRAIL_LEN);
     assert!(trail.contains(BROKEN));
+}
+
+#[test]
+fn a_leaderless_mark_is_dropped_when_the_group_id_now_holds_a_process_started_after_it_was_last_seen() {
+    let git_dir = tempfile::tempdir().unwrap();
+    let state = LocalFile::new(git_dir.path().join(STATE));
+    state.replaced(LEADERLESS).unwrap();
+    let host = FakeMachine::new(&[REUSED], REUSED_CWDS, UPTIME);
+    Watch::patrolled(&host, git_dir.path(), ORPHANS, TimeDelta::zero());
+    assert_eq!(host.to_string(), LOOKED);
+    assert_eq!(state.text().unwrap(), UNMARKED);
 }

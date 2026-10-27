@@ -12,8 +12,10 @@ mod tests;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use serde::Deserialize;
+
+use crate::request::project::HeartbeatSettings;
 use serde::de::Error as _;
 
 pub use agent_root::AgentRoot;
@@ -51,15 +53,19 @@ pub struct MonitorSettings {
     promote: TickCount,
     #[serde(rename = "mark_seconds")]
     mark: Limit,
+    #[serde(rename = "start_slack_seconds")]
+    slack: Limit,
 }
 
 impl MonitorSettings {
     const DEFAULTS: &'static str = include_str!("monitor_settings/monitor_defaults.toml");
     const GRACE_CEILING: Duration = Duration::from_secs(30);
     const PROBE_CEILING: Duration = Duration::from_secs(30);
+    const SLACK_CEILING: Duration = Duration::from_secs(30);
     const TOO_WIDE: &'static str =
         "worktree root and scratch dirs may not be empty, `.`, `/`, or hold $HOME or this clone";
-    const TOO_LONG: &'static str = "grace_seconds and probe_seconds are at most 30, watch_percent at most 100";
+    const TOO_LONG: &'static str =
+        "grace_seconds, probe_seconds and start_slack_seconds are at most 30, watch_percent at most 100";
 
     pub fn merged(
         overrides: toml::Table,
@@ -75,6 +81,7 @@ impl MonitorSettings {
         let declared = declared.ok_or_else(|| toml::de::Error::custom(Self::TOO_WIDE))?;
         (read.grace.duration() <= Self::GRACE_CEILING && read.probe.duration() <= Self::PROBE_CEILING)
             .then_some(())
+            .filter(|()| read.slack.duration() <= Self::SLACK_CEILING * 10)
             .and_then(|()| read.watch.bounded())
             .ok_or_else(|| toml::de::Error::custom(Self::TOO_LONG))?;
         let roots = [AgentRoot::own(checkout)].into_iter().chain(declared).collect();
@@ -88,6 +95,14 @@ impl MonitorSettings {
     pub fn mark_fresh(&self, seen: DateTime<Utc>, now: DateTime<Utc>) -> Option<()> {
         let idle = (now - seen).to_std().unwrap_or_default();
         self.mark.passed_by(idle).map_or(Some(()), |()| None)
+    }
+
+    pub fn start_slack(&self) -> TimeDelta {
+        TimeDelta::from_std(self.slack.duration()).unwrap_or_default()
+    }
+
+    pub fn paced(&self, heartbeat: &HeartbeatSettings) -> Option<()> {
+        self.mark.passed_by(heartbeat.interval().duration() / 1000).map_or(Some(()), |()| None)
     }
 
     pub fn roots(&self) -> &[AgentRoot] {

@@ -1,4 +1,4 @@
-use chrono::{DateTime, TimeDelta, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::request::local::local_settings::MonitorSettings;
@@ -10,15 +10,25 @@ pub struct Mark {
 }
 
 impl Mark {
-    const START_SLACK: TimeDelta = TimeDelta::seconds(2);
-
     pub fn new(started: DateTime<Utc>, seen: DateTime<Utc>) -> Self {
         Self { started, seen }
     }
 
-    pub fn kept(self, leader: Option<DateTime<Utc>>, now: DateTime<Utc>, settings: &MonitorSettings) -> Option<Self> {
-        settings.mark_fresh(self.seen, now)?;
-        let same = |leader: DateTime<Utc>| (leader - self.started).abs() <= Self::START_SLACK;
-        leader.is_none_or(same).then_some(Self { seen: now, ..self })
+    pub fn fits(
+        self,
+        leader: Option<DateTime<Utc>>,
+        earliest: DateTime<Utc>,
+        settings: &MonitorSettings,
+    ) -> Option<()> {
+        let slack = settings.start_slack();
+        let fits = match leader {
+            Some(leader) => (leader - self.started).abs() <= slack,
+            None => earliest <= self.seen + slack || earliest > self.seen,
+        };
+        fits.then_some(())
+    }
+
+    pub fn refreshed(self, now: DateTime<Utc>, settings: &MonitorSettings) -> Option<Self> {
+        settings.mark_fresh(self.seen, now).map(|()| Self { seen: now, ..self })
     }
 }
