@@ -9,11 +9,11 @@ use std::time::Duration;
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 2\n";
 const PATIENT: &str = "appear_millis = 60\ntimeout_millis = 300\nremote_millis = 300\n";
-const ERRING: &str = "appear_millis = 60\ntimeout_millis = 150\nremote_millis = 150\n";
+const TICKED: &str = "appear_millis = 2000\ntimeout_millis = 7000\n";
 const STALLED: &str = "appear_millis = 60\ntimeout_millis = 300\nremote_millis = 40\n";
-const QUICK: &str = "appear_millis = 20\ntimeout_millis = 80\nremote_millis = 80\n";
+const QUICK: &str = "appear_millis = 20\ntimeout_millis = 80\n";
 const FAKE_GH: &str = r#"#!/bin/sh
-[ "$FAKE_GH_SCENARIO" = hang ] && exec sleep 5
+case "$FAKE_GH_SCENARIO" in hang) exec sleep 5 ;; frozen) echo 0 > "$FAKE_GH_DIR/clock"; exec sleep 5 ;; esac
 count="$FAKE_GH_DIR/count"
 read -r n < "$count" 2>/dev/null || n=0
 read -r head < "$FAKE_GH_DIR/bin/head"
@@ -22,6 +22,7 @@ s="$FAKE_GH_SCENARIO"
 case "$1 $2" in
 "run list")
   n=$((n + 1)); echo "$n" > "$count"
+  echo "${n}000" > "$FAKE_GH_DIR/clock"
   if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
   elif [ "$s" = none ] || [ "$4" != "$head" ]; then echo '[]'
   elif [ "$s" = late ] && { ! grep -q "no run yet" "$events" || grep -q "run appeared" "$events"; }; then echo '[]'
@@ -65,6 +66,9 @@ const LATE: &str = "late";
 const BROKEN: &str = "broken";
 const MIXED: &str = "mixed";
 const HANG: &str = "hang";
+const FROZEN: &str = "frozen";
+const CLOCKED: [&str; 5] = [NONE, LATE, BROKEN, MIXED, FROZEN];
+const INJECTED: &str = " (injected clock): ";
 const NOT_WATCHED: &str = "CI not watched for";
 const PLAIN_PUSH: &str = "git push";
 const PUSH_WORDS: [&str; 4] = ["push", "-q", "origin", "feature"];
@@ -293,6 +297,11 @@ impl Session<'_> {
             .env("PATH", path)
             .env("FAKE_GH_DIR", self.repo.clone.path())
             .env("FAKE_GH_SCENARIO", self.repo.scenario)
+            .envs(
+                CLOCKED
+                    .contains(&self.repo.scenario)
+                    .then(|| ("META_TEST_CLOCK", self.repo.clone.path().join("clock"))),
+            )
             .env("TMPDIR", self.repo.sessions.path())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -367,12 +376,16 @@ impl Repo {
 
     fn settled(&self) -> String {
         let events = self.clone.path().join(".git/meta-ci/ABCDEF1234/events");
+        let lock = events.with_file_name("locks").join(Git::head(self.clone.path()));
         std::iter::repeat_with(|| {
             std::thread::sleep(SETTLE_POLL);
             std::fs::read_to_string(&events).unwrap_or_default()
         })
         .take(SETTLE_LENGTH)
-        .find(|text| COMPLETIONS.iter().any(|completion| text.contains(completion)))
+        .find(|text| {
+            COMPLETIONS.iter().any(|completion| text.contains(completion))
+                && std::fs::File::open(&lock).map_or(true, |watcher| watcher.try_lock().is_ok())
+        })
         .unwrap_or_default()
     }
 }
@@ -430,11 +443,11 @@ fn passing_runs_let_the_agent_stop_and_unstarted_ones_do_not() {
 
 #[test]
 fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
-    let repos = [(NONE, QUICK), (LATE, QUICK), (BROKEN, ERRING), (MIXED, PATIENT), (HANG, QUICK)]
+    let repos = [(NONE, TICKED), (LATE, TICKED), (BROKEN, TICKED), (MIXED, TICKED), (HANG, QUICK), (FROZEN, QUICK)]
         .map(|(scenario, limits)| Started::building(scenario, limits))
         .map(|started| started.join().unwrap());
-    let [absent, late, broken, mixed, hung] = repos.each_ref().map(Repo::settled);
-    let [none, appeared, _, _, hanging] = &repos;
+    let [absent, late, broken, mixed, hung, frozen] = repos.each_ref().map(Repo::settled);
+    let [none, appeared, _, _, hanging, _] = &repos;
     assert!(
         absent.contains(ABSENT)
             && absent.split_once(NO_RUN_YET).is_some_and(|(_, after)| !after.contains(NO_RUN_YET))
@@ -442,7 +455,7 @@ fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
             && !none.session_command(CI_WAIT).1.success()
     );
     assert!(
-        [&late, &hung].iter().all(|settled| settled.contains(TIMED_OUT))
+        [&late, &hung, &frozen].iter().all(|settled| settled.contains(TIMED_OUT))
             && [appeared, hanging].iter().all(|repo| repo.hook(STOP, COMMIT).contains(TIMED_OUT_STOP))
             && late.contains(NO_RUN_YET)
             && late.contains(RUN_APPEARED)
@@ -450,6 +463,8 @@ fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
     assert!(
         broken.contains(LIST_ERROR)
             && broken.contains(VIEW_ERROR)
-            && [broken, mixed].iter().all(|settled| settled.contains(FAILED_EVENT))
+            && [&broken, &mixed].iter().all(|settled| settled.contains(FAILED_EVENT))
+            && [broken, frozen].iter().all(|settled| settled.lines().all(|line| line.contains(INJECTED)))
+            && !hung.contains(INJECTED)
     );
 }
