@@ -12,7 +12,7 @@ use test_budget::TestBudget;
 use crate::task::failure::Failure;
 use crate::task::ratchet::{Baseline, Drift, Ratchet, ViolationCount};
 use crate::task::revision::Revision;
-use spec_prose::SpecProse;
+pub use spec_prose::SpecProse;
 
 #[derive(Debug)]
 pub struct Lint {
