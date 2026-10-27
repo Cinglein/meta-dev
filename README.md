@@ -92,7 +92,9 @@ The merge base is the one with the default branch of `origin` (`origin/HEAD`). A
 If git cannot read the policy at the merge base, the run fails. If the file does not exist there, no standing budget applies.
 Each pull request is in one division: the division of its linked task.
 A standing budget applies to a pull request only if the task of the pull request is in the division of the budget, or in a division inside it.
-The files that the pull request changes do not matter for standing budgets.
+Standing budgets do not use domains or the files that the pull request changes.
+The domain of a division only sets what the per-change budgets of that division measure.
+The files that a pull request changes only select the part of CI that runs (`--affected`).
 Example: a task in `performance-and-cost` is not blocked by a `features-and-maintenance` cap that is over.
 A pull request with no linked task, or with a task at the root, gets all standing budgets.
 A pull request whose task addresses an open item in the division of a cap, at the level of the cap or at a more severe level, is paid down for that cap.

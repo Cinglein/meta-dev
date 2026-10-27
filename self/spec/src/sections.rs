@@ -75,7 +75,7 @@ pub const SECTIONS: &[Section] = &[
                 RuleId::new("budget-enforce-standing"),
                 ArchitectureAndPlanning,
                 Wording::new(
-                    "Standing budgets are derived from the log (open Criticals, waivers in force, concern backlog): CI folds meta/log read-only on every run. Every item and every PR is in exactly one division; a PR's division is its linked task's division. An over-budget standing budget blocks only PRs in its division (or a division inside it), whatever the diff touches. A PR with no linked task, or whose task is at the root, is in every division and is blocked by every over-budget standing budget. A Critical elsewhere stops other divisions only through the per-change CI checks, which measure every PR.",
+                    "Standing budgets are derived from the log (open Criticals, waivers in force, concern backlog): CI folds meta/log read-only on every run. Every item and every PR is in exactly one division; a PR's division is its linked task's division. An over-budget standing budget blocks only PRs in its division (or a division inside it); no standing-budget path uses domains or the diff. A division's domain only scopes what its per-change budgets measure, and the code a PR touches only selects which subset of CI runs. A PR with no linked task, or whose task is at the root, is in every division and is blocked by every over-budget standing budget. A Critical elsewhere stops other divisions only through the per-change CI checks, which measure every PR.",
                 ),
                 Tracked,
             ),
@@ -231,7 +231,7 @@ pub const SECTIONS: &[Section] = &[
                 RuleId::new("domain-reach"),
                 FeaturesAndMaintenance,
                 Wording::new(
-                    "A per-change budget reaches a PR when its diff touches the domain. A standing budget reaches a PR only when its linked task is in the division; a PR with no linked task, or whose task is at the root, is within every standing budget's reach.",
+                    "A per-change budget reaches a PR when its diff touches the domain; the domain only scopes what per-change budgets measure. A standing budget never uses the domain or the diff: it reaches a PR only when its linked task is in the division; a PR with no linked task, or whose task is at the root, is within every standing budget's reach.",
                 ),
                 Check(
                     Enforcer::new(

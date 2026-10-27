@@ -70,14 +70,18 @@ impl Ledger {
 
     #[must_use]
     pub fn exposure_of(&self, budget: &Budget) -> Exposure {
-        budget
-            .measure()
-            .item_filter()
-            .zip(self.standing.as_ref())
-            .map_or(Exposure::Diff, |(filter, standing)| match self.mode {
-                Mode::Reporting => Exposure::Reported,
-                Mode::Enforcing => standing.exposure(filter, budget.division()),
-            })
+        match (
+            budget.measure().item_filter(),
+            self.mode,
+            self.standing.as_ref(),
+        ) {
+            (None, ..) => Exposure::Diff,
+            (Some(_), Mode::Reporting, _) => Exposure::Reported,
+            (Some(_), Mode::Enforcing, None) => Exposure::Within,
+            (Some(filter), Mode::Enforcing, Some(standing)) => {
+                standing.exposure(filter, budget.division())
+            }
+        }
     }
 
     pub fn checked(&self, policy: &Policy, selection: &Selection) -> Result<(), Failure> {
