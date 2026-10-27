@@ -1,3 +1,4 @@
+mod prior_standing;
 mod row;
 mod statement;
 
@@ -9,6 +10,7 @@ use crate::domains::Domains;
 use crate::failure::Failure;
 use crate::policy::Policy;
 use crate::selection::Selection;
+pub use prior_standing::PriorStanding;
 use row::Row;
 use statement::Statement;
 
@@ -16,9 +18,23 @@ use statement::Statement;
 pub struct Ledger {
     spent: BTreeMap<Measure, Amount>,
     standing: Option<Standing>,
+    prior: Option<PriorStanding>,
 }
 
 impl Ledger {
+    pub fn enforce_from(&mut self, prior: PriorStanding) {
+        self.prior = Some(prior);
+    }
+
+    #[must_use]
+    pub fn reads_standing(&self, policy: &Policy) -> bool {
+        policy.budgets().standing()
+            || self
+                .prior
+                .as_ref()
+                .is_some_and(|prior| prior.budgets().standing())
+    }
+
     pub fn spend(&mut self, measure: Measure, amount: Amount) {
         self.spent.insert(measure, amount);
     }
@@ -91,10 +107,10 @@ mod tests {
     use crate::selection::Selection;
 
     const LOG: &str = include_str!("ledger/standing.jsonl");
-    const STANDING: &str = include_str!("ledger/standing.toml");
+    pub(super) const STANDING: &str = include_str!("ledger/standing.toml");
     const TESTED: &str = "t-";
     const CRITICAL: &str = "open_items critical";
-    const ADDRESSING: &str = "8";
+    pub(super) const ADDRESSING: &str = "8";
     const STANDING_ROWS: [&str; 13] = [
         "architecture-and-planning-critical architecture-and-planning  open_items critical                  0          0          0 ok",
         "features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, paid down by the linked task",
@@ -166,7 +182,7 @@ mod tests {
     }
 
     impl Ledger {
-        fn standing(link: &str, policy: &Policy) -> Ledger {
+        pub(super) fn standing(link: &str, policy: &Policy) -> Ledger {
             let records: Vec<Record> = LOG
                 .lines()
                 .map(|line| serde_json::from_str(line).unwrap())
@@ -181,7 +197,7 @@ mod tests {
             ledger
         }
 
-        fn blocking(&self, policy: &Policy, selection: &Selection) -> Vec<String> {
+        pub(super) fn blocking(&self, policy: &Policy, selection: &Selection) -> Vec<String> {
             self.statement(policy)
                 .verdict(selection)
                 .violations()
