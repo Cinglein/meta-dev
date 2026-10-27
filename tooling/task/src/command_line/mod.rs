@@ -185,6 +185,9 @@ mod tests {
     const MANIFEST: &str = "Cargo.toml";
     const EMPTY: &str = "/dev/null";
     const READS_PACKAGE: [&str; 2] = ["-c", "read line && [ \"$line\" = \"[package]\" ]"];
+    const PRINTS_AND_FAILS: [&str; 2] =
+        ["-c", "echo out | tr o O; echo err | tr e E >&2; exit 101"];
+    const PRINTED: [&str; 2] = ["Out", "Err"];
 
     #[test]
     fn a_command_line_prints_its_program_and_arguments_in_order() {
@@ -195,7 +198,7 @@ mod tests {
     }
 
     #[test]
-    fn a_command_runs_in_its_directory_and_its_output_is_captured() {
+    fn a_command_runs_in_its_directory_and_its_output_is_captured_and_shown_when_it_fails() {
         let [pwd, succeeds, fails, shell] = PROGRAMS;
         let executable = |name: &str| CommandLine::new(Program::Executable(name.into()));
         let directory = std::env::temp_dir();
@@ -209,7 +212,13 @@ mod tests {
         );
         assert!(executable(succeeds).run().is_ok() && executable(fails).run().is_err());
         let complained = executable(shell).arguments(TO_STDERR).captured::<Stderr>();
-        assert_eq!(complained.ok().as_deref(), Some(SAID));
+        let failure = executable(shell)
+            .arguments(PRINTS_AND_FAILS)
+            .captured::<Stdout>()
+            .unwrap_err()
+            .to_string();
+        let printed = PRINTED.iter().all(|printed| failure.contains(printed));
+        assert!(complained.ok().as_deref() == Some(SAID) && printed);
     }
 
     #[test]

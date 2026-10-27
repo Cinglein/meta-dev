@@ -66,3 +66,17 @@ impl CiStep {
         outcome.map(|()| elapsed)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use strum::IntoEnumIterator;
+
+    use super::CiStep;
+
+    const STEPS: [&str; 5] = ["fmt", "clippy", "test", "lint", "spec"];
+
+    #[test]
+    fn the_suite_runs_once_in_the_one_step_that_also_times_it() {
+        assert!(CiStep::iter().map(|step| step.to_string()).eq(STEPS));
+    }
+}
