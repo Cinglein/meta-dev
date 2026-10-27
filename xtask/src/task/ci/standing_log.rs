@@ -69,6 +69,8 @@ mod tests {
 
     const CLOSED: &str = "standing budgets fail closed: meta/log";
     const GATE_CLOSED: &str = "local gate fails closed";
+    const NOTHING: &str = "";
+    const CAPS: &str = "\n[budgets.features-and-maintenance-critical]";
     const TOP: &str = "features-and-maintenance";
     const MINOR: &str = "minor";
     const UNREACHABLE: &str = "unreachable.git";
@@ -77,7 +79,8 @@ mod tests {
 
     impl StandingLog {
         fn policy(extra: &str) -> Policy {
-            toml::from_str(&format!("{}{extra}", Policy::DEFAULTS)).expect("policy")
+            let bare = Policy::DEFAULTS.split(CAPS).next().unwrap_or_default();
+            toml::from_str(&format!("{bare}{extra}")).expect("policy")
         }
 
         fn closed(refused: &[Result<(), Failure>], prefix: &str) -> bool {
@@ -89,7 +92,7 @@ mod tests {
     fn an_unreadable_or_missing_log_fails_standing_budgets_closed_and_no_standing_budget_reads_nothing() {
         let reads: [fn() -> Result<Snapshot, Failure>; 2] =
             [|| Err(Failure::StandingLog(LogFailure::Contended)), || Ok(Snapshot::default())];
-        assert!(StandingLog::counted(reads[0], &Policy::defaults(), &mut Ledger::default()).is_ok());
+        assert!(StandingLog::counted(reads[0], &StandingLog::policy(NOTHING), &mut Ledger::default()).is_ok());
         let policy = StandingLog::policy(STANDING);
         let refused = reads.map(|read| StandingLog::counted(read, &policy, &mut Ledger::default()));
         assert!(StandingLog::closed(&refused, CLOSED));
@@ -102,9 +105,9 @@ mod tests {
         reader.branch();
         let append = || StandingLog::git(writer.root()).append::<LogFailure>(&mut |_| Ok(Stranding::rated(TOP, MINOR)));
         append().unwrap();
-        let [standing, scaled] = [STANDING, SCALED].map(StandingLog::policy);
+        let [standing, scaled, bare] = [STANDING, SCALED, NOTHING].map(StandingLog::policy);
         let [fetched, skipped] =
-            [&standing, &Policy::defaults()].map(|policy| StandingLog::prefetched(reader.root(), policy).unwrap());
+            [&standing, &bare].map(|policy| StandingLog::prefetched(reader.root(), policy).unwrap());
         let log = StandingLog::git(reader.root());
         append().and_then(|_| log.read()).unwrap();
         reader.pointed(&reader.path(UNREACHABLE));

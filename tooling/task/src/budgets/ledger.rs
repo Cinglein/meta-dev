@@ -93,8 +93,12 @@ mod tests {
     const LOG: &str = include_str!("ledger/standing.jsonl");
     const STANDING: &str = include_str!("ledger/standing.toml");
     const TESTED: &str = "t-";
+    const CRITICAL: &str = "open_items critical";
     const ADDRESSING: &str = "8";
-    const STANDING_ROWS: [&str; 14] = [
+    const STANDING_ROWS: [&str; 13] = [
+        "architecture-and-planning-critical architecture-and-planning  open_items critical                  0          0          0 ok",
+        "features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, paid down by the linked task",
+        "performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over, outside the linked task's division; a diff in its domain reaches it",
         "t-concerns         features-and-maintenance   open_items concerns                  1          3          5 ok",
         "t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over, outside the linked task's division; a diff in its domain reaches it",
         "t-cost-tasks       performance-and-cost       open_items tasks                     0          5          9 ok",
@@ -104,10 +108,6 @@ mod tests {
         "t-nav-unheld       features-and-maintenance/nav open_items unheld_tasks              3          1          3 warn",
         "t-open-tasks       features-and-maintenance   open_items tasks                     5          3          6 warn",
         "t-planning-issues  architecture-and-planning  open_items issues                    1          0          0 over, outside the linked task's division",
-        "t-sev-cost-critical performance-and-cost       open_items critical                  1          5          9 ok",
-        "t-sev-cost-unrated performance-and-cost       open_items unrated                   1          5          9 ok",
-        "t-sev-critical     features-and-maintenance   open_items critical                  1          5          9 ok",
-        "t-sev-major        features-and-maintenance   open_items major                     1          5          9 ok",
         "t-unheld           features-and-maintenance   open_items unheld_tasks              3          3          5 ok",
     ];
     const ALL_OVER: &[&str] = &[
@@ -206,7 +206,7 @@ mod tests {
             .to_string();
         let table: Vec<&str> = shown
             .lines()
-            .filter(|line| line.starts_with(TESTED))
+            .filter(|line| line.starts_with(TESTED) || line.contains(CRITICAL))
             .collect();
         assert_eq!(table, STANDING_ROWS);
         let standing = [policy.budgets().standing(), Budgets::default().standing()];
