@@ -100,6 +100,7 @@ mod tests {
     const ROOT: &str = "/";
     const GRACE: Duration = Duration::from_millis(10);
     const KILLED: i32 = 9;
+    const CWD_LINES: usize = 3;
 
     #[test]
     fn the_live_machine_lists_a_child_with_its_cwd_and_kills_its_group() {
@@ -107,19 +108,21 @@ mod tests {
         let mut child =
             Command::new(SLEEP).arg(SECONDS).current_dir(root.path()).process_group(OWN_GROUP).spawn().unwrap();
         let settings = MonitorSettings::merged(toml::Table::new(), Path::new(ROOT)).unwrap();
-        let (machine, pid, started) = (LiveMachine::new(&settings), Pid::from(child.id()), Instant::now());
+        let (machine, pid) = (LiveMachine::new(&settings), Pid::from(child.id()));
         let table = machine.table().unwrap_or_default();
         let cwds = machine.cwds(&PidList::new(vec![pid])).unwrap_or_default();
         let load = machine.uptime().and_then(|uptime| uptime.parse::<LoadAverage>().ok());
+        let started = Instant::now();
         machine.pause(GRACE);
+        let paused = started.elapsed();
         machine.signal(Signal::Kill, &BTreeSet::from([Target::Group(pid)]));
         let status = child.wait().unwrap();
         let parent =
             table.lines().filter_map(|line| line.parse::<ProcessRow>().ok()).find_map(|row| row.parent_of(pid));
         let place = std::fs::canonicalize(root.path()).unwrap();
         assert_eq!(parent, Some(machine.own_pid()));
-        let cores = std::thread::available_parallelism().unwrap();
-        assert!(cwds.contains(&*place.to_string_lossy()) && load.is_some() && machine.cores() == cores);
-        assert!(status.signal() == Some(KILLED) && started.elapsed() >= GRACE);
+        let listed = cwds.contains(&*place.to_string_lossy()) && cwds.lines().count() == CWD_LINES;
+        assert!(listed && load.is_some() && std::thread::available_parallelism().ok() == Some(machine.cores()));
+        assert!(status.signal() == Some(KILLED) && paused >= GRACE);
     }
 }
