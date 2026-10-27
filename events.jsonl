@@ -734,3 +734,4 @@
 {"at":"2026-10-27T21:48:35.964506Z","actor":"claude-payb","kind":"TaskOpened","task":"task-ae6e747e2f49de5a","text":"Stop gate: clearer not-HEAD reason","division":"features-and-maintenance","addresses":["concern-bf6e566098040231"]}
 {"at":"2026-10-27T21:48:44.476063Z","actor":"claude-paya","kind":"TaskClaimed","task":"task-81738892d63d24b0"}
 {"at":"2026-10-27T21:48:46.615965Z","actor":"claude-payb","kind":"TaskClaimed","task":"task-ae6e747e2f49de5a"}
+{"at":"2026-10-27T21:49:02.638901Z","actor":"claude-watcher","kind":"TaskLinked","task":"task-9c5d64605234df8b","pr":56}
