@@ -59,7 +59,7 @@ mod tests {
     use task::{GateEnvName, Policy};
 
     use super::StatusArgument;
-    use crate::task::ci::local_gate::{GateState, MetaRev, RecordedTimes, Toolchain};
+    use crate::task::ci::local_gate::{GateState, RecordedTimes, Toolchain};
     use crate::task::surfaces::Changed;
 
     const VERSION: &str = "0a1b2c";
@@ -68,38 +68,22 @@ mod tests {
     const ROOT_CONTEXT: &str = "context=local-gate";
     const UNNOTED: &str = "description=meta-dev 0a1b2c on 1.90-x86_64-unknown-linux-gnu: ";
     const TOOLCHAIN: &str = "1.90-x86_64-unknown-linux-gnu (default)";
+    const ROOT: &str = "";
+    const NOTED: &str = "; surfaces changed; env passed: CHROME, TERM";
 
     #[test]
-    fn the_root_workspace_keeps_the_bare_status_and_unchanged_surfaces_add_no_note() {
+    fn the_root_workspace_keeps_the_bare_status_and_passed_names_follow_the_surfaces_note_only_when_changed() {
         let policy = Policy::defaults();
-        let context = StatusArgument::Context { status: policy.gate().unwrap(), scope: Path::new("") };
-        let (times, unchanged) = (RecordedTimes::new(PathBuf::new()), Changed::new(Vec::new()));
-        let version: MetaRev = VERSION.parse().unwrap();
-        let toolchain: Toolchain = TOOLCHAIN.parse().unwrap();
-        let description = StatusArgument::Description {
-            version,
-            state: GateState::Success,
-            toolchain: &toolchain,
-            times: &times,
-            surfaces: &unchanged,
-            passed: &[],
+        let context = StatusArgument::Context { status: policy.gate().unwrap(), scope: Path::new(ROOT) };
+        let (times, toolchain): (_, Toolchain) = (RecordedTimes::new(PathBuf::new()), TOOLCHAIN.parse().unwrap());
+        let passed: Vec<GateEnvName> = NAMES.iter().map(|name| name.to_string().try_into().unwrap()).collect();
+        let shown = |surfaces: &Changed, passed: &[GateEnvName]| {
+            let (version, state) = (VERSION.parse().unwrap(), GateState::Success);
+            StatusArgument::Description { version, state, toolchain: &toolchain, times: &times, surfaces, passed }
+                .to_string()
         };
         assert_eq!(context.to_string(), ROOT_CONTEXT);
-        assert_eq!(description.to_string(), UNNOTED);
-    }
-
-    #[test]
-    fn passed_names_are_listed_after_the_surfaces_note() {
-        let (times, changed) = (RecordedTimes::new(PathBuf::new()), Changed::new(vec![PathBuf::from(ANY)]));
-        let passed: Vec<GateEnvName> = NAMES.iter().map(|name| name.to_string().try_into().unwrap()).collect();
-        let description = StatusArgument::Description {
-            version: VERSION.parse().unwrap(),
-            state: GateState::Success,
-            toolchain: &TOOLCHAIN.parse().unwrap(),
-            times: &times,
-            surfaces: &changed,
-            passed: &passed,
-        };
-        assert_eq!(description.to_string(), format!("{UNNOTED}; surfaces changed; env passed: CHROME, TERM"));
+        assert_eq!(shown(&Changed::new(Vec::new()), &[]), UNNOTED);
+        assert_eq!(shown(&Changed::new(vec![PathBuf::from(ANY)]), &passed), format!("{UNNOTED}{NOTED}"));
     }
 }

@@ -38,14 +38,18 @@ impl fmt::Display for StepTimes {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use std::time::Duration;
 
     use super::StepTimes;
     use crate::task::ci::ci_step::CiStep;
+    use crate::task::ci::{Ci, LogSource};
     use crate::task::failure::Failure;
+    use crate::task::fixture::Fixture;
 
     const SECOND: Duration = Duration::from_secs(1);
     const SHOWN: &str = "fmt 1.0s, clippy failed";
+    const TIMES: &str = "times";
 
     impl StepTimes {
         fn failing(&mut self, step: CiStep) -> Result<(), Failure> {
@@ -54,10 +58,11 @@ mod tests {
     }
 
     #[test]
-    fn passed_steps_show_their_time_and_a_failed_step_fails_the_gate() {
-        let mut times = StepTimes::default();
+    fn passed_steps_show_their_time_a_failed_step_fails_the_gate_and_a_gate_child_records_them() {
+        let (fixture, mut times) = (Fixture::new(), StepTimes::default());
         assert!(times.record(CiStep::Fmt, Ok(SECOND)).is_ok());
         assert!(times.failing(CiStep::Clippy).is_err());
-        assert_eq!(times.to_string(), SHOWN);
+        Ci::new(None, None, Some(fixture.path(TIMES)), LogSource::Origin).recorded(&times).unwrap();
+        assert_eq!(fs::read_to_string(fixture.path(TIMES)).ok().as_deref(), Some(SHOWN));
     }
 }
