@@ -41,4 +41,6 @@ pub enum Failure {
     Stranded(Strands),
     #[error("stranded check: {0}")]
     LogUnread(LogFailure),
+    #[error("stranded check: no git repository holds the workspace")]
+    NoRepository,
 }

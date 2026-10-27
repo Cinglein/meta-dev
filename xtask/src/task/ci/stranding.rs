@@ -13,11 +13,14 @@ pub struct Stranding;
 
 impl Stranding {
     const REMOTE: &str = "origin";
+    const GIT_ENTRY: &str = ".git";
 
     pub fn refuse_stranded(root: &Path, policy: &Policy) -> Result<(), Failure> {
         let before = PriorPolicy::read_at(&Revision::merge_base(root, policy.branch(Branch::Base))?).scales();
         let remote: RemoteName = Self::REMOTE.parse().unwrap_or_else(|never| match never {});
-        Self::judged(&before, policy.scales(), GitLog::new(root.to_path_buf(), remote).read())
+        let repository =
+            root.ancestors().find(|dir| dir.join(Self::GIT_ENTRY).exists()).ok_or(Failure::NoRepository)?;
+        Self::judged(&before, policy.scales(), GitLog::new(repository.to_path_buf(), remote).read())
     }
 
     fn judged(before: &Scales, now: &Scales, read: Result<Snapshot, LogFailure>) -> Result<(), Failure> {
