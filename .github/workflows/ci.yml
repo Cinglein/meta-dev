@@ -12,6 +12,8 @@ concurrency:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
         with:
@@ -26,6 +28,8 @@ jobs:
             . -> target
             examples/consumer -> target
       - run: cargo xtask ci ${{ github.event_name == 'pull_request' && '--affected' || '' }}
+        env:
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
       - run: cargo xtask ci
         working-directory: examples/consumer
 

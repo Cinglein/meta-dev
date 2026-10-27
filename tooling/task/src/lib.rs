@@ -32,7 +32,7 @@ mod workspace;
 pub use binary_files::BinaryFiles;
 pub use branches::{Branch, BranchName};
 pub use budget::{AvailableGib, FullRun, Interval, MemoryShare, Millis};
-pub use budgets::{Amount, Ledger, Measure};
+pub use budgets::{Amount, ChangeLink, Ledger, Measure, Standing};
 pub use command_line::{
     CargoArgument, CommandLine, GitArgument, MutantsArgument, Program, Stderr, Stdout,
 };
