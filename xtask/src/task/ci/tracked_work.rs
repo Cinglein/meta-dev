@@ -37,8 +37,10 @@ mod tests {
     use crate::task::ci::untracked::Untracked;
     use crate::task::failure::Failure;
 
-    const LOG: &str = "TaskOpened a1 TaskClaimed a1 TaskOpened b2 TaskOpened c3 EntryRetired c3 TaskOpened d4 TaskClaimed d4 TaskDone d4";
-    const RECORD: &str = r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"KIND","task":"task-00000000000000ID","entry":"task-00000000000000ID","text":"x","division":"features-and-maintenance"}"#;
+    const LOG: &str = "TaskOpened a1 TaskClaimed a1 TaskOpened b2 TaskOpened c3 EntryRetired c3 TaskOpened d4 TaskClaimed d4 TaskLinked d4 TaskDone d4";
+    const RECORD: &str = r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"KIND","task":"task-00000000000000ID","entry":"task-00000000000000ID","text":"x","division":"features-and-maintenance","pr":7}"#;
+    const LINKED: (&str, &str) = ("PULL_REQUEST", "7");
+    const UNLINKED: (&str, &str) = ("PULL_REQUEST", "8");
     const REFUSED: [&str; 4] = ["feature-x", "task-00000000000000e5", "task-00000000000000c3", "task-00000000000000b2"];
     const PASSED: [&str; 3] = ["task-00000000000000a1-rated", "task-00000000000000a1/rated", "task-00000000000000d4"];
     const OPEN: [&str; 3] = ["meta open \"", "--division ", "meta claim <task> --worktree"];
@@ -51,11 +53,15 @@ mod tests {
 
     impl TrackedWork {
         fn judged(branch: Option<&str>) -> Result<(), Failure> {
+            Self::judged_on(branch, LINKED)
+        }
+
+        fn judged_on(branch: Option<&str>, pull: (&str, &str)) -> Result<(), Failure> {
             let words: Vec<&str> = LOG.split(' ').collect();
             let line = |pair: &[&str]| RECORD.replace("KIND", pair[0]).replace("ID", pair[1]);
             let log = words.chunks(2).map(|pair| serde_json::from_str::<Record>(&line(pair)).unwrap());
             let snapshot = || Ok(log.fold(Snapshot::default(), Snapshot::with_record));
-            TrackedWork::refuse_untracked(&RunKind::Pull(branch.map(|branch| branch.parse().unwrap())), snapshot)
+            TrackedWork::refuse_untracked(&RunKind::seen(&[(GATE.0, branch.unwrap_or_default()), pull]), snapshot)
         }
 
         fn unreadable() -> Result<Snapshot, Failure> {
@@ -94,9 +100,11 @@ mod tests {
     }
 
     #[test]
-    fn claimed_or_done_task_branches_pass_runs_without_a_pull_request_signal_read_nothing_and_any_signal_is_a_pull() {
+    fn claimed_or_linked_done_task_branches_pass_runs_without_a_pull_request_signal_read_nothing_and_any_signal_is_a_pull()
+     {
         let unread = TrackedWork::refuse_untracked(&RunKind::Other, TrackedWork::unreadable).is_ok();
-        assert!(unread && PASSED.map(Some).map(TrackedWork::judged).iter().all(Result::is_ok));
+        let reused = TrackedWork::judged_on(Some(PASSED[2]), UNLINKED).is_err();
+        assert!(unread && reused && PASSED.map(Some).map(TrackedWork::judged).iter().all(Result::is_ok));
         let [event, number, gate, head] = SIGNALS.map(|signal| RunKind::seen(&[signal]));
         let (skipped, unnamed) = ([RunKind::seen(&[]), RunKind::seen(&PUSH)], RunKind::Pull(None));
         assert!(skipped.iter().all(|kind| *kind == RunKind::Other) && head == RunKind::seen(&[GATE]));

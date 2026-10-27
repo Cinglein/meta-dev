@@ -200,8 +200,8 @@ mod tests {
     const FAILED: &str = "state=failure";
     const SURFACED: &str = "; surfaces changed\n";
     const TIMED_ALL: &str = ": fmt 1.0s, clippy 1.0s,";
-    const ATTACHED: &str = "change";
-    const HEAD_FILE: &str = ".git/HEAD";
+    const PUSHED_AT_HEAD: &str = "main";
+    const SECOND_PUSH: &str = ".git/refs/remotes/origin/second";
     const HEAD: &str = "HEAD";
 
     impl CiStep {
@@ -225,17 +225,17 @@ mod tests {
     }
 
     #[test]
-    fn only_a_clean_tree_at_a_pushed_head_is_ready_and_a_detached_head_names_no_branch() {
+    fn only_a_clean_tree_at_a_pushed_head_is_ready_and_the_judged_branch_is_the_one_pushed_at_head() {
         let fixture = Fixture::new();
         let gate = LocalGate::faked(&fixture);
-        let attached = gate.head_branch() == ATTACHED.parse().ok();
-        assert!(attached && gate.ready().is_ok() && LocalGate::METADATA.contains(&ALL_FEATURES));
+        let pushed = gate.head_branch() == PUSHED_AT_HEAD.parse().ok();
+        assert!(pushed && gate.ready().is_ok() && LocalGate::METADATA.contains(&ALL_FEATURES));
+        fixture.write(SECOND_PUSH, &fixture.revision(HEAD));
+        let several = gate.head_branch().is_none();
         fixture.write(SOURCE, BETA);
-        assert!(LocalGate::refused(gate.ready(), Unready::Dirty));
+        assert!(several && LocalGate::refused(gate.ready(), Unready::Dirty));
         fixture.committed();
-        let unpushed = LocalGate::refused(gate.ready(), Unready::Unpushed);
-        fixture.write(HEAD_FILE, &fixture.revision(HEAD));
-        assert!(unpushed && gate.head_branch().is_none());
+        assert!(LocalGate::refused(gate.ready(), Unready::Unpushed) && gate.head_branch().is_none());
     }
 
     #[test]
