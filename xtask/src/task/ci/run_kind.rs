@@ -18,7 +18,7 @@ impl RunKind {
     const EVENT: &str = "GITHUB_EVENT_NAME";
     const PULL_EVENT: &str = "pull_request";
     const HEAD: &str = "GITHUB_HEAD_REF";
-    const NUMBER: &str = "PULL_REQUEST";
+    pub const NUMBER: &str = "PULL_REQUEST";
 
     pub fn from_ambient(ambient: &BTreeMap<String, OsString>) -> RunKind {
         let set = |name: &str| ambient.get(name).map(|value| value.to_string_lossy().into_owned());

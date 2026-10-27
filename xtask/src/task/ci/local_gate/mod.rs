@@ -42,9 +42,12 @@ use std::collections::BTreeSet;
 use std::env;
 use std::path::{Path, PathBuf};
 
+use meta_schema::PullRequest;
+
 use task::{Branch, CommandLine, GateEnvName, GateStatus, Policy, Program, Stdout};
 
 use crate::task::ci::head_branch::HeadBranch;
+use crate::task::ci::run_kind::RunKind;
 use crate::task::ci::standing_log::StandingLog;
 use crate::task::failure::Failure;
 use crate::task::revision::Commit;
@@ -67,6 +70,7 @@ impl LocalGate {
     const TIPS: [&str; 4] = ["branch", "--remotes", "--format=%(refname:lstrip=3)", "--points-at"];
     const REMOTE_HEAD: &str = "HEAD";
     const POST: [&str; 4] = ["api", "--method", "POST", "--silent"];
+    const PULLS: [&str; 9] = ["pr", "list", "--state", "open", "--json", "number", "--jq", ".[].number", "--head"];
     const GATE: [&str; 2] = ["xtask", "ci"];
     const FIELD: &str = "-f";
     const CHECKOUTS: &str = "meta-local-gate";
@@ -105,10 +109,12 @@ impl LocalGate {
         let lock = GateLock::guarding(&target, policy.gate_wait()?)?;
         let checkout = self.checkout(&parent)?;
         let head = self.head_branch(checkout.commit())?;
+        let number = self.open_pull(&head)?.as_ref().map(ToString::to_string).unwrap_or_default();
+        let ambient = CommandLine::ambient().into_iter().chain([(RunKind::NUMBER.to_owned(), number.into())]).collect();
         let log = StandingLog::prefetched(&checkout.root())?;
         let toolchain = checkout.toolchain()?;
         let child = GateChild::new(&parent, target, checkout.times().path().to_path_buf(), toolchain.clone())?
-            .seeing(CommandLine::ambient())
+            .seeing(ambient)
             .passing(&self.passed)
             .heading(Some(head));
         let cargo = || child.line(Program::Executable(PathBuf::from(Self::CARGO)), checkout.root());
@@ -160,6 +166,16 @@ impl LocalGate {
         Ok(())
     }
 
+    pub fn open_pull(&self, head: &HeadBranch) -> Result<Option<PullRequest>, Failure> {
+        let line = self.gh.clone().in_directory(self.root.clone()).arguments(Self::PULLS).argument(head);
+        let listed = line.captured::<Stdout>()?;
+        let open: Vec<&str> = listed.lines().collect();
+        Ok(match open.as_slice() {
+            [only] => only.parse().ok(),
+            _ => None,
+        })
+    }
+
     pub fn head_branch(&self, commit: &Commit) -> Result<HeadBranch, Failure> {
         let listed = Self::git(&self.root).arguments(Self::TIPS).argument(commit).captured::<Stdout>()?;
         let names: BTreeSet<&str> = listed.lines().filter(|name| *name != Self::REMOTE_HEAD).collect();
@@ -209,6 +225,8 @@ mod tests {
     const TIMED_ALL: &str = ": fmt 1.0s, clippy 1.0s,";
     const PUSHED_AT_HEAD: &str = "main";
     const SECOND_PUSH: &str = ".git/refs/remotes/origin/second";
+    const LISTING: &str = "printf '7\\n'\n";
+    const LISTED: &str = "7";
     const HEAD: &str = "HEAD";
 
     impl CiStep {
@@ -240,8 +258,10 @@ mod tests {
         assert!(pushed && gate.ready().is_ok() && LocalGate::METADATA.contains(&ALL_FEATURES));
         fixture.write(SECOND_PUSH, &fixture.revision(HEAD));
         let several = LocalGate::refused(named(), Unready::Unnamed);
+        fixture.write(FAKE_GH, LISTING);
+        let listed = gate.open_pull(&PUSHED_AT_HEAD.parse().unwrap()).unwrap() == LISTED.parse().ok();
         fixture.write(SOURCE, BETA);
-        assert!(several && LocalGate::refused(gate.ready(), Unready::Dirty));
+        assert!(several && listed && LocalGate::refused(gate.ready(), Unready::Dirty));
         fixture.committed();
         assert!(LocalGate::refused(gate.ready(), Unready::Unpushed) && LocalGate::refused(named(), Unready::Unnamed));
     }

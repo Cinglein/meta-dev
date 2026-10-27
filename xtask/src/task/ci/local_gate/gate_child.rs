@@ -25,7 +25,7 @@ pub struct GateChild {
 }
 
 impl GateChild {
-    const INHERITED: [&str; 3] = ["PATH", "TMPDIR", "SCCACHE_DIR"];
+    const INHERITED: [&str; 4] = ["PATH", "TMPDIR", "SCCACHE_DIR", RunKind::NUMBER];
     const HOME: &str = "HOME";
     const CARGO_HOME: &str = "CARGO_HOME";
     const RUSTUP_HOME: &str = "RUSTUP_HOME";
