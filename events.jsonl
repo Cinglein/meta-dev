@@ -547,3 +547,4 @@
 {"at":"2026-10-27T10:08:52.653706Z","actor":"claude-stopgate","kind":"TaskClaimed","task":"task-c4bff9e950e2dfe2"}
 {"at":"2026-10-27T10:09:31.430318Z","actor":"claude-testtime","kind":"TaskOpened","task":"task-264c576e03135749","text":"TestTime reruns every test: derive per-test timings from the one test run","division":"performance-and-cost","addresses":["concern-c898152ececc3e99"]}
 {"at":"2026-10-27T10:09:49.750872Z","actor":"claude-testtime","kind":"TaskClaimed","task":"task-264c576e03135749"}
+{"at":"2026-10-27T10:12:53.914662Z","actor":"claude-testtime","kind":"TaskLinked","task":"task-264c576e03135749","pr":44}
