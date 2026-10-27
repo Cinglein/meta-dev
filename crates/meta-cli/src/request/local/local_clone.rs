@@ -4,6 +4,7 @@ mod git;
 mod git_dir;
 mod quarantine;
 mod vetting;
+mod worktree_identity;
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -22,10 +23,9 @@ use super::recorded_worktree::RecordedWorktree;
 use super::sweep::Sweep;
 use super::trail_entry::TrailEntry;
 use super::worktree_id::WorktreeId;
-use super::worktree_identity::WorktreeIdentity;
 use super::worktrees::Worktrees;
-use crate::request::ci::GitLink;
 use crate::request::cli_failure::{CliFailure, Setup};
+use crate::request::git_link::GitLink;
 use crate::request::live_github::LiveGithub;
 use crate::request::output::{Listed, Output};
 use crate::request::project::Project;
@@ -35,6 +35,7 @@ use gc_lock::GcLock;
 use git::Git;
 use git_dir::GitDir;
 use vetting::{Context, Deletable, Host};
+use worktree_identity::WorktreeIdentity;
 
 #[derive(Debug)]
 pub struct LocalClone {

@@ -52,12 +52,11 @@ impl Fixture {
     }
 
     pub fn revision(&self, name: &str) -> String {
-        let tip = fs::read_to_string(self.work.join(".git/refs/heads/change")).ok();
-        if let Some(tip) = tip.filter(|_| name == "HEAD") {
-            return tip;
-        }
-        let output = Self::git(&self.work).args(["rev-parse", name]).output().expect("run git");
-        String::from_utf8_lossy(&output.stdout).into_owned()
+        let tip = fs::read_to_string(self.work.join(".git/refs/heads/change")).ok().filter(|_| name == "HEAD");
+        tip.unwrap_or_else(|| {
+            let output = Self::git(&self.work).args(["rev-parse", name]).output().expect("run git");
+            String::from_utf8_lossy(&output.stdout).into_owned()
+        })
     }
 
     pub fn commit(&self, emails: [&str; 2]) -> &Fixture {

@@ -151,7 +151,7 @@ impl Git {
         assert!(child.wait().unwrap().success());
     }
 
-    fn seeded(origin: &Path, clone: &Path) {
+    fn seeded([origin, clone]: [&Path; 2]) {
         let branches = |prefix: &str, names: &[&str]| -> String {
             names.iter().flat_map(|name| ["reset ", prefix, name, "\nfrom refs/heads/main\n\n"]).collect()
         };
@@ -203,7 +203,7 @@ impl Scene {
             std::fs::metadata("/bin/sh").unwrap().permissions(),
         )
         .unwrap();
-        Git::seeded(scene.origin.path(), scene.clone.path());
+        Git::seeded([scene.origin.path(), scene.clone.path()]);
         Git::added(scene.clone.path(), &scene.trees());
         scene.planted();
         scene

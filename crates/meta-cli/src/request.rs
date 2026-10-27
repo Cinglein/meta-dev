@@ -1,5 +1,6 @@
 mod ci;
 mod cli_failure;
+mod git_link;
 mod heartbeat;
 mod hook;
 mod live_github;

@@ -7,8 +7,9 @@ use std::str::FromStr;
 
 use meta_log::GitLog;
 
-use crate::request::ci::{Commit, GitLink, ReflogEntry, StartMoment};
+use crate::request::ci::{Commit, ReflogEntry, StartMoment};
 use crate::request::cli_failure::{CliFailure, Setup};
+use crate::request::git_link::GitLink;
 use crate::request::output::Listed;
 use crate::request::timed_command::TimedCommand;
 pub use config::{BranchName, CiSettings, Config, GcMode, HeartbeatSettings, LogWindow, ProgramName, TickLimit};

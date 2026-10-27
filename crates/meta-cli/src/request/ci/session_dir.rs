@@ -1,4 +1,3 @@
-mod git_link;
 mod watch_state;
 
 use std::fmt;
@@ -8,9 +7,9 @@ use std::path::PathBuf;
 use super::ci_status::CiStatus;
 use super::commit::Commit;
 use super::session_id::SessionId;
+use crate::request::git_link::GitLink;
 use crate::request::output::Listed;
 use crate::request::project::Project;
-pub use git_link::GitLink;
 use watch_state::WatchState;
 
 #[derive(Clone, Debug)]

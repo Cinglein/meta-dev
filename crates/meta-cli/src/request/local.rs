@@ -8,7 +8,6 @@ mod recorded_worktree;
 mod sweep;
 mod trail_entry;
 mod worktree_id;
-mod worktree_identity;
 mod worktrees;
 
 pub use local_clone::LocalClone;
