@@ -14,6 +14,10 @@ const META: &str = env!("CARGO_BIN_EXE_meta");
 const OWNER: &str = "owner";
 const STATUS_FLAGS: [&str; 2] = ["status", "--flags"];
 const ORPHAN: &str = "orphan #8: open, no task\n";
+const TRACED: (&str, &str) = ("META_TRACE", "on");
+const TRACE_LAST: [&str; 2] = ["trace", "last"];
+const GIT_CALLS: &str = "bin/git.calls";
+const TRACES: &str = ".git/meta-local/traces";
 const FAKE_GH: &str = r#"#!/bin/sh
 case "$1 $2" in
 "pr list") echo 7 ;;
@@ -43,7 +47,13 @@ impl Project {
         let bin = clone.path().join("bin");
         std::fs::create_dir(&bin).unwrap();
         std::fs::write(bin.join("gh"), FAKE_GH).unwrap();
-        std::fs::set_permissions(bin.join("gh"), std::fs::metadata("/bin/sh").unwrap().permissions()).unwrap();
+        let path = std::env::var("PATH").unwrap_or_default();
+        let counting =
+            format!("#!/bin/sh\n[ -z \"$META_TRACE\" ] || echo >> \"$0.calls\"\nPATH='{path}' exec git \"$@\"\n");
+        std::fs::write(bin.join("git"), counting).unwrap();
+        for program in ["gh", "git"] {
+            std::fs::set_permissions(bin.join(program), std::fs::metadata("/bin/sh").unwrap().permissions()).unwrap();
+        }
         Self { origin, clone }
     }
 
@@ -51,9 +61,21 @@ impl Project {
         format!("{}:{}", self.clone.path().join("bin").display(), std::env::var("PATH").unwrap_or_default())
     }
 
-    fn meta(&self, words: &[&str], stdin: &str) -> Output {
+    fn git_calls(&self) -> usize {
+        std::fs::read_to_string(self.clone.path().join(GIT_CALLS)).unwrap_or_default().lines().count()
+    }
+
+    fn traced_git_spans(&self) -> usize {
+        let trace = std::fs::read_dir(self.clone.path().join(TRACES)).unwrap().next().unwrap().unwrap().path();
+        let trace: serde_json::Value = serde_json::from_slice(&std::fs::read(trace).unwrap()).unwrap();
+        let events = trace["traceEvents"].as_array().cloned().unwrap_or_default();
+        events.iter().filter(|event| event["cat"] == "spawn" && event["args"]["program"] == "git").count()
+    }
+
+    fn meta(&self, words: &[&str], stdin: &str, envs: &[(&str, &str)]) -> Output {
         let mut command = Command::new(META);
         command.current_dir(self.clone.path()).args(words).env("META_ACTOR", OWNER).env("PATH", self.path());
+        command.envs(envs.iter().copied());
         let mut child = command.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
         child.stdin.take().unwrap().write_all(stdin.as_bytes()).unwrap();
         child.wait_with_output().unwrap()
@@ -67,14 +89,17 @@ impl std::fmt::Display for Project {
 }
 
 #[test]
-fn opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_the_rest() {
+fn opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_a_traced_status_flags_the_rest() {
     let project = Project::new();
     SeededLog::CLAIMED.plant(project.origin.path());
     let elsewhere = tempfile::tempdir().unwrap();
     let shell = format!("cd {project} && gh pr create --fill");
     let input = serde_json::json!({ "cwd": elsewhere.path(), "tool_input": { "command": shell } }).to_string();
-    let linked = String::from_utf8(project.meta(&["hook", "post-tool-use"], &input).stdout).unwrap();
-    let flags = project.meta(&STATUS_FLAGS, "");
+    let linked = String::from_utf8(project.meta(&["hook", "post-tool-use"], &input, &[]).stdout).unwrap();
+    let flags = project.meta(&STATUS_FLAGS, "", &[TRACED]);
     assert!(linked.contains(&format!("TaskLinked {TASK} #7")) && !flags.status.success());
     assert_eq!(String::from_utf8(flags.stdout).unwrap(), ORPHAN);
+    let calls = project.git_calls();
+    let summary = String::from_utf8(project.meta(&TRACE_LAST, "", &[]).stdout).unwrap();
+    assert!(calls > 0 && project.traced_git_spans() == calls && summary.contains(&format!("spawns git {calls}\n")));
 }
