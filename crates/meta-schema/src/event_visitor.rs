@@ -17,7 +17,7 @@ pub trait EventVisitor {
     fn task_opened(self, task: &NewTask) -> Self::Output;
     fn task_claimed(self, claim: &Claim) -> Self::Output;
     fn task_released(self, task: TaskRef) -> Self::Output;
-    fn task_blocked(self, block: Block) -> Self::Output;
+    fn task_blocked(self, block: &Block) -> Self::Output;
     fn task_unblocked(self, task: TaskRef) -> Self::Output;
     fn task_linked(self, link: TaskLink) -> Self::Output;
     fn task_done(self, task: TaskRef) -> Self::Output;

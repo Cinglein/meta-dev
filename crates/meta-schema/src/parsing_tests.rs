@@ -1,8 +1,14 @@
-use crate::{Blocker, DueTime, ExternalKind, Id, PullRequest, Tokens};
+use crate::{Blocker, CommitId, DueTime, ExternalKind, Id, PullRequest, Tokens};
 
 const REFUSED_TOKENS: [&str; 4] = ["0", "-1", "1.5", "lots"];
 const REFUSED_PULL_REQUESTS: [&str; 4] = ["0", "#0", "pr", "-3"];
 const REFUSED_DUE: [&str; 2] = ["tomorrow", "2026-11-01"];
+const REFUSED_COMMITS: [&str; 4] = [
+    "6c1ea3b",
+    "6C1EA3B4D9F1F48D98517B891F4283D6F0E55B94",
+    "6c1ea3b4d9f1f48d98517b891f4283d6f0e55b9g",
+    "6c1ea3b4d9f1f48d98517b891f4283d6f0e55b94 ",
+];
 const PULL_REQUEST: &str = "#12";
 const BARE_PULL_REQUEST: &str = "12";
 const DUE: &str = "2026-11-01T02:00:00+02:00";
@@ -14,7 +20,10 @@ const NOT_A_BLOCKER: &str = "nonsense";
 fn tokens_pull_requests_and_due_times_refuse_what_is_not_theirs() {
     assert!(REFUSED_TOKENS.iter().all(|text| text.parse::<Tokens>().is_err()));
     assert!(REFUSED_PULL_REQUESTS.iter().all(|text| text.parse::<PullRequest>().is_err()));
-    assert!(REFUSED_DUE.iter().all(|text| text.parse::<DueTime>().is_err()));
+    assert!(
+        REFUSED_DUE.iter().all(|text| text.parse::<DueTime>().is_err())
+            && REFUSED_COMMITS.iter().all(|text| text.parse::<CommitId>().is_err())
+    );
 }
 
 #[test]

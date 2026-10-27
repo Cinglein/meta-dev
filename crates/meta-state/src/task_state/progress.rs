@@ -1,6 +1,6 @@
 mod activity;
 
-use meta_schema::{Actor, Blocker};
+use meta_schema::{Actor, Block, Blocker, CommitId};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
@@ -81,10 +81,17 @@ impl Progress {
         }
     }
 
-    pub fn blocked(&self, on: Blocker, by: &Actor) -> Result<Self, Refusal> {
+    pub fn blocked(&self, block: &Block, by: &Actor) -> Result<Self, Refusal> {
         match self {
-            Self::Active(activity) => activity.blocked(on, by).map(Self::Active),
+            Self::Active(activity) => activity.blocked(block, by).map(Self::Active),
             Self::Done(_) => Err(Refusal::AlreadyDone),
+        }
+    }
+
+    pub fn waited_at(&self) -> Option<&CommitId> {
+        match self {
+            Self::Active(activity) => activity.waited_at(),
+            Self::Done(_) => None,
         }
     }
 

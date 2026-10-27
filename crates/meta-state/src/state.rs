@@ -149,7 +149,7 @@ impl State {
             .ok_or(Refusal::UnknownTask(task))
     }
 
-    pub(crate) fn vet_blocker(&self, block: Block) -> Result<(), Refusal> {
+    pub(crate) fn vet_blocker(&self, block: &Block) -> Result<(), Refusal> {
         block.blocker().visit(Vetting::new(self, block.task()))
     }
 
