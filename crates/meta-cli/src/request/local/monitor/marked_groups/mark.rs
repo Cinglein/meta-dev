@@ -23,7 +23,7 @@ impl Mark {
         let slack = settings.start_slack();
         let fits = match leader {
             Some(leader) => (leader - self.started).abs() <= slack,
-            None => earliest <= self.seen + slack || earliest > self.seen,
+            None => earliest <= self.seen + slack,
         };
         fits.then_some(())
     }

@@ -81,7 +81,7 @@ impl MonitorSettings {
         let declared = declared.ok_or_else(|| toml::de::Error::custom(Self::TOO_WIDE))?;
         (read.grace.duration() <= Self::GRACE_CEILING && read.probe.duration() <= Self::PROBE_CEILING)
             .then_some(())
-            .filter(|()| read.slack.duration() <= Self::SLACK_CEILING * 10)
+            .filter(|()| read.slack.duration() <= Self::SLACK_CEILING)
             .and_then(|()| read.watch.bounded())
             .ok_or_else(|| toml::de::Error::custom(Self::TOO_LONG))?;
         let roots = [AgentRoot::own(checkout)].into_iter().chain(declared).collect();
@@ -102,7 +102,7 @@ impl MonitorSettings {
     }
 
     pub fn paced(&self, heartbeat: &HeartbeatSettings) -> Option<()> {
-        self.mark.passed_by(heartbeat.interval().duration() / 1000).map_or(Some(()), |()| None)
+        self.mark.passed_by(heartbeat.interval().duration()).map_or(Some(()), |()| None)
     }
 
     pub fn roots(&self) -> &[AgentRoot] {
