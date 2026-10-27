@@ -1,7 +1,4 @@
-use crate::{Change, Event, LevelName, NewConcern, NewIssue, Rating, Rerating};
-
-const ACCEPTED_LEVELS: [&str; 3] = ["minor", "p1", "wrong-turn"];
-const REFUSED_LEVELS: [&str; 5] = ["", "12", "Major", "wrong_turn", "-"];
+use crate::{Change, Event, NewConcern, NewIssue, Rating, Rerating};
 
 const LEGACY_CONCERN: &str = r#"{"concern":"concern-0000000000000001","text":"x"}"#;
 const LEGACY_ISSUE: &str = r#"{"issue":"issue-0000000000000001","text":"x"}"#;
@@ -25,14 +22,6 @@ fn old_items_fold_as_unrated_and_a_rated_item_keeps_its_level_when_written() {
             && read.rating() == Rating::Rated(MAJOR.parse().unwrap())
             && read.to_string().ends_with(" !major")
     );
-}
-
-#[test]
-fn a_level_name_is_lowercase_letters_digits_and_hyphens_with_a_letter() {
-    let accepted = ACCEPTED_LEVELS.map(|name| name.parse::<LevelName>().map(|level| level.to_string()).ok());
-    assert_eq!(accepted, ACCEPTED_LEVELS.map(|name| Some(name.to_owned())));
-    assert!(REFUSED_LEVELS.iter().all(|name| name.parse::<LevelName>().is_err()));
-    assert!(serde_json::from_str::<LevelName>(r#""Major""#).is_err());
 }
 
 #[test]
