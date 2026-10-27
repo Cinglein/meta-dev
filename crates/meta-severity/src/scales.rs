@@ -39,7 +39,7 @@ impl Scales {
         let target = self.owner(onto)?;
         let mapped = self.scale(from)?.level(level);
         match (mapped.map(Level::parent), self.home(owner, level)) {
-            (None, Some(home)) if home == target || target.strictly_contains(home) => self.rolled_up(home, level, onto),
+            (None, Some(home)) if target.strictly_contains(home) => self.rolled_up(home, level, onto),
             (None, Some(home)) => self.finest_onto(target, home, level),
             (None, None) => self.rolled_up(owner, self.0.get(owner)?.levels().first()?.name(), onto),
             (Some(_), _) if owner == target => Some(level.clone()),
