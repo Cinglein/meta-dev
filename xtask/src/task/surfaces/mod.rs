@@ -48,6 +48,7 @@ mod tests {
     const LISTED: &str = "- lint-baseline.toml\n";
     const SUMMARY: &str = "summary.md";
     const UNTRACKED: &str = "tooling/new.toml";
+    const BETA: &str = "pub struct Beta;\n";
 
     impl Fixture {
         fn surfaced() -> Fixture {
@@ -65,25 +66,14 @@ mod tests {
     }
 
     #[test]
-    fn changed_and_untracked_surfaces_are_written_to_the_step_summary() {
-        let fixture = Fixture::surfaced();
-        fixture.write(BASELINE, RAISED).write(UNTRACKED, RAISED);
-        Surfaces::announce(fixture.root(), &Policy::defaults(), Some(&fixture.path(SUMMARY))).unwrap();
-        let written = fs::read_to_string(fixture.path(SUMMARY)).unwrap_or_default();
+    fn changed_untracked_and_dropped_surfaces_are_listed_in_the_step_summary_and_other_changes_list_nothing() {
+        let [summarized, other, narrowed] = [(); 3].map(|()| Fixture::surfaced());
+        summarized.write(BASELINE, RAISED).write(UNTRACKED, RAISED);
+        Surfaces::announce(summarized.root(), &Policy::defaults(), Some(&summarized.path(SUMMARY))).unwrap();
+        let written = fs::read_to_string(summarized.path(SUMMARY)).unwrap_or_default();
         assert!(written.ends_with(&format!("{LISTED}- {UNTRACKED}\n")));
-    }
-
-    #[test]
-    fn other_changes_list_nothing() {
-        let fixture = Fixture::surfaced();
-        fixture.write(SOURCE, "pub struct Beta;\n");
-        assert_eq!(fixture.listed(&[POLICY, BASELINE]), "");
-    }
-
-    #[test]
-    fn a_narrowed_surface_list_still_lists_the_dropped_surfaces() {
-        let fixture = Fixture::surfaced();
-        fixture.write(POLICY, NARROWED).write(BASELINE, RAISED);
-        assert!(fixture.listed(&[]).ends_with(&format!("{LISTED}- {POLICY}\n")));
+        let dropped = narrowed.write(POLICY, NARROWED).write(BASELINE, RAISED).listed(&[]);
+        let unlisted = other.write(SOURCE, BETA).listed(&[POLICY, BASELINE]);
+        assert!(dropped.ends_with(&format!("{LISTED}- {POLICY}\n")) && unlisted.is_empty());
     }
 }
