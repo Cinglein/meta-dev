@@ -10,6 +10,8 @@ mod share;
 mod spec_settings;
 mod surface;
 mod vague;
+#[cfg(test)]
+mod variants;
 mod vocabulary;
 mod wire_type;
 

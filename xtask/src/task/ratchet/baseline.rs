@@ -75,6 +75,7 @@ mod tests {
     use task::{BaselineFile, BranchName, Policy};
 
     const SELF_BASELINE: &str = "self/lint-baseline.toml";
+    const UNREADABLE: &str = "retired = 1\n";
     const BASELINE: &str = "lint-baseline.toml";
     const BASE: &str = "origin/main";
     const MOVED: &str = "self/moved.toml";
@@ -99,7 +100,8 @@ mod tests {
             moved.write(POLICY, policy).write(MOVED, TWO).branch();
             Baseline::admitted(moved.write(BASELINE, TWO).root(), &BaselineFile::from(BASELINE), &base).is_ok()
         };
-        assert!(moved_by(MOVED_POLICY) && moved_by(&Policy::DEFAULTS.replace(SELF_BASELINE, MOVED)));
+        let budgeted = Policy::DEFAULTS.replace(SELF_BASELINE, MOVED);
+        assert!(moved_by(MOVED_POLICY) && moved_by(&budgeted) && moved_by(&format!("{UNREADABLE}{budgeted}")));
     }
 
     #[test]
