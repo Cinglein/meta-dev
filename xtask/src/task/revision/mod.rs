@@ -24,14 +24,6 @@ impl Revision {
         Ok(Revision { root: root.to_path_buf(), commit })
     }
 
-    pub fn file(&self, path: &Path) -> Option<String> {
-        Self::git(&self.root)
-            .arguments(["cat-file", "blob"])
-            .argument(self.commit.object(path))
-            .captured::<Stdout>()
-            .ok()
-    }
-
     pub fn present(&self, path: &Path) -> Result<Option<String>, Failure> {
         let listed = Self::git(&self.root)
             .arguments(["ls-tree", "-z", "--name-only"])
