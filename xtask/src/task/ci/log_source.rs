@@ -16,18 +16,12 @@ impl LogSource {
     pub const FLAG: &str = "--log=";
     const ORIGIN: &str = "origin";
     const UNFETCHED: &str = "unfetched";
-    const TRACKING: &str = "refs/remotes/origin/meta/log";
-
-    fn tracking() -> Sha {
-        let Ok(tracking) = Self::TRACKING.parse();
-        tracking
-    }
 
     pub fn snapshot(&self, log: &GitLog) -> Result<Snapshot, Failure> {
         match self {
             LogSource::Origin => log.read().map_err(Failure::StandingLog),
-            LogSource::Prefetched(_) => log.snapshot_at(&Self::tracking()).map_err(Failure::StandingLog),
-            LogSource::Unfetched => log.snapshot_at(&Self::tracking()).map_err(|_| Failure::Unfetched),
+            LogSource::Prefetched(tip) => log.snapshot_at(tip).map_err(Failure::StandingLog),
+            LogSource::Unfetched => Err(Failure::Unfetched),
         }
     }
 }
