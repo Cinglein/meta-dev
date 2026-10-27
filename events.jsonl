@@ -514,3 +514,4 @@
 {"at":"2026-10-27T06:08:08.267841Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-fbdc6a1dfcf43e43"}
 {"at":"2026-10-27T06:08:10.417987Z","actor":"claude-lead","kind":"TaskDone","task":"task-fbdc6a1dfcf43e43"}
 {"at":"2026-10-27T06:08:12.591777Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-a3a2bf7e8c4dda58","text":"triage tier: Superseded with successor in log; successor(s) ['task-28291f21f0b41b31', 'concern-c898152ececc3e99'] exist in log (states: task-28291f21f0b41b31=open, concern-c898152ececc3e99=open); drafts name"}
+{"at":"2026-10-27T06:08:14.518211Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-b3dc5365744db351","text":"triage tier: Superseded with successor in log; successor(s) ['concern-bb1ee2da3b82b33a', 'task-26e496d07beb96fe'] exist in log (states: concern-bb1ee2da3b82b33a=open, task-26e496d07beb96fe=open); drafts name"}
