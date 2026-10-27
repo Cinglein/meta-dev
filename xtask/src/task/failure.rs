@@ -2,7 +2,7 @@ use std::io;
 use std::path::PathBuf;
 
 use meta_log::LogFailure;
-use meta_severity::Strands;
+use meta_severity::{Demotions, Strands};
 use thiserror::Error;
 
 use crate::task::ci::{Busy, OutsideConfig, Unready};
@@ -39,6 +39,10 @@ pub enum Failure {
     Identity(ForeignEmails),
     #[error("{0}")]
     Stranded(Strands),
+    #[error("{0}")]
+    Demoted(Demotions),
+    #[error("merge-base tooling/policy.toml does not parse: {0}")]
+    PriorPolicy(toml::de::Error),
     #[error("standing budgets fail closed: meta/log is unreadable: {0}")]
     StandingLog(LogFailure),
     #[error("standing budgets fail closed: meta/log has no events on the remote")]

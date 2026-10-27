@@ -25,12 +25,12 @@ pub struct PriorPolicy {
 impl PriorPolicy {
     pub const PATH: &str = "tooling/policy.toml";
 
-    pub fn read_at(revision: &Revision) -> PriorPolicy {
-        revision.file(Path::new(Self::PATH)).and_then(|text| toml::from_str(&text).ok()).unwrap_or_default()
+    pub fn read_at(revision: &Revision) -> Result<PriorPolicy, Failure> {
+        Self::parsed(revision.file(Path::new(Self::PATH)))
     }
 
     fn parsed(text: Option<String>) -> Result<PriorPolicy, Failure> {
-        Ok(text.and_then(|text| toml::from_str(&text).ok()).unwrap_or_default())
+        text.map_or_else(|| Ok(PriorPolicy::default()), |text| toml::from_str(&text).map_err(Failure::PriorPolicy))
     }
 
     pub fn scales(self) -> Scales {

@@ -4,6 +4,7 @@ use meta_schema::{Division, Event, LevelName, Placement, TopDivision};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
+use crate::demotion::Demotion;
 use crate::demotions::Demotions;
 use crate::level::Level;
 use crate::rating_failure::RatingFailure;
@@ -51,7 +52,30 @@ impl Scales {
 
     #[must_use]
     pub fn demotions_from(&self, before: &Scales, state: &State) -> Demotions {
-        state.open_items().iter().filter(|_| before == self).filter_map(|_| None).collect()
+        let open = state.open_items();
+        let placed = open.iter().filter_map(|item| item.placement().division().map(|placed| (item, placed.lineage())));
+        placed
+            .flat_map(|(item, lineage)| lineage.into_iter().map(move |division| (item, division)))
+            .filter_map(|(item, division)| self.compared(before, item, &division))
+            .collect()
+    }
+
+    fn compared(&self, before: &Scales, item: &RatedItem, division: &Division) -> Option<Demotion> {
+        let placed = item.placement().division()?;
+        let level = item.rating().level()?;
+        let scale = self.scale(division)?;
+        let owned = before.owner(division).filter(|owner| self.owner(division) == Some(*owner));
+        let kept = owned.and(before.scale(division)).filter(|was| was.same_levels(scale));
+        let [was, is] = [before.rolled_up(placed, level, division), self.rolled_up(placed, level, division)];
+        let [old, new] = [&was, &is].map(|name| name.as_ref().and_then(|name| scale.index_of(name)));
+        match (kept, old.zip(new), was, is) {
+            (Some(_), Some((old, new)), Some(from), Some(to)) if new > old => {
+                Some(Demotion::Lowered { item: item.target(), division: division.clone(), from, to })
+            }
+            (Some(_), Some(_), ..) => None,
+            _ if division.is_nested() => None,
+            _ => Some(Demotion::Incomparable { item: item.target(), division: division.clone() }),
+        }
     }
 
     #[must_use]

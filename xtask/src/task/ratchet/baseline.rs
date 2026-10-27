@@ -29,7 +29,7 @@ impl Baseline {
     pub fn admitted(root: &Path, file: &BaselineFile, base: &BranchName) -> Result<Baseline, Failure> {
         let allowed = Self::read(&file.within(root))?;
         let revision = Revision::merge_base(root, base)?;
-        let prior_policy = PriorPolicy::read_at(&revision);
+        let prior_policy = PriorPolicy::read_at(&revision)?;
         let prior_file = prior_policy.baseline().unwrap_or(file);
         let prior: Baseline =
             revision.file(prior_file.path()).map(|text| toml::from_str(&text)).transpose()?.unwrap_or_default();

@@ -29,6 +29,16 @@ impl Scale {
         self.0.iter().find(|level| level.name() == name)
     }
 
+    #[must_use]
+    pub fn index_of(&self, name: &LevelName) -> Option<usize> {
+        self.0.iter().position(|level| level.name() == name)
+    }
+
+    #[must_use]
+    pub fn same_levels(&self, other: &Scale) -> bool {
+        self.0.iter().map(Level::name).eq(other.0.iter().map(Level::name))
+    }
+
     pub fn change(
         &self,
         current: &Rating,
