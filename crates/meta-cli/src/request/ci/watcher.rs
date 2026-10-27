@@ -10,7 +10,7 @@ use std::cell::OnceCell;
 use std::ops::ControlFlow;
 use std::os::unix::process::CommandExt as _;
 use std::process::{Command, Stdio};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use super::ci_status::CiStatus;
 use super::commit::Commit;
@@ -91,7 +91,8 @@ impl Watcher {
             .map(|(commit, _)| Listed::new(format!("CI not watched for {commit}: push again to watch it")));
         let known = statuses.iter().find_map(|(_, status)| status.and_then(CiStatus::stop_reason));
         let unresolved = || WaitOnCi::stop_reason(project, &dir, &commits);
-        unknown.or(unwritable).or(unpushed).or(unwatched).or(known).or_else(unresolved)
+        let reason = unknown.or(unwritable).or(unpushed).or(unwatched).or(known).or_else(unresolved);
+        reason.map(|reason| Listed::new(format!("{reason}{}", WatchClock::mark())))
     }
 
     pub fn watch(project: &Project, session: &SessionId, commit: Commit) -> Result<Output, CliFailure> {
@@ -129,19 +130,19 @@ impl Watcher {
         let unwatched = pushed.iter().find(|commit| dir.status_of(commit).is_none());
         unwatched.map_or(Ok(()), |commit| Err(CliFailure::raised::<Invalid>(format!("no CI watched for {commit}"))))?;
         let settings = project.config().ci_settings();
-        let started = Instant::now();
+        let clock = WatchClock::start(&settings);
         let settled = std::iter::once(Duration::ZERO)
             .chain(std::iter::repeat(settings.poll_interval().duration()))
-            .take_while(|_| settings.remaining(started.elapsed()).is_some())
+            .take_while(|_| clock.remaining(&settings).is_some())
             .find_map(|pause| {
                 std::thread::sleep(pause);
                 CiStatus::of_all(pushed.iter().map(|commit| dir.status_of(commit)))
             });
         let news = dir.news().map(|news| news.to_string()).unwrap_or_default();
         match settled {
-            Some(CiStatus::Passed) => Ok(Output::Listed(Listed::new(format!("{news}\n")))),
-            Some(status) => Err(CliFailure::raised::<Invalid>(format!("{news}\nCI {status}"))),
-            None => Err(CliFailure::raised::<Invalid>(format!("{news}\nCI still running; stopped waiting"))),
+            Some(CiStatus::Passed) => Ok(Output::Listed(Listed::new(format!("{news}{clock}\n")))),
+            Some(status) => Err(CliFailure::raised::<Invalid>(format!("{news}\nCI {status}{clock}"))),
+            None => Err(CliFailure::raised::<Invalid>(format!("{news}\nCI still running; stopped waiting{clock}"))),
         }
     }
 

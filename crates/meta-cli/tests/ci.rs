@@ -8,9 +8,8 @@ use std::time::Duration;
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 2\n";
-const PATIENT: &str = "appear_millis = 60\ntimeout_millis = 300\nremote_millis = 300\n";
-const TICKED: &str = "appear_millis = 2000\ntimeout_millis = 7000\n";
-const STALLED: &str = "appear_millis = 60\ntimeout_millis = 300\nremote_millis = 40\n";
+const PATIENT: &str = "appear_millis = 2000\ntimeout_millis = 7000\n";
+const STALLED: &str = "appear_millis = 2000\ntimeout_millis = 7000\nremote_millis = 40\n";
 const QUICK: &str = "appear_millis = 20\ntimeout_millis = 80\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 case "$FAKE_GH_SCENARIO" in hang) exec sleep 5 ;; frozen) echo 0 > "$FAKE_GH_DIR/clock"; exec sleep 5 ;; esac
@@ -56,7 +55,7 @@ ci\tcargo xtask ci\t2026-10-25T06:40:09.5000000Z ##[error]Process completed with
 ";
 const SHELL: &str = "/bin/sh";
 const SETTLE_POLL: Duration = Duration::from_millis(2);
-const SETTLE_LENGTH: usize = 1500;
+const SETTLE_LENGTH: usize = 3500;
 const SESSION: &str = "ABCDEF12-34";
 const SESSION_FILE: &str = "ABCDEF1234";
 const FAILURE: &str = "failure";
@@ -67,8 +66,8 @@ const BROKEN: &str = "broken";
 const MIXED: &str = "mixed";
 const HANG: &str = "hang";
 const FROZEN: &str = "frozen";
-const CLOCKED: [&str; 5] = [NONE, LATE, BROKEN, MIXED, FROZEN];
-const INJECTED: &str = " (injected clock): ";
+const INJECTED: &str = " (injected clock)";
+const FOURTH_POLL: &str = ": failed after 4s";
 const NOT_WATCHED: &str = "CI not watched for";
 const PLAIN_PUSH: &str = "git push";
 const PUSH_WORDS: [&str; 4] = ["push", "-q", "origin", "feature"];
@@ -261,18 +260,7 @@ impl Planted {
 
     fn twin(repo: &Repo) -> std::process::Child {
         let head = std::fs::read_to_string(repo.clone.path().join("bin/head")).unwrap();
-        let path = format!("{}:{}", repo.clone.path().join("bin").display(), std::env::var("PATH").unwrap_or_default());
-        Command::new(META)
-            .args(["ci-watch", SESSION, head.trim()])
-            .current_dir(repo.clone.path())
-            .env("PATH", path)
-            .env("FAKE_GH_DIR", repo.clone.path())
-            .env("FAKE_GH_SCENARIO", repo.scenario)
-            .env("TMPDIR", repo.sessions.path())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .unwrap()
+        repo.command(&["ci-watch", SESSION, head.trim()]).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().unwrap()
     }
 }
 
@@ -290,23 +278,8 @@ impl Session<'_> {
             serde_json::to_string(self.cwd).unwrap(),
             serde_json::to_string(command).unwrap()
         );
-        let bin = self.repo.clone.path().join("bin");
-        let path = format!("{}:{}", bin.display(), std::env::var("PATH").unwrap_or_default());
-        let mut child = Command::new(META)
-            .args(["hook", event])
-            .env("PATH", path)
-            .env("FAKE_GH_DIR", self.repo.clone.path())
-            .env("FAKE_GH_SCENARIO", self.repo.scenario)
-            .envs(
-                CLOCKED
-                    .contains(&self.repo.scenario)
-                    .then(|| ("META_TEST_CLOCK", self.repo.clone.path().join("clock"))),
-            )
-            .env("TMPDIR", self.repo.sessions.path())
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()
-            .unwrap();
+        let mut child =
+            self.repo.command(&["hook", event]).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
         child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
         String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
     }
@@ -356,20 +329,17 @@ impl Repo {
         Self { scenario: SUCCESS, ..self }
     }
 
+    pub fn command(&self, words: &[&str]) -> Command {
+        let path = format!("{}:{}", self.clone.path().join("bin").display(), std::env::var("PATH").unwrap_or_default());
+        let mut command = Command::new(META);
+        command.args(words).current_dir(self.clone.path()).env("PATH", path).env("TMPDIR", self.sessions.path());
+        command.env("FAKE_GH_DIR", self.clone.path()).env("FAKE_GH_SCENARIO", self.scenario);
+        command.envs((self.scenario != HANG).then(|| ("META_TEST_CLOCK", self.clone.path().join("clock"))));
+        command
+    }
+
     pub fn meta(&self, words: &[&str]) -> Waited {
-        let output = Command::new(META)
-            .args(words)
-            .current_dir(self.clone.path())
-            .env("META_SESSION", SESSION)
-            .env(
-                "PATH",
-                format!("{}:{}", self.clone.path().join("bin").display(), std::env::var("PATH").unwrap_or_default()),
-            )
-            .env("FAKE_GH_DIR", self.clone.path())
-            .env("FAKE_GH_SCENARIO", self.scenario)
-            .env("TMPDIR", self.sessions.path())
-            .output()
-            .unwrap();
+        let output = self.command(words).env("META_SESSION", SESSION).output().unwrap();
         let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
         Waited(text, output.status)
     }
@@ -399,12 +369,13 @@ impl fmt::Display for Repo {
 #[test]
 fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push() {
     let repo = Repo::new(FAILURE);
-    repo.hook(POST, COMMIT);
+    let posted = repo.hook(POST, COMMIT);
     let waited = repo.session_command(CI_WAIT);
     let stop = repo.hook(STOP, COMMIT);
     let settled = repo.settled();
-    let shown = format!("{}{stop}{}", waited.0, repo.hook(PRE, COMMIT));
-    assert!(waited.0.contains(JOB_FAILED) && !waited.1.success() && stop.contains(BLOCK_REASON));
+    let shown = format!("{posted}{}{stop}{}", waited.0, repo.hook(PRE, COMMIT));
+    let told = [&posted, &waited.0].iter().filter(|told| told.contains(JOB_FAILED)).count();
+    assert!(told == 1 && !waited.1.success() && stop.contains(BLOCK_REASON));
     assert!(settled.contains(STEP_LISTED) && shown.contains(STEP_LISTED) && shown.contains(CI_LOG_HINT));
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     let log = repo.session_command(CI_LOG).0;
@@ -443,16 +414,18 @@ fn passing_runs_let_the_agent_stop_and_unstarted_ones_do_not() {
 
 #[test]
 fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
-    let repos = [(NONE, TICKED), (LATE, TICKED), (BROKEN, TICKED), (MIXED, TICKED), (HANG, QUICK), (FROZEN, QUICK)]
+    let repos = [(NONE, PATIENT), (LATE, PATIENT), (BROKEN, PATIENT), (MIXED, PATIENT), (HANG, QUICK), (FROZEN, QUICK)]
         .map(|(scenario, limits)| Started::building(scenario, limits))
         .map(|started| started.join().unwrap());
     let [absent, late, broken, mixed, hung, frozen] = repos.each_ref().map(Repo::settled);
     let [none, appeared, _, _, hanging, _] = &repos;
+    let waited = none.session_command(CI_WAIT);
     assert!(
         absent.contains(ABSENT)
             && absent.split_once(NO_RUN_YET).is_some_and(|(_, after)| !after.contains(NO_RUN_YET))
-            && none.hook(STOP, COMMIT).contains(ABSENT_STOP)
-            && !none.session_command(CI_WAIT).1.success()
+            && none.hook(STOP, COMMIT).contains(&format!("{ABSENT_STOP}{INJECTED}"))
+            && !waited.1.success()
+            && waited.0.contains(&format!("CI absent{INJECTED}"))
     );
     assert!(
         [&late, &hung, &frozen].iter().all(|settled| settled.contains(TIMED_OUT))
@@ -463,8 +436,11 @@ fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
     assert!(
         broken.contains(LIST_ERROR)
             && broken.contains(VIEW_ERROR)
-            && [&broken, &mixed].iter().all(|settled| settled.contains(FAILED_EVENT))
+            && broken.contains(FAILED_EVENT)
+            && mixed.contains(FOURTH_POLL)
             && [broken, frozen].iter().all(|settled| settled.lines().all(|line| line.contains(INJECTED)))
-            && !hung.contains(INJECTED)
+            && ![hung, hanging.hook(STOP, COMMIT), hanging.session_command(CI_WAIT).0]
+                .iter()
+                .any(|real| real.contains(INJECTED))
     );
 }
