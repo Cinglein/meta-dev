@@ -1,4 +1,3 @@
-use std::env;
 use std::path::Path;
 
 use meta_log::{GitLog, Snapshot};
@@ -18,8 +17,6 @@ impl StandingLog {
     const REMOTE: &str = "origin";
     const DEFAULT_BRANCH: &str = "origin/HEAD";
     const GIT_ENTRY: &str = ".git";
-    const PULL_REQUEST: &str = "PULL_REQUEST";
-    const HEAD: &str = "GITHUB_HEAD_REF";
 
     pub fn git(root: &Path) -> GitLog {
         let Ok(remote) = Self::REMOTE.parse();
@@ -41,8 +38,10 @@ impl StandingLog {
         read: impl FnOnce() -> Result<Snapshot, Failure>,
         policy: &Policy,
         ledger: &mut Ledger,
+        run: &RunKind,
     ) -> Result<(), Failure> {
-        let standing = ledger.reads_standing(policy).then(|| Self::standing(read(), policy.scales())).transpose()?;
+        let standing =
+            ledger.reads_standing(policy).then(|| Self::standing(read(), policy.scales(), &run.link())).transpose()?;
         ledger.count(standing);
         Ok(())
     }
@@ -65,13 +64,8 @@ impl StandingLog {
         ledger.enforce_from(text.as_deref()).map_err(Failure::PriorPolicy)
     }
 
-    fn standing(snapshot: Result<Snapshot, Failure>, scales: &Scales) -> Result<Standing, Failure> {
-        let state = Self::state(snapshot)?;
-        let link = ChangeLink::new(
-            env::var(Self::PULL_REQUEST).ok().and_then(|number| number.parse().ok()),
-            env::var(Self::HEAD).ok().and_then(|branch| branch.parse().ok()),
-        );
-        Ok(Standing::read(&state, &link, scales))
+    fn standing(snapshot: Result<Snapshot, Failure>, scales: &Scales, link: &ChangeLink) -> Result<Standing, Failure> {
+        Ok(Standing::read(&Self::state(snapshot)?, link, scales))
     }
 }
 
@@ -122,9 +116,11 @@ mod tests {
     fn an_unreadable_or_missing_log_fails_standing_budgets_closed_and_no_standing_budget_reads_nothing() {
         let reads: [fn() -> Result<Snapshot, Failure>; 2] =
             [|| Err(Failure::StandingLog(LogFailure::Contended)), || Ok(Snapshot::default())];
-        assert!(StandingLog::counted(reads[0], &StandingLog::policy(NOTHING), &mut Ledger::default()).is_ok());
+        let counted =
+            |read, policy: &Policy| StandingLog::counted(read, policy, &mut Ledger::default(), &RunKind::Other);
+        assert!(counted(reads[0], &StandingLog::policy(NOTHING)).is_ok());
         let policy = StandingLog::policy(STANDING);
-        let refused = reads.map(|read| StandingLog::counted(read, &policy, &mut Ledger::default()));
+        let refused = reads.map(|read| counted(read, &policy));
         assert!(StandingLog::closed(&refused, CLOSED));
     }
 
