@@ -36,10 +36,8 @@ impl Scales {
         let mapped = self.scale(from)?.level(level)?;
         match mapped.parent() {
             _ if owner == target => Some(level.clone()),
-            Some(parent) if target.strictly_contains(owner) => {
-                self.rolled_up(owner.lineage().iter().rev().nth(1)?, parent, onto)
-            }
-            Some(_) | None => None,
+            Some(parent) => self.rolled_up(owner.lineage().iter().rev().nth(1)?, parent, onto),
+            None => None,
         }
     }
 

@@ -89,6 +89,7 @@ fn a_child_level_rolls_up_through_each_mapping_and_only_onto_divisions_above_it(
         nested.rolled_up(&from.parse().unwrap(), &level, &onto.parse().unwrap()).map(|level| level.to_string())
     });
     assert_eq!(rolled, ROLLED.map(|(.., expected)| expected.map(str::to_owned)));
+    assert_eq!(serde_json::from_str::<Scales>(&serde_json::to_string(&nested).unwrap()).unwrap(), nested);
 }
 
 #[test]

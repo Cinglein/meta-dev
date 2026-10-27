@@ -191,11 +191,6 @@ impl Policy {
     }
 
     #[must_use]
-    pub fn scales(&self) -> &Scales {
-        &self.scales
-    }
-
-    #[must_use]
     pub fn deprecated(&self) -> &[LegacyKey] {
         &self.deprecated
     }
