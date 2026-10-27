@@ -14,6 +14,7 @@ const TOP: &str = "features-and-maintenance";
 const NAV: &str = "features-and-maintenance/nav";
 const LEVELS: [&str; 2] = ["critical", "retired-level"];
 const STRANDED: &str = "stranded:";
+const POLICY_HINT: &str = "tooling/policy.toml";
 const NOT_ON: &str = ", not a level of features-and-maintenance/nav's scale";
 const COUNTED: [(&str, &str); 4] = [(TOP, "critical"), (NAV, "lost"), (TOP, "major"), (NAV, "slow")];
 
@@ -44,8 +45,9 @@ fn an_item_rated_before_a_finer_child_scale_still_counts_and_is_named() {
         SeverityFilter::AtLevel(level.parse().unwrap()).open(&finer, &division.parse().unwrap(), &repro.state)
     });
     assert_eq!(counted, [repro.items.clone(), repro.items.clone(), vec![], vec![]]);
-    let named: Vec<String> = finer.stranded(&repro.state).iter().map(ToString::to_string).collect();
+    let named: Vec<String> = finer.stranded(&repro.state).items().iter().map(ToString::to_string).collect();
     let expected = repro.items.iter().zip(LEVELS).map(|(item, level)| format!("{STRANDED} {item} is {level}{NOT_ON}"));
     assert_eq!(named, expected.collect::<Vec<String>>());
-    assert_eq!(Scales::default().stranded(&repro.state).len(), 1);
+    let fallback = Scales::default().stranded(&repro.state).to_string();
+    assert!(fallback.starts_with(STRANDED) && fallback.lines().count() == 2 && fallback.ends_with(POLICY_HINT));
 }

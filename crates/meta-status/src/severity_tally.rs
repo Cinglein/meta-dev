@@ -47,6 +47,8 @@ impl fmt::Display for SeverityTally<'_> {
         let divisions: BTreeSet<Division> =
             items.iter().filter_map(|item| item.placement().division()).flat_map(Division::lineage).collect();
         writeln!(formatter, "severity, open concerns and issues (counts roll up):")?;
+        let strands = self.scales.stranded(self.state);
+        strands.items().first().map_or(Ok(()), |_| writeln!(formatter, "{strands}"))?;
         divisions.iter().try_for_each(|division| {
             let placed = Self::placed(&items, &Placement::new(division.clone()));
             writeln!(formatter, "{division}: {}{placed}", self.counts(division, &items))

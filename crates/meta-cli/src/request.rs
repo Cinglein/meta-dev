@@ -171,7 +171,7 @@ impl Request {
         match self {
             Self::Write(event) => {
                 scales.admits(&event).map_err(CliFailure::raised::<Invalid>)?;
-                Writing::new(log, actor()?, event).entered()
+                Writing::new(log, actor()?, event).unless_stranded(scales).entered()
             }
             Self::Rate(rate) => rate.answer(log, scales, actor()?),
             Self::List(kind, scope) => Listed::from_log(log, kind, scope).map(Output::Listed),

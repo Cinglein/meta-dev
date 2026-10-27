@@ -1,4 +1,34 @@
-use super::{DIVISION, Meta, OWNER};
+use meta_severity::Scales;
+
+use super::{DIVISION, Meta, OWNER, PROGRAM};
+use crate::request::Request;
+use crate::request::cli_failure::{CliFailure, Invalid};
+
+const OVERRIDDEN: &str =
+    r#"{"features-and-maintenance": [{"name": "blocker", "meaning": "x"}, {"name": "nuisance", "meaning": "x"}]}"#;
+const BLOCKER: &str = "blocker";
+const NUISANCE: &str = "nuisance";
+const STRANDED: &str = "stranded: concern-";
+
+impl Meta {
+    fn under(&self, scales: &Scales, words: &[&str]) -> Result<String, CliFailure> {
+        let args = std::iter::once(PROGRAM).chain(words.iter().copied()).map(String::from).collect::<Vec<_>>();
+        let actor = || OWNER.parse().map_err(CliFailure::raised::<Invalid>);
+        Request::try_from(args)
+            .and_then(|request| request.answer_from(&self.0, scales, actor))
+            .map(|output| output.to_string())
+    }
+}
+
+#[test]
+fn writes_wait_while_the_policy_strands_a_rated_item_and_rating_it_again_frees_them() {
+    let meta = Meta::default();
+    let concern = meta.written(OWNER, &[&RATED_CONCERN[..], &[MAJOR]].concat());
+    let overridden: Scales = serde_json::from_str(OVERRIDDEN).unwrap();
+    let refused = meta.under(&overridden, &[&RATED_ISSUE[..], &[NUISANCE]].concat()).unwrap_err().to_string();
+    meta.under(&overridden, &[&[RATE, concern.as_str(), BLOCKER][..], &SCENARIO[..]].concat()).unwrap();
+    assert!(refused.contains(STRANDED) && meta.under(&overridden, &[&RATED_ISSUE[..], &[NUISANCE]].concat()).is_ok());
+}
 
 const RATED_CONCERN: [&str; 6] = ["concern", "map", "lost", "--division", DIVISION, "--severity"];
 const RATED_ISSUE: [&str; 5] = ["issue", "crash", "--division", DIVISION, "--severity"];

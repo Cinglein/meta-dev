@@ -1,6 +1,7 @@
 use std::io;
 use std::path::PathBuf;
 
+use meta_severity::Strands;
 use thiserror::Error;
 
 use crate::task::ci::{Busy, OutsideConfig, Unready};
@@ -35,4 +36,6 @@ pub enum Failure {
     PriorSpecFile(PathBuf),
     #[error("{0}")]
     Identity(ForeignEmails),
+    #[error("{0}")]
+    Stranded(Strands),
 }
