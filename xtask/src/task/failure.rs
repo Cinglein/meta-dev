@@ -48,5 +48,7 @@ pub enum Failure {
     #[error("standing budgets fail closed: meta/log has no events on the remote")]
     NoLog,
     #[error("local gate fails closed: cannot fetch meta/log before the isolated run: {0}")]
-    GateLog(LogFailure),
+    GateFetch(LogFailure),
+    #[error("local gate fails closed: this run needs meta/log but the gate did not fetch it")]
+    Unfetched,
 }

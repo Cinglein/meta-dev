@@ -122,6 +122,7 @@ impl Task {
                 summary,
                 coverage.gate(workspace.root(), &policy)?,
                 env::var_os(LocalGate::TIMES).map(PathBuf::from),
+                coverage.log().clone(),
             )
             .run(workspace, &selection, &policy),
             Task::Clippy => Ok(Clippy::run(workspace, &selection, &policy)?),

@@ -4,31 +4,37 @@ use affected::Changes;
 use task::Policy;
 
 use crate::task::Task;
-use crate::task::ci::{LocalGate, Posting};
+use crate::task::ci::{LocalGate, LogSource, Posting};
 use crate::task::failure::Failure;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Coverage {
     changes: Changes,
     posting: Posting,
+    log: LogSource,
 }
 
 impl Coverage {
-    pub const EVERYTHING: Coverage = Coverage { changes: Changes::Everything, posting: Posting::Off };
+    pub const EVERYTHING: Coverage =
+        Coverage { changes: Changes::Everything, posting: Posting::Off, log: LogSource::Origin };
     const AFFECTED_FLAG: &str = "--affected";
     const STATUS_FLAG: &str = "--status";
-    const KNOWN: &str = "--affected, --status (ci only)";
+    const KNOWN: &str = "--affected, --status, --log=<origin|unfetched|tip> (ci only)";
     const PARTIAL: &str = "--status needs the full gate; drop --affected";
 
     pub fn from_flags(task: Task, mut flags: impl Iterator<Item = String>) -> Result<Coverage, task::Failure> {
         flags
-            .try_fold(Self::EVERYTHING, |coverage, flag| match flag.as_str() {
-                Self::AFFECTED_FLAG => Ok(Coverage { changes: Changes::SinceMain, ..coverage }),
-                Self::STATUS_FLAG if task == Task::Ci => Ok(Coverage { posting: Posting::Requested, ..coverage }),
+            .try_fold(Self::EVERYTHING, |coverage, flag| match (flag.as_str(), flag.strip_prefix(LogSource::FLAG)) {
+                (Self::AFFECTED_FLAG, _) => Ok(Coverage { changes: Changes::SinceMain, ..coverage }),
+                (Self::STATUS_FLAG, _) if task == Task::Ci => Ok(Coverage { posting: Posting::Requested, ..coverage }),
+                (_, Some(source)) if task == Task::Ci => {
+                    let Ok(log) = source.parse();
+                    Ok(Coverage { log, ..coverage })
+                }
                 _ => Err(task::Failure::UnknownFlag { flag, known: Self::KNOWN }),
             })
             .and_then(|coverage| match coverage {
-                Coverage { changes: Changes::SinceMain, posting: Posting::Requested } => {
+                Coverage { changes: Changes::SinceMain, posting: Posting::Requested, .. } => {
                     Err(task::Failure::Refused(Self::PARTIAL.to_owned()))
                 }
                 whole => Ok(whole),
@@ -37,6 +43,10 @@ impl Coverage {
 
     pub fn changes(&self) -> Changes {
         self.changes
+    }
+
+    pub fn log(&self) -> &LogSource {
+        &self.log
     }
 
     pub fn gate(&self, root: &Path, policy: &Policy) -> Result<Option<LocalGate>, Failure> {

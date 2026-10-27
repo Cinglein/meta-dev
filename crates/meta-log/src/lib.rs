@@ -7,7 +7,7 @@ mod skipped_line;
 mod snapshot;
 mod stderr;
 
-pub use git_log::GitLog;
+pub use git_log::{GitLog, Sha};
 pub use log_failure::LogFailure;
 pub use memory_log::MemoryLog;
 pub use remote_name::RemoteName;

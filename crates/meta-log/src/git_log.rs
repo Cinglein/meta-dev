@@ -5,6 +5,9 @@ mod git;
 mod outcome;
 mod remote;
 mod sha;
+mod tip;
+
+pub use sha::Sha;
 
 use std::fmt;
 use std::path::PathBuf;
@@ -23,7 +26,7 @@ use fetched::Fetched;
 use git::Git;
 use outcome::Outcome;
 use remote::Remote;
-use sha::Sha;
+use tip::Tip;
 
 #[derive(Clone, Debug)]
 pub struct GitLog {
@@ -40,8 +43,12 @@ impl GitLog {
         Self { remote: Remote::new(git.clone(), remote), git }
     }
 
-    pub fn tracked(&self) -> Result<Snapshot, LogFailure> {
-        Ok(self.remote.tracked()?.snapshot())
+    pub fn fetched_tip(&self) -> Result<Option<Sha>, LogFailure> {
+        self.remote.fetch_tip().map(Tip::sha)
+    }
+
+    pub fn snapshot_at(&self, tip: &Sha) -> Result<Snapshot, LogFailure> {
+        Ok(self.remote.content_at(tip)?.snapshot())
     }
 
     fn commit(&self, tip: Option<&Sha>, content: &Content, record: &Record) -> Result<Sha, LogFailure> {

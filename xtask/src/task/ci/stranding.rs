@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use meta_log::{LogFailure, Snapshot};
+use meta_log::Snapshot;
 use meta_severity::{Scales, Strands};
 use task::{Branch, Policy};
 
@@ -15,7 +15,7 @@ impl Stranding {
     pub fn refuse_stranded(
         root: &Path,
         policy: &Policy,
-        read: impl FnOnce() -> Result<Snapshot, LogFailure>,
+        read: impl FnOnce() -> Result<Snapshot, Failure>,
     ) -> Result<(), Failure> {
         Self::rescaling(root, policy)?.map_or(Ok(()), |before| Self::judged(&before, policy.scales(), read()))
     }
@@ -25,7 +25,7 @@ impl Stranding {
         Ok(Some(before).filter(|before| before != policy.scales()))
     }
 
-    fn judged(before: &Scales, now: &Scales, snapshot: Result<Snapshot, LogFailure>) -> Result<(), Failure> {
+    fn judged(before: &Scales, now: &Scales, snapshot: Result<Snapshot, Failure>) -> Result<(), Failure> {
         let state = StandingLog::state(snapshot)?;
         let demoted = now.demotions_from(before, &state);
         (!demoted.items().is_empty()).then_some(demoted).map_or(Ok(()), |demoted| Err(Failure::Demoted(demoted)))?;
