@@ -79,7 +79,7 @@ fn a_division_without_a_scale_takes_its_nearest_declared_ancestors() {
 }
 
 #[test]
-fn a_child_level_rolls_up_through_each_mapping_and_only_onto_divisions_above_it() {
+fn a_child_level_rolls_up_only_above_it_and_scales_that_break_order_or_mapping_are_refused() {
     let nested = Scales::declared(NESTED).unwrap();
     let rolled = ROLLED.map(|(from, level, onto, _)| {
         let level: LevelName = level.parse().unwrap();
@@ -87,10 +87,6 @@ fn a_child_level_rolls_up_through_each_mapping_and_only_onto_divisions_above_it(
     });
     assert_eq!(rolled, ROLLED.map(|(.., expected)| expected.map(str::to_owned)));
     assert_eq!(serde_json::from_str::<Scales>(&serde_json::to_string(&nested).unwrap()).unwrap(), nested);
-}
-
-#[test]
-fn order_breaking_unmapped_top_mapped_repeated_and_empty_scales_are_refused() {
     let refused = REFUSED.map(|(json, _)| Scales::refusal(json));
     assert_eq!(refused, REFUSED.map(|(_, failure)| Some(failure.to_owned())));
 }
