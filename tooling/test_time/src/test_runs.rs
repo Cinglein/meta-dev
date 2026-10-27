@@ -83,6 +83,7 @@ mod tests {
     const TICK: Duration = Duration::from_millis(1);
     const FAILED: &str = "1 of 2 tests failed; 1 test binaries did not list their tests";
     const LINE_BREAK: &str = "\n";
+    const SLOWEST: &str = "bin passes took 1.0ms";
     const NOT_RUNS: [&str; 3] = ["passed\tsoon\tx\ty", "skipped\tx", "unlisted"];
 
     #[test]
@@ -103,7 +104,7 @@ mod tests {
             .iter()
             .all(|line| line.parse::<TestRuns>().is_err());
         let clean = read(vec![TestRun::Passed(passed.clone())]);
-        assert!(refused && shown.as_deref() == Some(FAILED));
+        assert!(refused && shown.as_deref() == Some(FAILED) && passed.to_string() == SLOWEST);
         assert!(clean.is_ok_and(|timings| timings == [passed]));
     }
 }
