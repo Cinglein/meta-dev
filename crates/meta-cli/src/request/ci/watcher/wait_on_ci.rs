@@ -88,7 +88,7 @@ impl fmt::Display for WaitOnCi {
             Self::Recorded => Ok(()),
             Self::NotHead(commit) => write!(
                 formatter,
-                " ({commit}, not HEAD); or run `git checkout --detach {commit}`, then `meta wait <task> --on ci` there"
+                " ({commit}, not HEAD); a task waits at one commit only; each other unresolved commit needs its own task; or run `git checkout --detach {commit}`, then `meta wait <task> --on ci` there; push a rerun to that commit's branch; check the branch out again after detaching; a detached HEAD cannot push"
             ),
             Self::Unrecorded(task) => write!(
                 formatter,
