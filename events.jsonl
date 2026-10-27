@@ -513,3 +513,4 @@
 {"at":"2026-10-27T06:08:06.032668Z","actor":"claude-lead","kind":"TaskDone","task":"task-f0a495bdf7b6f923"}
 {"at":"2026-10-27T06:08:08.267841Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-fbdc6a1dfcf43e43"}
 {"at":"2026-10-27T06:08:10.417987Z","actor":"claude-lead","kind":"TaskDone","task":"task-fbdc6a1dfcf43e43"}
+{"at":"2026-10-27T06:08:12.591777Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-a3a2bf7e8c4dda58","text":"triage tier: Superseded with successor in log; successor(s) ['task-28291f21f0b41b31', 'concern-c898152ececc3e99'] exist in log (states: task-28291f21f0b41b31=open, concern-c898152ececc3e99=open); drafts name"}
