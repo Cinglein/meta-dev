@@ -70,14 +70,14 @@ impl MonitorSettings {
         let mut merged: toml::Table = toml::from_str(Self::DEFAULTS).unwrap_or_default();
         merged.extend(overrides);
         let read: Self = toml::Value::Table(merged).try_into()?;
-        let declared = read.roots.into_iter();
+        let declared = [AgentRoot::own(worktrees)].into_iter().chain(read.roots);
         let declared: Option<Vec<AgentRoot>> = declared.map(|root| root.anchored(checkout, home)).collect();
         let declared = declared.ok_or_else(|| toml::de::Error::custom(Self::TOO_WIDE))?;
         (read.grace.duration() <= Self::GRACE_CEILING && read.probe.duration() <= Self::PROBE_CEILING)
             .then_some(())
             .and_then(|()| read.watch.bounded())
             .ok_or_else(|| toml::de::Error::custom(Self::TOO_LONG))?;
-        let roots = [AgentRoot::own(checkout), AgentRoot::own(worktrees)].into_iter().chain(declared).collect();
+        let roots = [AgentRoot::own(checkout)].into_iter().chain(declared).collect();
         Ok(Self { roots, spared: SparedName::floor().into_iter().chain(read.spared).collect(), ..read })
     }
 

@@ -17,8 +17,8 @@ impl Mark {
     }
 
     pub fn kept(self, leader: Option<DateTime<Utc>>, now: DateTime<Utc>, settings: &MonitorSettings) -> Option<Self> {
-        settings.mark_fresh(self.seen, self.seen)?;
+        settings.mark_fresh(self.seen, now)?;
         let same = |leader: DateTime<Utc>| (leader - self.started).abs() <= Self::START_SLACK;
-        (leader.is_none_or(same) || leader.is_some()).then_some(Self { seen: now, ..self })
+        leader.is_none_or(same).then_some(Self { seen: now, ..self })
     }
 }

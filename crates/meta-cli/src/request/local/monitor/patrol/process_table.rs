@@ -28,7 +28,7 @@ impl<'settings> ProcessTable<'settings> {
     }
 
     pub fn marked(&self, before: &MarkedGroups, now: DateTime<Utc>) -> MarkedGroups {
-        let placed = self.rows.iter();
+        let placed = self.rows.iter().filter(|row| row.root(self.settings).is_some());
         let groups: BTreeSet<GroupId> = placed.map(ProcessRow::group).collect();
         let sightings: Vec<GroupSighting> = groups.into_iter().map(|group| self.sighting(group, now)).collect();
         before.renewed(&sightings, now, self.settings)
