@@ -67,7 +67,9 @@ mod tests {
 
         fn linked() -> tempfile::TempDir {
             let main = tempfile::tempdir().unwrap();
-            [INIT.as_slice(), &START, &LINK].iter().for_each(|words| drop(Self::run(main.path(), words)));
+            for words in [INIT.as_slice(), &START, &LINK] {
+                Self::run(main.path(), words);
+            }
             main
         }
     }
