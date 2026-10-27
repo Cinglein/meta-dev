@@ -464,3 +464,4 @@
 {"at":"2026-10-27T05:43:31.105773Z","actor":"claude-lead","kind":"TaskDone","task":"task-ae8c1c0a2f1e513f"}
 {"at":"2026-10-27T05:46:13.193803Z","actor":"owner","kind":"TaskLinked","task":"task-a607a687f5daa839","pr":38}
 {"at":"2026-10-27T05:50:18.564624Z","actor":"claude-lead","kind":"TaskReopened","task":"task-2f66b925d7311e53"}
+{"at":"2026-10-27T05:50:20.368747Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-83ae4c1dc1a2fb90","text":"PR #28 closed unmerged: the spec rung audit is parked by owner decision (rule decomposition)"}
