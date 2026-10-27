@@ -91,9 +91,10 @@ const TIMED_OUT: &str = "timed-out after";
 const UNAVAILABLE: &str = ": jobs never started; give the local gate result instead";
 const ABSENT: &str = ": no run for this commit; no CI for this push";
 const NO_RUN_YET: &str = "no run yet; Stop stays blocked until one appears or the wait is recorded";
-const ABSENT_STOP: &str = "no CI run for your last push: push a new commit to start one, then run `meta ci-wait`; or claim a task (`meta claim <task> --worktree`), then run `meta wait <task> --on ci`";
+const ABSENT_STOP: &str = "no CI run for your last push: push a new commit to start one, then run `meta ci-wait`; or open or claim a task (`meta open <text> --division <path>`, `meta claim <task>`), then run `meta wait <task> --on ci` here";
 const TIMED_OUT_STOP: &str = "CI for your last push timed out: push a new commit to rerun it, then run `meta ci-wait`";
-const UNSTARTED_STOP: &str = "CI jobs for your last push never started: run `cargo xtask ci` and give its result";
+const UNSTARTED_STOP: &str =
+    "CI jobs for your last push never started: push a new commit to retry, then run `meta ci-wait`";
 const RUN_APPEARED: &str = "run appeared";
 const LIST_ERROR: &str = "gh failed: HTTP 502: Bad Gateway";
 const VIEW_ERROR: &str = "gh failed: HTTP 401: Bad credentials";
