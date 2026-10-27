@@ -44,7 +44,8 @@ fn a_change_reads_back_shows_its_step_and_knows_the_rating_it_replaces() {
     let raised: Event = serde_json::from_str(RAISED).unwrap();
     assert_eq!([raised.to_string(), serde_json::to_string(&raised).unwrap()], [RAISED_SHOWN, RAISED]);
     let [minor, major] = [MINOR, MAJOR].map(|level| level.parse().unwrap());
-    let lowered = Rerating::new(ISSUE.parse().unwrap(), Change::Lowered { from: major, level: minor });
+    let lowered =
+        Rerating::new(ISSUE.parse().unwrap(), DIVISION.parse().unwrap(), Change::Lowered { from: major, level: minor });
     let first = Change::First { level: lowered.change().level().clone() };
     assert_eq!([first.before(), lowered.change().before()], [Rating::Unrated, Rating::Rated(MAJOR.parse().unwrap())]);
     assert_eq!((lowered.to_string(), first.to_string()), (LOWERED_SHOWN.to_owned(), MINOR.to_owned()));

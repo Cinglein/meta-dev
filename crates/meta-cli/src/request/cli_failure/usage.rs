@@ -10,7 +10,7 @@ impl fmt::Display for Usage {
              \x20 concern <text> --division <path> [--source <text>] [--tag acceptance-candidate] [--severity <level>]\n\
              \x20 issue <text> --division <path> [--severity <level>]\n\
              \x20 rate <concern-id|issue-id> <level> [--scenario <text>]   (levels: the division's scale in tooling/policy.toml; raising needs the reproduction or failure scenario)\n\
-             \x20 move <concern-id|issue-id> --division <path> [--severity <level> [--scenario <text>]]   (division: a top division or one in tooling/policy.toml; keeps the level if the new scale has it, else give --severity, rated as above)\n\
+             \x20 move <concern-id|issue-id> --division <path> [--severity <level> [--scenario <text>]]   (division: a top division or one in tooling/policy.toml; levels compare where they roll up: the level is kept only if it rolls up the same, else give --severity; a lower roll-up is free, a higher one needs --scenario)\n\
              \x20 open <text> --division <path> [--addresses <concern-id|issue-id>]... [--effort <tokens>] [--due <rfc3339>]\n\
              \x20 claim <task-id> [--from <actor>] [--worktree]   (assigns you; several may hold a task; --worktree: new worktree on branch <task-id>, prints its path)\n\
              \x20 worktrees   (this clone's worktrees: task status, missing, unrecorded)\n\

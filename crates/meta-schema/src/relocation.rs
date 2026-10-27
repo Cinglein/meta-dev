@@ -2,7 +2,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::change::Change;
+use crate::carry::Carry;
 use crate::division::Division;
 use crate::placement::Placement;
 use crate::target::Target;
@@ -13,14 +13,13 @@ pub struct Relocation {
     #[serde(default, skip_serializing_if = "Placement::is_root")]
     from: Placement,
     division: Division,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    change: Option<Change>,
+    carry: Carry,
 }
 
 impl Relocation {
     #[must_use]
-    pub fn new(item: Target, from: Placement, division: Division, change: Option<Change>) -> Relocation {
-        Relocation { item, from, division, change }
+    pub fn new(item: Target, from: Placement, division: Division, carry: Carry) -> Relocation {
+        Relocation { item, from, division, carry }
     }
 
     #[must_use]
@@ -39,14 +38,13 @@ impl Relocation {
     }
 
     #[must_use]
-    pub fn change(&self) -> Option<&Change> {
-        self.change.as_ref()
+    pub fn carry(&self) -> &Carry {
+        &self.carry
     }
 }
 
 impl fmt::Display for Relocation {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{}{} to @{}", self.item, self.from, self.division)?;
-        self.change.as_ref().map_or(Ok(()), |change| write!(formatter, " !{change}"))
+        write!(formatter, "{}{} to @{}{}", self.item, self.from, self.division, self.carry)
     }
 }

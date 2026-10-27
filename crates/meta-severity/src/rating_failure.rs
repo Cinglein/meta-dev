@@ -13,6 +13,8 @@ pub enum RatingFailure {
     RaisedWithoutScenario(LevelName),
     #[error("{0} is not on the scale of {1}; move it with --severity <level>")]
     Unplaced(LevelName, Division),
+    #[error("{0} means another level on {1}; move it with --severity <level>")]
+    Remapped(LevelName, Division),
     #[error("{0} is not a division in tooling/policy.toml")]
     Undeclared(Division),
 }

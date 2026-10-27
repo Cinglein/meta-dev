@@ -151,6 +151,9 @@ impl Parsed {
 
     pub fn relocation(&self) -> Result<Relocate, CliFailure> {
         match self.words.as_slice() {
+            [_] if self.severity.is_none() && self.scenario.is_some() => {
+                Err(CliFailure::raised::<Misuse>("--scenario needs --severity"))
+            }
             [item] => Ok(Relocate::new(
                 item.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
                 self.division()?,

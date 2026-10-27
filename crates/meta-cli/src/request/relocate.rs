@@ -1,5 +1,6 @@
 use meta_log::LogStore;
 use meta_schema::{Actor, Division, Event, LevelName, Relocation, Scenario, Target};
+use meta_severity::Carrying;
 use meta_state::{Refusal, State};
 
 use crate::request::cli_failure::{CliFailure, Invalid};
@@ -23,9 +24,10 @@ impl Relocate {
     pub fn event(self, state: &State, policy: &ScalePolicy) -> Result<Event, CliFailure> {
         policy.known(&self.division).map_err(CliFailure::raised::<Invalid>)?;
         let rated = state.rated_item(self.item).ok_or(Refusal::UnknownTarget(self.item))?;
-        let carried = policy.scales().carried(rated.rating(), &self.division, self.level, self.scenario);
-        let change = carried.map_err(CliFailure::raised::<Invalid>)?;
-        Ok(Event::ItemMoved(Relocation::new(self.item, rated.placement().clone(), self.division, change)))
+        let carrying = Carrying::new(policy.scales(), rated.placement().division(), &self.division);
+        let carry =
+            carrying.carried(rated.rating(), self.level, self.scenario).map_err(CliFailure::raised::<Invalid>)?;
+        Ok(Event::ItemMoved(Relocation::new(self.item, rated.placement().clone(), self.division, carry)))
     }
 
     pub fn answer(self, log: &impl LogStore, policy: &ScalePolicy, actor: Actor) -> Result<Output, CliFailure> {

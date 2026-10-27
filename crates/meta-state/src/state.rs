@@ -8,7 +8,7 @@ mod vetting;
 use std::collections::HashMap;
 
 use meta_schema::{
-    Actor, Block, Change, Entry, EntryNote, Id, PullRequest, Record, Relocation, Rerating, SchemaVersion, Target, Task,
+    Actor, Block, Entry, EntryNote, Id, PullRequest, Record, Relocation, Rerating, SchemaVersion, Target, Task,
     TaskLink, Text,
 };
 
@@ -193,8 +193,11 @@ impl State {
     pub(crate) fn rerate(&mut self, rerating: &Rerating) -> Result<(), Refusal> {
         let item = rerating.target();
         let change = rerating.change();
-        let current = self.rated_item(item).ok_or(Refusal::UnknownTarget(item))?.rating().clone();
+        let rated = self.rated_item(item).ok_or(Refusal::UnknownTarget(item))?;
         self.retirement(item.entry()).map_or(Ok(()), |_| Err(Refusal::Retired(item.entry())))?;
+        let moved = rerating.seen_in().filter(|seen| rated.placement().division() != Some(*seen));
+        moved.map_or(Ok(()), |_| Err(Refusal::MovedSince))?;
+        let current = rated.rating().clone();
         (current == change.before()).then_some(()).ok_or(Refusal::RatedSince(current))?;
         let index = self.index_of.get(&item.entry()).copied().unwrap_or_default();
         let level = change.level();
@@ -218,11 +221,12 @@ impl State {
         (current.placement().division() != Some(division))
             .then_some(())
             .ok_or_else(|| Refusal::AlreadyIn(division.clone()))?;
-        let change = relocation.change();
-        let stale = |change: &Change| (*current.rating() != change.before()).then(|| current.rating().clone());
-        change.and_then(stale).map_or(Ok(()), |since| Err(Refusal::RatedSince(since)))?;
+        let carry = relocation.carry();
+        (*current.rating() == carry.before())
+            .then_some(())
+            .ok_or_else(|| Refusal::RatedSince(current.rating().clone()))?;
         let index = self.index_of.get(&item.entry()).copied().unwrap_or_default();
-        let level = change.map(Change::level);
+        let level = carry.level();
         self.concerns
             .get_mut(index)
             .filter(|known| known.target() == item)

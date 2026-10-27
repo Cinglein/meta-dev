@@ -22,7 +22,7 @@ impl Levels {
     }
 
     fn rated(item: Target, change: Change) -> Event {
-        Event::ItemRated(Rerating::new(item, change))
+        Event::ItemRated(Rerating::new(item, Items::division(), change))
     }
 
     fn rating(script: &Script, item: Target) -> Option<Rating> {

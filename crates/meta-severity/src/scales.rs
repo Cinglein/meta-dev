@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use meta_schema::{Change, Division, Event, LevelName, Placement, Rating, Scenario, TopDivision};
+use meta_schema::{Division, Event, LevelName, Placement, TopDivision};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
@@ -107,23 +107,6 @@ impl Scales {
     #[must_use]
     pub fn declares(&self, division: &Division) -> bool {
         self.0.contains_key(division)
-    }
-
-    pub fn carried(
-        &self,
-        current: &Rating,
-        division: &Division,
-        level: Option<LevelName>,
-        scenario: Option<Scenario>,
-    ) -> Result<Option<Change>, RatingFailure> {
-        let scale = self.scale(division).ok_or(RatingFailure::Unscaled)?;
-        let fresh = |level: &LevelName| current.level() != Some(level) || scale.level(level).is_none();
-        let unplaced = current.level().filter(|kept| scale.level(kept).is_none());
-        match (level.filter(fresh), unplaced) {
-            (Some(level), _) => scale.change(current, level, scenario).map(Some),
-            (None, Some(kept)) => Err(RatingFailure::Unplaced(kept.clone(), division.clone())),
-            (None, None) => Ok(None),
-        }
     }
 
     pub fn admits(&self, event: &Event) -> Result<(), RatingFailure> {
