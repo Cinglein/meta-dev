@@ -32,10 +32,7 @@ impl<'policy> Row<'policy> {
 
     #[must_use]
     pub fn state(&self) -> Option<State> {
-        self.lines
-            .as_ref()
-            .zip(self.spend.as_ref())
-            .map(|(lines, spend)| lines.state(spend))
+        self.budget.state(self.lines.as_ref(), self.spend.as_ref())
     }
 
     #[must_use]
@@ -54,7 +51,12 @@ impl fmt::Display for Row<'_> {
             self.budget.division().to_string(),
             self.budget.measure().to_string(),
             self.budget.source().to_string(),
-            shown(self.spend.as_ref().map(ToString::to_string)),
+            shown(
+                self.spend
+                    .as_ref()
+                    .filter(|spend| spend.baseline().is_none())
+                    .map(ToString::to_string)
+            ),
             shown(self.lines.as_ref().map(ToString::to_string)),
             shown(self.state().map(|state| state.to_string())),
         )

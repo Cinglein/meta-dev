@@ -1,5 +1,7 @@
 mod entries;
 
+use std::collections::BTreeMap;
+
 use enum_map::EnumMap;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
@@ -10,7 +12,7 @@ use super::policy_failure::PolicyFailure;
 use super::{BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface};
 use crate::branches::{Branch, BranchName};
 use crate::budget::{AvailableGib, Interval, MemoryShare, Millis, MutantMillis, MutationCadence};
-use crate::budgets::{Amount, Budgets, LegacyKey, Measure};
+use crate::budgets::{Amount, BudgetDrafts, Budgets, LegacyKey, Measure};
 use crate::domains::Domains;
 use crate::gate_env_name::GateEnvName;
 use crate::gate_status::GateStatus;
@@ -43,7 +45,7 @@ pub struct PolicyFile {
     #[serde(default)]
     domains: Domains,
     #[serde(default)]
-    budgets: Budgets,
+    budgets: BudgetDrafts,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     spec: Option<SpecSettings>,
 }
@@ -71,7 +73,7 @@ impl PolicyFile {
             mutant_millis: policy.mutant_millis.clone(),
             mutation: policy.mutation.clone(),
             domains: policy.domains.clone(),
-            budgets: policy.budgets.clone(),
+            budgets: BudgetDrafts::from(policy.budgets.clone()),
             spec: policy.spec.clone(),
         }
     }
@@ -103,10 +105,10 @@ impl PolicyFile {
     }
 
     fn placed(&self, key: LegacyKey) -> Result<(), PolicyFailure> {
-        match (self.legacy(key), self.budgets.whole(key.measure())) {
-            (Some(_), Some(_)) => Err(PolicyFailure::Twice(key)),
-            (None, None) => Err(PolicyFailure::Unset(key)),
-            (Some(_), None) | (None, Some(_)) => Ok(()),
+        match (self.legacy(key), self.budgets.measures(key.measure())) {
+            (Some(_), true) => Err(PolicyFailure::Twice(key)),
+            (None, false) => Err(PolicyFailure::Unset(key)),
+            (Some(_), false) | (None, true) => Ok(()),
         }
     }
 
@@ -124,7 +126,9 @@ impl PolicyFile {
                     amount,
                     tolerance.filter(|_| key == LegacyKey::PriceTolerance),
                 )
-            })?)
+            })
+            .map(BTreeMap::from)
+            .and_then(Budgets::try_from)?)
     }
 
     pub fn resolved(self) -> Result<Policy, PolicyFailure> {

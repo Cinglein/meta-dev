@@ -98,14 +98,14 @@ division = "performance-and-cost"
 measure = "test_wall_time"
 allowance = { duration = 4000 }
 window = "per_change"
-source = "local_gate"
+source = "ci"
 
 [budgets.slowest-test]
 division = "performance-and-cost"
 measure = "slowest_test"
 allowance = { duration = 1000 }
 window = "per_change"
-source = "local_gate"
+source = "ci"
 
 [budgets.mutants-full-job]
 division = "performance-and-cost"

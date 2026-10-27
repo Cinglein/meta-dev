@@ -103,7 +103,7 @@ mod tests {
         &[],
     ];
     const NESTED_DOMAIN: &str = "[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n";
-    const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"local_gate\"\nwarning = 50\ntolerance = 10\n";
+    const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 50\ntolerance = 10\n";
     const REFUSED: [(&str, &str); 7] = [
         (
             "\n[budgets.whole]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"ci\"\n\n[budgets.part]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"tangle_items\"\nallowance = { of = \"whole\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n",
@@ -122,7 +122,7 @@ mod tests {
             "domain architecture-and-planning: planning has no code scopes",
         ),
         (
-            "\n[budgets.lines]\ndivision = \"performance-and-cost/lines\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"local_gate\"\n",
+            "\n[budgets.lines]\ndivision = \"performance-and-cost/lines\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n",
             "budget lines: its measure needs tests, which its division's domain does not declare",
         ),
         (

@@ -34,6 +34,7 @@ pub struct Budget {
     measure: Measure,
     allowance: Allowance,
     window: Window,
+    #[serde(default)]
     source: Source,
     #[serde(default)]
     warning: WarningLine,
@@ -74,11 +75,6 @@ impl Budget {
     }
 
     #[must_use]
-    pub fn window(&self) -> Window {
-        self.window
-    }
-
-    #[must_use]
     pub fn source(&self) -> Source {
         self.source
     }
@@ -91,6 +87,16 @@ impl Budget {
     #[must_use]
     pub fn blocks(&self, state: Option<State>) -> bool {
         state == Some(State::Over) && self.overspend == Overspend::Block
+    }
+
+    #[must_use]
+    pub fn state(&self, lines: Option<&Lines>, spend: Option<&Amount>) -> Option<State> {
+        match self.measure.enforcer() {
+            Enforcer::Lint => spend.map(|_| State::Ok),
+            Enforcer::Checker | Enforcer::MutationJobs => {
+                lines.zip(spend).map(|(lines, spend)| lines.state(spend))
+            }
+        }
     }
 
     #[must_use]
@@ -152,9 +158,6 @@ impl Budget {
             }
             (_, Some(Some(parent))) if !parent.division.strictly_contains(&self.division) => {
                 refused(TreeFailure::NotNested)
-            }
-            (_, Some(Some(parent))) if parent.window != self.window => {
-                refused(TreeFailure::OtherWindow)
             }
             (_, Some(Some(parent))) if parent.measure.unit() != unit => {
                 refused(TreeFailure::OtherUnit)

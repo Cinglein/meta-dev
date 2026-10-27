@@ -6,7 +6,7 @@ use std::path::Path;
 use corpus_check::LintName;
 use crate_graph::CrateGraph;
 use strum::IntoEnumIterator;
-use task::{Branch, Ledger, Measure, Policy, Report, SourceFile};
+use task::{Amount, Branch, Ledger, Measure, Policy, Report, SourceFile};
 use test_budget::TestBudget;
 
 use crate::task::failure::Failure;
@@ -27,7 +27,7 @@ impl Lint {
         let spec = policy.spec().map(|spec| base().and_then(|base| SpecProse::since(root, spec, &base))).transpose()?;
         let observed = Self::gathered(files, policy, spec).ratchet(&allowed, |_| true)?;
         println!("lint: {} rust files, {} baselined violations", files.len(), observed.total());
-        ledger.ratchet(Measure::LintFindings, allowed.total().counted(), observed.total().counted());
+        ledger.spend(Measure::LintFindings, Amount::Baseline(policy.baseline().clone()));
         ledger.spend(Measure::TestLineShare, TestBudget::line_share(files, policy));
         ledger.spend(Measure::TangleItems, CrateGraph::largest_tangle(files));
         Ok(())
@@ -69,7 +69,7 @@ mod tests {
     use task::{Ledger, Policy, Report, Site, Violation};
 
     const LINT_FINDINGS: &str = "lint-findings";
-    const MEASURED_OK: &str = "0          0          0 ok";
+    const MEASURED_OK: &str = "-                     - ok";
     const LINT: &str = "no-comments";
     const HEADLINE: &str = "comments go";
     const ALLOWED: &str = "no-comments = 1";

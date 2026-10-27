@@ -13,17 +13,11 @@ use statement::Statement;
 #[derive(Debug, Default)]
 pub struct Ledger {
     spent: BTreeMap<Measure, Amount>,
-    ratchets: BTreeMap<Measure, Amount>,
 }
 
 impl Ledger {
     pub fn spend(&mut self, measure: Measure, amount: Amount) {
         self.spent.insert(measure, amount);
-    }
-
-    pub fn ratchet(&mut self, measure: Measure, allowed: Amount, amount: Amount) {
-        self.ratchets.insert(measure, allowed);
-        self.spend(measure, amount);
     }
 
     pub fn checked(&self, policy: &Policy, selection: &Selection) -> Result<(), Failure> {
@@ -40,11 +34,9 @@ impl Ledger {
                 .0
                 .iter()
                 .map(|(id, budget)| {
-                    let allowance = budgets
+                    let lines = budgets
                         .amount(budget)
-                        .filter(|amount| amount.baseline().is_none())
-                        .or_else(|| self.ratchets.get(&budget.measure()).cloned());
-                    let lines = allowance.and_then(|allowance| budget.lines(&allowance));
+                        .and_then(|allowance| budget.lines(&allowance));
                     Row::new(
                         id,
                         budget,

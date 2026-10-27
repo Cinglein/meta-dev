@@ -13,8 +13,6 @@ pub enum TreeFailure {
     Oversubscribed(BudgetId),
     #[error("budget {0}: a budget in a nested division is a part of its parent division's budget")]
     NestedWhole(BudgetId),
-    #[error("budget {0}: a part has the window of the budget it is part of")]
-    OtherWindow(BudgetId),
     #[error("budget {0}: its allowance is not in its measure's unit")]
     OtherUnit(BudgetId),
     #[error("budget {0}: this id is kept for an old policy key")]

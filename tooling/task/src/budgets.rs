@@ -1,4 +1,5 @@
 mod budget;
+mod budget_drafts;
 mod budget_id;
 mod ledger;
 mod legacy_key;
@@ -12,6 +13,7 @@ use super::domains::Domains;
 use super::percent::Percent;
 use budget::Budget;
 pub use budget::{Amount, Measure};
+pub use budget_drafts::BudgetDrafts;
 use budget_id::BudgetId;
 pub use ledger::Ledger;
 pub use legacy_key::LegacyKey;
@@ -47,21 +49,6 @@ impl Budgets {
         budget
             .allowance()
             .resolved(|parent| self.0.get(parent).and_then(|parent| self.amount(parent)))
-    }
-
-    pub fn adding(
-        mut self,
-        key: LegacyKey,
-        amount: Amount,
-        tolerance: Option<Percent>,
-    ) -> Result<Budgets, TreeFailure> {
-        match self.0.insert(
-            key.budget_id(),
-            Budget::legacy(key.measure(), amount, tolerance),
-        ) {
-            Some(_) => Err(TreeFailure::Taken(key.budget_id())),
-            None => Budgets::try_from(self.0),
-        }
     }
 
     pub fn measurable(&self, domains: &Domains) -> Result<(), TreeFailure> {
@@ -121,14 +108,14 @@ mod tests {
 division = "performance-and-cost"
 measure = { workflow_wall_time = "diff_job" }
 allowance = { duration = 4000 }
-window = { rolling = 604800000 }
+window = "per_change"
 source = "ci"
 
 [ci-tests]
 division = "performance-and-cost/tests"
 measure = "test_wall_time"
 allowance = { of = "ci", percent = 60 }
-window = { rolling = 604800000 }
+window = "per_change"
 source = "ci"
 overspend = "block"
 
@@ -136,12 +123,12 @@ overspend = "block"
 division = "performance-and-cost/lints"
 measure = "slowest_test"
 allowance = { of = "ci", percent = 40 }
-window = { rolling = 604800000 }
-source = "local_gate"
+window = "per_change"
+source = "ci"
 warning = 50
 tolerance = 10
 "#;
-    const WRITTEN: &str = "[ci]\ndivision = \"performance-and-cost\"\nsource = \"ci\"\nwarning = 60\noverspend = \"block\"\n\n[ci.measure]\nworkflow_wall_time = \"diff_job\"\n\n[ci.allowance]\nduration = 4000\n\n[ci.window]\nrolling = 604800000\n\n[ci-lints]\ndivision = \"performance-and-cost/lints\"\nmeasure = \"slowest_test\"\nsource = \"local_gate\"\nwarning = 50\ntolerance = 10\noverspend = \"block\"\n\n[ci-lints.allowance]\nof = \"ci\"\npercent = 40\n\n[ci-lints.window]\nrolling = 604800000\n\n[ci-tests]\ndivision = \"performance-and-cost/tests\"\nmeasure = \"test_wall_time\"\nsource = \"ci\"\nwarning = 60\noverspend = \"block\"\n\n[ci-tests.allowance]\nof = \"ci\"\npercent = 60\n\n[ci-tests.window]\nrolling = 604800000\n";
+    const WRITTEN: &str = "[ci]\ndivision = \"performance-and-cost\"\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 60\noverspend = \"block\"\n\n[ci.measure]\nworkflow_wall_time = \"diff_job\"\n\n[ci.allowance]\nduration = 4000\n\n[ci-lints]\ndivision = \"performance-and-cost/lints\"\nmeasure = \"slowest_test\"\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 50\ntolerance = 10\noverspend = \"block\"\n\n[ci-lints.allowance]\nof = \"ci\"\npercent = 40\n\n[ci-tests]\ndivision = \"performance-and-cost/tests\"\nmeasure = \"test_wall_time\"\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 60\noverspend = \"block\"\n\n[ci-tests.allowance]\nof = \"ci\"\npercent = 60\n";
     const WINDOW: &str = "window = ";
     const MEASURED: &str = "measure = \"tangle_items\"\nsource = \"ci\"\nwindow = ";
     const PART: &str = "ci-tests";
@@ -154,7 +141,9 @@ tolerance = 10
         "[ci]\ndivision = \"performance-and-cost\"\nallowance = {}\nwindow = \"standing\"\n",
         "[ci]\ndivision = \"performance-and-cost\"\nallowance = { count = 1, duration = 2 }\nwindow = \"standing\"\n",
     ];
-    const REFUSED: [(&str, &str); 7] = [
+    const STANDING: &str = "\"standing\"";
+    const PER_CHANGE: &str = "\"per_change\"";
+    const REFUSED: [(&str, &str); 6] = [
         (
             "[orphan]\ndivision = \"performance-and-cost/tests\"\nallowance = { of = \"ci\", percent = 5 }\nwindow = \"standing\"\n",
             "budget orphan: part of a budget that is not defined",
@@ -162,10 +151,6 @@ tolerance = 10
         (
             "[deep]\ndivision = \"performance-and-cost/tests\"\nallowance = { count = 9 }\nwindow = \"standing\"\n",
             "budget deep: a budget in a nested division is a part of its parent division's budget",
-        ),
-        (
-            "[ci]\ndivision = \"performance-and-cost\"\nallowance = { count = 9 }\nwindow = \"standing\"\n\n[other]\ndivision = \"performance-and-cost/tests\"\nallowance = { of = \"ci\", percent = 5 }\nwindow = \"per_change\"\n",
-            "budget other: a part has the window of the budget it is part of",
         ),
         (
             "[ci]\ndivision = \"performance-and-cost\"\nallowance = { count = 9 }\nwindow = \"standing\"\n\n[a]\ndivision = \"performance-and-cost/a\"\nallowance = { of = \"ci\", percent = 9223372036854775807 }\nwindow = \"standing\"\n\n[b]\ndivision = \"performance-and-cost/b\"\nallowance = { of = \"ci\", percent = 9223372036854775807 }\nwindow = \"standing\"\n\n[c]\ndivision = \"performance-and-cost/c\"\nallowance = { of = \"ci\", percent = 9223372036854775807 }\nwindow = \"standing\"\n",
@@ -202,7 +187,7 @@ tolerance = 10
 
     impl Budgets {
         fn measured(tree: &str) -> Result<Budgets, toml::de::Error> {
-            toml::from_str(&tree.replace(WINDOW, MEASURED))
+            toml::from_str(&tree.replace(STANDING, PER_CHANGE).replace(WINDOW, MEASURED))
         }
     }
 

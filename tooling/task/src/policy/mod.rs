@@ -245,7 +245,7 @@ mod tests {
     const CHECK: &str = "check";
     const LONG_ENOUGH: &str = "report";
     const TEST_TIME: &str = "extra-time";
-    const BUDGET: &str = "\n[domains.\"performance-and-cost/extra\"]\ntests = [\"*\"]\n\n[budgets.extra-time]\ndivision = \"performance-and-cost/extra\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"local_gate\"\n";
+    const BUDGET: &str = "\n[domains.\"performance-and-cost/extra\"]\ntests = [\"*\"]\n\n[budgets.extra-time]\ndivision = \"performance-and-cost/extra\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
 
     #[test]
     fn the_checked_in_policy_round_trips_and_knows_a_vague_name_from_a_said_one() {
