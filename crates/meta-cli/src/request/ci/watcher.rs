@@ -101,16 +101,15 @@ impl Watcher {
         let settled = dir.status_of(&commit).and_then(CiStatus::finished);
         settled.map_or(Ok(()), |status| Err(CliFailure::raised::<Invalid>(format!("already {status}"))))?;
         let settings = project.config().ci_settings();
-        let clock = WatchClock::start();
-        let deadline = clock.started() + settings.remaining(Duration::ZERO).unwrap_or_default();
-        let gh = Gh::new(settings.program().clone(), project.root().to_path_buf(), deadline);
+        let clock = WatchClock::start(&settings);
+        let gh = Gh::new(settings.program().clone(), project.root().to_path_buf(), clock.deadline());
         let watcher = Self { dir, commit, gh, clock, settings: settings.clone(), appeared: OnceCell::new() };
         let interval = settings.poll_interval();
         let finished = std::iter::from_fn(|| {
-            settings.remaining(watcher.clock.elapsed())?;
+            watcher.clock.remaining(&settings)?;
             std::thread::sleep(interval.duration());
             let observed = watcher.gh.observe(&watcher.commit);
-            let in_time = settings.remaining(watcher.clock.elapsed()).map(|_| ());
+            let in_time = watcher.clock.remaining(&settings);
             observed.is_ok().then_some(()).or(in_time).map(|()| observed)
         })
         .try_fold(None, |reported, observed| watcher.step(reported, observed));
@@ -210,6 +209,6 @@ impl Watcher {
 
 impl std::fmt::Display for Watcher {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "CI {}", self.commit)
+        write!(formatter, "CI {}{}", self.commit, self.clock)
     }
 }
