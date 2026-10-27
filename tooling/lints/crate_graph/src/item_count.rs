@@ -6,7 +6,7 @@ use std::ops::Add;
 pub struct ItemCount(usize);
 
 impl ItemCount {
-    pub fn of_len(len: usize) -> ItemCount {
+    pub const fn of_len(len: usize) -> ItemCount {
         ItemCount(len)
     }
 

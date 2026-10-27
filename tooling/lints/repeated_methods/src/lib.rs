@@ -1,14 +1,18 @@
-use task::{Policy, Report, SourceFile};
+mod shape_index;
+
+use task::{Limit, Policy, Report, SourceFile};
+
+use shape_index::ShapeIndex;
 
 #[derive(Debug)]
 pub struct RepeatedMethods;
 
 impl RepeatedMethods {
     #[must_use]
-    pub fn report(_: &[SourceFile], _: &Policy) -> Report {
+    pub fn report(files: &[SourceFile], policy: &Policy) -> Report {
         Report::new(
             "one public method shape on many types is a missing trait; extract the trait",
-            Vec::new(),
+            ShapeIndex::of_files(files).repeated(policy.limit(Limit::TypesPerMethodShape)),
         )
     }
 }

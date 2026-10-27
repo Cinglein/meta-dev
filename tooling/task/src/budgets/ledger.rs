@@ -208,6 +208,8 @@ mod tests {
     const MILLI: Millis = Millis::new(1);
     const BASELINED_SHARE: usize = 25;
     const BASELINED_TANGLE: usize = 64;
+    const EFFECT_SHARE: usize = 15;
+    const EFFECT_DISPERSION: usize = 2;
 
     impl Ledger {
         fn nested() -> Policy {
@@ -232,6 +234,14 @@ mod tests {
             ledger.spend(
                 Measure::TangleItems,
                 Amount::Count(Most::from(BASELINED_TANGLE * 2)),
+            );
+            ledger.spend(
+                Measure::EffectShare,
+                Amount::Share(Percent::from(EFFECT_SHARE)),
+            );
+            ledger.spend(
+                Measure::EffectDispersion,
+                Amount::Count(Most::from(EFFECT_DISPERSION)),
             );
             ledger
         }

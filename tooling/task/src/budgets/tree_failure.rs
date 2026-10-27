@@ -33,7 +33,7 @@ pub enum TreeFailure {
     #[error("budget {0}: a baseline budget has no parts")]
     BaselinePart(BudgetId),
     #[error(
-        "budget {0}: open items and words take a standing window; every other measure, per change"
+        "budget {0}: open items, words and effects take a standing window; every other measure, per change"
     )]
     OtherWindow(BudgetId),
     #[error("budget {0}: its measure is not the measure of the budget it is part of")]

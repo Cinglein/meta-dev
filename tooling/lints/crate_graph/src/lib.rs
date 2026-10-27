@@ -1,4 +1,5 @@
 mod crate_summary;
+mod effect;
 mod graph_report;
 mod item_count;
 mod item_graph;
@@ -43,13 +44,22 @@ impl CrateGraph {
     }
 
     #[must_use]
-    pub fn effect_share(files: &[SourceFile]) -> Amount {
-        Amount::Share(Percent::from(files.len()))
+    pub fn effect_share(files: &[SourceFile]) -> Percent {
+        Self::summaries(files)
+            .iter()
+            .map(|summary| summary.effects().share())
+            .max()
+            .unwrap_or(Percent::NONE)
     }
 
     #[must_use]
-    pub fn effect_dispersion(files: &[SourceFile]) -> Amount {
-        Amount::Count(Most::from(files.len()))
+    pub fn effect_dispersion(files: &[SourceFile]) -> Most {
+        let widest = Self::summaries(files)
+            .iter()
+            .map(|summary| summary.effects().dispersion())
+            .max()
+            .unwrap_or_default();
+        Most::from(widest.count())
     }
 
     #[must_use]
@@ -125,7 +135,7 @@ mod tests {
             pub struct Unix(std::os::unix::process::ExitStatusExt); pub struct Pure;",
         ),
     ];
-    const WIDEST: [&str; 2] = ["72%", "3"];
+    const WIDEST: [&str; 2] = ["72", "3"];
     const EFFECTS: &str = "  effects";
     const EFFECT_LINES: [&str; 2] = [
         "  effects: 1 of 2 units, share 0%: files 1",
@@ -137,10 +147,10 @@ mod tests {
         let files =
             EFFECT_FILES.map(|(path, text)| SourceFile::parse(path, text.to_owned()).unwrap());
         let widest = [
-            CrateGraph::effect_share(&files),
-            CrateGraph::effect_dispersion(&files),
+            CrateGraph::effect_share(&files).to_string(),
+            CrateGraph::effect_dispersion(&files).to_string(),
         ];
-        assert_eq!(widest.map(|amount| amount.to_string()), WIDEST);
+        assert_eq!(widest, WIDEST);
         let shown = CrateGraph::graphs(&files).to_string();
         let lines: Vec<&str> = shown
             .lines()

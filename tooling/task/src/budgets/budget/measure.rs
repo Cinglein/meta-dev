@@ -32,6 +32,8 @@ pub enum Measure {
     #[strum(to_string = "open_items {0}")]
     OpenItems(ItemFilter),
     Words,
+    EffectShare,
+    EffectDispersion,
 }
 
 impl Measure {
@@ -41,8 +43,11 @@ impl Measure {
             Measure::TestWallTime | Measure::SlowestTest | Measure::WorkflowWallTime(_) => {
                 Unit::Duration
             }
-            Measure::MutantPrice | Measure::TestLineShare => Unit::Share,
-            Measure::TangleItems | Measure::OpenItems(_) | Measure::Words => Unit::Count,
+            Measure::MutantPrice | Measure::TestLineShare | Measure::EffectShare => Unit::Share,
+            Measure::TangleItems
+            | Measure::OpenItems(_)
+            | Measure::Words
+            | Measure::EffectDispersion => Unit::Count,
             Measure::LintFindings => Unit::Baseline,
         }
     }
@@ -52,7 +57,9 @@ impl Measure {
         match self {
             Measure::TestWallTime | Measure::SlowestTest => Some(ScopeKind::Tests),
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Some(ScopeKind::Workflows),
-            Measure::TangleItems => Some(ScopeKind::Crates),
+            Measure::TangleItems | Measure::EffectShare | Measure::EffectDispersion => {
+                Some(ScopeKind::Crates)
+            }
             Measure::LintFindings | Measure::TestLineShare | Measure::Words => {
                 Some(ScopeKind::Paths)
             }
@@ -66,7 +73,9 @@ impl Measure {
             Measure::TestWallTime
             | Measure::SlowestTest
             | Measure::OpenItems(_)
-            | Measure::Words => Enforcer::Checker,
+            | Measure::Words
+            | Measure::EffectShare
+            | Measure::EffectDispersion => Enforcer::Checker,
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Enforcer::MutationJobs,
             Measure::LintFindings | Measure::TestLineShare | Measure::TangleItems => Enforcer::Lint,
         }
@@ -83,7 +92,9 @@ impl Measure {
             | Measure::LintFindings
             | Measure::TestLineShare
             | Measure::TangleItems
-            | Measure::Words => None,
+            | Measure::Words
+            | Measure::EffectShare
+            | Measure::EffectDispersion => None,
         }
     }
 
@@ -98,14 +109,19 @@ impl Measure {
             | Measure::LintFindings
             | Measure::TestLineShare
             | Measure::TangleItems
-            | Measure::OpenItems(_) => Tally::WholeScope,
+            | Measure::OpenItems(_)
+            | Measure::EffectShare
+            | Measure::EffectDispersion => Tally::WholeScope,
         }
     }
 
     #[must_use]
     pub const fn window(&self) -> Window {
         match self {
-            Measure::OpenItems(_) | Measure::Words => Window::Standing,
+            Measure::OpenItems(_)
+            | Measure::Words
+            | Measure::EffectShare
+            | Measure::EffectDispersion => Window::Standing,
             Measure::TestWallTime
             | Measure::SlowestTest
             | Measure::WorkflowWallTime(_)
