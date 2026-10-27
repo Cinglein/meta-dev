@@ -67,6 +67,7 @@ fn a_rated_item_keeps_its_level_only_where_the_scale_has_it_and_otherwise_takes_
     assert!(meta.refusal(&nav, &[MOVE, &concern, TO, NAV, SEVERITY, "blocker"]).contains("not a level"));
     let raised = meta.under(&nav, &[&[MOVE, concern.as_str(), TO, NAV, SEVERITY, "slow"][..], &SCENARIO[..]].concat());
     assert!(raised.unwrap().contains(RAISED));
+    assert!(meta.run(OWNER, &["list", "concerns"]).unwrap().contains(&format!("{concern} map lost @{NAV} !slow")));
     assert!(meta.refusal(&nav, &[MOVE, &other, TO, COST, SEVERITY, "critical"]).contains("needs --scenario"));
     assert!(meta.under(&nav, &[MOVE, &other, TO, COST, SEVERITY, "minor"]).unwrap().contains(LOWERED));
     meta.run(OWNER, &["retire", &other, "dropped"]).unwrap();
