@@ -3,12 +3,12 @@ mod prior_spec;
 mod prose_words;
 mod spec_drift;
 
-use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
 use task::{Report, Site, SpecSettings, Violation};
 
+use super::Lint;
 use crate::task::failure::Failure;
 use crate::task::prior_policy::PriorPolicy;
 use crate::task::revision::Revision;
@@ -23,7 +23,7 @@ pub struct SpecProse;
 impl SpecProse {
     pub const LINT: &str = "spec-prose";
 
-    pub fn since(root: &Path, spec: &SpecSettings, base: &Revision) -> Result<BTreeMap<&'static str, Report>, Failure> {
+    pub fn since(root: &Path, spec: &SpecSettings, base: &Revision) -> Result<Lint, Failure> {
         let written = fs::read_to_string(root.join(spec.file())).unwrap_or_default();
         let prior = PriorSpec::prose(base.file(Path::new(PriorPolicy::PATH)).as_deref(), |path| base.file(path))?;
         let changed = written
@@ -32,7 +32,8 @@ impl SpecProse {
             .then(|| base.changed_paths())
             .transpose()?;
         let drift = SpecDrift::report(&written, prior.as_deref(), &changed.unwrap_or_default());
-        Ok([(Self::LINT, Self::report(spec, &written, prior.as_deref())), (SpecDrift::LINT, drift)].into())
+        let prose = Self::report(spec, &written, prior.as_deref());
+        Ok(Lint { reports: [(Self::LINT, prose), (SpecDrift::LINT, drift)].into() })
     }
 
     pub fn report(spec: &SpecSettings, written: &str, prior: Option<&str>) -> Report {

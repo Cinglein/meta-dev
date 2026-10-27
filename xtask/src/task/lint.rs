@@ -40,11 +40,11 @@ impl Lint {
         Ok(observed)
     }
 
-    fn gathered(files: &[SourceFile], policy: &Policy, spec: Option<BTreeMap<&'static str, Report>>) -> Lint {
+    fn gathered(files: &[SourceFile], policy: &Policy, spec: Option<Lint>) -> Lint {
         Lint {
             reports: LintName::iter()
                 .map(|lint| (<&'static str>::from(lint), lint.report(files, policy)))
-                .chain(spec.into_iter().flatten())
+                .chain(spec.into_iter().flat_map(|spec| spec.reports))
                 .collect(),
         }
     }
