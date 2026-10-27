@@ -92,24 +92,33 @@ mod tests {
     const LOG: &str = include_str!("ledger/standing.jsonl");
     const STANDING: &str = include_str!("ledger/standing.toml");
     const TESTED: &str = "t-";
-    const LINKED: &str = "7";
     const ADDRESSING: &str = "8";
-    const BRANCH: &str = "task-0000000000000004";
-    const STANDING_ROWS: [&str; 8] = [
+    const STANDING_ROWS: [&str; 10] = [
         "t-concerns         features-and-maintenance   open_items concerns                  1          3          5 ok",
-        "t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over, outside the linked task's division",
+        "t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over, outside the linked task's division; a diff in its domain reaches it",
         "t-cost-tasks       performance-and-cost       open_items tasks                     0          5          9 ok",
         "t-discussion       features-and-maintenance   open_items in_discussion             1          1          2 ok",
-        "t-nav-issues       features-and-maintenance/nav open_items issues                    1          0          0 over, paid down by the linked task",
-        "t-nav-tasks        features-and-maintenance/nav open_items tasks                     3          0          1 over",
-        "t-nav-unheld       features-and-maintenance/nav open_items unheld_tasks              2          1          3 warn",
-        "t-open-tasks       features-and-maintenance   open_items tasks                     4          2          4 warn",
+        "t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over, paid down by the linked task",
+        "t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over",
+        "t-nav-unheld       features-and-maintenance/nav open_items unheld_tasks              3          1          3 warn",
+        "t-open-tasks       features-and-maintenance   open_items tasks                     5          3          6 warn",
+        "t-planning-issues  architecture-and-planning  open_items issues                    1          0          0 over, outside the linked task's division",
+        "t-unheld           features-and-maintenance   open_items unheld_tasks              3          3          5 ok",
     ];
-    const BLOCKING: [&[&str]; 4] = [
-        &["t-cost-concerns", "t-nav-issues", "t-nav-tasks"],
-        &["t-nav-issues", "t-nav-tasks"],
-        &["t-cost-concerns"],
-        &["t-nav-tasks"],
+    const ALL_OVER: &[&str] = &[
+        "t-cost-concerns", "t-nav-concerns", "t-nav-tasks", "t-planning-issues",
+    ];
+    const UNREACHED: [(&str, &[&str]); 6] = [
+        ("", ALL_OVER),
+        ("7", &["t-nav-concerns", "t-nav-tasks"]),
+        ("task-0000000000000004", &["t-cost-concerns"]),
+        (ADDRESSING, &["t-nav-tasks"]),
+        ("9", ALL_OVER),
+        ("10", &["t-nav-concerns", "t-nav-tasks"]),
+    ];
+    const DIFF_REACHED: [(&str, &[&str]); 2] = [
+        ("7", &["t-cost-concerns", "t-nav-concerns", "t-nav-tasks"]),
+        (ADDRESSING, &["t-cost-concerns", "t-nav-tasks"]),
     ];
 
     const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
@@ -147,20 +156,20 @@ mod tests {
     }
 
     impl Ledger {
-        fn standing(link: &ChangeLink) -> Ledger {
+        fn standing(link: &str) -> Ledger {
             let records: Vec<Record> = LOG
                 .lines()
                 .map(|line| serde_json::from_str(line).unwrap())
                 .collect();
+            let link = ChangeLink::new(link.parse().ok(), link.parse().ok());
             let mut ledger = Ledger::default();
-            ledger.count(Some(Standing::read(&State::fold(&records), link)));
+            ledger.count(Some(Standing::read(&State::fold(&records), &link)));
             ledger
         }
 
-        fn blocking(&self, policy: &Policy) -> Vec<String> {
-            let unreached = Selection::Crates(BTreeSet::new());
+        fn blocking(&self, policy: &Policy, selection: &Selection) -> Vec<String> {
             self.statement(policy)
-                .verdict(&unreached)
+                .verdict(selection)
                 .violations()
                 .iter()
                 .filter_map(|violation| {
@@ -178,8 +187,7 @@ mod tests {
     #[test]
     fn a_standing_budget_counts_the_open_items_of_its_division_subtree() {
         let policy: Policy = toml::from_str(&format!("{}{STANDING}", Policy::DEFAULTS)).unwrap();
-        let ledger = Ledger::standing(&ChangeLink::new(Some(ADDRESSING.parse().unwrap()), None));
-        let shown = ledger.statement(&policy).to_string();
+        let shown = Ledger::standing(ADDRESSING).statement(&policy).to_string();
         let table: Vec<&str> = shown
             .lines()
             .filter(|line| line.starts_with(TESTED))
@@ -192,16 +200,25 @@ mod tests {
     #[test]
     fn an_over_standing_budget_blocks_a_change_linked_inside_its_division_unless_it_pays_down() {
         let policy: Policy = toml::from_str(&format!("{}{STANDING}", Policy::DEFAULTS)).unwrap();
-        let links = [
-            ChangeLink::default(),
-            ChangeLink::new(Some(LINKED.parse().unwrap()), None),
-            ChangeLink::new(None, Some(BRANCH.parse().unwrap())),
-            ChangeLink::new(Some(ADDRESSING.parse().unwrap()), None),
-        ];
-        let blocking = links.map(|link| Ledger::standing(&link).blocking(&policy));
-        let expected = BLOCKING.map(|ids| ids.iter().map(|id| (*id).to_owned()).collect());
-        let unread = Ledger::default().blocking(&policy);
-        assert_eq!((blocking, unread), (expected, Vec::new()));
+        let unreached = Selection::Crates(BTreeSet::new());
+        let blocking = |selection: &Selection, (link, _): (&str, &[&str])| {
+            Ledger::standing(link).blocking(&policy, selection)
+        };
+        let expected = |(_, ids): (&str, &[&str])| -> Vec<String> {
+            ids.iter().map(|id| (*id).to_owned()).collect()
+        };
+        assert_eq!(
+            UNREACHED.map(|case| blocking(&unreached, case)),
+            UNREACHED.map(expected)
+        );
+        assert_eq!(
+            DIFF_REACHED.map(|case| blocking(&Selection::Workspace, case)),
+            DIFF_REACHED.map(expected)
+        );
+        assert_eq!(
+            Ledger::default().blocking(&policy, &unreached),
+            Vec::<String>::new()
+        );
     }
 
     #[test]

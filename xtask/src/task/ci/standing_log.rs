@@ -38,14 +38,14 @@ impl StandingLog {
 
 #[cfg(test)]
 mod tests {
-    use meta_log::{LogFailure, LogStore, Snapshot};
+    use meta_log::{LogFailure, LogStore, MemoryLog, Snapshot};
     use meta_schema::Record;
     use settings::EmbeddedDefaults;
     use task::{Ledger, Policy};
 
     use super::StandingLog;
 
-    const CLOSED: &str = "standing budgets fail closed: meta/log is unreadable";
+    const CLOSED: &str = "standing budgets fail closed: meta/log";
 
     struct Offline;
 
@@ -63,8 +63,16 @@ mod tests {
     }
 
     #[test]
-    fn an_unreadable_log_fails_standing_budgets_closed() {
-        let refused = StandingLog::counted(&Offline, &Policy::defaults(), &mut Ledger::default());
-        assert!(refused.err().is_some_and(|failure| failure.to_string().starts_with(CLOSED)));
+    fn an_unreadable_or_missing_log_fails_standing_budgets_closed() {
+        let policy = Policy::defaults();
+        let refused = [
+            StandingLog::counted(&Offline, &policy, &mut Ledger::default()),
+            StandingLog::counted(&MemoryLog::default(), &policy, &mut Ledger::default()),
+        ];
+        assert!(
+            refused
+                .iter()
+                .all(|refused| refused.as_ref().err().is_some_and(|failure| failure.to_string().starts_with(CLOSED)))
+        );
     }
 }

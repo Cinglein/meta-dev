@@ -2,7 +2,7 @@
 [budgets.t-open-tasks]
 division = "features-and-maintenance"
 measure = { open_items = { kind = "task" } }
-allowance = { count = 4 }
+allowance = { count = 6 }
 window = "standing"
 
 [budgets.t-nav-tasks]
@@ -11,16 +11,22 @@ measure = { open_items = { kind = "task" } }
 allowance = { of = "t-open-tasks", count = 1 }
 window = "standing"
 
+[budgets.t-unheld]
+division = "features-and-maintenance"
+measure = { open_items = "unheld_tasks" }
+allowance = { count = 5 }
+window = "standing"
+
 [budgets.t-nav-unheld]
 division = "features-and-maintenance/nav"
 measure = { open_items = "unheld_tasks" }
-allowance = { of = "t-open-tasks", count = 3 }
+allowance = { of = "t-unheld", count = 3 }
 window = "standing"
 
-[budgets.t-nav-issues]
+[budgets.t-nav-concerns]
 division = "features-and-maintenance/nav"
-measure = { open_items = { kind = "issue" } }
-allowance = { of = "t-open-tasks", count = 0 }
+measure = { open_items = { kind = "concern" } }
+allowance = { of = "t-concerns", count = 0 }
 window = "standing"
 
 [budgets.t-cost-tasks]
@@ -44,5 +50,11 @@ window = "standing"
 [budgets.t-cost-concerns]
 division = "performance-and-cost"
 measure = { open_items = { kind = "concern" } }
+allowance = { count = 0 }
+window = "standing"
+
+[budgets.t-planning-issues]
+division = "architecture-and-planning"
+measure = { open_items = { kind = "issue" } }
 allowance = { count = 0 }
 window = "standing"
