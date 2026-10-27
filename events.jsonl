@@ -523,3 +523,4 @@
 {"at":"2026-10-27T06:08:26.186347Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-367007423db6b993","text":"triage tier: Superseded with successor in log; successor(s) ['task-28291f21f0b41b31'] exist in log (states: task-28291f21f0b41b31=open)"}
 {"at":"2026-10-27T06:08:28.235038Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-e3ffb57631e24658","text":"triage tier: Superseded with successor in log; successor(s) ['task-77a05d955dd12789'] exist in log (states: task-77a05d955dd12789=open)"}
 {"at":"2026-10-27T06:08:30.176015Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-560b535b89c30214","text":"triage tier: Superseded with successor in log; successor task-77a05d955dd12789 exists in log (open); B also names PR #38 (OPEN, not relied on)"}
+{"at":"2026-10-27T06:10:01.667302Z","actor":"claude-severity","kind":"TaskLinked","task":"task-a607a687f5daa839","pr":40}
