@@ -11,7 +11,7 @@ const NUISANCE: &str = "nuisance";
 const RAISED_FROM_MAJOR: &str = "blocker (raised from major";
 
 impl Meta {
-    fn under(&self, scales: &Scales, words: &[&str]) -> Result<String, CliFailure> {
+    pub(super) fn under(&self, scales: &Scales, words: &[&str]) -> Result<String, CliFailure> {
         let args = std::iter::once(PROGRAM).chain(words.iter().copied()).map(String::from).collect::<Vec<_>>();
         let actor = || OWNER.parse().map_err(CliFailure::raised::<Invalid>);
         Request::try_from(args)

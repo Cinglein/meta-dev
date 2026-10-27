@@ -1,6 +1,8 @@
 mod fetches;
 mod gc_restore;
 mod heartbeat;
+#[cfg(test)]
+mod moving;
 mod notices;
 #[cfg(test)]
 mod rating;
