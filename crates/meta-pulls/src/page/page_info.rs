@@ -5,6 +5,7 @@ use serde::Deserialize;
 use continuation::Continuation;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PageInfo {
     #[serde(rename = "hasNextPage")]
     next: Continuation,

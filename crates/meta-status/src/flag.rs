@@ -1,5 +1,6 @@
 use std::fmt;
 
+use meta_pull_query::WorkflowName;
 use meta_schema::{DueTime, Id, PullRequest, Task};
 use serde::{Deserialize, Serialize};
 
@@ -12,6 +13,8 @@ pub enum Flag {
     TruncatedOpen,
     Stalled(Id<Task>, DueTime),
     PastDue(Id<Task>, DueTime),
+    HeldDone(Id<Task>),
+    TrunkRed(WorkflowName),
     RedUnheld(Id<Task>, PullRequest),
     Missing(Id<Task>, PullRequest),
     TruncatedChecks(Id<Task>, PullRequest),
@@ -26,6 +29,8 @@ impl Flag {
             Self::Unreached(_)
             | Self::TruncatedOpen
             | Self::PastDue(..)
+            | Self::HeldDone(_)
+            | Self::TrunkRed(_)
             | Self::RedUnheld(..)
             | Self::Missing(..)
             | Self::TruncatedChecks(..)
@@ -41,6 +46,8 @@ impl fmt::Display for Flag {
             Self::TruncatedOpen => formatter.write_str("truncated: more than 100 open pull requests"),
             Self::Stalled(task, due) => write!(formatter, "stalled {task}: past due {due}, no holder"),
             Self::PastDue(task, due) => write!(formatter, "past due {task}: due {due}"),
+            Self::HeldDone(task) => write!(formatter, "done {task}: held, every linked pr merged or closed"),
+            Self::TrunkRed(workflow) => write!(formatter, "trunk red {workflow}: latest completed run failed"),
             Self::RedUnheld(task, pull_request) => write!(formatter, "red {pull_request} {task}: no holder"),
             Self::Missing(task, pull_request) => write!(formatter, "unknown {pull_request} {task}: not on github"),
             Self::TruncatedChecks(task, pull_request) => {
@@ -59,6 +66,8 @@ impl Flag {
             | Self::TruncatedOpen
             | Self::Stalled(..)
             | Self::PastDue(..)
+            | Self::HeldDone(_)
+            | Self::TrunkRed(_)
             | Self::RedUnheld(..)
             | Self::Missing(..)
             | Self::TruncatedChecks(..) => Judgement::Needed,

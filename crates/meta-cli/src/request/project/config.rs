@@ -3,6 +3,7 @@ mod ci_settings;
 mod heartbeat_settings;
 
 use meta_log::RemoteName;
+use meta_pull_query::WorkflowName;
 use serde::Deserialize;
 
 use crate::request::cli_failure::{CliFailure, Setup};
@@ -19,6 +20,8 @@ pub struct Config {
     #[serde(default)]
     log_branches: Vec<BranchName>,
     #[serde(default)]
+    required_workflows: Vec<WorkflowName>,
+    #[serde(default)]
     ci: toml::Table,
     #[serde(default)]
     heartbeat: toml::Table,
@@ -27,6 +30,10 @@ pub struct Config {
 impl Config {
     pub fn remote(&self) -> Result<&RemoteName, CliFailure> {
         self.remote.as_ref().ok_or_else(|| CliFailure::raised::<Setup>("meta.toml: `remote` is required"))
+    }
+
+    pub fn required_workflows(&self) -> &[WorkflowName] {
+        &self.required_workflows
     }
 
     pub fn ci_settings(&self) -> CiSettings {

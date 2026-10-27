@@ -45,7 +45,8 @@ impl<'view> Status<'view> {
             self.state.tasks().iter().flat_map(|task| task.pull_requests().to_vec()).collect();
         let orphans = self.github.orphans(&linked).into_iter().map(Flag::Orphan);
         let tasks = self.shown().flat_map(|task| self.task_flags(task));
-        Flags::new(self.github.flag().into_iter().chain(tasks).chain(orphans).collect())
+        let github = self.github.flag().into_iter().chain(self.github.trunk());
+        Flags::new(github.chain(tasks).chain(orphans).collect())
     }
 
     #[must_use]
@@ -84,12 +85,13 @@ impl<'view> Status<'view> {
         let overdue = planned.due_time().filter(|due| *due < self.now);
         let stalled = possible.and(unheld).and(overdue).map(|due| Flag::Stalled(id, due));
         let past_due = held.and(overdue).map(|due| Flag::PastDue(id, due));
+        let done = held.and(self.github.finished(task.pull_requests())).map(|()| Flag::HeldDone(id));
         let spent = possible.and(planned.effort_allowance()).and(match EffortSpend::measured_for(task) {
             EffortSpend::Unmeasured => None,
         });
         let pulls = self.pulls(task).into_iter();
         let flagged = pulls.filter_map(|pull_request| self.github.sight(pull_request).flag(id, pull_request, unheld));
-        stalled.into_iter().chain(past_due).chain(spent).chain(flagged).collect()
+        stalled.into_iter().chain(past_due).chain(done).chain(spent).chain(flagged).collect()
     }
 }
 
@@ -106,3 +108,6 @@ mod tests;
 
 #[cfg(test)]
 mod lifetime_tests;
+
+#[cfg(test)]
+mod done_tests;
