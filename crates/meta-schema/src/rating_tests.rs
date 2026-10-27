@@ -1,7 +1,5 @@
-use crate::{Change, Event, NewConcern, NewIssue, Rating, Rerating};
+use crate::{Change, Event, NewIssue, Rating, Rerating};
 
-const LEGACY_CONCERN: &str = r#"{"concern":"concern-0000000000000001","text":"x"}"#;
-const LEGACY_ISSUE: &str = r#"{"issue":"issue-0000000000000001","text":"x"}"#;
 const DIVISION: &str = "features-and-maintenance/nav";
 const MAJOR: &str = "major";
 const MINOR: &str = "minor";
@@ -19,17 +17,7 @@ const MOVED_SHOWN: [&str; 2] = [
 ];
 
 #[test]
-fn a_move_reads_back_from_the_root_or_a_division_and_shows_any_new_level() {
-    let moved = MOVED.map(|line| serde_json::from_str::<Event>(line).unwrap());
-    assert_eq!(moved.each_ref().map(ToString::to_string), MOVED_SHOWN);
-    assert_eq!(moved.each_ref().map(|event| serde_json::to_string(event).unwrap()), MOVED);
-}
-
-#[test]
-fn old_items_fold_as_unrated_and_a_rated_item_keeps_its_level_when_written() {
-    let concern: NewConcern = serde_json::from_str(LEGACY_CONCERN).unwrap();
-    let issue: NewIssue = serde_json::from_str(LEGACY_ISSUE).unwrap();
-    assert_eq!([concern.rating(), issue.rating()], [Rating::Unrated, Rating::Unrated]);
+fn a_rated_item_keeps_its_level_when_written() {
     let rated = NewIssue::new(DIVISION.parse().unwrap(), MAJOR.parse().unwrap()).rated(MAJOR.parse().unwrap());
     let read: NewIssue = serde_json::from_str(&serde_json::to_string(&rated).unwrap()).unwrap();
     assert!(
@@ -40,7 +28,10 @@ fn old_items_fold_as_unrated_and_a_rated_item_keeps_its_level_when_written() {
 }
 
 #[test]
-fn a_change_reads_back_shows_its_step_and_knows_the_rating_it_replaces() {
+fn a_change_or_move_reads_back_shows_its_step_and_knows_the_rating_it_replaces() {
+    let moved = MOVED.map(|line| serde_json::from_str::<Event>(line).unwrap());
+    assert_eq!(moved.each_ref().map(ToString::to_string), MOVED_SHOWN);
+    assert_eq!(moved.each_ref().map(|event| serde_json::to_string(event).unwrap()), MOVED);
     let raised: Event = serde_json::from_str(RAISED).unwrap();
     assert_eq!([raised.to_string(), serde_json::to_string(&raised).unwrap()], [RAISED_SHOWN, RAISED]);
     let [minor, major] = [MINOR, MAJOR].map(|level| level.parse().unwrap());

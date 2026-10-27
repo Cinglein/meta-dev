@@ -3,11 +3,10 @@ use meta_schema::{Actor, Event, Id, NewTask, Record, Task, TaskLink};
 use meta_state::State;
 
 use super::Status;
+use super::tests::{NOW, PAST};
 use crate::github::Github;
 use crate::github_failure::GithubFailure;
 
-const NOW: &str = "2026-10-26T12:00:00Z";
-const PAST: &str = "2026-10-01T00:00:00Z";
 const REPLY: &str = r#"{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[]}},"linked":{
 "pr1":{"number":1,"state":"MERGED","baseRefName":"main","statusCheckRollup":null},
 "pr2":{"number":2,"state":"OPEN","baseRefName":"main","statusCheckRollup":null},

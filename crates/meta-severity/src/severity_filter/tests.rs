@@ -1,15 +1,9 @@
-use std::collections::BTreeMap;
-
-use meta_schema::{Division, EntryNote, Event, LevelName, NewConcern, NewIssue, Record, Target};
+use meta_schema::{EntryNote, Event, LevelName, NewConcern, NewIssue, Record, Target};
 use meta_state::State;
 
-use crate::{Scale, Scales, SeverityFilter};
+use crate::declared::NAV_SCALE;
+use crate::{Scales, SeverityFilter};
 
-const SCALES: &str = r#"{"features-and-maintenance/nav": [
-    {"name": "lost", "meaning": "x", "parent": "critical"},
-    {"name": "slow", "meaning": "x", "parent": "major"},
-    {"name": "typo", "meaning": "x", "parent": "minor"}
-]}"#;
 const TOP: &str = "features-and-maintenance";
 const NAV: &str = "features-and-maintenance/nav";
 const OFFLINE: &str = "features-and-maintenance/nav/offline";
@@ -73,20 +67,15 @@ impl Fixture {
 }
 
 #[test]
-fn a_filter_counts_open_items_inside_its_division_at_a_rolled_up_level_or_unrated() {
+fn a_filter_counts_open_items_in_its_division_at_a_rolled_up_level_and_new_items_take_scale_levels() {
     let fixture = Fixture::built();
-    let scales = Scales::try_from(serde_json::from_str::<BTreeMap<Division, Scale>>(SCALES).unwrap()).unwrap();
+    let scales = Scales::declared(NAV_SCALE).unwrap();
     let found = FILTERS.map(|(division, level, _)| {
         let filter = level.map_or(SeverityFilter::Unrated, |level| SeverityFilter::AtLevel(Fixture::level(level)));
         let open = filter.open(&scales, &division.parse().unwrap(), &fixture.state);
         fixture.items.iter().map(|item| open.contains(item)).collect::<Vec<bool>>()
     });
     assert_eq!(found, FILTERS.map(|(.., admitted)| admitted.to_vec()));
-}
-
-#[test]
-fn a_new_item_is_rated_only_with_a_level_of_its_divisions_scale() {
-    let scales = Scales::try_from(serde_json::from_str::<BTreeMap<Division, Scale>>(SCALES).unwrap()).unwrap();
     let events = [
         Event::ConcernIdentified(Fixture::concern(NAV, Some("lost"))),
         Event::ConcernIdentified(Fixture::concern(TOP, None)),

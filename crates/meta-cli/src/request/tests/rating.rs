@@ -1,9 +1,7 @@
 use meta_severity::Scales;
 
-use super::{DIVISION, Meta, OWNER, PROGRAM};
-use crate::request::Request;
-use crate::request::cli_failure::{CliFailure, Invalid};
-use crate::request::scale_policy::ScalePolicy;
+use super::{DIVISION, Meta, OWNER};
+use crate::request::cli_failure::CliFailure;
 
 const OVERRIDDEN: &str =
     r#"{"features-and-maintenance": [{"name": "blocker", "meaning": "x"}, {"name": "nuisance", "meaning": "x"}]}"#;
@@ -13,11 +11,7 @@ const RAISED_FROM_MAJOR: &str = "blocker (raised from major";
 
 impl Meta {
     pub(super) fn under(&self, scales: &Scales, words: &[&str]) -> Result<String, CliFailure> {
-        let args = std::iter::once(PROGRAM).chain(words.iter().copied()).map(String::from).collect::<Vec<_>>();
-        let actor = || OWNER.parse().map_err(CliFailure::raised::<Invalid>);
-        Request::try_from(args)
-            .and_then(|request| request.answer_from(&self.0, &ScalePolicy::from(scales.clone()), actor))
-            .map(|output| output.to_string())
+        Self::answer(&self.0, OWNER, scales, words)
     }
 }
 
@@ -43,7 +37,7 @@ const SHOWN: &str = "critical (raised from minor: offline start shows no map)";
 const UNKNOWN: &str = "blocker is not a level";
 
 #[test]
-fn a_rated_concern_is_lowered_freely_and_raised_only_with_a_scenario() {
+fn a_rated_concern_is_lowered_freely_raised_only_with_a_scenario_and_new_items_take_scale_levels() {
     let meta = Meta::default();
     let concern = meta.written(OWNER, &[&RATED_CONCERN[..], &[MAJOR]].concat());
     meta.run(OWNER, &[RATE, &concern, MINOR]).unwrap();
@@ -51,11 +45,6 @@ fn a_rated_concern_is_lowered_freely_and_raised_only_with_a_scenario() {
     let raised = meta.run(OWNER, &[&[RATE, concern.as_str(), CRITICAL][..], &SCENARIO[..]].concat()).unwrap();
     assert!(refused.contains(NEEDS_SCENARIO) && raised.contains(SHOWN));
     assert!(meta.run(OWNER, &[RATE, &concern]).is_err() && meta.run(OWNER, &[RATE, &concern, CRITICAL]).is_err());
-}
-
-#[test]
-fn a_new_item_takes_only_a_level_of_its_divisions_scale() {
-    let meta = Meta::default();
     let issue = meta.run(OWNER, &[&RATED_ISSUE[..], &[MINOR]].concat()).unwrap();
     let refused = meta.run(OWNER, &[&RATED_ISSUE[..], &["blocker"]].concat()).unwrap_err().to_string();
     assert!(issue.contains(" !minor") && refused.contains(UNKNOWN));

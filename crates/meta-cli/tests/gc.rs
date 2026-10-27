@@ -162,8 +162,10 @@ impl Git {
         };
         let heads = branches("refs/heads/", &ADDED);
         let tracking = branches("refs/remotes/origin/", &["main", MERGED, OPEN, DIRTY, BUSY, PAUSED]);
-        Self::imported(origin, &[SEED, &heads, LOG].concat());
-        Self::imported(clone, &[SEED, &heads, &tracking].concat());
+        std::thread::scope(|scope| {
+            scope.spawn(|| Self::imported(origin, &[SEED, &heads, LOG].concat()));
+            Self::imported(clone, &[SEED, &heads, &tracking].concat());
+        });
     }
 
     fn added(scene: &Scene) {

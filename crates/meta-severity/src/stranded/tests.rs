@@ -1,15 +1,9 @@
-use std::collections::BTreeMap;
-
-use meta_schema::{Division, Event, NewConcern, Record, Target};
+use meta_schema::{Event, NewConcern, Record, Target};
 use meta_state::State;
 
-use crate::{Scale, Scales, SeverityFilter};
+use crate::declared::NAV_SCALE;
+use crate::{Scales, SeverityFilter};
 
-const FINER: &str = r#"{"features-and-maintenance/nav": [
-    {"name": "lost", "meaning": "x", "parent": "critical"},
-    {"name": "slow", "meaning": "x", "parent": "major"},
-    {"name": "typo", "meaning": "x", "parent": "minor"}
-]}"#;
 const TOP: &str = "features-and-maintenance";
 const NAV: &str = "features-and-maintenance/nav";
 const LEVELS: [&str; 2] = ["critical", "retired-level"];
@@ -52,7 +46,7 @@ impl Repro {
 #[test]
 fn an_item_rated_before_a_finer_child_scale_still_counts_and_is_named() {
     let repro = Repro::rated_before_the_finer_scale();
-    let finer = Scales::try_from(serde_json::from_str::<BTreeMap<Division, Scale>>(FINER).unwrap()).unwrap();
+    let finer = Scales::declared(NAV_SCALE).unwrap();
     let counted = COUNTED.map(|(division, level)| {
         SeverityFilter::AtLevel(level.parse().unwrap()).open(&finer, &division.parse().unwrap(), &repro.state)
     });
@@ -70,7 +64,7 @@ fn an_item_rated_on_its_parents_scale_counts_there_above_and_at_the_most_severe_
         NewConcern::new(OFFLINE.parse().unwrap(), TOP.parse().unwrap(), None, vec![]).rated(SLOW.parse().unwrap());
     let item = Target::Concern(concern.concern());
     let state = State::fold(&[Record::new(TOP.parse().unwrap(), Event::ConcernIdentified(concern))]);
-    let deeper = Scales::try_from(serde_json::from_str::<BTreeMap<Division, Scale>>(DEEPER).unwrap()).unwrap();
+    let deeper = Scales::declared(DEEPER).unwrap();
     let counted = DEEPER_COUNTED.map(|(division, level)| {
         SeverityFilter::AtLevel(level.parse().unwrap()).open(&deeper, &division.parse().unwrap(), &state)
     });

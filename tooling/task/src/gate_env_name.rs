@@ -96,7 +96,11 @@ mod tests {
         };
         let named = policy_with(&ACCEPTED).unwrap();
         let shown: Vec<&str> = named.gate_env().iter().map(GateEnvName::as_str).collect();
-        assert_eq!(shown, ACCEPTED);
+        let displayed: Vec<String> = named.gate_env().iter().map(ToString::to_string).collect();
+        assert_eq!(
+            (shown, displayed),
+            (ACCEPTED.to_vec(), ACCEPTED.map(str::to_owned).to_vec())
+        );
         assert!(
             policy_with(&[ACCEPTED[0], REFUSED[0]]).is_err()
                 && Policy::defaults().gate_env().is_empty()

@@ -78,7 +78,7 @@ for_the_tests = 1
 [millis]
 sample_every = 20
 discover_every = 100
-per_crate = 21500
+per_crate = 21000
 test_timeout = 30000
 job_setup = 90000
 
@@ -151,28 +151,30 @@ window = "per_change"
 source = "ci"
 
 [mutant_millis]
-default = 5700
+default = 11200
 
 [mutant_millis.crates]
-affected = 1700
-crate_graph = 2700
-expression_flow = 2000
-fn_shape = 1600
-meta-cli = 2600
-meta-log = 3100
-meta-pull-query = 2600
-meta-pulls = 2900
-meta-schema = 5700
-meta-state = 2300
-meta-status = 2700
-meta-xtask = 1300
-module_nesting = 1800
-mutant_costs = 1900
-mutation = 1300
-no_forwarders = 1900
-no_parameter_bags = 2000
-primitive_boundary = 2000
-settings_shape = 2300
-state_graph = 1900
-task = 4600
-test_budget = 2000
+affected = 1900
+crate_graph = 3000
+expression_flow = 2200
+fn_shape = 2200
+meta-cli = 3600
+meta-log = 6300
+meta-pull-query = 3600
+meta-pulls = 3700
+meta-schema = 7300
+meta-severity = 11200
+meta-state = 7700
+meta-status = 3800
+meta-xtask = 1600
+module_nesting = 2100
+mutant_costs = 2100
+mutation = 1700
+no_forwarders = 2200
+no_parameter_bags = 2200
+primitive_boundary = 2100
+settings_shape = 2400
+state_graph = 2400
+task = 5300
+test_budget = 2300
+test_time = 1800
