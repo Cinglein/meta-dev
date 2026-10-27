@@ -1,4 +1,5 @@
 mod identity;
+mod monitor_settings;
 
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -8,6 +9,7 @@ use serde::Deserialize;
 use super::local_file::LocalFile;
 use crate::request::cli_failure::{CliFailure, Setup};
 use identity::Identity;
+pub use monitor_settings::{Cause, CoreShare, MonitorSettings, SparedName};
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -16,6 +18,8 @@ pub struct LocalSettings {
     worktree_root: Option<PathBuf>,
     #[serde(default)]
     identity: Option<Identity>,
+    #[serde(default)]
+    monitor: toml::Table,
 }
 
 impl LocalSettings {
@@ -35,6 +39,11 @@ impl LocalSettings {
             },
             |root| checkout.join(root),
         )
+    }
+
+    pub fn monitor(&self, checkout: &Path) -> Result<MonitorSettings, CliFailure> {
+        MonitorSettings::merged(self.monitor.clone(), checkout)
+            .map_err(|failure| CliFailure::raised::<Setup>(format!("{} [monitor]: {failure}", Self::FILE)))
     }
 
     pub fn identity(&self) -> Result<&Identity, CliFailure> {

@@ -17,7 +17,7 @@ use meta_state::State;
 use meta_status::Status;
 
 use super::local_file::LocalFile;
-use super::local_settings::LocalSettings;
+use super::local_settings::{LocalSettings, MonitorSettings};
 use super::local_trail::LocalTrail;
 use super::recorded_worktree::RecordedWorktree;
 use super::sweep::Sweep;
@@ -57,6 +57,10 @@ impl LocalClone {
 
     pub fn git_dir(&self) -> &GitDir {
         &self.git_dir
+    }
+
+    pub fn monitor_settings(&self) -> Result<MonitorSettings, CliFailure> {
+        self.settings()?.monitor(&self.checkout)
     }
 
     pub fn claimed(&self, project: &Project, claim: Claim, actor: Actor) -> Result<Output, CliFailure> {

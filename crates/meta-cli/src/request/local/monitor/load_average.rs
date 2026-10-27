@@ -1,0 +1,31 @@
+use std::str::FromStr;
+
+use super::unreadable::Unreadable;
+use crate::request::local::local_settings::CoreShare;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LoadAverage(CoreShare);
+
+impl LoadAverage {
+    const MARK: &'static str = "load average";
+    const FIFTEEN_MINUTE_INDEX: usize = 2;
+
+    pub fn cores(self) -> CoreShare {
+        self.0
+    }
+}
+
+impl FromStr for LoadAverage {
+    type Err = Unreadable;
+
+    fn from_str(uptime: &str) -> Result<Self, Self::Err> {
+        let (_, averages) =
+            uptime.rsplit_once(Self::MARK).and_then(|(_, tail)| tail.split_once(':')).ok_or(Unreadable)?;
+        let figure = averages
+            .split([' ', ','])
+            .filter(|figure| !figure.trim().is_empty())
+            .nth(Self::FIFTEEN_MINUTE_INDEX)
+            .ok_or(Unreadable)?;
+        figure.parse().map(Self).map_err(|_| Unreadable)
+    }
+}

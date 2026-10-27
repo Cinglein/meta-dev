@@ -16,6 +16,7 @@ mod writing;
 
 use std::path::PathBuf;
 
+use chrono::Utc;
 use meta_listing::{Kind, Scope};
 use meta_log::LogStore;
 use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, TaskRef};
@@ -25,7 +26,7 @@ use cli_failure::{CliFailure, Invalid, Misuse, Setup};
 use heartbeat::Heartbeat;
 use hook::HookEvent;
 use live_github::LiveGithub;
-use local::{LocalClone, Sweep};
+use local::{LocalClone, Monitor, Sweep};
 use meta_severity::Scales;
 use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
@@ -48,6 +49,7 @@ pub enum Request {
     Status(StatusView),
     Hook(HookEvent),
     Heartbeat(Heartbeat),
+    Monitor(Monitor),
     WatchCi(SessionId, Commit),
     WaitCi(SessionId),
     CiLog(SessionId),
@@ -125,6 +127,7 @@ impl TryFrom<Vec<String>> for Request {
             "status" => Ok(Self::Status(parsed.allowing(&[OptionName::Flags])?.view())),
             "hook" => Ok(Self::Hook(parsed.allowing(&[])?.text()?.to_string().parse()?)),
             "heartbeat" => Ok(Self::Heartbeat(parsed.allowing(&[])?.text()?.to_string().parse()?)),
+            "monitor" => Ok(Self::Monitor(parsed.allowing(&[])?.text()?.to_string().parse()?)),
             "ci-watch" => parsed.allowing(&[])?.session_and_commit(Self::WatchCi),
             "ci-wait" => Self::session().map(Self::WaitCi),
             "ci-log" => Self::session().map(Self::CiLog),
@@ -150,9 +153,17 @@ impl Request {
             Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
             Self::WaitCi(session) => Watcher::wait(project, &session),
             Self::CiLog(session) => FailureLog::excerpt(project, &session),
-            Self::Status(view) => view.answer(&project.log()?, &ScalePolicy::read(project.root())?, |query| {
-                LiveGithub::for_project(project).read(query)
-            }),
+            Self::Status(view) => {
+                let local = match view {
+                    StatusView::Flags => Monitor::recent(&LocalClone::try_from(project)?, Utc::now())?,
+                    StatusView::Tree => None,
+                };
+                let answered = view.answer(&project.log()?, &ScalePolicy::read(project.root())?, |query| {
+                    LiveGithub::for_project(project).read(query)
+                })?;
+                Ok(answered.raised_with(local))
+            }
+            Self::Monitor(command) => command.answer(&LocalClone::try_from(project)?),
             Self::ClaimWorktree(claim) => LocalClone::try_from(project)?.claimed(project, claim, Self::actor()?),
             Self::Worktrees => LocalClone::try_from(project)?.worktrees(project),
             Self::Gc(sweep) => LocalClone::try_from(project)?.collected(project, sweep),
@@ -183,6 +194,7 @@ impl Request {
             Self::Wait(block) => Self::Write(Event::TaskBlocked(block)).answer_from(log, scales, actor),
             Self::Hook(_)
             | Self::Heartbeat(_)
+            | Self::Monitor(_)
             | Self::WatchCi(..)
             | Self::WaitCi(_)
             | Self::CiLog(_)

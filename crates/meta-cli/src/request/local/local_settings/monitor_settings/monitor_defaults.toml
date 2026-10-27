@@ -1,0 +1,10 @@
+roots = []
+spared = ["claude", "Claude.app"]
+orphan_seconds = 600
+cpu_seconds = 3600
+wall_seconds = 28800
+grace_seconds = 5
+probe_seconds = 20
+recent_seconds = 3600
+load_percent_of_cores = 150
+agent_cpu_percent = 400

@@ -12,7 +12,7 @@ use std::str::FromStr;
 use chrono::Utc;
 
 use crate::request::cli_failure::{CliFailure, Misuse, Setup};
-use crate::request::local::LocalClone;
+use crate::request::local::{LocalClone, Monitor};
 use crate::request::output::{Listed, Output};
 use crate::request::project::{HeartbeatSettings, Project};
 pub use gc_hook::GcHook;
@@ -61,6 +61,7 @@ impl Heartbeat {
         let clone = LocalClone::try_from(project)?;
         match self {
             Self::Tick => {
+                Monitor::Tick.answer(&clone)?;
                 let ticked = Tick::supervised(Self::inner(project, Self::TICK_RUN)?, settings.tick_limit());
                 let gc = GcHook::supervised(
                     Self::inner(project, Self::GC_RUN)?,
@@ -75,7 +76,11 @@ impl Heartbeat {
                 || Ok(Output::Listed(Listed::new(Self::DISABLED))),
                 |sweep| clone.collected(project, sweep),
             ),
-            Self::Flags => LatestFlags::answer(clone.git_dir().as_ref(), &settings, Utc::now()),
+            Self::Flags => {
+                let now = Utc::now();
+                let flags = LatestFlags::answer(clone.git_dir().as_ref(), &settings, now)?;
+                Ok(flags.raised_with(Monitor::recent(&clone, now)?))
+            }
             Self::Plist => Self::plist(&clone, &settings),
         }
     }
