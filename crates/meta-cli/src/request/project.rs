@@ -36,7 +36,7 @@ impl Project {
         &self.config
     }
 
-    pub fn push_current_branch(&self) -> Option<Result<Commit, Listed>> {
+    pub fn push_failure(&self) -> Option<Listed> {
         let remote = self.config.remote().ok()?.to_string();
         let unprotected = self.unprotected_branch()?;
         let pushed = Command::new("git")
@@ -45,14 +45,8 @@ impl Project {
             .args(["push", "--quiet", "-u", &remote, &unprotected.to_string()])
             .output()
             .ok()?;
-        let head = Command::new("git").arg("-C").arg(&self.root).args(["rev-parse", "HEAD"]).output().ok()?;
-        Some(if pushed.status.success() {
-            String::from_utf8_lossy(&head.stdout).parse().map_err(|never| match never {})
-        } else {
-            Err(Listed::new(format!(
-                "push of {unprotected} failed: {}",
-                String::from_utf8_lossy(&pushed.stderr).trim()
-            )))
+        (!pushed.status.success()).then(|| {
+            Listed::new(format!("push of {unprotected} failed: {}", String::from_utf8_lossy(&pushed.stderr).trim()))
         })
     }
 
@@ -88,7 +82,7 @@ impl Project {
         Ok(listed.lines().filter_map(|line| line.parse().ok()).collect())
     }
 
-    pub fn pushed_tips(&self, commits: &[Commit], heads: &[Commit]) -> Vec<Commit> {
+    pub fn pushed_among(&self, commits: &[Commit], heads: &[Commit]) -> Vec<Commit> {
         let remote = commits.first().and_then(|_| self.config.remote().ok());
         let listed = commits.iter().map(Commit::argument);
         let ahead = remote.map(|remote| {
@@ -97,9 +91,12 @@ impl Project {
             not.chain(heads.iter().map(Commit::argument))
         });
         let unpushed: Option<Vec<Commit>> = ahead.and_then(|words| self.git_lines(words));
-        let pushed: Vec<Commit> = unpushed.map_or_else(Vec::new, |unpushed| {
+        unpushed.map_or_else(Vec::new, |unpushed| {
             commits.iter().filter(|commit| !unpushed.contains(commit)).cloned().collect()
-        });
+        })
+    }
+
+    pub fn independent_tips(&self, pushed: Vec<Commit>) -> Vec<Commit> {
         let independent = [OsString::from("merge-base"), OsString::from("--independent")];
         let tips = pushed.get(1).map(|_| independent.into_iter().chain(pushed.iter().map(Commit::argument)));
         tips.and_then(|words| self.git_lines(words)).unwrap_or(pushed)

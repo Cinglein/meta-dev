@@ -110,8 +110,7 @@ impl HookEvent {
     }
 
     fn after_push(project: &Project, input: &HookInput) -> Option<Listed> {
-        let failure =
-            input.command()?.runs(Self::COMMIT).and_then(|()| project.push_current_branch()).and_then(Result::err);
+        let failure = input.command()?.runs(Self::COMMIT).and_then(|()| project.push_failure());
         failure.or(input.session().and_then(|session| Watcher::watch_all(project, session).err()))
     }
 }

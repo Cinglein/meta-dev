@@ -6,6 +6,10 @@ use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
+#[path = "support/skeleton.rs"]
+mod skeleton;
+use skeleton::Skeleton;
+
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const MERGED: &str = "task-00000000000000a1";
 const OPEN: &str = "task-00000000000000a2";
@@ -15,6 +19,16 @@ const GONE: &str = "task-00000000000000a5";
 const RECORDED: [&str; 5] = [MERGED, OPEN, DIRTY, BUSY, GONE];
 const ADDED: [&str; 4] = [MERGED, OPEN, DIRTY, BUSY];
 const STRAY: &str = "stray";
+const SEED: &str = "commit refs/heads/main
+committer t <t@meta.invalid> 1700000000 +0000
+data 4
+seed
+M 100644 inline meta.toml
+data <<END
+remote = \"origin\"
+END
+
+";
 const LOG: &str = r#"commit refs/heads/meta/log
 committer t <t@meta.invalid> 1700000000 +0000
 data 4
@@ -129,22 +143,32 @@ impl Git {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
     }
 
-    fn logged(bare: &Path) {
+    fn imported(repo: &Path, stream: &str) {
         let mut command = Command::new("git");
-        let piped = command.arg("-C").arg(bare).args(["fast-import", "--quiet"]).stdin(Stdio::piped());
+        let piped = command.arg("-C").arg(repo).args(["fast-import", "--quiet"]).stdin(Stdio::piped());
         let mut child = piped.spawn().unwrap();
-        child.stdin.take().unwrap().write_all(LOG.as_bytes()).unwrap();
+        child.stdin.take().unwrap().write_all(stream.as_bytes()).unwrap();
         assert!(child.wait().unwrap().success());
     }
 
-    fn added(clone: &Path, trees: &Path) {
+    fn seeded(origin: &Path, clone: &Path) {
+        let branches = |prefix: &str, names: &[&str]| -> String {
+            names.iter().flat_map(|name| ["reset ", prefix, name, "\nfrom refs/heads/main\n\n"]).collect()
+        };
+        let heads = branches("refs/heads/", &ADDED);
+        let tracking = branches("refs/remotes/origin/", &["main", MERGED, OPEN, DIRTY, BUSY]);
+        Self::imported(origin, &[SEED, &heads, LOG].concat());
+        Self::imported(clone, &[SEED, &heads, &tracking].concat());
+    }
+
+    fn added(scene: &Scene) {
+        let clone = scene.clone.path();
+        let trees = scene.trees();
         let added: Vec<Output> = ADDED
             .iter()
-            .map(|task| Self::run(clone, &["worktree", "add", "-q", "-b", task, trees.join(task).to_str().unwrap()]))
+            .map(|task| Self::run(clone, &["worktree", "add", "-q", trees.join(task).to_str().unwrap(), task]))
             .collect();
         assert!(added.iter().all(|output| output.status.success()));
-        let pushed = ["push", "-q", "origin", "HEAD:refs/heads/main"].into_iter().chain(ADDED);
-        Self::run(clone, &pushed.collect::<Vec<_>>());
         Self::run(clone, &["worktree", "add", "-q", "--detach", trees.join(STRAY).to_str().unwrap()]);
     }
 }
@@ -162,12 +186,16 @@ impl Scene {
             clone: tempfile::tempdir().unwrap(),
             trees: tempfile::tempdir().unwrap(),
         };
-        Git::run(scene.origin.path(), &["init", "-q", "--bare"]);
-        Git::run(scene.clone.path(), &["init", "-q"]);
-        Git::run(scene.clone.path(), &["remote", "add", "origin", scene.origin.path().to_str().unwrap()]);
+        Skeleton::Bare.lay(scene.origin.path(), "main");
+        Skeleton::Working.lay(scene.clone.path(), "main");
+        let remote = format!(
+            "[remote \"origin\"]\n\turl = {}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n",
+            scene.origin.path().display()
+        );
+        let config = scene.clone.path().join(".git/config");
+        std::fs::write(&config, [std::fs::read_to_string(&config).unwrap(), remote].concat()).unwrap();
         std::fs::write(scene.clone.path().join("meta.toml"), CONFIG).unwrap();
-        Git::run(scene.clone.path(), &["add", "meta.toml"]);
-        Git::run(scene.clone.path(), &["commit", "-q", "-m", "seed"]);
+        std::fs::create_dir(scene.clone.path().join(".git/info")).unwrap();
         std::fs::write(scene.clone.path().join(".git/info/exclude"), EXCLUDED).unwrap();
         std::fs::write(scene.clone.path().join("meta.local.toml"), Settings(&scene.trees()).to_string()).unwrap();
         std::fs::create_dir(scene.clone.path().join("bin")).unwrap();
@@ -177,8 +205,8 @@ impl Scene {
             std::fs::metadata("/bin/sh").unwrap().permissions(),
         )
         .unwrap();
-        Git::logged(scene.origin.path());
-        Git::added(scene.clone.path(), &scene.trees());
+        Git::seeded(scene.origin.path(), scene.clone.path());
+        Git::added(&scene);
         scene.planted();
         scene
     }

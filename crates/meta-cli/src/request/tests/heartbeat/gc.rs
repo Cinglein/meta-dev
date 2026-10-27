@@ -21,7 +21,7 @@ const SHELL: &str = "sh";
 const SCRIPTS: [&str; 4] = ["echo freed x", "echo freed x", "echo broken >&2; exit 1", "sleep 2"];
 const LIMIT: Duration = Duration::from_secs(5);
 const GC_DEFAULT_FLOOR: Duration = Duration::from_secs(100);
-const LIMITS: [Duration; 4] = [LIMIT, LIMIT, LIMIT, Duration::from_millis(40)];
+const LIMITS: [Duration; 4] = [LIMIT, LIMIT, LIMIT, Duration::from_millis(10)];
 const REPORTS: [&str; 4] = [
     r#"{"Planned":"freed x\n"}"#,
     r#"{"Freed":"freed x\n"}"#,

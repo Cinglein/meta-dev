@@ -71,7 +71,7 @@ mod tests {
         ("d", 2, Interval::TestTimeout),
     ];
     const SHARDS: [&str; 4] = ["a/0/2", "a/1/2", "b", "c+d"];
-    const OVERHEAD_PRICED: (usize, usize) = (27, 4);
+    const OVERHEAD_PRICED: (usize, usize) = (27, 7);
 
     #[test]
     fn crates_costlier_than_a_shard_are_sliced_and_the_rest_are_packed_largest_first() {

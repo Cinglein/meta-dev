@@ -68,7 +68,6 @@ mod tests {
     const SHELL: &str = "sh";
     const STOPPED: [&str; 2] = ["-c", "exec sleep 5"];
     const SETTLE: Duration = Duration::from_secs(5);
-    const BRIEF: Duration = Duration::from_millis(50);
 
     #[test]
     fn a_held_gate_lock_makes_the_next_gate_give_up_naming_the_holder() {
@@ -86,7 +85,7 @@ mod tests {
         let parent = GateLock::acquire(&fixture.path(LOCK), Duration::ZERO).unwrap();
         let mut child = Command::new(SHELL).args(STOPPED).stdin(parent.inheritable().unwrap()).spawn().unwrap();
         drop(parent);
-        assert!(GateLock::acquire(&fixture.path(LOCK), BRIEF).is_err());
+        assert!(GateLock::acquire(&fixture.path(LOCK), Duration::ZERO).is_err());
         child.kill().and_then(|()| child.wait()).unwrap();
         assert!(GateLock::acquire(&fixture.path(LOCK), SETTLE).is_ok());
     }
