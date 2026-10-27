@@ -71,7 +71,7 @@ mod tests {
         ("d", 2, Interval::TestTimeout),
     ];
     const SHARDS: [&str; 4] = ["a/0/2", "a/1/2", "b", "c+d"];
-    const OVERHEAD_PRICED: (usize, usize) = (27, 7);
+    const OVERHEAD_PRICED: usize = 27;
 
     #[test]
     fn crates_costlier_than_a_shard_are_sliced_and_the_rest_are_packed_largest_first() {
@@ -94,7 +94,7 @@ mod tests {
     #[test]
     fn every_slice_pays_the_crate_overhead_and_still_fits_the_target() {
         let policy = Policy::defaults();
-        let (mutants, slices) = OVERHEAD_PRICED;
+        let mutants = OVERHEAD_PRICED;
         let each = policy.interval(Interval::PerCrate);
         let load = CrateLoad::new(
             PR_SEVEN_CRATE.parse().unwrap(),
@@ -103,11 +103,9 @@ mod tests {
             &policy,
         );
         let shards = Packing::shards(&[load], &policy, Interval::DiffJob);
-        assert_eq!(shards.len(), slices);
-        assert!(
-            each.plus(each.times(mutants.div_ceil(slices)))
-                <= Packing::target(&policy, Interval::DiffJob)
-        );
+        let target = Packing::target(&policy, Interval::DiffJob);
+        let paid = |slices: usize| each.plus(each.times(mutants.div_ceil(slices)));
+        assert!(paid(shards.len()) <= target && paid(shards.len() - 1) > target);
     }
 
     #[test]

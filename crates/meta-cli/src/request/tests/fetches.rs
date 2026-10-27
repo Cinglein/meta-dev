@@ -2,11 +2,9 @@ use std::cell::RefCell;
 
 use meta_log::{LogFailure, LogStore, MemoryLog, Snapshot};
 use meta_schema::Record;
+use meta_severity::Scales;
 
-use super::{OPEN_DASHED, OWNER, PROGRAM};
-use crate::request::Request;
-use crate::request::cli_failure::{CliFailure, Invalid};
-use crate::request::scale_policy::ScalePolicy;
+use super::{Meta, OPEN_DASHED, OWNER};
 
 #[derive(Debug, PartialEq, Eq)]
 enum Call {
@@ -37,12 +35,7 @@ impl LogStore for Counted {
 
 impl Counted {
     fn write(&self, words: &[&str]) {
-        let args = std::iter::once(PROGRAM).chain(words.iter().copied()).map(String::from).collect::<Vec<_>>();
-        let actor = || OWNER.parse().map_err(CliFailure::raised::<Invalid>);
-        Request::try_from(args)
-            .and_then(|request| request.answer_from(self, &ScalePolicy::default(), actor))
-            .map(|_| ())
-            .unwrap();
+        Meta::answer(self, OWNER, &Scales::default(), words).unwrap();
     }
 }
 

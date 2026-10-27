@@ -1,4 +1,6 @@
 mod carrying;
+#[cfg(test)]
+mod declared;
 mod demotion;
 mod demotions;
 mod level;

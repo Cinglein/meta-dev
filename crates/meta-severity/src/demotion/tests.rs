@@ -1,9 +1,7 @@
-use std::collections::BTreeMap;
-
-use meta_schema::{Division, Event, NewConcern, Record, Target};
+use meta_schema::{Event, NewConcern, Record, Target};
 use meta_state::State;
 
-use crate::{Scale, Scales};
+use crate::Scales;
 
 const TOP: &str = "features-and-maintenance";
 const PAY: &str = "features-and-maintenance/pay";
@@ -79,16 +77,13 @@ const ITEM: &str = "ITEM";
 struct Case;
 
 impl Case {
-    fn scales(json: &str) -> Scales {
-        Scales::try_from(serde_json::from_str::<BTreeMap<Division, Scale>>(json).unwrap()).unwrap()
-    }
-
     fn shown(division: &str, level: &str, before: &str, now: &str) -> String {
         let concern = NewConcern::new(division.parse().unwrap(), TOP.parse().unwrap(), None, vec![])
             .rated(level.parse().unwrap());
         let item = Target::Concern(concern.concern()).to_string();
         let state = State::fold(&[Record::new(TOP.parse().unwrap(), Event::ConcernIdentified(concern))]);
-        Self::scales(now).demotions_from(&Self::scales(before), &state).to_string().replace(&item, ITEM)
+        let [before, now] = [before, now].map(|json| Scales::declared(json).unwrap());
+        now.demotions_from(&before, &state).to_string().replace(&item, ITEM)
     }
 }
 
