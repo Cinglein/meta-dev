@@ -75,11 +75,6 @@ impl Budget {
     }
 
     #[must_use]
-    pub fn source(&self) -> Source {
-        self.source
-    }
-
-    #[must_use]
     pub fn tolerance(&self) -> Option<Percent> {
         self.tolerance
     }

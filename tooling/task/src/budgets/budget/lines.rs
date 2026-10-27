@@ -42,3 +42,23 @@ impl fmt::Display for Lines {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::allowance::Amount;
+    use super::super::state::State;
+    use super::Lines;
+    use crate::policy::Most;
+
+    const WARNING: usize = 6;
+    const BLOCKING: usize = 10;
+    const SPENDS: [usize; 4] = [WARNING, WARNING + 1, BLOCKING, BLOCKING + 1];
+    const STATES: [State; 4] = [State::Ok, State::Warn, State::Warn, State::Over];
+
+    #[test]
+    fn a_spend_exactly_at_a_line_stays_below_it() {
+        let count = |count: usize| Amount::Count(Most::from(count));
+        let lines = Lines::new(count(WARNING), count(BLOCKING));
+        assert_eq!(SPENDS.map(|spend| lines.state(&count(spend))), STATES);
+    }
+}
