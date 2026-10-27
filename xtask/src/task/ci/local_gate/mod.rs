@@ -43,6 +43,7 @@ use std::path::{Path, PathBuf};
 
 use task::{Branch, CommandLine, GateEnvName, GateStatus, Policy, Program, Stdout};
 
+use crate::task::ci::standing_log::StandingLog;
 use crate::task::failure::Failure;
 use crate::task::revision::Commit;
 use crate::task::surfaces::Surfaces;
@@ -99,6 +100,7 @@ impl LocalGate {
         let target = GateLock::target(&parent, &key);
         let lock = GateLock::guarding(&target, policy.gate_wait()?)?;
         let checkout = self.checkout(&parent)?;
+        let log = StandingLog::prefetched(&checkout.root(), &Policy::read(&checkout.root())?)?;
         let toolchain = checkout.toolchain()?;
         let child = GateChild::new(&parent, target, checkout.times().path().to_path_buf(), toolchain.clone())?
             .seeing(CommandLine::ambient())
@@ -108,7 +110,7 @@ impl LocalGate {
         OutsideConfig::around(checkout.above().unwrap_or(&parent), child.cargo_home())
             .and(metadata.outside(|manifest| checkout.holds(manifest)))
             .refused()?;
-        let outcome = cargo().arguments(Self::GATE).run_holding(lock.inheritable()?);
+        let outcome = cargo().arguments(Self::GATE).argument(log).run_holding(lock.inheritable()?);
         let changed = Surfaces::changed(&checkout.root(), policy.surfaces(), policy.branch(Branch::Base))?;
         changed.announce(summary)?;
         self.concluded(&checkout, outcome, &Findings::new(changed, toolchain))

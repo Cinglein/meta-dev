@@ -6,6 +6,7 @@ use super::content::Content;
 use super::fetched::Fetched;
 use super::git::Git;
 use super::sha::Sha;
+use super::tip::Tip;
 use crate::log_failure::LogFailure;
 use crate::remote_name::RemoteName;
 use crate::stderr::Stderr;
@@ -25,7 +26,16 @@ impl Remote {
     }
 
     pub fn fetch(&self) -> Result<Fetched, LogFailure> {
+        let tip = self.fetch_tip()?.sha();
+        self.blob_at(tip.as_ref()).map(|content| Fetched::new(tip, content))
+    }
+
+    pub fn fetch_tip(&self) -> Result<Tip, LogFailure> {
         Attempt::sequence().find_map(|attempt| attempt.settled(self.fetch_once())).unwrap_or(Err(LogFailure::Contended))
+    }
+
+    pub fn content_at(&self, tip: &Sha) -> Result<Content, LogFailure> {
+        self.blob_at(Some(tip))
     }
 
     pub fn push(&self, commit: &Sha) -> Result<Output, LogFailure> {
@@ -33,7 +43,7 @@ impl Remote {
         self.git.command(["push", "--quiet"]).arg(self.name.to_string()).arg(target).timed_output()
     }
 
-    fn fetch_once(&self) -> Result<Option<Fetched>, LogFailure> {
+    fn fetch_once(&self) -> Result<Option<Tip>, LogFailure> {
         let refspec = format!("+refs/heads/meta/*:refs/remotes/{}/meta/*", self.name);
         let fetched = self
             .git
@@ -42,14 +52,13 @@ impl Remote {
             .arg(refspec)
             .timed_output()?;
         if fetched.status.success() {
-            let tip = self.tracking_tip();
-            self.blob_at(tip.as_ref()).map(|content| Some(Fetched::new(tip, content)))
+            Ok(Some(Tip::new(self.tracking_tip())))
         } else {
             self.after_failed_fetch(&fetched)
         }
     }
 
-    fn after_failed_fetch(&self, fetched: &Output) -> Result<Option<Fetched>, LogFailure> {
+    fn after_failed_fetch(&self, fetched: &Output) -> Result<Option<Tip>, LogFailure> {
         let probe = self.git.command(["ls-remote"]).arg(self.name.to_string()).timed_output()?;
         probe
             .status
