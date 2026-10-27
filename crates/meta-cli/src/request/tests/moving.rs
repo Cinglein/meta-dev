@@ -1,5 +1,4 @@
 use meta_log::LogStore;
-use meta_schema::Record;
 use meta_severity::Scales;
 use meta_state::State;
 use meta_status::SeverityTally;
@@ -37,18 +36,10 @@ const REFUSED: [&str; 6] = [
 const MOVED: [&str; 4] =
     ["!y (same as x)", "!w (lowered from y)", "!slow (same as major)", "!minor (lowered from slow)"];
 
-impl Meta {
-    fn seeded(line: &str) -> Meta {
-        let meta = Meta::default();
-        let record: Record = serde_json::from_str(line).unwrap();
-        meta.0.append::<CliFailure>(&mut |_| Ok(record.clone())).unwrap();
-        meta
-    }
-}
-
 #[test]
 fn a_root_item_moves_into_a_division_then_rates_and_lists_counts_and_moves_with_it() {
-    let meta = Meta::seeded(ROOT_ISSUE);
+    let meta = Meta::default();
+    meta.0.append::<CliFailure>(&mut |_| Ok(serde_json::from_str(ROOT_ISSUE).unwrap())).unwrap();
     assert!(meta.run(OWNER, &["rate", ISSUE, "major"]).unwrap_err().to_string().contains("no scale"));
     assert!(meta.run(OWNER, &[MOVE, ISSUE, TO, DIVISION]).unwrap().contains(&format!("ItemMoved {ISSUE}")));
     meta.run(OWNER, &["rate", ISSUE, "major"]).unwrap();
