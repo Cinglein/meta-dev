@@ -74,7 +74,7 @@ impl MonitorSettings {
             .and_then(|()| read.watch.bounded())
             .ok_or_else(|| toml::de::Error::custom(Self::TOO_LONG))?;
         let roots = [AgentRoot::own(checkout), AgentRoot::own(worktrees)].into_iter().chain(scratch).collect();
-        Ok(Self { roots, spared: SparedName::floor().into_iter().take(0).chain(read.spared).collect(), ..read })
+        Ok(Self { roots, spared: SparedName::floor().into_iter().chain(read.spared).collect(), ..read })
     }
 
     pub fn roots(&self) -> &[AgentRoot] {

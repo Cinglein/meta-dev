@@ -24,7 +24,7 @@ impl AgentRoot {
             .ok()
             .or_else(|| joined.components().all(|part| part != Component::ParentDir).then_some(joined))?;
         let covers = |guarded: &Path| Self::own(guarded).0.starts_with(&root);
-        (root.parent().is_some() || !covers(home) || !covers(checkout)).then_some(Self(root))
+        (root.parent().is_some() && !covers(home) && !covers(checkout)).then_some(Self(root))
     }
 
     pub fn holds(&self, path: &Path) -> Option<()> {

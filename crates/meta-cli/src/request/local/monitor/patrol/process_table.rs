@@ -54,8 +54,8 @@ impl<'settings> ProcessTable<'settings> {
 
     fn ownership(&self, row: &ProcessRow, marked: Option<()>, near: Option<()>) -> Ownership {
         let placed = row.root(self.settings).map(|_| ());
-        let near = near.filter(|()| !self.shielded.contains(&row.pid()) || placed.is_some());
-        match (near, self.spared_above(row).filter(|_| placed.is_none()), marked.or(placed), placed, row.orphaned()) {
+        let near = near.filter(|()| !self.shielded.contains(&row.pid()));
+        match (near, self.spared_above(row), marked, placed, row.orphaned()) {
             (None, ..) | (Some(()), Some(_), None, ..) | (Some(()), None, None, _, None) => Ownership::Outside,
             (Some(()), Some(_), Some(()), ..) => Ownership::Attended,
             (Some(()), None, Some(()), Some(()), _) => Ownership::Agent,

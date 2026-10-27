@@ -1,6 +1,6 @@
 scratch = []
 spared = []
-stop = ["orphaned", "cpu-time", "wall-time"]
+stop = []
 orphan_seconds = 600
 cpu_seconds = 3600
 wall_seconds = 28800
