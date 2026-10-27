@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::env;
 use std::ffi::OsString;
 
 use task::ChangeLink;
@@ -32,10 +31,11 @@ impl RunKind {
     }
 
     pub fn link(&self) -> ChangeLink {
-        ChangeLink::new(
-            env::var(Self::NUMBER).ok().and_then(|number| number.parse().ok()),
-            env::var(Self::HEAD).ok().and_then(|branch| branch.parse().ok()),
-        )
+        let task = match self {
+            RunKind::Pull(Some(head)) => head.to_string().parse().ok(),
+            RunKind::Pull(None) | RunKind::Other => None,
+        };
+        ChangeLink::new(None, task)
     }
 
     pub fn by_kind<T, R>(&self, target: &mut T, pull: impl FnOnce(&mut T) -> R, other: impl FnOnce(&mut T) -> R) -> R {
@@ -68,10 +68,10 @@ mod tests {
 
     #[test]
     fn a_stacked_branch_and_a_local_gate_run_link_their_own_tasks_division() {
-        let line = |(id, division): (&str, &str)| RECORD.replace("ID", id).replace("DIVISION", division);
-        let records = OPENED.map(|opened| serde_json::from_str::<Record>(&line(opened)).unwrap());
-        let state = StandingLog::state(Ok(records.into_iter().fold(Snapshot::default(), Snapshot::with_record)));
-        let state = state.unwrap();
+        let record = |(id, division): (&str, &str)| RECORD.replace("ID", id).replace("DIVISION", division);
+        let records = OPENED.map(|opened| serde_json::from_str::<Record>(&record(opened)).unwrap());
+        let state =
+            StandingLog::state(Ok(records.into_iter().fold(Snapshot::default(), Snapshot::with_record))).unwrap();
         let linked = RUNS.map(|(name, value)| {
             let link = RunKind::from_ambient(&[(name.into(), value.into())].into_iter().collect()).link();
             let tasks = state.tasks().iter().filter(|task| link.links(task));

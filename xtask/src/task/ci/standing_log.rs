@@ -38,10 +38,10 @@ impl StandingLog {
         read: impl FnOnce() -> Result<Snapshot, Failure>,
         policy: &Policy,
         ledger: &mut Ledger,
-        run: &RunKind,
+        link: &ChangeLink,
     ) -> Result<(), Failure> {
         let standing =
-            ledger.reads_standing(policy).then(|| Self::standing(read(), policy.scales(), &run.link())).transpose()?;
+            ledger.reads_standing(policy).then(|| Self::standing(read(), policy.scales(), link)).transpose()?;
         ledger.count(standing);
         Ok(())
     }
@@ -73,7 +73,7 @@ impl StandingLog {
 mod tests {
     use meta_log::{LogFailure, LogStore, Snapshot};
     use settings::EmbeddedDefaults;
-    use task::{Ledger, Policy};
+    use task::{ChangeLink, Ledger, Policy};
 
     use super::{Failure, LogSource, RunKind, StandingLog};
     use crate::task::ci::stranding::Stranding;
@@ -117,7 +117,7 @@ mod tests {
         let reads: [fn() -> Result<Snapshot, Failure>; 2] =
             [|| Err(Failure::StandingLog(LogFailure::Contended)), || Ok(Snapshot::default())];
         let counted =
-            |read, policy: &Policy| StandingLog::counted(read, policy, &mut Ledger::default(), &RunKind::Other);
+            |read, policy: &Policy| StandingLog::counted(read, policy, &mut Ledger::default(), &ChangeLink::default());
         assert!(counted(reads[0], &StandingLog::policy(NOTHING)).is_ok());
         let policy = StandingLog::policy(STANDING);
         let refused = reads.map(|read| counted(read, &policy));
