@@ -39,6 +39,9 @@ const LOCAL_SETTINGS_RULE: &str = "/meta.local.toml\n";
 const NOT_A_DIRECTORY: &str = "/dev/null";
 const IGNORED: &str = "not gitignored";
 const GIT_CALL: &str = "git -C /";
+const TRACE: &str = "GIT_TRACE2_EVENT";
+const STARTED: &str = "\"event\":\"start\"";
+const READ_PROCESSES: [&str; 3] = ["ls-remote", "upload-pack", "cat-file"];
 
 #[path = "support/skeleton.rs"]
 mod skeleton;
@@ -162,6 +165,18 @@ fn writes_go_to_the_remote_as_meta_actor_else_owner_and_offline_writes_are_refus
     assert_eq!(project.meta(WRITER, &ISSUE).actor().as_deref(), Some(WRITER));
     Git::run(project.clone.path(), &NOWHERE);
     assert!(project.meta(OWNER, &ISSUE).complaint().0.contains(OFFLINE));
+}
+
+#[test]
+fn a_read_of_an_unchanged_meta_log_spawns_at_most_three_git_processes() {
+    let project = Project::new();
+    let written = project.meta(OWNER, &ISSUE).written().0;
+    let trace = tempfile::NamedTempFile::new().unwrap();
+    let mut command = Command::new(META);
+    command.current_dir(project.clone.path()).args(LIST_ISSUES).env(TRACE, trace.path());
+    let listed = Run(command.output().unwrap()).to_string();
+    let started = std::fs::read_to_string(trace.path()).unwrap().matches(STARTED).count();
+    assert!(listed.contains(&written) && (1..=READ_PROCESSES.len()).contains(&started), "{started} git processes");
 }
 
 #[test]
