@@ -18,6 +18,13 @@ const COMMIT: &str = "git commit -m change";
 const STATUS: &str = "git status";
 const ALL_REFS: &str = "--all";
 const AMEND: [&str; 6] = ["commit", "-q", "--amend", "--allow-empty", "-m", "rewritten"];
+const STAGE_ALL: [&str; 2] = ["add", "-A"];
+const LEAK_COMMIT: [&str; 4] = ["commit", "-q", "-m", "leak"];
+const STAGE_AND_COMMIT: &str = "git add -A && git commit -m leak";
+const LEAK_FILE: &str = "café.txt";
+const LEAK_TEXT: &str = concat!("ok\n/tmp/", "claude-501/x\n");
+const HOME_TEXT: &str = "WORKDIR /home/app\n/home/runner/x\n";
+const HELD_REASON: &str = "café.txt:2: scratch path";
 const FOREIGN_IDENTITY: &str = "[user]\n\tname = someone\n\temail = someone@example.com\n";
 const NOREPLY_IDENTITY: &str = "[user]\n\tname = someone\n\temail = 1+someone@users.noreply.github.com\n";
 const GIT_CONFIG: &str = ".git/config";
@@ -25,11 +32,7 @@ const BARE_CONFIG: &str = "config";
 const ELSEWHERE: &str = "ELSEWHERE";
 const FOREIGN_REASON: &str = "someone@example.com is not noreply; git config user.name";
 const UNRESOLVED_REASON: &str = "cannot resolve the commit directory";
-const LEAK_FILE: &str = "leak.txt";
-const LEAK_TEXT: &str = concat!("/private/tmp/", "claude-501/x\n");
-const STAGED_REASON: &str = "leak.txt:1: scratch path in a staged line";
-const REFUSED_COMMITS: [(&str, &str); 5] = [
-    ("git commit -m change", STAGED_REASON),
+const REFUSED_COMMITS: [(&str, &str); 4] = [
     ("cd ELSEWHERE && git commit --amend --no-edit", FOREIGN_REASON),
     ("git commit -m change", FOREIGN_REASON),
     ("git commit -m x && git -C ELSEWHERE commit -m y", FOREIGN_REASON),
@@ -140,9 +143,7 @@ fn pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_whereve
     Git::configure(&elsewhere.join(BARE_CONFIG), FOREIGN_IDENTITY);
     let push = repo.hook(PRE, PUSH, home);
     assert!(repo.hook(PRE, MERGE, home).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
-    std::fs::write(home.join(LEAK_FILE), LEAK_TEXT).unwrap();
-    Git::run(home, &["add", LEAK_FILE]);
-    let commits = REFUSED_COMMITS.into_iter().zip([home, home, elsewhere, home, home]);
+    let commits = REFUSED_COMMITS.into_iter().zip([home, elsewhere, home, home]);
     let shown = commits.map(|((command, reason), cwd)| (repo.hook(PRE, command, cwd), format!("{DENY}{reason}")));
     assert!(shown.into_iter().all(|(shown, refused)| shown.contains(&refused)));
     assert_eq!(repo.hook(PRE, ALLOWED, home), "");
@@ -154,8 +155,15 @@ fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
     let home = repo.clone.path();
     repo.hook(POST, COMMIT, home);
     Git::run(repo.clone.path(), &NEW_FEATURE);
+    std::fs::write(home.join(LEAK_FILE), LEAK_TEXT).unwrap();
+    Git::run(home, &STAGE_ALL);
+    Git::run(home, &LEAK_COMMIT);
     repo.hook(POST, STATUS, home);
-    assert_eq!(Git::head(repo.origin.path(), ALL_REFS), Revision(String::new()));
+    let held = repo.hook(POST, STAGE_AND_COMMIT, home);
+    assert!(held.contains(HELD_REASON) && Git::head(repo.origin.path(), ALL_REFS) == Revision(String::new()));
+    std::fs::write(home.join(LEAK_FILE), HOME_TEXT).unwrap();
+    Git::run(home, &STAGE_ALL);
+    Git::run(home, &AMEND);
     repo.hook(POST, COMMIT, home);
     assert_eq!(Git::head(repo.origin.path(), FEATURE_BRANCH), Git::head(repo.clone.path(), HEAD));
     Git::run(repo.clone.path(), &AMEND);
