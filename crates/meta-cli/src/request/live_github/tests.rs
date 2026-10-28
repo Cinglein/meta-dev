@@ -30,7 +30,7 @@ const NEXT_PAGE: &str = "-f\nafter=c1\n";
 const HEADED: &str = "pr\nlist\n--head\nfeature\n--json\nnumber,isCrossRepository\n--jq\n.[] | select(.isCrossRepository | not) | .number\n";
 const SHOWN: &str = "flags:\norphan #3: open, no task\norphan #4: open, no task\norphan #5: open, no task\n";
 const SIGHTS: [&str; 3] = ["open required pending", "merged no checks", "open no checks"];
-const GONE_PROTECTION: &str = "\nrepos/{owner}/{repo}/branches/gone\n";
+const GONE: &str = "branches/gone";
 const REASONS: [(&str, &str); 3] = [
     ("down", "unknown github: HTTP 502: Bad Gateway"),
     ("garbage", "unknown github: reply not JSON: not json"),
@@ -77,7 +77,7 @@ fn one_graphql_call_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_
     assert!(shown == SHOWN && fake.asked("partial").starts_with(ASKED));
     let asked = fake.asked("partial");
     assert!(asked.contains(&format!("\n{RULES}{CLASSIC}")) && asked.ends_with(HEADED) && asked.contains(NEXT_PAGE));
-    assert!(asked.contains("rules/branches/gone") && !asked.contains(GONE_PROTECTION));
+    assert!(!asked.contains(GONE));
     assert_eq!(["3", "40", "5"].map(|number| read.sight(number.parse().unwrap()).to_string()), SIGHTS);
     assert_eq!(pulls, ["7", "8"].map(|number| number.parse().unwrap()));
 }
