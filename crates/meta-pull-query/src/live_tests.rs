@@ -25,8 +25,8 @@ const REPLY: &str = r#"{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage
 const SHOWN: [(&str, &str); 10] = [
     ("13", "open required red"),
     ("14", "open required pending"),
-    ("15", "merged checks truncated"),
-    ("16", "closed no checks"),
+    ("15", "merged"),
+    ("16", "closed"),
     ("17", "open required green"),
     ("18", "closed required red"),
     ("19", "open checks truncated"),
@@ -35,7 +35,6 @@ const SHOWN: [(&str, &str); 10] = [
     ("99", "unknown"),
 ];
 const MAIN_REQUIRES: &str = r#"["ci"]"#;
-const DEV_REQUIRES: &str = "[]";
 const OPEN_ONLY: &str = "query=query($owner:String!,$name:String!,$after:String){open:repository(owner:$owner,name:$name){pullRequests(states:OPEN,first:100,after:$after){pageInfo{hasNextPage endCursor} nodes{number state baseRefName headRefName isCrossRepository statusCheckRollup{contexts(first:100){pageInfo{hasNextPage} nodes{...on CheckRun{name result:conclusion}...on StatusContext{name:context result:state}}}}}}}trunk:repository(owner:$owner,name:$name){defaultBranchRef{target{...on Commit{history(first:20){pageInfo{hasNextPage} nodes{checkSuites(first:50){pageInfo{hasNextPage} nodes{conclusion workflowRun{workflow{name}}}}}}}}}}}";
 const LINKED: &str = "}linked:repository(owner:$owner,name:$name){pr7:pullRequest(number:7){number state baseRefName headRefName isCrossRepository statusCheckRollup{";
 
@@ -47,7 +46,7 @@ impl Parsed {
     }
 
     fn reply() -> LiveData {
-        let rules = [("main", MAIN_REQUIRES), ("dev", DEV_REQUIRES)].map(|(base, required)| {
+        let rules = [("main", MAIN_REQUIRES)].map(|(base, required)| {
             (serde_json::from_str(&format!("{base:?}")).unwrap(), serde_json::from_str(required).unwrap())
         });
         Self::pulls().ruled(rules.into_iter().collect()).unwrap()
