@@ -1,0 +1,24 @@
+unknown command `bogus`
+usage: meta <command> [options] [--] [words]
+  concern <text> --division <path> [--source <text>] [--tag acceptance-candidate] [--severity <level>]
+  issue <text> --division <path> [--severity <level>]
+  rate <concern-id|issue-id> <level> [--scenario <text>]   (levels: the division's scale in tooling/policy.toml; raising needs the reproduction or failure scenario)
+  move <concern-id|issue-id> --division <path> [--severity <level> [--scenario <text>]]   (division: a top division or one in tooling/policy.toml; levels compare where they roll up: the level is kept only if it rolls up the same, else give --severity; a lower roll-up is free, a higher one needs --scenario)
+  open <text> --division <path> [--addresses <concern-id|issue-id>]... [--effort <tokens>] [--due <rfc3339>]
+  claim <task-id> [--from <actor>] [--worktree]   (assigns you; several may hold a task; --worktree: new worktree on branch <task-id>, prints its path)
+  worktrees   (this clone's worktrees: task status, missing, unrecorded)
+  gc [--dry-run]   (frees recorded worktrees whose pr is merged or closed or whose task stalled, once all work is on the remote and nothing has them open)
+  gc restore <quarantine>   (puts a stranded quarantine's file modes back, unlocks it and moves it home)
+  release <task-id>   (unassigns you)
+  done|reopen <task-id>
+  wait <task-id> --on <issue-id|task-id|review|ci|merge> | resume <task-id>
+  link <task-id> <pr-number>
+  retire <id> <reason>   (won't do; keeps the entry)
+  correct <id> <text>   (replaces the entry's text)
+  list [tasks|issues|concerns] [--all]
+  status [--flags]   (divisions down to tasks, live PR and CI; --flags: flags only, exit 1 if any)
+  heartbeat tick|flags|plist   (tick: one timed run of status, writes the local snapshot, prints new flags, exit 1 if any needs judgement | flags: latest snapshot and age, stale is a flag | plist: launchd job for this clone, printed only)
+  monitor tick|report   (tick: reports this project's processes, obvious and watch tiers, into the local record, exit 1 if anything is obvious; stops nothing unless meta.local.toml [monitor] stop lists a class; also runs on heartbeat tick | report: the latest report)
+  hook session-start|pre-tool-use|post-tool-use|stop   (Claude Code hook JSON on stdin)
+  ci-wait | ci-log   (this session's CI: wait for failure or completion | failed step output)
+actor: $META_ACTOR, else owner
