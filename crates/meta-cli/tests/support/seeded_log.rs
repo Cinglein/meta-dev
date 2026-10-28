@@ -5,17 +5,21 @@ use std::process::{Command, Stdio};
 
 pub const TASK: &str = "task-00000000000000a1";
 
-pub struct SeededLog<'lines>(&'lines [&'lines str]);
+pub struct SeededLog(Vec<&'static str>);
 
-impl SeededLog<'static> {
-    pub const CLAIMED: Self = Self(&[
+impl SeededLog {
+    const EVENTS: [&'static str; 3] = [
         r#"{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"SchemaVersion","version":2}"#,
         r#"{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskOpened","task":"task-00000000000000a1","text":"x","division":"features-and-maintenance"}"#,
         r#"{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskClaimed","task":"task-00000000000000a1"}"#,
-    ]);
-}
+    ];
 
-impl SeededLog<'_> {
+    pub fn through(kind: &str) -> Self {
+        let tag = format!("\"kind\":\"{kind}\"");
+        let last = Self::EVENTS.iter().position(|event| event.contains(&tag)).map_or(Self::EVENTS.len(), |at| at + 1);
+        Self(Self::EVENTS.iter().take(last).copied().collect())
+    }
+
     pub fn plant(&self, bare: &Path) {
         let mut command = Command::new("git");
         let mut child =
@@ -25,7 +29,7 @@ impl SeededLog<'_> {
     }
 }
 
-impl fmt::Display for SeededLog<'_> {
+impl fmt::Display for SeededLog {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let events = [self.0.join("\n"), String::new()].join("\n");
         write!(

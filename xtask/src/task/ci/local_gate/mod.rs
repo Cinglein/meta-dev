@@ -38,10 +38,10 @@ use status_description::StatusDescription;
 use toolchain::Toolchain;
 use worktrees::Worktrees;
 
-use std::collections::BTreeSet;
 use std::env;
 use std::path::{Path, PathBuf};
 
+use meta_run::GitArgv;
 use meta_schema::PullRequest;
 
 use task::{Branch, CommandLine, GateEnvName, GateStatus, Policy, Program, Stdout};
@@ -50,7 +50,7 @@ use crate::task::ci::head_branch::HeadBranch;
 use crate::task::ci::run_kind::RunKind;
 use crate::task::ci::standing_log::StandingLog;
 use crate::task::failure::Failure;
-use crate::task::revision::Commit;
+use crate::task::revision::{Commit, GitReads};
 use crate::task::surfaces::Surfaces;
 use status_argument::StatusArgument;
 
@@ -64,11 +64,6 @@ pub struct LocalGate {
 
 impl LocalGate {
     pub const TIMES: &str = "META_GATE_TIMES";
-    const CHANGES: [&str; 3] = ["status", "--porcelain", "--untracked-files=all"];
-    const PUSHED: [&str; 4] = ["branch", "--remotes", "--contains", "HEAD"];
-    const HEAD: [&str; 2] = ["rev-parse", "HEAD"];
-    const TIPS: [&str; 4] = ["branch", "--remotes", "--format=%(refname:lstrip=3)", "--points-at"];
-    const REMOTE_HEAD: &str = "HEAD";
     const POST: [&str; 4] = ["api", "--method", "POST", "--silent"];
     const PULLS: [&str; 9] = ["pr", "list", "--state", "open", "--json", "number", "--jq", ".[].number", "--head"];
     const GATE: [&str; 2] = ["xtask", "ci"];
@@ -88,12 +83,10 @@ impl LocalGate {
     }
 
     pub fn ready(&self) -> Result<Commit, Failure> {
-        let git = |arguments: &[&str]| Self::git(&self.root).arguments(arguments).captured::<Stdout>();
-        match (git(&Self::CHANGES)?.is_empty(), git(&Self::PUSHED)?.is_empty()) {
-            (false, _) => Err(Unready::Dirty.into()),
-            (true, true) => Err(Unready::Unpushed.into()),
-            (true, false) => git(&Self::HEAD)?.parse(),
-        }
+        let git = GitReads::new(&self.root);
+        let read = |call| git.read(call, GitReads::NO_OPERANDS);
+        Unready::judged(&read(GitArgv::Porcelain)?, &read(GitArgv::PushedHead)?)?;
+        read(GitArgv::Head)?.parse()
     }
 
     pub fn checkout(&self, parent: &Path) -> Result<Checkout, Failure> {
@@ -108,8 +101,10 @@ impl LocalGate {
         let target = GateLock::target(&parent, &key);
         let lock = GateLock::guarding(&target, policy.gate_wait()?)?;
         let checkout = self.checkout(&parent)?;
-        let head = self.head_branch(checkout.commit())?;
-        let number = self.open_pull(&head)?.as_ref().map(ToString::to_string).unwrap_or_default();
+        let head = HeadBranch::only(&GitReads::new(&self.root).read(GitArgv::PushedTips, [checkout.commit()])?)?;
+        let pulls = self.gh.clone().in_directory(self.root.clone()).arguments(Self::PULLS).argument(&head);
+        let number =
+            Self::open_pull(&pulls.captured::<Stdout>()?).as_ref().map(ToString::to_string).unwrap_or_default();
         let ambient = CommandLine::ambient().into_iter().chain([(RunKind::NUMBER.to_owned(), number.into())]).collect();
         let log = StandingLog::prefetched(&checkout.root())?;
         let toolchain = checkout.toolchain()?;
@@ -166,22 +161,12 @@ impl LocalGate {
         Ok(())
     }
 
-    pub fn open_pull(&self, head: &HeadBranch) -> Result<Option<PullRequest>, Failure> {
-        let line = self.gh.clone().in_directory(self.root.clone()).arguments(Self::PULLS).argument(head);
-        let listed = line.captured::<Stdout>()?;
+    pub fn open_pull(listed: &str) -> Option<PullRequest> {
         let open: Vec<&str> = listed.lines().collect();
-        Ok(match open.as_slice() {
+        match open.as_slice() {
             [only] => only.parse().ok(),
             _ => None,
-        })
-    }
-
-    pub fn head_branch(&self, commit: &Commit) -> Result<HeadBranch, Failure> {
-        let listed = Self::git(&self.root).arguments(Self::TIPS).argument(commit).captured::<Stdout>()?;
-        let names: BTreeSet<&str> = listed.lines().filter(|name| *name != Self::REMOTE_HEAD).collect();
-        let only = names.first().filter(|_| names.len() == 1).ok_or(Unready::Unnamed)?;
-        let Ok(head) = only.parse();
-        Ok(head)
+        }
     }
 
     fn git(directory: &Path) -> CommandLine {
@@ -223,11 +208,10 @@ mod tests {
     const FAILED: &str = "state=failure";
     const SURFACED: &str = "; surfaces changed\n";
     const TIMED_ALL: &str = ": fmt 1.0s, clippy 1.0s,";
-    const PUSHED_AT_HEAD: &str = "main";
-    const SECOND_PUSH: &str = ".git/refs/remotes/origin/second";
-    const LISTING: &str = "printf '7\\n'\n";
-    const LISTED: &str = "7";
-    const HEAD: &str = "HEAD";
+    const ONE_OPEN: &str = "7\n";
+    const SEVERAL_OPEN: &str = "7\n8\n";
+    const NONE_OPEN: &str = "";
+    const NUMBER: &str = "7";
 
     impl CiStep {
         fn every_step_passed() -> String {
@@ -250,20 +234,9 @@ mod tests {
     }
 
     #[test]
-    fn only_a_clean_tree_at_a_pushed_head_is_ready_and_the_judged_branch_is_the_one_pushed_at_head() {
-        let fixture = Fixture::new();
-        let gate = LocalGate::faked(&fixture);
-        let named = || gate.head_branch(&fixture.revision(HEAD).parse().unwrap());
-        let pushed = named().ok() == PUSHED_AT_HEAD.parse().ok();
-        assert!(pushed && gate.ready().is_ok() && LocalGate::METADATA.contains(&ALL_FEATURES));
-        fixture.write(SECOND_PUSH, &fixture.revision(HEAD));
-        let several = LocalGate::refused(named(), Unready::Unnamed);
-        fixture.write(FAKE_GH, LISTING);
-        let listed = gate.open_pull(&PUSHED_AT_HEAD.parse().unwrap()).unwrap() == LISTED.parse().ok();
-        fixture.write(SOURCE, BETA);
-        assert!(several && listed && LocalGate::refused(gate.ready(), Unready::Dirty));
-        fixture.committed();
-        assert!(LocalGate::refused(gate.ready(), Unready::Unpushed) && LocalGate::refused(named(), Unready::Unnamed));
+    fn only_one_open_pull_request_for_the_head_is_passed_and_metadata_reads_all_features() {
+        let found = [ONE_OPEN, SEVERAL_OPEN, NONE_OPEN].map(LocalGate::open_pull);
+        assert!(found == [NUMBER.parse().ok(), None, None] && LocalGate::METADATA.contains(&ALL_FEATURES));
     }
 
     #[test]

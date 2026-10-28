@@ -5,8 +5,9 @@ use meta_schema::{CommitId, ExternalKind, Id, Task};
 use meta_state::{State, TaskStatus};
 
 use super::session_commits::SessionCommits;
+use super::stop_view::Watched;
+use crate::request::ci::Commit;
 use crate::request::ci::ci_status::CiStatus;
-use crate::request::ci::{Commit, SessionDir};
 use crate::request::cli_failure::CliFailure;
 use crate::request::output::Listed;
 use crate::request::project::{BranchName, CiSettings, Project};
@@ -27,23 +28,29 @@ impl WaitOnCi {
 
     pub fn stop_reason(
         project: &Project,
-        dir: &SessionDir,
+        statuses: &[Watched],
         seen: &SessionCommits,
         deadline: Instant,
     ) -> Option<Listed> {
-        let commits = seen.pushed();
-        let unresolved = |commit: &Commit| dir.status_of(commit).and_then(CiStatus::unresolved);
-        commits.iter().find_map(unresolved)?;
+        statuses.iter().find_map(|watched| watched.status().and_then(CiStatus::unresolved))?;
         let budget = project.ci_settings().budget(CiSettings::ROUTINE).within(deadline);
         let attempt = || project.log(budget).and_then(|log| log.read_listed(seen.heads()).map_err(CliFailure::from));
         let read = budget.retried(attempt);
         let state = read.map(|read| State::fold(read.records()));
         let head = seen.checkout().head().and_then(Commit::commit_id);
         let branch = seen.checkout().branch().filter(|branch| project.config().protects(branch).is_none());
-        let task = branch.and_then(BranchName::task);
-        commits.iter().find_map(|commit| {
-            let what = unresolved(commit)?;
-            Self::judging(&state, commit, head.as_ref(), task).map_or_else(Some, |wait| wait.reason(what))
+        Self::verdict(&state, statuses, head.as_ref(), branch.and_then(BranchName::task))
+    }
+
+    pub fn verdict(
+        state: &Result<State, CliFailure>,
+        statuses: &[Watched],
+        head: Option<&CommitId>,
+        task: Option<Id<Task>>,
+    ) -> Option<Listed> {
+        statuses.iter().find_map(|watched| {
+            let what = watched.status().and_then(CiStatus::unresolved)?;
+            Self::judging(state, watched.commit(), head, task).map_or_else(Some, |wait| wait.reason(what))
         })
     }
 

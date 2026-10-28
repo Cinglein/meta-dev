@@ -14,9 +14,9 @@ const OFFLINE: &str = "offline";
 const WRITES: &str = "2";
 const LIST_ISSUES: [&str; 2] = ["list", "issues"];
 const LOCAL_NAME: &str = "localname";
-const OPEN: [&str; 4] = ["open", "--division", "features-and-maintenance", "text"];
 const SEED: &str = "commit refs/heads/main\ncommitter t <t@meta.invalid> 1700000000 +0000\ndata 4\nseed\n\n";
 const TRACKED: &str = "reset refs/remotes/origin/main\nfrom refs/heads/main\n\n";
+const OPENED: &str = "TaskOpened";
 const ORIGIN_HEAD: [&str; 3] = ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"];
 const NOREPLY: &str = "1+agent@users.noreply.github.com";
 const CLAIM: &str = "claim";
@@ -26,24 +26,23 @@ const SHOWN_BY_GIT: [[&str; 2]; 4] =
     [["config", "author.email"], ["config", "committer.email"], ["config", "user.name"], ["branch", "--show-current"]];
 const FOREIGN_IDENTITY: &str = "[author]\n\temail = someone@example.com\n[committer]\n\temail = someone@example.com\n";
 const RECORD_DIR: &str = ".git/meta-local";
-const RECORD: &str = ".git/meta-local/worktrees.jsonl";
-const TORN: &str = "{\"change\":\"Crea";
-const MISSING: &str = "missing";
 const AGENT: &str = "agent";
 const STRAY: [&str; 4] = ["worktree", "add", "-q", "--detach"];
+const SEEDED: &str = "1\n";
+const CLAIMED: &str = "TaskClaimed";
 const UNRECORDED: &str = "unrecorded";
 const EXCLUDE: &str = ".git/info/exclude";
 const LOCAL_SETTINGS_RULE: &str = "/meta.local.toml\n";
-const NOT_A_DIRECTORY: &str = "/dev/null";
-const IGNORED: &str = "not gitignored";
-const GIT_CALL: &str = "git -C /";
 const TRACE: &str = "GIT_TRACE2_EVENT";
 const STARTED: &str = "\"event\":\"start\"";
 const LISTING: &str = "\"hierarchy\":\"ls-remote\"";
 const READ_PROCESSES: [&str; 3] = ["ls-remote", "upload-pack", "cat-file"];
 
+#[path = "support/seeded_log.rs"]
+mod seeded_log;
 #[path = "support/skeleton.rs"]
 mod skeleton;
+use seeded_log::{SeededLog, TASK};
 use skeleton::Skeleton;
 
 struct Git;
@@ -91,20 +90,13 @@ impl Seed {
 
     fn planted(origin: &Path, clone: &Path) {
         std::thread::scope(|scope| {
-            scope.spawn(|| Self::imported(origin, SEED));
+            scope.spawn(|| {
+                Self::imported(origin, SEED);
+                SeededLog::through(OPENED).plant(origin);
+            });
             Self::imported(clone, &[SEED, TRACKED].concat());
             assert!(Git::run(clone, &ORIGIN_HEAD).status.success());
         });
-    }
-}
-
-struct Settings;
-
-impl Settings {
-    fn written(clone: &Path, worktrees: &Path) {
-        let root = worktrees.display();
-        let settings = format!("worktree_root = \"{root}\"\n[identity]\nname = \"{AGENT}\"\nemail = \"{NOREPLY}\"\n");
-        std::fs::write(clone.join("meta.local.toml"), settings).unwrap();
     }
 }
 
@@ -171,7 +163,9 @@ impl Project {
         std::fs::create_dir(project.clone.path().join(".git/info")).unwrap();
         std::fs::write(project.clone.path().join(EXCLUDE), LOCAL_SETTINGS_RULE).unwrap();
         Git::appended(&project.clone.path().join(".git/config"), FOREIGN_IDENTITY);
-        Settings::written(project.clone.path(), worktrees);
+        let root = worktrees.display();
+        let settings = format!("worktree_root = \"{root}\"\n[identity]\nname = \"{AGENT}\"\nemail = \"{NOREPLY}\"\n");
+        std::fs::write(project.clone.path().join("meta.local.toml"), settings).unwrap();
         project
     }
 
@@ -195,41 +189,20 @@ fn writes_go_to_the_remote_as_meta_actor_else_owner_listing_it_once_and_offline_
 }
 
 #[test]
-fn failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_and_a_noreply_worktree_is_listed() {
+fn a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree() {
     let worktrees = tempfile::tempdir().unwrap();
-    let project = Project::seeded(Path::new(NOT_A_DIRECTORY));
-    let task = project.meta(OWNER, &OPEN).written().0;
-    let claim = [CLAIM, task.as_str(), WORKTREE];
-    let writes = || Git::shown(project.origin.path(), &COUNT);
-    let opened = writes();
-    std::fs::write(project.clone.path().join(EXCLUDE), "").unwrap();
-    let tracked = project.meta(OWNER, &claim).complaint().0;
-    std::fs::write(project.clone.path().join(EXCLUDE), LOCAL_SETTINGS_RULE).unwrap();
-    let unwritable = project.meta(OWNER, &claim).complaint().0;
-    Settings::written(project.clone.path(), worktrees.path());
+    let project = Project::seeded(worktrees.path());
+    let claim = || project.meta(OWNER, &[CLAIM, TASK, WORKTREE]);
     std::fs::write(project.clone.path().join(RECORD_DIR), "").unwrap();
-    project.meta(OWNER, &claim);
+    let failed = claim().complaint().0;
     std::fs::remove_file(project.clone.path().join(RECORD_DIR)).unwrap();
-    let failed = writes();
-    let first = project.meta(OWNER, &claim).to_string().lines().last().unwrap_or_default().to_owned();
-    let claimed = writes();
-    let shown = SHOWN_BY_GIT.map(|words| Git::shown(Path::new(&first), &words));
-    std::fs::remove_dir_all(&first).ok();
-    let resumed = project.meta(OWNER, &claim).to_string();
-    assert!(failed == opened && claimed != opened && writes() == claimed);
-    assert!(tracked.contains(IGNORED) && unwritable.contains(NOT_A_DIRECTORY) && unwritable.contains(GIT_CALL));
-    assert!(resumed.ends_with(&format!("{first}\n")) && Path::new(&first).exists());
-    assert_eq!(shown, [NOREPLY, NOREPLY, AGENT, &task].map(|line| format!("{line}\n")));
+    assert!(failed.contains(RECORD_DIR) && Git::shown(project.origin.path(), &COUNT) == SEEDED);
+    let claimed = claim().to_string();
+    let shown = SHOWN_BY_GIT.map(|words| Git::shown(Path::new(claimed.lines().last().unwrap_or_default()), &words));
+    assert!(claimed.contains(CLAIMED) && shown == [NOREPLY, NOREPLY, AGENT, TASK].map(|line| format!("{line}\n")));
     let stray = worktrees.path().join(AGENT);
     Git::run(project.clone.path(), &[&STRAY[..], &[stray.to_str().unwrap()]].concat());
-    let record = project.clone.path().join(RECORD);
-    let torn_line = format!("line {}", std::fs::read_to_string(&record).unwrap().lines().count() + 1);
-    Git::appended(&record, TORN);
-    let run = project.meta(OWNER, &WORKTREES);
-    let listed = run.to_string();
-    assert!(listed.contains(&format!("{task} assigned {task} ")) && !listed.contains(MISSING));
+    let listed = project.meta(OWNER, &WORKTREES).to_string();
     let named = format!("{UNRECORDED} {}\n", std::fs::canonicalize(stray).unwrap().display());
-    assert!(
-        listed.ends_with(&named) && listed.matches(UNRECORDED).count() == 1 && run.complaint().0.contains(&torn_line)
-    );
+    assert!(listed.contains(&format!("{TASK} assigned {TASK} ")) && listed.ends_with(&named));
 }

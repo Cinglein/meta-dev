@@ -30,11 +30,13 @@ impl Baseline {
         let allowed = Self::read(&file.within(root))?;
         let revision = Revision::merge_base(root, base)?;
         let prior_policy = PriorPolicy::read_at(&revision)?;
-        let prior_file = prior_policy.baseline().unwrap_or(file);
-        let prior: Baseline =
-            revision.present(prior_file.path())?.map(|text| toml::from_str(&text)).transpose()?.unwrap_or_default();
-        let raised: Vec<Drift> = allowed.drifts(&prior).into_iter().filter(Drift::grew).collect();
-        if raised.is_empty() { Ok(allowed) } else { Err(Failure::Raised(Raised::new(raised))) }
+        allowed.kept(revision.present(prior_policy.baseline().unwrap_or(file).path())?.as_deref())
+    }
+
+    fn kept(self, prior: Option<&str>) -> Result<Baseline, Failure> {
+        let prior: Baseline = prior.map(toml::from_str).transpose()?.unwrap_or_default();
+        let raised: Vec<Drift> = self.drifts(&prior).into_iter().filter(Drift::grew).collect();
+        if raised.is_empty() { Ok(self) } else { Err(Failure::Raised(Raised::new(raised))) }
     }
 
     pub fn write(&self, path: &Path) -> Result<(), Failure> {
@@ -71,15 +73,14 @@ mod tests {
     use super::Baseline;
     use crate::task::failure::Failure;
     use crate::task::fixture::Fixture;
+    use crate::task::prior_policy::PriorPolicy;
     use settings::EmbeddedDefaults;
-    use task::{BaselineFile, BranchName, Policy};
+    use task::{BaselineFile, Policy};
 
     const SELF_BASELINE: &str = "self/lint-baseline.toml";
     const UNREADABLE: &str = "retired = 1\n";
     const BASELINE: &str = "lint-baseline.toml";
-    const BASE: &str = "origin/main";
     const MOVED: &str = "self/moved.toml";
-    const POLICY: &str = "tooling/policy.toml";
     const MOVED_POLICY: &str = "baseline = \"self/moved.toml\"\n";
     const ONE: &str = "crate-graph = 1\n";
     const TWO: &str = "crate-graph = 2\n";
@@ -89,19 +90,15 @@ mod tests {
 
     #[test]
     fn a_raised_baseline_is_refused_against_the_merge_base_even_after_a_move() {
-        let Ok(base) = BASE.parse::<BranchName>();
-        let fixture = Fixture::new();
-        fixture.write(BASELINE, ONE).branch();
-        fixture.write(BASELINE, TWO);
-        let admitted = Baseline::admitted(fixture.root(), &BaselineFile::from(BASELINE), &base);
-        assert_eq!(admitted.map_err(|failure| failure.to_string()).err().as_deref(), Some(RAISED));
-        let moved_by = |policy: &str| {
-            let moved = Fixture::new();
-            moved.write(POLICY, policy).write(MOVED, TWO).branch();
-            Baseline::admitted(moved.write(BASELINE, TWO).root(), &BaselineFile::from(BASELINE), &base).is_ok()
-        };
+        let two = || toml::from_str::<Baseline>(TWO).unwrap();
+        let raised = two().kept(Some(ONE)).map_err(|failure| failure.to_string());
+        assert!(raised.err().as_deref() == Some(RAISED) && two().kept(Some(TWO)).is_ok() && two().kept(None).is_err());
         let budgeted = Policy::DEFAULTS.replace(SELF_BASELINE, MOVED);
-        assert!(moved_by(MOVED_POLICY) && moved_by(&budgeted) && moved_by(&format!("{UNREADABLE}{budgeted}")));
+        let moved = [MOVED_POLICY, &budgeted, &format!("{UNREADABLE}{budgeted}")].map(|policy| {
+            let prior: PriorPolicy = toml::from_str(policy).unwrap();
+            prior.baseline().unwrap_or(&BaselineFile::from(BASELINE)) == &BaselineFile::from(MOVED)
+        });
+        assert!(moved.iter().all(|moved| *moved));
     }
 
     #[test]

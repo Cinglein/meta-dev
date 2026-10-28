@@ -1,0 +1,3 @@
+[[step]]
+record = "toplevel"
+git = { call = "show-toplevel" }
