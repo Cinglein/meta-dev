@@ -40,16 +40,16 @@ impl FromStr for MissedList {
 mod tests {
     use super::MissedList;
     #[test]
-    fn a_missing_list_is_empty_and_a_written_one_counts_its_lines() {
+    fn a_missing_list_fails_closed_and_a_written_one_counts_its_lines() {
         let output = std::env::temp_dir().join(format!("meta-missed-{}", std::process::id()));
-        let absent = MissedList::in_output(&output).unwrap();
         std::fs::create_dir_all(output.join(MissedList::FILE)).unwrap();
         let unreadable = MissedList::in_output(&output).is_err();
         std::fs::remove_dir(output.join(MissedList::FILE)).unwrap();
+        let absent = MissedList::in_output(&output).is_err();
         std::fs::write(output.join(MissedList::FILE), "a.rs:1:1: delete x").unwrap();
         let present = MissedList::in_output(&output).unwrap();
         std::fs::remove_dir_all(&output).unwrap();
         let Ok(blank) = " \n\n".parse::<MissedList>();
-        assert!(absent.is_empty() && unreadable && !present.is_empty() && blank.is_empty());
+        assert!(absent && unreadable && !present.is_empty() && blank.is_empty());
     }
 }

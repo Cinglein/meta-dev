@@ -63,7 +63,7 @@ mod tests {
     const JSON: &str = r#"["log/0/2","schema+state"]"#;
 
     #[test]
-    fn a_full_plan_lists_mutants_only_when_the_cadence_names_the_trigger() {
+    fn a_full_plan_lists_mutants_only_when_due_and_prints_its_shards_as_a_json_array_for_the_matrix() {
         let policy = Policy::defaults();
         let lister = || CommandLine::new(Program::Executable(FAILING.into()));
         let skipped = ShardPlan::full(lister(), &policy, None).map(|plan| plan.to_string());
@@ -71,12 +71,8 @@ mod tests {
             skipped.is_ok_and(|plan| plan == EMPTY)
                 && ShardPlan::full(lister(), &policy, Some(FullRun::OnDemand)).is_err()
         );
-    }
-
-    #[test]
-    fn a_plan_prints_its_shards_as_a_json_array_for_the_workflow_matrix() {
         let plan = ShardPlan(SHARDS.iter().map(|shard| shard.parse().unwrap()).collect());
-        assert_eq!((plan.to_string(), ShardPlan(Vec::new()).to_string()), (JSON.to_owned(), String::from("[]")));
+        assert_eq!(plan.to_string(), JSON);
     }
 
     #[test]

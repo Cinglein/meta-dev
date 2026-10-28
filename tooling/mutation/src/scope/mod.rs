@@ -79,7 +79,16 @@ impl Scope {
             .argument(CargoArgument::Mutants)
             .argument(MutantsArgument::InDiff)
             .argument(workspace.target().path().join(Self::DIFF_FILE).display());
-        Ok(Packing::shards(&CrateLoad::listed(listing, policy, Interval::DiffJob)?, policy, Interval::DiffJob))
+        let shards =
+            Packing::shards(&CrateLoad::listed(listing, policy, Interval::DiffJob)?, policy, Interval::DiffJob);
+        let tested = TestedCrates::collect(&workspace.source_files()?);
+        shards
+            .iter()
+            .flat_map(Shard::runs)
+            .map(|run| TestPackages::around(&run, workspace.packages(), &tested))
+            .collect::<TestPackages>()
+            .passes_baseline(workspace.line(Program::Cargo).argument(CargoArgument::Test))?;
+        Ok(shards)
     }
 
     fn shard_runs(
