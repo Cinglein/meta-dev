@@ -1,0 +1,7 @@
+Ok(
+    GitPaths(
+        [
+            "lint-baseline.toml",
+        ],
+    ),
+)
