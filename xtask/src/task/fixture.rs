@@ -1,6 +1,7 @@
 use std::fs;
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use tempfile::TempDir;
 
@@ -75,30 +76,25 @@ impl Fixture {
         })
     }
 
-    pub fn commit(&self, emails: [&str; 2]) -> &Fixture {
-        self.run_as(emails, &["commit", "--quiet", "--allow-empty", "-m", "fixture"]);
+    pub fn criss_cross(&self, main: [&str; 2], side: [&str; 2], head: [&str; 2]) -> &Fixture {
+        let commit = |branch: &str, mark: &str, [author, committer]: [&str; 2], parents: &str| {
+            format!(
+                "commit {branch}\nmark :{mark}\nauthor fixture <{author}> 1700000000 +0000\ncommitter fixture <{committer}> 1700000000 +0000\ndata 8\nfixture\n{parents}\n"
+            )
+        };
+        let stream = [
+            commit("refs/remotes/origin/main", "1", main, "from refs/remotes/origin/main^0\n"),
+            commit("refs/heads/change", "2", side, "from refs/heads/change^0\n"),
+            commit("refs/heads/change", "3", side, "from :2\nmerge :1\n"),
+            commit("refs/remotes/origin/main", "4", main, "from :2\nmerge :1\n"),
+            commit("refs/heads/change", "5", head, "from :3\n"),
+        ]
+        .concat();
+        let mut child =
+            Self::git(&self.work).args(["fast-import", "--quiet"]).stdin(Stdio::piped()).spawn().expect("run git");
+        child.stdin.take().expect("stdin").write_all(stream.as_bytes()).expect("write stream");
+        child.wait().expect("wait git").success().then_some(()).expect("git succeeds");
         self
-    }
-
-    pub fn criss_cross(&self, main: [&str; 2], side: [&str; 2]) -> &Fixture {
-        let first = self.commit(side).run_as(main, &["commit-tree", "HEAD^{tree}", "-p", "HEAD^", "-m", "main"]);
-        self.run_as(side, &["merge", "--quiet", "--no-edit", &first]);
-        let second = self.run_as(main, &["commit-tree", "HEAD^{tree}", "-p", "HEAD^1", "-p", &first, "-m", "main"]);
-        self.run_as(main, &["update-ref", "refs/remotes/origin/main", &second]);
-        self
-    }
-
-    fn run_as(&self, [author, committer]: [&str; 2], args: &[&str]) -> String {
-        let output = Self::git(&self.work)
-            .env("GIT_AUTHOR_NAME", "fixture")
-            .env("GIT_COMMITTER_NAME", "fixture")
-            .env("GIT_AUTHOR_EMAIL", author)
-            .env("GIT_COMMITTER_EMAIL", committer)
-            .args(args)
-            .output()
-            .expect("run git");
-        output.status.success().then_some(()).expect("git succeeds");
-        String::from_utf8_lossy(&output.stdout).trim().to_owned()
     }
 
     pub fn write(&self, path: &str, text: &str) -> &Fixture {
