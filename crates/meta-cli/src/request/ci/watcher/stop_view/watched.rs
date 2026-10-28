@@ -19,4 +19,8 @@ impl Watched {
     pub fn status(&self) -> Option<CiStatus> {
         self.status
     }
+
+    pub fn restarted(&self) -> Option<&Commit> {
+        self.status.and_then(CiStatus::finished).map_or(Some(&self.commit), |_| None)
+    }
 }

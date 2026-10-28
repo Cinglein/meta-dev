@@ -67,6 +67,10 @@ record = "independent"
 git = { call = "independent-tips", operands = ["0535038a5657a4872055f5ca2aa4ae04f811e419", "35f3121103217e323172c65bc2941330453b4be0", "c3d2fcde5f8b6fb687879d74ce45f40c0faafc2d"] }
 
 [[step]]
+record = "loose-object"
+git = { call = "git-path", operands = ["objects/f2/e83b47f04f1aadaaf72b9d15074e933a513dc6"] }
+
+[[step]]
 run = ["git", "checkout", "--quiet", "--detach"]
 
 [[step]]

@@ -1,3 +1,6 @@
+use std::path::Path;
+use std::time::{Duration, UNIX_EPOCH};
+
 use meta_golden::{Goldens, Recording};
 use meta_log::RemoteHeads;
 use meta_run::GitArgv;
@@ -17,6 +20,7 @@ const CREATED: [&str; 6] = [
 const BEFORE: &str = "1699999999999999999";
 const SAME_SECOND: &str = "1700000000000000000";
 const AFTER: &str = "1700000001000000000";
+const GIT_DIR: &str = ".git";
 const PUSHED_BY_HEADS: [&str; 3] = [CREATED[2], CREATED[4], CREATED[5]];
 const INDEPENDENT: [&str; 1] = [CREATED[2]];
 const TIPS: [&str; 2] = [CREATED[2], CREATED[5]];
@@ -50,10 +54,18 @@ impl Recorded {
 #[test]
 fn every_commit_made_after_the_start_counts_once_whatever_its_subject_or_dates_and_the_start_second_asks_its_object() {
     let walk = Recorded::walk();
-    let created = [BEFORE, AFTER].map(|start| Recorded::created(&walk, start, &[]));
+    let [before, after] = [BEFORE, AFTER].map(|start| Recorded::created(&walk, start, &[]));
     let same_second = Recorded::created(&walk, SAME_SECOND, &CREATED[1..2]);
-    assert_eq!(created, [Recorded::commits(&CREATED), Vec::new()]);
-    assert_eq!(same_second, Recorded::commits(&CREATED[1..2]));
+    let merged_elsewhere: Vec<ReflogEntry> = walk.iter().take(1).chain(walk.iter().skip(2)).cloned().collect();
+    let merged_elsewhere = Recorded::created(&merged_elsewhere, BEFORE, &[]);
+    let expected = [&CREATED[..], &CREATED[..0], &CREATED[1..2], &CREATED[1..]].map(Recorded::commits);
+    assert_eq!([before, after, same_second, merged_elsewhere], expected);
+    let modified = UNIX_EPOCH + Duration::from_nanos(AFTER.parse().unwrap());
+    let loose = Path::new(GIT_DIR).join(CREATED[0].parse::<Commit>().unwrap().loose_object());
+    let object = |path: &Path| (path == loose).then_some(modified);
+    let starts = [SAME_SECOND, AFTER].map(|start| start.parse::<StartMoment>().unwrap());
+    let born = starts.map(|start| start.born_after(&Recorded::outs(GitArgv::GitPath).concat(), object));
+    assert_eq!(born, [true, false]);
 }
 
 #[test]
@@ -71,11 +83,4 @@ fn commits_the_remote_holds_on_any_branch_count_as_pushed_and_only_independent_t
     assert_eq!(heads.tips::<Commit>(), Recorded::commits(&TIPS));
     let tipped: Vec<_> = tipped.map(|seen| (seen.unpushed_head().cloned(), seen.pushed().to_vec())).collect();
     assert_eq!(tipped, [(created.first().cloned(), Recorded::commits(&INDEPENDENT))]);
-}
-
-#[test]
-fn a_merge_counts_only_when_its_first_parent_was_the_head() {
-    let walk = Recorded::walk();
-    let skipped: Vec<ReflogEntry> = walk.iter().take(1).chain(walk.iter().skip(2)).cloned().collect();
-    assert_eq!(Recorded::created(&skipped, BEFORE, &[]), Recorded::commits(&CREATED[1..]));
 }

@@ -5,6 +5,7 @@ use crate::request::checkout::Checkout;
 use crate::request::ci::watcher::session_commits::SessionCommits;
 use crate::request::ci::{Commit, ci_status::CiStatus};
 use crate::request::output::Listed;
+use crate::request::remote_failure::RemoteFailure;
 
 const HEAD: &str = "f2e83b47f04f1aadaaf72b9d15074e933a513dc6";
 const OLDER: &str = "0535038a5657a4872055f5ca2aa4ae04f811e419";
@@ -51,4 +52,15 @@ fn stop_names_the_first_of_unknown_commits_unwritable_state_unpushed_head_unwatc
         Seen::judged(&all, None, &[Some(CiStatus::Passed), Some(CiStatus::TimedOut)]),
     ];
     assert_eq!(shown, SHOWN);
+}
+
+#[test]
+fn stop_restarts_the_watcher_of_every_unfinished_commit_and_a_failed_remote_url_read_is_retried() {
+    let older: Commit = OLDER.parse().unwrap();
+    let statuses = [Some(CiStatus::Running), None, Some(CiStatus::Passed), Some(CiStatus::TimedOut)];
+    let restarted = statuses.map(|status| Watched::new(older.clone(), status).restarted().cloned());
+    assert_eq!(restarted, [Some(older.clone()), Some(older), None, None]);
+    let [flaked, nameless] = [DENIED, ON_FEATURE].map(Listed::new);
+    let retried = [RemoteFailure::GitFailed(flaked.clone()), RemoteFailure::NotGithub(nameless.clone())];
+    assert_eq!(retried.map(RemoteFailure::retry), [Ok(flaked), Err(nameless)]);
 }

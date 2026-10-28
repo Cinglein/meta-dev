@@ -138,10 +138,9 @@ impl Project {
     }
 
     fn born_after(&self, commit: &Commit, start: &StartMoment, deadline: Instant) -> bool {
-        let paths: Option<Vec<PathBuf>> = self.lines(GitArgv::GitPath, [commit.loose_object()], deadline);
-        let path = paths.and_then(|paths| paths.into_iter().next()).map(|path| self.root.join(path));
-        let modified = path.and_then(|path| std::fs::metadata(path).and_then(|meta| meta.modified()).ok());
-        modified.is_some_and(|modified| start.precedes(modified))
+        let reported = Port::new(&self.root).reported(GitArgv::GitPath, [commit.loose_object()], deadline);
+        let modified = |path: &Path| std::fs::metadata(self.root.join(path)).and_then(|meta| meta.modified()).ok();
+        reported.is_ok_and(|git_path| start.born_after(&git_path.text(), modified))
     }
 
     pub fn checkout(&self, deadline: Instant) -> &Checkout {

@@ -74,7 +74,8 @@ impl Watcher {
         let statuses: Vec<Watched> = commits
             .iter()
             .map(|commit| {
-                Self::spawn(project, session, commit).ok();
+                let before = Watched::new(commit.clone(), dir.status_of(commit));
+                before.restarted().map(|commit| Self::spawn(project, session, commit).ok());
                 Watched::new(commit.clone(), dir.status_of(commit))
             })
             .collect();
