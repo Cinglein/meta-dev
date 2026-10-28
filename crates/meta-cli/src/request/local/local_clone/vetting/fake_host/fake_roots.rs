@@ -21,8 +21,8 @@ impl<'host> FakeRoots<'host> {
             arguments.iter().filter(|argument| Self::PAUSE_REFS.iter().any(|name| *argument == *name)).collect();
         let first = named.first()?;
         let held = |named: &&&OsString| self.pseudo.iter().chain(self.dangling).any(|name| **named == *name);
-        let leading = || named.iter().take_while(held).map(|_| Self::HELD).collect();
+        let listed = || named.iter().filter(held).map(|_| Self::HELD).collect();
         let alone = || Some(first).filter(held).map(|_| Self::HELD.to_owned()).ok_or(Kept::Uninspected(Cause::new("")));
-        Some(named.get(1).map_or_else(alone, |_| Ok(leading())))
+        Some(named.get(1).map_or_else(alone, |_| Ok(listed())))
     }
 }

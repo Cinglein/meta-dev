@@ -41,7 +41,15 @@ impl Link {
     const ALTERNATES: &'static str = "objects/info/alternates";
     const MODULES: &'static str = "modules";
     const PAUSED_DIRS: [&'static str; 3] = ["rebase-merge", "rebase-apply", "sequencer"];
-    const PAUSED_REFS: [&'static str; 4] = ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD"];
+    const MERGING: &'static str = "MERGE_HEAD";
+    const PAUSED_ROOTS: [&'static str; 6] = [
+        "for-each-ref",
+        "--include-root-refs",
+        "--format=%(refname)",
+        "CHERRY_PICK_HEAD",
+        "REVERT_HEAD",
+        "REBASE_HEAD",
+    ];
     const CONFIG: &'static str = "config.worktree";
     const REFTABLE: &'static str = "reftable";
     const RESOLVE: [&'static str; 2] = ["cat-file", "--batch-check=%(objectname)"];
@@ -152,7 +160,9 @@ impl Link {
         absent(&both, Self::ALTERNATES).then_some(()).ok_or(Kept::Borrowed)?;
         absent(&both, Self::MODULES).then_some(()).ok_or(Kept::Submodules)?;
         Self::PAUSED_DIRS.iter().all(|pause| absent(&[&self.git_dir], pause)).then_some(()).ok_or(Kept::Paused)?;
-        Self::PAUSED_REFS.iter().all(|name| !self.names(host, name)).then_some(()).ok_or(Kept::Paused)?;
+        (!self.names(host, Self::MERGING)).then_some(()).ok_or(Kept::Paused)?;
+        let roots = self.git(host, Scope::Worktree, &Self::PAUSED_ROOTS.map(OsStr::new))?;
+        roots.lines().next().is_none().then_some(()).ok_or(Kept::Paused)?;
         let Ok(config) = host.text(&self.git_dir.join(Self::CONFIG)).unwrap_or_default().parse::<WorktreeConfig>();
         config.unredirected()
     }
