@@ -17,7 +17,7 @@ const FAKE_GH: &str = r#"#!/bin/sh
 d="$FAKE_GH_DIR"; s="$FAKE_GH_SCENARIO"
 read -r now 2>/dev/null < "$d/clock"; echo "$now" >> "$d/calls"
 case "$s" in hang) exec sleep 5 ;; frozen) echo 0 > "$d/clock"; exec sleep 5 ;; esac
-[ "$3 $4" = "--job 11" ] && exec cat "$d/bin/failed.log"
+[ "$4 $5" = "--job 11" ] && exec cat "$d/bin/failed.log"
 read -r n 2>/dev/null < "$d/count" || n=0; n=$((n + 1)); echo "$n" > "$d/count"
 read -r head < "$d/bin/head"
 events="$d/.git/meta-ci/ABCDEF1234/events"
@@ -31,7 +31,7 @@ runs="{\"status\":\"$state\",\"conclusion\":$result,\"workflowRun\":{},\"checkRu
 case "$*" in *appId:15368*) ;; *) foreign=; i=0; while [ "$i" -lt 20 ]; do foreign="$foreign{\"status\":\"COMPLETED\",\"conclusion\":\"SUCCESS\"},"; i=$((i + 1)); done; runs="${foreign%,}" ;; esac
 if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
 elif [ "$s" = broken ] && [ "$n" -gt 5 ]; then echo 'HTTP 401: Bad credentials' >&2; exit 1
-elif [ "$s" = none ] || [ "$4" != "sha=$head" ]; then runs=
+elif [ "$s" = none ] || [ "$8" != "sha=$head" ]; then runs=
 elif [ "$s" = late ] && { ! grep -q "no run yet" "$events" || grep -q "run appeared" "$events"; }; then runs=
 fi
 past='{"checkSuites":{"nodes":[{"status":"COMPLETED","workflowRun":{},"createdAt":"2026-10-27T10:00:00Z","updatedAt":"2026-10-27T10:04:00Z"}]}}'

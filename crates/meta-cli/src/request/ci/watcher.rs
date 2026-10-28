@@ -104,7 +104,7 @@ impl Watcher {
         settled.map_or(Ok(()), |status| Err(CliFailure::raised::<Invalid>(format!("already {status}"))))?;
         let settings = project.ci_settings();
         let clock = WatchClock::start(settings);
-        let gh = Gh::new(settings, project.root().to_path_buf(), clock.deadline());
+        let gh = Gh::new(settings, project.root(), clock.deadline());
         let waits = settings.poll_schedule().waits(dir.expected());
         let remote = Remote::default();
         let watcher = Self { dir, commit, gh, clock, settings: settings.clone(), appeared: OnceCell::new() };

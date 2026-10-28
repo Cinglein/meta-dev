@@ -2,7 +2,7 @@ use std::path::Path;
 use std::str::FromStr;
 use std::time::Instant;
 
-use meta_run::{Run, RunFailure};
+use meta_run::{GitArgv, Port, Unread};
 use meta_schema::Email;
 
 use crate::request::output::Listed;
@@ -24,13 +24,13 @@ impl Identity {
         })
     }
 
-    fn foreign_in(directory: &Path, deadline: Instant) -> Result<Option<Identity>, RunFailure> {
-        let shown = Self::IDENTS.iter().map(|ident| Run::git(directory).args(["var", ident]).ran(deadline));
-        let foreign =
-            shown.into_iter().find_map(|shown| match shown.map(|shown| shown.stdout().text().parse::<Identity>()) {
-                Ok(Ok(identity)) => (!identity.0.noreply()).then_some(Ok(identity)),
-                Err(failure) => Some(Err(failure)),
-            });
+    fn foreign_in(directory: &Path, deadline: Instant) -> Result<Option<Identity>, Unread> {
+        let git = Port::new(directory);
+        let shown = Self::IDENTS.iter().map(|ident| git.reported(GitArgv::Var, [ident], deadline));
+        let foreign = shown.into_iter().find_map(|shown| match shown.map(|shown| shown.text().parse::<Identity>()) {
+            Ok(Ok(identity)) => (!identity.0.noreply()).then_some(Ok(identity)),
+            Err(failure) => Some(Err(failure)),
+        });
         foreign.transpose()
     }
 

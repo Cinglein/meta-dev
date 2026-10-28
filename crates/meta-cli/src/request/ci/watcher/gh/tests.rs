@@ -35,7 +35,7 @@ impl Fixture {
     }
 
     fn excerpt(&self) -> String {
-        let gh = Gh::new(&self.settings, self.dir.path().to_path_buf(), Instant::now() + WITHIN);
+        let gh = Gh::new(&self.settings, self.dir.path(), Instant::now() + WITHIN);
         let Ok(commit): Result<Commit, _> = COMMIT.parse();
         gh.failed_excerpt(&URL.parse::<Repository>().unwrap(), &[commit], self.settings.log_window()).to_string()
     }

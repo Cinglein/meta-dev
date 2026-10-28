@@ -3,6 +3,8 @@ use std::io;
 use thiserror::Error;
 
 use crate::command_line::CommandLine;
+use crate::stderr::Stderr;
+use crate::unread::Unread;
 
 #[derive(Debug, Error)]
 pub enum RunFailure {
@@ -16,4 +18,14 @@ pub enum RunFailure {
     Interrupted(CommandLine),
     #[error("{complaint}")]
     Failed { line: CommandLine, complaint: String },
+}
+
+impl From<RunFailure> for Unread {
+    fn from(failure: RunFailure) -> Self {
+        match failure {
+            RunFailure::Failed { complaint, .. } => Self::Failed(Stderr::said(complaint)),
+            RunFailure::Unspawned { line, source } => Self::Unspawned(line, source.kind()),
+            RunFailure::TimedOut(line) | RunFailure::Expired(line) | RunFailure::Interrupted(line) => Self::Late(line),
+        }
+    }
 }

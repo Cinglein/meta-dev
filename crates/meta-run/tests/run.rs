@@ -65,8 +65,18 @@ impl Scripted {
 fn a_run_feeds_its_input_returns_both_streams_and_leads_its_own_group() {
     let ran = Scripted::shell(FED).fed(SHOWN[0].to_owned()).ran(Instant::now() + PATIENT).unwrap();
     assert!(!ran.success() && ran.stdout().text() == SHOWN[0] && ran.stderr().to_string() == SHOWN[1]);
-    assert_eq!(ran.succeeded().unwrap_err().to_string(), COMPLAINT);
-    assert_eq!(Scripted::shell(LEADS).stdout(Instant::now() + PATIENT).unwrap(), LEADER);
+    let reported = Scripted::shell(FED).fed(SHOWN[0].to_owned()).reported(Instant::now() + PATIENT);
+    let complained = |shown: String| shown == COMPLAINT;
+    assert!(
+        ran.succeeded().is_err_and(|ran| complained(ran.to_string()))
+            && reported.is_err_and(|unread| complained(unread.to_string()))
+    );
+    let led = Scripted::shell(LEADS).reported(Instant::now() + PATIENT).map(|out| out.text().into_owned());
+    assert!(
+        [led.ok(), Scripted::shell(LEADS).stdout(Instant::now() + PATIENT).ok()]
+            .iter()
+            .all(|led| led.as_deref() == Some(LEADER))
+    );
 }
 
 #[test]

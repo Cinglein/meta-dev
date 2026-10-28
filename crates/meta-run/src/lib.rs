@@ -2,17 +2,28 @@ mod budget;
 mod command_line;
 mod env_policy;
 mod environment;
+mod gh_argv;
+mod git_argv;
+mod port;
 mod ran;
 mod run;
 mod run_failure;
 mod stderr;
 mod stdout;
+mod tool;
+mod unread;
 
 pub use budget::Budget;
 pub use command_line::CommandLine;
 pub use env_policy::EnvPolicy;
 pub use environment::Environment;
+pub use gh_argv::GhArgv;
+pub use git_argv::GitArgv;
+pub use port::Port;
 pub use ran::Ran;
 pub use run::Run;
 pub use run_failure::RunFailure;
 pub use stderr::Stderr;
+pub use unread::Unread;
+
+pub type Reported = Result<stdout::Stdout, Unread>;

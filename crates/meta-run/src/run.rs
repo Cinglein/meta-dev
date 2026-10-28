@@ -11,6 +11,7 @@ use std::process::{Child, Command, ExitCode, ExitStatus, Stdio};
 use std::sync::mpsc::{Receiver, channel};
 use std::time::{Duration, Instant};
 
+use crate::Reported;
 use crate::command_line::CommandLine;
 use crate::env_policy::EnvPolicy;
 use crate::environment::Environment;
@@ -18,6 +19,7 @@ use crate::ran::Ran;
 use crate::run_failure::RunFailure;
 use crate::stderr::Stderr;
 use crate::stdout::Stdout;
+use crate::unread::Unread;
 use group::Group;
 use interrupts::Interrupts;
 use placement::Placement;
@@ -32,7 +34,7 @@ pub struct Run {
 impl Run {
     const GIT: &'static str = "git";
     const DIRECTORY: &'static str = "-C";
-    const NO_PROMPT: [&'static str; 2] = ["GIT_TERMINAL_PROMPT", "0"];
+    pub(crate) const NO_PROMPT: [&'static str; 2] = ["GIT_TERMINAL_PROMPT", "0"];
     const FIRST_PAUSE: Duration = Duration::from_micros(10);
     const LONGEST_PAUSE: Duration = Duration::from_millis(5);
 
@@ -149,6 +151,11 @@ impl Run {
 
     pub fn stdout(self, deadline: Instant) -> Result<String, RunFailure> {
         self.ran(deadline)?.succeeded()
+    }
+
+    pub fn reported(self, deadline: Instant) -> Reported {
+        let ran = self.ran(deadline)?;
+        if ran.success() { Ok(ran.into_stdout()) } else { Err(Unread::Failed(ran.stderr().clone())) }
     }
 
     pub fn detached(mut self) -> Result<(), RunFailure> {
