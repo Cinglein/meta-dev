@@ -8,7 +8,7 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
 use super::Run;
-use group_id::GroupId;
+pub(super) use group_id::GroupId;
 
 static LIVE: Mutex<BTreeMap<GroupId, Duration>> = Mutex::new(BTreeMap::new());
 static CLOSING: AtomicBool = AtomicBool::new(false);
