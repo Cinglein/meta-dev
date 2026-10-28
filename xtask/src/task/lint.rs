@@ -109,7 +109,7 @@ mod tests {
     fn every_commit_off_the_base_branch_has_noreply_author_and_committer_emails() {
         let fixture = Fixture::new();
         fixture.write(BASELINE, "").branch();
-        fixture.criss_cross([MAIN, MAIN], [NOREPLY, WEB_COMMITTER]).commit([AUTHOR, COMMITTER]);
+        fixture.criss_cross([MAIN, MAIN], [NOREPLY, WEB_COMMITTER], [AUTHOR, COMMITTER]);
         let refused = Lint::run(fixture.root(), &[], &Policy::defaults(), &mut Ledger::default());
         assert_eq!(refused.map_err(|failure| failure.to_string()).err().as_deref(), Some(FOREIGN));
     }
