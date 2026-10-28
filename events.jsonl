@@ -1054,3 +1054,4 @@
 {"at":"2026-10-28T15:50:41.458139Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-d6c0f2359586dfac","text":"A rule, not a problem: mis-filed as a concern; goes into the spec via task-5161aac2."}
 {"at":"2026-10-28T15:50:43.430204Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-8b16d0f9ba747004","text":"A rule, not a problem: mis-filed as a concern; goes into the spec via task-5161aac2."}
 {"at":"2026-10-28T15:50:45.830240Z","actor":"claude-lead","kind":"EntryRetired","entry":"issue-def2fd90374d56eb","text":"A deferral record, not a problem; tracked on the roadmap and revisited at gix 1.0."}
+{"at":"2026-10-28T15:50:48.874302Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-5161aac2f95e5fde","text":"Concurrency child division under P&C; spec rules (in-app first, loom-means-architecture-audit); heartbeat-run audit shipped to consumers, configured in policy.toml [concurrency]."}
