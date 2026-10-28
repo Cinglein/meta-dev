@@ -13,6 +13,7 @@ use crate::request::checkout::Checkout;
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
+use crate::request::remote_failure::RemoteFailure;
 use crate::request::repository::Repository;
 use crate::request::timed_command::TimedCommand;
 pub use config::{BranchName, CiSettings, Config, GcMode, HeartbeatSettings, LogWindow, ProgramName, TickLimit};
@@ -113,12 +114,16 @@ impl Project {
         heads.into_iter().next()
     }
 
-    pub fn repository(&self) -> Option<Repository> {
+    pub fn repository(&self) -> Result<Repository, RemoteFailure> {
         let deadline = self.config.ci_settings().remote_deadline();
-        let remote = OsString::from(self.config.remote().ok()?.to_string());
-        let words = [OsString::from("remote"), OsString::from("get-url"), remote];
-        let urls: Vec<Repository> = self.git_lines(words, deadline)?;
-        urls.into_iter().next()
+        let remote = self.config.remote().map_err(|failure| RemoteFailure::NotGithub(Listed::new(failure)))?;
+        let mut command = Command::new("git");
+        command.arg("-C").arg(&self.root).args(["remote", "get-url"]).arg(remote.to_string());
+        let url = TimedCommand::new(command, deadline).stdout().map_err(|failure| {
+            RemoteFailure::GitFailed(Listed::new(format!("git failed reading the remote URL: {failure}")))
+        })?;
+        let named = format!("remote URL `{}` names no GitHub owner and repository", url.trim());
+        url.lines().next().unwrap_or_default().parse().map_err(|()| RemoteFailure::NotGithub(Listed::new(named)))
     }
 
     fn git_lines<Line: FromStr>(

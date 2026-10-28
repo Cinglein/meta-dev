@@ -16,6 +16,10 @@ impl GhJobs {
         self.jobs.iter().filter(|job| job.unstarted().is_none()).find_map(GhJob::failure).map(Listed::new)
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.jobs.is_empty()
+    }
+
     pub fn unstarted(&self) -> Option<&Self> {
         self.jobs.first()?;
         self.jobs.iter().all(|job| job.unstarted().is_some()).then_some(self)

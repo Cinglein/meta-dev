@@ -2,6 +2,7 @@ mod elapsed;
 mod failure_log;
 mod gh;
 mod reach;
+mod remote;
 mod session_commits;
 mod wait_on_ci;
 mod watch_clock;
@@ -19,10 +20,12 @@ use super::session_id::SessionId;
 use crate::request::cli_failure::{CliFailure, Invalid, Setup};
 use crate::request::output::{Listed, Output};
 use crate::request::project::{CiSettings, Project};
+use crate::request::remote_failure::RemoteFailure;
 use elapsed::Elapsed;
 pub use failure_log::FailureLog;
 use gh::{Gh, Observation};
 use reach::Reach;
+use remote::Remote;
 use session_commits::SessionCommits;
 use wait_on_ci::WaitOnCi;
 use watch_clock::WatchClock;
@@ -111,26 +114,35 @@ impl Watcher {
         let settled = dir.status_of(&commit).and_then(CiStatus::finished);
         settled.map_or(Ok(()), |status| Err(CliFailure::raised::<Invalid>(format!("already {status}"))))?;
         let settings = project.config().ci_settings();
-        let repository = project.repository().ok_or_else(|| {
-            let status = CiStatus::Unchecked;
-            dir.record(format!("CI {commit}{}: {status} after 0s{}", WatchClock::mark(), status.detail())).ok();
-            dir.settle(&commit, status).ok();
-            CliFailure::raised::<Setup>("no remote URL")
-        })?;
         let clock = WatchClock::start(&settings);
-        let gh = Gh::new(&settings, project.root().to_path_buf(), clock.deadline(), repository);
+        let gh = Gh::new(&settings, project.root().to_path_buf(), clock.deadline());
         let waits = settings.poll_schedule().waits(dir.expected());
+        let remote = Remote::default();
         let watcher = Self { dir, commit, gh, clock, settings: settings.clone(), appeared: OnceCell::new() };
         let finished = waits
             .map_while(|wait| {
+                let resolved = remote.resolved(project).map_err(RemoteFailure::retry);
+                let refused = resolved.as_ref().err().and_then(|retry| retry.as_ref().err());
+                let unchecked = CiStatus::Unchecked;
+                let elapsed = Elapsed::new(watcher.clock.elapsed());
+                let stopped = refused.map(|reason| format!("{unchecked} after {elapsed}: {reason}"));
+                stopped.as_ref().map_or(Some(()), |line| {
+                    watcher.note(line, unchecked);
+                    None
+                })?;
                 watcher.clock.pause(wait, &settings)?;
-                let observed = watcher.gh.observe(&watcher.commit);
+                let repository = resolved.map_err(|retry| retry.unwrap_or_else(std::convert::identity));
+                let observed = repository.and_then(|repository| watcher.gh.observe(repository, &watcher.commit));
                 let learned = observed.as_ref().ok().and_then(Observation::expected);
                 learned.map(|expected| watcher.dir.learn(expected).ok());
                 Some(observed)
             })
             .try_fold(None, |reported, observed| watcher.step(reported, observed));
-        Ok(watcher.conclude(finished.break_value().as_ref()))
+        let unchecked = watcher.dir.status_of(&watcher.commit).filter(|status| *status == CiStatus::Unchecked);
+        unchecked.map_or_else(
+            || Ok(watcher.conclude(finished.break_value().as_ref())),
+            |_| Err(CliFailure::raised::<Setup>("remote URL names no GitHub repository")),
+        )
     }
 
     pub fn wait(project: &Project, session: &SessionId) -> Result<Output, CliFailure> {
@@ -187,7 +199,7 @@ impl Watcher {
         let absent = current.filter(|status| *status == CiStatus::Absent);
         let held = current.filter(|status| *status == CiStatus::Failed).unwrap_or(CiStatus::Running);
         let event = match observed {
-            Err(trouble) => Some((format!("gh failed: {trouble}"), held)),
+            Err(trouble) => Some((trouble.to_string(), held)),
             Ok(observed) => observed
                 .failed_job()
                 .map(|job| (format!("{job} failed; run `meta ci-log`"), CiStatus::Failed))

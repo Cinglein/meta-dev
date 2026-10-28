@@ -43,8 +43,7 @@ impl CiStatus {
         match self {
             Self::Unavailable => ": jobs never started; push a new commit to retry, then run `meta ci-wait`",
             Self::Absent => ": no run for this commit; no CI for this push",
-            Self::Unchecked => ": the remote URL names no GitHub owner and repository; fix the remote, then push again",
-            Self::Running | Self::Passed | Self::Failed | Self::TimedOut => "",
+            Self::Running | Self::Passed | Self::Failed | Self::TimedOut | Self::Unchecked => "",
         }
     }
 

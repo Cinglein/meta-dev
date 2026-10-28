@@ -93,6 +93,6 @@ fn an_unreadable_remote_settles_the_watch_unchecked_and_the_last_poll_still_ends
     let retried = repo.settled_past(&passed);
     assert!(unchecked.contains(UNCHECKED_EVENT) && stopped.contains(BLOCK) && stopped.contains(UNCHECKED_STOP));
     assert!(passed.contains(PASSED_EVENT) && retried.contains(GIT_FAILED));
-    assert!(retried.strip_prefix(passed.as_str()).is_some_and(|new| new.contains(PASSED_EVENT)));
+    assert!(retried.strip_prefix(passed.as_str()).is_some_and(|new| new.contains(PASSED_EVENT)), "{retried}");
     assert_eq!(retried.matches(UNCHECKED_EVENT).count(), 1);
 }

@@ -28,27 +28,27 @@ pub struct Gh {
     root: PathBuf,
     deadline: Instant,
     limit: Duration,
-    repository: Repository,
 }
 
 impl Gh {
     const GRAPHQL: [&'static str; 2] = ["api", "graphql"];
     const FIELD: &'static str = "-f";
-    const QUERY: &'static str = "query=query($owner:String!,$name:String!,$sha:GitObjectID!){repository(owner:$owner,name:$name){object(oid:$sha){...on Commit{checkSuites(first:20){nodes{status conclusion workflowRun{databaseId} checkRuns(first:50){nodes{databaseId name conclusion steps(first:100){nodes{name conclusion}}}}}} history(first:8){nodes{checkSuites(first:20){nodes{status conclusion workflowRun{databaseId} createdAt updatedAt}}}}}}}}";
+    const QUERY: &'static str = "query=query($owner:String!,$name:String!,$sha:GitObjectID!){repository(owner:$owner,name:$name){object(oid:$sha){...on Commit{checkSuites(first:20){nodes{status conclusion workflowRun{databaseId} checkRuns(first:100,filterBy:{conclusions:[FAILURE,CANCELLED,TIMED_OUT,STARTUP_FAILURE,ACTION_REQUIRED]}){nodes{databaseId name conclusion steps(first:100){nodes{name conclusion}}}} otherJobs:checkRuns(first:1,filterBy:{conclusions:[SUCCESS,NEUTRAL,SKIPPED,STALE]}){nodes{databaseId name}}}} history(first:8){nodes{checkSuites(first:20){nodes{status conclusion workflowRun{databaseId} createdAt updatedAt}}}}}}}}";
     const OBJECT: [&'static str; 2] = ["--jq", ".data.repository.object"];
     const VIEW_JOB: [&'static str; 3] = ["run", "view", "--job"];
     const LOG_FAILED: &'static str = "--log-failed";
+    const FAILED: &'static str = "gh failed: ";
 
-    pub fn new(settings: &CiSettings, root: PathBuf, deadline: Instant, repository: Repository) -> Self {
-        Self { program: settings.program().clone(), root, deadline, limit: settings.gh_limit(), repository }
+    pub fn new(settings: &CiSettings, root: PathBuf, deadline: Instant) -> Self {
+        Self { program: settings.program().clone(), root, deadline, limit: settings.gh_limit() }
     }
 
-    pub fn observe(&self, commit: &Commit) -> Result<Observation, Listed> {
-        let checks = self.checks(commit)?;
+    pub fn observe(&self, repository: &Repository, commit: &Commit) -> Result<Observation, Listed> {
+        let checks = self.checks(repository, commit)?;
         let suites: Vec<&GhSuite> = checks.actions();
         let runs: Vec<GhRun> = suites.iter().map(|suite| suite.run().clone()).collect();
         let jobs: Vec<&GhJobs> = suites.iter().map(|suite| suite.jobs()).collect();
-        let refused = runs.iter().zip(&jobs).try_for_each(|(run, jobs)| run.failed().and(jobs.unstarted()).map(|_| ()));
+        let refused = suites.iter().try_for_each(|suite| suite.run().failed().and(suite.unstarted()).map(|_| ()));
         let status = CiStatus::of_runs(&runs).map(|status| refused.map_or(status, |()| status.unstarted()));
         let reported = refused.map_or(jobs.as_slice(), |()| &[]);
         let failed_job = reported.iter().find_map(|jobs| jobs.first_failure());
@@ -56,10 +56,10 @@ impl Gh {
         Ok(Observation::new(failed_steps, failed_job, status, checks.expected()))
     }
 
-    pub fn failed_logs(&self, commits: &[Commit]) -> RawLog {
+    pub fn failed_logs(&self, repository: &Repository, commits: &[Commit]) -> RawLog {
         let logs: Vec<String> = commits
             .iter()
-            .filter_map(|commit| self.checks(commit).ok())
+            .filter_map(|commit| self.checks(repository, commit).ok())
             .flat_map(|checks| {
                 checks.actions().iter().flat_map(|suite| suite.jobs().failed_job_ids()).collect::<Vec<_>>()
             })
@@ -72,17 +72,21 @@ impl Gh {
         raw
     }
 
-    fn checks(&self, commit: &Commit) -> Result<CommitChecks, Listed> {
+    fn checks(&self, repository: &Repository, commit: &Commit) -> Result<CommitChecks, Listed> {
         let query = [Self::FIELD, Self::QUERY].map(OsString::from);
-        let words = Self::GRAPHQL.map(OsString::from).into_iter().chain(self.repository.variables(commit));
+        let words = Self::GRAPHQL.map(OsString::from).into_iter().chain(repository.variables(commit));
         let text = self.text(words.chain(query).chain(Self::OBJECT.map(OsString::from)))?;
-        let found: Option<CommitChecks> = serde_json::from_str(&text).map_err(Listed::new)?;
+        let found: Option<CommitChecks> = serde_json::from_str(&text).map_err(Self::failed)?;
         Ok(found.unwrap_or_default())
+    }
+
+    fn failed(trouble: impl std::fmt::Display) -> Listed {
+        Listed::new(Self::FAILED).then(trouble)
     }
 
     fn text(&self, words: impl Iterator<Item = OsString>) -> Result<String, Listed> {
         let mut command = Command::new(&self.program);
         command.args(words).current_dir(&self.root);
-        TimedCommand::new(command, self.deadline.min(Instant::now() + self.limit)).stdout()
+        TimedCommand::new(command, self.deadline.min(Instant::now() + self.limit)).stdout().map_err(Self::failed)
     }
 }
