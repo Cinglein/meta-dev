@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RunStatus {
     Queued,
     InProgress,

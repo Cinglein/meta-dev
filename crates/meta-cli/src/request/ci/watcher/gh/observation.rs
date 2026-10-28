@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::request::ci::ci_status::CiStatus;
 use crate::request::output::Listed;
 
@@ -6,11 +8,17 @@ pub struct Observation {
     failed_job: Option<Listed>,
     failed_steps: Vec<Listed>,
     status: Option<CiStatus>,
+    expected: Option<Duration>,
 }
 
 impl Observation {
-    pub fn new(failed_steps: Vec<Listed>, failed_job: Option<Listed>, status: Option<CiStatus>) -> Self {
-        Self { failed_job, failed_steps, status }
+    pub fn new(
+        failed_steps: Vec<Listed>,
+        failed_job: Option<Listed>,
+        status: Option<CiStatus>,
+        expected: Option<Duration>,
+    ) -> Self {
+        Self { failed_job, failed_steps, status, expected }
     }
 
     pub fn failed_job(&self) -> Option<&Listed> {
@@ -27,5 +35,9 @@ impl Observation {
 
     pub fn appeared(&self) -> Option<&Self> {
         self.status.map(|_| self)
+    }
+
+    pub fn expected(&self) -> Option<Duration> {
+        self.expected
     }
 }
