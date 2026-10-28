@@ -59,7 +59,7 @@ impl Project {
         let remote = self.config.remote().ok()?.to_string();
         let unprotected = self.unprotected_branch(budget.deadline())?;
         let push = self.git(["push", "--quiet", "-u", &remote, &unprotected.to_string()]);
-        match push.ran(budget.deadline()) {
+        match push.ran(budget.remaining_deadline()) {
             Ok(ran) if ran.success() => None,
             Ok(ran) => Some(Listed::new(format!("push of {unprotected} failed: {}", ran.stderr()))),
             Err(failure) => Some(Listed::new(format!("push of {unprotected} failed: {failure}"))),

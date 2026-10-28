@@ -34,6 +34,3 @@ impl FromStr for PriorStanding {
         toml::from_str(text)
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -1,0 +1,26 @@
+[
+    Some(
+        "scale features-and-maintenance/a: c maps above a more severe level",
+    ),
+    Some(
+        "budget part: its allowance is not in its measure's unit",
+    ),
+    Some(
+        "domain performance-and-cost/unit: not strictly inside its parent's domain",
+    ),
+    Some(
+        "domain performance-and-cost/unit: not strictly inside its parent's domain",
+    ),
+    Some(
+        "domain architecture-and-planning: planning has no code scopes",
+    ),
+    Some(
+        "budget lines: its measure needs tests, which its division's domain does not declare",
+    ),
+    Some(
+        "budget time: its allowance is not in its measure's unit",
+    ),
+    Some(
+        "warning line 100: must be below the blocking line at 100",
+    ),
+]
