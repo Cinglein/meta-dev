@@ -1020,3 +1020,4 @@
 {"at":"2026-10-28T15:21:05.538478Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-e010247ab85c3cfa"}
 {"at":"2026-10-28T15:21:07.280153Z","actor":"claude-lead","kind":"TaskDone","task":"task-e010247ab85c3cfa"}
 {"at":"2026-10-28T15:21:42.212325Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-5161aac2f95e5fde","text":"Concurrency child division under P&C; periodic concurrency audit run by meta's heartbeat, shipped to consumers, configured in policy.toml [concurrency] (cadence, hot paths)."}
+{"at":"2026-10-28T15:21:44.167788Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-fb059b29b586e019","text":"Concurrency registry lint, shipped to consumers via meta-xtask: threads, parallel loops, locks, retries listed with owner and reason; registry path in policy.toml."}
