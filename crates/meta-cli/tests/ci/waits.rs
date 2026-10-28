@@ -1,9 +1,10 @@
 use super::seeded_log::{SeededLog, TASK};
 use super::{
-    BLOCK, COMMIT, Calls, DEADLINE, FailingHead, Git, LAST, NEXT_COMMIT, PASSED_EVENT, POST, Planted, Repo, SHELL,
-    STOP, SUCCESS, TIMED_OUT_STOP,
+    BLOCK, COMMIT, DEADLINE, FailingHead, Git, NEXT_COMMIT, PASSED_EVENT, POST, Planted, Repo, STOP, SUCCESS,
+    TIMED_OUT_STOP,
 };
 
+const EXPECTED: &str = ".git/meta-ci/expected";
 const TIMED_OUT: &str = "timed-out";
 const CLAIMED: &str = "TaskClaimed";
 const NAMELESS: &str = "origin.git";
@@ -31,9 +32,8 @@ impl Unresolved {
 struct Counted;
 
 impl Counted {
-    const GIT: &'static str =
-        "#!/bin/sh\necho \"$3\" >> \"$FAKE_GH_DIR/git-calls\"\nPATH=\"${PATH#*:}\" exec git \"$@\"\n";
-    const FLAKY: &'static str = "#!/bin/sh\n[ \"$3\" = remote ] && [ ! -e \"$FAKE_GH_DIR/flaked\" ] && : > \"$FAKE_GH_DIR/flaked\" && echo \"fatal: simulated git failure\" >&2 && exit 1\nPATH=\"${PATH#*:}\" exec git \"$@\"\n";
+    const GIT: &'static str = "#!/bin/sh\necho \"$3\" >> \"$PWD/git-calls\"\nPATH=\"${PATH#*:}\" exec git \"$@\"\n";
+    const FLAKY: &'static str = "#!/bin/sh\n[ \"$3\" = remote ] && [ ! -e \"$PWD/flaked\" ] && : > \"$PWD/flaked\" && echo \"fatal: simulated git failure\" >&2 && exit 1\nPATH=\"${PATH#*:}\" exec git \"$@\"\n";
     const WRAPPER: &'static str = "bin/git";
     const CALLS: &'static str = "git-calls";
 
@@ -43,8 +43,9 @@ impl Counted {
 
     fn plant(repo: &Repo, script: &str) {
         let wrapper = repo.clone.path().join(Self::WRAPPER);
+        std::fs::create_dir_all(wrapper.parent().unwrap()).unwrap();
         std::fs::write(&wrapper, script).unwrap();
-        std::fs::set_permissions(&wrapper, std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
+        std::fs::set_permissions(&wrapper, std::fs::metadata(Planted::SHELL).unwrap().permissions()).unwrap();
     }
 
     fn calls(repo: &Repo) -> Vec<String> {
@@ -58,7 +59,7 @@ impl Counted {
 #[test]
 fn on_a_detached_head_a_wait_covers_only_its_head_and_a_typical_stop_lists_the_remote_once() {
     let repo = Repo::new(SUCCESS);
-    SeededLog::through(CLAIMED).plant(repo.origin.path());
+    SeededLog::through(CLAIMED).plant(&repo.origin);
     Git::run(repo.clone.path(), &DETACH);
     let unrecorded = Unresolved::pushed(&repo);
     repo.meta(&WAIT_ON_CI);
@@ -74,16 +75,16 @@ fn on_a_detached_head_a_wait_covers_only_its_head_and_a_typical_stop_lists_the_r
 
 #[test]
 fn an_unreadable_remote_settles_the_watch_unchecked_and_the_last_poll_still_ends_before_the_real_deadline() {
-    let repo = Repo::limited(LAST, DEADLINE);
-    let origin = repo.origin.path().to_str().unwrap().to_owned();
-    std::os::unix::fs::symlink(repo.origin.path(), repo.clone.path().join(NAMELESS)).unwrap();
+    let repo = Repo::limited(SUCCESS, DEADLINE);
+    let origin = repo.origin.to_str().unwrap().to_owned();
+    std::os::unix::fs::symlink(&repo.origin, repo.clone.path().join(NAMELESS)).unwrap();
     Git::run(repo.clone.path(), &["remote", "set-url", "origin", NAMELESS]);
     repo.hook(POST, COMMIT);
     let unchecked = repo.settled();
     let stopped = repo.hook(STOP, COMMIT);
     Git::run(repo.clone.path(), &["remote", "set-url", "origin", origin.as_str()]);
     Counted::plant(&repo, Counted::FLAKY);
-    std::fs::write(repo.clone.path().join(Calls::EXPECTED), FIRST_POLL).unwrap();
+    std::fs::write(repo.clone.path().join(EXPECTED), FIRST_POLL).unwrap();
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     FailingHead::copy_from(&repo, repo.clone.path());
     repo.hook(POST, COMMIT);

@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use super::{
-    BLOCK, COMMIT, CONFIG, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSHED, Planted, Repo, STALLED, STOP,
-    Session, StartFile,
+    BLOCK, COMMIT, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSHED, Planted, Repo, STALLED, STOP, Session,
+    StartFile,
 };
 
 const MINE: &str = "MINE1";
@@ -32,7 +32,7 @@ struct Reviewer;
 impl Reviewer {
     fn clone_of(repo: &Repo) -> tempfile::TempDir {
         let reviewer = tempfile::tempdir().unwrap();
-        let origin = repo.origin.path().to_str().unwrap();
+        let origin = repo.origin.to_str().unwrap();
         assert!(Git::run(reviewer.path(), &["clone", "-q", "--shared", "-b", FEATURE, origin, "."]).status.success());
         std::fs::copy(repo.clone.path().join(CONFIG_FILE), reviewer.path().join(CONFIG_FILE)).unwrap();
         reviewer
@@ -59,7 +59,7 @@ fn a_slow_remote_blocks_at_the_stop_deadline_and_a_commit_in_the_start_second_is
     Git::pushed(&repo, PUSHED);
     Planted::settled(&repo, TIMED_OUT);
     let same = Session { repo: &repo, cwd: clone, id: SAME }.hook(STOP, COMMIT);
-    std::fs::write(clone.join(CONFIG_FILE), [CONFIG, STALLED].concat()).unwrap();
+    repo.configured(STALLED);
     Git::run(clone, &SLOW_REMOTE);
     let started = std::time::Instant::now();
     let slow = repo.hook(STOP, COMMIT);

@@ -1,3 +1,23 @@
 [[step]]
 record = "failed-ci"
 gh = { call = "commit-checks", operands = ["-f", "sha=9706d1a89439887ec6312f0a98bfb1f1bb746e7a", "-f", "owner=Cinglein", "-f", "name=meta-dev"] }
+
+[[step]]
+record = "failed-test-time"
+gh = { call = "commit-checks", operands = ["-f", "sha=e6554a9caf9e41b1c37dc15dd1e6896c276cb81d", "-f", "owner=Cinglein", "-f", "name=meta-dev"] }
+
+[[step]]
+record = "failed-test-time-ci-log"
+gh = { call = "failed-log", operands = ["122967870084", "--repo", "Cinglein/meta-dev"] }
+
+[[step]]
+record = "failed-test-time-gate-log"
+gh = { call = "failed-log", operands = ["122968691863", "--repo", "Cinglein/meta-dev"] }
+
+[[step]]
+record = "passed"
+gh = { call = "commit-checks", operands = ["-f", "sha=0517805f95e8ed06ed80c08dd2624fcc86e8402a", "-f", "owner=Cinglein", "-f", "name=meta-dev"] }
+
+[[step]]
+record = "no-run"
+gh = { call = "commit-checks", operands = ["-f", "sha=45ae6b129220283516130564830df7c0e6c67fb1", "-f", "owner=Cinglein", "-f", "name=meta-dev"] }

@@ -42,7 +42,7 @@ struct Clones;
 impl Clones {
     fn made_with(repo: &Repo, options: &[&str]) -> tempfile::TempDir {
         let dir = tempfile::tempdir().unwrap();
-        let origin = repo.origin.path().to_str().unwrap();
+        let origin = repo.origin.to_str().unwrap();
         assert!(
             Git::run(dir.path(), &[["clone", "--shared"].as_slice(), options, &[origin, "."]].concat())
                 .status

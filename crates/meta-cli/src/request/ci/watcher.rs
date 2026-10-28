@@ -1,13 +1,13 @@
-mod elapsed;
 mod failure_log;
 mod gh;
+mod note;
+mod poll;
 mod reach;
 mod remote;
 mod session_commits;
 mod wait_on_ci;
 mod watch_clock;
 
-use std::cell::OnceCell;
 use std::ops::ControlFlow;
 use std::time::{Duration, Instant};
 
@@ -21,9 +21,10 @@ use crate::request::cli_failure::{CliFailure, Invalid, Setup};
 use crate::request::output::{Listed, Output};
 use crate::request::project::{CiSettings, Project};
 use crate::request::remote_failure::RemoteFailure;
-use elapsed::Elapsed;
 pub use failure_log::FailureLog;
 use gh::{Gh, Observation};
+use note::Note;
+use poll::Poll;
 use reach::Reach;
 use remote::Remote;
 use session_commits::SessionCommits;
@@ -37,12 +38,9 @@ pub struct Watcher {
     gh: Gh,
     clock: WatchClock,
     settings: CiSettings,
-    appeared: OnceCell<()>,
 }
 
 impl Watcher {
-    const NO_RUN_YET: &'static str = "no run yet; Stop stays blocked until one appears or the wait is recorded";
-    const RUN_APPEARED: &'static str = "run appeared";
     const OUT_OF_TIME: &'static str = "couldn't check CI in time; run `meta ci-wait`, then stop again";
 
     pub fn spawn(project: &Project, session: &SessionId, commit: &Commit) -> Result<(), Listed> {
@@ -93,7 +91,7 @@ impl Watcher {
         let unresolved = || seen.as_ref().ok().and_then(|seen| WaitOnCi::stop_reason(project, &dir, seen, deadline));
         let reason = unknown.or(unwritable).or(unpushed).or(unwatched).or(known).or_else(unresolved);
         let late = (Instant::now() >= deadline).then(|| Listed::new(Self::OUT_OF_TIME));
-        late.or(reason).map(|reason| Listed::new(format!("{reason}{}", WatchClock::mark())))
+        late.or(reason)
     }
 
     pub fn watch(project: &Project, session: &SessionId, commit: Commit) -> Result<Output, CliFailure> {
@@ -107,29 +105,19 @@ impl Watcher {
         let gh = Gh::new(settings, project.root(), clock.deadline());
         let waits = settings.poll_schedule().waits(dir.expected());
         let remote = Remote::default();
-        let watcher = Self { dir, commit, gh, clock, settings: settings.clone(), appeared: OnceCell::new() };
+        let watcher = Self { dir, commit, gh, clock, settings: settings.clone() };
         let finished = waits
-            .map_while(|wait| {
-                let resolved = remote.resolved(project).map_err(RemoteFailure::retry);
-                let refused = resolved.as_ref().err().and_then(|retry| retry.as_ref().err());
-                let unchecked = CiStatus::Unchecked;
-                let elapsed = Elapsed::new(watcher.clock.elapsed());
-                let stopped = refused.map(|reason| format!("{unchecked} after {elapsed}: {reason}"));
-                stopped.as_ref().map_or(Some(()), |line| {
-                    watcher.note(line, unchecked);
-                    None
-                })?;
-                watcher.clock.pause(wait, settings)?;
-                let repository = resolved.map_err(|retry| retry.unwrap_or_else(std::convert::identity));
-                let observed = repository.and_then(|repository| watcher.gh.observe(repository, &watcher.commit));
-                let learned = observed.as_ref().ok().and_then(Observation::expected);
-                learned.map(|expected| watcher.dir.learn(expected).ok());
-                Some(observed)
-            })
-            .try_fold(None, |reported, observed| watcher.step(reported, observed));
+            .map_while(|wait| watcher.poll(project, &remote, wait))
+            .try_fold(Poll::default(), |poll, observed| watcher.step(poll, observed));
         let unchecked = watcher.dir.status_of(&watcher.commit).filter(|status| *status == CiStatus::Unchecked);
         unchecked.map_or_else(
-            || Ok(watcher.conclude(finished.break_value().as_ref())),
+            || {
+                let last = finished.break_value();
+                let current = watcher.dir.status_of(&watcher.commit);
+                let concluded = Note::concluded(current, last.as_ref(), watcher.clock.elapsed());
+                watcher.note(&concluded);
+                Ok(Output::Listed(Listed::new(concluded.status())))
+            },
             |_| Err(CliFailure::raised::<Setup>("remote URL names no GitHub repository")),
         )
     }
@@ -151,83 +139,53 @@ impl Watcher {
         let clock = WatchClock::start(&settings);
         let settled = std::iter::once(Duration::ZERO)
             .chain(std::iter::repeat(settings.poll_interval().duration()))
-            .take_while(|_| clock.remaining(&settings).is_some())
+            .take_while(|_| clock.window().remaining(&settings).is_some())
             .find_map(|pause| {
                 std::thread::sleep(pause);
                 CiStatus::of_all(pushed.iter().map(|commit| dir.status_of(commit)))
             });
         let news = dir.news().map(|news| news.to_string()).unwrap_or_default();
         match settled {
-            Some(CiStatus::Passed) => Ok(Output::Listed(Listed::new(format!("{news}{clock}\n")))),
-            Some(status) => Err(CliFailure::raised::<Invalid>(format!("{news}\nCI {status}{clock}"))),
-            None => Err(CliFailure::raised::<Invalid>(format!("{news}\nCI still running; stopped waiting{clock}"))),
+            Some(CiStatus::Passed) => Ok(Output::Listed(Listed::new(format!("{news}\n")))),
+            Some(status) => Err(CliFailure::raised::<Invalid>(format!("{news}\nCI {status}"))),
+            None => Err(CliFailure::raised::<Invalid>(format!("{news}\nCI still running; stopped waiting"))),
         }
     }
 
-    fn step(
-        &self,
-        reported: Option<Listed>,
-        observed: Result<Observation, Listed>,
-    ) -> ControlFlow<Observation, Option<Listed>> {
-        let carried = self.news(reported, &observed);
+    fn poll(&self, project: &Project, remote: &Remote, wait: Duration) -> Option<Result<Observation, Listed>> {
+        let resolved = remote.resolved(project).map_err(RemoteFailure::retry);
+        let refused = resolved.as_ref().err().and_then(|retry| retry.as_ref().err());
+        let stopped = refused.map(|reason| Note::unchecked(self.clock.elapsed(), reason));
+        stopped.map_or(Some(()), |note| {
+            self.note(&note);
+            None
+        })?;
+        self.clock.pause(wait, &self.settings)?;
+        let repository = resolved.map_err(|retry| retry.unwrap_or_else(std::convert::identity));
+        let observed = repository.and_then(|repository| self.gh.observe(repository, &self.commit));
+        let learned = observed.as_ref().ok().and_then(Observation::expected);
+        learned.map(|expected| self.dir.learn(expected).ok());
+        Some(observed)
+    }
+
+    fn step(&self, poll: Poll, observed: Result<Observation, Listed>) -> ControlFlow<Observation, Poll> {
+        let overdue = self.settings.run_overdue(self.clock.elapsed());
+        let poll = poll.step(&observed, self.dir.status_of(&self.commit), overdue);
+        poll.fresh().and_then(|note| self.note(note));
         match observed.ok().filter(|observed| observed.finished().is_some()) {
             Some(observed) => ControlFlow::Break(observed),
-            None => ControlFlow::Continue(carried),
+            None => ControlFlow::Continue(poll),
         }
     }
 
-    fn news(&self, reported: Option<Listed>, observed: &Result<Observation, Listed>) -> Option<Listed> {
-        let overdue = self.settings.run_overdue(self.clock.elapsed());
-        let seen = observed
-            .as_ref()
-            .ok()
-            .and_then(Observation::appeared)
-            .and_then(|_| self.appeared.set(()).ok())
-            .or(self.appeared.get().copied());
-        let current = self.dir.status_of(&self.commit);
-        let absent = current.filter(|status| *status == CiStatus::Absent);
-        let held = current.filter(|status| *status == CiStatus::Failed).unwrap_or(CiStatus::Running);
-        let event = match observed {
-            Err(trouble) => Some((trouble.to_string(), held)),
-            Ok(observed) => observed
-                .failed_job()
-                .map(|job| (format!("{job} failed; run `meta ci-log`"), CiStatus::Failed))
-                .or(overdue.filter(|()| seen.is_none()).map(|()| (Self::NO_RUN_YET.to_owned(), CiStatus::Absent)))
-                .or(observed.appeared().and(absent).map(|_| (Self::RUN_APPEARED.to_owned(), CiStatus::Running))),
-        };
-        match event {
-            Some((line, status)) if reported.as_ref().map(ToString::to_string).as_ref() != Some(&line) => {
-                self.note(&line, status);
-                Some(Listed::new(line))
-            }
-            Some(_) | None => reported,
-        }
-    }
-
-    fn conclude(&self, last: Option<&Observation>) -> Output {
-        let current = self.dir.status_of(&self.commit);
-        let failed = current.filter(|status| *status == CiStatus::Failed);
-        let absent = current.filter(|status| *status == CiStatus::Absent);
-        let status = failed.or(last.and_then(Observation::finished)).or(absent).unwrap_or(CiStatus::TimedOut);
-        let steps: Vec<String> =
-            last.iter().flat_map(|observed| observed.failed_steps()).map(ToString::to_string).collect();
-        let failed = Some(steps.join(", "))
-            .filter(|joined| !joined.is_empty())
-            .map(|joined| format!(": {joined}; run `meta ci-log`"));
-        let elapsed = Elapsed::new(self.clock.elapsed());
-        let detail = status.detail();
-        self.note(&format!("{status} after {elapsed}{detail}{}", failed.unwrap_or_default()), status);
-        Output::Listed(Listed::new(status))
-    }
-
-    fn note(&self, line: &str, status: CiStatus) {
-        self.dir.record(format!("{self}: {line}")).ok();
-        self.dir.settle(&self.commit, status).ok();
+    fn note(&self, note: &Note) -> Option<()> {
+        self.dir.record(format!("{self}: {note}")).ok();
+        self.dir.settle(&self.commit, note.status()).ok()
     }
 }
 
 impl std::fmt::Display for Watcher {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "CI {}{}", self.commit, self.clock)
+        write!(formatter, "CI {}", self.commit)
     }
 }

@@ -400,6 +400,7 @@ dependencies = [
  "chrono",
  "meta-gh",
  "meta-git-view",
+ "meta-golden",
  "meta-listing",
  "meta-log",
  "meta-pull-query",

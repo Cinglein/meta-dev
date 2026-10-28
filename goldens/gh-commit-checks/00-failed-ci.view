@@ -1,0 +1,29 @@
+Ok(
+    Observation {
+        failed_job: Some(
+            Listed(
+                "full (meta-cli/14/32)",
+            ),
+        ),
+        failed_steps: [
+            Listed(
+                "full (meta-cli/14/32) / Run cargo xtask mutants-full",
+            ),
+            Listed(
+                "mutants-gate / Run echo '{",
+            ),
+            Listed(
+                "ci / Run cargo xtask ci ",
+            ),
+            Listed(
+                "ci-gate / Run echo '{",
+            ),
+        ],
+        status: Some(
+            Failed,
+        ),
+        expected: Some(
+            432s,
+        ),
+    },
+)

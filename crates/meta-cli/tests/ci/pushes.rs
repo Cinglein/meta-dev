@@ -23,7 +23,7 @@ fn stop_judges_every_pushed_commit_and_a_dead_watcher_restarts() {
     Git::run(repo.clone.path(), &DETACH);
     let detached = repo.hook(STOP, STATUS);
     let waited = repo.session_command(CI_WAIT).0;
-    Planted::refusal(repo.origin.path());
+    Planted::refusal(&repo.origin);
     Git::run(repo.clone.path(), &BACK);
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     repo.hook(POST, COMMIT);

@@ -1,0 +1,12 @@
+Ok(
+    Observation {
+        failed_job: None,
+        failed_steps: [],
+        status: Some(
+            Passed,
+        ),
+        expected: Some(
+            422s,
+        ),
+    },
+)
