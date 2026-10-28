@@ -63,7 +63,7 @@ impl GitDirs {
             other => real.join(other),
         };
         match (component, next.symlink_metadata()) {
-            (Component::Normal(_), Ok(meta)) if meta.is_symlink() => {
+            (Component::Normal(_), Ok(_)) => {
                 next.canonicalize().map_err(|_| io::Error::other(Refusal::Dangling { path: next }))
             }
             _ => Ok(next),
