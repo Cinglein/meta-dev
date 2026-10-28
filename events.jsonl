@@ -1241,3 +1241,4 @@
 {"at":"2026-10-28T23:52:16.450516Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-eaa07af657ae70cb","text":"Toolchain and cargo-mutants pins move to task-b8b2f42e; building xtask once in the plan job moves to the mutants cost task (task-b4b07fa7)."}
 {"at":"2026-10-28T23:53:43.981120Z","actor":"claude-pin","kind":"TaskClaimed","task":"task-b8b2f42efc054c53"}
 {"at":"2026-10-28T23:54:09.378164Z","actor":"claude-lead","kind":"TaskOpened","task":"task-9da916d370034078","text":"Tracing step 2: real waterfall: lane (thread) per span, follows_from edges for joins and waits, DAG critical path; text waterfall shows order, overlap and blockers.","division":"performance-and-cost"}
+{"at":"2026-10-28T23:54:28.110675Z","actor":"claude-pin","kind":"TaskLinked","task":"task-b8b2f42efc054c53","pr":142}
