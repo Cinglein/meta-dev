@@ -1,3 +1,5 @@
+mod process_id;
+
 use std::os::unix::process::CommandExt as _;
 use std::time::{Duration, Instant};
 
@@ -5,6 +7,7 @@ use super::Run;
 use super::group::Group;
 use crate::ran::Ran;
 use crate::run_failure::RunFailure;
+use process_id::ProcessId;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Placement {
@@ -19,7 +22,7 @@ impl Placement {
     pub fn ran(self, run: Run, deadline: Instant) -> Result<Ran, RunFailure> {
         match self {
             Self::Terminal if std::fs::File::open(Self::TERMINAL).is_ok() => {
-                run.finished(deadline, |_| Some(()), Run::alone)
+                run.finished(deadline, |_| Some(()), ProcessId::ended)
             }
             Self::Nested => Self::grouped(run, deadline, Group::SETTLE),
             Self::Own | Self::Terminal => Self::grouped(run, deadline, Group::HANDOFF),
@@ -49,20 +52,32 @@ mod tests {
     const PTY: &str = "script -qec \"$0\" /dev/null 2>/dev/null || script -q /dev/null sh -c \"$0\"";
     const CHILD: &str =
         "--exact run::placement::tests::in_a_terminal_it_shares_the_group_and_closing_refuses --ignored";
+    const HELPER: &str = "bash -c 'sleep 5 & echo $! > \"$0\"; wait' \"$0\" & wait";
+    const HELD: &str = "case \"$(ps -o stat= -p \"$(cat \"$0\")\")\" in ''|Z*) ;; *) echo held;; esac";
+    const POLL: Duration = Duration::from_millis(2);
+    const WINDOW: Duration = Duration::from_secs(1);
     const LEADER: &str = "leader";
     const PROMPT: &str = "GIT_TERMINAL_PROMPT";
     const PASSED: &str = "1 passed";
     const PATIENT: Duration = Duration::from_secs(5);
     const LIMIT: Duration = Duration::from_millis(60);
+    const MARGIN: Duration = LIMIT.saturating_mul(5);
 
     #[test]
     #[ignore = "run under a pseudo-terminal by the test below"]
     fn in_a_terminal_it_shares_the_group_and_closing_refuses() {
         let shell = |script: &str| Run::new(BASH, EnvPolicy::Inherit).args([SCRIPT, script]);
         let leads = shell(LEADS).terminal().stdout(Instant::now() + PATIENT).unwrap_or_default();
+        let helper = tempfile::NamedTempFile::new().unwrap();
+        let expired = shell(HELPER).arg(helper.path()).terminal().ran(Instant::now() + MARGIN);
+        let held = || shell(HELD).arg(helper.path()).stdout(Instant::now() + PATIENT).unwrap_or_default();
+        let until = Instant::now() + WINDOW;
+        let polls = std::iter::repeat_with(|| std::thread::sleep(POLL)).take_while(|()| Instant::now() < until);
+        let ended = matches!(expired, Err(RunFailure::TimedOut(_))) && polls.into_iter().any(|()| held().is_empty());
         Group::all_ended();
         let refused = shell(LEADS).ran(Instant::now() + PATIENT);
         assert!(!leads.is_empty() && !leads.contains(LEADER) && matches!(refused, Err(RunFailure::Interrupted(_))));
+        assert!(ended && !std::fs::read_to_string(helper.path()).unwrap_or_default().is_empty());
     }
 
     #[test]

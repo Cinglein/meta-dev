@@ -108,6 +108,8 @@ fn each_env_policy_drops_only_its_variables_and_a_budget_caps_calls_and_rests_at
     Budget::new(PATIENT).within(started + POLL).rest(PATIENT);
     let rested = started.elapsed();
     assert!((POLL..PATIENT).contains(&rested) && Budget::new(PATIENT).within(started).deadline() == started);
+    let whole = [Budget::new(POLL).within(started + PATIENT), Budget::new(PATIENT)].map(Budget::remaining_deadline);
+    assert!(whole[0] == started + PATIENT && whole[1] > started + POLL);
 }
 
 impl std::fmt::Display for Scripted {
