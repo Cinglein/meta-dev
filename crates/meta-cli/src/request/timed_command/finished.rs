@@ -15,6 +15,7 @@ pub struct Finished {
 
 impl Finished {
     const SHOWN_REPLY_LEN: usize = 40;
+    const NOT_FOUND: &'static str = "HTTP 404";
 
     pub fn new(status: ExitStatus, output: String, errors: String) -> Self {
         Self { status, output, errors }
@@ -23,6 +24,10 @@ impl Finished {
     pub fn succeeded(self) -> Result<String, Listed> {
         let complaint = self.complaint();
         self.status.success().then_some(self.output).ok_or(complaint)
+    }
+
+    pub fn not_found(&self) -> Option<()> {
+        (!self.status.success() && self.errors.contains(Self::NOT_FOUND)).then_some(())
     }
 
     pub fn verdict(&self) -> Verdict {

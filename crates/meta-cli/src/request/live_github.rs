@@ -58,23 +58,29 @@ impl LiveGithub {
         let rules: Rulebook = pulls
             .bases()
             .into_iter()
-            .map(|base| self.rules(&base).map(|required| (base, required)))
+            .map(|base| self.rules(&base, pulls.protection(&base)).map(|required| (base, required)))
             .collect::<Result<_, _>>()?;
         let data = pulls.ruled(rules).ok_or_else(|| GithubFailure::new(Self::UNRULED))?;
         Ok(data.requiring(self.workflows.clone()))
     }
 
-    fn rules(&self, base: &BaseBranch) -> Result<RequiredChecks, GithubFailure> {
-        RuleSource::ALL
-            .into_iter()
+    fn rules(&self, base: &BaseBranch, protection: Option<RuleSource>) -> Result<RequiredChecks, GithubFailure> {
+        std::iter::once(RuleSource::Rulesets)
+            .chain(protection)
             .try_fold(RequiredChecks::default(), |all, source| Ok(all.united(self.required(source, base)?)))
     }
 
     fn required(&self, source: RuleSource, base: &BaseBranch) -> Result<RequiredChecks, GithubFailure> {
         let endpoint = base.endpoint(source);
         let words = [Self::API, endpoint.as_str(), Self::FILTER, source.filter()].map(OsStr::new);
-        let printed = self.ran(words.into_iter()).and_then(Finished::succeeded).map_err(GithubFailure::new)?;
-        serde_json::from_str(&printed).map_err(GithubFailure::new)
+        let finished = self.ran(words.into_iter()).map_err(GithubFailure::new)?;
+        match (source, finished.not_found()) {
+            (RuleSource::Protection, Some(())) => Ok(RequiredChecks::default()),
+            (RuleSource::Rulesets | RuleSource::Protection, _) => {
+                let printed = finished.succeeded().map_err(GithubFailure::new)?;
+                serde_json::from_str(&printed).map_err(GithubFailure::new)
+            }
+        }
     }
 
     fn ran<'words>(

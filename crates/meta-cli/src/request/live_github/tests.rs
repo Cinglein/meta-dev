@@ -30,7 +30,7 @@ const NEXT_PAGE: &str = "-f\nafter=c1\n";
 const HEADED: &str = "pr\nlist\n--head\nfeature\n--json\nnumber,isCrossRepository\n--jq\n.[] | select(.isCrossRepository | not) | .number\n";
 const SHOWN: &str = "flags:\norphan #3: open, no task\norphan #4: open, no task\norphan #5: open, no task\n";
 const SIGHTS: [&str; 3] = ["open required pending", "merged no checks", "open no checks"];
-const GONE_PROTECTION: &str = "branches/gone";
+const GONE_PROTECTION: &str = "\nrepos/{owner}/{repo}/branches/gone\n";
 const REASONS: [(&str, &str); 3] = [
     ("down", "unknown github: HTTP 502: Bad Gateway"),
     ("garbage", "unknown github: reply not JSON: not json"),

@@ -31,6 +31,11 @@ impl LivePull {
     }
 
     #[must_use]
+    pub fn open_base(&self) -> Option<&BaseBranch> {
+        (self.state == PullState::Open).then_some(&self.base)
+    }
+
+    #[must_use]
     pub fn base(&self) -> &BaseBranch {
         &self.base
     }
