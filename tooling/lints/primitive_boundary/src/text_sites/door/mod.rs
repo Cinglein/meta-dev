@@ -9,6 +9,7 @@ use syn::{AngleBracketedGenericArguments, GenericArgument, Ident, ItemImpl, Type
 use task::Name;
 use task::Site;
 
+#[derive(Clone)]
 pub struct Door {
     kind: DoorKind,
     target: Option<Name>,
@@ -24,21 +25,24 @@ impl Door {
         })
     }
 
-    pub fn of_callee(callee: &Ident, target: Option<Name>, within: Option<Site>) -> Option<Door> {
-        DoorKind::of_callee(callee).map(|kind| Door {
-            kind,
-            target,
-            site: within,
-        })
+    pub fn of_callee(callee: &Ident, target: Option<Name>, within: Option<&Door>) -> Option<Door> {
+        DoorKind::of_callee(callee)
+            .filter(|kind| Self::is_outside(*kind, within))
+            .map(|kind| Door {
+                kind,
+                target,
+                site: None,
+            })
     }
 
-    pub fn in_tokens(tokens: TokenStream, within: Option<&Site>) -> Vec<Door> {
+    pub fn in_tokens(tokens: TokenStream, within: Option<&Door>) -> Vec<Door> {
         DoorKind::in_tokens(tokens)
             .into_iter()
+            .filter(|kind| Self::is_outside(*kind, within))
             .map(|kind| Door {
                 kind,
                 target: None,
-                site: within.cloned(),
+                site: None,
             })
             .collect()
     }
@@ -67,12 +71,17 @@ impl Door {
         matches!(&self.site, Some(Site::Line(file, _)) if file == path)
     }
 
-    pub fn is_reached_by(&self, seen: &Door) -> bool {
+    pub fn is_reached_by(&self, seen: &Door, doors: &[Door]) -> bool {
         self.kind == seen.kind
-            && seen.site != self.site
-            && seen
-                .target
-                .as_ref()
-                .is_none_or(|target| self.target.as_ref().is_none_or(|own| own == target))
+            && seen.target.as_ref().is_none_or(|target| {
+                self.target.as_ref().is_none_or(|own| own == target)
+                    || !doors
+                        .iter()
+                        .any(|door| door.target.as_ref() == Some(target))
+            })
+    }
+
+    fn is_outside(kind: DoorKind, within: Option<&Door>) -> bool {
+        within.is_none_or(|door| door.kind != kind)
     }
 }

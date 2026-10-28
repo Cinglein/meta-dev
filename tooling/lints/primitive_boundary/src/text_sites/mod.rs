@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 
 use syn::visit::Visit;
 use syn::{
-    Attribute, Expr, ExprCall, ExprMacro, ExprMethodCall, ExprPath, Ident, ItemImpl, ItemMod,
-    Macro, Meta, PathArguments,
+    Attribute, Expr, ExprCall, ExprMacro, ExprMethodCall, ExprPath, Ident, ImplItemFn, ItemImpl,
+    ItemMod, Macro, Meta, PathArguments,
 };
 
 mod door;
@@ -22,7 +22,8 @@ use task::{Name, Whole};
 pub struct TextSites {
     path: PathBuf,
     walk: Walk,
-    within: Option<Site>,
+    within: Option<Door>,
+    generics: Vec<Name>,
     doors: Vec<Door>,
     uses: Vec<Door>,
     found: BTreeMap<PathBuf, Vec<Ident>>,
@@ -43,6 +44,7 @@ impl TextSites {
             path: PathBuf::new(),
             walk: Walk::Entered,
             within: None,
+            generics: Vec::new(),
             doors: Vec::new(),
             uses: Vec::new(),
             found: BTreeMap::new(),
@@ -78,13 +80,19 @@ impl TextSites {
     }
 
     fn is_open(&self, path: &Path) -> bool {
-        self.doors
-            .iter()
-            .any(|door| door.is_in(path) && self.uses.iter().any(|seen| door.is_reached_by(seen)))
+        self.doors.iter().any(|door| {
+            door.is_in(path)
+                && self
+                    .uses
+                    .iter()
+                    .any(|seen| door.is_reached_by(seen, &self.doors))
+        })
     }
 
     fn noted(&mut self, callee: Option<&Ident>, target: Option<Name>) {
-        let seen = callee.and_then(|callee| Door::of_callee(callee, target, self.within.clone()));
+        let concrete = target.filter(|target| !self.generics.contains(target));
+        let seen =
+            callee.and_then(|callee| Door::of_callee(callee, concrete, self.within.as_ref()));
         self.uses.extend(seen);
     }
 
@@ -125,11 +133,31 @@ impl<'ast> Visit<'ast> for TextSites {
         let site = Site::Line(self.path.clone(), LineNumber::from(item.impl_token.span));
         let door = Door::of_impl(item, site.clone());
         let outer = self.within.clone();
-        self.within = door.as_ref().map(|_| site).or_else(|| outer.clone());
+        let depth = self.generics.len();
+        self.within = door.clone().or_else(|| outer.clone());
         self.doors
             .extend(door.filter(|_| self.walk == Walk::Entered));
+        self.generics.extend(
+            item.generics
+                .type_params()
+                .map(|parameter| Name::from(&parameter.ident)),
+        );
         syn::visit::visit_item_impl(self, item);
+        self.generics.truncate(depth);
         self.within = outer;
+    }
+
+    fn visit_impl_item_fn(&mut self, function: &'ast ImplItemFn) {
+        let depth = self.generics.len();
+        self.generics.extend(
+            function
+                .sig
+                .generics
+                .type_params()
+                .map(|parameter| Name::from(&parameter.ident)),
+        );
+        syn::visit::visit_impl_item_fn(self, function);
+        self.generics.truncate(depth);
     }
 
     fn visit_expr_method_call(&mut self, call: &'ast ExprMethodCall) {
