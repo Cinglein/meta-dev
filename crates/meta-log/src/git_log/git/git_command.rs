@@ -114,7 +114,7 @@ mod tests {
     const PAST_PIPE_BUFFER: usize = 1 << 17;
     const SLEEP: [&str; 3] = ["-c", "sleep 5; :", "sh"];
     const SHELL: &str = "sh";
-    const DEADLINE: Duration = Duration::from_millis(50);
+    const DEADLINE: Duration = Duration::from_millis(10);
     const KILLED_WITHIN: Duration = Duration::from_secs(2);
 
     #[test]

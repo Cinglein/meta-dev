@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use super::{
-    BLOCK, COMMIT, CONFIG, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSH_WORDS, Planted, Repo, STALLED, STOP,
+    BLOCK, COMMIT, CONFIG, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSHED, Planted, Repo, STALLED, STOP,
     Session, StartFile,
 };
 
@@ -56,7 +56,7 @@ fn a_slow_remote_blocks_at_the_stop_deadline_and_a_commit_in_the_start_second_is
     let clone: &Path = repo.clone.path();
     StartFile::plant(repo.sessions.path(), SAME, SAME_AT);
     Git::run_at(clone, &NEXT_COMMIT, SAME_AT);
-    Git::run(clone, &PUSH_WORDS);
+    Git::pushed(&repo, PUSHED);
     Planted::settled(&repo, TIMED_OUT);
     let same = Session { repo: &repo, cwd: clone, id: SAME }.hook(STOP, COMMIT);
     std::fs::write(clone.join(CONFIG_FILE), [CONFIG, STALLED].concat()).unwrap();
@@ -75,7 +75,7 @@ fn a_commit_in_the_start_second_counts_when_its_object_is_newer() {
     now.hook(PRE, COMMIT);
     let second = StartFile::second_of(repo.sessions.path(), NOW);
     Git::run_at(clone, &NEXT_COMMIT, &second);
-    Git::run(clone, &PUSH_WORDS);
+    Git::pushed(&repo, PUSHED);
     assert!(now.hook(STOP, COMMIT).contains(BLOCK));
 }
 
@@ -83,7 +83,7 @@ fn a_commit_in_the_start_second_counts_when_its_object_is_newer() {
 fn other_sessions_commits_and_a_read_only_state_dir_never_block() {
     let repo = Repo::new(FAILURE);
     let other = Reviewer::worktree(&repo);
-    Git::run(repo.clone.path(), &PUSH_WORDS);
+    Git::pushed(&repo, PUSHED);
     let reviewer = Reviewer::clone_of(&repo);
     Reviewer::plant_future_start(&repo);
     let clone: &Path = repo.clone.path();
