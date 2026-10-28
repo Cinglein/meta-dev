@@ -85,6 +85,10 @@ mod tests {
     const HEADS: &str = "refs/heads";
     const REFS: [&str; 4] = ["refs", "packed-refs", "logs", "reftable"];
     const ESCAPE: &str = "objects/../refs";
+    const ALTERNATES: &str = "objects/info/alternates";
+    const LENT: &str = "/elsewhere/objects\n";
+    const LOOSE: &str = "objects/ab/cdef";
+    const CLIMB: &str = "objects/../config";
 
     #[test]
     fn an_admin_dir_never_lists_or_describes_refs_even_after_they_are_packed() {
@@ -97,5 +101,20 @@ mod tests {
         let refused =
             [HEADS, ESCAPE].iter().chain(&REFS).all(|name| admin.described(&admin.path().join(name)).is_err());
         assert!(!listed.is_empty() && !listed.iter().any(|path| named(path)) && refused);
+    }
+
+    #[test]
+    fn alternates_are_listed_only_when_present_and_only_a_loose_object_is_dated() {
+        let repository = tempfile::tempdir().unwrap();
+        assert!(Command::new("git").current_dir(repository.path()).args(INIT).status().unwrap().success());
+        let admin = Door::inspected(&repository.path().join(ENTRY)).unwrap();
+        let alternates = admin.path().join(ALTERNATES);
+        let before = admin.listed().unwrap().contains(&alternates);
+        std::fs::write(&alternates, LENT).unwrap();
+        let after = admin.listed().unwrap().contains(&alternates);
+        std::fs::create_dir_all(admin.path().join(LOOSE).parent().unwrap()).unwrap();
+        std::fs::write(admin.path().join(LOOSE), LENT).unwrap();
+        let dated = admin.object_written(Path::new(LOOSE)).is_ok() && admin.object_written(Path::new(CLIMB)).is_err();
+        assert!(!before && after && dated);
     }
 }

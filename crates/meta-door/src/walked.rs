@@ -63,3 +63,31 @@ impl Walked {
         Walked { relative: relative.to_path_buf(), kind: Kind::Unreadable, described: None }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use crate::Door;
+    use crate::kind::Kind;
+
+    const NESTED: &str = "nested/.git/objects";
+    const BARE_OBJECTS: &str = "bare/objects";
+    const BARE_HEAD: &str = "bare/HEAD";
+    const PLAIN: &str = "plain/objects";
+    const ADMIN: [&str; 2] = ["bare", "nested/.git"];
+
+    #[test]
+    fn a_walk_stops_at_git_dirs_and_enters_everything_else() {
+        let root = tempfile::tempdir().unwrap();
+        assert!([NESTED, BARE_OBJECTS, PLAIN].iter().all(|dir| std::fs::create_dir_all(root.path().join(dir)).is_ok()));
+        std::fs::write(root.path().join(BARE_HEAD), "").unwrap();
+        let walked = Door::walked(root.path()).unwrap();
+        let mut admin: Vec<&Path> =
+            walked.iter().filter(|walked| walked.kind() == Kind::Admin).map(super::Walked::relative).collect();
+        admin.sort();
+        let entered = walked.iter().any(|walked| walked.relative() == Path::new(PLAIN));
+        let inside = walked.iter().any(|walked| walked.relative().starts_with(NESTED));
+        assert!(admin == ADMIN.map(Path::new) && entered && !inside);
+    }
+}
