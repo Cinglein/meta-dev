@@ -25,7 +25,11 @@ const BARE_CONFIG: &str = "config";
 const ELSEWHERE: &str = "ELSEWHERE";
 const FOREIGN_REASON: &str = "someone@example.com is not noreply; git config user.name";
 const UNRESOLVED_REASON: &str = "cannot resolve the commit directory";
-const REFUSED_COMMITS: [(&str, &str); 4] = [
+const LEAK_FILE: &str = "leak.txt";
+const LEAK_TEXT: &str = concat!("/private/tmp/", "claude-501/x\n");
+const STAGED_REASON: &str = "leak.txt:1: scratch path in a staged line";
+const REFUSED_COMMITS: [(&str, &str); 5] = [
+    ("git commit -m change", STAGED_REASON),
     ("cd ELSEWHERE && git commit --amend --no-edit", FOREIGN_REASON),
     ("git commit -m change", FOREIGN_REASON),
     ("git commit -m x && git -C ELSEWHERE commit -m y", FOREIGN_REASON),
@@ -136,7 +140,9 @@ fn pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_whereve
     Git::configure(&elsewhere.join(BARE_CONFIG), FOREIGN_IDENTITY);
     let push = repo.hook(PRE, PUSH, home);
     assert!(repo.hook(PRE, MERGE, home).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
-    let commits = REFUSED_COMMITS.into_iter().zip([home, elsewhere, home, home]);
+    std::fs::write(home.join(LEAK_FILE), LEAK_TEXT).unwrap();
+    Git::run(home, &["add", LEAK_FILE]);
+    let commits = REFUSED_COMMITS.into_iter().zip([home, home, elsewhere, home, home]);
     let shown = commits.map(|((command, reason), cwd)| (repo.hook(PRE, command, cwd), format!("{DENY}{reason}")));
     assert!(shown.into_iter().all(|(shown, refused)| shown.contains(&refused)));
     assert_eq!(repo.hook(PRE, ALLOWED, home), "");

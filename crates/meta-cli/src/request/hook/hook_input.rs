@@ -1,5 +1,6 @@
 mod identity;
 mod shell_command;
+mod staged_diff;
 mod tool_input;
 
 use std::path::PathBuf;
@@ -12,6 +13,7 @@ use crate::request::output::Listed;
 
 use identity::Identity;
 use shell_command::ShellCommand;
+use staged_diff::StagedDiff;
 use tool_input::ToolInput;
 
 #[derive(Debug, Default, Deserialize)]
@@ -39,11 +41,11 @@ impl HookInput {
 
     pub fn refusal(&self) -> Option<Listed> {
         let command = self.command()?;
-        let foreign =
-            command.commit_directories(&self.cwd()).iter().find_map(|directory| Identity::refusal_in(directory));
+        let directories = command.commit_directories(&self.cwd());
+        let foreign = directories.iter().find_map(|directory| Identity::refusal_in(directory));
         let writing = self.session().zip(command.writes());
         let unrecorded = writing.and_then(|(session, ())| SessionStart::for_session(session).record().err());
-        unrecorded.or(foreign)
+        unrecorded.or(foreign).or_else(|| directories.iter().find_map(|directory| StagedDiff::refusal_in(directory)))
     }
 
     pub fn publishing(&self) -> Option<PathBuf> {
