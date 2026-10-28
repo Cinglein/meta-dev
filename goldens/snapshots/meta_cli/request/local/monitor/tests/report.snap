@@ -1,5 +1,5 @@
 cwds 400,500,501,502,503,504,100,101,106,110,120,130,140,200,300,60
-ExitCode(unix_exit_status(1))
+succeeds: false
 monitor 2026-10-27 12:00Z, machine load 3.01 over 15 min (context only)
 obvious:
   monitor: agent work pid 100 orphaned past its limit, target -100: bash -c while true; do :; done

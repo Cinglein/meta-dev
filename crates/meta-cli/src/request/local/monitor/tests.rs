@@ -77,7 +77,7 @@ impl Watch {
         let git_dir = tempfile::tempdir().unwrap();
         let host = FakeMachine::new(&[SCENE, AFTER], CWDS, UPTIME);
         let report = Watch::patrolled(&host, git_dir.path(), overrides, TimeDelta::zero());
-        Watch::shown(&host, &format!("{:?}\n{report}", report.exit_code()))
+        Watch::shown(&host, &format!("succeeds: {}\n{report}", report.exit_code() == std::process::ExitCode::SUCCESS))
     }
 }
 

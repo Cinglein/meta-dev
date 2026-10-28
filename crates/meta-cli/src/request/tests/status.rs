@@ -38,7 +38,7 @@ fn status_asks_github_about_linked_pull_requests_and_a_second_link_of_one_is_ref
     let [flags, tree] = [StatusView::Flags, StatusView::Tree].map(|view| asked.answer(&meta, view));
     let parsed = Request::try_from(STATUS_FLAGS.map(String::from).to_vec());
     let written = meta.0.read().unwrap().records().len();
-    let refused = meta.run(OWNER, &[LINK, &task, PULL_REQUEST]);
+    let refused = meta.run(OWNER, &[LINK, &task, PULL_REQUEST]).map_err(|failure| failure.to_string());
     let shown = format!("{flags:?}\n{tree}{parsed:?}\n{refused:?}\n").replace(&task, TASK);
     Golden::for_test(module_path!(), "status").checked(&shown).unwrap();
     assert!(asked.0.borrow().contains(ASKED) && meta.0.read().unwrap().records().len() == written);
