@@ -15,8 +15,8 @@ const LEADS: &str = "[ \"$(ps -o pgid= -p $$ | tr -d ' ')\" = \"$$\" ] && echo l
 const LED: [(KillScope, &str); 2] = [(KillScope::Group, "leader\n"), (KillScope::Process, "")];
 const LIMIT: Duration = Duration::from_millis(100);
 const PROMPT: Duration = Duration::from_secs(1);
-const HELD_ELSEWHERE: &str = "set -m; sleep 2 & echo held";
-const KILLED: [(&str, KillScope, &str); 2] = [
+const KILLED: [(&str, KillScope, &str); 3] = [
+    ("set -m; sleep 2 & echo held", KillScope::Group, "elsewhere"),
     ("sleep 5 & echo $! > \"$0\"", KillScope::Group, "group"),
     ("echo $$ > \"$0\"; exec sleep 5", KillScope::Process, "process"),
 ];
@@ -67,12 +67,15 @@ fn a_run_feeds_its_input_returns_both_streams_and_leads_its_own_group_only_in_gr
 #[test]
 fn a_run_ends_at_its_deadline_and_kills_its_scope_even_when_a_grandchild_holds_the_pipes() {
     let dir = tempfile::tempdir().unwrap();
-    let started = Instant::now();
-    let elsewhere = Scripted::timed_out(HELD_ELSEWHERE, KillScope::Group, dir.path());
-    assert!(elsewhere && started.elapsed() < PROMPT);
     let files = KILLED.map(|(.., name)| dir.path().join(name));
-    let killed = KILLED.iter().zip(&files).map(|((script, scope, _), file)| Scripted::timed_out(script, *scope, file));
-    assert!(killed.collect::<Vec<_>>() == [true, true] && files.iter().all(|file| Scripted::gone(file)));
+    let started = Instant::now();
+    let runs = KILLED.into_iter().zip(files.clone());
+    let runs: Vec<_> = runs
+        .map(|((script, scope, _), file)| std::thread::spawn(move || Scripted::timed_out(script, scope, &file)))
+        .collect();
+    let timed_out: Vec<bool> = runs.into_iter().map(|run| run.join().unwrap()).collect();
+    assert!(timed_out == [true, true, true] && started.elapsed() < PROMPT);
+    assert!(files.iter().skip(1).all(|file| Scripted::gone(file)));
 }
 
 #[test]
