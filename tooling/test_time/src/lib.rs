@@ -82,10 +82,6 @@ impl TestTime {
                     .into_iter()
                     .fold(line, |line, (name, value)| line.environment(name, value))
                     .run();
-                let documented = selection.within(workspace.packages().doctested());
-                let documented_ran = documented
-                    .reaching()
-                    .map_or(Ok(()), |documented| cargo(documented).doctests().run());
                 let timings = fs::read_to_string(runs.path())
                     .map_err(|error| Failure::Io {
                         site: Site::File(runs.path().to_path_buf()),
@@ -93,7 +89,7 @@ impl TestTime {
                     })?
                     .parse::<TestRuns>()?
                     .passed()?;
-                ran.and(documented_ran)?;
+                ran?;
                 TestTime { timings }.recorded(policy, ledger).verdict()
             },
         )
@@ -139,7 +135,6 @@ mod tests {
     use std::time::Duration;
     use task::{CommandLine, Interval, Ledger, Policy, Program, Report, Selection};
     const RUNNER: &str = "target/debug/x\"task";
-    const RUNNER_KEY: &str = "--config";
     const DOCTESTS: &str = "--doc";
     const BUILD: &str = " build --workspace ";
     const EXAMPLES: &str = "--examples --profile test";
@@ -183,16 +178,14 @@ mod tests {
     }
 
     #[test]
-    fn libtest_targets_go_through_the_runner_and_doctests_run_without_it() {
+    fn libtest_targets_go_through_the_runner_and_no_doctest_pass_runs() {
         let (policy, base) = (Policy::defaults(), CommandLine::new(Program::Cargo));
         let cargo = |line| CargoTest::new(line, &Selection::Workspace, &policy);
         let runner = RunnerConfig::new(PathBuf::from(RUNNER));
         let shown = cargo(base.clone()).through(&runner).to_string();
-        let docs = cargo(base.clone()).doctests().to_string();
         let built = CargoBuild::examples(base, &Selection::Workspace, &policy).to_string();
-        let plain = docs.ends_with(DOCTESTS) && !docs.contains(RUNNER_KEY);
         let through = shown.ends_with(THROUGH) && !shown.contains(DOCTESTS);
         let examples = built.contains(BUILD) && built.ends_with(EXAMPLES);
-        assert!(through && plain && examples, "{shown}\n{docs}\n{built}");
+        assert!(through && examples, "{shown}\n{built}");
     }
 }

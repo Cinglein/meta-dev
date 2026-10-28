@@ -33,8 +33,6 @@ pub enum CargoArgument {
     NoFailFast,
     #[strum(serialize = "--tests")]
     Tests,
-    #[strum(serialize = "--doc")]
-    Doc,
     #[strum(serialize = "build")]
     Build,
     #[strum(serialize = "--examples")]
