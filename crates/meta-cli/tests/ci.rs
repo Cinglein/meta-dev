@@ -211,7 +211,8 @@ impl Started {
         std::thread::spawn(move || {
             let repo = Repo::limited(scenario, limits);
             (scenario == NONE).then(|| Calls::plant(&repo));
-            repo.hook(POST, COMMIT);
+            Git::pushed(&repo, PUSHED);
+            repo.hook(POST, PLAIN_PUSH);
             repo
         })
     }
