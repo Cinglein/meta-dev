@@ -5,7 +5,7 @@ use std::ffi::OsString;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use meta_run::{Budget, EnvPolicy, Environment, Ran, Run, RunFailure};
+use meta_run::{Budget, EnvPolicy, Environment, Ran, Run, RunFailure, Unread};
 
 const SHELL: &str = "bash";
 const LEADS: &str = "kill -0 -- -$$ 2>/dev/null && echo leader; true";
@@ -31,12 +31,13 @@ const STALLS: &str = "waiting for terminal input";
 const PS: [&str; 4] = ["ps", "-o", "stat=", "-p"];
 const POLL: Duration = Duration::from_millis(2);
 const NO_PROMPT: &str = "\"GIT_TERMINAL_PROMPT\": Some(\"0\")";
-const INHERITED: [(&str, &str); 4] = [("GIT_DIR", "d"), ("GIT_SSH_COMMAND", "s"), ("LANG", "C"), ("PATH", "/bin")];
+const INHERITED: [(&str, &str); 5] =
+    [("EMAIL", "e"), ("GIT_DIR", "d"), ("GIT_SSH_COMMAND", "s"), ("LANG", "C"), ("PATH", "/bin")];
 const DROPPED: [(EnvPolicy, &str); 4] = [
     (EnvPolicy::Inherit, ""),
     (EnvPolicy::NoRepoVars, "\"GIT_DIR\": None"),
-    (EnvPolicy::NoGitVars, "\"GIT_DIR\": None, \"GIT_SSH_COMMAND\": None"),
-    (EnvPolicy::Only(&["LANG"]), "\"GIT_DIR\": None, \"GIT_SSH_COMMAND\": None, \"PATH\": None"),
+    (EnvPolicy::NoGitVars, "\"EMAIL\": None, \"GIT_DIR\": None, \"GIT_SSH_COMMAND\": None"),
+    (EnvPolicy::Only(&["LANG"]), "\"EMAIL\": None, \"GIT_DIR\": None, \"GIT_SSH_COMMAND\": None, \"PATH\": None"),
 ];
 
 struct Scripted;
@@ -67,8 +68,10 @@ fn a_run_feeds_its_input_returns_both_streams_and_leads_its_own_group() {
     assert!(!ran.success() && ran.stdout().text() == SHOWN[0] && ran.stderr().to_string() == SHOWN[1]);
     let reported = Scripted::shell(FED).fed(SHOWN[0].to_owned()).reported(Instant::now() + PATIENT);
     let complained = |shown: String| shown == COMPLAINT;
+    let exited = matches!(&reported, Err(Unread::Failed(status, _)) if *status == ran.status() && !status.success());
     assert!(
-        ran.succeeded().is_err_and(|ran| complained(ran.to_string()))
+        exited
+            && ran.succeeded().is_err_and(|ran| complained(ran.to_string()))
             && reported.is_err_and(|unread| complained(unread.to_string()))
     );
     let led = Scripted::shell(LEADS).reported(Instant::now() + PATIENT).map(|out| out.text().into_owned());

@@ -39,16 +39,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      checks: read
-      actions: read
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: git --version && gh --version
+      - run: git --version
       - run: cargo xtask goldens
-        env:
-          GH_TOKEN: ${{ github.token }}
       - name: goldens match a fresh recording (run `cargo xtask goldens` and commit the diff)
         run: git add --intent-to-add goldens && git diff --exit-code -- goldens
 

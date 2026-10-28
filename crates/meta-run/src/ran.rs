@@ -24,6 +24,11 @@ impl Ran {
     }
 
     #[must_use]
+    pub fn status(&self) -> ExitStatus {
+        self.status
+    }
+
+    #[must_use]
     pub fn stdout(&self) -> &Stdout {
         &self.stdout
     }
@@ -46,6 +51,10 @@ impl Ran {
     pub fn succeeded(self) -> Result<String, RunFailure> {
         let complaint = self.stderr.first_line().unwrap_or_default().to_owned();
         let output = self.stdout.text().into_owned();
-        self.status.success().then_some(output).ok_or(RunFailure::Failed { line: self.line, complaint })
+        self.status.success().then_some(output).ok_or(RunFailure::Failed {
+            line: self.line,
+            status: self.status,
+            complaint,
+        })
     }
 }

@@ -9,6 +9,6 @@ mod replay;
 
 pub use golden::Golden;
 pub use golden_failure::GoldenFailure;
-pub use goldens::Goldens;
+pub use goldens::{Goldens, Reach};
 pub use recording::Recording;
 pub use replay::Replay;

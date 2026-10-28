@@ -1,9 +1,11 @@
+mod reach;
 mod scenario;
 
 use std::path::{Path, PathBuf};
 
 use crate::golden_failure::GoldenFailure;
 use crate::recording::Recording;
+pub use reach::Reach;
 use scenario::Scenario;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -33,13 +35,18 @@ impl Goldens {
         Ok(recorded.collect::<Result<Vec<_>, _>>()?.into_iter().flatten().collect())
     }
 
-    pub fn refreshed(&self, bin: &Path) -> Result<(), GoldenFailure> {
+    pub fn refreshed(&self, bin: &Path, reach: Reach) -> Result<(), GoldenFailure> {
         self.scenarios()?.iter().try_for_each(|path| {
-            let dir = path.with_extension("");
-            let recordings = Scenario::try_from(path.as_path())?.recorded(&dir, bin)?;
-            drop(std::fs::remove_dir_all(&dir));
-            recordings.iter().try_for_each(Recording::written)
+            let scenario = Scenario::try_from(path.as_path())?;
+            if scenario.reach() == reach { Self::rewritten(path, &scenario, bin) } else { Ok(()) }
         })
+    }
+
+    fn rewritten(path: &Path, scenario: &Scenario, bin: &Path) -> Result<(), GoldenFailure> {
+        let dir = path.with_extension("");
+        let recordings = scenario.recorded(&dir, bin)?;
+        Recording::cleared(&dir);
+        recordings.iter().try_for_each(Recording::written)
     }
 
     pub(crate) fn listed(dir: &Path, extension: &str) -> Result<Vec<PathBuf>, GoldenFailure> {

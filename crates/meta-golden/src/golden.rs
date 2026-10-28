@@ -1,13 +1,16 @@
+mod mode;
+
 use std::path::{Path, PathBuf};
 
 use crate::difference::Difference;
 use crate::golden_failure::GoldenFailure;
+use mode::Mode;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Golden(PathBuf);
 
 impl Golden {
-    pub const BLESS: &'static str = "META_GOLDENS_BLESS";
+    pub const BLESS: &'static str = Mode::BLESS;
 
     #[must_use]
     pub fn new(path: &Path) -> Self {
@@ -15,12 +18,13 @@ impl Golden {
     }
 
     pub fn checked(&self, actual: &str) -> Result<(), GoldenFailure> {
-        if std::env::var_os(Self::BLESS).is_some() {
-            self.clone().written(actual)
-        } else {
-            let golden = self.text()?;
-            let differs = |difference| GoldenFailure::Differs { path: self.0.clone(), difference };
-            Difference::between(&golden, actual).map_or(Ok(()), |difference| Err(differs(difference)))
+        match Mode::current()? {
+            Mode::Bless => self.clone().written(actual),
+            Mode::Check => {
+                let golden = self.text()?;
+                let differs = |difference| GoldenFailure::Differs { path: self.0.clone(), difference };
+                Difference::between(&golden, actual).map_or(Ok(()), |difference| Err(differs(difference)))
+            }
         }
     }
 

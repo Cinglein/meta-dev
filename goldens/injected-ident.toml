@@ -27,8 +27,8 @@ git = { call = "var", operands = ["GIT_AUTHOR_IDENT"] }
 
 [[step]]
 record = "toplevel"
-run = ["git", "-C", "$ROOT", "rev-parse", "--show-toplevel"]
+git = { call = "show-toplevel" }
 
 [[step]]
 record = "no-branch"
-run = ["git", "rev-parse", "--verify", "--quiet", "refs/heads/none"]
+git = { call = "verify-ref", operands = ["refs/heads/none"] }
