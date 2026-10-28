@@ -989,3 +989,4 @@
 {"at":"2026-10-28T14:35:16.987324Z","actor":"claude-minorsb","kind":"TaskLinked","task":"task-2515e8a808484a36","pr":95}
 {"at":"2026-10-28T14:35:28.611777Z","actor":"claude-minorsb","kind":"TaskOpened","task":"task-14417fa941c6bf5a","text":"Merge-base default levels fall back to the meta-xtask version pinned there, failing closed","division":"features-and-maintenance","addresses":["concern-8e18408c1ffecb96"]}
 {"at":"2026-10-28T14:36:53.682770Z","actor":"claude-lead","kind":"TaskOpened","task":"task-067b28fe28b30740","text":"Cut test CPU under 4000 ms scaled (#89 measure): ci watcher/Stop tests 1.3 s, gc 0.38 s, cli 0.31 s, xtask 0.64 s.","division":"performance-and-cost"}
+{"at":"2026-10-28T14:37:08.402213Z","actor":"claude-minorsb","kind":"TaskClaimed","task":"task-14417fa941c6bf5a"}
