@@ -67,7 +67,7 @@ mod tests {
 
     #[test]
     fn changed_untracked_and_dropped_surfaces_are_listed_in_the_step_summary_and_other_changes_list_nothing() {
-        let [summarized, other, narrowed] = [(); 3].map(|()| Fixture::surfaced());
+        let [summarized, other, narrowed] = Fixture::built(|_| Fixture::surfaced());
         summarized.write(BASELINE, RAISED).write(UNTRACKED, RAISED);
         Surfaces::announce(summarized.root(), &Policy::defaults(), Some(&summarized.path(SUMMARY))).unwrap();
         let written = fs::read_to_string(summarized.path(SUMMARY)).unwrap_or_default();

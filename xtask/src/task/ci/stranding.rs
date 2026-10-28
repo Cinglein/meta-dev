@@ -84,9 +84,12 @@ mod tests {
 
     #[test]
     fn scales_changed_since_the_merge_base_policy_or_default_levels_are_judged_and_unchanged_ones_are_not() {
-        let [fixture, relevelled] = [Fixture::new(), Fixture::new()];
-        fixture.write(PriorPolicy::PATH, PRIOR).branch();
-        relevelled.write(PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS).branch();
+        let committed = [(PriorPolicy::PATH, PRIOR), (PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS)];
+        let [fixture, relevelled] = Fixture::built(|at| {
+            let fixture = Fixture::new();
+            fixture.write(committed[at].0, committed[at].1).branch();
+            fixture
+        });
         let uncapped = Policy::DEFAULTS.split(CAPS).next().unwrap_or_default();
         let same: Policy = toml::from_str(&format!("{uncapped}\n{PRIOR}")).unwrap();
         let before: Scales = serde_json::from_str(OVERRIDDEN).unwrap();

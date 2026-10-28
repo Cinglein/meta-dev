@@ -11,6 +11,9 @@ pub struct Fixture {
 }
 
 impl Fixture {
+    const WORKING: &'static str = "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = false\n";
+    const BARE: &'static str = "[core]\n\trepositoryformatversion = 0\n\tbare = true\n";
+
     pub fn new() -> Fixture {
         let directory = TempDir::new().expect("temp dir");
         let work = directory.path().join("work");
@@ -18,9 +21,18 @@ impl Fixture {
         fs::create_dir_all(git_dir.join("objects")).expect("objects dir");
         fs::create_dir_all(git_dir.join("refs/heads")).expect("refs dir");
         fs::write(git_dir.join("HEAD"), "ref: refs/heads/change\n").expect("write HEAD");
-        fs::write(git_dir.join("config"), "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = false\n")
-            .expect("write config");
+        fs::write(git_dir.join("config"), Self::WORKING).expect("write config");
         Fixture { _directory: directory, work }
+    }
+
+    pub fn built<const COUNT: usize>(build: impl Fn(usize) -> Fixture + Sync) -> [Fixture; COUNT] {
+        std::thread::scope(|scope| {
+            let started: [_; COUNT] = std::array::from_fn(|at| {
+                let build = &build;
+                scope.spawn(move || build(at))
+            });
+            started.map(|built| built.join().expect("fixture built"))
+        })
     }
 
     pub fn branch(&self) {
@@ -49,14 +61,18 @@ impl Fixture {
 
     pub fn shared_origin(&self, other: &Fixture) -> PathBuf {
         let bare = self.work.with_file_name("origin.git");
-        Self::ran(Self::git(&self.work).args(["init", "--quiet", "--bare"]).arg(&bare));
+        fs::create_dir_all(bare.join("objects")).expect("bare objects dir");
+        fs::create_dir_all(bare.join("refs")).expect("bare refs dir");
+        fs::write(bare.join("HEAD"), "ref: refs/heads/change\n").expect("write bare HEAD");
+        fs::write(bare.join("config"), Self::BARE).expect("write bare config");
         self.pointed(&bare);
         other.pointed(&bare);
         bare
     }
 
     pub fn pointed(&self, origin: &Path) -> &Fixture {
-        Self::ran(Self::git(&self.work).args(["config", "remote.origin.url"]).arg(origin));
+        let remote = format!("[remote \"origin\"]\n\turl = {}\n", origin.display());
+        fs::write(self.work.join(".git/config"), [Self::WORKING, remote.as_str()].concat()).expect("write config");
         self
     }
 

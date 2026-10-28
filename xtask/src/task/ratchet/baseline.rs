@@ -90,18 +90,23 @@ mod tests {
     #[test]
     fn a_raised_baseline_is_refused_against_the_merge_base_even_after_a_move() {
         let Ok(base) = BASE.parse::<BranchName>();
-        let fixture = Fixture::new();
-        fixture.write(BASELINE, ONE).branch();
+        let budgeted = Policy::DEFAULTS.replace(SELF_BASELINE, MOVED);
+        let policies = [MOVED_POLICY.to_owned(), budgeted.clone(), format!("{UNREADABLE}{budgeted}")];
+        let [fixture, moved @ ..] = Fixture::built::<4>(|at| {
+            let fixture = Fixture::new();
+            match at.checked_sub(1).map(|moved| &policies[moved]) {
+                Some(policy) => fixture.write(POLICY, policy).write(MOVED, TWO).branch(),
+                None => fixture.write(BASELINE, ONE).branch(),
+            }
+            fixture
+        });
         fixture.write(BASELINE, TWO);
         let admitted = Baseline::admitted(fixture.root(), &BaselineFile::from(BASELINE), &base);
         assert_eq!(admitted.map_err(|failure| failure.to_string()).err().as_deref(), Some(RAISED));
-        let moved_by = |policy: &str| {
-            let moved = Fixture::new();
-            moved.write(POLICY, policy).write(MOVED, TWO).branch();
+        let admits = |moved: &Fixture| {
             Baseline::admitted(moved.write(BASELINE, TWO).root(), &BaselineFile::from(BASELINE), &base).is_ok()
         };
-        let budgeted = Policy::DEFAULTS.replace(SELF_BASELINE, MOVED);
-        assert!(moved_by(MOVED_POLICY) && moved_by(&budgeted) && moved_by(&format!("{UNREADABLE}{budgeted}")));
+        assert!(moved.iter().all(admits));
     }
 
     #[test]
