@@ -22,7 +22,8 @@ esac
 "#;
 const ASKED: &str = "api\ngraphql\n-F\nowner={owner}\n-F\nname={repo}\n-f\nquery=query(";
 const RULES: &str = "api\nrepos/{owner}/{repo}/rules/branches/main\n--jq\n[.[] | select(.type == \"required_status_checks\") | .parameters.required_status_checks[].context]\n";
-const CLASSIC: &str = "api\nrepos/{owner}/{repo}/branches/main\n--jq\n[.protection.required_status_checks.checks[]?.context]\n";
+const CLASSIC: &str =
+    "api\nrepos/{owner}/{repo}/branches/main\n--jq\n[.protection.required_status_checks.checks[]?.context]\n";
 const NEXT_PAGE: &str = "-f\nafter=c1\n";
 const HEADED: &str = "pr\nlist\n--head\nfeature\n--json\nnumber,isCrossRepository\n--jq\n.[] | select(.isCrossRepository | not) | .number\n";
 const SHOWN: &str = "flags:\norphan #3: open, no task\norphan #4: open, no task\n";
