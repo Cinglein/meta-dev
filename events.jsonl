@@ -924,3 +924,4 @@
 {"at":"2026-10-28T04:10:29.148089Z","actor":"claude-xtaskspawns","kind":"TaskClaimed","task":"task-b86fffc67fd7f544"}
 {"at":"2026-10-28T04:18:06.208312Z","actor":"claude-xtaskspawns","kind":"TaskLinked","task":"task-b86fffc67fd7f544","pr":83}
 {"at":"2026-10-28T04:20:12.695073Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-b86fffc67fd7f544","text":"Fixture cuts saved ~55 ms (#83 closed); remaining xtask spawns are product calls."}
+{"at":"2026-10-28T04:41:34.607011Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-11e5f0a89921344b","text":"Agent pushed stray scratch files with local paths (4e3966b); PreToolUse commit check should refuse staged files holding scratch or home paths.","division":"features-and-maintenance","severity":"minor"}
