@@ -77,8 +77,8 @@ mod tests {
     use super::WatchClock;
     use crate::request::project::Config;
 
-    const SETTINGS: &str = "[ci]\ntimeout_millis = 30\ngh_millis = 20\n";
-    const PAST_TIMEOUT: Duration = Duration::from_millis(20);
+    const SETTINGS: &str = "[ci]\ntimeout_millis = 20\ngh_millis = 10\n";
+    const PAST_TIMEOUT: Duration = Duration::from_millis(10);
 
     #[test]
     fn a_pause_stops_one_gh_limit_before_the_timeout_and_remaining_ends_at_the_timeout() {

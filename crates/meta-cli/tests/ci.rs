@@ -10,7 +10,7 @@ const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 2\n";
 const PATIENT: &str = "appear_millis = 2000\n";
 const STALLED: &str = "appear_millis = 2000\nstop_millis = 40\n";
-const QUICK: &str = "appear_millis = 20\ntimeout_millis = 80\ngh_millis = 20\n";
+const QUICK: &str = "appear_millis = 20\ntimeout_millis = 50\ngh_millis = 20\n";
 const DEADLINE: &str =
     "expected_millis = 80\nbackoff_millis = 80\nbackoff_cap_millis = 80\ntimeout_millis = 150\ngh_millis = 20\n";
 const FAKE_GH: &str = r#"#!/bin/sh
