@@ -31,7 +31,7 @@ impl ShardPlan {
     }
 
     pub fn changed_lines(workspace: &Workspace, policy: &Policy) -> Result<ShardPlan, Failure> {
-        Scope::changed_shards(&MutantsBuild::checked(workspace)?, workspace, policy).map(ShardPlan)
+        Scope::changed_shards(&MutantsBuild::checked(workspace, policy)?, workspace, policy).map(ShardPlan)
     }
 }
 

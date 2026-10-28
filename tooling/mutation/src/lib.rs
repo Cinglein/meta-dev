@@ -16,8 +16,8 @@ use task::FailedRuns;
 use task::Failure;
 use task::Site;
 use task::Workspace;
-use task::{CargoArgument, CommandLine, MutantsArgument};
-use task::{Interval, MemoryShare, Policy};
+use task::{CommandLine, MutantsArgument};
+use task::{MemoryShare, Policy};
 
 #[derive(Debug)]
 pub struct Mutants;
@@ -30,13 +30,8 @@ impl Mutants {
         let _lock = Self::exclusive_lock(workspace)?;
         Self::refuse_if_another_run_exists()?;
         let budget = Self::refuse_if_memory_is_short(policy)?;
-        let build = MutantsBuild::checked(workspace)?;
-        let line = build
-            .line(CargoArgument::Mutants)
-            .argument(MutantsArgument::JobserverTasks)
-            .argument(policy.compiler_tasks())
-            .argument(MutantsArgument::Timeout)
-            .argument(policy.interval(Interval::TestTimeout).whole_seconds());
+        let build = MutantsBuild::checked(workspace, policy)?;
+        let line = build.mutating().argument(MutantsArgument::JobserverTasks).argument(policy.compiler_tasks());
         let runs = scope.applied(line, &build, workspace, policy)?;
         let failed: Vec<CommandLine> = runs
             .iter()
