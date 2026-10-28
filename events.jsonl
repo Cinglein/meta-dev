@@ -1004,3 +1004,4 @@
 {"at":"2026-10-28T14:52:12.405596Z","actor":"claude-lead","kind":"TaskOpened","task":"task-5103ef71c1453478","text":"Measure cargo-nextest overhead vs current runner on the full suite (CPU and wall); adopt only if net positive.","division":"performance-and-cost"}
 {"at":"2026-10-28T14:52:15.430461Z","actor":"claude-cpucut","kind":"TaskLinked","task":"task-067b28fe28b30740","pr":101}
 {"at":"2026-10-28T14:55:13.358863Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-2515e8a808484a36"}
+{"at":"2026-10-28T14:55:16.060981Z","actor":"claude-lead","kind":"TaskDone","task":"task-2515e8a808484a36"}
