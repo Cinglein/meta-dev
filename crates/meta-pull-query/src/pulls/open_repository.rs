@@ -20,6 +20,11 @@ impl OpenRepository {
     }
 
     #[must_use]
+    pub fn continued(self, next: Self) -> Self {
+        Self { pull_requests: self.pull_requests.continued(next.pull_requests) }
+    }
+
+    #[must_use]
     pub fn orphans(&self, linked: &[PullRequest]) -> Vec<PullRequest> {
         self.pull_requests.nodes().map(LivePull::number).filter(|number| !linked.contains(number)).collect()
     }

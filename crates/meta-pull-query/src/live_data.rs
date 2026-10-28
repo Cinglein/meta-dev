@@ -8,7 +8,7 @@ use crate::workflow_name::WorkflowName;
 
 #[derive(Clone, Debug)]
 pub struct LiveData {
-    pulls: Pulls,
+    pulls: Box<Pulls>,
     rules: Rulebook,
     workflows: Vec<WorkflowName>,
 }
@@ -16,7 +16,7 @@ pub struct LiveData {
 impl LiveData {
     #[must_use]
     pub fn new(pulls: Pulls, rules: Rulebook) -> Self {
-        Self { pulls, rules, workflows: Vec::new() }
+        Self { pulls: Box::new(pulls), rules, workflows: Vec::new() }
     }
 
     #[must_use]

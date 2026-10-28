@@ -4,6 +4,7 @@ mod head_branch;
 mod origin;
 mod pull_state;
 mod rollup;
+mod rule_source;
 mod ruled_pull;
 
 use meta_schema::{Id, PullRequest, Task};
@@ -14,6 +15,7 @@ use head_branch::HeadBranch;
 use origin::Origin;
 pub use pull_state::PullState;
 use rollup::Rollup;
+pub use rule_source::RuleSource;
 pub use ruled_pull::RuledPull;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -39,6 +41,11 @@ impl LivePull {
     #[must_use]
     pub fn task(&self) -> Option<Id<Task>> {
         self.origin.same().and(self.head.task())
+    }
+
+    #[must_use]
+    pub fn open_base(&self) -> Option<&BaseBranch> {
+        (self.state == PullState::Open).then_some(&self.base)
     }
 
     #[must_use]
