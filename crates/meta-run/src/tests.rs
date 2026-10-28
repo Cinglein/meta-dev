@@ -16,11 +16,12 @@ const LIMIT: Duration = Duration::from_millis(50);
 const PROMPT: Duration = Duration::from_secs(1);
 const KILLED: [(&str, KillScope, &str); 3] = [
     ("set -m; sleep 2 & echo $! > \"$0\"; echo held", KillScope::Group, "elsewhere"),
-    ("sleep 5 & echo $! > \"$0\"", KillScope::Group, "group"),
+    ("sleep 5 & echo $! > \"$0\"; wait", KillScope::Process, "tree"),
     ("echo $$ > \"$0\"; exec sleep 5", KillScope::Process, "process"),
 ];
 const KILL: [&str; 3] = ["kill", "-0", "-KILL"];
 const POLL: Duration = Duration::from_millis(2);
+const NO_PROMPT: &str = "\"GIT_TERMINAL_PROMPT\": Some(\"0\")";
 const INHERITED: [(&str, &str); 4] = [("GIT_DIR", "d"), ("GIT_SSH_COMMAND", "s"), ("LANG", "C"), ("PATH", "/bin")];
 const DROPPED: [(EnvPolicy, &str); 4] = [
     (EnvPolicy::Inherit, ""),
@@ -82,4 +83,5 @@ fn each_env_policy_drops_only_its_variables_and_never_resets_the_rest() {
     let dropped = DROPPED
         .map(|(policy, _)| format!("{:?}", Environment::from(&Run::inheriting(SHELL, policy, inherited.clone()))));
     assert_eq!(dropped, DROPPED.map(|(_, dropped)| format!("Environment({{{dropped}}})")));
+    assert!(format!("{:?}", Environment::from(&Run::git(Path::new(SHELL)))).contains(NO_PROMPT));
 }

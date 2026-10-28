@@ -2,8 +2,10 @@
 
 use std::fmt;
 use std::io::Write as _;
+use std::os::unix::process::CommandExt as _;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::process::{Child, Command, Output, Stdio};
+use std::time::Duration;
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n";
@@ -38,6 +40,8 @@ const REJECTED: &str = "rejected";
 const SESSION_START: &str = "session-start";
 const REFUSED_CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nstop_millis = 9000\n";
 const BLOCKED: [&str; 2] = ["\"decision\":\"block\"", "stop_millis must be under"];
+const POLLS: usize = 500;
+const POLL: Duration = Duration::from_millis(2);
 const SESSION_FIELD: &str = r#""session_id":"ABCDEF12-34","#;
 const WATCHERS: &str = ".git/meta-ci";
 const NO_TASKS: &str = "Tasks: 0 unfinished";
@@ -105,23 +109,35 @@ impl Repo {
     }
 
     fn hook(&self, event: &str, command: &str, cwd: &Path) -> String {
+        let child = self.started(event, command, cwd, &mut Command::new(META));
+        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
+    }
+
+    fn started(&self, event: &str, command: &str, cwd: &Path, meta: &mut Command) -> Child {
         let session = if event == SESSION_START { SESSION_FIELD } else { "" };
         let input = format!(
             r#"{{{session}"cwd":{},"tool_input":{{"command":{}}}}}"#,
             serde_json::to_string(cwd).unwrap(),
             serde_json::to_string(&command.replace(ELSEWHERE, &self.origin.path().display().to_string())).unwrap()
         );
-        let mut child = Command::new(META)
-            .args(["hook", event])
-            .env_remove("META_ACTOR")
-            .env("CLAUDE_ENV_FILE", self.env_file())
-            .env("TMPDIR", self.clone.path())
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()
-            .unwrap();
+        let meta = meta.args(["hook", event]).env_remove("META_ACTOR").env("CLAUDE_ENV_FILE", self.env_file());
+        let piped = meta.env("TMPDIR", self.clone.path()).stdin(Stdio::piped()).stdout(Stdio::piped());
+        let mut child = piped.spawn().unwrap();
         child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
-        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
+        child
+    }
+
+    fn interrupted(&self, helper: &Path) -> bool {
+        let hanging =
+            format!("[remote \"origin\"]\n\treceivepack = bash -c 'echo $$ > {} && sleep 5' x\n", helper.display());
+        Git::configure(&self.clone.path().join(GIT_CONFIG), &hanging);
+        let mut meta = self.started(POST, COMMIT, self.clone.path(), Command::new(META).process_group(0));
+        let polls = || (0..POLLS).map(|_| std::thread::sleep(POLL));
+        let pid = || std::fs::read_to_string(helper).unwrap_or_default();
+        let started = polls().any(|()| !pid().is_empty());
+        Command::new("kill").args(["-INT", "--", &format!("-{}", meta.id())]).status().unwrap();
+        let alive = || Command::new("kill").args(["-0", pid().trim()]).status().unwrap().success();
+        meta.wait().is_ok() && started && polls().any(|()| !alive())
     }
 
     fn env_file(&self) -> PathBuf {
@@ -160,6 +176,8 @@ fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
     assert_eq!(Git::head(repo.origin.path(), FEATURE_BRANCH), Git::head(repo.clone.path(), HEAD));
     Git::run(repo.clone.path(), &AMEND);
     assert!(repo.hook(POST, COMMIT, home).contains(REJECTED) && !repo.clone.path().join(WATCHERS).exists());
+    let helper = tempfile::NamedTempFile::new().unwrap();
+    assert!(repo.interrupted(helper.path()), "an interrupted hook left its git helper running");
 }
 
 #[test]
