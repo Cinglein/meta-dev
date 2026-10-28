@@ -237,7 +237,7 @@ impl Repo {
     }
 
     pub fn configured(&self, limits: &str) {
-        let program = format!("program = {:?}\n", REPLAY.expect(UNBUILT));
+        let program = format!("program = {:?}\n", REPLAY.filter(|built| Path::new(built).exists()).expect(UNBUILT));
         std::fs::write(self.clone.path().join("meta.toml"), format!("{CONFIG}{program}{limits}")).unwrap();
     }
 
