@@ -1214,3 +1214,4 @@
 {"at":"2026-10-28T23:03:58.766132Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-ba37a350f82c8bf5","text":"meta link records a bare PR number (cross-repo misread) and has no unlink; a stale extra link blocks a PR's paydown exemption."}
 {"at":"2026-10-28T23:08:09.264949Z","actor":"claude-lead","kind":"TaskLinked","task":"task-a29f99a353fb8afd","pr":138}
 {"at":"2026-10-28T23:09:28.889630Z","actor":"claude-frict","kind":"TaskClaimed","task":"task-a9c7cdb7c21a29da"}
+{"at":"2026-10-28T23:09:46.938396Z","actor":"claude-frict","kind":"TaskLinked","task":"task-a9c7cdb7c21a29da","pr":139}
