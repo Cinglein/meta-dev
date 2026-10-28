@@ -849,3 +849,4 @@
 {"at":"2026-10-28T00:40:10.573091Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-ba1fc185572af88d","text":"meta reopen drops the task's assignee, so a reopened task's PR fails the tracked-work check until re-claimed.","division":"features-and-maintenance","severity":"minor"}
 {"at":"2026-10-28T00:43:16.371091Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-d067e07c8d51f895","text":"resolved by #53: spec audit plus CI enforcer-exists check"}
 {"at":"2026-10-28T00:43:38.029175Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-bb96aaca4f3a7c51","text":"Owner reviews every PR; goal: most PRs merge sight-unseen, merge authority earned per risk tier."}
+{"at":"2026-10-28T00:43:39.692029Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-00639c4eca65869a","text":"Owner triages and watches wall time by hand; goal: a steward reads the log, flags trends, escalates only decisions."}
