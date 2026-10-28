@@ -16,12 +16,26 @@ pub struct Checkout {
 impl Checkout {
     const HEADS: &'static str = "refs/heads/";
     const NAMED_HEAD: [&'static str; 4] = ["rev-parse", "HEAD", "--symbolic-full-name", "HEAD"];
+    const DETACHED: &'static str = "HEAD";
+    const ATTACHED: &'static str = "HEAD -> ";
+    const DECORATIONS: &'static str = ", ";
 
     pub fn read(root: &Path, deadline: Instant) -> Self {
         let mut command = Command::new("git");
         command.arg("-C").arg(root).args(Self::NAMED_HEAD);
         let Ok(checkout) = TimedCommand::new(command, deadline).stdout().unwrap_or_default().parse();
         checkout
+    }
+
+    pub fn decorated(head: &Commit, decorations: &str) -> Option<Self> {
+        let named = decorations.split(Self::DECORATIONS).find_map(|decoration| {
+            (decoration == Self::DETACHED).then_some(decoration).or_else(|| decoration.strip_prefix(Self::ATTACHED))
+        })?;
+        Some(Self { head: Some(head.clone()), branch: Self::branch_named(named) })
+    }
+
+    fn branch_named(named: &str) -> Option<BranchName> {
+        named.trim().strip_prefix(Self::HEADS).and_then(|name| name.parse().ok())
     }
 
     pub fn head(&self) -> Option<&Commit> {
@@ -39,8 +53,7 @@ impl FromStr for Checkout {
     fn from_str(parsed: &str) -> Result<Self, Self::Err> {
         let (head, named) = parsed.trim().split_once('\n').unwrap_or_default();
         let head = Some(head).filter(|head| !head.is_empty()).and_then(|head| head.parse().ok());
-        let branch = named.trim().strip_prefix(Self::HEADS).and_then(|name| name.parse().ok());
-        Ok(Self { head, branch })
+        Ok(Self { head, branch: Self::branch_named(named) })
     }
 }
 

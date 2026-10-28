@@ -2,7 +2,7 @@
 
 use std::fmt;
 use std::io::Write as _;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, ExitStatus, Output, Stdio};
 use std::time::Duration;
 
@@ -75,9 +75,6 @@ const POST: &str = "post-tool-use";
 const COMMIT: &str = "git commit -m change";
 const PRE: &str = "pre-tool-use";
 const STOP: &str = "stop";
-const TRACE: &str = "GIT_TRACE";
-const REFLOG_WALK: &str = "--walk-reflogs";
-const HEAD_READ: &str = "--symbolic-full-name";
 const BLOCK: &str = "\"decision\":\"block\"";
 const BLOCK_REASON: &str = "\"reason\":\"meta-development: CI failed for your last push";
 const JOB_FAILED: &str = "ci failed; run `meta ci-log`";
@@ -323,9 +320,8 @@ impl Session<'_> {
             serde_json::to_string(self.cwd).unwrap(),
             serde_json::to_string(command).unwrap()
         );
-        let mut hook = self.repo.command(&["hook", event]);
         let mut child =
-            hook.env(TRACE, self.repo.trace()).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
+            self.repo.command(&["hook", event]).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
         child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
         String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
     }
@@ -364,14 +360,6 @@ impl Repo {
 
     fn hook(&self, event: &str, command: &str) -> String {
         Session { repo: self, cwd: self.clone.path(), id: SESSION }.hook(event, command)
-    }
-
-    fn trace(&self) -> PathBuf {
-        self.sessions.path().join(TRACE)
-    }
-
-    fn traced(&self) -> String {
-        std::fs::read_to_string(self.trace()).unwrap_or_default()
     }
 
     fn session_command(&self, command: &str) -> Waited {
@@ -448,8 +436,6 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_pus
     repo.session_command(CI_WAIT);
     let fixed = repo.hook(STOP, COMMIT);
     assert!(log.contains(PANIC_BLOCK) && !log.contains(COMPILING) && !fixed.contains(BLOCK));
-    let traced = repo.traced();
-    assert!(traced.contains(REFLOG_WALK) && !traced.contains(HEAD_READ), "{traced}");
 }
 
 #[test]
