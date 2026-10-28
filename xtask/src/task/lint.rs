@@ -11,7 +11,7 @@ use test_budget::TestBudget;
 
 use crate::task::failure::Failure;
 use crate::task::ratchet::{Baseline, Drift, Ratchet, ViolationCount};
-use crate::task::revision::{ForeignEmails, Revision};
+use crate::task::revision::Revision;
 pub use spec_prose::SpecProse;
 
 #[derive(Debug)]
@@ -21,7 +21,7 @@ pub struct Lint {
 
 impl Lint {
     pub fn run(root: &Path, files: &[SourceFile], policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
-        ForeignEmails::refused(&Revision::emails(root, policy.branch(Branch::Base))?)?;
+        Revision::noreply_off(root, policy.branch(Branch::Base))?;
         let allowed = Baseline::admitted(root, policy.baseline(), policy.branch(Branch::Base))?;
         let base = || Revision::merge_base(root, policy.branch(Branch::Base));
         let spec = policy.spec().map(|spec| base().and_then(|base| SpecProse::since(root, spec, &base))).transpose()?;
