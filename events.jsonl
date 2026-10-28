@@ -1222,3 +1222,4 @@
 {"at":"2026-10-28T23:15:55.706451Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-a72164b99b861c13","text":"Test time measures are noisy: scaled CPU swings about 10%; the slowest-test wall line (1 s) trips on waiting tests (meta_log, goldens: 1.2 s wall, tiny CPU)."}
 {"at":"2026-10-28T23:21:00.175199Z","actor":"claude-flaky","kind":"TaskLinked","task":"task-1ff0d8327007a205","pr":140}
 {"at":"2026-10-28T23:24:30.790377Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-1ff0d8327007a205"}
+{"at":"2026-10-28T23:24:32.315733Z","actor":"claude-lead","kind":"TaskDone","task":"task-1ff0d8327007a205"}
