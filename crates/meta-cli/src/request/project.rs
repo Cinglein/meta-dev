@@ -4,8 +4,9 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
+use std::time::Instant;
 
-use meta_log::GitLog;
+use meta_log::{GitLog, RemoteHeads};
 
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
 use crate::request::cli_failure::{CliFailure, Setup};
@@ -50,15 +51,15 @@ impl Project {
         })
     }
 
-    pub fn created_after(&self, start: &StartMoment) -> Option<Vec<Commit>> {
+    pub fn created_after(&self, start: &StartMoment, deadline: Instant) -> Option<Vec<Commit>> {
         let walked = ["log", "--walk-reflogs", "--date=unix", ReflogEntry::FORMAT, "HEAD", "--"].map(OsString::from);
-        let entries: Vec<ReflogEntry> = self.git_lines(walked).filter(|entries| !entries.is_empty())?;
+        let entries: Vec<ReflogEntry> = self.git_lines(walked, deadline).filter(|entries| !entries.is_empty())?;
         let befores = entries.iter().skip(1).map(Some).chain([None]);
         let created: Vec<Commit> = entries
             .iter()
             .zip(befores)
             .filter_map(|(entry, before)| {
-                entry.created_after(start, before, |commit| self.born_after(commit, start)).cloned()
+                entry.created_after(start, before, |commit| self.born_after(commit, start, deadline)).cloned()
             })
             .collect();
         Some(
@@ -71,18 +72,18 @@ impl Project {
         )
     }
 
-    pub fn remote_heads(&self) -> Result<Vec<Commit>, Listed> {
+    pub fn remote_heads(&self, deadline: Instant) -> Result<RemoteHeads, Listed> {
         let remote = self.config.remote().map_err(|failure| Listed::new(failure.to_string()))?;
         let mut command = Command::new("git");
         command.arg("-C").arg(&self.root).args(["ls-remote", "--heads", &remote.to_string()]);
-        let deadline = self.config.ci_settings().remote_deadline();
         let listed = TimedCommand::new(command, deadline).stdout().map_err(|failure| {
             Listed::new(format!("remote unreachable: git ls-remote {remote}: {failure}; retry, or ask the owner"))
         })?;
-        Ok(listed.lines().filter_map(|line| line.parse().ok()).collect())
+        let Ok(heads) = listed.parse();
+        Ok(heads)
     }
 
-    pub fn pushed_among(&self, commits: &[Commit], heads: &[Commit]) -> Vec<Commit> {
+    pub fn pushed_among(&self, commits: &[Commit], heads: &[Commit], deadline: Instant) -> Vec<Commit> {
         let remote = commits.first().and_then(|_| self.config.remote().ok());
         let listed = commits.iter().map(Commit::argument);
         let ahead = remote.map(|remote| {
@@ -90,37 +91,38 @@ impl Project {
             let not = words.chain([OsString::from("--not"), OsString::from(format!("--remotes={remote}"))]);
             not.chain(heads.iter().map(Commit::argument))
         });
-        let unpushed: Option<Vec<Commit>> = ahead.and_then(|words| self.git_lines(words));
+        let unpushed: Option<Vec<Commit>> = ahead.and_then(|words| self.git_lines(words, deadline));
         unpushed.map_or_else(Vec::new, |unpushed| {
             commits.iter().filter(|commit| !unpushed.contains(commit)).cloned().collect()
         })
     }
 
-    pub fn independent_tips(&self, pushed: Vec<Commit>) -> Vec<Commit> {
+    pub fn independent_tips(&self, pushed: Vec<Commit>, deadline: Instant) -> Vec<Commit> {
         let independent = [OsString::from("merge-base"), OsString::from("--independent")];
         let tips = pushed.get(1).map(|_| independent.into_iter().chain(pushed.iter().map(Commit::argument)));
-        tips.and_then(|words| self.git_lines(words)).unwrap_or(pushed)
+        tips.and_then(|words| self.git_lines(words, deadline)).unwrap_or(pushed)
     }
 
     pub fn head(&self) -> Option<Commit> {
-        let heads: Vec<Commit> = self.git_lines(["rev-parse", "HEAD"].map(OsString::from))?;
+        let deadline = self.config.ci_settings().remote_deadline();
+        let heads: Vec<Commit> = self.git_lines(["rev-parse", "HEAD"].map(OsString::from), deadline)?;
         heads.into_iter().next()
     }
 
-    fn git_lines<Line: FromStr>(&self, words: impl IntoIterator<Item = OsString>) -> Option<Vec<Line>> {
-        let output = Command::new("git")
-            .arg("-C")
-            .arg(&self.root)
-            .args(words)
-            .output()
-            .ok()
-            .filter(|output| output.status.success())?;
-        Some(String::from_utf8_lossy(&output.stdout).lines().filter_map(|line| line.parse().ok()).collect())
+    fn git_lines<Line: FromStr>(
+        &self,
+        words: impl IntoIterator<Item = OsString>,
+        deadline: Instant,
+    ) -> Option<Vec<Line>> {
+        let mut command = Command::new("git");
+        command.arg("-C").arg(&self.root).args(words);
+        let output = TimedCommand::new(command, deadline).stdout().ok()?;
+        Some(output.lines().filter_map(|line| line.parse().ok()).collect())
     }
 
-    fn born_after(&self, commit: &Commit, start: &StartMoment) -> bool {
+    fn born_after(&self, commit: &Commit, start: &StartMoment, deadline: Instant) -> bool {
         let words = [OsString::from("rev-parse"), OsString::from("--git-path"), commit.loose_object().into_os_string()];
-        let paths: Option<Vec<PathBuf>> = self.git_lines(words);
+        let paths: Option<Vec<PathBuf>> = self.git_lines(words, deadline);
         let path = paths.and_then(|paths| paths.into_iter().next()).map(|path| self.root.join(path));
         let modified = path.and_then(|path| std::fs::metadata(path).and_then(|meta| meta.modified()).ok());
         modified.is_some_and(|modified| start.precedes(modified))
