@@ -1,10 +1,14 @@
 use super::seeded_log::{SeededLog, TASK};
 use super::{
-    BLOCK, COMMIT, Calls, DEADLINE, FailingHead, Git, LAST, NEXT_COMMIT, PASSED_EVENT, POST, Planted, Repo, SHELL,
-    STOP, SUCCESS, TIMED_OUT_STOP,
+    BLOCK, COMMIT, Calls, DEADLINE, FAILURE, FailingHead, Git, LAST, NEXT_COMMIT, PASSED_EVENT, POST, Planted, Repo,
+    SHELL, STOP, SUCCESS, TIMED_OUT_STOP,
 };
 
 const TIMED_OUT: &str = "timed-out";
+const FAILED: &str = "failed";
+const FAILED_STOP: &str = "CI failed for your last push";
+const AGENT: &str = "claude-agent";
+const OWNER: &str = "owner";
 const CLAIMED: &str = "TaskClaimed";
 const NAMELESS: &str = "origin.git";
 const FIRST_POLL: &str = "30";
@@ -91,4 +95,25 @@ fn an_unreadable_remote_settles_the_watch_unchecked_and_the_last_poll_still_ends
     assert!(unchecked.contains(UNCHECKED_EVENT) && stopped.contains(BLOCK) && stopped.contains(UNCHECKED_STOP));
     assert!(retried.contains(GIT_FAILED) && retried.matches(UNCHECKED_EVENT).count() == 1);
     assert!(retried.strip_prefix(unchecked.as_str()).is_some_and(|new| new.contains(PASSED_EVENT)), "{retried}");
+}
+
+#[test]
+fn a_wait_the_owner_recorded_lets_stop_pass_failed_ci_and_an_agents_wait_does_not() {
+    let repo = Repo::new(FAILURE);
+    SeededLog::through(CLAIMED).plant(repo.origin.path());
+    Git::pushed(&repo, PUSH_HEAD);
+    Planted::settled(&repo, FAILED);
+    let acting = |actor: &str, words: &[&str]| repo.command(words).env("META_ACTOR", actor).output().unwrap();
+    let blocked = repo.hook(STOP, COMMIT);
+    acting(AGENT, &["claim", TASK]);
+    acting(AGENT, &WAIT_ON_CI);
+    let agent_waited = repo.hook(STOP, COMMIT);
+    acting(OWNER, &["resume", TASK]);
+    acting(OWNER, &WAIT_ON_CI);
+    let owner_waited = repo.hook(STOP, COMMIT);
+    let shown = format!("{blocked}\n{agent_waited}\n{owner_waited}");
+    assert!(
+        blocked.contains(FAILED_STOP) && agent_waited.contains(FAILED_STOP) && !owner_waited.contains(BLOCK),
+        "{shown}"
+    );
 }
