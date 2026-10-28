@@ -9,6 +9,7 @@ use task::{Policy, SpecSettings};
 
 use crate::section::Section;
 use crate::sections::SECTIONS;
+use crate::wording::Wording;
 use unconverted::Unconverted;
 
 #[derive(Debug)]
@@ -18,7 +19,10 @@ pub struct SpecView {
 }
 
 impl SpecView {
-    const HEADER: &str = "# Meta-development repo: spec (draft, started 2026-10-22)\n\nRendered from the rule records in `self/spec` down to the next top-level heading; edit those, then run `cargo run -p meta-spec`. Each rule shows id, division, rung and enforcer.\n\n";
+    const TITLE: Wording = Wording::new("# Meta-development repo: spec (draft, started 2026-10-22)");
+    const INTRO: Wording = Wording::new(
+        "Rendered from the rule records in `self/spec` down to the next top-level heading; edit those, then run `cargo run -p meta-spec`. Each rule shows id, division, rung and enforcer.",
+    );
     const UNSET: &str = "no [spec] file in tooling/policy.toml";
     const STALE: &str = "the spec file differs from its render: run `cargo run -p meta-spec`";
     const MISSING: &str = "these rules name an enforcer that does not exist: ";
@@ -77,7 +81,8 @@ impl SpecView {
 
 impl fmt::Display for SpecView {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(Self::HEADER)?;
+        writeln!(formatter, "{}\n", Self::TITLE)?;
+        writeln!(formatter, "{}\n", Self::INTRO)?;
         self.sections.iter().try_for_each(|section| write!(formatter, "{section}"))?;
         write!(formatter, "{}", self.unconverted)
     }
@@ -124,7 +129,8 @@ mod tests {
     #[test]
     fn prose_after_the_marker_or_a_whole_unmarked_file_is_kept_and_counted() {
         let rendered = SpecView::over(PROSE, SECTION).to_string();
-        assert_eq!(rendered.strip_prefix(SpecView::HEADER), Some(SHOWN));
+        let header = format!("{}\n\n{}\n\n", SpecView::TITLE, SpecView::INTRO);
+        assert_eq!(rendered.strip_prefix(&header), Some(SHOWN));
         assert_eq!(SpecView::over(&rendered, SECTION).to_string(), rendered);
         assert_eq!(SECTION.iter().flat_map(Section::rules).count(), RULES.len());
     }
