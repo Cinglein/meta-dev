@@ -1065,3 +1065,4 @@
 {"at":"2026-10-28T15:58:23.659467Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-ca4a56e7831809a5","text":"Fixed by #71 (one process runner): verified across its review rounds."}
 {"at":"2026-10-28T15:58:26.435361Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-973901a606f282e0","text":"Fixed by #71 (one process runner): verified across its review rounds."}
 {"at":"2026-10-28T15:58:28.909790Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-c520d3e9edd9fbec","text":"Fixed by #71 (one process runner): verified across its review rounds."}
+{"at":"2026-10-28T15:59:25.810143Z","actor":"claude-minorsc","kind":"TaskOpened","task":"task-b21705aefbfbdbe3","text":"Stop retries a failed meta/log fetch once within its deadline before blocking as unreadable","division":"features-and-maintenance","addresses":["concern-307c16ea5cbe1c3e"]}
