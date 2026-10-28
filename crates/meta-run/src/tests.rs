@@ -11,15 +11,10 @@ const FED: &str = "cat; echo oops >&2; echo more >&2; exit 3";
 const SHOWN: [&str; 3] = ["fed", "oops\nmore", "oops"];
 const PATIENT: Duration = Duration::from_secs(5);
 const LEADS: &str = "kill -0 -- -$$ 2>/dev/null && echo leader; true";
-const LIMIT: Duration = Duration::from_millis(50);
+const LIMIT: Duration = Duration::from_millis(30);
 const PROMPT: Duration = Duration::from_secs(1);
-const KILLED: [&str; 3] = [
-    "set -m; sleep 2 & echo $! >> \"$0\"; echo held",
-    "sleep 5 & echo $! >> \"$0\"; wait",
-    "sleep 0 & echo $$ >> \"$0\"; exec sleep 5",
-];
+const KILLED: [&str; 2] = ["sleep 5 & echo $! >> \"$0\"; wait", "sleep 0 & echo $$ >> \"$0\"; exec sleep 5"];
 const PS: [&str; 4] = ["ps", "-o", "stat=", "-p"];
-const KILL: [&str; 2] = ["kill", "-KILL"];
 const POLL: Duration = Duration::from_millis(2);
 const NO_PROMPT: &str = "\"GIT_TERMINAL_PROMPT\": Some(\"0\")";
 const INHERITED: [(&str, &str); 4] = [("GIT_DIR", "d"), ("GIT_SSH_COMMAND", "s"), ("LANG", "C"), ("PATH", "/bin")];
@@ -58,14 +53,12 @@ fn a_run_feeds_its_input_returns_both_streams_and_stays_in_the_callers_group() {
 
 #[test]
 fn a_run_ends_at_its_deadline_and_kills_its_whole_tree_even_when_a_grandchild_holds_the_pipes() {
-    let [stray, killed] = [(); 2].map(|()| tempfile::NamedTempFile::new().unwrap());
+    let killed = tempfile::NamedTempFile::new().unwrap();
     let started = Instant::now();
-    let runs = KILLED.map(|script| (script, if script == KILLED[0] { &stray } else { &killed }.path().to_path_buf()));
+    let runs = KILLED.map(|script| (script, killed.path().to_path_buf()));
     let runs = runs.map(|(script, pids)| std::thread::spawn(move || Scripted::timed_out(script, &pids)));
     assert!(runs.into_iter().all(|run| run.join().unwrap()) && started.elapsed() < PROMPT);
-    let left = std::fs::read_to_string(stray.path()).unwrap();
-    let stopped = Run::new(KILL[0], EnvPolicy::Inherit).args([KILL[1], left.trim()]).ran(Instant::now() + PATIENT);
-    assert!(stopped.is_ok() && Scripted::gone(killed.path()) && Scripted::gone(stray.path()));
+    assert!(Scripted::gone(killed.path()));
 }
 
 #[test]

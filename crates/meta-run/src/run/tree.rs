@@ -22,7 +22,7 @@ impl Tree {
     const END_OF_OPTIONS: &'static str = "--";
     const ZOMBIE: &'static str = "Z";
     const GRACE: Duration = Duration::from_secs(1);
-    const PAUSE: Duration = Duration::from_millis(10);
+    const PAUSE: Duration = Duration::from_millis(2);
     const SEARCH_PATH: [&'static str; 1] = ["PATH"];
 
     pub fn ended(child: &mut Child) {

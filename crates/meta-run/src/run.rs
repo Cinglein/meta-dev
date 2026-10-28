@@ -93,6 +93,7 @@ impl Run {
 
     pub fn ran(mut self, deadline: Instant) -> Result<Ran, RunFailure> {
         let line = CommandLine::from(&self.command);
+        deadline.checked_duration_since(Instant::now()).ok_or_else(|| RunFailure::TimedOut(line.clone()))?;
         let stdin = self.input.as_ref().map_or_else(Stdio::null, |_| Stdio::piped());
         let piped = self.command.stdin(stdin).stdout(Stdio::piped()).stderr(Stdio::piped());
         let spawned = piped.spawn().map_err(|source| RunFailure::Unspawned { line: line.clone(), source });
