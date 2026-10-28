@@ -5,6 +5,7 @@ use super::{
 };
 
 const TIMED_OUT: &str = "timed-out";
+const CLAIMED: &str = "TaskClaimed";
 const NAMELESS: &str = "origin.git";
 const FIRST_POLL: &str = "30";
 const GIT_FAILED: &str = "simulated git failure";
@@ -57,7 +58,7 @@ impl Counted {
 #[test]
 fn on_a_detached_head_a_wait_covers_only_its_head_and_a_typical_stop_lists_the_remote_once() {
     let repo = Repo::new(SUCCESS);
-    SeededLog::CLAIMED.plant(repo.origin.path());
+    SeededLog::through(CLAIMED).plant(repo.origin.path());
     Git::run(repo.clone.path(), &DETACH);
     let unrecorded = Unresolved::pushed(&repo);
     repo.meta(&WAIT_ON_CI);
