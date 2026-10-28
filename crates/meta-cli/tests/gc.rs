@@ -244,7 +244,7 @@ impl Scene {
         Git::run(&trees.join(DIRTY), &["reset", "-q", "--hard", "HEAD~1"]);
         Git::run(&trees.join(DIRTY), &["update-ref", "-d", "ORIG_HEAD"]);
         let linked = self.clone.path().join(".git/worktrees");
-        PAUSES.iter().for_each(|[task, pause]| std::fs::write(linked.join(task).join(pause), DANGLING).unwrap());
+        PAUSES.iter().try_for_each(|[task, pause]| std::fs::write(linked.join(task).join(pause), DANGLING)).unwrap();
         std::fs::create_dir_all(self.clone.path().join(".git/meta-local")).unwrap();
         std::fs::write(self.clone.path().join(TRAIL), Created(&trees, &[MERGED]).to_string()).unwrap();
     }
