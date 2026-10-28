@@ -2,9 +2,8 @@ use meta_log::RemoteHeads;
 
 use super::{StopView, Watched};
 use crate::request::checkout::Checkout;
-use crate::request::ci::Commit;
-use crate::request::ci::ci_status::CiStatus;
 use crate::request::ci::watcher::session_commits::SessionCommits;
+use crate::request::ci::{Commit, ci_status::CiStatus};
 use crate::request::output::Listed;
 
 const HEAD: &str = "f2e83b47f04f1aadaaf72b9d15074e933a513dc6";

@@ -24,23 +24,17 @@ fn every_recorded_commit_checks_reply_golden_view_is_its_observation() -> Result
 }
 
 #[test]
-fn the_excerpt_shows_the_failed_steps_of_every_recorded_log_and_names_a_failed_download() {
+fn the_excerpt_shows_every_recorded_failed_log_and_a_failed_download_whose_call_may_outlast_the_checks_limit() {
     let checks =
         Replies::recorded(GhArgv::CommitChecks).into_iter().filter(|reply| reply.argv().to_string().contains(FAILED));
     let checks: Vec<_> = checks.map(|reply| Gh::checks_in(reply.out())).collect();
     let logs = Replies::recorded(GhArgv::FailedLog).into_iter().map(|log| Ok(log.out().to_owned()));
     let logs: Vec<_> = logs.chain([Err(Gh::failed(DOWN))]).collect();
-    let settings = CiSettings::try_from(&Config::default()).unwrap();
-    let shown = Gh::excerpt(&checks, &logs, settings.log_window()).to_string();
-    assert!(SHOWN.iter().all(|part| shown.contains(part)), "{shown}");
-}
-
-#[test]
-fn a_log_download_may_outlast_the_call_limit_that_bounds_each_checks_query() {
     let settings = CiSettings::try_from(&toml::from_str::<Config>(LIMITED).unwrap()).unwrap();
+    let shown = Gh::excerpt(&checks, &logs, settings.log_window()).to_string();
     let now = Instant::now();
-    let deadline = now + WITHIN;
-    let gh = Gh::new(&settings, std::path::Path::new(""), deadline);
-    let limited = now + settings.gh_limit();
-    assert_eq!([GhArgv::FailedLog, GhArgv::CommitChecks].map(|call| gh.deadline_of(call, now)), [deadline, limited]);
+    let gh = Gh::new(&settings, std::path::Path::new(""), now + WITHIN);
+    let deadlines = [GhArgv::FailedLog, GhArgv::CommitChecks].map(|call| gh.deadline_of(call, now));
+    assert!(SHOWN.iter().all(|part| shown.contains(part)), "{shown}");
+    assert_eq!(deadlines, [now + WITHIN, now + settings.gh_limit()]);
 }

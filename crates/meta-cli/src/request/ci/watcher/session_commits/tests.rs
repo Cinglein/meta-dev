@@ -17,7 +17,6 @@ const CREATED: [&str; 6] = [
 const BEFORE: &str = "1699999999999999999";
 const SAME_SECOND: &str = "1700000000000000000";
 const AFTER: &str = "1700000001000000000";
-const PUSHED_BY_TRACKING: [&str; 1] = [CREATED[5]];
 const PUSHED_BY_HEADS: [&str; 3] = [CREATED[2], CREATED[4], CREATED[5]];
 const INDEPENDENT: [&str; 1] = [CREATED[2]];
 const TIPS: [&str; 2] = [CREATED[2], CREATED[5]];
@@ -68,7 +67,7 @@ fn commits_the_remote_holds_on_any_branch_count_as_pushed_and_only_independent_t
     let pushed: Vec<Vec<Commit>> = judged.iter().map(|seen| seen.pushed().to_vec()).collect();
     let tips = Recorded::listed(GitArgv::IndependentTips);
     let tipped = judged.into_iter().rev().zip(tips).map(|(seen, tips)| seen.tipped(Some(tips)));
-    assert_eq!(pushed, [Recorded::commits(&PUSHED_BY_TRACKING), Recorded::commits(&PUSHED_BY_HEADS)]);
+    assert_eq!(pushed, [Recorded::commits(&CREATED[5..]), Recorded::commits(&PUSHED_BY_HEADS)]);
     assert_eq!(heads.tips::<Commit>(), Recorded::commits(&TIPS));
     let tipped: Vec<_> = tipped.map(|seen| (seen.unpushed_head().cloned(), seen.pushed().to_vec())).collect();
     assert_eq!(tipped, [(created.first().cloned(), Recorded::commits(&INDEPENDENT))]);
