@@ -60,16 +60,20 @@ mod tests {
     use std::process::Command;
 
     use super::Door;
-    use crate::{Change, Entry, MetaStore};
+    use crate::{Change, Entry, MetaStore, Pair};
 
     const INIT: [&str; 2] = ["init", "-q"];
+    const BARE: [&str; 3] = ["init", "-q", "--bare"];
     const AREA: &str = "meta-local";
     const TRAIL: &str = "meta-local/trail";
     const ESCAPED: &str = "meta-local/../HEAD";
+    const STORED_REFS: &str = "refs/heads/main";
     const REFS: &str = ".git/refs/heads/main";
+    const HEAD: &str = "HEAD";
     const WORK: &str = "work";
     const UP: &str = "..";
     const EMPTY: &str = "";
+    const REFUSED: &str = "is inside the git dir";
 
     #[test]
     fn the_door_refuses_the_git_dir_and_lets_meta_store_files_and_the_work_tree_through() {
@@ -78,10 +82,21 @@ mod tests {
         let store = MetaStore::located(repository.path()).unwrap();
         let made = |entry: Entry| Door::changed(entry, Change::DirAll);
         let parent = |path: &Path| path.join(UP);
-        let refused = [store.entry(TRAIL).map(parent), store.entry(ESCAPED), store.common().join(AREA).into()];
+        let refused = [store.entry(TRAIL).map(parent), store.entry(ESCAPED), store.entry(STORED_REFS)];
         assert!(refused.into_iter().all(|entry| made(entry).is_err()) && made(store.entry(AREA)).is_ok());
         let work =
             Door::write(repository.path().join(WORK), EMPTY).and_then(|()| Door::write(store.entry(TRAIL), EMPTY));
         assert!(Door::write(repository.path().join(REFS), EMPTY).is_err() && work.is_ok());
+    }
+
+    #[test]
+    fn a_bare_repository_is_refused_by_name_and_a_link_may_point_into_it_but_a_copy_may_not_read_it() {
+        let bare = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        assert!(Command::new("git").current_dir(bare.path()).args(BARE).status().unwrap().success());
+        let refused = Door::write(bare.path().join(STORED_REFS), EMPTY).unwrap_err().to_string();
+        let linked = Door::paired(bare.path().join(HEAD), outside.path().join(HEAD), Pair::Symlink);
+        let copied = Door::paired(bare.path().join(HEAD), outside.path().join(WORK), Pair::Copy);
+        assert!(refused.contains(REFUSED) && linked.is_ok() && copied.is_err(), "{refused}");
     }
 }

@@ -67,10 +67,6 @@ impl Git {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
     }
 
-    fn link_origin(dir: &Path, origin: &Path) {
-        assert!(Self::run(dir, &["remote", "add", "origin", &origin.display().to_string()]).status.success());
-    }
-
     fn configure(dir: &Path, settings: &[[&str; SETTING_LEN]]) {
         assert!(settings.iter().all(|[key, value]| Self::run(dir, &["config", key, value]).status.success()));
     }
@@ -92,9 +88,7 @@ impl Repo {
     fn new() -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Skeleton::Bare.lay(origin.path(), "main");
-        Skeleton::Working.lay(clone.path(), "main");
-        Git::link_origin(clone.path(), origin.path());
+        Skeleton::laid(origin.path(), clone.path());
         Door::write(clone.path().join("meta.toml"), CONFIG).unwrap();
         Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "start"]);
         Self { origin, clone }

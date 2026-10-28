@@ -10,6 +10,7 @@ use std::time::Duration;
 use meta_door::{Change, Door, Entry, MetaStore, Opening};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
+const FEATURE_HEAD: [&str; 3] = ["symbolic-ref", "HEAD", "refs/heads/feature"];
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 2\n";
 const PATIENT: &str = "appear_millis = 2000\ntimeout_millis = 7000\n";
 const STALLED: &str = "appear_millis = 2000\ntimeout_millis = 7000\nstop_millis = 40\n";
@@ -158,10 +159,6 @@ impl Git {
     fn head(dir: &Path) -> String {
         String::from_utf8(Self::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap().trim().to_owned()
     }
-
-    fn link_origin(dir: &Path, url: &str) {
-        assert!(Self::run(dir, &["remote", "add", "origin", url]).status.success());
-    }
 }
 
 struct Waited(String, ExitStatus);
@@ -296,9 +293,8 @@ impl Repo {
     pub fn limited(scenario: &'static str, limits: &str) -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Skeleton::Bare.lay(origin.path(), "main");
-        Skeleton::Working.lay(clone.path(), "feature");
-        Git::link_origin(clone.path(), origin.path().to_str().unwrap());
+        Skeleton::laid(origin.path(), clone.path());
+        Git::run(clone.path(), &FEATURE_HEAD);
         Door::write(clone.path().join("meta.toml"), format!("{CONFIG}{limits}")).unwrap();
         Door::changed(clone.path().join("bin"), Change::Dir).unwrap();
         Door::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();

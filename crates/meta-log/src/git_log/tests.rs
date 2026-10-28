@@ -41,14 +41,14 @@ impl Git {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
     }
 
+    const TEMPLATE: &str = concat!("--template=", env!("CARGO_MANIFEST_DIR"), "/src/git_log/tests/template");
+
     fn laid(dir: &Path) {
-        assert!(Self::run(dir, &["init", "-q", "--template=", "--bare", "."]).status.success());
-        assert!(Self::run(dir, &["config", "maintenance.auto", "false"]).status.success());
+        assert!(Self::run(dir, &["init", "-q", Self::TEMPLATE, "--bare", "."]).status.success());
     }
 
     fn cloned(dir: &Path, url: &str) {
-        let cloned = Self::run(dir, &["clone", "-q", "--template=", "-c", "maintenance.auto=false", url, "."]);
-        assert!(cloned.status.success());
+        assert!(Self::run(dir, &["clone", "-q", Self::TEMPLATE, url, "."]).status.success());
     }
 
     fn text(dir: &Path, words: &[&str]) -> String {

@@ -213,14 +213,11 @@ impl Scene {
             trees: tempfile::tempdir().unwrap(),
             excludes: tempfile::NamedTempFile::new().unwrap(),
         };
-        Skeleton::Bare.lay(scene.origin.path(), "main");
-        Skeleton::Working.lay(scene.clone.path(), "main");
+        Skeleton::laid(scene.origin.path(), scene.clone.path());
         let clone = scene.clone.path();
         Door::write(scene.excludes.path(), EXCLUDED).unwrap();
         let excludes = scene.excludes.path().display().to_string();
-        let origin = scene.origin.path().display().to_string();
-        let configured = [["remote", "add", "origin", &origin], ["config", "--add", "core.excludesFile", &excludes]];
-        assert!(configured.iter().all(|words| Git::run(clone, words).status.success()));
+        assert!(Git::run(clone, &["config", "core.excludesFile", &excludes]).status.success());
         Door::write(clone.join("meta.toml"), CONFIG).unwrap();
         Door::write(clone.join("meta.local.toml"), Settings(&scene.trees()).to_string()).unwrap();
         Door::changed(clone.join("bin"), Change::Dir).unwrap();

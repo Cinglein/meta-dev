@@ -33,11 +33,10 @@ impl Project {
     fn new() -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Skeleton::Bare.lay(origin.path(), "main");
-        Skeleton::Working.lay(clone.path(), TASK);
-        let url = origin.path().display().to_string();
-        let added = Command::new("git").arg("-C").arg(clone.path()).args(["remote", "add", "origin", &url]).status();
-        assert!(added.unwrap().success());
+        Skeleton::laid(origin.path(), clone.path());
+        let head = format!("refs/heads/{TASK}");
+        let moved = Command::new("git").arg("-C").arg(clone.path()).args(["symbolic-ref", "HEAD", &head]).status();
+        assert!(moved.unwrap().success());
         Door::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
         let bin = clone.path().join("bin");
         Door::changed(&bin, Change::Dir).unwrap();

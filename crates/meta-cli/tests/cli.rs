@@ -70,10 +70,6 @@ impl Git {
         Run(Command::new("git").arg("-C").arg(dir).args(words).output().unwrap()).to_string()
     }
 
-    fn link_origin(dir: &Path, url: &str) {
-        assert!(Self::run(dir, &["remote", "add", "origin", url]).status.success());
-    }
-
     fn appended(file: impl Into<Entry>, text: impl std::fmt::Display) {
         write!(Door::opened(file, Opening::Append).unwrap(), "{text}").unwrap();
     }
@@ -160,9 +156,7 @@ impl Project {
     fn new() -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Skeleton::Bare.lay(origin.path(), "main");
-        Skeleton::Working.lay(clone.path(), "main");
-        Git::link_origin(clone.path(), origin.path().to_str().unwrap());
+        Skeleton::laid(origin.path(), clone.path());
         Door::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
         Self { origin, clone, excludes: tempfile::NamedTempFile::new().unwrap() }
     }

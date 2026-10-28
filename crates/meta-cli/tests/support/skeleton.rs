@@ -1,20 +1,16 @@
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
-pub enum Skeleton {
-    Bare,
-    Working,
-}
+pub struct Skeleton;
 
 impl Skeleton {
     const TEMPLATE: &'static str = concat!("--template=", env!("CARGO_MANIFEST_DIR"), "/tests/support/template");
+    const BARE: [&'static str; 6] = ["init", "--quiet", "--bare", Self::TEMPLATE, "-b", "main"];
+    const CLONE: [&'static str; 3] = ["clone", "--quiet", Self::TEMPLATE];
 
-    pub fn lay(self, dir: &Path, branch: &str) {
-        let shape = match self {
-            Self::Bare => "--bare",
-            Self::Working => "--quiet",
-        };
-        let init = Command::new("git").args(["init", "--quiet", shape, Self::TEMPLATE, "-b", branch]).arg(dir).status();
-        assert!(init.unwrap().success());
+    pub fn laid(origin: &Path, clone: &Path) {
+        let bare = Command::new("git").args(Self::BARE).arg(origin).status();
+        let cloned = Command::new("git").args(Self::CLONE).arg(origin).arg(clone).stderr(Stdio::null()).status();
+        assert!(bare.unwrap().success() && cloned.unwrap().success());
     }
 }
