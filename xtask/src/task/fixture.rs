@@ -12,19 +12,23 @@ pub struct Fixture {
 }
 
 impl Fixture {
+    const WORKING: &str =
+        "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = false\n[maintenance]\n\tauto = false\n";
+    const BARE: &str =
+        "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = true\n[maintenance]\n\tauto = false\n";
+
     pub fn new() -> Fixture {
         let directory = TempDir::new().expect("temp dir");
         let work = directory.path().join("work");
-        let git_dir = work.join(".git");
+        Self::laid(&work.join(".git"), Self::WORKING);
+        Fixture { _directory: directory, work }
+    }
+
+    fn laid(git_dir: &Path, config: &str) {
         fs::create_dir_all(git_dir.join("objects")).expect("objects dir");
         fs::create_dir_all(git_dir.join("refs/heads")).expect("refs dir");
         fs::write(git_dir.join("HEAD"), "ref: refs/heads/change\n").expect("write HEAD");
-        fs::write(
-            git_dir.join("config"),
-            "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = false\n[maintenance]\n\tauto = false\n",
-        )
-        .expect("write config");
-        Fixture { _directory: directory, work }
+        fs::write(git_dir.join("config"), config).expect("write config");
     }
 
     pub fn branch(&self) {
@@ -53,14 +57,15 @@ impl Fixture {
 
     pub fn shared_origin(&self, other: &Fixture) -> PathBuf {
         let bare = self.work.with_file_name("origin.git");
-        Self::ran(Self::git(&self.work).args(["init", "--quiet", "--bare"]).arg(&bare));
+        Self::laid(&bare, Self::BARE);
         self.pointed(&bare);
         other.pointed(&bare);
         bare
     }
 
     pub fn pointed(&self, origin: &Path) -> &Fixture {
-        Self::ran(Self::git(&self.work).args(["config", "remote.origin.url"]).arg(origin));
+        let remote = format!("[remote \"origin\"]\n\turl = {}\n", origin.display());
+        fs::write(self.work.join(".git/config"), [Self::WORKING, &remote].concat()).expect("write config");
         self
     }
 
