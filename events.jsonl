@@ -1095,3 +1095,4 @@
 {"at":"2026-10-28T16:59:14.872718Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-78d1508b51b0e18a","text":"Differential tests on the golden harness: replay real meta/log under main and PR, diff hook verdicts across binaries; golden black-box scenarios."}
 {"at":"2026-10-28T16:59:17.286600Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-678ef62e3cf8dbca","text":"Functional core step 1: command result type, decided-or-need-facts type, typed git/gh ports over meta-run, general golden-file harness (git, gh replayer, meta output) with regenerate command and CI job."}
 {"at":"2026-10-28T16:59:43.879829Z","actor":"claude-fcore","kind":"TaskClaimed","task":"task-678ef62e3cf8dbca"}
+{"at":"2026-10-28T17:06:11.885240Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-1459159d4ca7537c","text":"Not needed (owner): the lead controls agents directly; #113 closed."}
