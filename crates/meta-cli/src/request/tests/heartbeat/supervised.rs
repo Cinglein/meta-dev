@@ -1,9 +1,9 @@
 use std::time::Duration;
 
+use meta_golden::Golden;
 use meta_run::{EnvPolicy, Run};
 
 use crate::request::heartbeat::Tick;
-use crate::request::output::Output;
 use crate::request::project::TickLimit;
 
 const PATIENT: Duration = Duration::from_secs(10);
@@ -27,10 +27,8 @@ impl Shell {
 
 #[test]
 fn a_supervised_tick_passes_on_the_output_and_the_verdict_of_the_inner_run() {
-    let clean = Tick::supervised(Shell::running(CLEAN), TickLimit::from(PATIENT)).unwrap();
-    let raised = Tick::supervised(Shell::running(RAISED), TickLimit::from(PATIENT)).unwrap();
-    assert!(matches!(&clean, Output::Listed(_)) && clean.to_string() == "clean\n");
-    assert!(matches!(&raised, Output::Flagged(_)) && raised.to_string() == "raised\n");
+    let passed = [CLEAN, RAISED].map(|script| Tick::supervised(Shell::running(script), TickLimit::from(PATIENT)));
+    Golden::for_test(module_path!(), "passed").debugged(&passed.map(Result::unwrap)).unwrap();
 }
 
 #[test]

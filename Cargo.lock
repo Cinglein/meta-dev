@@ -1066,6 +1066,7 @@ version = "0.1.0"
 dependencies = [
  "derive_more",
  "enum-map",
+ "meta-golden",
  "meta-schema",
  "meta-severity",
  "meta-state",

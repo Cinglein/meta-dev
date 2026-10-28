@@ -1,0 +1,15 @@
+STRANDED in quarantine /trees/.gc-lost-1x0: may be read-only and locked; restore: meta gc restore /trees/.gc-lost-1x0; record follows from /trees/lost
+STRANDED in quarantine /trees/.gc-kept-2x0: may be read-only and locked; restore: meta gc restore /trees/.gc-kept-2x0
+STRANDED in quarantine /trees/.gc-old-9x9: may be read-only and locked; restore: meta gc restore /trees/.gc-old-9x9
+freed /trees/task-00000000000000b1: 1160 bytes; pr #1 merged
+kept /elsewhere/task-00000000000000b1: path escapes the worktree root; pr #1 merged
+closed /trees/gone: missing
+kept /trees/live: pr #2 open
+unrecorded /trees/stray: left alone
+[
+    "{\"change\":\"Moved\",\"path\":\"/trees/lost\",\"to\":\"/trees/.gc-lost-1x0\",\"at\":\"2026-10-27T12:00:00Z\"}",
+    "{\"change\":\"Freed\",\"path\":\"/trees/task-00000000000000b1\",\"at\":\"2026-10-27T12:00:00Z\",\"reason\":\"pr #1 merged\",\"bytes\":1160}",
+    "{\"change\":\"Refused\",\"path\":\"/elsewhere/task-00000000000000b1\",\"at\":\"2026-10-27T12:00:00Z\",\"reason\":\"path escapes the worktree root; pr #1 merged\"}",
+    "{\"change\":\"Closed\",\"path\":\"/trees/gone\",\"at\":\"2026-10-27T12:00:00Z\"}",
+]
+scanned [["/trees/task-00000000000000b1"], ["/trees/.gc-task-00000000000000b1-1x0"]]

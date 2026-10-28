@@ -1,3 +1,4 @@
+use meta_golden::Golden;
 use meta_log::LogStore;
 use meta_severity::Scales;
 use meta_state::State;
@@ -25,14 +26,6 @@ const RATED_PLACED: &str = "crash @features-and-maintenance !major";
 const KEPT: &str = "crash @performance-and-cost !major";
 const COUNTED: &str =
     "performance-and-cost: critical 0, major 1, minor 0, unrated 0\n  major: issue-00000000000000aa\n";
-const REFUSED: [&str; 6] = [
-    "x means another level on features-and-maintenance/b; move it with --severity",
-    "y means another level on features-and-maintenance/b; move it with --severity",
-    "major is not on the scale of features-and-maintenance/nav; move it with --severity",
-    "raising from z needs --scenario",
-    "raising from major needs --scenario",
-    "--scenario needs --severity",
-];
 const MOVED: [&str; 4] =
     ["!y (same as x)", "!w (lowered from y)", "!slow (same as major)", "!minor (lowered from slow)"];
 
@@ -73,7 +66,7 @@ fn a_move_compares_levels_where_they_roll_up_so_only_an_equal_roll_up_is_kept_an
         moved(&[top, TO, NAV, SEVERITY, "lost"]),
         moved(&[top, TO, NAV, "--scenario", "s"]),
     ];
-    assert!(refused.iter().zip(REFUSED).all(|(refusal, why)| refusal.as_ref().is_err_and(|shown| shown.contains(why))));
+    Golden::for_test(module_path!(), "refused").debugged(&refused).unwrap();
     let done = [
         moved(&[ax, TO, B, SEVERITY, "y"]),
         moved(&[ay, TO, B, SEVERITY, "w"]),
