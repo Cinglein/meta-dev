@@ -26,6 +26,8 @@ const ENDS: [(&str, Option<usize>, Option<usize>, Selection); 9] = [
 ];
 const BLOCKED: [bool; 9] = [false, true, false, true, false, true, true, false, false];
 const UNMEASURED_ENDS: usize = 2;
+const OVER_CAP: usize = 6;
+const CAP: &str = "\n[budgets.t-tangle]\ndivision = \"features-and-maintenance\"\nmeasure = \"tangle_items\"\nallowance = { count = 4 }\nwindow = \"standing\"\n";
 
 #[test]
 fn standing_budgets_are_enforced_from_the_merge_base_and_a_new_cap_waits() {
@@ -45,7 +47,7 @@ fn standing_budgets_are_enforced_from_the_merge_base_and_a_new_cap_waits() {
 
 #[test]
 fn an_over_standing_measure_blocks_its_division_until_a_change_moves_it_toward_its_line() {
-    let policy: Policy = toml::from_str(&format!("{}{STANDING}", Policy::DEFAULTS)).unwrap();
+    let policy: Policy = toml::from_str(&format!("{}{STANDING}{CAP}", Policy::DEFAULTS)).unwrap();
     let spent = |ledger: Ledger, tangle: Option<usize>| {
         tangle.into_iter().fold(ledger, |mut ledger, tangle| {
             ledger.spend(Measure::TangleItems, Amount::Count(Most::from(tangle)));
@@ -57,13 +59,11 @@ fn an_over_standing_measure_blocks_its_division_until_a_change_moves_it_toward_i
         ledger.enforce_from(Some(BASE)).unwrap();
         ledger.measured_at_base(spent(Ledger::default(), base));
         let shown = ledger.statement(&policy).to_string();
-        let tangled = ledger.blocking(&policy, &selection);
-        (
-            tangled.contains(&TANGLE.to_owned()),
-            shown.contains(UNMEASURED),
-        )
+        let hit = ledger.blocking(&policy, &selection);
+        (hit.contains(&TANGLE.to_owned()), shown.contains(UNMEASURED))
     });
     assert_eq!(checked.map(|(blocked, _)| blocked), BLOCKED);
     let noted = checked.iter().filter(|(_, noted)| *noted).count();
-    assert_eq!(noted, UNMEASURED_ENDS);
+    let fresh = spent(Ledger::default(), Some(OVER_CAP));
+    assert!(noted == UNMEASURED_ENDS && fresh.blocking(&policy, &Selection::Workspace).is_empty());
 }
