@@ -1178,3 +1178,4 @@
 {"at":"2026-10-28T21:23:26.103818Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-a72164b99b861c13","text":"Scaled test CPU still swings about 10%: #133 read 4079 ms on a fast runner (reference 765 ms vs 1.08 s) with lower raw CPU.","division":"performance-and-cost","severity":"minor"}
 {"at":"2026-10-28T21:24:23.143271Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-b21705aefbfbdbe3"}
 {"at":"2026-10-28T21:24:25.116689Z","actor":"claude-lead","kind":"TaskDone","task":"task-b21705aefbfbdbe3"}
+{"at":"2026-10-28T21:27:03.919560Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-4e30425a6eae4c9e","text":"CI uses floating stable Rust with no rust-toolchain pin; snapshots of std Debug output can turn main red on a Rust release.","division":"performance-and-cost","severity":"minor"}
