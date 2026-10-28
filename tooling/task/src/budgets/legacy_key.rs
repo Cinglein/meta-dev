@@ -123,7 +123,7 @@ mod tests {
 
     const MILLIS: &str = "[millis]\n";
     const OLD: &str = "[millis]\ntotal = 4000\n";
-    const NEW: &str = "[budgets.test-time]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
+    const NEW: &str = "[budgets.test-time]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"ci\"\noverspend = \"report\"\n";
     const BOTH: &str = "millis.total: also set as a budget; drop the old key";
     const NEITHER: &str = "millis.total: not set; declare it as a budget";
 
