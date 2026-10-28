@@ -17,8 +17,7 @@ const LOCAL_NAME: &str = "localname";
 const OPEN: [&str; 4] = ["open", "--division", "features-and-maintenance", "text"];
 const SEED: &str = "commit refs/heads/main\ncommitter t <t@meta.invalid> 1700000000 +0000\ndata 4\nseed\n\n";
 const TRACKED: &str = "reset refs/remotes/origin/main\nfrom refs/heads/main\n\n";
-const ORIGIN_HEAD: &str = ".git/refs/remotes/origin/HEAD";
-const ORIGIN_MAIN: &str = "ref: refs/remotes/origin/main\n";
+const ORIGIN_HEAD: [&str; 3] = ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"];
 const NOREPLY: &str = "1+agent@users.noreply.github.com";
 const CLAIM: &str = "claim";
 const WORKTREE: &str = "--worktree";
@@ -94,10 +93,8 @@ impl Seed {
         std::thread::scope(|scope| {
             scope.spawn(|| Self::imported(origin, SEED));
             Self::imported(clone, &[SEED, TRACKED].concat());
+            assert!(Git::run(clone, &ORIGIN_HEAD).status.success());
         });
-        let origin_head = clone.join(ORIGIN_HEAD);
-        std::fs::create_dir_all(origin_head.parent().unwrap()).unwrap();
-        std::fs::write(origin_head, ORIGIN_MAIN).unwrap();
     }
 }
 
