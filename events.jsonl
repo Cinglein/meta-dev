@@ -871,3 +871,4 @@
 {"at":"2026-10-28T00:44:09.754146Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-8e18408c1ffecb96","text":"Consumers never have default_levels.json at the merge base, so a meta-xtask bump changing default levels goes unjudged."}
 {"at":"2026-10-28T00:44:11.349986Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-5dd47abacb2229ef","text":"timed_output joins pipe readers, so a grandchild holding pipes outlasts the timeout (pre-existing)."}
 {"at":"2026-10-28T00:44:12.960962Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-87341e3156c2b3af","text":"Test fakes can diverge from real git and hide unsafe changes (#72); fakes need real-git parity tests."}
+{"at":"2026-10-28T00:44:14.503703Z","actor":"claude-lead","kind":"EntryCorrected","entry":"issue-613a295c7ec6a48c","text":"Local cargo xtask ci fails the 4 s test-time budget on a loaded Mac while GitHub passes; local timing is noisy."}
