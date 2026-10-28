@@ -1,10 +1,9 @@
-pub(crate) mod kill_target;
+mod leader;
 
 use std::os::unix::process::CommandExt as _;
-use std::process::Command;
+use std::process::{Child, Command};
 
-use crate::leader::Leader;
-use kill_target::KillTarget;
+use leader::Leader;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KillScope {
@@ -20,10 +19,13 @@ impl KillScope {
         }
     }
 
-    pub(crate) fn target(self, leader: Leader) -> KillTarget {
-        match self {
-            Self::Process => KillTarget::Process(leader),
-            Self::Group => KillTarget::Group(leader),
-        }
+    pub(crate) fn ended(self, child: &mut Child) {
+        let group = match self {
+            Self::Process => None,
+            Self::Group => Some(Leader::from(&*child)),
+        };
+        group.into_iter().for_each(Leader::ended);
+        drop(child.kill());
+        drop(child.wait());
     }
 }

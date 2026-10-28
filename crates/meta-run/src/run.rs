@@ -1,9 +1,10 @@
-pub(crate) mod spawned;
-
 use std::ffi::OsStr;
+use std::io::{Read, Write as _};
+use std::ops::ControlFlow;
 use std::path::Path;
-use std::process::{Command, Stdio};
-use std::time::Instant;
+use std::process::{Child, Command, ExitStatus, Stdio};
+use std::sync::mpsc::{Receiver, channel};
+use std::time::{Duration, Instant};
 
 use crate::command_line::CommandLine;
 use crate::env_policy::EnvPolicy;
@@ -11,7 +12,8 @@ use crate::environment::Environment;
 use crate::kill_scope::KillScope;
 use crate::ran::Ran;
 use crate::run_failure::RunFailure;
-use spawned::Spawned;
+use crate::stderr::Stderr;
+use crate::stdout::Stdout;
 
 #[derive(Debug)]
 pub struct Run {
@@ -23,6 +25,8 @@ pub struct Run {
 impl Run {
     const GIT: &'static str = "git";
     const DIRECTORY: &'static str = "-C";
+    const FIRST_PAUSE: Duration = Duration::from_micros(10);
+    const LONGEST_PAUSE: Duration = Duration::from_millis(5);
 
     #[must_use]
     pub fn new(program: impl AsRef<OsStr>, env: EnvPolicy) -> Self {
@@ -34,7 +38,7 @@ impl Run {
         let mut command = Command::new(program);
         let kept = env.applied(inherited.clone());
         inherited.dropped(&kept, &mut command);
-        Self { command, scope: KillScope::Group, input: None }
+        Self { command, scope: KillScope::Process, input: None }
     }
 
     #[must_use]
@@ -75,11 +79,24 @@ impl Run {
         Self { scope, ..self }
     }
 
-    pub fn ran(self, deadline: Instant) -> Result<Ran, RunFailure> {
-        let scope = self.scope;
-        let spawned = self.spawned()?;
-        let target = scope.target(spawned.leader());
-        spawned.settled(deadline).inspect_err(|_| target.ended())
+    pub fn ran(mut self, deadline: Instant) -> Result<Ran, RunFailure> {
+        let line = CommandLine::from(&self.command);
+        let stdin = self.input.as_ref().map_or_else(Stdio::null, |_| Stdio::piped());
+        let piped = self.scope.led(&mut self.command).stdin(stdin).stdout(Stdio::piped()).stderr(Stdio::piped());
+        let spawned = piped.spawn().map_err(|source| RunFailure::Unspawned { line: line.clone(), source });
+        let mut child = spawned?;
+        let fed = child.stdin.take().zip(self.input);
+        fed.map(|(mut pipe, input)| std::thread::spawn(move || pipe.write_all(input.as_bytes())));
+        let stdout = Self::drained(child.stdout.take(), Stdout::read_from);
+        let stderr = Self::drained(child.stderr.take(), Stderr::read_from);
+        let left = || deadline.saturating_duration_since(Instant::now());
+        let streams = stdout.recv_timeout(left()).ok().zip(stderr.recv_timeout(left()).ok());
+        let status = streams.as_ref().and_then(|_| Self::exited(&mut child, deadline));
+        let ran = status.zip(streams).map(|(status, (stdout, stderr))| Ran::new(line.clone(), status, stdout, stderr));
+        ran.ok_or_else(|| {
+            self.scope.ended(&mut child);
+            RunFailure::TimedOut(line)
+        })
     }
 
     pub fn stdout(self, deadline: Instant) -> Result<String, RunFailure> {
@@ -92,13 +109,31 @@ impl Run {
         quiet.stderr(Stdio::null()).spawn().map(drop).map_err(|source| RunFailure::Unspawned { line, source })
     }
 
-    pub(crate) fn spawned(mut self) -> Result<Spawned, RunFailure> {
-        let line = CommandLine::from(&self.command);
-        let stdin = self.input.as_ref().map_or_else(Stdio::null, |_| Stdio::piped());
-        let piped = self.scope.led(&mut self.command).stdin(stdin).stdout(Stdio::piped()).stderr(Stdio::piped());
-        match piped.spawn() {
-            Ok(child) => Ok(Spawned::new(line, child, self.input)),
-            Err(source) => Err(RunFailure::Unspawned { line, source }),
+    fn drained<Pipe: Read + Send + 'static, Text: Send + 'static>(
+        pipe: Option<Pipe>,
+        read: fn(Option<Pipe>) -> Text,
+    ) -> Receiver<Text> {
+        let (sender, drained) = channel();
+        std::thread::spawn(move || sender.send(read(pipe)));
+        drained
+    }
+
+    fn exited(child: &mut Child, deadline: Instant) -> Option<ExitStatus> {
+        let pauses = std::iter::successors(Some(Self::FIRST_PAUSE), |pause| {
+            Some(pause.saturating_add(*pause).min(Self::LONGEST_PAUSE))
+        });
+        pauses.into_iter().try_for_each(|pause| Self::waited(child, pause, deadline)).break_value().flatten()
+    }
+
+    fn waited(child: &mut Child, pause: Duration, deadline: Instant) -> ControlFlow<Option<ExitStatus>> {
+        let left = deadline.checked_duration_since(Instant::now());
+        match (child.try_wait(), left) {
+            (Ok(None), Some(left)) => {
+                std::thread::sleep(pause.min(left));
+                ControlFlow::Continue(())
+            }
+            (Ok(status), _) => ControlFlow::Break(status),
+            (Err(_), _) => ControlFlow::Break(None),
         }
     }
 }

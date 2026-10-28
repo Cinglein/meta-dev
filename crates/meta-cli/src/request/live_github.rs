@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use meta_pull_query::{LiveData, LiveQuery, LiveReply, Pulls, Rulebook, WorkflowName};
 use meta_pulls::{BaseBranch, RequiredChecks};
-use meta_run::{EnvPolicy, Run};
+use meta_run::{EnvPolicy, KillScope, Run};
 use meta_schema::PullRequest;
 use meta_status::{Github, GithubFailure};
 
@@ -35,9 +35,8 @@ impl LiveGithub {
     }
 
     pub fn for_project(project: &Project) -> Self {
-        let config = project.config();
-        let settings = config.ci_settings();
-        let workflows = config.required_workflows().to_vec();
+        let settings = project.ci_settings();
+        let workflows = project.config().required_workflows().to_vec();
         Self::new(settings.program().clone(), project.root().to_path_buf(), settings.remote_deadline(), workflows)
     }
 
@@ -78,7 +77,7 @@ impl LiveGithub {
     }
 
     fn run<'words>(&self, words: impl Iterator<Item = &'words OsStr>) -> Run {
-        Run::new(&self.program, EnvPolicy::Inherit).args(words).dir(&self.root)
+        Run::new(&self.program, EnvPolicy::Inherit).args(words).dir(&self.root).scoped(KillScope::Group)
     }
 }
 

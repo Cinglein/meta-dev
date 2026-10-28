@@ -1,4 +1,3 @@
-mod git_limit;
 mod log_window;
 mod millis;
 mod program_name;
@@ -10,20 +9,19 @@ use serde::Deserialize;
 
 use super::Config;
 use crate::request::cli_failure::{CliFailure, Setup};
-use git_limit::GitLimit;
 pub use log_window::LogWindow;
 pub use millis::Millis;
 pub use program_name::ProgramName;
 use stop_limit::StopLimit;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
 pub struct CiSettings {
     program: ProgramName,
     poll_millis: Millis,
     timeout_millis: Millis,
     appear_millis: Millis,
     remote_millis: Millis,
-    git_millis: GitLimit,
+    git_millis: Millis,
     stop_millis: StopLimit,
     #[serde(flatten)]
     log_window: LogWindow,
@@ -52,8 +50,8 @@ impl CiSettings {
         Instant::now() + self.remote_millis.duration()
     }
 
-    pub fn git_limit(&self) -> GitLimit {
-        self.git_millis
+    pub fn git_deadline(&self, from: Instant) -> Instant {
+        from + self.git_millis.duration()
     }
 
     pub fn stop_limit(&self) -> StopLimit {
@@ -89,7 +87,7 @@ mod tests {
     #[test]
     fn the_poll_interval_is_the_configured_poll_millis() {
         let config: Config = toml::from_str(CONFIGURED).unwrap();
-        assert_eq!(config.ci_settings().poll_interval().duration(), Duration::from_millis(7));
+        assert_eq!(CiSettings::try_from(&config).unwrap().poll_interval().duration(), Duration::from_millis(7));
     }
 
     #[test]

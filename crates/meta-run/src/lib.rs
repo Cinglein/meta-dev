@@ -2,7 +2,6 @@ mod command_line;
 mod env_policy;
 mod environment;
 mod kill_scope;
-mod leader;
 mod ran;
 mod run;
 mod run_failure;

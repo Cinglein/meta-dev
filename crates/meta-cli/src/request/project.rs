@@ -6,7 +6,7 @@ use std::str::FromStr;
 use std::time::Instant;
 
 use meta_log::{GitLog, RemoteHeads};
-use meta_run::{Ran, Run, RunFailure};
+use meta_run::{KillScope, Run};
 
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
 use crate::request::cli_failure::{CliFailure, Setup};
@@ -19,6 +19,7 @@ mod tests;
 pub struct Project {
     root: PathBuf,
     config: Config,
+    ci: CiSettings,
 }
 
 impl Project {
@@ -36,11 +37,15 @@ impl Project {
         &self.config
     }
 
+    pub fn ci_settings(&self) -> &CiSettings {
+        &self.ci
+    }
+
     pub fn push_failure(&self) -> Option<Listed> {
+        let deadline = self.ci.git_deadline(Instant::now());
         let remote = self.config.remote().ok()?.to_string();
-        let unprotected = self.unprotected_branch()?;
-        let deadline = self.config.ci_settings().git_limit().deadline();
-        match self.git(["push", "--quiet", "-u", &remote, &unprotected.to_string()], deadline) {
+        let unprotected = self.unprotected_branch(deadline)?;
+        match self.git(["push", "--quiet", "-u", &remote, &unprotected.to_string()]).ran(deadline) {
             Ok(ran) if ran.success() => None,
             Ok(ran) => Some(Listed::new(format!("push of {unprotected} failed: {}", ran.stderr()))),
             Err(failure) => Some(Listed::new(format!("push of {unprotected} failed: {failure}"))),
@@ -70,8 +75,8 @@ impl Project {
 
     pub fn remote_heads(&self, deadline: Instant) -> Result<RemoteHeads, Listed> {
         let remote = self.config.remote().map_err(|failure| Listed::new(failure.to_string()))?;
-        let listed = self.git(["ls-remote", "--heads", &remote.to_string()], deadline).and_then(Ran::succeeded);
-        let listed = listed.map_err(|failure| {
+        let listed = self.git(["ls-remote", "--heads", &remote.to_string()]).scoped(KillScope::Group);
+        let listed = listed.stdout(deadline).map_err(|failure| {
             Listed::new(format!("remote unreachable: git ls-remote {remote}: {failure}; retry, or ask the owner"))
         })?;
         let Ok(heads) = listed.parse();
@@ -99,17 +104,13 @@ impl Project {
     }
 
     pub fn head(&self) -> Option<Commit> {
-        let deadline = self.config.ci_settings().remote_deadline();
+        let deadline = self.ci.remote_deadline();
         let heads: Vec<Commit> = self.git_lines(["rev-parse", "HEAD"].map(OsString::from), deadline)?;
         heads.into_iter().next()
     }
 
-    fn git<Word: AsRef<OsStr>>(
-        &self,
-        words: impl IntoIterator<Item = Word>,
-        deadline: Instant,
-    ) -> Result<Ran, RunFailure> {
-        Run::git(&self.root).args(words).ran(deadline)
+    fn git<Word: AsRef<OsStr>>(&self, words: impl IntoIterator<Item = Word>) -> Run {
+        Run::git(&self.root).args(words)
     }
 
     fn git_lines<Line: FromStr>(
@@ -117,7 +118,7 @@ impl Project {
         words: impl IntoIterator<Item = OsString>,
         deadline: Instant,
     ) -> Option<Vec<Line>> {
-        let output = self.git(words, deadline).and_then(Ran::succeeded).ok()?;
+        let output = self.git(words).scoped(KillScope::Group).stdout(deadline).ok()?;
         Some(output.lines().filter_map(|line| line.parse().ok()).collect())
     }
 
@@ -129,9 +130,8 @@ impl Project {
         modified.is_some_and(|modified| start.precedes(modified))
     }
 
-    pub fn unprotected_branch(&self) -> Option<BranchName> {
-        let deadline = self.config.ci_settings().git_limit().deadline();
-        let current = self.git(["branch", "--show-current"], deadline).and_then(Ran::succeeded).ok()?;
+    pub fn unprotected_branch(&self, deadline: Instant) -> Option<BranchName> {
+        let current = self.git(["branch", "--show-current"]).stdout(deadline).ok()?;
         let branch: BranchName = current.trim().parse().ok()?;
         Some(branch).filter(|branch| !branch.to_string().is_empty() && self.config.protects(branch).is_none())
     }
@@ -151,6 +151,7 @@ impl TryFrom<&Path> for Project {
             .map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
         let config =
             toml::from_str(&text).map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
-        Ok(Self { root, config })
+        let ci = CiSettings::try_from(&config)?;
+        Ok(Self { root, config, ci })
     }
 }

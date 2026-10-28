@@ -2,7 +2,7 @@ use std::path::Path;
 use std::str::FromStr;
 use std::time::Instant;
 
-use meta_run::Run;
+use meta_run::{Run, RunFailure};
 use meta_schema::Email;
 
 use crate::request::output::Listed;
@@ -16,15 +16,22 @@ impl Identity {
     pub fn refusal_in(directory: &Path, deadline: Instant) -> Option<Listed> {
         let unresolved =
             Listed::new(format!("cannot resolve the commit directory; use an absolute path: {}", directory.display()));
-        (!directory.is_dir()).then_some(unresolved).or_else(|| Self::foreign_in(directory, deadline)?.refusal())
+        (!directory.is_dir()).then_some(unresolved).or_else(|| match Self::foreign_in(directory, deadline) {
+            Ok(foreign) => foreign?.refusal(),
+            Err(failure) => {
+                Some(Listed::new(format!("cannot check the commit email: {failure}; retry, or ask the owner")))
+            }
+        })
     }
 
-    fn foreign_in(directory: &Path, deadline: Instant) -> Option<Identity> {
-        Self::IDENTS.iter().find_map(|ident| {
-            let shown = Run::git(directory).args(["var", ident]).ran(deadline).ok()?;
-            let Ok(identity) = shown.stdout().text().parse::<Identity>();
-            Some(identity).filter(|identity| !identity.0.noreply())
-        })
+    fn foreign_in(directory: &Path, deadline: Instant) -> Result<Option<Identity>, RunFailure> {
+        let shown = Self::IDENTS.iter().map(|ident| Run::git(directory).args(["var", ident]).ran(deadline));
+        let foreign =
+            shown.into_iter().find_map(|shown| match shown.map(|shown| shown.stdout().text().parse::<Identity>()) {
+                Ok(Ok(identity)) => (!identity.0.noreply()).then_some(Ok(identity)),
+                Err(failure) => Some(Err(failure)),
+            });
+        foreign.transpose()
     }
 
     fn refusal(&self) -> Option<Listed> {
@@ -59,17 +66,12 @@ mod tests {
     const NAMED: &str = "someone@example.com is not noreply; git config user.name";
 
     #[test]
-    fn only_a_github_noreply_email_passes() {
+    fn only_a_github_noreply_email_passes_and_a_check_out_of_time_refuses() {
         let refusal =
             |ident: &str| ident.parse::<Identity>().map(|identity| identity.refusal().map(|why| why.to_string()));
         assert!(refusal(FOREIGN).is_ok_and(|why| why.is_some_and(|why| why.starts_with(NAMED))));
         assert!(refusal(NOREPLY).is_ok_and(|why| why.is_none()));
-    }
-
-    #[test]
-    fn an_identity_check_that_runs_out_of_time_refuses_the_commit() {
-        let dir = tempfile::tempdir().unwrap();
-        let refused = Identity::refusal_in(dir.path(), Instant::now()).map(|why| why.to_string());
-        assert!(refused.is_some_and(|why| why.starts_with(UNDECIDED)));
+        let late = Identity::refusal_in(&std::env::temp_dir(), Instant::now()).map(|why| why.to_string());
+        assert!(late.is_some_and(|why| why.starts_with(UNDECIDED)));
     }
 }

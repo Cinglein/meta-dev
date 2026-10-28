@@ -16,29 +16,19 @@ const CONFIG: &str = "remote = \"origin\"\n[ci]\ngit_millis = 100\n";
 const LISTING: [&str; 2] = ["ls-remote", "origin"];
 const PROMPT: Duration = Duration::from_secs(1);
 
-struct Hanging(tempfile::TempDir);
-
-impl Hanging {
-    fn new() -> Self {
-        let repo = Self(tempfile::tempdir().unwrap());
-        let set_up =
-            SETUP.map(|words| Run::git(repo.0.path()).args(IDENTITY).args(words).stdout(Instant::now() + PROMPT));
-        set_up.into_iter().collect::<Result<Vec<_>, _>>().unwrap();
-        let config = std::fs::OpenOptions::new().append(true).open(repo.0.path().join(".git/config"));
-        config.unwrap().write_all(HANGING.as_bytes()).unwrap();
-        std::fs::write(repo.0.path().join("meta.toml"), CONFIG).unwrap();
-        repo
-    }
-}
-
 #[test]
 fn a_push_and_a_gc_ls_remote_to_a_hanging_remote_give_up_at_the_deadline() {
-    let repo = Hanging::new();
-    let project = Project::try_from(repo.0.path()).unwrap();
-    let call = GitCall::common(&repo.0.path().join(".git"), &LISTING.map(OsStr::new));
+    let repo = tempfile::tempdir().unwrap();
+    let set_up = SETUP.map(|words| Run::git(repo.path()).args(IDENTITY).args(words).stdout(Instant::now() + PROMPT));
+    set_up.into_iter().collect::<Result<Vec<_>, _>>().unwrap();
+    let config = std::fs::OpenOptions::new().append(true).open(repo.path().join(".git/config"));
+    config.unwrap().write_all(HANGING.as_bytes()).unwrap();
+    std::fs::write(repo.path().join("meta.toml"), CONFIG).unwrap();
+    let project = Project::try_from(repo.path()).unwrap();
+    let call = GitCall::common(&repo.path().join(".git"), &LISTING.map(OsStr::new));
     let started = Instant::now();
     let listed = std::thread::scope(|threads| {
-        let listed = threads.spawn(|| Host::new(project.config().ci_settings()).git(&call).is_err());
+        let listed = threads.spawn(|| Host::new(project.ci_settings().clone()).git(&call).is_err());
         project.push_failure().is_some() && listed.join().unwrap()
     });
     assert!(listed && started.elapsed() < PROMPT);

@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use super::millis::Millis;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(try_from = "Millis")]
 pub struct StopLimit(Duration);
 

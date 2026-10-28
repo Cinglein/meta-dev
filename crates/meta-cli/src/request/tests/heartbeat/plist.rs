@@ -5,7 +5,7 @@ use super::{Beat, SETTINGS};
 use crate::request::Request;
 use crate::request::heartbeat::{Heartbeat, LaunchdPlist};
 use crate::request::local::LocalClone;
-use crate::request::project::CiSettings;
+use crate::request::project::{CiSettings, Config};
 
 const CHECKOUT: &str = "/work/a&b";
 const GIT_DIR: &str = "/work/a&b/.git";
@@ -14,7 +14,8 @@ const SEARCH_PATH: &str = "/usr/bin";
 
 #[test]
 fn the_plist_runs_tick_in_the_clone_on_the_policy_interval_and_escapes_markup() {
-    let clone = LocalClone::new(PathBuf::from(CHECKOUT), PathBuf::from(GIT_DIR), CiSettings::default());
+    let settings = CiSettings::try_from(&Config::default()).unwrap();
+    let clone = LocalClone::new(PathBuf::from(CHECKOUT), PathBuf::from(GIT_DIR), settings);
     let settings = Beat::settings(SETTINGS).unwrap();
     let plist = LaunchdPlist::new(PathBuf::from(PROGRAM), &clone, &settings, OsString::from(SEARCH_PATH));
     assert_eq!(plist.to_string(), include_str!("plist.plist"));

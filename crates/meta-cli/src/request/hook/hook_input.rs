@@ -3,13 +3,14 @@ mod shell_command;
 mod tool_input;
 
 use std::path::PathBuf;
+use std::time::Instant;
 
 use meta_schema::Actor;
 use serde::Deserialize;
 
 use crate::request::ci::{SessionId, SessionStart};
 use crate::request::output::Listed;
-use crate::request::project::Config;
+use crate::request::project::CiSettings;
 
 use identity::Identity;
 use shell_command::ShellCommand;
@@ -38,9 +39,9 @@ impl HookInput {
         self.session().map_or(Ok(()), |session| SessionStart::for_session(session).open().map_err(Listed::new))
     }
 
-    pub fn refusal(&self, config: &Config) -> Option<Listed> {
+    pub fn refusal(&self, settings: &CiSettings) -> Option<Listed> {
         let command = self.command()?;
-        let deadline = config.ci_settings().git_limit().deadline();
+        let deadline = settings.git_deadline(Instant::now());
         let directories = command.commit_directories(&self.cwd());
         let foreign = directories.iter().find_map(|directory| Identity::refusal_in(directory, deadline));
         let writing = self.session().zip(command.writes());

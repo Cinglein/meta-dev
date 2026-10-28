@@ -11,7 +11,7 @@ pub struct FailureLog;
 
 impl FailureLog {
     pub fn excerpt(project: &Project, session: &SessionId) -> Result<Output, CliFailure> {
-        let settings = project.config().ci_settings();
+        let settings = project.ci_settings();
         let seen = SessionCommits::judged(project, session, Reach::Remote, settings.remote_deadline())
             .map_err(CliFailure::raised::<Setup>)?;
         let pushed = seen.pushed();

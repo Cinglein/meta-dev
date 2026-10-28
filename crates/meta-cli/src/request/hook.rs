@@ -12,7 +12,7 @@ use meta_schema::Actor;
 use crate::request::ci::{SessionDir, Watcher};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
 use crate::request::output::{Listed, Output};
-use crate::request::project::{Config, Project};
+use crate::request::project::{CiSettings, Config, Project};
 use hook_input::HookInput;
 use linking::Linking;
 use reply::{Blocking, Denial, Reply, Verdict};
@@ -83,7 +83,7 @@ impl HookEvent {
                 input
                     .command()
                     .and_then(|command| command.refusal(project.config()))
-                    .or_else(|| input.refusal(project.config()))
+                    .or_else(|| input.refusal(project.ci_settings()))
                     .map(Denial::from)
                     .map_or(Verdict::Allow, Verdict::Deny),
                 None,
@@ -104,7 +104,11 @@ impl HookEvent {
     fn outside_projects(self, input: &HookInput) -> Option<Reply> {
         let linked = (self == Self::PostToolUse).then(|| Linking::after(input)).flatten();
         let linking = linked.map(|linked| Reply::new(self, Verdict::Allow, Some(linked)));
-        let refusal = (self == Self::PreToolUse).then(|| input.refusal(&Config::default())).flatten();
+        let refused = |settings: CiSettings| input.refusal(&settings);
+        let refusal = (self == Self::PreToolUse).then(|| {
+            CiSettings::try_from(&Config::default()).map_or_else(|failure| Some(Listed::new(failure)), refused)
+        });
+        let refusal = refusal.flatten();
         refusal.map(|refusal| Reply::new(self, Verdict::Deny(Denial::from(refusal)), None)).or(linking)
     }
 

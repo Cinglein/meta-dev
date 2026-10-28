@@ -225,6 +225,6 @@ impl TryFrom<&Project> for LocalClone {
             GitLink::common_dir(project.root()).ok_or_else(|| CliFailure::raised::<Setup>("no git directory"))?;
         let checkout =
             git_dir.parent().map(Path::to_path_buf).ok_or_else(|| CliFailure::raised::<Setup>("no checkout"))?;
-        Ok(Self::new(checkout, git_dir, project.config().ci_settings()))
+        Ok(Self::new(checkout, git_dir, project.ci_settings().clone()))
     }
 }

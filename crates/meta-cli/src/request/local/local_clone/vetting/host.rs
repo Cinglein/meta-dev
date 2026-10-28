@@ -12,6 +12,7 @@ use std::ffi::OsStr;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
+use std::time::Instant;
 
 use meta_run::{EnvPolicy, Environment, Run};
 
@@ -26,7 +27,7 @@ use super::occupancy::Occupancy;
 use super::thaw::{Thaw, Thawed};
 use crate::request::local::LocalFile;
 use crate::request::local::local_clone::quarantine::Stamp;
-use crate::request::project::{CiSettings, Config};
+use crate::request::project::CiSettings;
 use walker::Walker;
 
 #[derive(Debug)]
@@ -54,9 +55,10 @@ impl Host {
     }
 }
 
+#[cfg(test)]
 impl Default for Host {
     fn default() -> Self {
-        Self::new(Config::default().ci_settings())
+        Self::new(CiSettings::try_from(&crate::request::project::Config::default()).unwrap())
     }
 }
 
@@ -80,7 +82,7 @@ impl Inspection for Host {
     }
 
     fn git(&self, call: &GitCall) -> Result<String, Kept> {
-        let ran = call.run(Environment::current()).ran(self.settings.git_limit().deadline());
+        let ran = call.run(Environment::current()).ran(self.settings.git_deadline(Instant::now()));
         let ran = ran.map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
         let output = ran.stdout().text().into_owned();
         ran.success().then_some(output).ok_or_else(|| Kept::Uninspected(Cause::new(ran.stderr())))
@@ -98,7 +100,7 @@ impl Inspection for Host {
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
         let scanned = paths.iter().flat_map(|path| [OsStr::new(Self::RECURSIVE), path.as_os_str()]);
         let listing = Run::new(Self::LSOF, EnvPolicy::Inherit).args(Self::LISTING).args(scanned);
-        match listing.ran(self.settings.git_limit().deadline()) {
+        match listing.ran(self.settings.git_deadline(Instant::now())) {
             Ok(listed) if listed.stderr().first_line().is_none() => {
                 let Ok(occupancy) = listed.stdout().text().parse();
                 occupancy

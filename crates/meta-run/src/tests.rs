@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::ffi::OsString;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use super::{EnvPolicy, Environment, KillScope, Run, RunFailure};
@@ -16,21 +16,20 @@ const LED: [(Option<KillScope>, &str); 2] = [(Some(KillScope::Group), "leader\n"
 const LIMIT: Duration = Duration::from_millis(100);
 const PROMPT: Duration = Duration::from_secs(1);
 const KILLED: [(&str, KillScope, &str); 3] = [
-    ("set -m; sleep 2 & echo held", KillScope::Group, "elsewhere"),
+    ("set -m; sleep 2 & echo $! > \"$0\"; echo held", KillScope::Group, "elsewhere"),
     ("sleep 5 & echo $! > \"$0\"", KillScope::Group, "group"),
     ("echo $$ > \"$0\"; exec sleep 5", KillScope::Process, "process"),
 ];
 const KILL: &str = "kill";
-const ALIVE: &str = "-0";
+const SIGNALS: [&str; 2] = ["-0", "-KILL"];
 const POLLS: usize = 50;
 const POLL: Duration = Duration::from_millis(10);
-const ENV: &str = "/usr/bin/env";
 const INHERITED: [(&str, &str); 4] = [("GIT_DIR", "d"), ("GIT_SSH_COMMAND", "s"), ("LANG", "C"), ("PATH", "/bin")];
-const DROPPED: [(EnvPolicy, &[&str]); 4] = [
-    (EnvPolicy::Inherit, &[]),
-    (EnvPolicy::NoRepoVars, &["GIT_DIR"]),
-    (EnvPolicy::NoGitVars, &["GIT_DIR", "GIT_SSH_COMMAND"]),
-    (EnvPolicy::Only(&["LANG"]), &["GIT_DIR", "GIT_SSH_COMMAND", "PATH"]),
+const DROPPED: [(EnvPolicy, &str); 4] = [
+    (EnvPolicy::Inherit, ""),
+    (EnvPolicy::NoRepoVars, "\"GIT_DIR\": None"),
+    (EnvPolicy::NoGitVars, "\"GIT_DIR\": None, \"GIT_SSH_COMMAND\": None"),
+    (EnvPolicy::Only(&["LANG"]), "\"GIT_DIR\": None, \"GIT_SSH_COMMAND\": None, \"PATH\": None"),
 ];
 
 struct Scripted;
@@ -41,12 +40,15 @@ impl Scripted {
         matches!(run.ran(Instant::now() + LIMIT), Err(RunFailure::TimedOut(_)))
     }
 
-    fn gone(file: &Path) -> bool {
+    fn signalled(file: &Path, signal: &str) -> bool {
         let pid = std::fs::read_to_string(file).unwrap();
+        Run::new(KILL, EnvPolicy::Inherit).args([signal, pid.trim()]).ran(Instant::now() + PATIENT).unwrap().success()
+    }
+
+    fn gone(file: &Path) -> bool {
         (0..POLLS).any(|_| {
             std::thread::sleep(POLL);
-            let alive = Run::new(KILL, EnvPolicy::Inherit).args([ALIVE, pid.trim()]).ran(Instant::now() + PATIENT);
-            alive.is_ok_and(|ran| !ran.success())
+            !Self::signalled(file, SIGNALS[0])
         })
     }
 }
@@ -69,22 +71,19 @@ fn a_run_ends_at_its_deadline_and_kills_its_scope_even_when_a_grandchild_holds_t
     let dir = tempfile::tempdir().unwrap();
     let files = KILLED.map(|(.., name)| dir.path().join(name));
     let started = Instant::now();
-    let runs = KILLED.into_iter().zip(files.clone());
-    let runs: Vec<_> = runs
-        .map(|((script, scope, _), file)| std::thread::spawn(move || Scripted::timed_out(script, scope, &file)))
-        .collect();
-    let timed_out: Vec<bool> = runs.into_iter().map(|run| run.join().unwrap()).collect();
-    assert!(timed_out == [true, true, true] && started.elapsed() < PROMPT);
-    assert!(files.iter().skip(1).all(|file| Scripted::gone(file)));
+    let run = |((script, scope, _), file): ((&'static str, KillScope, &str), PathBuf)| {
+        std::thread::spawn(move || Scripted::timed_out(script, scope, &file))
+    };
+    let runs: Vec<_> = KILLED.into_iter().zip(files.clone()).map(run).collect();
+    assert!(runs.into_iter().all(|run| run.join().unwrap()) && started.elapsed() < PROMPT);
+    assert!(Scripted::signalled(&files[0], SIGNALS[1]) && files.iter().all(|file| Scripted::gone(file)));
 }
 
 #[test]
 fn each_env_policy_drops_only_its_variables_and_never_resets_the_rest() {
     let inherited = INHERITED.map(|(name, value)| (OsString::from(name), Some(OsString::from(value))));
     let inherited = Environment::from(BTreeMap::from(inherited));
-    let dropped = DROPPED.map(|(policy, _)| Environment::from(&Run::inheriting(ENV, policy, inherited.clone())));
-    let expected = DROPPED.map(|(_, names)| {
-        Environment::from(names.iter().map(|name| (OsString::from(name), None)).collect::<BTreeMap<_, _>>())
-    });
-    assert_eq!(dropped, expected);
+    let dropped = DROPPED
+        .map(|(policy, _)| format!("{:?}", Environment::from(&Run::inheriting(SHELL, policy, inherited.clone()))));
+    assert_eq!(dropped, DROPPED.map(|(_, dropped)| format!("Environment({{{dropped}}})")));
 }

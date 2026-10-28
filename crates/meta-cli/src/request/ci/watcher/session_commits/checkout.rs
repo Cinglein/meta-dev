@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use std::time::Instant;
 
-use meta_run::Run;
+use meta_run::{KillScope, Run};
 
 use crate::request::ci::Commit;
 use crate::request::project::{BranchName, Project};
@@ -17,7 +17,7 @@ impl Checkout {
     const NAMED_HEAD: [&'static str; 4] = ["rev-parse", "HEAD", "--symbolic-full-name", "HEAD"];
 
     pub fn read(project: &Project, deadline: Instant) -> Self {
-        let named = Run::git(project.root()).args(Self::NAMED_HEAD).stdout(deadline);
+        let named = Run::git(project.root()).args(Self::NAMED_HEAD).scoped(KillScope::Group).stdout(deadline);
         let Ok(checkout) = named.unwrap_or_default().parse();
         checkout
     }

@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use meta_log::LogStore as _;
 use meta_schema::Event;
 use meta_state::State;
@@ -15,7 +17,7 @@ pub struct Linking;
 impl Linking {
     pub fn after(input: &HookInput) -> Option<Listed> {
         let project = Project::try_from(input.publishing()?.as_path()).ok()?;
-        let branch = project.unprotected_branch()?;
+        let branch = project.unprotected_branch(project.ci_settings().git_deadline(Instant::now()))?;
         let task = branch.task()?;
         let pulls = LiveGithub::for_project(&project).pulls_from(&branch);
         pulls.first()?;

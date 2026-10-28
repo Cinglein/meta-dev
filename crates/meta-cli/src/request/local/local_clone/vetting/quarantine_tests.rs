@@ -67,12 +67,10 @@ fn a_file_or_commit_made_after_the_vet_is_caught_in_quarantine_and_the_worktree_
 #[test]
 fn vetting_git_ignores_inherited_git_variables_and_global_and_system_config_and_pins_stat_checks() {
     let call = GitCall::common(Path::new(QUARANTINE), &[OsStr::new(LATE)]);
-    let vars = |vars: &[(&str, Option<&str>)]| {
-        let vars = vars.iter().map(|(name, value)| (OsString::from(name), value.map(OsString::from)));
-        Environment::from(vars.collect::<BTreeMap<_, _>>())
-    };
-    let run = call.run(vars(&INHERITED.map(|(name, value)| (name, Some(value)))));
-    assert_eq!(Environment::from(&run), vars(&ISOLATED));
+    let inherited = INHERITED.map(|(name, value)| (OsString::from(name), Some(OsString::from(value))));
+    let run = call.run(Environment::from(BTreeMap::from(inherited)));
+    let isolated = ISOLATED.map(|(name, value)| (OsString::from(name), value.map(OsString::from)));
+    assert_eq!(Environment::from(&run), Environment::from(BTreeMap::from(isolated)));
     let line = CommandLine::from(&run).to_string();
     assert!(STAT_PINS.iter().all(|pin| line.split(' ').any(|argument| argument == *pin)));
 }

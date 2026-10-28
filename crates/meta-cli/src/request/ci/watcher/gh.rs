@@ -12,7 +12,7 @@ use crate::request::output::Listed;
 use crate::request::project::ProgramName;
 use gh_jobs::GhJobs;
 use meta_gh::GhRun;
-use meta_run::{EnvPolicy, Run};
+use meta_run::{EnvPolicy, KillScope, Run};
 pub use observation::Observation;
 pub use raw_log::RawLog;
 
@@ -74,7 +74,7 @@ impl Gh {
     }
 
     fn text(&self, words: impl Iterator<Item = OsString>) -> Result<String, Listed> {
-        let run = Run::new(&self.program, EnvPolicy::Inherit).args(words).dir(&self.root);
+        let run = Run::new(&self.program, EnvPolicy::Inherit).args(words).dir(&self.root).scoped(KillScope::Group);
         run.stdout(self.deadline).map_err(Listed::new)
     }
 
