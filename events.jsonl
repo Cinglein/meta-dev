@@ -952,3 +952,4 @@
 {"at":"2026-10-28T09:53:11.551570Z","actor":"claude-spawns2","kind":"TaskLinked","task":"task-928f0f401cd7c831","pr":87}
 {"at":"2026-10-28T09:54:55.809782Z","actor":"claude-spawns2","kind":"TaskLinked","task":"task-928f0f401cd7c831","pr":88}
 {"at":"2026-10-28T10:08:50.783775Z","actor":"claude-lead","kind":"TaskOpened","task":"task-3cf8545f9581f52e","text":"Test-time measure robust to runner speed: CPU time of test processes and/or calibration against a fixed reference workload; owner sets new budget.","division":"performance-and-cost"}
+{"at":"2026-10-28T10:10:05.779325Z","actor":"claude-cputime","kind":"TaskClaimed","task":"task-3cf8545f9581f52e"}
