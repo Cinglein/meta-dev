@@ -17,9 +17,14 @@ const DIRTY: &str = "task-00000000000000a3";
 const BUSY: &str = "task-00000000000000a4";
 const GONE: &str = "task-00000000000000a5";
 const PAUSED: &str = "task-00000000000000a6";
+const PICKED: &str = "task-00000000000000a7";
+const REVERTED: &str = "task-00000000000000a8";
+const REBASED: &str = "task-00000000000000a9";
+const PAUSES: [[&str; 2]; 4] =
+    [[PAUSED, "MERGE_HEAD"], [PICKED, "CHERRY_PICK_HEAD"], [REVERTED, "REVERT_HEAD"], [REBASED, "REBASE_HEAD"]];
 const DANGLING: &str = "1111111111111111111111111111111111111111\n";
-const RECORDED: [&str; 6] = [MERGED, OPEN, DIRTY, BUSY, GONE, PAUSED];
-const ADDED: [&str; 5] = [MERGED, OPEN, DIRTY, BUSY, PAUSED];
+const RECORDED: [&str; 9] = [MERGED, OPEN, DIRTY, BUSY, GONE, PAUSED, PICKED, REVERTED, REBASED];
+const ADDED: [&str; 8] = [MERGED, OPEN, DIRTY, BUSY, PAUSED, PICKED, REVERTED, REBASED];
 const STRAY: &str = "stray";
 const SEED: &str = "commit refs/heads/main
 committer t <t@meta.invalid> 1700000000 +0000
@@ -49,6 +54,12 @@ data <<END
 {"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskLinked","task":"task-00000000000000a4","pr":4}
 {"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskOpened","task":"task-00000000000000a6","text":"x","division":"features-and-maintenance"}
 {"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskLinked","task":"task-00000000000000a6","pr":5}
+{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskOpened","task":"task-00000000000000a7","text":"x","division":"features-and-maintenance"}
+{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskLinked","task":"task-00000000000000a7","pr":5}
+{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskOpened","task":"task-00000000000000a8","text":"x","division":"features-and-maintenance"}
+{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskLinked","task":"task-00000000000000a8","pr":5}
+{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskOpened","task":"task-00000000000000a9","text":"x","division":"features-and-maintenance"}
+{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskLinked","task":"task-00000000000000a9","pr":5}
 END
 
 "#;
@@ -65,8 +76,12 @@ const GC: [&str; 1] = ["gc"];
 const GC_RUN: [&str; 2] = ["heartbeat", "gc-run"];
 const PLANNED: Line = Line("would free ", MERGED, ": ");
 const CONFIG: &str = "remote = \"origin\"\n";
-const SWEPT: [Line; 7] = [
-    Line("kept ", PAUSED, ": am, rebase or cherry-pick in progress; pr #5 merged\n"),
+const IN_PROGRESS: &str = ": am, rebase or cherry-pick in progress; pr #5 merged\n";
+const SWEPT: [Line; 10] = [
+    Line("kept ", PAUSED, IN_PROGRESS),
+    Line("kept ", PICKED, IN_PROGRESS),
+    Line("kept ", REVERTED, IN_PROGRESS),
+    Line("kept ", REBASED, IN_PROGRESS),
     Line("freed ", MERGED, ": "),
     Line("kept ", OPEN, ": pr #2 open\n"),
     Line("kept ", DIRTY, ": commits not on the remote; pr #3 closed\n"),
@@ -76,7 +91,7 @@ const SWEPT: [Line; 7] = [
 ];
 const TRAIL: &str = ".git/meta-local/worktrees.jsonl";
 const TRAILED: [&str; 3] = ["\"change\":\"Freed\"", "\"change\":\"Refused\"", "\"change\":\"Closed\""];
-const KEPT: [&str; 5] = [OPEN, DIRTY, BUSY, STRAY, PAUSED];
+const KEPT: [&str; 8] = [OPEN, DIRTY, BUSY, STRAY, PAUSED, PICKED, REVERTED, REBASED];
 
 struct Line(&'static str, &'static str, &'static str);
 
@@ -100,17 +115,18 @@ impl fmt::Display for Freed<'_> {
     }
 }
 
-struct Created<'trees>(&'trees Path, &'static str);
+struct Created<'trees>(&'trees Path, &'static [&'static str]);
 
 impl fmt::Display for Created<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let task = self.1;
         let created = "2026-10-26T00:00:00Z";
-        writeln!(
-            formatter,
-            r#"{{"change":"Created","path":"{}","branch":"{task}","task":"{task}","created":"{created}","worktree":"{task}"}}"#,
-            self.0.join(task).display()
-        )
+        self.1.iter().try_for_each(|task| {
+            writeln!(
+                formatter,
+                r#"{{"change":"Created","path":"{}","branch":"{task}","task":"{task}","created":"{created}","worktree":"{task}"}}"#,
+                self.0.join(task).display()
+            )
+        })
     }
 }
 
@@ -161,7 +177,7 @@ impl Git {
             names.iter().flat_map(|name| ["reset ", prefix, name, "\nfrom refs/heads/main\n\n"]).collect()
         };
         let heads = branches("refs/heads/", &ADDED);
-        let tracking = branches("refs/remotes/origin/", &["main", MERGED, OPEN, DIRTY, BUSY, PAUSED]);
+        let tracking = branches("refs/remotes/origin/", &[["main"].as_slice(), &ADDED].concat());
         std::thread::scope(|scope| {
             scope.spawn(|| Self::imported(origin, &[SEED, &heads, LOG].concat()));
             Self::imported(clone, &[SEED, &heads, &tracking].concat());
@@ -227,10 +243,10 @@ impl Scene {
         Git::run(&trees.join(DIRTY), &["update-ref", "WIP", "HEAD"]);
         Git::run(&trees.join(DIRTY), &["reset", "-q", "--hard", "HEAD~1"]);
         Git::run(&trees.join(DIRTY), &["update-ref", "-d", "ORIG_HEAD"]);
-        std::fs::write(self.clone.path().join(".git/worktrees").join(PAUSED).join("MERGE_HEAD"), DANGLING).unwrap();
+        let linked = self.clone.path().join(".git/worktrees");
+        PAUSES.iter().try_for_each(|[task, pause]| std::fs::write(linked.join(task).join(pause), DANGLING)).unwrap();
         std::fs::create_dir_all(self.clone.path().join(".git/meta-local")).unwrap();
-        let trail: String = RECORDED.iter().map(|task| Created(&trees, task).to_string()).collect();
-        std::fs::write(self.clone.path().join(TRAIL), trail).unwrap();
+        std::fs::write(self.clone.path().join(TRAIL), Created(&trees, &[MERGED]).to_string()).unwrap();
     }
 
     fn trees(&self) -> PathBuf {
@@ -256,6 +272,7 @@ fn gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_wit
     let freed = Freed(&trees).to_string();
     let ticked = scene.meta(&GC_RUN);
     assert!(ticked.contains(&Shown(&PLANNED, &trees).to_string()) && trees.join(MERGED).exists(), "{ticked}");
+    std::fs::write(scene.clone.path().join(TRAIL), Created(&trees, &RECORDED).to_string()).unwrap();
     let swept = scene.meta(&GC);
     let trail = std::fs::read_to_string(scene.clone.path().join(TRAIL)).unwrap();
     let branch = Git::run(scene.clone.path(), &["branch", "--list", MERGED]).stdout;

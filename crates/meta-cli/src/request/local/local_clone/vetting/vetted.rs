@@ -15,7 +15,7 @@ use super::inspection::Inspection;
 use super::kept::Kept;
 use crate::request::local::byte_count::ByteCount;
 use crate::request::local::recorded_worktree::RecordedWorktree;
-use checkouts::Checkouts;
+pub use checkouts::Checkouts;
 use index::Index;
 use link::Scope;
 pub use link::{Link, Step};
@@ -43,8 +43,6 @@ impl Vetted {
         "--ignore-submodules=none",
         "--no-renames",
     ];
-    const ON_BRANCH: [&'static str; 3] = ["symbolic-ref", "-q", "HEAD"];
-    const CHECKOUTS: [&'static str; 3] = ["worktree", "list", "--porcelain"];
     const REMOTE: &'static str = "ls-remote";
     const BEYOND: [&'static str; 3] = ["rev-list", "--max-count=1", "--ignore-missing"];
     const NOT: &'static str = "--not";
@@ -52,11 +50,31 @@ impl Vetted {
     const TAG: &'static str = "CACHEDIR.TAG";
 
     pub fn proved(worktree: &RecordedWorktree, context: &Context, host: &impl Inspection) -> Result<Self, Kept> {
+        Self::judged(worktree, context, host, |link, branch| Checkouts::held_now(link, branch, host))
+    }
+
+    pub fn proved_among(
+        worktree: &RecordedWorktree,
+        context: &Context,
+        host: &impl Inspection,
+        checkouts: &Result<Checkouts, Kept>,
+    ) -> Result<Self, Kept> {
+        Self::judged(worktree, context, host, |link, branch| {
+            checkouts.as_ref().map_err(Kept::clone)?.held(branch, link.path())
+        })
+    }
+
+    fn judged<Host: Inspection>(
+        worktree: &RecordedWorktree,
+        context: &Context,
+        host: &Host,
+        held: impl FnOnce(&Link, &str) -> Result<(), Kept>,
+    ) -> Result<Self, Kept> {
         let path = worktree.path();
         Self::placed(path, context, host)?;
         let link = Link::proved(path, worktree.worktree(), context, host)?;
         let branch = worktree.branch().qualified();
-        Self::held(&link, &branch, host)?;
+        held(&link, &branch)?;
         let refs = Self::pushed(&link, &branch, context, host)?;
         let bytes = Self::settled(&link, host)?;
         Ok(Self { branch: refs.named(&branch).cloned().ok_or(Kept::NoBranch)?, refs, link, bytes })
@@ -91,13 +109,6 @@ impl Vetted {
         canonical.and_then(|path| context.enclosed(&path)).ok_or(Kept::Escaped)?;
         let lent = context.lenders(host).iter().find_map(|alternates| alternates.lends_into(path));
         lent.map_or(Ok(()), |()| Err(Kept::Borrowed))
-    }
-
-    fn held(link: &Link, branch: &str, host: &impl Inspection) -> Result<(), Kept> {
-        let head = link.git(host, Scope::Worktree, &Self::ON_BRANCH.map(OsStr::new)).ok();
-        head.filter(|head| head.lines().next() == Some(branch)).ok_or(Kept::OffBranch)?;
-        let Ok(checkouts) = link.git(host, Scope::Common, &Self::CHECKOUTS.map(OsStr::new))?.parse::<Checkouts>();
-        checkouts.unshared(branch, link.path())
     }
 
     fn settled(link: &Link, host: &impl Inspection) -> Result<ByteCount, Kept> {
