@@ -14,7 +14,7 @@ const REPLY: &str = r#"{"checkSuites":{"nodes":[{"status":"COMPLETED","conclusio
 const SCRIPT: &str = r#"#!/bin/sh
 d=$(dirname "$0"); [ "$1" = api ] && exec cat "$d/reply"
 [ -e "$d/ok" ] || { echo boom >&2; exit 1; }
-sleep 0.05; printf 'ci\tstep\ttest slow ... FAILED\n'
+sleep 0.02; printf 'ci\tstep\ttest slow ... FAILED\n'
 "#;
 const URL: &str = "https://github.com/o/r.git";
 const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";

@@ -113,11 +113,32 @@ impl Door {
     const CONFIG: &str = "config";
     const NEWLINE: &str = "\n";
     const SYMBOLIC: &str = "ref: ";
+    const REFS: &str = "refs";
+    const ALTERNATES: &str = "objects/info/alternates";
+
+    pub fn laid_file(git_dir: &Path, relative: &Path, text: &str) -> io::Result<()> {
+        Self::laid(git_dir)?;
+        (relative.components().all(|component| matches!(component, std::path::Component::Normal(_)))
+            && (relative.starts_with(Self::REFS) || relative == Path::new(Self::ALTERNATES)))
+        .then_some(())
+        .ok_or(io::ErrorKind::PermissionDenied)?;
+        let path = git_dir.join(relative);
+        path.parent().map_or(Ok(()), fs::create_dir_all)?;
+        fs::write(path, text)
+    }
+
+    fn laid(git_dir: &Path) -> io::Result<()> {
+        let config = fs::read_to_string(git_dir.join(Self::CONFIG))?;
+        [crate::Layout::Working, crate::Layout::Bare]
+            .iter()
+            .any(|layout| config.starts_with(layout.core()))
+            .then_some(())
+            .ok_or_else(|| io::ErrorKind::PermissionDenied.into())
+    }
 
     pub fn laid_head(work_tree: &Path) -> io::Result<String> {
         let git_dir = work_tree.join(Self::ENTRY);
-        let config = fs::read_to_string(git_dir.join(Self::CONFIG))?;
-        config.starts_with(crate::Layout::Working.core()).then_some(()).ok_or(io::ErrorKind::PermissionDenied)?;
+        Self::laid(&git_dir)?;
         let head = fs::read_to_string(git_dir.join(Self::HEAD))?;
         let line = head.lines().next().unwrap_or_default();
         let named = line.strip_prefix(Self::SYMBOLIC).map(|name| fs::read_to_string(git_dir.join(name)));

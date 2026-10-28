@@ -3,7 +3,7 @@ use std::path::Path;
 use meta_door::{Change, Door, Pair};
 
 use super::{
-    BLOCK, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSH_WORDS, Planted, Repo, STOP, Session, StartFile,
+    BLOCK, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSHED, Planted, Repo, STOP, Session, StartFile,
 };
 
 const WRITE: &str = "git commit -m x";
@@ -26,7 +26,7 @@ const DATED_COMMIT_AT: &str = "4000000101";
 const SPOOF: [&str; 5] = ["commit", "-q", "--allow-empty", "-m", "Fast-forward (abort) (start) (finish)"];
 const OLD_AUTHOR: [&str; 6] = ["commit", "-q", "--allow-empty", "--date=@1000000000 +0000", "-m", "dated"];
 const AUTHOR_DATES: [&str; 5] = ["rebase", "-q", "--force-rebase", "--committer-date-is-author-date", "HEAD~1"];
-const TO_MAIN: [&str; 4] = ["push", "-q", "origin", "feature:main"];
+const TO_MAIN: &str = "main";
 const SINGLE: [&str; 4] = ["--single-branch", "-b", "main", "-q"];
 const NO_REFLOG: [&str; 4] = ["-c", "core.logAllRefUpdates=false", "-b", "feature"];
 const BRANCH: [&str; 4] = ["checkout", "-q", "-b", "feature2"];
@@ -60,7 +60,7 @@ fn commit_text_commit_dates_and_a_cd_first_never_hide_a_commit() {
     away.hook(PRE, CD_FIRST);
 
     Git::run_at(clone, &NEXT_COMMIT, CD_AT);
-    Git::run(clone, &PUSH_WORDS);
+    Git::pushed(&repo, PUSHED);
     let first = cd.hook(STOP, READ);
     let _: Vec<()> = [(TEXT, TEXT_AT), (DATED, DATED_AT)]
         .iter()
@@ -68,11 +68,11 @@ fn commit_text_commit_dates_and_a_cd_first_never_hide_a_commit() {
         .collect();
     text.hook(PRE, WRITE);
     Git::run_at(clone, &SPOOF, TEXT_COMMIT_AT);
-    Git::run(clone, &PUSH_WORDS);
+    Git::pushed(&repo, PUSHED);
     let spoofed = text.hook(STOP, READ);
     Git::run_at(clone, &OLD_AUTHOR, DATED_COMMIT_AT);
     Git::run_at(clone, &AUTHOR_DATES, DATED_COMMIT_AT);
-    Git::run(clone, &PUSH_WORDS);
+    Git::pushed(&repo, PUSHED);
     assert!([first, spoofed, dated.hook(STOP, READ)].iter().all(|stop| stop.contains(BLOCK)));
 }
 
@@ -80,7 +80,7 @@ fn commit_text_commit_dates_and_a_cd_first_never_hide_a_commit() {
 fn readers_and_single_branch_clones_are_judged_by_what_the_remote_holds() {
     let repo = Repo::new(FAILURE);
     let clone: &Path = repo.clone.path();
-    Git::run(clone, &TO_MAIN);
+    Git::pushed(&repo, TO_MAIN);
     let single = Clones::made_with(&repo, &SINGLE);
     let [reader, worker, lone] =
         [(clone, READER), (clone, WORKER), (single.path(), LONE)].map(|(cwd, id)| Session { repo: &repo, cwd, id });
@@ -105,7 +105,7 @@ fn readers_and_single_branch_clones_are_judged_by_what_the_remote_holds() {
 fn a_reflog_that_is_off_or_an_unwritable_state_dir_fails_closed() {
     let repo = Repo::new(FAILURE);
     let clone: &Path = repo.clone.path();
-    Git::run(clone, &PUSH_WORDS);
+    Git::pushed(&repo, PUSHED);
     let quiet = Clones::made_with(&repo, &NO_REFLOG);
     let [blind, locked] = [(quiet.path(), BLIND), (clone, LOCKED)].map(|(cwd, id)| Session { repo: &repo, cwd, id });
     blind.hook(PRE, WRITE);

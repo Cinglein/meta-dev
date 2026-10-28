@@ -19,6 +19,7 @@ impl Layout {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
     use std::process::Command;
 
     use super::Layout;
@@ -36,6 +37,8 @@ mod tests {
     const OTHER: &str = "2222";
     const HEAD: &str = "HEAD";
     const CONFIG: &str = "config";
+    const ALTERNATES: &str = "objects/info/alternates";
+    const CLIMB: &str = "refs/../HEAD";
 
     #[test]
     fn a_skeleton_is_a_repository_git_reads_on_its_branch_and_never_lays_over_a_used_dir() {
@@ -61,5 +64,18 @@ mod tests {
         std::fs::write(git_dir.join(CONFIG), EMPTY).unwrap();
         let foreign = Door::laid_head(repository.path()).is_err();
         assert!(unborn && tip == TIP && detached == OTHER && foreign);
+    }
+
+    #[test]
+    fn a_laid_bare_repository_takes_refs_and_alternates_and_nothing_else() {
+        let bare = tempfile::tempdir().unwrap();
+        Door::skeleton(bare.path(), Layout::Bare, BRANCH, EMPTY).unwrap();
+        let laid = |relative: &str| Door::laid_file(bare.path(), Path::new(relative), TIP_LINE).is_ok();
+        let taken = [TIP_REF, ALTERNATES].map(laid);
+        let refused = [HEAD, CLIMB, CONFIG].map(laid);
+        let read = std::fs::read_to_string(bare.path().join(TIP_REF)).unwrap();
+        std::fs::write(bare.path().join(CONFIG), EMPTY).unwrap();
+        let all = taken.iter().all(|ok| *ok) && !refused.iter().any(|ok| *ok);
+        assert!(all && read == TIP_LINE && !laid(TIP_REF));
     }
 }

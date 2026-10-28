@@ -14,7 +14,8 @@ impl Fixture {
     pub fn new() -> Fixture {
         let directory = TempDir::new().expect("temp dir");
         let work = directory.path().join("work");
-        Door::skeleton(&work.join(".git"), Layout::Working, "change", "").expect("lay repository");
+        Door::skeleton(&work.join(".git"), Layout::Working, "change", "[maintenance]\n\tauto = false\n")
+            .expect("lay repository");
         Fixture { _directory: directory, work }
     }
 

@@ -15,7 +15,7 @@ const PATIENT: &str = "appear_millis = 2000\n";
 const STALLED: &str = "appear_millis = 2000\nstop_millis = 40\n";
 const QUICK: &str = "appear_millis = 20\ntimeout_millis = 50\ngh_millis = 20\n";
 const DEADLINE: &str =
-    "expected_millis = 80\nbackoff_millis = 80\nbackoff_cap_millis = 80\ntimeout_millis = 150\ngh_millis = 20\n";
+    "expected_millis = 30\nbackoff_millis = 60\nbackoff_cap_millis = 60\ntimeout_millis = 100\ngh_millis = 20\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 d="$FAKE_GH_DIR"; s="$FAKE_GH_SCENARIO"
 read -r now 2>/dev/null < "$d/clock"; echo "$now" >> "$d/calls"
@@ -71,7 +71,7 @@ const INJECTED: &str = " (injected clock)";
 const FOURTH_POLL: &str = ": failed after 510s";
 const NOT_WATCHED: &str = "CI not watched for";
 const PLAIN_PUSH: &str = "git push";
-const PUSH_WORDS: [&str; 4] = ["push", "-q", "origin", "feature"];
+const PUSHED: &str = "feature";
 const NEXT_COMMIT: [&str; 5] = ["commit", "-q", "--allow-empty", "-m", "next"];
 const UNSTARTED: &str = "unstarted";
 const POST: &str = "post-tool-use";
@@ -163,6 +163,24 @@ impl Git {
         Door::laid_head(dir).unwrap_or_else(|_| {
             String::from_utf8(Self::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap().trim().to_owned()
         })
+    }
+
+    fn pushed(repo: &Repo, branch: &str) {
+        let tip = format!("{}\n", Self::head(repo.clone.path()));
+        Door::laid_file(repo.origin.path(), &Path::new("refs/heads").join(branch), &tip).unwrap();
+        let tracking = Path::new("refs/remotes/origin").join(branch);
+        Door::laid_file(&repo.clone.path().join(".git"), &tracking, &tip).unwrap();
+    }
+}
+
+struct Origin;
+
+impl Origin {
+    const ALTERNATES: &'static str = "objects/info/alternates";
+
+    fn linked(origin: &Path, clone: &Path) {
+        let objects = format!("{}\n", clone.join(".git/objects").display());
+        Door::laid_file(origin, Path::new(Self::ALTERNATES), &objects).unwrap();
     }
 }
 
@@ -329,6 +347,7 @@ impl Repo {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
         Skeleton::laid(origin.path(), clone.path(), "feature");
+        Origin::linked(origin.path(), clone.path());
         Door::write(clone.path().join("meta.toml"), format!("{CONFIG}{limits}")).unwrap();
         Door::changed(clone.path().join("bin"), Change::Dir).unwrap();
         Door::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
@@ -383,17 +402,16 @@ impl Repo {
     pub fn settled_past(&self, seen: &str) -> String {
         let events = self.store().entry(Self::EVENTS);
         let lock = self.sessions.path().join(Planted::LOCKS).join(Git::head(self.clone.path()));
-        std::iter::repeat_with(|| {
-            std::thread::sleep(SETTLE_POLL);
-            Door::read(events.clone()).unwrap_or_default()
-        })
-        .take(SETTLE_LENGTH)
-        .find(|text| {
-            let new = text.strip_prefix(seen).unwrap_or_default();
-            COMPLETIONS.iter().any(|completion| new.contains(completion))
-                && Door::opened(&lock, Opening::Read).map_or(true, |watcher| watcher.try_lock().is_ok())
-        })
-        .unwrap_or_default()
+        let pauses = std::iter::successors(Some(Duration::ZERO), |_| Some(SETTLE_POLL)).take(SETTLE_LENGTH);
+        pauses
+            .map(std::thread::sleep)
+            .map(|()| Door::read(events.clone()).unwrap_or_default())
+            .find(|text| {
+                let new = text.strip_prefix(seen).unwrap_or_default();
+                COMPLETIONS.iter().any(|completion| new.contains(completion))
+                    && Door::opened(&lock, Opening::Read).map_or(true, |watcher| watcher.try_lock().is_ok())
+            })
+            .unwrap_or_default()
     }
 
     pub fn store(&self) -> MetaStore {
@@ -432,14 +450,14 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_pus
 fn passing_runs_let_the_agent_stop_and_unstarted_ones_do_not() {
     let unstarted = Started::building(UNSTARTED, PATIENT);
     let repo = Repo::new(SUCCESS);
-    Git::run(repo.clone.path(), &PUSH_WORDS);
+    Git::pushed(&repo, PUSHED);
     repo.hook(POST, PLAIN_PUSH);
     let waited = repo.session_command(CI_WAIT);
     assert!(waited.0.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
     assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     Stale::plant(&repo);
-    Git::run(repo.clone.path(), &PUSH_WORDS);
+    Git::pushed(&repo, PUSHED);
     repo.hook(POST, PLAIN_PUSH);
     let unstarted = unstarted.join().unwrap();
     let settled = unstarted.settled();
