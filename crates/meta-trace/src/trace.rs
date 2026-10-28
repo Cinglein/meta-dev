@@ -38,13 +38,14 @@ impl Trace {
     }
 
     fn critical(&self, span: &SpanRecord) -> KindTimes {
-        let latest = |cursor: Micros| {
-            let before =
-                self.children(span).filter(|child| child.window().end <= cursor && child.window().start < cursor);
-            before.max_by_key(|child| child.window().end)
-        };
-        let path: Vec<&SpanRecord> =
-            std::iter::successors(latest(span.window().end), |child| latest(child.window().start)).collect();
+        let mut latest_first: Vec<&SpanRecord> = self.children(span).collect();
+        latest_first.sort_by_key(|child| std::cmp::Reverse(child.window().end));
+        let chosen = latest_first.into_iter().scan(span.window().end, |cursor, child| {
+            let chosen = Some(child).filter(|child| child.window().end <= *cursor);
+            *cursor = chosen.map_or(*cursor, |child| child.window().start);
+            Some(chosen)
+        });
+        let path: Vec<&SpanRecord> = chosen.flatten().collect();
         let own = span.duration() - path.iter().map(|child| child.duration()).sum();
         std::iter::once((span.kind(), own)).chain(path.iter().flat_map(|child| self.critical(child))).collect()
     }

@@ -13,18 +13,17 @@ impl SpanId {
 
     #[must_use]
     pub fn new(pid: u32, index: usize) -> Self {
-        Self(u64::from(pid) << Self::PROCESS_SHIFT).indexed(index)
+        Self((u64::from(pid) << Self::PROCESS_SHIFT) + 1).indexed(index)
     }
 
     #[must_use]
     pub fn indexed(self, index: usize) -> Self {
-        let index = u64::try_from(index).unwrap_or(Self::INDEX_MASK).min(Self::INDEX_MASK - 1);
-        Self((self.0 & !Self::INDEX_MASK) | (index + 1))
+        Self(self.0 + u64::try_from(index).unwrap_or(Self::INDEX_MASK))
     }
 
     #[must_use]
     pub fn read(word: u64) -> Option<Self> {
-        Some(Self(word)).filter(|span| span.0 & Self::INDEX_MASK != 0)
+        (word != 0).then_some(Self(word))
     }
 
     #[must_use]
