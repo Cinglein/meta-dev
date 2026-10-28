@@ -20,6 +20,10 @@ impl Activity {
         Self { assignments: Vec::new(), waiting: None, ended: None }
     }
 
+    pub fn assigned(assignments: Vec<Stamp>) -> Self {
+        Self { assignments, ..Self::unassigned() }
+    }
+
     pub fn waited_at(&self) -> Option<&CommitId> {
         self.waiting.as_ref().and_then(Block::head)
     }
