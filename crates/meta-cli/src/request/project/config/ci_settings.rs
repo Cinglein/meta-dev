@@ -6,6 +6,7 @@ mod stop_limit;
 
 use std::time::{Duration, Instant};
 
+use meta_run::Budget;
 use serde::Deserialize;
 
 use super::Config;
@@ -55,8 +56,8 @@ impl CiSettings {
         Instant::now() + self.remote_millis.duration()
     }
 
-    pub fn git_deadline(&self, from: Instant, work: GitWork) -> Instant {
-        from + work.limit(self.git_millis, self.claim_millis).duration()
+    pub fn budget(&self, work: GitWork) -> Budget {
+        Budget::new(work.limit(self.git_millis, self.claim_millis).duration())
     }
 
     pub fn stop_limit(&self) -> StopLimit {

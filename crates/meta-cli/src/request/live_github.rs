@@ -40,6 +40,12 @@ impl LiveGithub {
         Self::new(settings.program().clone(), project.root().to_path_buf(), settings.remote_deadline(), workflows)
     }
 
+    #[must_use]
+    pub fn within(self, overall: Instant) -> Self {
+        let deadline = self.deadline.min(overall);
+        Self { deadline, ..self }
+    }
+
     pub fn read(&self, query: &LiveQuery) -> Github {
         self.live(query).map_or_else(Github::Unreached, Github::Reached)
     }

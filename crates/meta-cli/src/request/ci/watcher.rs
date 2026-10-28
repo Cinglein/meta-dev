@@ -10,7 +10,7 @@ use std::cell::OnceCell;
 use std::ops::ControlFlow;
 use std::time::{Duration, Instant};
 
-use meta_run::{EnvPolicy, Run};
+use meta_run::{Budget, EnvPolicy, Run};
 
 use super::ci_status::CiStatus;
 use super::commit::Commit;
@@ -55,8 +55,8 @@ impl Watcher {
         })
     }
 
-    pub fn watch_all(project: &Project, session: &SessionId) -> Result<(), Listed> {
-        let deadline = project.ci_settings().remote_deadline();
+    pub fn watch_all(project: &Project, session: &SessionId, budget: Budget) -> Result<(), Listed> {
+        let deadline = project.ci_settings().remote_deadline().min(budget.deadline());
         let seen = SessionCommits::judged(project, session, Reach::Tracking, deadline)?;
         seen.pushed().iter().try_for_each(|commit| Self::spawn(project, session, commit))
     }

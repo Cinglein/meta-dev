@@ -12,13 +12,11 @@ mod tip;
 pub use remote_heads::RemoteHeads;
 pub use sha::{NotCommitId, Sha};
 
+use meta_run::{Budget, Ran};
+use meta_schema::Record;
 use std::cell::RefCell;
 use std::fmt;
 use std::path::PathBuf;
-use std::time::Instant;
-
-use meta_run::Ran;
-use meta_schema::Record;
 
 use crate::LogStore;
 use crate::log_failure::LogFailure;
@@ -45,8 +43,8 @@ impl GitLog {
     const STAGED: &'static str = "refs/meta-log/staged";
 
     #[must_use]
-    pub fn new(repo: PathBuf, remote: RemoteName, deadline: Instant) -> Self {
-        let git = Git::new(repo, deadline);
+    pub fn new(repo: PathBuf, remote: RemoteName, budget: Budget) -> Self {
+        let git = Git::new(repo, budget);
         Self { remote: Remote::new(git.clone(), remote), git, known: RefCell::default(), pacing: Pacing::Jittered }
     }
 
@@ -126,7 +124,7 @@ impl LogStore for GitLog {
         decide: &mut dyn FnMut(&Snapshot) -> Result<Record, Failure>,
     ) -> Result<Record, Failure> {
         Attempt::sequence()
-            .try_for_each(|attempt| Outcome::step(self.attempt(decide), attempt, self.pacing, &self.git))
+            .try_for_each(|attempt| Outcome::step(self.attempt(decide), attempt, self.pacing, self.git.budget()))
             .break_value()
             .unwrap_or_else(|| Err(LogFailure::Contended.into()))
     }

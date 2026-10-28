@@ -52,7 +52,6 @@ const META_TOML: &str = "meta.toml";
 const QUICK_GIT: &str = "[ci]\ngit_millis = 20\n";
 const UNREADABLE: &str = "meta/log unreadable";
 const OPEN: [&str; 4] = ["open", "--division", "features-and-maintenance", "text"];
-const WRITER: &str = "writer";
 const ROOT: &str = "ROOT";
 const PIDS: &str = "pids";
 const HELPERS: &str = r#"[remote "origin"]
@@ -145,7 +144,7 @@ impl Repo {
         let root = self.clone.path().display().to_string();
         Git::configure(&self.clone.path().join(GIT_CONFIG), &HELPERS.replace(ROOT, &root));
         let mut meta = Command::new(META);
-        meta.args(OPEN).current_dir(self.clone.path()).env("META_ACTOR", WRITER).process_group(0);
+        meta.args(OPEN).current_dir(self.clone.path()).env("META_ACTOR", "writer").process_group(0);
         let mut meta = meta.stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
         let polls = || {
             let until = Instant::now() + PATIENT;

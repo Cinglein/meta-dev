@@ -10,7 +10,6 @@ use std::ffi::OsStr;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
-use std::time::Instant;
 
 use meta_run::{EnvPolicy, Environment, Run};
 
@@ -80,7 +79,7 @@ impl Inspection for Host {
     }
 
     fn git(&self, call: &GitCall) -> Result<String, Kept> {
-        let ran = call.run(Environment::current()).ran(self.settings.git_deadline(Instant::now(), CiSettings::ROUTINE));
+        let ran = call.run(Environment::current()).ran(self.settings.budget(CiSettings::ROUTINE).deadline());
         let ran = ran.map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
         let output = ran.stdout().text().into_owned();
         ran.success().then_some(output).ok_or_else(|| Kept::Uninspected(Cause::new(ran.stderr())))
@@ -98,7 +97,7 @@ impl Inspection for Host {
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
         let scanned = paths.iter().flat_map(|path| [OsStr::new(Self::RECURSIVE), path.as_os_str()]);
         let listing = Run::new(Self::LSOF, EnvPolicy::Inherit).args(Self::LISTING).args(scanned);
-        match listing.ran(self.settings.git_deadline(Instant::now(), CiSettings::ROUTINE)) {
+        match listing.ran(self.settings.budget(CiSettings::ROUTINE).deadline()) {
             Ok(listed) if listed.stderr().first_line().is_none() => {
                 let Ok(occupancy) = listed.stdout().text().parse();
                 occupancy

@@ -30,7 +30,7 @@ impl Remote {
     }
 
     pub fn fetch(&self) -> Result<Fetched, LogFailure> {
-        let settled = |attempt: Attempt| attempt.settled(self.fetch_once(), &self.git);
+        let settled = |attempt: Attempt| attempt.settled(self.fetch_once(), self.git.budget());
         Attempt::sequence().find_map(settled).unwrap_or(Err(LogFailure::Contended))
     }
 

@@ -16,7 +16,7 @@ fn hook_timeouts_match_hooks_json_and_bound_every_git_deadline() {
     let settings = CiSettings::try_from(&Config::default()).unwrap();
     let configured = EVENTS.map(|event| hooks["hooks"][event.to_string()][0]["hooks"][0]["timeout"].as_u64());
     assert_eq!(configured, EVENTS.map(|event| Some(event.timeout().as_secs())));
-    assert!(EVENTS.iter().all(|event| event.git_deadline(&settings) < Instant::now() + event.timeout()));
+    assert!(EVENTS.iter().all(|event| event.budget(&settings).deadline() < Instant::now() + event.timeout()));
 }
 
 #[test]

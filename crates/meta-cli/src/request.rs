@@ -30,7 +30,7 @@ use live_github::LiveGithub;
 use local::{LocalClone, Monitor, Sweep};
 use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
-use project::Project;
+use project::{CiSettings, Project};
 use rate::Rate;
 use relocate::Relocate;
 use scale_policy::ScalePolicy;
@@ -165,7 +165,7 @@ impl Request {
                     StatusView::Tree => None,
                 };
                 let answered = view.answer(
-                    &project.log(project.git_deadline())?,
+                    &project.log(project.ci_settings().budget(CiSettings::ROUTINE))?,
                     ScalePolicy::read(project.root())?.scales(),
                     |query| LiveGithub::for_project(project).read(query),
                 )?;
@@ -178,7 +178,7 @@ impl Request {
             Self::Gc(sweep) => LocalClone::try_from(project)?.collected(project, sweep),
             Self::GcRestore(quarantine) => LocalClone::try_from(project)?.unstranded(&quarantine),
             logged @ (Self::List(..) | Self::Write(_) | Self::Rate(_) | Self::Move(_)) => logged.answer_from(
-                &project.log(project.git_deadline())?,
+                &project.log(project.ci_settings().budget(CiSettings::ROUTINE))?,
                 &ScalePolicy::read(project.root())?,
                 Self::actor,
             ),

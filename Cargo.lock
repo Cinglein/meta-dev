@@ -537,6 +537,7 @@ dependencies = [
  "corpus_check",
  "crate_graph",
  "meta-log",
+ "meta-run",
  "meta-schema",
  "meta-severity",
  "meta-state",

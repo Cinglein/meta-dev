@@ -67,7 +67,7 @@ impl LocalClone {
     pub fn claimed(&self, project: &Project, claim: Claim, actor: Actor) -> Result<Output, CliFailure> {
         let settings = self.settings()?;
         let identity = settings.identity()?;
-        let log = project.log(project.git_deadline())?;
+        let log = project.log(project.ci_settings().budget(CiSettings::ROUTINE))?;
         let state = State::fold(log.read()?.records());
         let task = claim.task();
         let held = state.holders(task).contains(&actor).then_some(());
@@ -122,7 +122,7 @@ impl LocalClone {
 
     pub fn worktrees(&self, project: &Project) -> Result<Output, CliFailure> {
         let trail = LocalTrail::read(self.git_dir.as_ref())?;
-        let state = State::fold(project.log(project.git_deadline())?.read()?.records());
+        let state = State::fold(project.log(project.ci_settings().budget(CiSettings::ROUTINE))?.read()?.records());
         let paths = self.listed()?;
         trail.torn().iter().for_each(|torn| eprintln!("meta: warning: {torn}"));
         Ok(Output::Listed(Listed::new(Worktrees::joined(&trail, &paths, &state))))
@@ -133,7 +133,7 @@ impl LocalClone {
         let _held = GcLock::taken(self.git_dir.as_ref())?;
         let trail = LocalTrail::read(self.git_dir.as_ref())?;
         trail.torn().iter().for_each(|torn| eprintln!("meta: warning: {torn}"));
-        let state = State::fold(project.log(project.git_deadline())?.read()?.records());
+        let state = State::fold(project.log(project.ci_settings().budget(CiSettings::ROUTINE))?.read()?.records());
         let recorded: Vec<RecordedWorktree> = trail.current();
         let tasks: Vec<Id<Task>> = recorded.iter().map(RecordedWorktree::task).collect();
         let github = LiveGithub::for_project(project).read(&Status::linked_query(&state, &tasks));

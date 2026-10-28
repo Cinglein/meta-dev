@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 use std::time::Instant;
 
 use meta_log::{GitLog, RemoteHeads};
-use meta_run::Run;
+use meta_run::{Budget, Run};
 
 use crate::request::checkout::Checkout;
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
@@ -28,12 +28,8 @@ pub struct Project {
 impl Project {
     const CONFIG_FILE: &'static str = "meta.toml";
     const GIT_ENTRY: &'static str = ".git";
-    pub fn log(&self, deadline: Instant) -> Result<GitLog, CliFailure> {
-        self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote.clone(), deadline))
-    }
-
-    pub fn git_deadline(&self) -> Instant {
-        self.ci.git_deadline(Instant::now(), CiSettings::ROUTINE)
+    pub fn log(&self, budget: Budget) -> Result<GitLog, CliFailure> {
+        self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote.clone(), budget))
     }
 
     pub fn root(&self) -> &Path {
@@ -54,11 +50,11 @@ impl Project {
         &self.ci
     }
 
-    pub fn push_failure(&self, deadline: Instant) -> Option<Listed> {
+    pub fn push_failure(&self, budget: Budget) -> Option<Listed> {
         let remote = self.config.remote().ok()?.to_string();
-        let unprotected = self.unprotected_branch(deadline)?;
+        let unprotected = self.unprotected_branch(budget.deadline())?;
         let push = self.git(["push", "--quiet", "-u", &remote, &unprotected.to_string()]);
-        match push.ran(deadline) {
+        match push.ran(budget.deadline()) {
             Ok(ran) if ran.success() => None,
             Ok(ran) => Some(Listed::new(format!("push of {unprotected} failed: {}", ran.stderr()))),
             Err(failure) => Some(Listed::new(format!("push of {unprotected} failed: {failure}"))),

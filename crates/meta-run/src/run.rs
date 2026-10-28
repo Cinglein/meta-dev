@@ -21,7 +21,6 @@ use group::Group;
 #[derive(Debug)]
 pub struct Run {
     command: Command,
-    ended: fn(&mut Child),
     input: Option<String>,
 }
 
@@ -34,24 +33,15 @@ impl Run {
 
     #[must_use]
     pub fn new(program: impl AsRef<OsStr>, env: EnvPolicy) -> Self {
-        Self::ending(program, env, Environment::current(), Group::ended)
+        Self::inheriting(program, env, Environment::current())
     }
 
     #[must_use]
     pub fn inheriting(program: impl AsRef<OsStr>, env: EnvPolicy, inherited: Environment) -> Self {
-        Self::ending(program, env, inherited, Group::ended)
-    }
-
-    pub(crate) fn ending(
-        program: impl AsRef<OsStr>,
-        env: EnvPolicy,
-        inherited: Environment,
-        ended: fn(&mut Child),
-    ) -> Self {
         let mut command = Command::new(program);
         let kept = env.applied(inherited.clone());
         inherited.dropped(&kept, &mut command);
-        Self { command, ended, input: None }
+        Self { command, input: None }
     }
 
     #[must_use]
@@ -90,12 +80,32 @@ impl Run {
 
     pub fn ran(mut self, deadline: Instant) -> Result<Ran, RunFailure> {
         let line = CommandLine::from(&self.command);
-        deadline.checked_duration_since(Instant::now()).ok_or_else(|| RunFailure::TimedOut(line.clone()))?;
+        Group::accepting().ok_or(RunFailure::Interrupted(line))?;
+        self.command.process_group(i32::default());
+        self.finished(deadline, Group::joined, Group::ended)
+    }
+
+    pub(crate) fn helped(self, deadline: Instant) -> Result<Ran, RunFailure> {
+        self.finished(deadline, |_| Some(()), Self::alone)
+    }
+
+    pub(crate) fn alone(child: &mut Child) {
+        drop(child.kill());
+        drop(child.wait());
+    }
+
+    fn finished<Member>(
+        mut self,
+        deadline: Instant,
+        joined: fn(&mut Child) -> Option<Member>,
+        ended: fn(&mut Child),
+    ) -> Result<Ran, RunFailure> {
+        let line = CommandLine::from(&self.command);
+        deadline.checked_duration_since(Instant::now()).ok_or_else(|| RunFailure::Expired(line.clone()))?;
         let stdin = self.input.as_ref().map_or_else(Stdio::null, |_| Stdio::piped());
-        let piped = self.command.process_group(i32::default()).stdin(stdin).stdout(Stdio::piped());
-        let spawned = piped.stderr(Stdio::piped()).spawn();
-        let mut child = spawned.map_err(|source| RunFailure::Unspawned { line: line.clone(), source })?;
-        let _group = Group::joined(&child);
+        let piped = self.command.stdin(stdin).stdout(Stdio::piped()).stderr(Stdio::piped());
+        let mut child = piped.spawn().map_err(|source| RunFailure::Unspawned { line: line.clone(), source })?;
+        let _member = joined(&mut child).ok_or_else(|| RunFailure::Interrupted(line.clone()))?;
         let fed = child.stdin.take().zip(self.input);
         fed.map(|(mut pipe, input)| std::thread::spawn(move || pipe.write_all(input.as_bytes())));
         let stdout = Self::drained(child.stdout.take(), Stdout::read_from);
@@ -105,7 +115,7 @@ impl Run {
         let status = streams.as_ref().and_then(|_| Self::exited(&mut child, deadline));
         let ran = status.zip(streams).map(|(status, (stdout, stderr))| Ran::new(line.clone(), status, stdout, stderr));
         ran.ok_or_else(|| {
-            (self.ended)(&mut child);
+            ended(&mut child);
             RunFailure::TimedOut(line)
         })
     }
@@ -116,13 +126,9 @@ impl Run {
 
     pub fn detached(mut self) -> Result<(), RunFailure> {
         let line = CommandLine::from(&self.command);
+        Group::accepting().ok_or_else(|| RunFailure::Interrupted(line.clone()))?;
         let quiet = self.command.process_group(i32::default()).stdin(Stdio::null()).stdout(Stdio::null());
         quiet.stderr(Stdio::null()).spawn().map(drop).map_err(|source| RunFailure::Unspawned { line, source })
-    }
-
-    fn alone(child: &mut Child) {
-        drop(child.kill());
-        drop(child.wait());
     }
 
     fn drained<Pipe: Read + Send + 'static, Text: Send + 'static>(

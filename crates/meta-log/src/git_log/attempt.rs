@@ -1,7 +1,7 @@
 use std::hash::BuildHasher;
 use std::time::Duration;
 
-use super::git::Git;
+use meta_run::Budget;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Attempt(u32);
@@ -29,10 +29,10 @@ impl Attempt {
     pub fn settled<Found, Failure>(
         self,
         found: Result<Option<Found>, Failure>,
-        git: &Git,
+        budget: &Budget,
     ) -> Option<Result<Found, Failure>> {
         let settled = found.transpose();
-        settled.is_none().then(|| git.rest(self.pause()));
+        settled.is_none().then(|| budget.rest(self.pause()));
         settled
     }
 }

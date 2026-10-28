@@ -3,7 +3,7 @@ use std::ffi::OsString;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use super::{EnvPolicy, Environment, Run, RunFailure};
+use super::{EnvPolicy, Environment, Run};
 
 const SHELL: &str = "bash";
 const SCRIPT: &str = "-c";
@@ -11,7 +11,6 @@ const FED: &str = "cat; echo oops >&2; echo more >&2; exit 3";
 const SHOWN: [&str; 3] = ["fed", "oops\nmore", "oops"];
 const PATIENT: Duration = Duration::from_secs(5);
 const LEADS: &str = "kill -0 -- -$$ 2>/dev/null && echo leader; true";
-const LEADER: &str = "leader\n";
 const LIMIT: Duration = Duration::from_millis(60);
 const PROMPT: Duration = Duration::from_secs(1);
 const KILLED: [&str; 5] = [
@@ -40,10 +39,8 @@ struct Scripted;
 
 impl Scripted {
     fn timed_out(script: &'static str, pids: &Path) -> String {
-        let run = Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, script]).arg(pids);
-        let failure =
-            run.ran(Instant::now() + LIMIT).err().filter(|failure| matches!(failure, RunFailure::TimedOut(_)));
-        failure.map(|failure| failure.to_string()).unwrap_or_default()
+        let ran = Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, script]).arg(pids).ran(Instant::now() + LIMIT);
+        ran.err().map(|failure| failure.to_string()).unwrap_or_default()
     }
 
     fn gone(pids: &Path) -> bool {
@@ -66,7 +63,7 @@ fn a_run_feeds_its_input_returns_both_streams_and_leads_its_own_group() {
     assert!(!ran.success() && ran.stdout().text() == SHOWN[0] && ran.stderr().to_string() == SHOWN[1]);
     assert_eq!(ran.succeeded().unwrap_err().to_string(), SHOWN[2]);
     let leads = Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, LEADS]);
-    assert_eq!(leads.stdout(Instant::now() + PATIENT).unwrap(), LEADER);
+    assert_eq!(leads.stdout(Instant::now() + PATIENT).unwrap(), "leader\n");
 }
 
 #[test]
