@@ -61,7 +61,7 @@ mod tests {
     use super::TestPackages;
     use crate::scope::MutantsBuild;
     use affected::TestedCrates;
-    use task::{CargoArgument, CommandLine, Millis, PackageGraph, Program, SourceFile};
+    use task::{CargoArgument, CommandLine, Millis, PackageGraph, Program, Shard, SourceFile};
     const METADATA: &str = r#"{"workspace_root": "/w", "packages": [
         {"name": "log", "manifest_path": "/w/crates/log/Cargo.toml", "dependencies": []},
         {"name": "state", "manifest_path": "/w/crates/state/Cargo.toml", "dependencies": [{"name": "log", "path": "/w/crates/log"}]},
@@ -80,6 +80,9 @@ mod tests {
         (SLOW, KEPT, false),
     ];
     const TIMEOUT: Millis = Millis::new(300);
+    const SHARDS: [&str; 2] = ["log+cli", "log/0/2"];
+    const BASELINES: [&str; 2] =
+        ["gh test --all-features --package cli", "gh test --all-features --package log --package state"];
 
     #[test]
     fn each_run_has_a_baseline_of_its_own_tests_with_the_shards_build_and_timeout_and_a_failing_one_is_refused() {
@@ -96,7 +99,11 @@ mod tests {
         let gated = CASES.iter().all(|(cargo, settings, passes)| {
             build(cargo, settings).and_then(|build| build.passes(&build.line(CargoArgument::Test))).is_ok() == *passes
         });
-        let none = TestPackages::baselines(&[], &graph, &tested, &build(&["gh"], "").unwrap());
-        assert!(line.to_string() == LINE && gated && none.is_empty());
+        let shown = |shards: &[Shard]| {
+            let lines = TestPackages::baselines(shards, &graph, &tested, &build(&["gh"], "").unwrap());
+            lines.iter().map(ToString::to_string).collect::<Vec<String>>()
+        };
+        let each = shown(&SHARDS.map(|shard| shard.parse().unwrap())) == BASELINES;
+        assert!(line.to_string() == LINE && gated && each && shown(&[]).is_empty());
     }
 }
