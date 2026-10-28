@@ -45,13 +45,11 @@ impl Scripted {
     fn gone(pids: &Path) -> bool {
         let listed: Vec<String> =
             std::fs::read_to_string(pids).unwrap_or_default().split_whitespace().map(str::to_owned).collect();
-        let live = || {
-            Run::new(PS[0], EnvPolicy::Inherit).args(&PS[1..]).arg(listed.join(",")).stdout(Instant::now() + PATIENT)
-        };
         let until = Instant::now() + PROMPT;
+        let ps = || Run::new(PS[0], EnvPolicy::Inherit).args(&PS[1..]).arg(listed.join(",")).stdout(until + PATIENT);
         let polls = std::iter::repeat_with(|| std::thread::sleep(POLL)).take_while(|()| Instant::now() < until);
         let zombies = |states: String| states.lines().all(|state| state.starts_with('Z'));
-        listed.len() >= RECORDED && polls.into_iter().any(|()| zombies(live().unwrap_or_default()))
+        listed.len() >= RECORDED && polls.into_iter().any(|()| zombies(ps().unwrap_or_default()))
     }
 }
 

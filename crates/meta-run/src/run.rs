@@ -90,8 +90,11 @@ impl Run {
     }
 
     #[must_use]
-    pub fn terminal(self) -> Self {
-        Self { command: self.command, input: self.input, placement: Placement::Terminal }
+    pub fn terminal(mut self) -> Self {
+        let prompt = Self::NO_PROMPT[0];
+        self.command.env_remove(prompt);
+        let terminal = std::env::var_os(prompt).into_iter().fold(self, |run, inherited| run.var(prompt, inherited));
+        Self { command: terminal.command, input: terminal.input, placement: Placement::Terminal }
     }
 
     pub fn ran(self, deadline: Instant) -> Result<Ran, RunFailure> {

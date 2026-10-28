@@ -40,7 +40,8 @@ mod tests {
 
     const SHELL: &str = "bash";
     const SCRIPT: &str = "-c";
-    const LEADS: &str = "kill -0 -- -$$ 2>/dev/null && echo leader; true";
+    const LEADS: [&str; 2] = [SCRIPT, "kill -0 -- -$$ 2>/dev/null && echo leader; true"];
+    const PROMPT: &str = "GIT_TERMINAL_PROMPT";
     const PTY: &str = "script -qec \"$0\" /dev/null 2>/dev/null || script -q /dev/null sh -c \"$0\"";
     const CHILD: &str = "--exact run::placement::tests::under_a_terminal_it_shares_the_callers_group --ignored";
     const LEADER: &str = "leader\n";
@@ -51,17 +52,18 @@ mod tests {
     #[test]
     #[ignore = "run under a pseudo-terminal by the test below"]
     fn under_a_terminal_it_shares_the_callers_group() {
-        let leads = Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, LEADS]).terminal();
+        let leads = Run::new(SHELL, EnvPolicy::Inherit).args(LEADS).terminal();
         assert_eq!(leads.stdout(Instant::now() + PATIENT).unwrap(), "");
     }
 
     #[test]
-    fn a_terminal_run_leads_its_own_group_unless_meta_has_a_controlling_terminal() {
-        let leads =
-            Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, LEADS]).terminal().stdout(Instant::now() + PATIENT);
+    fn a_terminal_run_leads_its_own_group_unless_meta_has_a_terminal_and_never_stops_git_prompting() {
+        let leads = Run::new(SHELL, EnvPolicy::Inherit).args(LEADS).terminal().stdout(Instant::now() + PATIENT);
         let child = format!("{} {CHILD}", std::env::current_exe().unwrap().display());
         let pty = Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, PTY, &child]).stdout(Instant::now() + PATIENT);
         assert!(leads.is_ok_and(|leads| leads == std::fs::File::open(TERMINAL).map_or(LEADER, |_| "")));
         assert!(pty.is_ok_and(|shown| shown.contains(PASSED)));
+        let terminal = Run::git(SHELL.as_ref()).terminal();
+        assert!(terminal.command.get_envs().all(|(name, value)| name != PROMPT || value.is_none()));
     }
 }
