@@ -20,6 +20,7 @@ pub use unit::Unit;
 #[strum(serialize_all = "snake_case")]
 pub enum Measure {
     TestWallTime,
+    TestCpuTime,
     SlowestTest,
     #[strum(to_string = "workflow_wall_time {0}")]
     WorkflowWallTime(MutationJob),
@@ -35,9 +36,10 @@ impl Measure {
     #[must_use]
     pub const fn unit(&self) -> Unit {
         match self {
-            Measure::TestWallTime | Measure::SlowestTest | Measure::WorkflowWallTime(_) => {
-                Unit::Duration
-            }
+            Measure::TestWallTime
+            | Measure::TestCpuTime
+            | Measure::SlowestTest
+            | Measure::WorkflowWallTime(_) => Unit::Duration,
             Measure::MutantPrice | Measure::TestLineShare => Unit::Share,
             Measure::TangleItems | Measure::OpenItems(_) => Unit::Count,
             Measure::LintFindings => Unit::Baseline,
@@ -47,7 +49,9 @@ impl Measure {
     #[must_use]
     pub const fn scope(&self) -> Option<ScopeKind> {
         match self {
-            Measure::TestWallTime | Measure::SlowestTest => Some(ScopeKind::Tests),
+            Measure::TestWallTime | Measure::TestCpuTime | Measure::SlowestTest => {
+                Some(ScopeKind::Tests)
+            }
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Some(ScopeKind::Workflows),
             Measure::TangleItems => Some(ScopeKind::Crates),
             Measure::LintFindings | Measure::TestLineShare => Some(ScopeKind::Paths),
@@ -58,9 +62,10 @@ impl Measure {
     #[must_use]
     pub const fn enforcer(&self) -> Enforcer {
         match self {
-            Measure::TestWallTime | Measure::SlowestTest | Measure::OpenItems(_) => {
-                Enforcer::Checker
-            }
+            Measure::TestWallTime
+            | Measure::TestCpuTime
+            | Measure::SlowestTest
+            | Measure::OpenItems(_) => Enforcer::Checker,
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Enforcer::MutationJobs,
             Measure::LintFindings | Measure::TestLineShare | Measure::TangleItems => Enforcer::Lint,
         }
@@ -71,6 +76,7 @@ impl Measure {
         match self {
             Measure::OpenItems(filter) => Some(filter),
             Measure::TestWallTime
+            | Measure::TestCpuTime
             | Measure::SlowestTest
             | Measure::WorkflowWallTime(_)
             | Measure::MutantPrice
@@ -85,6 +91,7 @@ impl Measure {
         match self {
             Measure::OpenItems(_) => Window::Standing,
             Measure::TestWallTime
+            | Measure::TestCpuTime
             | Measure::SlowestTest
             | Measure::WorkflowWallTime(_)
             | Measure::MutantPrice
