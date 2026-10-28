@@ -181,15 +181,15 @@ impl Git {
 struct Origin;
 
 impl Origin {
-    const ALTERNATES: &'static str = "objects/info/alternates";
+    const OBJECTS: &'static str = "objects";
 
     fn linked(origin: &Path, clone: &Path) {
         let url = origin.display();
         let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
         let config = std::fs::OpenOptions::new().append(true).open(clone.join(".git/config"));
         config.unwrap().write_all(remote.as_bytes()).unwrap();
-        std::fs::create_dir_all(origin.join(Self::ALTERNATES).parent().unwrap()).unwrap();
-        std::fs::write(origin.join(Self::ALTERNATES), format!("{}\n", clone.join(".git/objects").display())).unwrap();
+        std::os::unix::fs::symlink(clone.join(".git").join(Self::OBJECTS), origin.join(Self::OBJECTS)).unwrap();
+        Skeleton::Bare.lay(origin, "main");
     }
 }
 
@@ -342,7 +342,6 @@ impl Repo {
     pub fn limited(scenario: &'static str, limits: &str) -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Skeleton::Bare.lay(origin.path(), "main");
         Skeleton::Working.lay(clone.path(), "feature");
         Origin::linked(origin.path(), clone.path());
         std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{limits}")).unwrap();
