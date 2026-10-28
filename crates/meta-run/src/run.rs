@@ -29,7 +29,6 @@ impl Run {
     const GIT: &'static str = "git";
     const DIRECTORY: &'static str = "-C";
     const NO_PROMPT: [&'static str; 2] = ["GIT_TERMINAL_PROMPT", "0"];
-    const BATCH_SSH: [&'static str; 2] = ["GIT_SSH_COMMAND", "ssh -o BatchMode=yes"];
     const FIRST_PAUSE: Duration = Duration::from_micros(10);
     const LONGEST_PAUSE: Duration = Duration::from_millis(5);
 
@@ -58,8 +57,6 @@ impl Run {
     #[must_use]
     pub fn git(dir: &Path) -> Self {
         let git = Self::new(Self::GIT, EnvPolicy::NoRepoVars).var(Self::NO_PROMPT[0], Self::NO_PROMPT[1]);
-        let ssh = std::env::var_os(Self::BATCH_SSH[0]).is_none().then_some(Self::BATCH_SSH);
-        let git = ssh.into_iter().fold(git, |git, [name, value]| git.var(name, value));
         git.arg(Self::DIRECTORY).arg(dir)
     }
 

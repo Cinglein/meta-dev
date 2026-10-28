@@ -13,12 +13,11 @@ pub struct GitCall {
 
 impl GitCall {
     const PROGRAM: &'static str = "git";
-    const ISOLATED: [(&'static str, &'static str); 5] = [
+    const ISOLATED: [(&'static str, &'static str); 4] = [
         ("GIT_CONFIG_GLOBAL", "/dev/null"),
         ("GIT_CONFIG_SYSTEM", "/dev/null"),
         ("GIT_CONFIG_NOSYSTEM", "1"),
         ("GIT_TERMINAL_PROMPT", "0"),
-        ("GIT_SSH_COMMAND", "ssh -o BatchMode=yes"),
     ];
     const PINNED: [&'static str; 15] = [
         "--no-replace-objects",
