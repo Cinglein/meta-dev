@@ -7,7 +7,7 @@ use std::io::{Read, Write as _};
 use std::ops::ControlFlow;
 use std::os::unix::process::CommandExt as _;
 use std::path::Path;
-use std::process::{Child, Command, ExitStatus, Stdio};
+use std::process::{Child, Command, ExitCode, ExitStatus, Stdio};
 use std::sync::mpsc::{Receiver, channel};
 use std::time::{Duration, Instant};
 
@@ -103,8 +103,10 @@ impl Run {
         ran
     }
 
-    pub fn honor_interrupt() {
+    #[must_use]
+    pub fn exit(code: ExitCode) -> ExitCode {
         Interrupts::watched().honored();
+        code
     }
 
     pub(crate) fn helped(self, within: Duration) -> Result<Ran, RunFailure> {

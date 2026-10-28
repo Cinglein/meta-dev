@@ -7,6 +7,7 @@ pub struct Ignored(u64);
 
 impl Ignored {
     const RADIX: u32 = 16;
+    const BASE: u64 = 2;
     const STATUS: &'static str = "/proc/self/status";
     const PREFIX: &'static str = "SigIgn:";
 
@@ -16,7 +17,8 @@ impl Ignored {
     }
 
     pub fn spares(self, signal: c_int) -> Option<()> {
-        (self.0 >> (signal - 1) & 1 == 0).then_some(())
+        let bit = Self::BASE.checked_pow(u32::try_from(signal - 1).ok()?)?;
+        (self.0 & bit == 0).then_some(())
     }
 }
 

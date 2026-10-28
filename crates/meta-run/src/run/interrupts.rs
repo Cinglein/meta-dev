@@ -1,9 +1,8 @@
 mod ignored;
 
-use std::sync::Once;
-use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::{Mutex, Once, PoisonError};
 use std::thread::JoinHandle;
-use std::time::{Duration, Instant};
 
 use signal_hook::consts::{SIGHUP, SIGINT, SIGTERM};
 use signal_hook::iterator::Signals;
@@ -14,7 +13,7 @@ use ignored::Ignored;
 
 static WATCHED: Once = Once::new();
 static RECEIVED: AtomicI32 = AtomicI32::new(0);
-static ENDED: AtomicBool = AtomicBool::new(false);
+static SWEEPING: Mutex<()> = Mutex::new(());
 
 #[derive(Debug)]
 pub struct Interrupts {
@@ -22,9 +21,6 @@ pub struct Interrupts {
 }
 
 impl Interrupts {
-    const WAIT: Duration = Duration::from_secs(2);
-    const STEP: Duration = Duration::from_millis(5);
-
     pub fn watched() -> Self {
         WATCHED.call_once(|| {
             let ignored = Ignored::at_start();
@@ -37,9 +33,7 @@ impl Interrupts {
     pub fn honored(self) {
         let signal = self.received.load(Ordering::SeqCst);
         drop((signal != 0).then(|| {
-            let deadline = Instant::now() + Self::WAIT;
-            let waits = std::iter::repeat_with(|| std::thread::sleep(Self::STEP));
-            waits.take_while(|()| !ENDED.load(Ordering::SeqCst) && Instant::now() < deadline).for_each(drop);
+            let _swept = SWEEPING.lock().unwrap_or_else(PoisonError::into_inner);
             emulate_default_handler(signal)
         }));
     }
@@ -47,9 +41,10 @@ impl Interrupts {
     fn forwarded(mut signals: Signals) -> JoinHandle<()> {
         std::thread::spawn(move || {
             signals.forever().for_each(|signal| {
+                let sweeping = SWEEPING.lock().unwrap_or_else(PoisonError::into_inner);
                 RECEIVED.store(signal, Ordering::SeqCst);
                 Group::all_ended();
-                ENDED.store(true, Ordering::SeqCst);
+                drop(sweeping);
                 drop(emulate_default_handler(signal));
             });
         })
