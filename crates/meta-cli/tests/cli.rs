@@ -16,18 +16,7 @@ const LIST_ISSUES: [&str; 2] = ["list", "issues"];
 const LOCAL_NAME: &str = "localname";
 const SEED: &str = "commit refs/heads/main\ncommitter t <t@meta.invalid> 1700000000 +0000\ndata 4\nseed\n\n";
 const TRACKED: &str = "reset refs/remotes/origin/main\nfrom refs/heads/main\n\n";
-const TASK: &str = "task-00000000000000a1";
-const OPENED: &str = r#"commit refs/heads/meta/log
-committer t <t@meta.invalid> 1700000000 +0000
-data 4
-seed
-M 100644 inline events.jsonl
-data <<END
-{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"SchemaVersion","version":2}
-{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskOpened","task":"task-00000000000000a1","text":"text","division":"features-and-maintenance"}
-END
-
-"#;
+const OPENED: &str = "TaskOpened";
 const ORIGIN_HEAD: [&str; 3] = ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"];
 const NOREPLY: &str = "1+agent@users.noreply.github.com";
 const CLAIM: &str = "claim";
@@ -53,8 +42,11 @@ const STARTED: &str = "\"event\":\"start\"";
 const LISTING: &str = "\"hierarchy\":\"ls-remote\"";
 const READ_PROCESSES: [&str; 3] = ["ls-remote", "upload-pack", "cat-file"];
 
+#[path = "support/seeded_log.rs"]
+mod seeded_log;
 #[path = "support/skeleton.rs"]
 mod skeleton;
+use seeded_log::{SeededLog, TASK};
 use skeleton::Skeleton;
 
 struct Git;
@@ -102,7 +94,10 @@ impl Seed {
 
     fn planted(origin: &Path, clone: &Path) {
         std::thread::scope(|scope| {
-            scope.spawn(|| Self::imported(origin, &[SEED, OPENED].concat()));
+            scope.spawn(|| {
+                Self::imported(origin, SEED);
+                SeededLog::through(OPENED).plant(origin);
+            });
             Self::imported(clone, &[SEED, TRACKED].concat());
             assert!(Git::run(clone, &ORIGIN_HEAD).status.success());
         });
