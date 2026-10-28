@@ -991,3 +991,4 @@
 {"at":"2026-10-28T14:36:53.682770Z","actor":"claude-lead","kind":"TaskOpened","task":"task-067b28fe28b30740","text":"Cut test CPU under 4000 ms scaled (#89 measure): ci watcher/Stop tests 1.3 s, gc 0.38 s, cli 0.31 s, xtask 0.64 s.","division":"performance-and-cost"}
 {"at":"2026-10-28T14:37:08.402213Z","actor":"claude-minorsb","kind":"TaskClaimed","task":"task-14417fa941c6bf5a"}
 {"at":"2026-10-28T14:37:54.191245Z","actor":"claude-cpucut","kind":"TaskClaimed","task":"task-067b28fe28b30740"}
+{"at":"2026-10-28T14:38:47.616186Z","actor":"claude-minorsa","kind":"TaskLinked","task":"task-965b7114cb349f44","pr":96}
