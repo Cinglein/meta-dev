@@ -66,6 +66,7 @@ jobs:
   mutants-plan:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 6
     outputs:
       shards: ${{ steps.plan.outputs.shards }}
     steps:
