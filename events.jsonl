@@ -878,3 +878,4 @@
 {"at":"2026-10-28T00:44:20.559565Z","actor":"claude-lead","kind":"EntryCorrected","entry":"issue-1bbf114476831ef8","text":"thin-main conflicts with chess keeping command_line beside main.rs; keep thin-main or allow mod lines in main.rs?"}
 {"at":"2026-10-28T00:44:22.614293Z","actor":"claude-lead","kind":"EntryCorrected","entry":"issue-25d8e737f4167017","text":"Adoption PR cannot seed a lint baseline; fix: one-time seeding when merge base has no meta setup (task-f72f1ea5220a3499)."}
 {"at":"2026-10-28T00:44:24.106809Z","actor":"claude-lead","kind":"EntryCorrected","entry":"issue-0ec2ae52a2248a57","text":"stacked asks GitHub once; a fresh gh stack may show no stack briefly, so a new stacked PR can fail until rerun."}
+{"at":"2026-10-28T00:44:25.553731Z","actor":"claude-lead","kind":"EntryCorrected","entry":"issue-0f57d5b723010446","text":"Deferred: Blacksmith needs an org; move meta-dev to an org with rewritten history (also purges personal email)."}
