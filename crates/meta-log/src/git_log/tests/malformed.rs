@@ -1,6 +1,7 @@
 use std::io::Write as _;
 use std::process::{Command, Stdio};
 
+use super::scene::Scene;
 use super::{FIRST, Fixture};
 use crate::LogStore;
 use crate::log_failure::LogFailure;
@@ -27,10 +28,13 @@ impl Fixture {
     }
 }
 
-#[test]
-fn a_meta_log_without_exactly_events_jsonl_is_refused() {
-    let fixture = Fixture::new(1);
-    assert!(fixture.publish(&[EVENTS]).is_none());
-    assert_eq!(fixture.publish(&[EVENTS, EXTRA]).map(|failure| failure.to_string()).as_deref(), Some(REFUSED));
-    assert_eq!(fixture.publish(&[EXTRA]).map(|failure| failure.to_string()).as_deref(), Some(REFUSED));
+pub struct MalformedLog;
+
+impl Scene for MalformedLog {
+    fn hold() {
+        let fixture = Fixture::new(1);
+        assert!(fixture.publish(&[EVENTS]).is_none());
+        assert_eq!(fixture.publish(&[EVENTS, EXTRA]).map(|failure| failure.to_string()).as_deref(), Some(REFUSED));
+        assert_eq!(fixture.publish(&[EXTRA]).map(|failure| failure.to_string()).as_deref(), Some(REFUSED));
+    }
 }
