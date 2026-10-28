@@ -1012,3 +1012,4 @@
 {"at":"2026-10-28T15:02:06.222043Z","actor":"claude-cpucut","kind":"TaskLinked","task":"task-067b28fe28b30740","pr":103}
 {"at":"2026-10-28T15:14:58.897527Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-965b7114cb349f44"}
 {"at":"2026-10-28T15:15:01.496260Z","actor":"claude-lead","kind":"TaskDone","task":"task-965b7114cb349f44"}
+{"at":"2026-10-28T15:18:46.728359Z","actor":"claude-lead","kind":"TaskOpened","task":"task-73c70c6c6b6c3cac","text":"Concurrency registry lint: every thread spawn/scope, parallel iterator, lock and retry loop must be listed in a registry with its owner and reason; unlisted ones fail.","division":"features-and-maintenance"}
