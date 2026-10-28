@@ -37,7 +37,7 @@ impl Goldens {
         self.scenarios()?.iter().try_for_each(|path| {
             let dir = path.with_extension("");
             let recordings = Scenario::try_from(path.as_path())?.recorded(&dir, bin)?;
-            drop(std::fs::remove_dir_all(&dir));
+            Recording::cleared(&dir);
             recordings.iter().try_for_each(Recording::written)
         })
     }

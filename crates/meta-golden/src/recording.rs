@@ -33,6 +33,11 @@ impl Recording {
         stems.iter().map(|stem| Self::try_from(stem.with_extension("").as_path())).collect()
     }
 
+    pub(crate) fn cleared(dir: &Path) {
+        let stale = Self::FILES.iter().flat_map(|extension| Goldens::listed(dir, extension).unwrap_or_default());
+        stale.for_each(|file| drop(std::fs::remove_file(file)));
+    }
+
     #[must_use]
     pub fn ran(stem: PathBuf, ran: &Ran, places: &Places) -> Self {
         let argv = Argv::from(ran.line().words().iter().map(|word| places.hidden(word)).collect::<Vec<_>>());
