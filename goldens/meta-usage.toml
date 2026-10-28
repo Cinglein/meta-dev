@@ -1,0 +1,3 @@
+[[step]]
+record = "list-outside-a-project"
+meta = { call = "list" }

@@ -1,34 +1,40 @@
 mod commit;
 mod foreign_emails;
+mod git_paths;
+mod git_reads;
 mod tracked_path;
 
-use std::path::{Path, PathBuf};
+use std::ffi::OsStr;
+use std::path::Path;
 
-use task::{BranchName, CommandLine, Program, Stdout};
+use meta_run::GitArgv;
+use task::BranchName;
 
 use crate::task::failure::Failure;
 pub use commit::Commit;
 pub use foreign_emails::ForeignEmails;
+pub use git_paths::GitPaths;
+pub use git_reads::GitReads;
 pub use tracked_path::TrackedPath;
 
 #[derive(Debug)]
 pub struct Revision {
-    root: PathBuf,
+    git: GitReads,
     commit: Commit,
 }
 
 impl Revision {
-    const GIT: &str = "git";
     const FULL_TREE: &str = "--full-tree";
+    const PATHS: &str = "--";
 
     pub fn merge_base(root: &Path, base: &BranchName) -> Result<Revision, Failure> {
-        let found = Self::git(root).arguments(["merge-base", "HEAD"]).argument(base).captured::<Stdout>();
-        let commit = found.map_err(|_| task::Failure::NoMergeBase)?.parse()?;
-        Ok(Revision { root: root.to_path_buf(), commit })
+        let git = GitReads::new(root);
+        let found = git.read(GitArgv::MergeBase, [base]).map_err(|_| task::Failure::NoMergeBase)?;
+        Ok(Revision { commit: found.parse()?, git })
     }
 
-    pub fn in_database(database: PathBuf, commit: Commit) -> Revision {
-        Revision { root: database, commit }
+    pub fn in_database(database: &Path, commit: Commit) -> Revision {
+        Revision { git: GitReads::new(database), commit }
     }
 
     pub fn present(&self, path: &Path) -> Result<Option<String>, Failure> {
@@ -40,61 +46,40 @@ impl Revision {
     }
 
     fn found(&self, path: &Path, scope: Option<&str>, object: String) -> Result<Option<String>, Failure> {
-        let listed = Self::git(&self.root)
-            .arguments(["ls-tree", "-z", "--name-only"])
-            .arguments(scope)
-            .argument(&self.commit)
-            .arguments(["--"])
-            .argument(path.display())
-            .captured::<Stdout>()?;
-        if listed.is_empty() {
-            Ok(None)
-        } else {
-            let blob = Self::git(&self.root).arguments(["cat-file", "blob"]).argument(object);
-            Ok(Some(blob.captured::<Stdout>()?))
-        }
+        let named = [self.commit.as_ref(), OsStr::new(Self::PATHS), path.as_os_str()];
+        let operands = scope.map(OsStr::new).into_iter().chain(named);
+        let Ok(listed) = self.git.read(GitArgv::LsTree, operands)?.parse::<GitPaths>();
+        (!listed.is_empty()).then(|| self.git.read(GitArgv::CatBlob, [object])).transpose()
     }
 
-    pub fn changed_paths(&self) -> Result<Vec<PathBuf>, Failure> {
-        let listed = Self::git(&self.root)
-            .arguments(["diff", "--name-only", "--no-renames", "--relative", "-z"])
-            .argument(&self.commit)
-            .captured::<Stdout>()?;
-        let untracked = Self::git(&self.root)
-            .arguments(["ls-files", "--others", "--exclude-standard", "-z"])
-            .captured::<Stdout>()?;
-        Ok([listed, untracked]
-            .iter()
-            .flat_map(|paths| paths.split('\0'))
-            .filter(|path| !path.is_empty())
-            .map(PathBuf::from)
-            .collect())
+    pub fn changed_paths(&self) -> Result<GitPaths, Failure> {
+        let Ok(listed) = self.git.read(GitArgv::ChangedNames, [&self.commit])?.parse::<GitPaths>();
+        let Ok(untracked) = self.git.read(GitArgv::UntrackedNames, GitReads::NO_OPERANDS)?.parse::<GitPaths>();
+        Ok(listed.and(untracked))
     }
 
     pub fn noreply_off(root: &Path, base: &BranchName) -> Result<(), Failure> {
-        let emails = Self::git(root)
-            .arguments(["log", "--format=%ae%n%ce", "HEAD", "--not"])
-            .argument(base)
-            .captured::<Stdout>()?;
-        ForeignEmails::refused(&emails)
-    }
-
-    fn git(root: &Path) -> CommandLine {
-        CommandLine::new(Program::Executable(PathBuf::from(Self::GIT))).in_directory(root.to_path_buf())
+        ForeignEmails::refused(&GitReads::new(root).read(GitArgv::LogEmails, [base])?)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::fmt::Debug;
+    use std::fs;
 
-    use super::Revision;
+    use meta_golden::GoldenFailure;
+    use meta_run::GitArgv;
+    use settings::EmbeddedDefaults;
+
+    use super::{Commit, ForeignEmails, GitPaths, GitReads, Revision};
+    use crate::task::failure::Failure;
     use crate::task::fixture::Fixture;
-    use crate::task::lint::SpecProse;
+    use crate::task::lint::Lint;
     use crate::task::prior_policy::PriorPolicy;
     use crate::task::ratchet::Baseline;
     use crate::task::surfaces::Surfaces;
-    use task::{BaselineFile, BranchName, SpecSettings, Surface};
+    use task::{BaselineFile, Branch, Ledger, Policy};
 
     const PARENT_POLICY: &str = "tooling/policy.toml";
     const PARENT_BASELINE: &str = "lint-baseline.toml";
@@ -107,45 +92,45 @@ mod tests {
     const TWO: &str = "crate-graph = 2\n";
     const LISTED: &str = "- tooling/policy.toml\n";
     const CONSUMER: &str = "consumer";
-    const BASE: &str = "origin/main";
-    const LOST: &str = "0123abc";
-    const ABSENT: &str = "absent.toml";
-    const SPEC: &str = "package = \"spec\"\nfile = \"context/SPEC.md\"\n";
+    const LOST: &str = "0123456789abcdef0123456789abcdef01234567";
     const CHANGED: &str =
         "surfaces = [\"tooling/policy.toml\"]\nbaseline = \"lint-baseline.toml\"\nbit_boundary = []\n";
+    const VIEWED: [GitArgv; 5] =
+        [GitArgv::MergeBase, GitArgv::LsTree, GitArgv::ChangedNames, GitArgv::UntrackedNames, GitArgv::LogEmails];
+
+    impl Revision {
+        fn view(call: GitArgv, out: &str) -> Box<dyn Debug> {
+            match call {
+                GitArgv::MergeBase => Box::new(out.parse::<Commit>()),
+                GitArgv::LogEmails => Box::new(ForeignEmails::refused(out)),
+                _ => Box::new(out.parse::<GitPaths>()),
+            }
+        }
+    }
 
     #[test]
-    fn a_workspace_below_the_git_top_level_reads_its_own_prior_policy_baseline_and_changes() {
+    fn every_recorded_revision_read_parses_to_its_golden_view_and_a_failed_read_fails_closed()
+    -> Result<(), GoldenFailure> {
+        assert!(GitReads::all_viewed(&VIEWED, Revision::view)?);
+        let unread = tempfile::tempdir().unwrap();
+        let lost = Revision::in_database(unread.path(), LOST.parse().unwrap());
+        assert!(lost.present(std::path::Path::new(PARENT_POLICY)).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn a_workspace_below_the_git_top_level_reads_its_own_prior_policy_baseline_changes_and_emails() {
         let fixture = Fixture::new();
         fixture.write(PARENT_POLICY, PARENT_TEXT).write(PARENT_BASELINE, LOOSE);
         fixture.write(POLICY, OWN_TEXT).write(BASELINE, ONE).branch();
-        fixture.write(POLICY, CHANGED).write(BASELINE, TWO);
-        let root = fixture.path(CONSUMER);
-        let surfaces = [Surface::from(PARENT_POLICY)];
-        let Ok(base) = BASE.parse::<BranchName>();
-        let listed = Surfaces::changed(&root, &surfaces, &base).map(|changed| changed.to_string()).unwrap_or_default();
-        assert!(listed.ends_with(LISTED));
-        assert!(Baseline::admitted(&root, &BaselineFile::from(PARENT_BASELINE), &base).is_err());
-    }
-
-    #[test]
-    fn a_file_absent_at_the_revision_is_none_and_a_git_failure_is_an_error() {
-        let fixture = Fixture::new();
-        fixture.write(PARENT_POLICY, PARENT_TEXT).branch();
-        let Ok(base) = BASE.parse::<BranchName>();
-        let tip = Revision::merge_base(fixture.root(), &base).unwrap();
-        let lost = Revision { root: fixture.root().to_path_buf(), commit: LOST.parse().unwrap() };
-        let read = |revision: &Revision, path: &str| revision.present(Path::new(path)).map(|text| text.is_some()).ok();
-        let found = [read(&tip, PARENT_POLICY), read(&tip, ABSENT), read(&lost, PARENT_POLICY)];
-        assert_eq!(found, [Some(true), Some(false), None]);
-    }
-
-    #[test]
-    fn a_git_failure_reading_the_prior_policy_or_spec_fails_closed() {
-        let fixture = Fixture::new();
-        fixture.write(PARENT_POLICY, PARENT_TEXT).branch();
-        let lost = Revision { root: fixture.root().to_path_buf(), commit: LOST.parse().unwrap() };
-        let spec: SpecSettings = toml::from_str(SPEC).unwrap();
-        assert!(PriorPolicy::read_at(&lost).is_err() && SpecProse::since(fixture.root(), &spec, &lost).is_err());
+        fixture.write(POLICY, CHANGED).write(BASELINE, TWO).write(PARENT_POLICY, CHANGED).committed();
+        let (root, policy, summary) = (fixture.path(CONSUMER), Policy::defaults(), fixture.beside());
+        let admitted = |root, file| Baseline::admitted(root, &BaselineFile::from(file), policy.branch(Branch::Base));
+        let announced = Surfaces::announce(&root, &policy, Some(&summary)).map(|()| fs::read_to_string(&summary));
+        assert!(announced.is_ok_and(|listed| listed.is_ok_and(|listed| listed.ends_with(LISTED))));
+        assert!(admitted(&root, PARENT_BASELINE).is_err() && admitted(fixture.root(), PARENT_BASELINE).is_ok());
+        let linted = Lint::run(&root, &[], &policy, &mut Ledger::default());
+        let prior = PriorPolicy::text_at_merge_base(fixture.root(), policy.branch(Branch::Base));
+        assert!(matches!(linted, Err(Failure::Identity(_))) && prior.ok().flatten().as_deref() == Some(PARENT_TEXT));
     }
 }

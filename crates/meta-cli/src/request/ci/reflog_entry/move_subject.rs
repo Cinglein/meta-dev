@@ -64,13 +64,10 @@ mod tests {
         "merge main: Merge made by the 'ort' strategy.",
         "pull: Merge made by the 'ort' strategy.",
     ];
-    const MOVING: [&str; 9] = [
-        "checkout: moving from main to x",
+    const MOVING: [&str; 6] = [
         "reset: moving to HEAD",
         "cherry-pick: fast-forward",
         "rebase (reset): 'branch-point'",
-        "rebase (start): checkout main",
-        "rebase (finish): returning to refs/heads/x",
         "rebase (abort): returning to refs/heads/x",
         "clone: from /x",
         "branch: Created from HEAD",

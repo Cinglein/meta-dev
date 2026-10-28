@@ -1,0 +1,17 @@
+[package]
+name = "meta-git-view"
+description = "What git reported, parsed: plain views of git output with no process or file access, checked against golden recordings."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+meta-schema.workspace = true
+
+[dev-dependencies]
+meta-golden.workspace = true
+meta-run.workspace = true
+
+[lints]
+workspace = true

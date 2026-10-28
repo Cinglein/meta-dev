@@ -8,7 +8,7 @@ use task::{Branch, BranchName, Policy, Surface};
 
 use crate::task::failure::Failure;
 use crate::task::prior_policy::PriorPolicy;
-use crate::task::revision::Revision;
+use crate::task::revision::{GitPaths, Revision};
 
 #[derive(Debug)]
 pub struct Surfaces;
@@ -22,10 +22,12 @@ impl Surfaces {
 
     pub fn changed(root: &Path, current: &[Surface], base: &BranchName) -> Result<Changed, Failure> {
         let revision = Revision::merge_base(root, base)?;
-        let surfaces: Vec<Surface> =
-            current.iter().cloned().chain(PriorPolicy::read_at(&revision)?.surfaces()).collect();
-        let paths = revision.changed_paths()?;
-        Ok(Changed::new(paths.into_iter().filter(|path| surfaces.iter().any(|surface| surface.covers(path))).collect()))
+        Ok(Self::listed(current, PriorPolicy::read_at(&revision)?, revision.changed_paths()?))
+    }
+
+    fn listed(current: &[Surface], prior: PriorPolicy, paths: GitPaths) -> Changed {
+        let surfaces: Vec<Surface> = current.iter().cloned().chain(prior.surfaces()).collect();
+        Changed::new(paths.into_iter().filter(|path| surfaces.iter().any(|surface| surface.covers(path))).collect())
     }
 }
 
@@ -33,47 +35,35 @@ impl Surfaces {
 mod tests {
     use std::fs;
 
-    use settings::EmbeddedDefaults;
-
     use super::Surfaces;
     use crate::task::fixture::Fixture;
-    use task::{Branch, Policy, Surface};
+    use crate::task::prior_policy::PriorPolicy;
+    use task::Surface;
 
-    const POLICY: &str = "tooling/policy.toml";
-    const POLICY_TEXT: &str = "surfaces = [\"tooling/policy.toml\", \"lint-baseline.toml\"]\n";
-    const NARROWED: &str = "surfaces = []\n";
-    const BASELINE: &str = "lint-baseline.toml";
-    const RAISED: &str = "crate-graph = 1\n";
-    const SOURCE: &str = "crates/a/src/lib.rs";
-    const LISTED: &str = "- lint-baseline.toml\n";
+    const SURFACES: [&str; 2] = ["tooling", "lint-baseline.toml"];
+    const PRIOR: &str = "surfaces = [\"tooling\", \"lint-baseline.toml\"]\n";
+    const NONE: &str = "";
+    const CHANGED: &str = "lint-baseline.toml\0tooling/new.toml\0crates/a/src/lib.rs\0";
+    const SOURCE: &str = "crates/a/src/lib.rs\0";
     const SUMMARY: &str = "summary.md";
-    const UNTRACKED: &str = "tooling/new.toml";
-    const BETA: &str = "pub struct Beta;\n";
+    const LISTED: &str = "- lint-baseline.toml\n- tooling/new.toml\n";
 
-    impl Fixture {
-        fn surfaced() -> Fixture {
-            let fixture = Fixture::new();
-            fixture.write(POLICY, POLICY_TEXT).write(BASELINE, "").write(SOURCE, "pub struct Alpha;\n").branch();
-            fixture
-        }
-
-        fn listed(&self, surfaces: &[&str]) -> String {
-            let surfaces: Vec<Surface> = surfaces.iter().copied().map(Surface::from).collect();
-            Surfaces::changed(self.root(), &surfaces, Policy::defaults().branch(Branch::Base))
-                .map(|changed| changed.to_string())
-                .unwrap_or_default()
+    impl Surfaces {
+        fn shown(current: &[&str], prior: &str, changed: &str) -> super::Changed {
+            let current: Vec<Surface> = current.iter().copied().map(Surface::from).collect();
+            let Ok(paths) = changed.parse();
+            Self::listed(&current, toml::from_str::<PriorPolicy>(prior).unwrap(), paths)
         }
     }
 
     #[test]
     fn changed_untracked_and_dropped_surfaces_are_listed_in_the_step_summary_and_other_changes_list_nothing() {
-        let [summarized, other, narrowed] = [(); 3].map(|()| Fixture::surfaced());
-        summarized.write(BASELINE, RAISED).write(UNTRACKED, RAISED);
-        Surfaces::announce(summarized.root(), &Policy::defaults(), Some(&summarized.path(SUMMARY))).unwrap();
-        let written = fs::read_to_string(summarized.path(SUMMARY)).unwrap_or_default();
-        assert!(written.ends_with(&format!("{LISTED}- {UNTRACKED}\n")));
-        let dropped = narrowed.write(POLICY, NARROWED).write(BASELINE, RAISED).listed(&[]);
-        let unlisted = other.write(SOURCE, BETA).listed(&[POLICY, BASELINE]);
-        assert!(dropped.ends_with(&format!("{LISTED}- {POLICY}\n")) && unlisted.is_empty());
+        let fixture = Fixture::new();
+        let [dropped, kept] = [Surfaces::shown(&[], PRIOR, CHANGED), Surfaces::shown(&SURFACES, NONE, CHANGED)];
+        let unlisted = Surfaces::shown(&SURFACES, PRIOR, SOURCE);
+        let written =
+            dropped.announce(Some(&fixture.path(SUMMARY))).map(|()| fs::read_to_string(fixture.path(SUMMARY)));
+        assert!(dropped.to_string() == kept.to_string() && unlisted.is_empty());
+        assert!(written.is_ok_and(|written| written.is_ok_and(|written| written.ends_with(LISTED))));
     }
 }

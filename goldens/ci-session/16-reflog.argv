@@ -1,0 +1,1 @@
+["git","log","--walk-reflogs","--date=unix","--decorate=full","--decorate-refs=HEAD","--decorate-refs=refs/heads/","--format=%H%x1f%P%x1f%cn <%ce>%x1f%gn <%ge> %gd%x1f%D%x1f%gs","HEAD","--"]

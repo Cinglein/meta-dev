@@ -1,0 +1,64 @@
+[[step]]
+run = ["git", "init", "--quiet", "--initial-branch=change", "."]
+
+[[step]]
+run = ["git", "config", "user.name", "fixture"]
+
+[[step]]
+run = ["git", "config", "user.email", "1+fixture@users.noreply.github.com"]
+
+[[step]]
+run = ["sh", "-c", "printf 'pub struct Alpha;\\n' > lib.rs"]
+
+[[step]]
+run = ["git", "add", "--all"]
+
+[[step]]
+run = ["git", "commit", "--quiet", "-m", "pushed"]
+
+[[step]]
+run = ["git", "update-ref", "refs/remotes/origin/main", "HEAD"]
+
+[[step]]
+run = ["git", "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"]
+
+[[step]]
+record = "clean"
+git = { call = "porcelain" }
+
+[[step]]
+record = "pushed"
+git = { call = "pushed-head" }
+
+[[step]]
+record = "head"
+git = { call = "head" }
+
+[[step]]
+record = "one-tip"
+git = { call = "pushed-tips", operands = ["HEAD"] }
+
+[[step]]
+run = ["git", "update-ref", "refs/remotes/origin/second", "HEAD"]
+
+[[step]]
+record = "two-tips"
+git = { call = "pushed-tips", operands = ["HEAD"] }
+
+[[step]]
+run = ["sh", "-c", "printf 'pub struct Beta;\\n' > lib.rs"]
+
+[[step]]
+record = "dirty"
+git = { call = "porcelain" }
+
+[[step]]
+run = ["git", "commit", "--quiet", "--all", "-m", "local"]
+
+[[step]]
+record = "unpushed"
+git = { call = "pushed-head" }
+
+[[step]]
+record = "no-tip"
+git = { call = "pushed-tips", operands = ["HEAD"] }

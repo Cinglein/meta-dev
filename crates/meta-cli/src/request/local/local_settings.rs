@@ -8,7 +8,7 @@ use serde::Deserialize;
 
 use super::local_file::LocalFile;
 use crate::request::cli_failure::{CliFailure, Setup};
-use identity::Identity;
+pub use identity::Identity;
 pub use monitor_settings::{AgentRoot, Cause, MonitorSettings, SparedName, TickCount};
 
 #[derive(Debug, Default, Deserialize)]
@@ -30,6 +30,15 @@ impl LocalSettings {
     pub fn read(checkout: &Path) -> Result<Self, CliFailure> {
         let file = LocalFile::new(checkout.join(Self::FILE));
         file.text()?.parse().map_err(|failure: toml::de::Error| file.failure(failure))
+    }
+
+    pub fn admitted(present: Option<()>, ignored: impl FnOnce() -> Option<()>) -> Result<(), CliFailure> {
+        present.map_or(Some(()), |()| ignored()).ok_or_else(|| {
+            CliFailure::raised::<Setup>(format!(
+                "{file} is not gitignored; add /{file} to .gitignore",
+                file = Self::FILE
+            ))
+        })
     }
 
     pub fn worktree_root(&self, checkout: &Path) -> PathBuf {

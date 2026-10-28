@@ -3,6 +3,8 @@ use meta_state::State;
 
 use super::WaitOnCi;
 use crate::request::ci::Commit;
+use crate::request::ci::ci_status::CiStatus;
+use crate::request::ci::watcher::stop_view::Watched;
 use crate::request::cli_failure::{CliFailure, Invalid};
 
 const ACTOR: &str = "agent";
@@ -55,6 +57,10 @@ fn a_wait_covers_only_its_own_head_whatever_the_branch() {
     let ready = Board::claimed();
     assert_eq!([waiting.judged(OLD, None), waiting.judged(HEAD, None)], [WaitOnCi::Recorded, WaitOnCi::Taskless]);
     assert_eq!(ready.judged(HEAD, Some(ready.task)), WaitOnCi::Unrecorded(ready.task));
+    let timed_out = [Watched::new(OLD.parse().unwrap(), Some(CiStatus::TimedOut))];
+    let states = [&waiting, &ready].map(|board| Ok(State::fold(&board.records)));
+    let blocked = states.map(|state| WaitOnCi::verdict(&state, &timed_out, OLD.parse().ok().as_ref(), None).is_some());
+    assert_eq!(blocked, [false, true]);
 }
 
 #[test]
