@@ -1,11 +1,13 @@
 use super::seeded_log::{SeededLog, TASK};
 use super::{
-    BLOCK, COMMIT, DEADLINE, FailingHead, Git, LAST, NEXT_COMMIT, PASSED_EVENT, POST, Planted, Repo, SHELL, STOP,
-    SUCCESS, TIMED_OUT_STOP,
+    BLOCK, COMMIT, Calls, DEADLINE, FailingHead, Git, LAST, NEXT_COMMIT, PASSED_EVENT, POST, Planted, Repo, SHELL,
+    STOP, SUCCESS, TIMED_OUT_STOP,
 };
 
 const TIMED_OUT: &str = "timed-out";
 const NAMELESS: &str = "origin.git";
+const FIRST_POLL: &str = "80";
+const GIT_FAILED: &str = "simulated git failure";
 const UNCHECKED_EVENT: &str = ": unchecked after";
 const UNCHECKED_STOP: &str = "couldn't check CI for your last push";
 const DETACH: [&str; 3] = ["checkout", "-q", "--detach"];
@@ -30,12 +32,17 @@ struct Counted;
 impl Counted {
     const GIT: &'static str =
         "#!/bin/sh\necho \"$3\" >> \"$FAKE_GH_DIR/git-calls\"\nPATH=\"${PATH#*:}\" exec git \"$@\"\n";
+    const FLAKY: &'static str = "#!/bin/sh\n[ \"$3\" = remote ] && [ ! -e \"$FAKE_GH_DIR/flaked\" ] && : > \"$FAKE_GH_DIR/flaked\" && echo \"fatal: simulated git failure\" >&2 && exit 1\nPATH=\"${PATH#*:}\" exec git \"$@\"\n";
     const WRAPPER: &'static str = "bin/git";
     const CALLS: &'static str = "git-calls";
 
     fn install(repo: &Repo) {
+        Self::plant(repo, Self::GIT);
+    }
+
+    fn plant(repo: &Repo, script: &str) {
         let wrapper = repo.clone.path().join(Self::WRAPPER);
-        std::fs::write(&wrapper, Self::GIT).unwrap();
+        std::fs::write(&wrapper, script).unwrap();
         std::fs::set_permissions(&wrapper, std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
     }
 
@@ -78,6 +85,14 @@ fn an_unreadable_remote_settles_the_watch_unchecked_and_the_last_poll_still_ends
     FailingHead::copy_from(&repo, repo.clone.path());
     repo.hook(POST, COMMIT);
     let passed = repo.settled_past(&unchecked);
+    Counted::plant(&repo, Counted::FLAKY);
+    std::fs::write(repo.clone.path().join(Calls::EXPECTED), FIRST_POLL).unwrap();
+    Git::run(repo.clone.path(), &NEXT_COMMIT);
+    FailingHead::copy_from(&repo, repo.clone.path());
+    repo.hook(POST, COMMIT);
+    let retried = repo.settled_past(&passed);
     assert!(unchecked.contains(UNCHECKED_EVENT) && stopped.contains(BLOCK) && stopped.contains(UNCHECKED_STOP));
-    assert!(passed.contains(PASSED_EVENT));
+    assert!(passed.contains(PASSED_EVENT) && retried.contains(GIT_FAILED));
+    assert!(retried.strip_prefix(passed.as_str()).is_some_and(|new| new.contains(PASSED_EVENT)));
+    assert_eq!(retried.matches(UNCHECKED_EVENT).count(), 1);
 }
