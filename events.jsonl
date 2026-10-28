@@ -1037,3 +1037,4 @@
 {"at":"2026-10-28T15:32:14.895900Z","actor":"claude-lead","kind":"TaskOpened","task":"task-dac0109d9f1845ae","text":"Per-test processes on a bounded scoped-thread pool for untimed local runs; timed runs stay serial (~6-8 s per local xtask ci).","division":"performance-and-cost"}
 {"at":"2026-10-28T15:32:16.942037Z","actor":"claude-lead","kind":"TaskOpened","task":"task-0e5892d995525e69","text":"Split root and examples/consumer gates into two CI jobs; ci-log fetches per-job logs on scoped threads.","division":"performance-and-cost"}
 {"at":"2026-10-28T15:32:55.812821Z","actor":"claude-perfsmall","kind":"TaskClaimed","task":"task-81d2d6e6701b9173"}
+{"at":"2026-10-28T15:32:58.047059Z","actor":"claude-perfsmall","kind":"TaskClaimed","task":"task-e56da8dbfbf13b06"}
