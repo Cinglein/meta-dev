@@ -14,7 +14,7 @@ pub struct LiveQuery {
 impl LiveQuery {
     const OPENING: &'static str = "query($owner:String!,$name:String!,$after:String){";
     const REPOSITORY: &'static str = "repository(owner:$owner,name:$name){";
-    const PULL: &'static str = "number state baseRefName statusCheckRollup{contexts(first:100){pageInfo{hasNextPage} nodes{...on CheckRun{name result:conclusion}...on StatusContext{name:context result:state}}}}";
+    const PULL: &'static str = "number state baseRefName headRefName isCrossRepository statusCheckRollup{contexts(first:100){pageInfo{hasNextPage} nodes{...on CheckRun{name result:conclusion}...on StatusContext{name:context result:state}}}}";
     const OPEN: &'static str =
         "pullRequests(states:OPEN,first:100,after:$after){pageInfo{hasNextPage endCursor} nodes{";
     const TRUNK: &'static str = "trunk:repository(owner:$owner,name:$name){defaultBranchRef{target{...on Commit{history(first:20){pageInfo{hasNextPage} nodes{checkSuites(first:50){pageInfo{hasNextPage} nodes{conclusion workflowRun{workflow{name}}}}}}}}}}";

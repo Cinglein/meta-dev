@@ -36,9 +36,8 @@ const SHOWN: [(&str, &str); 10] = [
 ];
 const MAIN_REQUIRES: &str = r#"["ci"]"#;
 const DEV_REQUIRES: &str = "[]";
-const OPEN_ONLY: &str = "query=query($owner:String!,$name:String!,$after:String){open:repository(owner:$owner,name:$name){pullRequests(states:OPEN,first:100,after:$after){pageInfo{hasNextPage endCursor} nodes{number state baseRefName statusCheckRollup{contexts(first:100){pageInfo{hasNextPage} nodes{...on CheckRun{name result:conclusion}...on StatusContext{name:context result:state}}}}}}}trunk:repository(owner:$owner,name:$name){defaultBranchRef{target{...on Commit{history(first:20){pageInfo{hasNextPage} nodes{checkSuites(first:50){pageInfo{hasNextPage} nodes{conclusion workflowRun{workflow{name}}}}}}}}}}}";
-const LINKED: &str =
-    "}linked:repository(owner:$owner,name:$name){pr7:pullRequest(number:7){number state baseRefName statusCheckRollup{";
+const OPEN_ONLY: &str = "query=query($owner:String!,$name:String!,$after:String){open:repository(owner:$owner,name:$name){pullRequests(states:OPEN,first:100,after:$after){pageInfo{hasNextPage endCursor} nodes{number state baseRefName headRefName isCrossRepository statusCheckRollup{contexts(first:100){pageInfo{hasNextPage} nodes{...on CheckRun{name result:conclusion}...on StatusContext{name:context result:state}}}}}}}trunk:repository(owner:$owner,name:$name){defaultBranchRef{target{...on Commit{history(first:20){pageInfo{hasNextPage} nodes{checkSuites(first:50){pageInfo{hasNextPage} nodes{conclusion workflowRun{workflow{name}}}}}}}}}}}";
+const LINKED: &str = "}linked:repository(owner:$owner,name:$name){pr7:pullRequest(number:7){number state baseRefName headRefName isCrossRepository statusCheckRollup{";
 
 struct Parsed;
 

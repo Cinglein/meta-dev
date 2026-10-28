@@ -19,7 +19,10 @@ const REPLY: &str = r#"{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage
 {"number":13,"state":"OPEN","baseRefName":"main","statusCheckRollup":null},
 {"number":14,"state":"OPEN","baseRefName":"main","statusCheckRollup":null},
 {"number":15,"state":"OPEN","baseRefName":"main","statusCheckRollup":{"contexts":{"pageInfo":{"hasNextPage":false},"nodes":[{"name":"ci","result":"FAILURE"}]}}},
-{"number":16,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}]}},"linked":{
+{"number":16,"state":"OPEN","baseRefName":"main","headRefName":"task-00000000000000c0-2","isCrossRepository":false,"statusCheckRollup":null},
+{"number":19,"state":"OPEN","baseRefName":"main","headRefName":"task-00000000000000c0","isCrossRepository":false,"statusCheckRollup":null},
+{"number":18,"state":"OPEN","baseRefName":"main","headRefName":"task-00000000000000c0-x","isCrossRepository":false,"statusCheckRollup":null},
+{"number":20,"state":"OPEN","baseRefName":"main","headRefName":"task-00000000000000c0","isCrossRepository":true,"statusCheckRollup":null}]}},"linked":{
 "pr13":{"number":13,"state":"OPEN","baseRefName":"main","statusCheckRollup":{"contexts":{"pageInfo":{"hasNextPage":false},"nodes":[{"name":"ci","result":"FAILURE"}]}}},
 "pr14":{"number":14,"state":"OPEN","baseRefName":"main","statusCheckRollup":{"contexts":{"pageInfo":{"hasNextPage":true},"nodes":[{"name":"ci","result":"FAILURE"}]}}},
 "pr99":null},
@@ -117,7 +120,7 @@ fn flags_name_late_red_unknown_truncated_and_orphan_pull_requests_and_red_ones_o
     let late = tasks.late.task();
     let finished = tasks.finished.task();
     let expected = format!(
-        "truncated: more than 100 open pull requests\npast due {held}: due 2026-10-01 00:00Z\nstalled {late}: past due 2026-10-01 00:00Z, no holder\ntruncated #14 {late}: more than 100 checks\nunknown #99 {}: not on github\nred #15 {finished}: no holder\norphan #16: open, no task\n",
+        "truncated: more than 100 open pull requests\npast due {held}: due 2026-10-01 00:00Z\nstalled {late}: past due 2026-10-01 00:00Z, no holder\ntruncated #14 {late}: more than 100 checks\nunknown #99 {}: not on github\nred #15 {finished}: no holder\norphan #18: open, no task\norphan #20: open, no task\n",
         tasks.root.task()
     );
     assert_eq!(flags, expected);
@@ -129,9 +132,9 @@ fn the_tree_runs_from_divisions_down_to_tasks_with_pull_requests_holders_effort_
     let state = tasks.state();
     let github = Tasks::reached(REPLY, REQUIRED);
     let shown = Status::new(&state, &github, NOW.parse().unwrap()).to_string();
-    let tree = shown.split_once("orphan #16: open, no task\n").map(|(_, tree)| tree).unwrap_or_default();
+    let tree = shown.split_once("orphan #20: open, no task\n").map(|(_, tree)| tree).unwrap_or_default();
     let expected = format!(
-        "root\n  {} open | #99 unknown | no holder | legacy root task\nfeatures-and-maintenance\n  {} open | #14 open checks truncated | no holder | effort 5000 tokens, spend unmeasured | due 2026-10-01 00:00Z | one two three four five six seven eight…\n  {} {} | #15 open required red | no holder | due 2026-10-01 00:00Z | finished\n  features-and-maintenance/ci\n    {} assigned | #13 open required red | held by alice | due 2026-10-01 00:00Z | held\nperformance-and-cost\n  {} in discussion {} | held by alice | due 2026-10-01 00:00Z | discussed\n",
+        "root\n  {} open | #99 unknown | #16 open required pending | #19 open required pending | no holder | legacy root task\nfeatures-and-maintenance\n  {} open | #14 open checks truncated | no holder | effort 5000 tokens, spend unmeasured | due 2026-10-01 00:00Z | one two three four five six seven eight…\n  {} {} | #15 open required red | no holder | due 2026-10-01 00:00Z | finished\n  features-and-maintenance/ci\n    {} assigned | #13 open required red | held by alice | due 2026-10-01 00:00Z | held\nperformance-and-cost\n  {} in discussion {} | held by alice | due 2026-10-01 00:00Z | discussed\n",
         tasks.root.task(),
         tasks.late.task(),
         tasks.finished.task(),

@@ -1,5 +1,5 @@
 use meta_pulls::{LivePull, Page};
-use meta_schema::PullRequest;
+use meta_schema::{Id, PullRequest, Task};
 use serde::Deserialize;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -11,6 +11,12 @@ pub struct OpenRepository {
 impl OpenRepository {
     pub fn pull_requests(&self) -> &Page<LivePull> {
         &self.pull_requests
+    }
+
+    #[must_use]
+    pub fn headed(&self, task: Id<Task>) -> Vec<PullRequest> {
+        let named = self.pull_requests.nodes().filter(|pull| pull.task() == Some(task));
+        named.map(LivePull::number).collect()
     }
 
     #[must_use]
