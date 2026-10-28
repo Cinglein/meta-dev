@@ -835,3 +835,4 @@
 {"at":"2026-10-28T00:08:30.994068Z","actor":"claude-lead","kind":"TaskReopened","task":"task-601ad7af96862ada"}
 {"at":"2026-10-28T00:08:32.945925Z","actor":"claude-lead","kind":"TaskReopened","task":"task-c2fcea91721b5b91"}
 {"at":"2026-10-28T00:08:43.768853Z","actor":"claude-lead","kind":"TaskOpened","task":"task-d69c81d08d82cac7","text":"Paydown counts items addressed by the PR's linked tasks even if done (only retired excluded); done-before-merge currently voids paydown.","division":"features-and-maintenance"}
+{"at":"2026-10-28T00:25:30.534808Z","actor":"claude-stophook","kind":"TaskClaimed","task":"task-4bdfcb98aa65845e"}
