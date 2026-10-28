@@ -16,7 +16,8 @@ const LISTINGS: [&str; 5] = [
     "worktree /trees/task-00000000000000b1\nHEAD c1\nbranch refs/heads/task-00000000000000b1\n\nworktree /clone\nHEAD c1\nbranch refs/heads/task-00000000000000b1\n",
 ];
 const VERDICTS: [&str; 5] = ["", OFF_BRANCH, OFF_BRANCH, OFF_BRANCH, SHARED];
-const ONE_LISTING_NO_HEAD_READ: [usize; 2] = [1, 0];
+const VERIFY: &str = "rev-parse";
+const ONE_LISTING_NO_HEAD_READ_ONE_VERIFY_A_VERDICT: [usize; 3] = [1, 0, 2];
 
 struct Sweep<'host>(&'host FakeHost, Context);
 
@@ -34,9 +35,9 @@ impl<'host> Sweep<'host> {
         [self.verdict(), self.verdict()]
     }
 
-    fn reads(&self) -> [usize; 2] {
+    fn reads(&self) -> [usize; 3] {
         let calls = self.0.calls();
-        [LISTING, ON_BRANCH].map(|word| calls.iter().filter(|call| call.contains(word)).count())
+        [LISTING, ON_BRANCH, VERIFY].map(|word| calls.iter().filter(|call| call.contains(word)).count())
     }
 }
 
@@ -49,7 +50,7 @@ fn a_sweeps_one_listing_judges_head_and_sharing_without_a_head_read_and_a_failed
     });
     let sweeps = hosts.each_ref().map(Sweep::new);
     assert_eq!(sweeps.each_ref().map(Sweep::twice), VERDICTS.map(|shown| [shown; 2]));
-    assert_eq!(sweeps.each_ref().map(Sweep::reads), [ONE_LISTING_NO_HEAD_READ; 5]);
+    assert_eq!(sweeps.each_ref().map(Sweep::reads), [ONE_LISTING_NO_HEAD_READ_ONE_VERIFY_A_VERDICT; 5]);
     let mut unlisted = FakeHost::clean();
     unlisted.fails(LIST);
     assert_eq!(Sweep::new(&unlisted).twice(), [UNLISTED; 2]);

@@ -1,10 +1,11 @@
+use std::path::Path;
 use std::str::FromStr;
 use std::time::Instant;
 
 use meta_run::Run;
 
 use crate::request::ci::Commit;
-use crate::request::project::{BranchName, Project};
+use crate::request::project::BranchName;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Checkout {
@@ -16,8 +17,8 @@ impl Checkout {
     const HEADS: &'static str = "refs/heads/";
     const NAMED_HEAD: [&'static str; 4] = ["rev-parse", "HEAD", "--symbolic-full-name", "HEAD"];
 
-    pub fn read(project: &Project, deadline: Instant) -> Self {
-        let named = Run::git(project.root()).args(Self::NAMED_HEAD).stdout(deadline);
+    pub fn read(root: &Path, deadline: Instant) -> Self {
+        let named = Run::git(root).args(Self::NAMED_HEAD).stdout(deadline);
         let Ok(checkout) = named.unwrap_or_default().parse();
         checkout
     }

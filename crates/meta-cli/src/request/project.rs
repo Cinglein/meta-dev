@@ -3,11 +3,13 @@ mod config;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::OnceLock;
 use std::time::Instant;
 
 use meta_log::{GitLog, RemoteHeads};
 use meta_run::Run;
 
+use crate::request::checkout::Checkout;
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
@@ -20,6 +22,7 @@ pub struct Project {
     root: PathBuf,
     config: Config,
     ci: CiSettings,
+    checkout: OnceLock<Checkout>,
 }
 
 impl Project {
@@ -122,7 +125,7 @@ impl Project {
         let text = std::fs::read_to_string(&path).map_err(|failure| refused(&failure))?;
         let config = toml::from_str(&text).map_err(|failure| refused(&failure))?;
         let ci = CiSettings::try_from(&config)?;
-        Ok(Self { root, config, ci })
+        Ok(Self { root, config, ci, checkout: OnceLock::new() })
     }
 
     fn git<Word: AsRef<OsStr>>(&self, words: impl IntoIterator<Item = Word>) -> Run {
@@ -146,10 +149,15 @@ impl Project {
         modified.is_some_and(|modified| start.precedes(modified))
     }
 
+    pub fn checkout(&self, deadline: Instant) -> &Checkout {
+        self.checkout.get_or_init(|| Checkout::read(&self.root, deadline))
+    }
+
     pub fn unprotected_branch(&self, deadline: Instant) -> Option<BranchName> {
-        let current = self.git(["branch", "--show-current"]).stdout(deadline).ok()?;
-        let branch: BranchName = current.trim().parse().ok()?;
-        Some(branch).filter(|branch| !branch.to_string().is_empty() && self.config.protects(branch).is_none())
+        let checkout = self.checkout(deadline);
+        let unborn = || self.git(["branch", "--show-current"]).stdout(deadline).ok()?.trim().parse().ok();
+        let branch: BranchName = checkout.head().map_or_else(unborn, |_| checkout.branch().cloned())?;
+        Some(branch).filter(|branch| self.config.protects(branch).is_none())
     }
 }
 
