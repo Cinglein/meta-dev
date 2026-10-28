@@ -25,6 +25,7 @@ pub struct Project {
     root: PathBuf,
     config: Config,
     checkout: OnceLock<Checkout>,
+    reflog: OnceLock<Option<Vec<ReflogEntry>>>,
 }
 
 impl Project {
@@ -56,9 +57,12 @@ impl Project {
         })
     }
 
+    fn reflog(&self, deadline: Instant) -> Option<&[ReflogEntry]> {
+        self.reflog.get_or_init(|| self.git_lines(ReflogEntry::WALK.map(OsString::from), deadline)).as_deref()
+    }
+
     pub fn created_after(&self, start: &StartMoment, deadline: Instant) -> Option<Vec<Commit>> {
-        let walked = ["log", "--walk-reflogs", "--date=unix", ReflogEntry::FORMAT, "HEAD", "--"].map(OsString::from);
-        let entries: Vec<ReflogEntry> = self.git_lines(walked, deadline).filter(|entries| !entries.is_empty())?;
+        let entries = self.reflog(deadline).filter(|entries| !entries.is_empty())?;
         let befores = entries.iter().skip(1).map(Some).chain([None]);
         let created: Vec<Commit> = entries
             .iter()
@@ -146,7 +150,10 @@ impl Project {
     }
 
     pub fn checkout(&self, deadline: Instant) -> &Checkout {
-        self.checkout.get_or_init(|| Checkout::read(&self.root, deadline))
+        self.checkout.get_or_init(|| {
+            let decorated = self.reflog(deadline).and_then(|entries| entries.iter().find_map(ReflogEntry::checkout));
+            decorated.cloned().unwrap_or_else(|| Checkout::read(&self.root, deadline))
+        })
     }
 
     pub fn unprotected_branch(&self) -> Option<BranchName> {
@@ -175,6 +182,6 @@ impl TryFrom<&Path> for Project {
             .map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
         let config =
             toml::from_str(&text).map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
-        Ok(Self { root, config, checkout: OnceLock::new() })
+        Ok(Self { root, config, checkout: OnceLock::new(), reflog: OnceLock::new() })
     }
 }
