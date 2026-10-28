@@ -943,3 +943,4 @@
 {"at":"2026-10-28T08:41:21.162755Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-c75f22cce1ac9b15"}
 {"at":"2026-10-28T08:41:22.911117Z","actor":"claude-lead","kind":"TaskDone","task":"task-c75f22cce1ac9b15"}
 {"at":"2026-10-28T08:41:56.441413Z","actor":"claude-testtime","kind":"TaskClaimed","task":"task-6029a089944dfb72"}
+{"at":"2026-10-28T08:54:30.845488Z","actor":"claude-testtime","kind":"TaskLinked","task":"task-6029a089944dfb72","pr":86}
