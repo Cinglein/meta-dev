@@ -88,14 +88,15 @@ mod tests {
     use super::{CiSettings, Duration};
     use crate::request::project::config::Config;
 
-    const CONFIGURED: &str = "[ci]\npoll_millis = 7";
+    const CONFIGURED: &str = "[ci]\npoll_millis = 7\nappear_millis = 9";
     const STOP_LIMITS: [&str; 2] = ["[ci]\nstop_millis = 6999", "[ci]\nstop_millis = 7000"];
     const REFUSED: &str = "stop_millis must be under 7000 ms: Claude Code ends a Stop hook at 10 s";
 
     #[test]
-    fn the_poll_interval_is_the_configured_poll_millis() {
-        let config: Config = toml::from_str(CONFIGURED).unwrap();
-        assert_eq!(config.ci_settings().poll_interval().duration(), Duration::from_millis(7));
+    fn the_poll_interval_and_the_overdue_mark_are_the_configured_millis() {
+        let settings = toml::from_str::<Config>(CONFIGURED).unwrap().ci_settings();
+        let overdue = [8, 9].map(|millis| settings.run_overdue(Duration::from_millis(millis)));
+        assert_eq!((settings.poll_interval().duration(), overdue), (Duration::from_millis(7), [None, Some(())]));
     }
 
     #[test]

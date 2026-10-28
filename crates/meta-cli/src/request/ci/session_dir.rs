@@ -106,3 +106,18 @@ impl SessionDir {
         self.own.map(|own| own.join(name))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{CiStatus, Commit, Entry, SessionDir};
+
+    #[test]
+    fn a_watched_commit_reads_back_as_running() {
+        let dir = tempfile::tempdir().unwrap();
+        let own = Entry::from(dir.path().join("own"));
+        let session = SessionDir { own: own.clone(), expected: own, shared: dir.path().join("shared") };
+        let Ok(commit): Result<Commit, _> = "0123456789abcdef0123456789abcdef01234567".parse();
+        session.watch(&commit).unwrap();
+        assert_eq!(session.status_of(&commit), Some(CiStatus::Running));
+    }
+}

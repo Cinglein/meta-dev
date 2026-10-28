@@ -8,6 +8,7 @@ use meta_pull_query::LiveQuery;
 
 use super::LiveGithub;
 use crate::request::project::Config;
+use crate::request::tests::Repository;
 
 const FAKE_GH: &str = r#"#!/bin/sh
 printf '%s\n' "$@" >> "$0.args"
@@ -75,7 +76,7 @@ fn one_graphql_call_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_
 #[test]
 fn a_project_requires_the_workflows_its_meta_toml_names_and_none_by_default() {
     let required = |settings: &str| {
-        let dir = crate::request::tests::Repository::new();
+        let dir = Repository::new();
         Door::write(dir.path().join("meta.toml"), settings).unwrap();
         let project = crate::request::project::Project::try_from(dir.path()).unwrap();
         LiveGithub::for_project(&project).workflows.iter().map(ToString::to_string).collect::<Vec<_>>()
