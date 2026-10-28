@@ -77,6 +77,10 @@ impl Door {
             })
     }
 
+    pub fn is_active_among(&self, open: &[Door]) -> bool {
+        self.site.is_none() || open.iter().any(|door| door.site == self.site)
+    }
+
     fn sighted(kinds: Vec<DoorKind>, within: Option<&Door>) -> Vec<Door> {
         kinds
             .into_iter()

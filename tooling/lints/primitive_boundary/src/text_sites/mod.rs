@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use syn::visit::Visit;
 use syn::{
@@ -62,10 +62,11 @@ impl TextSites {
             scan.visit_file(file.syntax());
             scan
         });
+        let open = sites.opened(Vec::new());
         sites
             .found
             .iter()
-            .filter(|(path, _)| !sites.is_open(path))
+            .filter(|(path, _)| !open.iter().any(|door| door.is_in(path)))
             .flat_map(|(path, handlers)| {
                 handlers.iter().map(|handler| {
                     Violation::new(
@@ -79,14 +80,22 @@ impl TextSites {
             .collect()
     }
 
-    fn is_open(&self, path: &Path) -> bool {
-        self.doors.iter().any(|door| {
-            door.is_in(path)
-                && self
-                    .uses
-                    .iter()
-                    .any(|seen| door.is_reached_by(seen, &self.doors))
-        })
+    fn opened(&self, open: Vec<Door>) -> Vec<Door> {
+        let next: Vec<Door> = self
+            .doors
+            .iter()
+            .filter(|door| {
+                self.uses.iter().any(|seen| {
+                    seen.is_active_among(&open) && door.is_reached_by(seen, &self.doors)
+                })
+            })
+            .cloned()
+            .collect();
+        if next.len() == open.len() {
+            open
+        } else {
+            self.opened(next)
+        }
     }
 
     fn noted(&mut self, callee: Option<&Ident>, target: Option<Name>) {
@@ -131,12 +140,11 @@ impl<'ast> Visit<'ast> for TextSites {
 
     fn visit_item_impl(&mut self, item: &'ast ItemImpl) {
         let site = Site::Line(self.path.clone(), LineNumber::from(item.impl_token.span));
-        let door = Door::of_impl(item, site.clone());
+        let door = Door::of_impl(item, site).filter(|_| self.walk == Walk::Entered);
         let outer = self.within.clone();
         let depth = self.generics.len();
         self.within = door.clone().or_else(|| outer.clone());
-        self.doors
-            .extend(door.filter(|_| self.walk == Walk::Entered));
+        self.doors.extend(door);
         self.generics.extend(
             item.generics
                 .type_params()
