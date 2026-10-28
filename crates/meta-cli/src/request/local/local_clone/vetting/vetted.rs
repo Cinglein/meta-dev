@@ -4,6 +4,7 @@ mod link;
 mod porcelain;
 mod ref_line;
 mod ref_list;
+mod survey;
 mod tree;
 
 use std::ffi::OsStr;
@@ -21,7 +22,8 @@ use link::Scope;
 pub use link::{Link, Step};
 use porcelain::Porcelain;
 use ref_line::RefLine;
-use ref_list::RefList;
+pub use ref_list::RefList;
+use survey::Survey;
 use tree::Tree;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -49,13 +51,7 @@ impl Vetted {
     const TAG: &'static str = "CACHEDIR.TAG";
 
     pub fn proved(worktree: &RecordedWorktree, context: &Context, host: &impl Inspection) -> Result<Self, Kept> {
-        Self::judged(
-            worktree,
-            context,
-            host,
-            |link, branch| Checkouts::held_now(link, branch, host),
-            || context.remote_refs_now(host),
-        )
+        Self::judged(worktree, context, host, Survey::Fresh)
     }
 
     pub fn proved_among(
@@ -64,28 +60,21 @@ impl Vetted {
         host: &impl Inspection,
         checkouts: &Result<Checkouts, Kept>,
     ) -> Result<Self, Kept> {
-        Self::judged(
-            worktree,
-            context,
-            host,
-            |link, branch| checkouts.as_ref().map_err(Kept::clone)?.held(branch, link.path()),
-            || context.remote_refs(host).clone(),
-        )
+        Self::judged(worktree, context, host, Survey::Swept(checkouts))
     }
 
-    fn judged<Host: Inspection>(
+    fn judged(
         worktree: &RecordedWorktree,
         context: &Context,
-        host: &Host,
-        held: impl FnOnce(&Link, &str) -> Result<(), Kept>,
-        remote: impl FnOnce() -> Result<String, Kept>,
+        host: &impl Inspection,
+        survey: Survey<'_>,
     ) -> Result<Self, Kept> {
         let path = worktree.path();
         Self::placed(path, context, host)?;
         let link = Link::proved(path, worktree.worktree(), context, host)?;
         let branch = worktree.branch().qualified();
-        held(&link, &branch)?;
-        let refs = Self::pushed(&link, &branch, remote, host)?;
+        survey.held(&link, &branch, host)?;
+        let refs = Self::pushed(&link, &branch, || survey.remote_refs(context, host), host)?;
         let bytes = Self::settled(&link, host)?;
         Ok(Self { branch: refs.named(&branch).cloned().ok_or(Kept::NoBranch)?, refs, link, bytes })
     }
@@ -137,11 +126,11 @@ impl Vetted {
     fn pushed(
         link: &Link,
         branch: &str,
-        remote: impl FnOnce() -> Result<String, Kept>,
+        remote: impl FnOnce() -> Result<RefList, Kept>,
         host: &impl Inspection,
     ) -> Result<RefList, Kept> {
         let local = link.refs(host, branch)?;
-        let remote: RefList = remote().map_err(|kept| kept.recast(Kept::Unreachable))?.parse()?;
+        let remote = remote()?;
         local.matched(&remote)?;
         let beyond = Self::BEYOND.map(OsStr::new).into_iter().chain(local.objects()).chain([OsStr::new(Self::NOT)]);
         let words: Vec<&OsStr> = beyond.chain(remote.objects()).collect();

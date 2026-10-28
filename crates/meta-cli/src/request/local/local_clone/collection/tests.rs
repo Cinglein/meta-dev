@@ -103,9 +103,12 @@ fn a_sweep_re_vets_removes_the_worktree_then_its_branch_and_trails_each_removal_
     );
     let calls = scene.host.calls();
     let removed = REMOVALS.map(|removal| calls.iter().position(|call| call.ends_with(removal)));
-    assert!(removed[0].zip(removed[1]).is_some_and(|(remove, unbranch)| remove < unbranch), "{calls:?}");
     let listed = calls.iter().filter(|call| call.contains(REMOTE_REFS)).count();
-    assert_eq!(listed, SWEEP_AND_RECHECK_LISTINGS, "{calls:?}");
+    assert!(
+        removed[0].zip(removed[1]).is_some_and(|(remove, unbranch)| remove < unbranch)
+            && listed == SWEEP_AND_RECHECK_LISTINGS,
+        "{calls:?}"
+    );
 }
 
 #[test]
