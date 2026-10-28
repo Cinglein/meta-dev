@@ -400,17 +400,15 @@ impl Repo {
     pub fn settled_past(&self, seen: &str) -> String {
         let events = self.clone.path().join(".git/meta-ci/ABCDEF1234/events");
         let lock = self.sessions.path().join(Planted::LOCKS).join(Git::head(self.clone.path()));
-        std::iter::repeat_with(|| {
-            std::thread::sleep(SETTLE_POLL);
-            std::fs::read_to_string(&events).unwrap_or_default()
-        })
-        .take(SETTLE_LENGTH)
-        .find(|text| {
-            let new = text.strip_prefix(seen).unwrap_or_default();
-            COMPLETIONS.iter().any(|completion| new.contains(completion))
-                && std::fs::File::open(&lock).map_or(true, |watcher| watcher.try_lock().is_ok())
-        })
-        .unwrap_or_default()
+        let pauses = std::iter::successors(Some(Duration::ZERO), |_| Some(SETTLE_POLL)).take(SETTLE_LENGTH);
+        let mut polled = pauses.map(std::thread::sleep).map(|()| std::fs::read_to_string(&events).unwrap_or_default());
+        polled
+            .find(|text| {
+                let new = text.strip_prefix(seen).unwrap_or_default();
+                COMPLETIONS.iter().any(|completion| new.contains(completion))
+                    && std::fs::File::open(&lock).map_or(true, |watcher| watcher.try_lock().is_ok())
+            })
+            .unwrap_or_default()
     }
 }
 
