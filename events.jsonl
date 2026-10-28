@@ -1092,3 +1092,4 @@
 {"at":"2026-10-28T16:58:51.392139Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-c1075cc0cfdf0ec2"}
 {"at":"2026-10-28T16:58:54.397297Z","actor":"claude-lead","kind":"TaskDone","task":"task-c1075cc0cfdf0ec2"}
 {"at":"2026-10-28T16:59:11.115976Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-06aae741b4d67744","text":"Folded into the general golden-file harness (task-678ef62e): one mechanism for git, gh and meta output snapshots."}
+{"at":"2026-10-28T16:59:14.872718Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-78d1508b51b0e18a","text":"Differential tests on the golden harness: replay real meta/log under main and PR, diff hook verdicts across binaries; golden black-box scenarios."}
