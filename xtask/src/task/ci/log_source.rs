@@ -1,7 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use meta_log::{GitLog, LogStore, Sha, Snapshot};
+use meta_log::{GitLog, LogStore, NotCommitId, Sha, Snapshot};
 
 use crate::task::failure::Failure;
 
@@ -27,13 +27,15 @@ impl LogSource {
 }
 
 impl FromStr for LogSource {
-    type Err = std::convert::Infallible;
+    type Err = task::Failure;
 
     fn from_str(text: &str) -> Result<LogSource, Self::Err> {
         Ok(match text {
             Self::ORIGIN => LogSource::Origin,
             Self::UNFETCHED => LogSource::Unfetched,
-            tip => LogSource::Prefetched(tip.parse()?),
+            tip => LogSource::Prefetched(
+                tip.parse().map_err(|error: NotCommitId| task::Failure::Refused(error.to_string()))?,
+            ),
         })
     }
 }
@@ -56,7 +58,7 @@ mod tests {
     use crate::task::Task;
     use crate::task::coverage::Coverage;
 
-    const FLAGS: [&str; 3] = ["--log=origin", "--log=unfetched", "--log=0a1b2c"];
+    const FLAGS: [&str; 3] = ["--log=origin", "--log=unfetched", "--log=0a1b2c3d4e5f60718293a4b5c6d7e8f901234567"];
 
     #[test]
     fn every_source_round_trips_through_the_ci_flag_and_other_tasks_refuse_it() {
