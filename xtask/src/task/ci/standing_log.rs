@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 use meta_log::{GitLog, Snapshot};
 use meta_severity::Scales;
@@ -17,11 +18,12 @@ impl StandingLog {
     const REMOTE: &str = "origin";
     const DEFAULT_BRANCH: &str = "origin/HEAD";
     const GIT_ENTRY: &str = ".git";
+    const GIT_LIMIT: Duration = Duration::from_secs(30);
 
     pub fn git(root: &Path) -> GitLog {
         let Ok(remote) = Self::REMOTE.parse();
         let repository = root.ancestors().find(|dir| dir.join(Self::GIT_ENTRY).exists()).unwrap_or(root);
-        GitLog::new(repository.to_path_buf(), remote)
+        GitLog::new(repository.to_path_buf(), remote, Instant::now() + Self::GIT_LIMIT)
     }
 
     pub fn prefetched(root: &Path) -> Result<LogSource, Failure> {

@@ -34,7 +34,7 @@ impl WaitOnCi {
         let commits = seen.pushed();
         let unresolved = |commit: &Commit| dir.status_of(commit).and_then(CiStatus::unresolved);
         commits.iter().find_map(unresolved)?;
-        let read = project.log().and_then(|log| log.read_listed(seen.heads(), deadline).map_err(CliFailure::from));
+        let read = project.log(deadline).and_then(|log| log.read_listed(seen.heads()).map_err(CliFailure::from));
         let state = read.map(|read| State::fold(read.records()));
         let head = seen.checkout().head().and_then(Commit::commit_id);
         let branch = seen.checkout().branch().filter(|branch| project.config().protects(branch).is_none());

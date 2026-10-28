@@ -1,12 +1,13 @@
 [package]
 name = "meta-run"
-description = "The one process runner: every spawn has a deadline, a kill scope, an environment policy and bounded output draining."
+description = "The one process runner: every spawn leads its own process group, has a deadline, an environment policy and bounded output draining."
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
 license.workspace = true
 
 [dependencies]
+signal-hook.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

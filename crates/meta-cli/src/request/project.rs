@@ -28,8 +28,12 @@ pub struct Project {
 impl Project {
     const CONFIG_FILE: &'static str = "meta.toml";
     const GIT_ENTRY: &'static str = ".git";
-    pub fn log(&self) -> Result<GitLog, CliFailure> {
-        self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote.clone()))
+    pub fn log(&self, deadline: Instant) -> Result<GitLog, CliFailure> {
+        self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote.clone(), deadline))
+    }
+
+    pub fn git_deadline(&self) -> Instant {
+        self.ci.git_deadline(Instant::now(), CiSettings::ROUTINE)
     }
 
     pub fn root(&self) -> &Path {

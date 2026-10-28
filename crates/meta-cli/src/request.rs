@@ -164,9 +164,11 @@ impl Request {
                     StatusView::Flags => Monitor::recent(&LocalClone::try_from(project)?, Utc::now())?,
                     StatusView::Tree => None,
                 };
-                let answered = view.answer(&project.log()?, ScalePolicy::read(project.root())?.scales(), |query| {
-                    LiveGithub::for_project(project).read(query)
-                })?;
+                let answered = view.answer(
+                    &project.log(project.git_deadline())?,
+                    ScalePolicy::read(project.root())?.scales(),
+                    |query| LiveGithub::for_project(project).read(query),
+                )?;
                 Ok(answered.raised_with(local))
             }
             Self::Monitor(command) => command
@@ -175,9 +177,11 @@ impl Request {
             Self::Worktrees => LocalClone::try_from(project)?.worktrees(project),
             Self::Gc(sweep) => LocalClone::try_from(project)?.collected(project, sweep),
             Self::GcRestore(quarantine) => LocalClone::try_from(project)?.unstranded(&quarantine),
-            logged @ (Self::List(..) | Self::Write(_) | Self::Rate(_) | Self::Move(_)) => {
-                logged.answer_from(&project.log()?, &ScalePolicy::read(project.root())?, Self::actor)
-            }
+            logged @ (Self::List(..) | Self::Write(_) | Self::Rate(_) | Self::Move(_)) => logged.answer_from(
+                &project.log(project.git_deadline())?,
+                &ScalePolicy::read(project.root())?,
+                Self::actor,
+            ),
             Self::Wait(block) => {
                 let head = project.head().and_then(|head| head.commit_id());
                 Self::Write(Event::TaskBlocked(head.into_iter().fold(block, Block::at_head))).answer_in(project)

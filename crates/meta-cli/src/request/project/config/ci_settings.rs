@@ -1,3 +1,4 @@
+mod git_work;
 mod log_window;
 mod millis;
 mod program_name;
@@ -9,6 +10,7 @@ use serde::Deserialize;
 
 use super::Config;
 use crate::request::cli_failure::{CliFailure, Setup};
+pub use git_work::GitWork;
 pub use log_window::LogWindow;
 pub use millis::Millis;
 pub use program_name::ProgramName;
@@ -22,6 +24,7 @@ pub struct CiSettings {
     appear_millis: Millis,
     remote_millis: Millis,
     git_millis: Millis,
+    claim_millis: Millis,
     stop_millis: StopLimit,
     #[serde(flatten)]
     log_window: LogWindow,
@@ -29,6 +32,8 @@ pub struct CiSettings {
 
 impl CiSettings {
     pub const DEFAULTS: &'static str = include_str!("ci_settings/ci_defaults.toml");
+    pub const ROUTINE: GitWork = GitWork::Routine;
+    pub const CLAIM: GitWork = GitWork::Claim;
 
     pub fn program(&self) -> &ProgramName {
         &self.program
@@ -50,8 +55,8 @@ impl CiSettings {
         Instant::now() + self.remote_millis.duration()
     }
 
-    pub fn git_deadline(&self, from: Instant) -> Instant {
-        from + self.git_millis.duration()
+    pub fn git_deadline(&self, from: Instant, work: GitWork) -> Instant {
+        from + work.limit(self.git_millis, self.claim_millis).duration()
     }
 
     pub fn stop_limit(&self) -> StopLimit {

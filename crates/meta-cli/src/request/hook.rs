@@ -70,7 +70,7 @@ impl HookEvent {
 
     pub fn git_deadline(self, settings: &CiSettings) -> Instant {
         let now = Instant::now();
-        settings.git_deadline(now).min(now + self.timeout().saturating_sub(Self::MARGIN))
+        settings.git_deadline(now, CiSettings::ROUTINE).min(now + self.timeout().saturating_sub(Self::MARGIN))
     }
 
     pub fn respond(self) -> Result<Output, CliFailure> {
@@ -79,7 +79,8 @@ impl HookEvent {
         let reply = match Project::found(input.cwd().as_path()) {
             Ok(Some(project)) => {
                 let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
-                Some(self.reply(&project, &input).with_news(session.and_then(|dir| dir.news())))
+                let deadline = self.git_deadline(project.ci_settings());
+                Some(self.reply(&project, &input, deadline).with_news(session.and_then(|dir| dir.news())))
             }
             Ok(None) => self.outside_projects(&input),
             Err(failure) => Some(self.refused(Listed::new(failure))),
@@ -97,12 +98,12 @@ impl HookEvent {
         }
     }
 
-    fn reply(self, project: &Project, input: &HookInput) -> Reply {
+    fn reply(self, project: &Project, input: &HookInput, deadline: Instant) -> Reply {
         match self {
             Self::SessionStart => {
                 let actor = input.announced_actor().unwrap_or_else(Actor::owner);
                 let state = project
-                    .log()
+                    .log(deadline)
                     .and_then(|log| Listed::from_log(&log, None, Scope::Open))
                     .map_or_else(|failure| format!("meta/log unreadable: {failure}\n"), |listed| listed.to_string());
                 let shown = format!(
@@ -115,12 +116,12 @@ impl HookEvent {
                 input
                     .command()
                     .and_then(|command| command.refusal(project.config()))
-                    .or_else(|| input.refusal(self.git_deadline(project.ci_settings())))
+                    .or_else(|| input.refusal(deadline))
                     .map(Denial::from)
                     .map_or(Verdict::Allow, Verdict::Deny),
                 None,
             ),
-            Self::PostToolUse => Self::after_tool_use(project, input),
+            Self::PostToolUse => Self::after_tool_use(project, input, deadline),
             Self::Stop => Reply::new(
                 self,
                 input
@@ -134,30 +135,27 @@ impl HookEvent {
     }
 
     fn outside_projects(self, input: &HookInput) -> Option<Reply> {
-        let linked = (self == Self::PostToolUse).then(|| Linking::after(input, None)).flatten();
+        let deadline = CiSettings::try_from(&Config::default()).map(|settings| self.git_deadline(&settings));
+        let linked = deadline.as_ref().ok().filter(|_| self == Self::PostToolUse);
+        let linked = linked.and_then(|deadline| Linking::after(input, None, *deadline));
         let linking = linked.map(|linked| Reply::new(self, Verdict::Allow, Some(linked)));
-        let refused = |settings: CiSettings| input.refusal(self.git_deadline(&settings));
-        let refusal = (self == Self::PreToolUse).then(|| {
-            CiSettings::try_from(&Config::default()).map_or_else(|failure| Some(Listed::new(failure)), refused)
-        });
+        let refusal = (self == Self::PreToolUse)
+            .then(|| deadline.map_or_else(|failure| Some(Listed::new(failure)), |deadline| input.refusal(deadline)));
         let refusal = refusal.flatten();
         refusal.map(|refusal| Reply::new(self, Verdict::Deny(Denial::from(refusal)), None)).or(linking)
     }
 
-    fn after_tool_use(project: &Project, input: &HookInput) -> Reply {
+    fn after_tool_use(project: &Project, input: &HookInput, deadline: Instant) -> Reply {
         let (pushed, linked) = std::thread::scope(|scope| {
-            let linked = scope.spawn(|| Linking::after(input, Some(project)));
-            (Self::after_push(project, input), linked.join())
+            let linked = scope.spawn(|| Linking::after(input, Some(project), deadline));
+            (Self::after_push(project, input, deadline), linked.join())
         });
         let linked = linked.unwrap_or_else(|panic| resume_unwind(panic));
         Reply::new(Self::PostToolUse, Verdict::Allow, pushed).with_news(linked)
     }
 
-    fn after_push(project: &Project, input: &HookInput) -> Option<Listed> {
-        let failure = input
-            .command()?
-            .runs(Self::COMMIT)
-            .and_then(|()| project.push_failure(Self::PostToolUse.git_deadline(project.ci_settings())));
+    fn after_push(project: &Project, input: &HookInput, deadline: Instant) -> Option<Listed> {
+        let failure = input.command()?.runs(Self::COMMIT).and_then(|()| project.push_failure(deadline));
         failure.or(input.session().and_then(|session| Watcher::watch_all(project, session).err()))
     }
 }

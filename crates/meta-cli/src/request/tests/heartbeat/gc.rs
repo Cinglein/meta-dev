@@ -26,7 +26,7 @@ const REPORTS: [&str; 4] = [
     r#"{"Planned":"freed x\n"}"#,
     r#"{"Freed":"freed x\n"}"#,
     r#"{"Failed":"broken"}"#,
-    r#"{"Unfinished":"`sh -c sleep 2` timed out"}"#,
+    r#"{"Unfinished":"`sh -c sleep 2` timed out; a run waiting for terminal input stalls until its deadline"}"#,
 ];
 
 #[test]

@@ -1,4 +1,4 @@
-mod tree;
+mod group;
 
 use std::ffi::OsStr;
 use std::io::{Read, Write as _};
@@ -16,7 +16,7 @@ use crate::ran::Ran;
 use crate::run_failure::RunFailure;
 use crate::stderr::Stderr;
 use crate::stdout::Stdout;
-use tree::Tree;
+use group::Group;
 
 #[derive(Debug)]
 pub struct Run {
@@ -34,12 +34,12 @@ impl Run {
 
     #[must_use]
     pub fn new(program: impl AsRef<OsStr>, env: EnvPolicy) -> Self {
-        Self::ending(program, env, Environment::current(), Tree::ended)
+        Self::ending(program, env, Environment::current(), Group::ended)
     }
 
     #[must_use]
     pub fn inheriting(program: impl AsRef<OsStr>, env: EnvPolicy, inherited: Environment) -> Self {
-        Self::ending(program, env, inherited, Tree::ended)
+        Self::ending(program, env, inherited, Group::ended)
     }
 
     pub(crate) fn ending(
@@ -92,9 +92,10 @@ impl Run {
         let line = CommandLine::from(&self.command);
         deadline.checked_duration_since(Instant::now()).ok_or_else(|| RunFailure::TimedOut(line.clone()))?;
         let stdin = self.input.as_ref().map_or_else(Stdio::null, |_| Stdio::piped());
-        let piped = self.command.stdin(stdin).stdout(Stdio::piped()).stderr(Stdio::piped());
-        let spawned = piped.spawn().map_err(|source| RunFailure::Unspawned { line: line.clone(), source });
-        let mut child = spawned?;
+        let piped = self.command.process_group(i32::default()).stdin(stdin).stdout(Stdio::piped());
+        let spawned = piped.stderr(Stdio::piped()).spawn();
+        let mut child = spawned.map_err(|source| RunFailure::Unspawned { line: line.clone(), source })?;
+        let _group = Group::joined(&child);
         let fed = child.stdin.take().zip(self.input);
         fed.map(|(mut pipe, input)| std::thread::spawn(move || pipe.write_all(input.as_bytes())));
         let stdout = Self::drained(child.stdout.take(), Stdout::read_from);

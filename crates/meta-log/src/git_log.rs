@@ -45,8 +45,8 @@ impl GitLog {
     const STAGED: &'static str = "refs/meta-log/staged";
 
     #[must_use]
-    pub fn new(repo: PathBuf, remote: RemoteName) -> Self {
-        let git = Git::new(repo);
+    pub fn new(repo: PathBuf, remote: RemoteName, deadline: Instant) -> Self {
+        let git = Git::new(repo, deadline);
         Self { remote: Remote::new(git.clone(), remote), git, known: RefCell::default(), pacing: Pacing::Jittered }
     }
 
@@ -58,8 +58,8 @@ impl GitLog {
         Ok(self.remote.content_at(tip)?.snapshot())
     }
 
-    pub fn read_listed(&self, heads: &RemoteHeads, deadline: Instant) -> Result<Snapshot, LogFailure> {
-        Ok(self.remote.content_listed(heads, deadline)?.snapshot())
+    pub fn read_listed(&self, heads: &RemoteHeads) -> Result<Snapshot, LogFailure> {
+        Ok(self.remote.content_listed(heads)?.snapshot())
     }
 
     fn commit(&self, tip: Option<&Sha>, content: &Content, record: &Record) -> Result<Sha, LogFailure> {
@@ -76,7 +76,7 @@ impl GitLog {
             staged = Self::STAGED,
         );
         let importing = self.git.command(["fast-import", "--quiet", "--date-format=now"]).fed(stream);
-        let imported = Git::ran(importing, Git::network_deadline())?;
+        let imported = self.git.ran(importing)?;
         Ok(Content::try_from(imported)?.as_ref().parse()?)
     }
 
@@ -126,7 +126,7 @@ impl LogStore for GitLog {
         decide: &mut dyn FnMut(&Snapshot) -> Result<Record, Failure>,
     ) -> Result<Record, Failure> {
         Attempt::sequence()
-            .try_for_each(|attempt| Outcome::step(self.attempt(decide), attempt, self.pacing))
+            .try_for_each(|attempt| Outcome::step(self.attempt(decide), attempt, self.pacing, &self.git))
             .break_value()
             .unwrap_or_else(|| Err(LogFailure::Contended.into()))
     }

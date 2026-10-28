@@ -1,7 +1,6 @@
 mod objects;
 
 use std::fmt;
-use std::time::Instant;
 
 use meta_run::Ran;
 
@@ -31,7 +30,8 @@ impl Remote {
     }
 
     pub fn fetch(&self) -> Result<Fetched, LogFailure> {
-        Attempt::sequence().find_map(|attempt| attempt.settled(self.fetch_once())).unwrap_or(Err(LogFailure::Contended))
+        let settled = |attempt: Attempt| attempt.settled(self.fetch_once(), &self.git);
+        Attempt::sequence().find_map(settled).unwrap_or(Err(LogFailure::Contended))
     }
 
     pub fn fetch_tip(&self) -> Result<Tip, LogFailure> {
@@ -47,13 +47,13 @@ impl Remote {
         let expected = base.map(ToString::to_string).unwrap_or_default();
         let lease = format!("--force-with-lease=refs/heads/{}:{expected}", Self::BRANCH);
         let pushed = self.git.command(["push", "--quiet"]).arg(lease).arg(self.name.to_string()).arg(target);
-        Git::ran(pushed, Git::network_deadline())
+        self.git.ran(pushed)
     }
 
-    pub fn content_listed(&self, heads: &RemoteHeads, deadline: Instant) -> Result<Content, LogFailure> {
+    pub fn content_listed(&self, heads: &RemoteHeads) -> Result<Content, LogFailure> {
         let tip = heads.log_tip()?;
         let missing = || tip.clone().map_or(LogFailure::Contended, LogFailure::Unfetched);
-        let refetched = || self.fetched(deadline)?.ok_or_else(missing).and_then(|()| self.held(tip.as_ref()));
+        let refetched = || self.fetched()?.ok_or_else(missing).and_then(|()| self.held(tip.as_ref()));
         self.held(tip.as_ref())?.map_or_else(refetched, |content| Ok(Some(content)))?.ok_or_else(missing)
     }
 
@@ -62,25 +62,25 @@ impl Remote {
         let held = self.held(tip.as_ref())?;
         let missing = || tip.clone().map_or(LogFailure::Contended, LogFailure::Unfetched);
         let refetched = || {
-            let fetched = self.fetched(Git::network_deadline())?;
+            let fetched = self.fetched()?;
             fetched.map_or(Ok(None), |()| self.held(tip.as_ref())?.ok_or_else(missing).map(Some))
         };
         let content = held.map_or_else(refetched, |content| Ok(Some(content)))?;
         Ok(content.map(|content| Fetched::new(tip, content)))
     }
 
-    fn fetched(&self, deadline: Instant) -> Result<Option<()>, LogFailure> {
+    fn fetched(&self) -> Result<Option<()>, LogFailure> {
         let refspec = format!("+refs/heads/meta/*:refs/remotes/{}/meta/*", self.name);
         let fetching =
             self.git.command(["fetch", "--quiet", "--prune", "--no-write-fetch-head", "--no-auto-maintenance"]);
-        let fetched = Git::ran(fetching.arg(self.name.to_string()).arg(refspec), deadline)?;
+        let fetched = self.git.ran(fetching.arg(self.name.to_string()).arg(refspec))?;
         Ok(fetched.success().then_some(()))
     }
 
     fn held(&self, tip: Option<&Sha>) -> Result<Option<Content>, LogFailure> {
         tip.map_or(Ok(Some(Content::default())), |tip| {
             let asked = self.git.command(["cat-file", "--batch-command"]).fed(Objects::request(tip).to_string());
-            let answered = Content::try_from(Git::ran(asked, Git::network_deadline())?)?;
+            let answered = Content::try_from(self.git.ran(asked)?)?;
             answered.as_ref().parse::<Objects>()?.content(&self.name)
         })
     }
@@ -88,7 +88,7 @@ impl Remote {
     fn listed_tip(&self) -> Result<Option<Sha>, LogFailure> {
         let branch = format!("refs/heads/{}", Self::BRANCH);
         let listing = self.git.command(["ls-remote"]).arg(self.name.to_string()).arg(&branch);
-        let listed = Git::ran(listing, Git::network_deadline())?;
+        let listed = self.git.ran(listing)?;
         let offline = || LogFailure::Offline { remote: self.name.clone(), stderr: listed.stderr().clone() };
         let lines = listed.success().then(|| listed.stdout().text());
         let Ok(heads) = lines.ok_or_else(offline)?.parse::<RemoteHeads>();

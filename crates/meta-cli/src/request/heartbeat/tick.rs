@@ -54,7 +54,12 @@ impl Tick {
 
     pub fn live(project: &Project, clone: &LocalClone) -> Result<Output, CliFailure> {
         let github = |query: &LiveQuery| LiveGithub::for_project(project).read(query);
-        Self::answer(clone.git_dir().as_ref(), &project.log()?, github, Pulse::new(Utc::now(), GcHook::Pending))
+        Self::answer(
+            clone.git_dir().as_ref(),
+            &project.log(project.git_deadline())?,
+            github,
+            Pulse::new(Utc::now(), GcHook::Pending),
+        )
     }
 
     pub fn reported(git_dir: &Path, gc: GcHook) -> Result<(), CliFailure> {
