@@ -174,8 +174,7 @@ mod tests {
     impl TestTime {
         fn over_budget(timings: Vec<TestTiming>, policy: &Policy) -> Report {
             let mut ledger = Ledger::default();
-            let nominal = policy.interval(Interval::ReferenceCpu).duration();
-            let reference = ReferenceCpu::new(nominal, nominal);
+            let reference = ReferenceCpu::new(TICK, TICK);
             let found = TestTime { timings, reference }.recorded(policy, &mut ledger);
             let verdict = ledger.statement(policy).verdict(&Selection::Workspace);
             Report::new(

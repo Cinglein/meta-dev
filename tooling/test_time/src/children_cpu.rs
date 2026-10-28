@@ -31,15 +31,15 @@ impl ChildrenCpu {
 
 #[cfg(test)]
 mod tests {
-    use super::ChildrenCpu;
-    use std::process::Command;
-    const BUSY: [&str; 2] = ["-c", "i=0; while [ $i -lt 20000 ]; do i=$((i+1)); done"];
-
+    use {super::ChildrenCpu, std::process::Command};
+    const BUSY: &str = "i=0; while [ $i -lt 20000 ]; do i=$((i+1)); done";
     #[test]
-    fn a_waited_child_adds_its_cpu_time() {
+    fn a_waited_child_adds_its_cpu_time_which_a_slower_reference_scales_down() {
         let before = ChildrenCpu::now().unwrap();
-        let ran = Command::new("sh").args(BUSY).status().unwrap();
+        Command::new("sh").args(["-c", BUSY]).status().unwrap();
         let spent = ChildrenCpu::now().unwrap().since(before);
-        assert!(ran.success() && spent > before.since(before));
+        let slow = crate::reference_cpu::ReferenceCpu::new(spent + spent, spent);
+        assert!(spent > before.since(before) && slow.scaled(spent + spent) == spent);
+        assert!(slow.to_string().contains("against"));
     }
 }

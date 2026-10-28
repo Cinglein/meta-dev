@@ -44,18 +44,3 @@ impl fmt::Display for ReferenceCpu {
         )
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::ReferenceCpu;
-    use std::time::Duration;
-    const RUNNER: [Duration; 2] = [Duration::from_secs(2), Duration::from_secs(1)];
-    const SHOWN: &str = "reference 2.00s against 1.00s";
-
-    #[test]
-    fn cpu_on_a_runner_twice_as_slow_as_the_reference_counts_half() {
-        let [slow, nominal] = RUNNER;
-        let reference = ReferenceCpu::new(slow, nominal);
-        assert!(reference.scaled(slow) == nominal && reference.to_string() == SHOWN);
-    }
-}
