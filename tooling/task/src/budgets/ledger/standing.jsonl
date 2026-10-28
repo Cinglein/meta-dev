@@ -1,10 +1,10 @@
-{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"ConcernIdentified","concern":"concern-0000000000000001","text":"x","division":"features-and-maintenance/nav"}
-{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"ConcernIdentified","concern":"concern-0000000000000002","text":"x","division":"features-and-maintenance"}
+{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"ConcernIdentified","concern":"concern-0000000000000001","text":"x","division":"features-and-maintenance/nav","severity":"lost"}
+{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"ConcernIdentified","concern":"concern-0000000000000002","text":"x","division":"features-and-maintenance","severity":"critical"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"EntryRetired","entry":"concern-0000000000000002","text":"x"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"ConcernIdentified","concern":"concern-0000000000000003","text":"x"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"ConcernIdentified","concern":"concern-0000000000000004","text":"x","division":"performance-and-cost"}
-{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"IssueReported","issue":"issue-0000000000000001","text":"x","division":"features-and-maintenance/nav"}
-{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"IssueReported","issue":"issue-0000000000000002","text":"x","division":"performance-and-cost"}
+{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"IssueReported","issue":"issue-0000000000000001","text":"x","division":"features-and-maintenance/nav","severity":"slow"}
+{"at":"2026-10-27T00:00:00Z","actor":"a","kind":"IssueReported","issue":"issue-0000000000000002","text":"x","division":"performance-and-cost","severity":"critical"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"IssueReported","issue":"issue-0000000000000003","text":"x","division":"architecture-and-planning"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000001","text":"x","division":"features-and-maintenance/nav"}
 {"at":"2026-10-27T00:00:00Z","actor":"a","kind":"TaskClaimed","task":"task-0000000000000001"}

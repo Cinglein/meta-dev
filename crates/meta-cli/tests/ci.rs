@@ -8,8 +8,8 @@ use std::time::Duration;
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 2\n";
-const PATIENT: &str = "";
-const STALLED: &str = "remote_millis = 40\n";
+const PATIENT: &str = "appear_millis = 2000\n";
+const STALLED: &str = "appear_millis = 2000\nstop_millis = 40\n";
 const QUICK: &str = "appear_millis = 20\ntimeout_millis = 80\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 d="$FAKE_GH_DIR"; s="$FAKE_GH_SCENARIO"
@@ -413,6 +413,7 @@ fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
     let [absent, late, broken, mixed, hung, frozen] = repos.each_ref().map(Repo::settled);
     let [none, appeared, _, _, hanging, _] = &repos;
     let waited = none.session_command(CI_WAIT);
+    let [appeared, hanging_stop] = [appeared, hanging].map(|repo| repo.hook(STOP, COMMIT));
     assert!(
         absent.contains(ABSENT)
             && absent.split_once(NO_RUN_YET).is_some_and(|(_, after)| !after.contains(NO_RUN_YET))
@@ -422,7 +423,7 @@ fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
     );
     assert!(
         [&late, &hung, &frozen].iter().all(|settled| settled.contains(TIMED_OUT))
-            && [appeared, hanging].iter().all(|repo| repo.hook(STOP, COMMIT).contains(TIMED_OUT_STOP))
+            && [&appeared, &hanging_stop].iter().all(|stop| stop.contains(TIMED_OUT_STOP))
             && late.contains(NO_RUN_YET)
             && late.contains(RUN_APPEARED)
     );
@@ -432,8 +433,6 @@ fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
             && broken.contains(FAILED_EVENT)
             && mixed.contains(FOURTH_POLL)
             && [broken, frozen].iter().all(|settled| settled.lines().all(|line| line.contains(INJECTED)))
-            && ![hung, hanging.hook(STOP, COMMIT), hanging.session_command(CI_WAIT).0]
-                .iter()
-                .any(|real| real.contains(INJECTED))
+            && ![hung, hanging_stop, hanging.session_command(CI_WAIT).0].iter().any(|real| real.contains(INJECTED))
     );
 }

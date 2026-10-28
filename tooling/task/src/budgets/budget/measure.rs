@@ -15,7 +15,7 @@ pub use item_kind::ItemKind;
 pub use mutation_job::MutationJob;
 pub use unit::Unit;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Display, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Display, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Measure {
@@ -33,7 +33,7 @@ pub enum Measure {
 
 impl Measure {
     #[must_use]
-    pub const fn unit(self) -> Unit {
+    pub const fn unit(&self) -> Unit {
         match self {
             Measure::TestWallTime | Measure::SlowestTest | Measure::WorkflowWallTime(_) => {
                 Unit::Duration
@@ -45,7 +45,7 @@ impl Measure {
     }
 
     #[must_use]
-    pub const fn scope(self) -> Option<ScopeKind> {
+    pub const fn scope(&self) -> Option<ScopeKind> {
         match self {
             Measure::TestWallTime | Measure::SlowestTest => Some(ScopeKind::Tests),
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Some(ScopeKind::Workflows),
@@ -56,7 +56,7 @@ impl Measure {
     }
 
     #[must_use]
-    pub const fn enforcer(self) -> Enforcer {
+    pub const fn enforcer(&self) -> Enforcer {
         match self {
             Measure::TestWallTime | Measure::SlowestTest | Measure::OpenItems(_) => {
                 Enforcer::Checker
@@ -67,7 +67,7 @@ impl Measure {
     }
 
     #[must_use]
-    pub const fn item_filter(self) -> Option<ItemFilter> {
+    pub const fn item_filter(&self) -> Option<&ItemFilter> {
         match self {
             Measure::OpenItems(filter) => Some(filter),
             Measure::TestWallTime
@@ -81,7 +81,7 @@ impl Measure {
     }
 
     #[must_use]
-    pub const fn window(self) -> Window {
+    pub const fn window(&self) -> Window {
         match self {
             Measure::OpenItems(_) => Window::Standing,
             Measure::TestWallTime

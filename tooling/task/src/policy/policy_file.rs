@@ -39,7 +39,7 @@ pub struct PolicyFile {
     limits: Entries<Limit, Most>,
     floors: Entries<Floor, Least>,
     shares: Entries<Share, Percent>,
-    memory_gib: EnumMap<MemoryShare, AvailableGib>,
+    memory_gib: Entries<MemoryShare, AvailableGib>,
     millis: Entries<Interval, Millis>,
     mutant_millis: MutantMillis,
     mutation: MutationCadence,
@@ -69,7 +69,7 @@ impl PolicyFile {
             limits: Entries::without(&policy.limits, |limit| LegacyKey::of_limit(limit).is_some()),
             floors: Entries::without(&policy.floors, |floor| LegacyKey::of_floor(floor).is_some()),
             shares: Entries::without(&policy.shares, |share| LegacyKey::of_share(share).is_some()),
-            memory_gib: policy.memory_gib,
+            memory_gib: Entries::without(&policy.memory_gib, |_| false),
             millis: Entries::without(&policy.millis, |interval| {
                 LegacyKey::of_interval(interval).is_some()
             }),
@@ -109,7 +109,7 @@ impl PolicyFile {
     }
 
     fn placed(&self, key: LegacyKey) -> Result<(), PolicyFailure> {
-        match (self.legacy(key), self.budgets.measures(key.measure())) {
+        match (self.legacy(key), self.budgets.measures(&key.measure())) {
             (Some(_), true) => Err(PolicyFailure::Twice(key)),
             (None, false) => Err(PolicyFailure::Unset(key)),
             (Some(_), false) | (None, true) => Ok(()),
@@ -141,13 +141,14 @@ impl PolicyFile {
             .filter(|key| self.legacy(*key).is_some())
             .collect();
         budgets.measurable(&self.domains)?;
+        budgets.leveled(&self.scales)?;
         let amount =
-            |key: Option<LegacyKey>| key.and_then(|key| budgets.blocking_line(key.measure()));
+            |key: Option<LegacyKey>| key.and_then(|key| budgets.blocking_line(&key.measure()));
         let baseline = budgets
-            .whole(Measure::LintFindings)
+            .whole(&Measure::LintFindings)
             .and_then(|budget| budget.allowance().whole().cloned());
         let tolerance = budgets
-            .whole(Measure::MutantPrice)
+            .whole(&Measure::MutantPrice)
             .map(|budget| budget.tolerance().unwrap_or(Percent::NONE));
         Ok(Policy {
             vague: self.vague,
@@ -161,7 +162,7 @@ impl PolicyFile {
                 .cloned()
                 .ok_or(PolicyFailure::Missing(Self::BASELINE))?,
             price_line: budgets
-                .blocking_line(Measure::MutantPrice)
+                .blocking_line(&Measure::MutantPrice)
                 .as_ref()
                 .and_then(Amount::share)
                 .ok_or(PolicyFailure::Missing(Self::PRICE))?,
@@ -175,7 +176,7 @@ impl PolicyFile {
                         .as_ref()
                         .and_then(Amount::count)
                 })
-                .map_err(|_| PolicyFailure::Missing(Self::LIMITS))?,
+                .map_err(|key| PolicyFailure::MissingKey(Self::LIMITS, key))?,
             floors: self
                 .floors
                 .completed(|floor| {
@@ -183,7 +184,7 @@ impl PolicyFile {
                         .and(tolerance)
                         .map(|percent| Least::from(usize::from(percent)))
                 })
-                .map_err(|_| PolicyFailure::Missing(Self::FLOORS))?,
+                .map_err(|key| PolicyFailure::MissingKey(Self::FLOORS, key))?,
             shares: self
                 .shares
                 .completed(|share| {
@@ -191,8 +192,11 @@ impl PolicyFile {
                         .as_ref()
                         .and_then(Amount::share)
                 })
-                .map_err(|_| PolicyFailure::Missing(Self::SHARES))?,
-            memory_gib: self.memory_gib,
+                .map_err(|key| PolicyFailure::MissingKey(Self::SHARES, key))?,
+            memory_gib: self
+                .memory_gib
+                .completed(|_| None)
+                .map_err(|key| PolicyFailure::MissingKey(Self::MEMORY_GIB, key))?,
             millis: self
                 .millis
                 .completed(|interval| {
@@ -200,7 +204,7 @@ impl PolicyFile {
                         .as_ref()
                         .and_then(Amount::duration)
                 })
-                .map_err(|_| PolicyFailure::Missing(Self::MILLIS))?,
+                .map_err(|key| PolicyFailure::MissingKey(Self::MILLIS, key))?,
             mutant_millis: self.mutant_millis,
             mutation: self.mutation,
             domains: self.domains,
@@ -217,4 +221,5 @@ impl PolicyFile {
     const FLOORS: &str = "floors";
     const SHARES: &str = "shares";
     const MILLIS: &str = "millis";
+    const MEMORY_GIB: &str = "memory_gib";
 }

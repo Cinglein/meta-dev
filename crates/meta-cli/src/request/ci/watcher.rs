@@ -10,7 +10,7 @@ use std::cell::OnceCell;
 use std::ops::ControlFlow;
 use std::os::unix::process::CommandExt as _;
 use std::process::{Command, Stdio};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use super::ci_status::CiStatus;
 use super::commit::Commit;
@@ -40,6 +40,7 @@ pub struct Watcher {
 impl Watcher {
     const NO_RUN_YET: &'static str = "no run yet; Stop stays blocked until one appears or the wait is recorded";
     const RUN_APPEARED: &'static str = "run appeared";
+    const OUT_OF_TIME: &'static str = "couldn't check CI in time; run `meta ci-wait`, then stop again";
 
     pub fn spawn(project: &Project, session: &SessionId, commit: &Commit) -> Result<(), Listed> {
         let unwatched = |error: std::io::Error| Listed::new(format!("CI not watched: {error}"));
@@ -63,13 +64,18 @@ impl Watcher {
     }
 
     pub fn watch_all(project: &Project, session: &SessionId) -> Result<(), Listed> {
-        let seen = SessionCommits::judged(project, session, Reach::Tracking)?;
+        let deadline = project.config().ci_settings().remote_deadline();
+        let seen = SessionCommits::judged(project, session, Reach::Tracking, deadline)?;
         seen.pushed().iter().try_for_each(|commit| Self::spawn(project, session, commit))
     }
 
     pub fn stop_reason(project: &Project, session: &SessionId) -> Option<Listed> {
         let dir = SessionDir::for_session(project, session)?;
-        let seen = SessionCommits::judged(project, session, Reach::Remote);
+        let limit = CiSettings::try_from(project.config()).map(|settings| settings.stop_limit().deadline());
+        let deadline = limit.as_ref().ok().copied();
+        let seen = limit
+            .map_err(|refused| Listed::new(format!("{refused}; fix it or ask the owner")))
+            .and_then(|deadline| SessionCommits::judged(project, session, Reach::Remote, deadline));
         let unknown = seen.as_ref().err().map(|reason| Listed::new(reason.to_string()));
         let commits = seen.as_ref().map(|seen| seen.pushed().to_vec()).unwrap_or_default();
         let unwritable = commits
@@ -91,9 +97,11 @@ impl Watcher {
             .find(|(_, status)| status.is_none())
             .map(|(commit, _)| Listed::new(format!("CI not watched for {commit}: push again to watch it")));
         let known = statuses.iter().find_map(|(_, status)| status.and_then(CiStatus::stop_reason));
-        let unresolved = || WaitOnCi::stop_reason(project, &dir, &commits);
+        let judged = seen.as_ref().ok().zip(deadline);
+        let unresolved = || judged.and_then(|(seen, deadline)| WaitOnCi::stop_reason(project, &dir, seen, deadline));
         let reason = unknown.or(unwritable).or(unpushed).or(unwatched).or(known).or_else(unresolved);
-        reason.map(|reason| Listed::new(format!("{reason}{}", WatchClock::mark())))
+        let late = deadline.filter(|deadline| Instant::now() >= *deadline).map(|_| Listed::new(Self::OUT_OF_TIME));
+        late.or(reason).map(|reason| Listed::new(format!("{reason}{}", WatchClock::mark())))
     }
 
     pub fn watch(project: &Project, session: &SessionId, commit: Commit) -> Result<Output, CliFailure> {
@@ -125,7 +133,9 @@ impl Watcher {
     pub fn wait(project: &Project, session: &SessionId) -> Result<Output, CliFailure> {
         let dir =
             SessionDir::for_session(project, session).ok_or_else(|| CliFailure::raised::<Setup>("no git directory"))?;
-        let seen = SessionCommits::judged(project, session, Reach::Remote).map_err(CliFailure::raised::<Invalid>)?;
+        let settings = project.config().ci_settings();
+        let seen = SessionCommits::judged(project, session, Reach::Remote, settings.remote_deadline())
+            .map_err(CliFailure::raised::<Invalid>)?;
         let pushed = seen.pushed();
         pushed.first().ok_or_else(|| CliFailure::raised::<Invalid>("no CI watched for this session"))?;
         pushed
@@ -134,7 +144,6 @@ impl Watcher {
             .map_err(CliFailure::raised::<Setup>)?;
         let unwatched = pushed.iter().find(|commit| dir.status_of(commit).is_none());
         unwatched.map_or(Ok(()), |commit| Err(CliFailure::raised::<Invalid>(format!("no CI watched for {commit}"))))?;
-        let settings = project.config().ci_settings();
         let clock = WatchClock::start(&settings);
         let settled = std::iter::once(Duration::ZERO)
             .chain(std::iter::repeat(settings.poll_interval().duration()))

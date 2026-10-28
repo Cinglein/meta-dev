@@ -11,9 +11,9 @@ impl Drain {
     pub fn reading(pipe: Option<impl Read + Send + 'static>) -> Self {
         let (sender, drained) = channel();
         std::thread::spawn(move || {
-            let mut text = String::new();
-            pipe.map(|mut pipe| pipe.read_to_string(&mut text).ok());
-            sender.send(text).ok();
+            let mut bytes = Vec::new();
+            pipe.map(|mut pipe| pipe.read_to_end(&mut bytes).ok());
+            sender.send(String::from_utf8_lossy(&bytes).into_owned()).ok();
         });
         Self(drained)
     }

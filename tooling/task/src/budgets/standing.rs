@@ -3,10 +3,10 @@ mod exposure;
 mod open_item;
 
 use meta_schema::{Division, NewTask};
+use meta_severity::Scales;
 use meta_state::{State, TaskState};
 
 use super::budget::{Amount, ItemFilter, ItemKind};
-use crate::domains::Domains;
 use crate::policy::Most;
 pub use change_link::ChangeLink;
 pub use exposure::Exposure;
@@ -16,11 +16,12 @@ use open_item::OpenItem;
 pub struct Standing {
     items: Vec<OpenItem>,
     linked: Vec<NewTask>,
+    scales: Scales,
 }
 
 impl Standing {
     #[must_use]
-    pub fn read(state: &State, link: &ChangeLink) -> Standing {
+    pub fn read(state: &State, link: &ChangeLink, scales: &Scales) -> Standing {
         let open = |entry| state.closed(entry).is_none();
         let concerns = state
             .concerns()
@@ -31,6 +32,7 @@ impl Standing {
                     Some(concern.target()),
                     concern.new_concern().placement().clone(),
                     vec![ItemFilter::Kind(ItemKind::Concern)],
+                    state.rated_item(concern.target()),
                 )
             });
         let issues = state
@@ -42,6 +44,7 @@ impl Standing {
                     Some(issue.target()),
                     issue.new_issue().placement().clone(),
                     vec![ItemFilter::Kind(ItemKind::Issue)],
+                    state.rated_item(issue.target()),
                 )
             });
         let tasks = state
@@ -57,25 +60,21 @@ impl Standing {
                 .filter(|task| link.links(task) && state.retirement(task.entry()).is_none())
                 .map(|task| task.new_task().clone())
                 .collect(),
+            scales: scales.clone(),
         }
     }
 
     #[must_use]
-    pub fn spend(&self, filter: ItemFilter, division: &Division) -> Amount {
+    pub fn spend(&self, filter: &ItemFilter, division: &Division) -> Amount {
         Amount::Count(Most::from(self.counted(filter, division).count()))
     }
 
     #[must_use]
-    pub fn exposure(&self, filter: ItemFilter, division: &Division, domains: &Domains) -> Exposure {
+    pub fn exposure(&self, filter: &ItemFilter, division: &Division) -> Exposure {
         if self.paid_down(filter, division) {
             Exposure::PaysDown
         } else if self.within(division) {
             Exposure::Within
-        } else if domains
-            .domain(division)
-            .is_some_and(|domain| !domain.is_empty())
-        {
-            Exposure::CodeOutside
         } else {
             Exposure::Outside
         }
@@ -97,13 +96,16 @@ impl Standing {
             None,
             task.new_task().placement().clone(),
             marks.into_iter().flatten().collect(),
+            None,
         )
     }
 
-    fn paid_down(&self, filter: ItemFilter, division: &Division) -> bool {
+    fn paid_down(&self, filter: &ItemFilter, division: &Division) -> bool {
         !self.linked.is_empty()
             && self.linked.iter().all(|task| {
-                self.counted(filter, division)
+                self.items
+                    .iter()
+                    .filter_map(|item| item.pays_into(filter, division, &self.scales))
                     .any(|item| item.addressed_by(task))
             })
     }
@@ -117,9 +119,16 @@ impl Standing {
             })
     }
 
-    fn counted(&self, filter: ItemFilter, division: &Division) -> impl Iterator<Item = &OpenItem> {
+    fn counted<'scan>(
+        &'scan self,
+        filter: &'scan ItemFilter,
+        division: &'scan Division,
+    ) -> impl Iterator<Item = &'scan OpenItem> {
         self.items
             .iter()
-            .filter(move |item| item.counts_in(filter, division))
+            .filter(move |item| item.counts_in(filter, division, &self.scales))
     }
 }
+
+#[cfg(test)]
+mod tests;

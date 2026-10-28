@@ -11,11 +11,14 @@ pub struct PriorSpec {
 }
 
 impl PriorSpec {
-    pub fn prose(policy: Option<&str>, read: impl Fn(&Path) -> Option<String>) -> Result<Option<String>, Failure> {
+    pub fn prose(
+        policy: Option<&str>,
+        read: impl Fn(&Path) -> Result<Option<String>, Failure>,
+    ) -> Result<Option<String>, Failure> {
         let prior = policy.map(toml::from_str::<PriorSpec>).transpose().map_err(Failure::PriorSpec)?;
         prior
             .and_then(|prior| prior.spec)
-            .map(|spec| read(spec.file()).ok_or_else(|| Failure::PriorSpecFile(spec.file().to_path_buf())))
+            .map(|spec| read(spec.file())?.ok_or_else(|| Failure::PriorSpecFile(spec.file().to_path_buf())))
             .transpose()
     }
 }
@@ -33,9 +36,9 @@ mod tests {
 
     #[test]
     fn a_merge_base_spec_that_does_not_parse_or_cannot_be_read_fails_and_an_absent_one_sets_no_limit() {
-        let readable = |path: &Path| (path == Path::new("context/SPEC.md")).then(|| PROSE.to_owned());
+        let readable = |path: &Path| Ok((path == Path::new("context/SPEC.md")).then(|| PROSE.to_owned()));
         assert!(
-            PriorSpec::prose(Some(RENAMED), readable).is_err() && PriorSpec::prose(Some(PLACED), |_| None).is_err()
+            PriorSpec::prose(Some(RENAMED), readable).is_err() && PriorSpec::prose(Some(PLACED), |_| Ok(None)).is_err()
         );
         assert_eq!(PriorSpec::prose(Some(PLACED), readable).ok().flatten().as_deref(), Some(PROSE));
         assert!(

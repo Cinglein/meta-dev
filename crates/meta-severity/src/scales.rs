@@ -19,11 +19,12 @@ use meta_state::{RatedItem, State};
 pub struct Scales(BTreeMap<Division, Scale>);
 
 impl Scales {
-    const DEFAULT_LEVELS: [(&str, &str); 3] = [
-        ("critical", "breaks the property: crash, blocked use or a wrong result; needs a reproduction"),
-        ("major", "degrades the property; needs a concrete failure scenario"),
-        ("minor", "a nuisance; the property holds"),
-    ];
+    pub fn over(defaults: &Scale, declared: BTreeMap<Division, Scale>) -> Result<Scales, ScaleFailure> {
+        let tops = TopDivision::iter().map(|top| (Division::from(top), defaults.clone()));
+        let scales = Scales(tops.chain(declared).collect());
+        scales.0.iter().try_for_each(|(division, scale)| scales.placed(division, scale))?;
+        Ok(scales)
+    }
 
     #[must_use]
     pub fn owner(&self, division: &Division) -> Option<&Division> {
@@ -126,10 +127,7 @@ impl Scales {
 
 impl Default for Scales {
     fn default() -> Scales {
-        let level = |(name, meaning): (&str, &str)| {
-            name.parse().ok().zip(meaning.parse().ok()).map(|(name, meaning)| Level::top(name, meaning))
-        };
-        let scale = Scale::new(Self::DEFAULT_LEVELS.into_iter().filter_map(level).collect());
+        let scale = Scale::top_default();
         Scales(TopDivision::iter().map(|top| (Division::from(top), scale.clone())).collect())
     }
 }
@@ -138,10 +136,7 @@ impl TryFrom<BTreeMap<Division, Scale>> for Scales {
     type Error = ScaleFailure;
 
     fn try_from(declared: BTreeMap<Division, Scale>) -> Result<Scales, ScaleFailure> {
-        let mut scales = Scales::default();
-        scales.0.extend(declared);
-        scales.0.iter().try_for_each(|(division, scale)| scales.placed(division, scale))?;
-        Ok(scales)
+        Scales::over(&Scale::top_default(), declared)
     }
 }
 

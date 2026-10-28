@@ -7,6 +7,7 @@ mod verdict;
 
 use std::cell::LazyCell;
 use std::fmt;
+use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
@@ -23,9 +24,10 @@ use verdict::Verdict;
 pub struct Collection(Vec<Verdict>);
 
 impl Collection {
-    pub fn swept<Host: Inspection>(sweeper: &Sweeper<'_, Host>, census: &Census) -> Self {
+    pub fn swept<Host: Inspection + Sync>(sweeper: &Sweeper<'_, Host>, census: &Census) -> Self {
+        let width = std::thread::available_parallelism().map_or(1, NonZeroUsize::get);
         let assessed: Vec<Assessed<'_>> =
-            census.tracked().iter().map(|tracked| sweeper.assessed(tracked, census)).collect();
+            census.tracked().chunks(width).flat_map(|chunk| sweeper.assessed_together(chunk, census)).collect();
         let candidates: Vec<PathBuf> = assessed.iter().filter_map(Assessed::candidate).map(Path::to_path_buf).collect();
         let occupancy = LazyCell::new(|| sweeper.host().occupancy(&candidates));
         let finished =

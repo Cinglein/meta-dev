@@ -4,6 +4,8 @@ use enum_map::{Enum, EnumMap};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::policy::key_name::KeyName;
+
 use entries_visitor::EntriesVisitor;
 
 #[derive(Debug)]
@@ -14,9 +16,15 @@ impl<K: Enum + Copy, V> Entries<K, V> {
         self.0[key].as_ref()
     }
 
-    pub fn completed(self, filled: impl Fn(K) -> Option<V>) -> Result<EnumMap<K, V>, K> {
-        self.0
-            .try_map(|key, value| value.or_else(|| filled(key)).ok_or(key))
+    pub fn completed(self, filled: impl Fn(K) -> Option<V>) -> Result<EnumMap<K, V>, KeyName>
+    where
+        &'static str: From<K>,
+    {
+        self.0.try_map(|key, value| {
+            value
+                .or_else(|| filled(key))
+                .ok_or_else(|| KeyName::from(<&'static str>::from(key)))
+        })
     }
 
     pub fn without(complete: &EnumMap<K, V>, moved: impl Fn(K) -> bool) -> Entries<K, V>

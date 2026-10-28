@@ -1,0 +1,5 @@
+[
+  { "name": "critical", "meaning": "breaks the property: crash, blocked use or a wrong result; needs a reproduction" },
+  { "name": "major", "meaning": "degrades the property; needs a concrete failure scenario" },
+  { "name": "minor", "meaning": "a nuisance; the property holds" }
+]

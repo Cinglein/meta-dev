@@ -81,6 +81,28 @@ Do these steps at the root of your workspace.
 Your lockfile gets `unicode-ident 1.0.24`. meta-development sets this exact version.
 Newer versions stop `ra-ap-rustc_lexer` from compiling. Do not update `unicode-ident` until meta-development removes this limit.
 
+## Standing budgets
+
+A standing budget counts items in the `meta/log` branch, for example the open concerns of one severity.
+CI enforces a standing budget from the policy at the merge base, not from the policy in the pull request.
+The policy in the pull request must only parse and be valid.
+A cap that a pull request adds or makes stricter starts to apply to the next pull request.
+A cap that a pull request makes looser or removes still applies to that pull request.
+The merge base is the one with the default branch of `origin` (`origin/HEAD`). A pull request cannot choose it.
+If git cannot read the policy at the merge base, the run fails. If the file does not exist there, no standing budget applies.
+Each pull request is in one division: the division of its linked task.
+A standing budget applies to a pull request only if the task of the pull request is in the division of the budget, or in a division inside it.
+Standing budgets do not use domains or the files that the pull request changes.
+The domain of a division only sets what the per-change budgets of that division measure.
+The files that a pull request changes only select the part of CI that runs (`--affected`).
+Example: a task in `performance-and-cost` is not blocked by a `features-and-maintenance` cap that is over.
+A pull request with no linked task, or with a task at the root, gets all standing budgets.
+A pull request whose task addresses an open item in the division of a cap, at the level of the cap or at a more severe level, is paid down for that cap.
+Per-change budgets, such as test time, lint findings and mutant prices, measure each pull request and apply to all pull requests.
+The budget table marks a new cap as "enforced from the next change".
+A run that is not a pull request, such as a push to the main branch, shows the standing budgets and marks the rows that are over.
+That run does not fail because of them.
+
 ## Versions
 
 - All crates have the same version. The version is in `[workspace.package]` in `Cargo.toml`.

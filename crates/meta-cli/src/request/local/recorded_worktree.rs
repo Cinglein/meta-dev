@@ -20,8 +20,7 @@ pub struct RecordedWorktree {
 
 impl RecordedWorktree {
     pub fn new(path: PathBuf, task: Id<Task>) -> Self {
-        let Ok(branch) = task.to_string().parse();
-        Self { path, branch, task, created: Utc::now(), worktree: None }
+        Self { path, branch: BranchName::from(&task), task, created: Utc::now(), worktree: None }
     }
 
     pub fn identified(self, worktree: WorktreeId) -> Self {

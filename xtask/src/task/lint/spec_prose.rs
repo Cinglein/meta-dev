@@ -20,7 +20,8 @@ impl SpecProse {
 
     pub fn since(root: &Path, spec: &SpecSettings, base: &Revision) -> Result<Report, Failure> {
         let written = fs::read_to_string(root.join(spec.file())).unwrap_or_default();
-        let prior = PriorSpec::prose(base.file(Path::new(PriorPolicy::PATH)).as_deref(), |path| base.file(path))?;
+        let prior =
+            PriorSpec::prose(base.present(Path::new(PriorPolicy::PATH))?.as_deref(), |path| base.present(path))?;
         Ok(Self::report(spec, &written, prior.as_deref()))
     }
 
