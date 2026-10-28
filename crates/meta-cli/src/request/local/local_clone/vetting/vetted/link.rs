@@ -81,6 +81,7 @@ impl Link {
         host.git(&match scope {
             Scope::Worktree => GitCall::worktree(&self.git_dir, &self.path, words),
             Scope::Common => GitCall::common(&self.common, words),
+            Scope::Remote => GitCall::common(&self.common, words).reaching(),
         })
     }
 

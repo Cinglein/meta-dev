@@ -37,6 +37,12 @@ impl Project {
         &self.config
     }
 
+    pub fn found(dir: &Path) -> Result<Option<Self>, CliFailure> {
+        let root = dir.ancestors().find(|ancestor| ancestor.join(Self::GIT_ENTRY).exists()).map(Path::to_path_buf);
+        let configured = root.filter(|root| root.join(Self::CONFIG_FILE).exists());
+        configured.map(Self::loaded).transpose()
+    }
+
     pub fn ci_settings(&self) -> &CiSettings {
         &self.ci
     }
@@ -45,7 +51,8 @@ impl Project {
         let deadline = self.ci.git_deadline(Instant::now());
         let remote = self.config.remote().ok()?.to_string();
         let unprotected = self.unprotected_branch(deadline)?;
-        match self.git(["push", "--quiet", "-u", &remote, &unprotected.to_string()]).ran(deadline) {
+        let push = self.git(["push", "--quiet", "-u", &remote, &unprotected.to_string()]).scoped(KillScope::Group);
+        match push.ran(deadline) {
             Ok(ran) if ran.success() => None,
             Ok(ran) => Some(Listed::new(format!("push of {unprotected} failed: {}", ran.stderr()))),
             Err(failure) => Some(Listed::new(format!("push of {unprotected} failed: {failure}"))),
@@ -109,6 +116,16 @@ impl Project {
         heads.into_iter().next()
     }
 
+    fn loaded(root: PathBuf) -> Result<Self, CliFailure> {
+        let path = root.join(Self::CONFIG_FILE);
+        let refused =
+            |failure: &dyn std::fmt::Display| CliFailure::raised::<Setup>(format!("{}: {failure}", path.display()));
+        let text = std::fs::read_to_string(&path).map_err(|failure| refused(&failure))?;
+        let config = toml::from_str(&text).map_err(|failure| refused(&failure))?;
+        let ci = CiSettings::try_from(&config)?;
+        Ok(Self { root, config, ci })
+    }
+
     fn git<Word: AsRef<OsStr>>(&self, words: impl IntoIterator<Item = Word>) -> Run {
         Run::git(&self.root).args(words)
     }
@@ -141,17 +158,6 @@ impl TryFrom<&Path> for Project {
     type Error = CliFailure;
 
     fn try_from(dir: &Path) -> Result<Self, Self::Error> {
-        let root = dir
-            .ancestors()
-            .find(|ancestor| ancestor.join(Self::GIT_ENTRY).exists())
-            .map(Path::to_path_buf)
-            .ok_or_else(|| CliFailure::raised::<Setup>("not inside a git repository"))?;
-        let path = root.join(Self::CONFIG_FILE);
-        let text = std::fs::read_to_string(&path)
-            .map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
-        let config =
-            toml::from_str(&text).map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
-        let ci = CiSettings::try_from(&config)?;
-        Ok(Self { root, config, ci })
+        Self::found(dir)?.ok_or_else(|| CliFailure::raised::<Setup>("not inside a git repository with a meta.toml"))
     }
 }

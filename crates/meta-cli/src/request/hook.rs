@@ -56,13 +56,25 @@ impl HookEvent {
     pub fn respond(self) -> Result<Output, CliFailure> {
         let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
         let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
-        let reply = Project::try_from(input.cwd().as_path()).ok().map(|project| {
-            let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
-            self.reply(&project, &input).with_news(session.and_then(|dir| dir.news()))
-        });
+        let reply = match Project::found(input.cwd().as_path()) {
+            Ok(Some(project)) => {
+                let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
+                Some(self.reply(&project, &input).with_news(session.and_then(|dir| dir.news())))
+            }
+            Ok(None) => self.outside_projects(&input),
+            Err(failure) => Some(self.refused(Listed::new(failure))),
+        };
         let opened = (self == Self::SessionStart).then(|| input.open_session()).and_then(Result::err);
-        let reply = reply.or_else(|| self.outside_projects(&input)).map(|reply| reply.with_news(opened));
+        let reply = reply.map(|reply| reply.with_news(opened));
         Ok(Output::Listed(Listed::new(reply.map(|reply| reply.to_string()).unwrap_or_default())))
+    }
+
+    pub fn refused(self, reason: Listed) -> Reply {
+        match self {
+            Self::PreToolUse => Reply::new(self, Verdict::Deny(Denial::from(reason)), None),
+            Self::Stop => Reply::new(self, Verdict::Block(Blocking::from(reason)), None),
+            Self::SessionStart | Self::PostToolUse => Reply::new(self, Verdict::Allow, Some(reason)),
+        }
     }
 
     fn reply(self, project: &Project, input: &HookInput) -> Reply {

@@ -4,6 +4,7 @@ mod heartbeat;
 #[cfg(test)]
 mod moving;
 mod notices;
+pub mod pids;
 #[cfg(test)]
 mod rating;
 #[cfg(test)]
