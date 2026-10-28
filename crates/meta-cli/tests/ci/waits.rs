@@ -32,6 +32,8 @@ struct Counted;
 impl Counted {
     const GIT: &'static str =
         "#!/bin/sh\necho \"$3\" >> \"$FAKE_GH_DIR/git-calls\"\nPATH=\"${PATH#*:}\" exec git \"$@\"\n";
+    const SUBCOMMAND: &'static str = "SUBCOMMAND";
+    const FLAKY: &'static str = "#!/bin/sh\n[ \"$3\" = SUBCOMMAND ] && [ ! -e \"$FAKE_GH_DIR/flaked\" ] && : > \"$FAKE_GH_DIR/flaked\" && echo \"fatal: simulated git failure\" >&2 && exit 1\nPATH=\"${PATH#*:}\" exec git \"$@\"\n";
     const WRAPPER: &'static str = "bin/git";
     const CALLS: &'static str = "git-calls";
 
@@ -40,9 +42,7 @@ impl Counted {
     }
 
     fn flaky(subcommand: &str) -> String {
-        format!(
-            "#!/bin/sh\n[ \"$3\" = {subcommand} ] && [ ! -e \"$FAKE_GH_DIR/flaked\" ] && : > \"$FAKE_GH_DIR/flaked\" && echo \"fatal: simulated git failure\" >&2 && exit 1\nPATH=\"${{PATH#*:}}\" exec git \"$@\"\n"
-        )
+        Self::FLAKY.replace(Self::SUBCOMMAND, subcommand)
     }
 
     fn plant(repo: &Repo, script: &str) {
