@@ -959,3 +959,4 @@
 {"at":"2026-10-28T10:30:55.017141Z","actor":"claude-lead","kind":"TaskDone","task":"task-928f0f401cd7c831"}
 {"at":"2026-10-28T10:55:43.004074Z","actor":"claude-spawns2","kind":"TaskOpened","task":"task-73b96ac64a911e2e","text":"Kill the missed Checkout::read mutant on main (mutants shard meta-cli/8/31 at 0f2e7c5)","division":"performance-and-cost"}
 {"at":"2026-10-28T10:55:47.969378Z","actor":"claude-spawns2","kind":"TaskClaimed","task":"task-73b96ac64a911e2e"}
+{"at":"2026-10-28T10:56:55.376169Z","actor":"claude-spawns2","kind":"TaskLinked","task":"task-73b96ac64a911e2e","pr":90}
