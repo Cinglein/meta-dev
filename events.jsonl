@@ -1043,3 +1043,4 @@
 {"at":"2026-10-28T15:33:38.334652Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-14417fa941c6bf5a"}
 {"at":"2026-10-28T15:33:40.034273Z","actor":"claude-lead","kind":"TaskDone","task":"task-14417fa941c6bf5a"}
 {"at":"2026-10-28T15:35:35.800326Z","actor":"claude-cpucut","kind":"TaskLinked","task":"task-067b28fe28b30740","pr":104}
+{"at":"2026-10-28T15:37:47.410379Z","actor":"claude-lead","kind":"TaskOpened","task":"task-177c0b81bc56afcc","text":"Workspace dead-code lint: flag pub library items unused by any release target (tests don't count as use); unreachable_pub now, cross-crate use via the type-resolved backend.","division":"features-and-maintenance"}
