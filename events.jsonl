@@ -930,3 +930,4 @@
 {"at":"2026-10-28T05:03:58.424773Z","actor":"claude-refdoor","kind":"TaskClaimed","task":"task-57ca19df0a948106"}
 {"at":"2026-10-28T05:30:52.657171Z","actor":"claude-refdoor","kind":"TaskLinked","task":"task-57ca19df0a948106","pr":84}
 {"at":"2026-10-28T06:43:16.005328Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-e7ee5a9a8a795fae","text":"Cut product git calls left after #82: Revision::present ls-tree+cat-file pair (~52/run), merge-base (~18), claim branch lookups."}
+{"at":"2026-10-28T08:02:15.221240Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-c685168fe3255843","text":"CI watch state is machine-wide but events stay per session; a second session watching the same commit gets 'CI failed' without job detail.","division":"features-and-maintenance","severity":"minor"}
