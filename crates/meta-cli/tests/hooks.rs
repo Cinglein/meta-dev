@@ -36,6 +36,10 @@ const HEAD: &str = "HEAD";
 const FEATURE_BRANCH: &str = "feature";
 const REJECTED: &str = "rejected";
 const SESSION_START: &str = "session-start";
+const STOP: &str = "stop";
+const REFUSED_CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nstop_millis = 9000\n";
+const BLOCKED: &str = "\"decision\":\"block\"";
+const REFUSED_SETTING: &str = "stop_millis must be under";
 const SESSION_FIELD: &str = r#""session_id":"ABCDEF12-34","#;
 const WATCHERS: &str = ".git/meta-ci";
 const NO_TASKS: &str = "Tasks: 0 unfinished";
@@ -138,8 +142,11 @@ fn pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_whereve
     assert!(repo.hook(PRE, MERGE, home).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
     let commits = REFUSED_COMMITS.into_iter().zip([home, elsewhere, home, home]);
     let shown = commits.map(|((command, reason), cwd)| (repo.hook(PRE, command, cwd), format!("{DENY}{reason}")));
-    assert!(shown.into_iter().all(|(shown, refused)| shown.contains(&refused)));
-    assert_eq!(repo.hook(PRE, ALLOWED, home), "");
+    let allowed = repo.hook(PRE, ALLOWED, home);
+    assert!(shown.into_iter().all(|(shown, refused)| shown.contains(&refused)) && allowed.is_empty());
+    std::fs::write(home.join("meta.toml"), REFUSED_CONFIG).unwrap();
+    let [denied, blocked] = [PRE, STOP].map(|event| repo.hook(event, MERGE, home));
+    assert!(denied.contains(DENY) && blocked.contains(BLOCKED) && blocked.contains(REFUSED_SETTING), "{denied}");
 }
 
 #[test]
