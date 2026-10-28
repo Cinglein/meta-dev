@@ -1,5 +1,5 @@
 use meta_pulls::RuledPull;
-use meta_schema::PullRequest;
+use meta_schema::{Id, PullRequest, Task};
 
 use crate::pulls::Pulls;
 use crate::rulebook::Rulebook;
@@ -8,7 +8,7 @@ use crate::workflow_name::WorkflowName;
 
 #[derive(Clone, Debug)]
 pub struct LiveData {
-    pulls: Pulls,
+    pulls: Box<Pulls>,
     rules: Rulebook,
     workflows: Vec<WorkflowName>,
 }
@@ -16,7 +16,7 @@ pub struct LiveData {
 impl LiveData {
     #[must_use]
     pub fn new(pulls: Pulls, rules: Rulebook) -> Self {
-        Self { pulls, rules, workflows: Vec::new() }
+        Self { pulls: Box::new(pulls), rules, workflows: Vec::new() }
     }
 
     #[must_use]
@@ -28,6 +28,11 @@ impl LiveData {
     pub fn pull(&self, pull_request: PullRequest) -> Option<RuledPull<'_>> {
         let pull = self.pulls.pull(pull_request)?;
         self.rules.required(pull.base()).map(|required| RuledPull::new(pull, required))
+    }
+
+    #[must_use]
+    pub fn headed(&self, task: Id<Task>) -> Vec<PullRequest> {
+        self.pulls.open().headed(task)
     }
 
     #[must_use]
