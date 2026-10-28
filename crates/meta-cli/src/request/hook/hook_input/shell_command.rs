@@ -120,7 +120,16 @@ mod tests {
         "git push --force-with-lease origin main",
         "git --no-pager push origin main",
     ];
-    const ALLOWED: [&str; 4] = [
+    const SPOOFS: [&str; 6] = [
+        "META_ACTOR= meta wait T --on ci",
+        "META_ACTOR=owner meta wait T --on ci",
+        "export META_ACTOR=owner; meta wait T --on ci",
+        "unset META_ACTOR && meta wait T --on ci",
+        "env -u META_ACTOR meta wait T --on ci",
+        "sh -c 'META_ACTOR= meta wait T --on ci'",
+    ];
+    const ALLOWED: [&str; 5] = [
+        "echo $META_ACTOR ${META_ACTOR}",
         "git push -u origin feature",
         "git push --force-with-lease origin feature",
         "git commit -m 'git push origin main'",
@@ -140,7 +149,7 @@ mod tests {
         let config: Config = toml::from_str(CONFIG).unwrap();
         let refusal =
             |command: &str| command.parse::<ShellCommand>().unwrap().refusal(&config).map(|why| why.to_string());
-        assert!(MERGES.iter().all(|command| refusal(command).is_some()));
+        assert!(MERGES.iter().chain(&SPOOFS).all(|command| refusal(command).is_some()));
         assert!(PUSHES.iter().all(|command| refusal(command).is_some_and(|why| why.starts_with(PUSH_REASON))));
         assert!(ALLOWED.iter().all(|command| refusal(command).is_none()));
     }
