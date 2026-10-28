@@ -6,19 +6,22 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 use meta_golden::{Golden, Goldens, Replay};
+use meta_run::{MetaArgv, Tool as _};
 
 const SCENARIO: &str = "injected-ident";
+const OUTSIDE: &str = "outside-a-repo";
 const RECORDED_LEN: usize = 6;
 const TEXTS: [&str; 2] = ["a\nb", "a\nc"];
 const REPLAYED: [&str; 4] =
     ["someone@example.com", "1+someone@users.noreply.github.com", "no recording answers", "recordings ran out"];
 const ASKED: [&str; 2] = ["var", "GIT_AUTHOR_IDENT"];
 const PROGRAMS: [&str; 2] = ["git", "gh"];
-const GIT_DIR: &str = "GIT_DIR";
+const CEILING: &str = "GIT_CEILING_DIRECTORIES";
 const LINE_END: &str = "\n";
 const TOPLEVEL: [&str; 2] = ["rev-parse", "--show-toplevel"];
 const NO_BRANCH: [&str; 4] = ["rev-parse", "--verify", "--quiet", "refs/heads/none"];
 const SCENARIO_FILE: &str = "toml";
+const META: [&str; 2] = ["snapshot.toml", "[[step]]\nrecord = \"list\"\nmeta = { call = \"list\" }\n"];
 const NO_BIN: &str = "";
 const MATCHED: [bool; 2] = [true, false];
 const UNBUILT: [&str; 2] =
@@ -27,13 +30,15 @@ const UNBUILT: [&str; 2] =
 #[test]
 fn a_scenario_records_what_real_git_reports_as_checked_in_and_a_failed_setup_fails_the_refresh() {
     let root = tempfile::tempdir().unwrap();
-    let scenario = Path::new(SCENARIO).with_extension(SCENARIO_FILE);
-    std::fs::copy(Goldens::workspace().dir().join(&scenario), root.path().join(&scenario)).unwrap();
+    let copied = |scenario: &str| Path::new(scenario).with_extension(SCENARIO_FILE);
+    let copy =
+        |scenario| std::fs::copy(Goldens::workspace().dir().join(copied(scenario)), root.path().join(copied(scenario)));
+    [SCENARIO, OUTSIDE].map(copy).into_iter().collect::<Result<Vec<_>, _>>().unwrap();
     Goldens::new(root.path()).refreshed(Path::new(NO_BIN)).unwrap();
     let recorded = Goldens::new(root.path()).recordings().unwrap();
-    let checked_in = Goldens::workspace().dir().join(SCENARIO);
+    let goldens = [Goldens::workspace(), Goldens::new(&root.path().join(NO_BIN).join(SCENARIO_FILE))];
     let matched =
-        recorded.iter().map(|recording| [&checked_in, root.path()].map(|dir| recording.checked_in(dir).is_ok()));
+        recorded.iter().map(|recording| goldens.each_ref().map(|goldens| recording.checked_in(goldens).is_ok()));
     assert_eq!(matched.collect::<Vec<_>>(), [MATCHED; RECORDED_LEN]);
     let [unbuilt, steps] = UNBUILT;
     std::fs::write(root.path().join(unbuilt), steps).unwrap();
@@ -42,30 +47,38 @@ fn a_scenario_records_what_real_git_reports_as_checked_in_and_a_failed_setup_fai
 }
 
 #[test]
-fn a_golden_passes_its_own_text_and_fails_on_any_other() {
-    let file = tempfile::NamedTempFile::new().unwrap();
-    std::fs::write(file.path(), TEXTS[0]).unwrap();
-    let golden = Golden::new(file.path());
+fn a_golden_passes_its_own_text_and_fails_on_any_other_and_meta_runs_from_the_bin_dir() {
+    let root = tempfile::tempdir().unwrap();
+    let file = root.path().join(SCENARIO_FILE);
+    std::fs::write(&file, TEXTS[0]).unwrap();
+    let golden = Golden::new(&file);
     assert!(golden.checked(TEXTS[0]).is_ok() && golden.checked(TEXTS[1]).is_err());
+    let [scenario, steps] = META;
+    std::fs::write(root.path().join(scenario), steps).unwrap();
+    std::os::unix::fs::symlink(env!("CARGO_BIN_EXE_meta-replay"), root.path().join(MetaArgv::PROGRAM)).unwrap();
+    Goldens::new(root.path()).refreshed(root.path()).unwrap();
+    let recorded = Goldens::new(root.path()).recordings().unwrap();
+    assert!(recorded.len() == 1 && recorded.iter().all(|recording| recording.argv().calls(MetaArgv::List)));
 }
 
 #[test]
 fn the_replayer_answers_each_call_with_the_next_recording_and_refuses_once_they_run_out() {
     let root = tempfile::tempdir().unwrap();
     let [git, gh] = PROGRAMS;
-    let replayed = |program: &str, asked: &[&str]| {
+    let replayed = |scenario: &str, program: &str, asked: &[&str]| {
         let mut replay = Command::new(env!("CARGO_BIN_EXE_meta-replay"));
         let replay = replay.arg0(program).args(asked).current_dir(root.path()).env(Replay::TRAIL, root.path());
-        replay.env(Replay::RECORDINGS, Goldens::workspace().dir().join(SCENARIO)).output().unwrap()
+        replay.env(Replay::RECORDINGS, Goldens::workspace().dir().join(scenario)).output().unwrap()
     };
-    let [author, noreply, exhausted] = [ASKED, ASKED, ASKED].map(|asked| replayed(git, &asked));
-    let [outside, inside, no_branch] = [&TOPLEVEL[..], &TOPLEVEL, &NO_BRANCH].map(|asked| replayed(git, asked));
+    let [author, noreply, exhausted] = [ASKED, ASKED, ASKED].map(|asked| replayed(SCENARIO, git, &asked));
+    let [inside, no_branch] = [&TOPLEVEL[..], &NO_BRANCH].map(|asked| replayed(SCENARIO, git, asked));
     let [foreign, noreply_email, unanswered, ran_out] = REPLAYED;
     let shown = |answer: &Output| String::from_utf8_lossy(&answer.stdout).into_owned();
     let root_line = [root.path().canonicalize().unwrap().as_os_str().as_bytes(), LINE_END.as_bytes()].concat();
     assert!(shown(&author).contains(foreign) && shown(&noreply).contains(noreply_email) && inside.stdout == root_line);
-    let real = Command::new(git).args(TOPLEVEL).current_dir(root.path()).env_remove(GIT_DIR).output().unwrap();
-    let other_program = replayed(gh, &ASKED);
+    let real = Command::new(git).args(TOPLEVEL).current_dir(root.path()).env(CEILING, root.path()).output().unwrap();
+    let [outside, other_program] =
+        [(OUTSIDE, git), (SCENARIO, gh)].map(|(scenario, program)| replayed(scenario, program, &TOPLEVEL));
     assert!(
         outside.status.code() == real.status.code()
             && real.status.code() != Some(1)

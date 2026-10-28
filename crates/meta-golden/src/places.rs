@@ -20,6 +20,10 @@ impl Places {
         &self.root
     }
 
+    pub fn program(&self, name: &str) -> PathBuf {
+        self.bin.join(name)
+    }
+
     pub fn hidden(&self, text: &str) -> String {
         let named = [(&self.root, Self::ROOT), (&self.bin, Self::BIN)];
         let named = named.into_iter().filter(|(place, _)| !place.as_os_str().is_empty());

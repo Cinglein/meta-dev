@@ -1,1 +1,1 @@
-["git","-C","$ROOT","rev-parse","--show-toplevel"]
+["git","rev-parse","--show-toplevel"]

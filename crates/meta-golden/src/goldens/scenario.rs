@@ -10,11 +10,11 @@ use crate::golden::Golden;
 use crate::golden_failure::GoldenFailure;
 use crate::places::Places;
 use crate::recording::Recording;
-use step::Step;
+use step::ScenarioStep;
 
 #[derive(Debug, Deserialize)]
 pub struct Scenario {
-    step: Vec<Step>,
+    step: Vec<ScenarioStep>,
 }
 
 impl Scenario {

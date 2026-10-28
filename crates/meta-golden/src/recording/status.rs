@@ -1,26 +1,36 @@
+use std::fmt;
 use std::process::ExitCode;
+use std::str::FromStr;
 
 use meta_run::Ran;
-use strum::{Display, EnumString};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumString)]
-#[strum(serialize_all = "kebab-case")]
-pub enum Status {
-    Succeeded,
-    Failed,
-}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Status(i32);
 
 impl Status {
+    const SIGNALLED: i32 = 128;
+
     pub fn exit_code(self) -> ExitCode {
-        match self {
-            Self::Succeeded => ExitCode::SUCCESS,
-            Self::Failed => ExitCode::FAILURE,
-        }
+        u8::try_from(self.0).map_or(ExitCode::FAILURE, ExitCode::from)
     }
 }
 
 impl From<&Ran> for Status {
     fn from(ran: &Ran) -> Self {
-        if ran.success() { Self::Succeeded } else { Self::Failed }
+        Self(ran.status().code().unwrap_or(Self::SIGNALLED))
+    }
+}
+
+impl fmt::Display for Status {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}", self.0)
+    }
+}
+
+impl FromStr for Status {
+    type Err = std::num::ParseIntError;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        text.parse().map(Self)
     }
 }

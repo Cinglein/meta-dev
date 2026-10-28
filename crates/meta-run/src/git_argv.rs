@@ -7,6 +7,8 @@ use crate::tool::Tool;
 #[strum(serialize_all = "kebab-case")]
 pub enum GitArgv {
     Var,
+    ShowToplevel,
+    VerifyRef,
 }
 
 impl Tool for GitArgv {
@@ -16,6 +18,8 @@ impl Tool for GitArgv {
     fn words(self) -> &'static [&'static str] {
         match self {
             Self::Var => &["var"],
+            Self::ShowToplevel => &["rev-parse", "--show-toplevel"],
+            Self::VerifyRef => &["rev-parse", "--verify", "--quiet"],
         }
     }
 }
