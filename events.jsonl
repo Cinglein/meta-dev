@@ -863,3 +863,4 @@
 {"at":"2026-10-28T00:43:57.082261Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-197b7d5d3de582fc","text":"TaskLinked hook doesn't fire in subagent sessions; status should link a PR whose head branch is a task id."}
 {"at":"2026-10-28T00:43:58.741036Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-4e0152a484b69b8c","text":"Speed work can undo safety (#35 reintroduced reftable data loss); need a lint forbidding direct .git/*HEAD file reads."}
 {"at":"2026-10-28T00:44:00.345176Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-bf6e566098040231","text":"Stop gate not-HEAD reason should say: one commit per task wait, rerun push to that branch, check the branch out again."}
+{"at":"2026-10-28T00:44:01.836563Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-6093dc893bc6b066","text":"Stop hook network calls can exceed Claude Code's 10 s hook timeout; a killed hook lets the stop pass (fail open)."}
