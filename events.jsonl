@@ -964,3 +964,4 @@
 {"at":"2026-10-28T11:06:01.490781Z","actor":"claude-lead","kind":"TaskDone","task":"task-73b96ac64a911e2e"}
 {"at":"2026-10-28T11:11:12.957936Z","actor":"claude-minors","kind":"TaskOpened","task":"task-573eccaea1e8087a","text":"Reopen keeps the task's assignees so a reopened task's PR passes the tracked-work check","division":"features-and-maintenance","addresses":["concern-ba1fc185572af88d"]}
 {"at":"2026-10-28T11:11:22.998569Z","actor":"claude-minors","kind":"TaskClaimed","task":"task-573eccaea1e8087a"}
+{"at":"2026-10-28T11:12:23.763034Z","actor":"claude-minors","kind":"TaskLinked","task":"task-573eccaea1e8087a","pr":91}
