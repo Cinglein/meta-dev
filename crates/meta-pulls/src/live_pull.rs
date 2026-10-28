@@ -1,15 +1,17 @@
 mod base_branch;
 mod checks;
 mod head_branch;
+mod origin;
 mod pull_state;
 mod rollup;
 mod ruled_pull;
 
-use meta_schema::PullRequest;
+use meta_schema::{Id, PullRequest, Task};
 use serde::Deserialize;
 
 pub use base_branch::BaseBranch;
-pub use head_branch::HeadBranch;
+use head_branch::HeadBranch;
+use origin::Origin;
 pub use pull_state::PullState;
 use rollup::Rollup;
 pub use ruled_pull::RuledPull;
@@ -22,6 +24,8 @@ pub struct LivePull {
     base: BaseBranch,
     #[serde(default, rename = "headRefName")]
     head: HeadBranch,
+    #[serde(default, rename = "isCrossRepository")]
+    origin: Origin,
     #[serde(default, rename = "statusCheckRollup")]
     rollup: Option<Rollup>,
 }
@@ -33,8 +37,8 @@ impl LivePull {
     }
 
     #[must_use]
-    pub fn head(&self) -> &HeadBranch {
-        &self.head
+    pub fn task(&self) -> Option<Id<Task>> {
+        self.origin.same().and(self.head.task())
     }
 
     #[must_use]

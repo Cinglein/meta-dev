@@ -15,7 +15,7 @@ impl OpenRepository {
 
     #[must_use]
     pub fn headed(&self, task: Id<Task>) -> Vec<PullRequest> {
-        let named = self.pull_requests.nodes().filter(|pull| pull.head().task() == Some(task));
+        let named = self.pull_requests.nodes().filter(|pull| pull.task() == Some(task));
         named.map(LivePull::number).collect()
     }
 

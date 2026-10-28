@@ -4,6 +4,6 @@ mod page;
 mod required_checks;
 mod verdict;
 
-pub use live_pull::{BaseBranch, HeadBranch, LivePull, PullState, RuledPull};
+pub use live_pull::{BaseBranch, LivePull, PullState, RuledPull};
 pub use page::Page;
 pub use required_checks::RequiredChecks;
