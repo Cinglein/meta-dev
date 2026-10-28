@@ -4,6 +4,12 @@ measure = { open_items = { kind = "task" } }
 allowance = { count = 4 }
 window = "standing"
 
+[budgets.t-tangle]
+division = "features-and-maintenance"
+measure = "tangle_items"
+allowance = { count = 4 }
+window = "standing"
+
 [budgets.t-gone]
 division = "features-and-maintenance"
 measure = { open_items = { kind = "issue" } }
