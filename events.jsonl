@@ -1128,3 +1128,4 @@
 {"at":"2026-10-28T18:16:42.546440Z","actor":"claude-fcore4","kind":"TaskLinked","task":"task-79bab6623cc9a724","pr":126}
 {"at":"2026-10-28T18:19:11.063140Z","actor":"claude-fcore3","kind":"TaskLinked","task":"task-154623481c04a6d2","pr":127}
 {"at":"2026-10-28T18:26:55.943163Z","actor":"claude-fcore4","kind":"TaskLinked","task":"task-79bab6623cc9a724","pr":128}
+{"at":"2026-10-28T18:45:28.371682Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-a786d97d3e58382f","text":"gh stack push pushes every local stack branch, so an agent with a stale copy rewound another agent's branch (claim, restored). Shared stacks need per-agent push scope.","division":"features-and-maintenance","severity":"major"}
