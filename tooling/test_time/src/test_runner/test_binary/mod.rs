@@ -4,12 +4,13 @@ mod test_argument;
 
 use std::fmt;
 use std::path::PathBuf;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use listed_test::ListedTest;
 use listing::Listing;
 use test_argument::TestArgument;
 
+use crate::children_cpu::ChildrenCpu;
 use crate::test_run::TestRun;
 use crate::test_timing::TestTiming;
 use task::Failure;
@@ -62,13 +63,17 @@ impl TestBinary {
     }
 
     fn timed(&self, line: &CommandLine, test: impl fmt::Display) -> TestRun {
-        let started = Instant::now();
+        let (started, before) = (Instant::now(), ChildrenCpu::now());
         let ran = line.captured::<Stdout>();
-        let timing = TestTiming::new(&self.path, test, started.elapsed());
-        let outcome: fn(TestTiming) -> TestRun = ran
+        let elapsed = started.elapsed();
+        let spent = before.and_then(|before| ChildrenCpu::now().map(|after| after.since(before)));
+        let timing = |cpu| TestTiming::new(&self.path, &test, elapsed, cpu);
+        ran.and(spent)
             .inspect_err(|failure| eprintln!("{failure}"))
-            .map_or(TestRun::Failed, |_| TestRun::Passed);
-        outcome(timing)
+            .map_or_else(
+                |_| TestRun::Failed(timing(Duration::ZERO)),
+                |cpu| TestRun::Passed(timing(cpu)),
+            )
     }
 
     fn line(&self) -> CommandLine {

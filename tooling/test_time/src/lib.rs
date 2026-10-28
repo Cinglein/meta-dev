@@ -1,5 +1,6 @@
 mod cargo_build;
 mod cargo_test;
+mod children_cpu;
 mod no_tests;
 mod runner_config;
 mod test_run;
@@ -102,8 +103,9 @@ impl TestTime {
     fn recorded(mut self, policy: &Policy, ledger: &mut Ledger) -> Report {
         self.timings.sort_by_key(|timing| Reverse(timing.elapsed()));
         let total: Duration = self.timings.iter().map(TestTiming::elapsed).sum();
+        let cpu: Duration = self.timings.iter().map(TestTiming::cpu).sum();
         println!(
-            "test time: {} tests in {total:.2?}, slowest {}:",
+            "test time: {} tests in {total:.2?}, cpu {cpu:.2?}, slowest {}:",
             self.timings.len(),
             policy.limit(Limit::SlowestShown).count()
         );
@@ -118,6 +120,10 @@ impl TestTime {
         ledger.spend(
             Measure::TestWallTime,
             Amount::Duration(Millis::rounded_up(total)),
+        );
+        ledger.spend(
+            Measure::TestCpuTime,
+            Amount::Duration(Millis::rounded_up(cpu)),
         );
         ledger.spend(
             Measure::SlowestTest,
@@ -168,7 +174,8 @@ mod tests {
         let policy = Policy::defaults();
         let limit = policy.interval(Interval::PerTest).duration();
         let [binary, exact, slow, bulk] = NAMES;
-        let timing = |name: &str, elapsed| TestTiming::new(Path::new(binary), name, elapsed);
+        let timing =
+            |name: &str, elapsed| TestTiming::new(Path::new(binary), name, elapsed, elapsed);
         let exact = (0..WHOLE_IN_UNITS).map(|_| timing(exact, limit)).collect();
         let total = policy.interval(Interval::Total).duration();
         let over = TestTime::over_budget(

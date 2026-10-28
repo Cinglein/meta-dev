@@ -28,11 +28,11 @@ impl TestRun {
         }
     }
 
-    fn timed(nanos: &str, test: &str, binary: &str) -> Option<TestTiming> {
-        nanos
-            .parse()
-            .ok()
-            .map(|nanos| TestTiming::new(Path::new(binary), test, Duration::from_nanos(nanos)))
+    fn timed([wall, cpu, test, binary]: [&str; 4]) -> Option<TestTiming> {
+        let spent = |nanos: &str| nanos.parse().ok().map(Duration::from_nanos);
+        spent(wall)
+            .zip(spent(cpu))
+            .map(|(wall, cpu)| TestTiming::new(Path::new(binary), test, wall, cpu))
     }
 
     fn written(
@@ -43,8 +43,9 @@ impl TestRun {
         let separator = Self::SEPARATOR;
         write!(
             formatter,
-            "{outcome}{separator}{}{separator}{}{separator}{}",
+            "{outcome}{separator}{}{separator}{}{separator}{}{separator}{}",
             timing.elapsed().as_nanos(),
+            timing.cpu().as_nanos(),
             timing.test(),
             timing.binary().display()
         )
@@ -76,11 +77,11 @@ impl FromStr for TestRun {
         let fields: Vec<&str> = line.split(Self::SEPARATOR).collect();
         let run = match fields.as_slice() {
             [Self::UNLISTED, binary] => Some(TestRun::Unlisted(PathBuf::from(binary))),
-            [Self::PASSED, nanos, test, binary] => {
-                Self::timed(nanos, test, binary).map(TestRun::Passed)
+            [Self::PASSED, wall, cpu, test, binary] => {
+                Self::timed([wall, cpu, test, binary]).map(TestRun::Passed)
             }
-            [Self::FAILED, nanos, test, binary] => {
-                Self::timed(nanos, test, binary).map(TestRun::Failed)
+            [Self::FAILED, wall, cpu, test, binary] => {
+                Self::timed([wall, cpu, test, binary]).map(TestRun::Failed)
             }
             _ => None,
         };
