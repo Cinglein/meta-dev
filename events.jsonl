@@ -907,3 +907,4 @@
 {"at":"2026-10-28T02:27:03.284032Z","actor":"claude-spawncut","kind":"TaskLinked","task":"task-543f73f44c9ecd5c","pr":77}
 {"at":"2026-10-28T03:02:04.720868Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-543f73f44c9ecd5c","text":"Gain within CI noise; overlap not cuts; grouping loses test names. Next lever: product git spawns."}
 {"at":"2026-10-28T03:02:21.088732Z","actor":"claude-lead","kind":"TaskOpened","task":"task-29475a55431d1696","text":"Cut product git spawns: dedupe branch --show-current in hooks; cheaper pause-ref check keeping dangling-as-paused; no direct ref-file reads.","division":"performance-and-cost"}
+{"at":"2026-10-28T03:10:29.494992Z","actor":"claude-lead","kind":"ItemRated","item":"concern-5bc8cecd9314317c","division":"features-and-maintenance","change":{"step":"lowered","from":"major","level":"minor"}}
