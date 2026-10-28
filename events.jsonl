@@ -928,3 +928,4 @@
 {"at":"2026-10-28T04:59:09.925082Z","actor":"claude-lead","kind":"TaskOpened","task":"task-48fc1118f08abca6","text":"cargo-deny in meta-xtask ci (advisories, licenses, bans, sources), run in meta-dev CI and inherited by consumers.","division":"features-and-maintenance"}
 {"at":"2026-10-28T05:03:39.362754Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-e7d5c91cbecf32d0","text":"Lint backend with name and type resolution over the AST (rust-analyzer/SCIP), so primitive-boundary counts only used doors; shared with elegance measures."}
 {"at":"2026-10-28T05:03:58.424773Z","actor":"claude-refdoor","kind":"TaskClaimed","task":"task-57ca19df0a948106"}
+{"at":"2026-10-28T05:30:52.657171Z","actor":"claude-refdoor","kind":"TaskLinked","task":"task-57ca19df0a948106","pr":84}
