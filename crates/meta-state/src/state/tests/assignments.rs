@@ -35,7 +35,7 @@ fn unassigning_leaves_the_others_and_the_last_one_reopens_the_task() {
 }
 
 #[test]
-fn finishing_ends_every_assignment_and_reopening_starts_clean() {
+fn finishing_ends_every_assignment_and_reopening_restores_them() {
     let task = Events::task(vec![]);
     let id = task.task();
     let done = Script::default()
@@ -45,6 +45,9 @@ fn finishing_ends_every_assignment_and_reopening_starts_clean() {
         .then(BOB, Lifecycle::event(&task, DONE));
     assert!(done.assigned().is_empty() && matches!(done.status(), TaskStatus::Done(_)));
     let reopened = done.then(ALICE, Lifecycle::event(&task, REOPENED));
-    assert!(reopened.assigned().is_empty() && reopened.status() == TaskStatus::Open);
-    assert_eq!(reopened.vet(ALICE, Events::claim(id, None)), Ok(()));
+    assert_eq!(
+        (reopened.assigned(), reopened.status()),
+        (vec![Events::actor(ALICE), Events::actor(BOB)], TaskStatus::Assigned)
+    );
+    assert_eq!(reopened.vet(ALICE, Events::claim(id, None)), Err(Refusal::AlreadyAssigned(Events::actor(ALICE))));
 }
