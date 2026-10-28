@@ -3,7 +3,6 @@ mod gc;
 mod plist;
 mod scene;
 mod settings;
-mod skew;
 mod staging;
 mod supervised;
 mod tick;

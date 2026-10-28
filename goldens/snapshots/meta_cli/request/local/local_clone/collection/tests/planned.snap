@@ -1,0 +1,10 @@
+STRANDED in quarantine /trees/.gc-lost-1x0: may be read-only and locked; restore: meta gc restore /trees/.gc-lost-1x0; record follows from /trees/lost
+STRANDED in quarantine /trees/.gc-kept-2x0: may be read-only and locked; restore: meta gc restore /trees/.gc-kept-2x0
+STRANDED in quarantine /trees/.gc-old-9x9: may be read-only and locked; restore: meta gc restore /trees/.gc-old-9x9
+would free /trees/task-00000000000000b1: 1160 bytes; pr #1 merged
+kept /elsewhere/task-00000000000000b1: path escapes the worktree root; pr #1 merged
+would close /trees/gone: missing
+kept /trees/live: pr #2 open
+unrecorded /trees/stray: left alone
+[]
+scanned [["/trees/task-00000000000000b1"]]
