@@ -12,6 +12,7 @@ use skeleton::Skeleton;
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const OWNER: &str = "owner";
+const CLAIMED: &str = "TaskClaimed";
 const STATUS_FLAGS: [&str; 2] = ["status", "--flags"];
 const ORPHAN: &str = "orphan #8: open, no task\n";
 const FAKE_GH: &str = r#"#!/bin/sh
@@ -69,7 +70,7 @@ impl std::fmt::Display for Project {
 #[test]
 fn opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_the_rest() {
     let project = Project::new();
-    SeededLog::CLAIMED.plant(project.origin.path());
+    SeededLog::through(CLAIMED).plant(project.origin.path());
     let elsewhere = tempfile::tempdir().unwrap();
     let shell = format!("cd {project} && gh pr create --fill");
     let input = serde_json::json!({ "cwd": elsewhere.path(), "tool_input": { "command": shell } }).to_string();
