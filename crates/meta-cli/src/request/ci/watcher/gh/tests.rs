@@ -12,7 +12,7 @@ const REPLY: &str = r#"{"checkSuites":{"nodes":[{"status":"COMPLETED","conclusio
 const SCRIPT: &str = r#"#!/bin/sh
 d=$(dirname "$0"); [ "$1" = api ] && exec cat "$d/reply"
 [ -e "$d/ok" ] || { echo boom >&2; exit 1; }
-sleep 0.02; printf 'ci\tstep\ttest slow ... FAILED\n'
+sleep 1.5; printf 'ci\tstep\ttest slow ... FAILED\n'
 "#;
 const URL: &str = "https://github.com/o/r.git";
 const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
@@ -30,7 +30,7 @@ impl Fixture {
         std::fs::write(&program, SCRIPT).unwrap();
         std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755)).unwrap();
         std::fs::write(dir.path().join("reply"), REPLY).unwrap();
-        let text = format!("[ci]\nprogram = \"{}\"\ngh_millis = 10\n", program.display());
+        let text = format!("[ci]\nprogram = \"{}\"\ngh_millis = 1000\n", program.display());
         Self { dir, settings: CiSettings::try_from(&toml::from_str::<Config>(&text).unwrap()).unwrap() }
     }
 
