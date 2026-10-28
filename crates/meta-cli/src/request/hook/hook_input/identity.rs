@@ -1,5 +1,3 @@
-mod idents;
-
 use std::path::Path;
 use std::process::Command;
 use std::str::FromStr;
@@ -7,13 +5,12 @@ use std::str::FromStr;
 use meta_schema::Email;
 
 use crate::request::output::Listed;
-use idents::Idents;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Identity(Email);
 
 impl Identity {
-    const LISTED: [&'static str; 2] = ["var", "-l"];
+    const IDENTS: [&'static str; 2] = ["GIT_AUTHOR_IDENT", "GIT_COMMITTER_IDENT"];
 
     pub fn refusal_in(directory: &Path) -> Option<Listed> {
         let unresolved =
@@ -22,9 +19,11 @@ impl Identity {
     }
 
     fn foreign_in(directory: &Path) -> Option<Identity> {
-        let shown = Command::new("git").arg("-C").arg(directory).args(Self::LISTED).output().ok()?;
-        let Ok(idents) = String::from_utf8_lossy(&shown.stdout).parse::<Idents>();
-        idents.foreign()
+        Self::IDENTS.iter().find_map(|ident| {
+            let shown = Command::new("git").arg("-C").arg(directory).args(["var", ident]).output().ok()?;
+            let Ok(identity) = String::from_utf8_lossy(&shown.stdout).parse::<Identity>();
+            Some(identity).filter(|identity| !identity.0.noreply())
+        })
     }
 
     fn refusal(&self) -> Option<Listed> {
