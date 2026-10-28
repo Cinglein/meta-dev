@@ -25,7 +25,7 @@ impl StandingLog {
     }
 
     pub fn prefetched(root: &Path) -> Result<LogSource, Failure> {
-        Self::git(root).fetched_tip().map_err(Failure::GateFetch)?.map(LogSource::Prefetched).ok_or(Failure::NoLog)
+        Self::git(root).fetched_tip().map_err(Failure::GateFetch)?.map(LogSource::Prefetched).ok_or(Failure::GateNoLog)
     }
 
     pub fn state(snapshot: Result<Snapshot, Failure>) -> Result<State, Failure> {
@@ -81,6 +81,7 @@ mod tests {
 
     const CLOSED: &str = "standing budgets fail closed: meta/log";
     const GATE_CLOSED: &str = "local gate fails closed";
+    const GATE_EMPTY: &str = "local gate fails closed: meta/log has no events";
     const NOTHING: &str = "";
     const POLICY: &str = "tooling/policy.toml";
     const CAPS: &str = "\n[budgets.features-and-maintenance-critical]";
@@ -129,6 +130,8 @@ mod tests {
         let [writer, reader] = [Fixture::new(), Fixture::new()];
         writer.shared_origin(reader.write(UNREACHABLE, TOP));
         let append = || StandingLog::git(writer.root()).append::<LogFailure>(&mut |_| Ok(Stranding::rated(TOP, MINOR)));
+        let empty = StandingLog::prefetched(reader.root()).map(drop);
+        assert!(StandingLog::closed(&[empty], GATE_EMPTY));
         append().unwrap();
         let fetched = StandingLog::prefetched(reader.root()).unwrap();
         let log = StandingLog::git(reader.root());
