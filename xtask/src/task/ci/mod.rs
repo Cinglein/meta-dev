@@ -53,8 +53,7 @@ impl Ci {
                 let started = Instant::now();
                 let mut times = StepTimes::default();
                 let mut ledger = Ledger::default();
-                let log = StandingLog::git(workspace.root());
-                let read = || self.log.snapshot(&log);
+                let read = || self.log.snapshot(&StandingLog::git(workspace.root()));
                 let run = RunKind::from_ambient(&CommandLine::ambient());
                 let tracked = TrackedWork::refuse_untracked(&run, read);
                 let stepped = tracked
