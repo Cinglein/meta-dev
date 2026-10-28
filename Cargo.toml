@@ -43,3 +43,6 @@ unwrap_used = "deny"
 expect_used = "deny"
 panic = "deny"
 indexing_slicing = "deny"
+
+[profile.dev.package."*"]
+opt-level = 1
