@@ -3,6 +3,7 @@ mod unseen_run;
 
 use meta_pull_query::{LiveData, TrunkRun, TrunkVerdict};
 use meta_schema::PullRequest;
+use meta_state::TaskState;
 
 use crate::flag::Flag;
 use crate::github_failure::GithubFailure;
@@ -22,6 +23,16 @@ impl Github {
             Self::Reached(data) => data.pull(pull_request).map_or(Sight::Missing, Sight::Seen),
             Self::Unreached(_) => Sight::Unreached,
         }
+    }
+
+    #[must_use]
+    pub fn linked(&self, task: &TaskState) -> Vec<PullRequest> {
+        let known = task.pull_requests();
+        let headed = match self {
+            Self::Reached(data) => data.headed(task.new_task().task()),
+            Self::Unreached(_) => Vec::new(),
+        };
+        known.iter().copied().chain(headed.into_iter().filter(|pull_request| !known.contains(pull_request))).collect()
     }
 
     #[must_use]

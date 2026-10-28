@@ -2,7 +2,7 @@ mod page_info;
 
 use serde::Deserialize;
 
-pub use page_info::PageInfo;
+pub use page_info::{Cursor, PageInfo};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(bound(deserialize = "Node: Deserialize<'de>"), deny_unknown_fields)]
@@ -18,8 +18,13 @@ impl<Node> Page<Node> {
     }
 
     #[must_use]
-    pub fn page_info(&self) -> PageInfo {
-        self.page_info
+    pub fn page_info(&self) -> &PageInfo {
+        &self.page_info
+    }
+
+    #[must_use]
+    pub fn continued(self, next: Self) -> Self {
+        Self { nodes: self.nodes.into_iter().chain(next.nodes).collect(), page_info: next.page_info }
     }
 }
 

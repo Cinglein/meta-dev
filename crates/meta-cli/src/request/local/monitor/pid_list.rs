@@ -1,5 +1,6 @@
 use std::fmt;
-use std::process::Command;
+
+use meta_run::Run;
 
 use super::process_row::Pid;
 
@@ -11,8 +12,8 @@ impl PidList {
         Self(pids)
     }
 
-    pub fn appended(&self, command: &mut Command) {
-        command.arg(self.to_string());
+    pub fn appended(&self, run: Run) -> Run {
+        run.arg(self.to_string())
     }
 }
 

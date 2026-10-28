@@ -12,19 +12,16 @@ mod tip;
 pub use remote_heads::RemoteHeads;
 pub use sha::{NotCommitId, Sha};
 
+use meta_run::{Budget, Ran};
+use meta_schema::Record;
 use std::cell::RefCell;
 use std::fmt;
 use std::path::PathBuf;
-use std::process::Output;
-use std::time::Instant;
-
-use meta_schema::Record;
 
 use crate::LogStore;
 use crate::log_failure::LogFailure;
 use crate::remote_name::RemoteName;
 use crate::snapshot::Snapshot;
-use crate::stderr::Stderr;
 use attempt::Attempt;
 use content::Content;
 use fetched::Fetched;
@@ -46,8 +43,8 @@ impl GitLog {
     const STAGED: &'static str = "refs/meta-log/staged";
 
     #[must_use]
-    pub fn new(repo: PathBuf, remote: RemoteName) -> Self {
-        let git = Git::new(repo);
+    pub fn new(repo: PathBuf, remote: RemoteName, budget: Budget) -> Self {
+        let git = Git::new(repo, budget);
         Self { remote: Remote::new(git.clone(), remote), git, known: RefCell::default(), pacing: Pacing::Jittered }
     }
 
@@ -59,8 +56,8 @@ impl GitLog {
         Ok(self.remote.content_at(tip)?.snapshot())
     }
 
-    pub fn read_listed(&self, heads: &RemoteHeads, deadline: Instant) -> Result<Snapshot, LogFailure> {
-        Ok(self.remote.content_listed(heads, deadline)?.snapshot())
+    pub fn read_listed(&self, heads: &RemoteHeads) -> Result<Snapshot, LogFailure> {
+        Ok(self.remote.content_listed(heads)?.snapshot())
     }
 
     fn commit(&self, tip: Option<&Sha>, content: &Content, record: &Record) -> Result<Sha, LogFailure> {
@@ -76,7 +73,9 @@ impl GitLog {
             Remote::FILE,
             staged = Self::STAGED,
         );
-        self.git.command(["fast-import", "--quiet", "--date-format=now"]).input(Content::from(stream)).sha()
+        let importing = self.git.command(["fast-import", "--quiet", "--date-format=now"]).fed(stream);
+        let imported = self.git.ran(importing)?;
+        Ok(Content::try_from(imported)?.as_ref().parse()?)
     }
 
     fn attempt<Failure: From<LogFailure>>(
@@ -90,7 +89,6 @@ impl GitLog {
         let commit = self.commit(before.tip(), &appended, &record)?;
         let pushed = self.remote.push(&commit, before.tip())?;
         pushed
-            .status
             .success()
             .then(|| {
                 self.known.replace(Some(Fetched::new(Some(commit), appended)));
@@ -106,11 +104,11 @@ impl GitLog {
         Ok(fetched)
     }
 
-    fn after_failed_push(&self, before: &Fetched, record: Record, pushed: &Output) -> Result<Outcome, LogFailure> {
+    fn after_failed_push(&self, before: &Fetched, record: Record, pushed: &Ran) -> Result<Outcome, LogFailure> {
         let now = self.fresh()?;
         match (now.content().snapshot().records().contains(&record), now.tip() == before.tip()) {
             (true, _) => Ok(Outcome::Appended(record)),
-            (false, true) => Err(LogFailure::Rejected(Stderr::from(pushed))),
+            (false, true) => Err(LogFailure::Rejected(pushed.stderr().clone())),
             (false, false) => Ok(Outcome::Raced),
         }
     }
@@ -126,7 +124,7 @@ impl LogStore for GitLog {
         decide: &mut dyn FnMut(&Snapshot) -> Result<Record, Failure>,
     ) -> Result<Record, Failure> {
         Attempt::sequence()
-            .try_for_each(|attempt| Outcome::step(self.attempt(decide), attempt, self.pacing))
+            .try_for_each(|attempt| Outcome::step(self.attempt(decide), attempt, self.pacing, self.git.budget()))
             .break_value()
             .unwrap_or_else(|| Err(LogFailure::Contended.into()))
     }

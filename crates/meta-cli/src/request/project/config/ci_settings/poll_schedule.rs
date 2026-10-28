@@ -29,7 +29,7 @@ impl PollSchedule {
 mod tests {
     use std::time::Duration;
 
-    use crate::request::project::Config;
+    use crate::request::project::{CiSettings, Config};
 
     const SETTINGS: &str = "[ci]\nexpected_millis = 7\nbackoff_millis = 3\nbackoff_cap_millis = 20\n";
     const LEARNED: Duration = Duration::from_millis(5);
@@ -37,7 +37,7 @@ mod tests {
 
     #[test]
     fn the_first_poll_waits_the_expected_run_then_waits_double_to_the_cap_and_the_last_runs_to_the_deadline() {
-        let schedule = toml::from_str::<Config>(SETTINGS).unwrap().ci_settings().poll_schedule();
+        let schedule = CiSettings::try_from(&toml::from_str::<Config>(SETTINGS).unwrap()).unwrap().poll_schedule();
         let expected = WAITS.map(Duration::from_millis).into_iter().chain([Duration::MAX]);
         assert_eq!(schedule.waits(None).collect::<Vec<_>>(), expected.collect::<Vec<_>>());
         assert_eq!(schedule.waits(Some(LEARNED)).next(), Some(LEARNED));
