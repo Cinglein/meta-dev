@@ -1185,3 +1185,4 @@
 {"at":"2026-10-28T22:11:13.171666Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-653b1cd661807ce6","text":"Remedies design: tier 1 ships as-is (waterfall, wall time, CPU measure, golden and scenario harness); tier 2 steers (trait laws, suggestion lints ranked by lines per kill)."}
 {"at":"2026-10-28T22:15:06.467562Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-653b1cd661807ce6","text":"Remedies: no spec yet (owner). Note each dogfooding lesson with its remedy as found; tiers emerge while porting to Basho and chess."}
 {"at":"2026-10-28T22:17:51.490250Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-b32f0cb16f5d32a8"}
+{"at":"2026-10-28T22:17:52.829477Z","actor":"claude-lead","kind":"TaskDone","task":"task-b32f0cb16f5d32a8"}
