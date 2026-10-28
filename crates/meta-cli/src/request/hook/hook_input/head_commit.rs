@@ -85,7 +85,7 @@ mod tests {
         "claude-501/x\n@@ -9 +11 @@\n-old\n+/tmp/",
         "claude-1\n"
     );
-    const REMOVED: &str = concat!("@@ -3 +2,0 @@\n-/tmp/", "claude-1\n");
+    const REMOVED: &str = concat!("+++ b/tmp/", "claude-1\n@@ -3 +2,0 @@\n-/tmp/", "claude-1\n");
     const NAMED: &str = "f:3: agent scratch path";
 
     #[test]
