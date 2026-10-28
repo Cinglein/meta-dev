@@ -1130,3 +1130,4 @@
 {"at":"2026-10-28T18:26:55.943163Z","actor":"claude-fcore4","kind":"TaskLinked","task":"task-79bab6623cc9a724","pr":128}
 {"at":"2026-10-28T18:45:28.371682Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-a786d97d3e58382f","text":"gh stack push pushes every local stack branch, so an agent with a stale copy rewound another agent's branch (claim, restored). Shared stacks need per-agent push scope.","division":"features-and-maintenance","severity":"major"}
 {"at":"2026-10-28T18:46:25.635322Z","actor":"claude-fcore4","kind":"TaskLinked","task":"task-79bab6623cc9a724","pr":129}
+{"at":"2026-10-28T18:50:38.568641Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-a6375369ebaf3ce6","text":"meta status reads branch rules serially per open-PR base; a 10-PR stack exceeds the 5 s GitHub deadline, so status shows 'unknown github'. Fold into GraphQL or read the default base only.","division":"performance-and-cost","severity":"major"}
