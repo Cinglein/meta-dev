@@ -8,8 +8,6 @@ mod lint;
 mod prior_policy;
 mod ratchet;
 mod revision;
-#[cfg(test)]
-mod snapshot;
 mod surfaces;
 mod test;
 mod usage;
