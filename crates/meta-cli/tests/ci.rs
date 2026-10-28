@@ -185,9 +185,33 @@ impl Started {
     fn building(scenario: &'static str, limits: &'static str) -> std::thread::JoinHandle<Repo> {
         std::thread::spawn(move || {
             let repo = Repo::limited(scenario, limits);
+            (scenario == NONE).then(|| Calls::plant(&repo));
             repo.hook(POST, COMMIT);
             repo
         })
+    }
+}
+
+struct Calls;
+
+impl Calls {
+    const MAX: usize = 10;
+    const EXPECTED: &'static str = ".git/meta-ci/expected";
+    const PLANTED: &'static str = "60000";
+    const LEARNED: &'static str = "240000";
+
+    fn plant(repo: &Repo) {
+        std::fs::create_dir_all(repo.clone.path().join(Self::EXPECTED).parent().unwrap()).unwrap();
+        std::fs::write(repo.clone.path().join(Self::EXPECTED), Self::PLANTED).unwrap();
+    }
+
+    fn within_budget(repo: &Repo) -> bool {
+        let log = std::fs::read_to_string(repo.clone.path().join("calls")).unwrap_or_default();
+        let polls: std::collections::BTreeSet<&str> = log.lines().collect();
+        let learned = std::fs::read_to_string(repo.clone.path().join(Self::EXPECTED)).unwrap_or_default();
+        (1..=Self::MAX).contains(&polls.len())
+            && polls.len() == log.lines().count()
+            && [log.lines().next(), Some(learned.as_str())] == [Some(Self::PLANTED), Some(Self::LEARNED)]
     }
 }
 
@@ -412,10 +436,12 @@ fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
         .map(|started| started.join().unwrap());
     let [absent, late, broken, mixed, hung, frozen] = repos.each_ref().map(Repo::settled);
     let [none, appeared, _, _, hanging, _] = &repos;
+    let budgeted = Calls::within_budget(none);
     let waited = none.session_command(CI_WAIT);
     let [appeared, hanging_stop] = [appeared, hanging].map(|repo| repo.hook(STOP, COMMIT));
     assert!(
         absent.contains(ABSENT)
+            && budgeted
             && absent.split_once(NO_RUN_YET).is_some_and(|(_, after)| !after.contains(NO_RUN_YET))
             && none.hook(STOP, COMMIT).contains(&format!("{ABSENT_STOP}{INJECTED}"))
             && !waited.1.success()
