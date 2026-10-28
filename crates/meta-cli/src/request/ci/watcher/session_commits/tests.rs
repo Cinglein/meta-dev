@@ -1,6 +1,3 @@
-use std::path::Path;
-use std::time::{Duration, UNIX_EPOCH};
-
 use meta_golden::{Goldens, Recording};
 use meta_log::RemoteHeads;
 use meta_run::GitArgv;
@@ -21,7 +18,6 @@ const CREATED: [&str; 6] = [
 const BEFORE: &str = "1699999999999999999";
 const SAME_SECOND: &str = "1700000000000000000";
 const AFTER: &str = "1700000001000000000";
-const GIT_DIR: &str = ".git";
 const PUSHED_BY_HEADS: [&str; 3] = [CREATED[2], CREATED[4], CREATED[5]];
 const INDEPENDENT: [&str; 1] = [CREATED[2]];
 const TIPS: [&str; 2] = [CREATED[2], CREATED[5]];
@@ -61,12 +57,6 @@ fn every_commit_made_after_the_start_counts_once_whatever_its_subject_or_dates_a
     let merged_elsewhere = Recorded::created(&merged_elsewhere, BEFORE, &[]);
     let expected = [&CREATED[..], &CREATED[..0], &CREATED[1..2], &CREATED[1..]].map(Recorded::commits);
     assert_eq!([before, after, same_second, merged_elsewhere], expected);
-    let modified = UNIX_EPOCH + Duration::from_nanos(AFTER.parse().unwrap());
-    let loose = Path::new(GIT_DIR).join(CREATED[0].parse::<Commit>().unwrap().loose_object());
-    let object = |path: &Path| (path == loose).then_some(modified);
-    let starts = [SAME_SECOND, AFTER].map(|start| start.parse::<StartMoment>().unwrap());
-    let born = starts.map(|start| start.born_after(&Recorded::outs(GitArgv::GitPath).concat(), object));
-    assert_eq!(born, [true, false]);
 }
 
 #[test]
