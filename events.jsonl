@@ -1235,3 +1235,4 @@
 {"at":"2026-10-28T23:51:07.727424Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-7aca83c914a7509d","text":"Main mutants red: flaky baseline fixed (#140); honest run 40787146377 shows 13 missed mutants across meta-cli, meta-log, task, test_time."}
 {"at":"2026-10-28T23:51:53.456540Z","actor":"claude-kill13","kind":"TaskOpened","task":"task-92b42baa1363a624","text":"Catch the 13 missed mutants on main","division":"performance-and-cost","addresses":["concern-7aca83c914a7509d"]}
 {"at":"2026-10-28T23:52:00.368100Z","actor":"claude-kill13","kind":"TaskClaimed","task":"task-92b42baa1363a624"}
+{"at":"2026-10-28T23:52:05.996506Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-e7a7789bdce045cf","text":"Duplicate: mutants wall-time budgets exist (mutants-diff-job, mutants-full-job in the ledger); agent polling is concern-90d13b48."}
