@@ -141,7 +141,6 @@ impl LocalClone {
             let lifetime = status.lifetime(worktree.task());
             Tracked::new(worktree, lifetime)
         });
-        let census = Census::new(tracked.collect(), self.listed()?);
         let root = std::fs::canonicalize(&root).unwrap_or(root);
         let context = Context::new(
             self.checkout.clone(),
@@ -149,7 +148,10 @@ impl LocalClone {
             root,
             project.config().remote()?.clone(),
         );
-        let collection = Collection::swept(&Sweeper::new(sweep, &context, &Host::default()), &census);
+        let host = Host::default();
+        let listed = context.worktrees(&host).as_ref().map_err(CliFailure::raised::<Setup>)?;
+        let census = Census::new(tracked.collect(), self.paths(listed));
+        let collection = Collection::swept(&Sweeper::new(sweep, &context, &host), &census);
         collection.trailed(Utc::now()).iter().try_for_each(|entry| LocalTrail::append(self.git_dir.as_ref(), entry))?;
         Ok(Output::Listed(Listed::new(collection)))
     }
@@ -163,12 +165,16 @@ impl LocalClone {
 
     fn listed(&self) -> Result<Vec<PathBuf>, CliFailure> {
         let listed = Git::new(&self.checkout).output(&["worktree", "list", "--porcelain"].map(OsStr::new))?;
-        Ok(listed
+        Ok(self.paths(&listed))
+    }
+
+    fn paths(&self, listed: &str) -> Vec<PathBuf> {
+        listed
             .lines()
             .filter_map(|line| line.strip_prefix(Self::LISTED_PREFIX))
             .map(|path| std::fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path)))
             .filter(|path| *path != self.checkout)
-            .collect())
+            .collect()
     }
 
     fn settings(&self) -> Result<LocalSettings, CliFailure> {

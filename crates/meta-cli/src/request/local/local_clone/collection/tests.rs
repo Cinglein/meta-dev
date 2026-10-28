@@ -48,6 +48,8 @@ const REMOVALS: [&str; 2] =
     ["worktree remove /trees/.gc-task-00000000000000b1-1x0", "update-ref -d refs/heads/task-00000000000000b1 c1"];
 const UNREMOVED: &str = "kept /trees/task-00000000000000b1: removal failed: offline; pr #1 merged\n";
 const LIVE_ONLY: &str = "kept /trees/live: pr #2 open\n";
+const REMOTE_REFS: &str = "ls-remote";
+const SWEEP_AND_RECHECK_LISTINGS: usize = 2;
 
 struct Scene {
     host: FakeHost,
@@ -102,6 +104,8 @@ fn a_sweep_re_vets_removes_the_worktree_then_its_branch_and_trails_each_removal_
     let calls = scene.host.calls();
     let removed = REMOVALS.map(|removal| calls.iter().position(|call| call.ends_with(removal)));
     assert!(removed[0].zip(removed[1]).is_some_and(|(remove, unbranch)| remove < unbranch), "{calls:?}");
+    let listed = calls.iter().filter(|call| call.contains(REMOTE_REFS)).count();
+    assert_eq!(listed, SWEEP_AND_RECHECK_LISTINGS, "{calls:?}");
 }
 
 #[test]
