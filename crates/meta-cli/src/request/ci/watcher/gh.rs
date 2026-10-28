@@ -6,7 +6,6 @@ mod raw_log;
 
 use std::ffi::OsString;
 use std::path::PathBuf;
-use std::process::Command;
 use std::time::{Duration, Instant};
 
 use crate::request::ci::ci_status::CiStatus;
@@ -14,11 +13,11 @@ use crate::request::ci::commit::Commit;
 use crate::request::output::Listed;
 use crate::request::project::{CiSettings, LogWindow, ProgramName};
 use crate::request::repository::Repository;
-use crate::request::timed_command::TimedCommand;
 use commit_checks::CommitChecks;
 use gh_jobs::GhJobs;
 use gh_suite::GhSuite;
 use meta_gh::GhRun;
+use meta_run::{EnvPolicy, Run};
 pub use observation::Observation;
 pub use raw_log::RawLog;
 
@@ -87,9 +86,8 @@ impl Gh {
     }
 
     fn run(&self, words: impl Iterator<Item = OsString>, deadline: Instant) -> Result<String, Listed> {
-        let mut command = Command::new(&self.program);
-        command.args(words).current_dir(&self.root);
-        TimedCommand::new(command, deadline).stdout().map_err(Self::failed)
+        let run = Run::new(&self.program, EnvPolicy::Inherit).args(words).dir(&self.root);
+        run.stdout(deadline).map_err(Self::failed)
     }
 }
 

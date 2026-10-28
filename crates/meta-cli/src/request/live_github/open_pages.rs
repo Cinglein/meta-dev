@@ -4,6 +4,7 @@ use meta_pull_query::{LiveQuery, LiveReply, Pulls};
 use meta_status::GithubFailure;
 
 use super::LiveGithub;
+use super::unanswered::Unanswered;
 
 #[derive(Clone, Copy, Debug)]
 pub struct OpenPages<'github> {
@@ -33,8 +34,8 @@ impl<'github> OpenPages<'github> {
         let after = cursor.iter().flat_map(|variable| [OsStr::new(LiveGithub::QUERY), OsStr::new(variable)]);
         let first = [OsStr::new(LiveGithub::QUERY), OsStr::new(&field)];
         let words = LiveGithub::GRAPHQL.map(OsStr::new).into_iter().chain(first).chain(after);
-        let finished = self.github.ran(words).map_err(GithubFailure::new)?;
-        let reply = serde_json::from_str::<LiveReply>(finished.output()).ok().and_then(LiveReply::answered);
-        reply.ok_or_else(|| GithubFailure::new(finished))
+        let ran = self.github.run(words).ran(self.github.deadline).map_err(GithubFailure::new)?;
+        let reply = serde_json::from_str::<LiveReply>(&ran.stdout().text()).ok().and_then(LiveReply::answered);
+        reply.ok_or_else(|| GithubFailure::new(Unanswered::new(&ran)))
     }
 }

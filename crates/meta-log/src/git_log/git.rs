@@ -1,36 +1,41 @@
-mod git_command;
-
 use std::ffi::OsStr;
 use std::path::PathBuf;
-use std::process::Command;
 
-pub use git_command::GitCommand;
+use meta_run::{Budget, Ran, Run};
+
+use crate::log_failure::LogFailure;
 
 #[derive(Clone, Debug)]
 pub struct Git {
     repo: PathBuf,
+    budget: Budget,
 }
 
 impl Git {
-    const ISOLATED: [&'static str; 3] = ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"];
-
-    pub fn new(repo: PathBuf) -> Self {
-        Self { repo }
+    pub fn new(repo: PathBuf, budget: Budget) -> Self {
+        Self { repo, budget }
     }
 
-    pub fn command<Word: AsRef<OsStr>>(&self, words: impl IntoIterator<Item = Word>) -> GitCommand {
-        let mut command = Command::new("git");
-        command.arg("-C").arg(&self.repo).args(words);
-        Self::ISOLATED.iter().fold(&mut command, |command, variable| command.env_remove(variable));
-        GitCommand::new(command)
+    pub fn command<Word: AsRef<OsStr>>(&self, words: impl IntoIterator<Item = Word>) -> Run {
+        Run::git(&self.repo).args(words)
+    }
+
+    pub fn ran(&self, run: Run) -> Result<Ran, LogFailure> {
+        Ok(run.ran(self.budget.deadline())?)
+    }
+
+    pub fn budget(&self) -> &Budget {
+        &self.budget
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
+    use std::time::Duration;
 
-    use super::Git;
+    use super::{Budget, Git};
+    use crate::git_log::content::Content;
 
     const NOWHERE: &str = "/nonexistent/meta";
     const STATUS: [&str; 1] = ["status"];
@@ -38,8 +43,8 @@ mod tests {
 
     #[test]
     fn failures_name_the_git_command() {
-        let failure =
-            Git::new(PathBuf::from(NOWHERE)).command(STATUS).content().err().map(|failure| failure.to_string());
-        assert!(failure.is_some_and(|failure| failure.starts_with(FAILED)));
+        let git = Git::new(PathBuf::from(NOWHERE), Budget::new(Duration::from_secs(5)));
+        let failure = git.ran(git.command(STATUS)).map(|ran| Content::try_from(ran).err().map(|ran| ran.to_string()));
+        assert!(failure.is_ok_and(|failure| failure.is_some_and(|failure| failure.starts_with(FAILED))));
     }
 }

@@ -12,6 +12,7 @@ path = "src/main.rs"
 [dependencies]
 meta-schema.workspace = true
 meta-log.workspace = true
+meta-run.workspace = true
 meta-listing.workspace = true
 meta-status.workspace = true
 meta-pull-query.workspace = true

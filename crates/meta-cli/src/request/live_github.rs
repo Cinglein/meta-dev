@@ -1,16 +1,16 @@
 use std::ffi::OsStr;
 use std::path::PathBuf;
-use std::process::Command;
 use std::time::Instant;
 
 use meta_pull_query::{LiveData, LiveQuery, Rulebook, WorkflowName};
 use meta_pulls::{BaseBranch, RequiredChecks, RuleSource};
+use meta_run::{EnvPolicy, Run};
 use meta_schema::PullRequest;
 use meta_status::{Github, GithubFailure};
 
 use crate::request::project::{BranchName, ProgramName, Project};
-use crate::request::timed_command::{Finished, TimedCommand};
 use open_pages::OpenPages;
+use unanswered::Unanswered;
 
 mod open_pages;
 
@@ -37,10 +37,14 @@ impl LiveGithub {
     }
 
     pub fn for_project(project: &Project) -> Self {
-        let config = project.config();
-        let settings = config.ci_settings();
-        let workflows = config.required_workflows().to_vec();
+        let settings = project.ci_settings();
+        let workflows = project.config().required_workflows().to_vec();
         Self::new(settings.program().clone(), project.root().to_path_buf(), settings.remote_deadline(), workflows)
+    }
+
+    #[must_use]
+    pub fn within(self, overall: Instant) -> Self {
+        Self { program: self.program, root: self.root, deadline: self.deadline.min(overall), workflows: self.workflows }
     }
 
     pub fn read(&self, query: &LiveQuery) -> Github {
@@ -49,7 +53,7 @@ impl LiveGithub {
 
     pub fn pulls_from(&self, branch: &BranchName) -> Vec<PullRequest> {
         let words = Self::HEADED.map(OsStr::new).into_iter().chain([branch.as_ref()]);
-        let listed = self.ran(words.chain(Self::SAME_REPOSITORY.map(OsStr::new))).and_then(Finished::succeeded);
+        let listed = self.run(words.chain(Self::SAME_REPOSITORY.map(OsStr::new))).stdout(self.deadline);
         listed.unwrap_or_default().lines().filter_map(|line| line.parse().ok()).collect()
     }
 
@@ -73,25 +77,21 @@ impl LiveGithub {
     fn required(&self, source: RuleSource, base: &BaseBranch) -> Result<RequiredChecks, GithubFailure> {
         let endpoint = base.endpoint(source);
         let words = [Self::API, endpoint.as_str(), Self::FILTER, source.filter()].map(OsStr::new);
-        let finished = self.ran(words.into_iter()).map_err(GithubFailure::new)?;
-        match (source, finished.not_found()) {
+        let ran = self.run(words.into_iter()).ran(self.deadline).map_err(GithubFailure::new)?;
+        match (source, Unanswered::new(&ran).not_found()) {
             (RuleSource::Protection, Some(())) => Ok(RequiredChecks::default()),
             (RuleSource::Rulesets | RuleSource::Protection, _) => {
-                let printed = finished.succeeded().map_err(GithubFailure::new)?;
+                let printed = ran.succeeded().map_err(GithubFailure::new)?;
                 serde_json::from_str(&printed).map_err(GithubFailure::new)
             }
         }
     }
 
-    fn ran<'words>(
-        &self,
-        words: impl Iterator<Item = &'words OsStr>,
-    ) -> Result<Finished, crate::request::output::Listed> {
-        let mut command = Command::new(&self.program);
-        command.args(words).current_dir(&self.root);
-        TimedCommand::new(command, self.deadline).finished()
+    fn run<'words>(&self, words: impl Iterator<Item = &'words OsStr>) -> Run {
+        Run::new(&self.program, EnvPolicy::Inherit).args(words).dir(&self.root)
     }
 }
 
 #[cfg(test)]
 mod tests;
+mod unanswered;
