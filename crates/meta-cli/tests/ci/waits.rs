@@ -2,15 +2,11 @@ use super::seeded_log::{SeededLog, TASK};
 use super::{BLOCK, COMMIT, Git, NEXT_COMMIT, Planted, Repo, SHELL, STOP, SUCCESS, TIMED_OUT_STOP};
 
 const TIMED_OUT: &str = "timed-out";
-const COUNTING_GIT: &str =
-    "#!/bin/sh\necho \"$3\" >> \"$FAKE_GH_DIR/git-calls\"\nPATH=\"${PATH#*:}\" exec git \"$@\"\n";
-const WRAPPER: &str = "bin/git";
-const CALLS: &str = "git-calls";
-const STOP_CALLS: [&str; 5] = ["log", "ls-remote", "merge-base", "rev-list", "rev-parse"];
 const DETACH: [&str; 3] = ["checkout", "-q", "--detach"];
 const PUSH_HEAD: [&str; 4] = ["push", "-q", "origin", "HEAD:refs/heads/pushed"];
 const WAIT_ON_CI: [&str; 4] = ["wait", TASK, "--on", "ci"];
 const TASKLESS: &str = "then run `meta wait <task> --on ci` here";
+const STOP_CALLS: [&str; 6] = ["cat-file", "log", "ls-remote", "merge-base", "rev-list", "rev-parse"];
 
 struct Unresolved;
 
@@ -22,8 +18,30 @@ impl Unresolved {
     }
 }
 
+struct Counted;
+
+impl Counted {
+    const GIT: &'static str =
+        "#!/bin/sh\necho \"$3\" >> \"$FAKE_GH_DIR/git-calls\"\nPATH=\"${PATH#*:}\" exec git \"$@\"\n";
+    const WRAPPER: &'static str = "bin/git";
+    const CALLS: &'static str = "git-calls";
+
+    fn install(repo: &Repo) {
+        let wrapper = repo.clone.path().join(Self::WRAPPER);
+        std::fs::write(&wrapper, Self::GIT).unwrap();
+        std::fs::set_permissions(&wrapper, std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
+    }
+
+    fn calls(repo: &Repo) -> Vec<String> {
+        let text = std::fs::read_to_string(repo.clone.path().join(Self::CALLS)).unwrap_or_default();
+        let mut calls: Vec<String> = text.lines().map(str::to_owned).collect();
+        calls.sort_unstable();
+        calls
+    }
+}
+
 #[test]
-fn on_a_detached_head_a_wait_covers_only_the_head_it_was_recorded_at() {
+fn on_a_detached_head_a_wait_covers_only_its_head_and_a_typical_stop_lists_the_remote_once() {
     let repo = Repo::new(SUCCESS);
     SeededLog::CLAIMED.plant(repo.origin.path());
     Git::run(repo.clone.path(), &DETACH);
@@ -31,23 +49,9 @@ fn on_a_detached_head_a_wait_covers_only_the_head_it_was_recorded_at() {
     repo.meta(&WAIT_ON_CI);
     let recorded = repo.hook(STOP, COMMIT);
     Git::run(repo.clone.path(), &NEXT_COMMIT);
+    Counted::install(&repo);
     let moved_on = Unresolved::pushed(&repo);
     assert!(unrecorded.contains(TIMED_OUT_STOP) && unrecorded.contains(TASKLESS));
     assert!(serde_json::from_str::<serde_json::Value>(&unrecorded).is_ok() && !recorded.contains(BLOCK));
-    assert!(moved_on.contains(TASKLESS));
-}
-
-#[test]
-fn a_typical_stop_lists_the_remote_once_in_five_git_calls() {
-    let repo = Repo::new(SUCCESS);
-    Git::run(repo.clone.path(), &NEXT_COMMIT);
-    let wrapper = repo.clone.path().join(WRAPPER);
-    std::fs::write(&wrapper, COUNTING_GIT).unwrap();
-    std::fs::set_permissions(&wrapper, std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
-    let stop = Unresolved::pushed(&repo);
-    let calls = std::fs::read_to_string(repo.clone.path().join(CALLS)).unwrap();
-    let mut calls: Vec<&str> = calls.lines().collect();
-    calls.sort_unstable();
-    assert!(stop.contains(TIMED_OUT_STOP) && stop.contains(TASKLESS));
-    assert_eq!(calls, STOP_CALLS);
+    assert!(moved_on.contains(TASKLESS) && Counted::calls(&repo) == STOP_CALLS);
 }

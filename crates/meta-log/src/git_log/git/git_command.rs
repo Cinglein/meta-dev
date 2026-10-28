@@ -1,12 +1,15 @@
 mod pipe_bytes;
+mod process_group;
 
 use std::ffi::OsStr;
 use std::io::{self, Read, Write as _};
+use std::os::unix::process::CommandExt as _;
 use std::process::{Command, Output, Stdio};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use pipe_bytes::PipeBytes;
+use process_group::ProcessGroup;
 
 use crate::command_line::CommandLine;
 use crate::git_log::content::Content;
@@ -45,11 +48,21 @@ impl GitCommand {
         handle.join().unwrap_or_else(|_| Err(io::Error::other("output reader panicked")))
     }
 
-    pub fn timed_output(mut self) -> Result<Output, LogFailure> {
-        let mut child = self.command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
+    pub fn network_deadline() -> Instant {
+        Instant::now() + Self::NETWORK_TIMEOUT
+    }
+
+    pub fn timed_output(mut self, deadline: Instant) -> Result<Output, LogFailure> {
+        let started = Instant::now();
+        let mut child = self
+            .command
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .process_group(i32::default())
+            .spawn()?;
         let stdout = Self::drain(child.stdout.take());
         let stderr = Self::drain(child.stderr.take());
-        let deadline = Instant::now() + Self::NETWORK_TIMEOUT;
         let finished = std::iter::from_fn(|| deadline.checked_duration_since(Instant::now())).find_map(|_| {
             std::thread::sleep(Self::POLL);
             child.try_wait().transpose()
@@ -58,8 +71,10 @@ impl GitCommand {
             let status = status?;
             Ok(Self::drained(stdout)?.into_output(status, Self::drained(stderr)?))
         } else {
-            child.kill()?;
-            Err(LogFailure::TimedOut { command: CommandLine::from(&self.command), after: Self::NETWORK_TIMEOUT })
+            ProcessGroup::led_by(&child).kill()?;
+            child.wait()?;
+            let after = deadline.saturating_duration_since(started);
+            Err(LogFailure::TimedOut { command: CommandLine::from(&self.command), after })
         }
     }
 
@@ -100,7 +115,8 @@ mod tests {
     fn output_past_the_pipe_buffer_is_returned() {
         let mut command = Command::new("head");
         command.args(["-c", &PAST_PIPE_BUFFER.to_string(), "/dev/zero"]);
-        let output = GitCommand::new(command).timed_output().map(|output| output.stdout.len());
+        let output =
+            GitCommand::new(command).timed_output(GitCommand::network_deadline()).map(|output| output.stdout.len());
         assert_eq!(output.ok(), Some(PAST_PIPE_BUFFER));
     }
 }
