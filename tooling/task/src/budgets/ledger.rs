@@ -203,11 +203,15 @@ mod tests {
                 Measure::TestLineShare,
                 Amount::Share(Percent::from(BASELINED_SHARE)),
             );
-            ledger.spend(
+            ledger.tangled();
+            ledger
+        }
+
+        fn tangled(&mut self) {
+            self.spend(
                 Measure::TangleItems,
                 Amount::Count(Most::from(BASELINED_TANGLE * 2)),
             );
-            ledger
         }
     }
 
@@ -289,9 +293,12 @@ mod tests {
         let ledger = Ledger::overspent(&policy);
         assert_eq!(ledger.statement(&policy).to_string(), STATEMENT);
         let unreached = Selection::Crates(BTreeSet::new());
+        let mut linted = Ledger::default();
+        linted.tangled();
         assert!(
             ledger.checked(&policy, &Selection::Workspace).is_err()
                 && ledger.checked(&policy, &unreached).is_ok()
+                && linted.checked(&policy, &Selection::Workspace).is_ok()
         );
     }
 }
