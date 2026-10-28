@@ -28,8 +28,7 @@ impl Stranding {
     }
 
     pub fn rescaling(root: &Path, policy: &Policy, databases: &Path) -> Result<Option<Scales>, Failure> {
-        let before =
-            PriorPolicy::scales_at(&Revision::merge_base(root, policy.branch(Branch::Base))?, databases)?;
+        let before = PriorPolicy::scales_at(&Revision::merge_base(root, policy.branch(Branch::Base))?, databases)?;
         Ok(Some(before).filter(|before| before != policy.scales()))
     }
 
@@ -60,6 +59,9 @@ mod tests {
     const OLD_LEVELS: &str = r#"[{"name": "blocker", "meaning": "x"}, {"name": "nuisance", "meaning": "x"}]"#;
     const LOCK: &str = "Cargo.lock";
     const PIN: &str = "[[package]]\nname = \"meta-xtask\"\nsource = \"git+https://example.invalid/meta-dev?tag=v0#";
+    const END: &str = "\"\n";
+    const TIP: &str = "HEAD";
+    const JUDGED: [Option<bool>; 3] = [Some(true), Some(true), None];
     const UNSOURCED: &str = "[[package]]\nname = \"meta-xtask\"\n";
     const TOP: &str = "features-and-maintenance";
     const MAJOR: &str = "major";
@@ -95,12 +97,12 @@ mod tests {
 
     #[test]
     fn scales_changed_since_the_merge_base_policy_or_default_levels_are_judged_and_unchanged_ones_are_not() {
-        let [fixture, relevelled, shipped, pinned, unpinned] = [(); 5].map(|()| Fixture::new());
+        let [fixture, relevelled, shipped, pinned, unpinned] = std::array::from_fn(|_| Fixture::new());
         let current = serde_json::to_string(&Scale::top_default()).unwrap();
         fixture.write(PriorPolicy::PATH, PRIOR).write(PriorPolicy::DEFAULT_LEVELS, &current).branch();
         relevelled.write(PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS).branch();
         shipped.write(PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS).committed();
-        pinned.write(LOCK, &format!("{PIN}{}\"\n", shipped.revision("HEAD").trim())).branch();
+        pinned.write(LOCK, &format!("{PIN}{}{END}", shipped.revision(TIP).trim())).branch();
         unpinned.write(LOCK, UNSOURCED).branch();
         let databases = shipped.root().parent().unwrap();
         let uncapped = Policy::DEFAULTS.split(CAPS).next().unwrap_or_default();
@@ -109,8 +111,8 @@ mod tests {
         let read = |fixture: &Fixture, policy: &Policy| Stranding::rescaling(fixture.root(), policy, databases);
         assert_eq!(read(&fixture, &Policy::defaults()).unwrap(), Some(before));
         assert_eq!(read(&fixture, &same).unwrap(), None);
-        assert!(read(&relevelled, &Policy::defaults()).unwrap().is_some());
-        assert!(read(&pinned, &Policy::defaults()).unwrap().is_some());
-        assert!(read(&unpinned, &Policy::defaults()).is_err());
+        let judged = [&relevelled, &pinned, &unpinned]
+            .map(|fixture| read(fixture, &Policy::defaults()).map(|rescaled| rescaled.is_some()).ok());
+        assert_eq!(judged, JUDGED);
     }
 }

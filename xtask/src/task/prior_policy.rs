@@ -1,3 +1,4 @@
+mod pinned_xtask;
 mod prior_budget;
 
 use std::collections::BTreeMap;
@@ -9,7 +10,8 @@ use serde::Deserialize;
 use task::{BaselineFile, Surface};
 
 use crate::task::failure::Failure;
-use crate::task::revision::Revision;
+use crate::task::revision::{Revision, TrackedPath};
+use pinned_xtask::PinnedXtask;
 use prior_budget::PriorBudget;
 
 #[derive(Debug, Default, Deserialize)]
@@ -25,16 +27,32 @@ pub struct PriorPolicy {
 
 impl PriorPolicy {
     pub const PATH: &str = "tooling/policy.toml";
+    const LOCK: &str = "Cargo.lock";
     pub const DEFAULT_LEVELS: &str = "crates/meta-severity/src/default_levels.json";
 
     pub fn read_at(revision: &Revision) -> Result<PriorPolicy, Failure> {
         Self::parsed(revision.present(Path::new(Self::PATH))?)
     }
 
-    pub fn scales_at(revision: &Revision, _databases: &Path) -> Result<Scales, Failure> {
-        let levels = revision.present(Path::new(Self::DEFAULT_LEVELS))?;
-        let parsed = levels.map(|text| serde_json::from_str(&text).map_err(Failure::PriorLevels)).transpose()?;
-        Self::read_at(revision)?.scaled(&parsed.unwrap_or_else(Scale::top_default))
+    pub fn scales_at(revision: &Revision, databases: &Path) -> Result<Scales, Failure> {
+        let levels = Self::levels_at(revision, databases)?;
+        let parsed: Scale = serde_json::from_str(&levels).map_err(Failure::PriorLevels)?;
+        Self::read_at(revision)?.scaled(&parsed)
+    }
+
+    fn levels_at(revision: &Revision, databases: &Path) -> Result<String, Failure> {
+        revision.tracked(TrackedPath::new(Path::new(Self::DEFAULT_LEVELS)))?.map_or_else(
+            || {
+                let lock = revision.present(Path::new(Self::LOCK))?;
+                lock.as_deref()
+                    .map(PinnedXtask::in_lock)
+                    .transpose()?
+                    .flatten()
+                    .ok_or(Failure::NoPinnedLevels)?
+                    .levels(databases)
+            },
+            Ok,
+        )
     }
 
     fn parsed(text: Option<String>) -> Result<PriorPolicy, Failure> {

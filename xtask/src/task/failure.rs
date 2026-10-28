@@ -43,6 +43,12 @@ pub enum Failure {
     Demoted(Demotions),
     #[error("merge-base tooling/policy.toml does not parse: {0}")]
     PriorPolicy(toml::de::Error),
+    #[error("merge-base Cargo.lock does not parse: {0}")]
+    PriorLock(toml::de::Error),
+    #[error(
+        "merge-base default severity levels fail closed: not in the tree, and no pinned meta-xtask commit is in the cargo git databases"
+    )]
+    NoPinnedLevels,
     #[error("merge-base default severity levels do not parse: {0}")]
     PriorLevels(serde_json::Error),
     #[error("merge-base scales: {0}")]

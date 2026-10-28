@@ -1,5 +1,6 @@
 mod commit;
 mod foreign_emails;
+mod tracked_path;
 
 use std::path::{Path, PathBuf};
 
@@ -8,6 +9,7 @@ use task::{BranchName, CommandLine, Program, Stdout};
 use crate::task::failure::Failure;
 pub use commit::Commit;
 pub use foreign_emails::ForeignEmails;
+pub use tracked_path::TrackedPath;
 
 #[derive(Debug)]
 pub struct Revision {
@@ -17,6 +19,7 @@ pub struct Revision {
 
 impl Revision {
     const GIT: &str = "git";
+    const FULL_TREE: &str = "--full-tree";
 
     pub fn merge_base(root: &Path, base: &BranchName) -> Result<Revision, Failure> {
         let found = Self::git(root).arguments(["merge-base", "HEAD"]).argument(base).captured::<Stdout>();
@@ -24,9 +27,22 @@ impl Revision {
         Ok(Revision { root: root.to_path_buf(), commit })
     }
 
+    pub fn in_database(database: PathBuf, commit: Commit) -> Revision {
+        Revision { root: database, commit }
+    }
+
     pub fn present(&self, path: &Path) -> Result<Option<String>, Failure> {
+        self.found(path, None, self.commit.object(path))
+    }
+
+    pub fn tracked(&self, path: TrackedPath) -> Result<Option<String>, Failure> {
+        self.found(path.path(), Some(Self::FULL_TREE), self.commit.tracked(path))
+    }
+
+    fn found(&self, path: &Path, scope: Option<&str>, object: String) -> Result<Option<String>, Failure> {
         let listed = Self::git(&self.root)
             .arguments(["ls-tree", "-z", "--name-only"])
+            .arguments(scope)
             .argument(&self.commit)
             .arguments(["--"])
             .argument(path.display())
@@ -34,7 +50,7 @@ impl Revision {
         if listed.is_empty() {
             Ok(None)
         } else {
-            let blob = Self::git(&self.root).arguments(["cat-file", "blob"]).argument(self.commit.object(path));
+            let blob = Self::git(&self.root).arguments(["cat-file", "blob"]).argument(object);
             Ok(Some(blob.captured::<Stdout>()?))
         }
     }
