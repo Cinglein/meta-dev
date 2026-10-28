@@ -1,6 +1,7 @@
 mod git_work;
 mod log_window;
 mod millis;
+mod poll_schedule;
 mod program_name;
 mod stop_limit;
 
@@ -14,6 +15,7 @@ use crate::request::cli_failure::{CliFailure, Setup};
 pub use git_work::GitWork;
 pub use log_window::LogWindow;
 pub use millis::Millis;
+use poll_schedule::PollSchedule;
 pub use program_name::ProgramName;
 use stop_limit::StopLimit;
 
@@ -26,7 +28,10 @@ pub struct CiSettings {
     remote_millis: Millis,
     git_millis: Millis,
     claim_millis: Millis,
+    gh_millis: Millis,
     stop_millis: StopLimit,
+    #[serde(flatten)]
+    poll_schedule: PollSchedule,
     #[serde(flatten)]
     log_window: LogWindow,
 }
@@ -44,6 +49,10 @@ impl CiSettings {
         self.poll_millis
     }
 
+    pub fn poll_schedule(&self) -> PollSchedule {
+        self.poll_schedule
+    }
+
     pub fn run_overdue(&self, waited: Duration) -> Option<()> {
         (waited >= self.appear_millis.duration()).then_some(())
     }
@@ -58,6 +67,10 @@ impl CiSettings {
 
     pub fn budget(&self, work: GitWork) -> Budget {
         Budget::new(work.limit(self.git_millis, self.claim_millis).duration())
+    }
+
+    pub fn gh_limit(&self) -> Duration {
+        self.gh_millis.duration().min(self.timeout_millis.duration())
     }
 
     pub fn stop_limit(&self) -> StopLimit {

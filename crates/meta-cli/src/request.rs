@@ -11,6 +11,8 @@ mod parsed;
 mod project;
 mod rate;
 mod relocate;
+mod remote_failure;
+mod repository;
 mod scale_policy;
 mod status_view;
 mod writing;

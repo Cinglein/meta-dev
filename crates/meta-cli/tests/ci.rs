@@ -8,37 +8,34 @@ use std::time::Duration;
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 2\n";
-const PATIENT: &str = "appear_millis = 2000\ntimeout_millis = 7000\n";
-const STALLED: &str = "appear_millis = 2000\ntimeout_millis = 7000\nstop_millis = 40\n";
-const QUICK: &str = "appear_millis = 20\ntimeout_millis = 80\n";
+const PATIENT: &str = "appear_millis = 2000\n";
+const STALLED: &str = "appear_millis = 2000\nstop_millis = 40\n";
+const QUICK: &str = "appear_millis = 20\ntimeout_millis = 50\ngh_millis = 20\n";
+const DEADLINE: &str =
+    "expected_millis = 80\nbackoff_millis = 80\nbackoff_cap_millis = 80\ntimeout_millis = 150\ngh_millis = 20\n";
 const FAKE_GH: &str = r#"#!/bin/sh
-case "$FAKE_GH_SCENARIO" in hang) exec sleep 5 ;; frozen) echo 0 > "$FAKE_GH_DIR/clock"; exec sleep 5 ;; esac
-count="$FAKE_GH_DIR/count"
-read -r n < "$count" 2>/dev/null || n=0
-read -r head < "$FAKE_GH_DIR/bin/head"
-events="$FAKE_GH_DIR/.git/meta-ci/ABCDEF1234/events"
-s="$FAKE_GH_SCENARIO"
-case "$1 $2" in
-"run list")
-  n=$((n + 1)); echo "$n" > "$count"
-  echo "${n}000" > "$FAKE_GH_DIR/clock"
-  if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
-  elif [ "$s" = none ] || [ "$4" != "$head" ]; then echo '[]'
-  elif [ "$s" = late ] && { ! grep -q "no run yet" "$events" || grep -q "run appeared" "$events"; }; then echo '[]'
-  elif [ "$n" -lt 2 ]; then echo '[]'
-  elif [ "$s" = late ] || [ "$s" = broken ] || [ "$n" -lt 4 ]; then echo '[{"databaseId":7,"status":"in_progress","conclusion":""}]'
-  elif [ "$s" = success ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"success"}]'
-  elif [ "$s" = mixed ]; then echo '[{"databaseId":7,"status":"completed","conclusion":"failure"},{"databaseId":8,"status":"completed","conclusion":"failure"}]'
-  else echo '[{"databaseId":7,"status":"completed","conclusion":"failure"}]'; fi ;;
-"run view")
-  if [ "$s" = broken ] && [ "$n" -gt 5 ]; then echo 'HTTP 401: Bad credentials' >&2; exit 1
-  elif [ "$3 $4" = "--job 11" ]; then cat "$FAKE_GH_DIR/bin/failed.log"
-  elif [ "$3" = 8 ]; then echo '{"jobs":[{"databaseId":13,"name":"lint","conclusion":"failure","steps":[{"name":"clippy","conclusion":"failure"}]}]}'
-  elif [ "$3" != 7 ]; then echo '{"jobs":[]}'
-  elif [ "$s" = failure ] || [ "$s" = broken ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[{"name":"Checkout","conclusion":"success"},{"name":"cargo xtask ci","conclusion":"failure"}]},{"databaseId":12,"name":"docs","conclusion":""}]}'
-  elif [ "$s" = unstarted ] || [ "$s" = mixed ]; then echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"failure","steps":[]}]}'
-  else echo '{"jobs":[{"databaseId":11,"name":"ci","conclusion":"success"}]}'; fi ;;
-esac
+d="$FAKE_GH_DIR"; s="$FAKE_GH_SCENARIO"
+read -r now 2>/dev/null < "$d/clock"; echo "$now" >> "$d/calls"
+case "$s" in hang) exec sleep 5 ;; frozen) echo 0 > "$d/clock"; exec sleep 5 ;; esac
+[ "$3 $4" = "--job 11" ] && exec cat "$d/bin/failed.log"
+read -r n 2>/dev/null < "$d/count" || n=0; n=$((n + 1)); echo "$n" > "$d/count"
+read -r head < "$d/bin/head"
+events="$d/.git/meta-ci/ABCDEF1234/events"
+state=IN_PROGRESS; result=null; jobs='{"databaseId":11,"name":"ci","conclusion":"SUCCESS"}'
+case "$s" in failure|broken) jobs='{"databaseId":11,"name":"ci","conclusion":"FAILURE","steps":{"nodes":[{"name":"Checkout","conclusion":"SUCCESS"},{"name":"cargo xtask ci","conclusion":"FAILURE"}]}},{"databaseId":12,"name":"docs"}' ;;
+unstarted|mixed) jobs='{"databaseId":11,"name":"ci","conclusion":"FAILURE"}' ;; esac
+case "$s$*" in failure*filterBy*|broken*filterBy*) ;; failure*|broken*) pad=; i=0; while [ "$i" -lt 50 ]; do pad="$pad{\"databaseId\":$((i + 100)),\"name\":\"job$i\",\"conclusion\":\"SUCCESS\"},"; i=$((i + 1)); done; jobs="${pad%,}" ;; esac
+case "$s" in late|broken|slow) ;; last) [ "$n" -ge 1 ] && state=COMPLETED result='"SUCCESS"' ;; success) [ "$n" -ge 4 ] && state=COMPLETED result='"SUCCESS"' ;; *) [ "$n" -ge 4 ] && state=COMPLETED result='"FAILURE"' ;; esac
+runs="{\"status\":\"$state\",\"conclusion\":$result,\"workflowRun\":{},\"checkRuns\":{\"nodes\":[$jobs]}}"
+[ "$s" = mixed ] && [ "$state" = COMPLETED ] && runs="$runs,{\"status\":\"COMPLETED\",\"conclusion\":\"FAILURE\",\"workflowRun\":{},\"checkRuns\":{\"nodes\":[{\"databaseId\":13,\"name\":\"lint\",\"conclusion\":\"FAILURE\",\"steps\":{\"nodes\":[{\"name\":\"clippy\",\"conclusion\":\"FAILURE\"}]}}]}}"
+case "$*" in *appId:15368*) ;; *) foreign=; i=0; while [ "$i" -lt 20 ]; do foreign="$foreign{\"status\":\"COMPLETED\",\"conclusion\":\"SUCCESS\"},"; i=$((i + 1)); done; runs="${foreign%,}" ;; esac
+if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
+elif [ "$s" = broken ] && [ "$n" -gt 5 ]; then echo 'HTTP 401: Bad credentials' >&2; exit 1
+elif [ "$s" = none ] || [ "$4" != "sha=$head" ]; then runs=
+elif [ "$s" = late ] && { ! grep -q "no run yet" "$events" || grep -q "run appeared" "$events"; }; then runs=
+fi
+past='{"checkSuites":{"nodes":[{"status":"COMPLETED","workflowRun":{},"createdAt":"2026-10-27T10:00:00Z","updatedAt":"2026-10-27T10:04:00Z"}]}}'
+echo "{\"checkSuites\":{\"nodes\":[$runs]},\"history\":{\"nodes\":[$past]}}"
 "#;
 const FAILED_LOG: &str = "ci\tcargo xtask ci\t2026-10-25T06:40:01.0000000Z    Compiling meta-cli v0.0.0 (/home/runner/work/meta-development/crates/meta-cli)
 ci\tcargo xtask ci\t2026-10-25T06:40:09.0000000Z running 3 tests
@@ -65,9 +62,10 @@ const LATE: &str = "late";
 const BROKEN: &str = "broken";
 const MIXED: &str = "mixed";
 const HANG: &str = "hang";
+const LAST: &str = "last";
 const FROZEN: &str = "frozen";
 const INJECTED: &str = " (injected clock)";
-const FOURTH_POLL: &str = ": failed after 4s";
+const FOURTH_POLL: &str = ": failed after 510s";
 const NOT_WATCHED: &str = "CI not watched for";
 const PLAIN_PUSH: &str = "git push";
 const PUSH_WORDS: [&str; 4] = ["push", "-q", "origin", "feature"];
@@ -102,8 +100,14 @@ const RUN_APPEARED: &str = "run appeared";
 const LIST_ERROR: &str = "gh failed: HTTP 502: Bad Gateway";
 const VIEW_ERROR: &str = "gh failed: HTTP 401: Bad credentials";
 const FAILED_EVENT: &str = ": failed after";
-const COMPLETIONS: [&str; 5] =
-    [": passed after", ": failed after", ": timed-out after", ": unavailable after", ": absent after"];
+const COMPLETIONS: [&str; 6] = [
+    ": passed after",
+    ": failed after",
+    ": timed-out after",
+    ": unavailable after",
+    ": absent after",
+    ": unchecked after",
+];
 
 #[path = "support/seeded_log.rs"]
 mod seeded_log;
@@ -182,8 +186,7 @@ struct Stale;
 impl Stale {
     fn plant(repo: &Repo) {
         let head = Git::head(repo.clone.path());
-        let states = repo.clone.path().join(".git/meta-ci/ABCDEF1234/states");
-        std::fs::create_dir_all(states.join(head.trim())).unwrap();
+        std::fs::create_dir_all(repo.sessions.path().join(Planted::STATES).join(head.trim())).unwrap();
     }
 }
 
@@ -193,9 +196,33 @@ impl Started {
     fn building(scenario: &'static str, limits: &'static str) -> std::thread::JoinHandle<Repo> {
         std::thread::spawn(move || {
             let repo = Repo::limited(scenario, limits);
+            (scenario == NONE).then(|| Calls::plant(&repo));
             repo.hook(POST, COMMIT);
             repo
         })
+    }
+}
+
+struct Calls;
+
+impl Calls {
+    const MAX_LEN: usize = 10;
+    const EXPECTED: &'static str = ".git/meta-ci/expected";
+    const PLANTED: &'static str = "60000";
+    const LEARNED: &'static str = "240000";
+
+    fn plant(repo: &Repo) {
+        std::fs::create_dir_all(repo.clone.path().join(Self::EXPECTED).parent().unwrap()).unwrap();
+        std::fs::write(repo.clone.path().join(Self::EXPECTED), Self::PLANTED).unwrap();
+    }
+
+    fn within_budget(repo: &Repo) -> bool {
+        let log = std::fs::read_to_string(repo.clone.path().join("calls")).unwrap_or_default();
+        let polls: std::collections::BTreeSet<&str> = log.lines().collect();
+        let learned = std::fs::read_to_string(repo.clone.path().join(Self::EXPECTED)).unwrap_or_default();
+        (1..=Self::MAX_LEN).contains(&polls.len())
+            && polls.len() == log.lines().count()
+            && [log.lines().next(), Some(learned.as_str())] == [Some(Self::PLANTED), Some(Self::LEARNED)]
     }
 }
 
@@ -231,14 +258,15 @@ impl FailingHead {
 struct Planted;
 
 impl Planted {
-    const STATES: &'static str = ".git/meta-ci/ABCDEF1234/states";
+    const STATES: &'static str = "meta-ci/states";
+    const LOCKS: &'static str = "meta-ci/locks";
     const PRE_RECEIVE: &'static str = "hooks/pre-receive";
     const REFUSE: &'static str = "#!/bin/sh\nexit 1\n";
     const RUNNING: &'static str = "running";
 
     fn settled(repo: &Repo, ci: &str) {
         let head = Git::head(repo.clone.path());
-        let states = repo.clone.path().join(Self::STATES);
+        let states = repo.sessions.path().join(Self::STATES);
         std::fs::create_dir_all(&states).unwrap();
         std::fs::write(states.join(head.trim()), format!("{} {ci}", head.trim())).unwrap();
     }
@@ -334,7 +362,12 @@ impl Repo {
         let mut command = Command::new(META);
         command.args(words).current_dir(self.clone.path()).env("PATH", path).env("TMPDIR", self.sessions.path());
         command.env("FAKE_GH_DIR", self.clone.path()).env("FAKE_GH_SCENARIO", self.scenario);
-        command.envs((self.scenario != HANG).then(|| ("META_TEST_CLOCK", self.clone.path().join("clock"))));
+        command.envs(
+            [HANG, LAST]
+                .iter()
+                .all(|real| *real != self.scenario)
+                .then(|| ("META_TEST_CLOCK", self.clone.path().join("clock"))),
+        );
         command
     }
 
@@ -345,15 +378,20 @@ impl Repo {
     }
 
     fn settled(&self) -> String {
+        self.settled_past("")
+    }
+
+    pub fn settled_past(&self, seen: &str) -> String {
         let events = self.clone.path().join(".git/meta-ci/ABCDEF1234/events");
-        let lock = events.with_file_name("locks").join(Git::head(self.clone.path()));
+        let lock = self.sessions.path().join(Planted::LOCKS).join(Git::head(self.clone.path()));
         std::iter::repeat_with(|| {
             std::thread::sleep(SETTLE_POLL);
             std::fs::read_to_string(&events).unwrap_or_default()
         })
         .take(SETTLE_LENGTH)
         .find(|text| {
-            COMPLETIONS.iter().any(|completion| text.contains(completion))
+            let new = text.strip_prefix(seen).unwrap_or_default();
+            COMPLETIONS.iter().any(|completion| new.contains(completion))
                 && std::fs::File::open(&lock).map_or(true, |watcher| watcher.try_lock().is_ok())
         })
         .unwrap_or_default()
@@ -419,10 +457,12 @@ fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
         .map(|started| started.join().unwrap());
     let [absent, late, broken, mixed, hung, frozen] = repos.each_ref().map(Repo::settled);
     let [none, appeared, _, _, hanging, _] = &repos;
+    let budgeted = Calls::within_budget(none);
     let waited = none.session_command(CI_WAIT);
     let [appeared, hanging_stop] = [appeared, hanging].map(|repo| repo.hook(STOP, COMMIT));
     assert!(
         absent.contains(ABSENT)
+            && budgeted
             && absent.split_once(NO_RUN_YET).is_some_and(|(_, after)| !after.contains(NO_RUN_YET))
             && none.hook(STOP, COMMIT).contains(&format!("{ABSENT_STOP}{INJECTED}"))
             && !waited.1.success()
