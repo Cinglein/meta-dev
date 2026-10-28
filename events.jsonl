@@ -1070,3 +1070,4 @@
 {"at":"2026-10-28T15:59:36.719990Z","actor":"claude-minorsc","kind":"TaskOpened","task":"task-4b10585564659b7d","text":"Claim git timeout kills the run's own helper processes without breaking terminal prompts","division":"features-and-maintenance","addresses":["concern-b8afc88d9376a330"]}
 {"at":"2026-10-28T15:59:39.941959Z","actor":"claude-minorsc","kind":"TaskOpened","task":"task-1459159d4ca7537c","text":"Stop accepts an owner-recorded meta wait on ci; lead still sees PR and CI in meta status","division":"features-and-maintenance","addresses":["concern-778b6387845c9a2c"]}
 {"at":"2026-10-28T15:59:54.884090Z","actor":"claude-minorsc","kind":"TaskClaimed","task":"task-b21705aefbfbdbe3"}
+{"at":"2026-10-28T16:05:06.275155Z","actor":"claude-minorsc","kind":"TaskLinked","task":"task-b21705aefbfbdbe3","pr":109}
