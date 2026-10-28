@@ -1,5 +1,8 @@
-Ok(
-    GitPaths(
-        [],
-    ),
+Err(
+    Exit {
+        status: Status(
+            128,
+        ),
+        err: "fatal: Not a valid object name 0123abc",
+    },
 )

@@ -1,3 +1,4 @@
+mod exit;
 mod status;
 
 use std::fmt::Debug;
@@ -12,6 +13,7 @@ use crate::golden::Golden;
 use crate::golden_failure::GoldenFailure;
 use crate::goldens::Goldens;
 use crate::places::Places;
+pub use exit::Exit;
 use status::Status;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -70,6 +72,10 @@ impl Recording {
     #[must_use]
     pub fn out(&self) -> &str {
         &self.out
+    }
+
+    pub fn reported(&self) -> Result<&str, Exit<'_>> {
+        self.status.succeeded().then_some(self.out.as_str()).ok_or(Exit::new(self.status, &self.err))
     }
 
     pub(crate) fn answered(&self, places: &Places) -> ExitCode {

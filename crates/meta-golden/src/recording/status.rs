@@ -10,6 +10,10 @@ pub struct Status(i32);
 impl Status {
     const SIGNALLED: i32 = 128;
 
+    pub fn succeeded(self) -> bool {
+        self.0 == 0
+    }
+
     pub fn exit_code(self) -> ExitCode {
         u8::try_from(self.0).map_or(ExitCode::FAILURE, ExitCode::from)
     }

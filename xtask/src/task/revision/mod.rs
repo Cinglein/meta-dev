@@ -92,6 +92,7 @@ mod tests {
     const TWO: &str = "crate-graph = 2\n";
     const LISTED: &str = "- tooling/policy.toml\n";
     const CONSUMER: &str = "consumer";
+    const LOST: &str = "0123456789abcdef0123456789abcdef01234567";
     const CHANGED: &str =
         "surfaces = [\"tooling/policy.toml\"]\nbaseline = \"lint-baseline.toml\"\nbit_boundary = []\n";
     const VIEWED: [GitArgv; 5] =
@@ -108,8 +109,12 @@ mod tests {
     }
 
     #[test]
-    fn every_recorded_revision_read_parses_to_its_golden_view() -> Result<(), GoldenFailure> {
+    fn every_recorded_revision_read_parses_to_its_golden_view_and_a_failed_read_fails_closed()
+    -> Result<(), GoldenFailure> {
         assert!(GitReads::all_viewed(&VIEWED, Revision::view)?);
+        let unread = tempfile::tempdir().unwrap();
+        let lost = Revision::in_database(unread.path(), LOST.parse().unwrap());
+        assert!(lost.present(std::path::Path::new(PARENT_POLICY)).is_err());
         Ok(())
     }
 

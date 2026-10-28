@@ -1,8 +1,10 @@
 Ok(
-    HeadBranch {
-        name: BranchName(
-            "main",
-        ),
-        task: None,
-    },
+    Ok(
+        HeadBranch {
+            name: BranchName(
+                "main",
+            ),
+            task: None,
+        },
+    ),
 )

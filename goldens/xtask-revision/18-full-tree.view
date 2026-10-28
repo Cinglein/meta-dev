@@ -1,7 +1,9 @@
 Ok(
-    GitPaths(
-        [
-            "tooling/policy.toml",
-        ],
+    Ok(
+        GitPaths(
+            [
+                "tooling/policy.toml",
+            ],
+        ),
     ),
 )

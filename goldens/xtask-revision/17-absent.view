@@ -1,5 +1,7 @@
 Ok(
-    GitPaths(
-        [],
+    Ok(
+        GitPaths(
+            [],
+        ),
     ),
 )

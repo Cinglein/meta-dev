@@ -1,3 +1,5 @@
-Err(
-    Unnamed,
+Ok(
+    Err(
+        Unnamed,
+    ),
 )

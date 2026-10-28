@@ -43,7 +43,9 @@ mod tests {
                 .iter()
                 .map(|call| {
                     let recorded = recordings.iter().filter(|recording| recording.argv().calls(*call));
-                    recorded.map(|recording| recording.viewed(&view(*call, recording.out()))).collect()
+                    recorded
+                        .map(|recording| recording.viewed(&recording.reported().map(|out| view(*call, out))))
+                        .collect()
                 })
                 .collect();
             let every = viewed.iter().all(|views| !views.is_empty());

@@ -1,14 +1,16 @@
-Err(
-    Identity(
-        ForeignEmails(
-            {
-                Email(
-                    "author@example.com",
-                ),
-                Email(
-                    "committer@example.com",
-                ),
-            },
+Ok(
+    Err(
+        Identity(
+            ForeignEmails(
+                {
+                    Email(
+                        "author@example.com",
+                    ),
+                    Email(
+                        "committer@example.com",
+                    ),
+                },
+            ),
         ),
     ),
 )

@@ -1,7 +1,9 @@
 Ok(
-    GitPaths(
-        [
-            "lint-baseline.toml",
-        ],
+    Ok(
+        GitPaths(
+            [
+                "lint-baseline.toml",
+            ],
+        ),
     ),
 )
