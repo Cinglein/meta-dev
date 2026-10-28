@@ -14,13 +14,16 @@ const LEADS: &str = "kill -0 -- -$$ 2>/dev/null && echo leader; true";
 const LEADER: &str = "leader\n";
 const LIMIT: Duration = Duration::from_millis(60);
 const PROMPT: Duration = Duration::from_secs(1);
-const KILLED: [&str; 4] = [
+const KILLED: [&str; 5] = [
     "sleep 5 & echo $! >> \"$0\"; echo $$ >> \"$0\"; echo held",
     "bash -c 'trap \"\" TERM; echo $$ >> \"$0\"; exec sleep 5' \"$0\" & echo $$ >> \"$0\"; wait",
     "trap '' TERM; echo $$ >> \"$0\"; for _ in 1 2 3 4 5; do sleep 1 & echo $! >> \"$0\"; wait; done",
     "echo $$ >> \"$0\"; kill -STOP $$",
+    "set -m; (trap '' TERM; exec sh -c 'echo $$ >> \"$0\"; exec sleep 5' \"$0\") & inner=$!; \
+     trap 'kill -TERM -$inner; sleep 0.04; kill -KILL -$inner; exit' TERM; echo $$ >> \"$0\"; wait",
 ];
-const RECORDED: usize = 7;
+const RECORDED: usize = 9;
+const EXPIRED: &str = "deadline had passed";
 const STALLS: &str = "waiting for terminal input";
 const PS: [&str; 4] = ["ps", "-o", "stat=", "-p"];
 const POLL: Duration = Duration::from_millis(2);
@@ -45,7 +48,7 @@ impl Scripted {
 
     fn gone(pids: &Path) -> bool {
         let listed: Vec<String> =
-            std::fs::read_to_string(pids).unwrap_or_default().lines().map(str::to_owned).collect();
+            std::fs::read_to_string(pids).unwrap_or_default().split_whitespace().map(str::to_owned).collect();
         let live = || {
             Run::new(PS[0], EnvPolicy::Inherit).args(&PS[1..]).arg(listed.join(",")).stdout(Instant::now() + PATIENT)
         };
@@ -83,5 +86,7 @@ fn each_env_policy_drops_only_its_variables_and_never_resets_the_rest() {
     let dropped = DROPPED
         .map(|(policy, _)| format!("{:?}", Environment::from(&Run::inheriting(SHELL, policy, inherited.clone()))));
     assert_eq!(dropped, DROPPED.map(|(_, dropped)| format!("Environment({{{dropped}}})")));
-    assert!(format!("{:?}", Environment::from(&Run::git(Path::new(SHELL)))).contains(NO_PROMPT));
+    let git = Run::git(Path::new(SHELL));
+    let shown = format!("{:?}", Environment::from(&git));
+    assert!(shown.contains(NO_PROMPT) && git.ran(Instant::now()).is_err_and(|late| late.to_string().contains(EXPIRED)));
 }

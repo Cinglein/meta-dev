@@ -41,15 +41,15 @@ mod tests {
     const NOWHERE: &str = "/nonexistent/meta";
     const STATUS: [&str; 1] = ["status"];
     const FAILED: &str = "git: git -C /nonexistent/meta status: ";
-    const PATIENT: Duration = Duration::from_secs(10);
     const LONG: Duration = Duration::from_secs(5);
     const SHORT: Duration = Duration::from_millis(5);
 
     #[test]
-    fn failures_name_the_git_command_and_rests_end_at_the_deadline() {
-        let git = Git::new(PathBuf::from(NOWHERE), Instant::now() + PATIENT);
-        let failure = Content::try_from(git.ran(git.command(STATUS)).unwrap()).err().map(|failure| failure.to_string());
-        assert!(failure.is_some_and(|failure| failure.starts_with(FAILED)));
+    fn failures_name_the_git_command_a_git_built_earlier_still_runs_and_rests_end_at_the_deadline() {
+        let git = Git::new(PathBuf::from(NOWHERE), Instant::now() + SHORT);
+        std::thread::sleep(SHORT);
+        let failure = git.ran(git.command(STATUS)).map(|ran| Content::try_from(ran).err().map(|ran| ran.to_string()));
+        assert!(failure.is_ok_and(|failure| failure.is_some_and(|failure| failure.starts_with(FAILED))));
         let started = Instant::now();
         Git::new(PathBuf::from(NOWHERE), started + SHORT).rest(LONG);
         assert!((SHORT..LONG).contains(&started.elapsed()));

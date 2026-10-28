@@ -51,6 +51,14 @@ const HANGING_UPLOAD: &str = "[remote \"origin\"]\n\tuploadpack = sh -c 'sleep 5
 const META_TOML: &str = "meta.toml";
 const QUICK_GIT: &str = "[ci]\ngit_millis = 20\n";
 const UNREADABLE: &str = "meta/log unreadable";
+const OPEN: [&str; 4] = ["open", "--division", "features-and-maintenance", "text"];
+const WRITER: &str = "writer";
+const ROOT: &str = "ROOT";
+const PIDS: &str = "pids";
+const HELPERS: &str = r#"[remote "origin"]
+	receivepack = "sh -c 'touch ROOT/hold && echo $$ >> ROOT/pids && sleep 5' x"
+	uploadpack = "sh -c 'test -e ROOT/hold && echo $$ >> ROOT/pids && sleep 5 || exec git upload-pack \"$1\"' x"
+"#;
 
 #[path = "support/skeleton.rs"]
 mod skeleton;
@@ -133,16 +141,21 @@ impl Repo {
         child
     }
 
-    fn interrupted(&self, helper: &Path) -> bool {
-        let hanging =
-            format!("[remote \"origin\"]\n\treceivepack = bash -c 'echo $$ > {} && sleep 5' x\n", helper.display());
-        Git::configure(&self.clone.path().join(GIT_CONFIG), &hanging);
-        let mut meta = self.started(POST, COMMIT, self.clone.path(), Command::new(META).process_group(0));
-        let polls = || (0..PATIENT.as_millis() / POLL.as_millis()).map(|_| std::thread::sleep(POLL));
-        let pid = polls().find_map(|()| std::fs::read_to_string(helper).ok().filter(|pid| !pid.is_empty()));
+    fn interrupted(&self) -> bool {
+        let root = self.clone.path().display().to_string();
+        Git::configure(&self.clone.path().join(GIT_CONFIG), &HELPERS.replace(ROOT, &root));
+        let mut meta = Command::new(META);
+        meta.args(OPEN).current_dir(self.clone.path()).env("META_ACTOR", WRITER).process_group(0);
+        let mut meta = meta.stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
+        let polls = || {
+            let until = Instant::now() + PATIENT;
+            std::iter::repeat_with(|| std::thread::sleep(POLL)).take_while(move |()| Instant::now() < until)
+        };
+        let listed = || std::fs::read_to_string(self.clone.path().join(PIDS)).unwrap_or_default();
+        let started = polls().find(|()| !listed().is_empty());
         Command::new("kill").args(["-INT", "--", &format!("-{}", meta.id())]).status().unwrap();
-        let alive = |pid: &str| Command::new("kill").args(["-0", pid.trim()]).status().unwrap().success();
-        meta.wait().is_ok() && pid.is_some_and(|pid| polls().any(|()| !alive(&pid)))
+        let alive = |pid: &str| Command::new("kill").args(["-0", pid]).status().unwrap().success();
+        meta.wait().is_ok() && started.is_some() && polls().any(|()| !listed().split_whitespace().any(alive))
     }
 }
 
@@ -173,8 +186,7 @@ fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
     assert_eq!(Git::head(repo.origin.path(), FEATURE_BRANCH), Git::head(repo.clone.path(), HEAD));
     Git::run(repo.clone.path(), &AMEND);
     assert!(repo.hook(POST, COMMIT, home).contains(REJECTED) && !repo.clone.path().join(WATCHERS).exists());
-    let helper = tempfile::NamedTempFile::new().unwrap();
-    assert!(repo.interrupted(helper.path()), "an interrupted hook left its git helper running");
+    assert!(repo.interrupted(), "an interrupted write left a git helper running");
 }
 
 #[test]
