@@ -106,10 +106,25 @@ impl GitCommand {
 #[cfg(test)]
 mod tests {
     use std::process::Command;
+    use std::time::{Duration, Instant};
 
     use super::GitCommand;
+    use crate::log_failure::LogFailure;
 
     const PAST_PIPE_BUFFER: usize = 1 << 17;
+    const SLEEP: [&str; 3] = ["-c", "sleep 5; :", "sh"];
+    const SHELL: &str = "sh";
+    const DEADLINE: Duration = Duration::from_millis(50);
+    const KILLED_WITHIN: Duration = Duration::from_secs(2);
+
+    #[test]
+    fn a_command_past_its_deadline_is_killed_with_its_group() {
+        let mut command = Command::new(SHELL);
+        command.args(SLEEP);
+        let started = Instant::now();
+        let output = GitCommand::new(command).timed_output(started + DEADLINE);
+        assert!(matches!(output, Err(LogFailure::TimedOut { .. })) && started.elapsed() < KILLED_WITHIN);
+    }
 
     #[test]
     fn output_past_the_pipe_buffer_is_returned() {
