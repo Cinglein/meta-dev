@@ -9,19 +9,28 @@ use crate::request::project::Config;
 
 const FAKE_GH: &str = r#"#!/bin/sh
 printf '%s\n' "$@" >> "$0.args"
+case "$*" in *after=c1*) echo '{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false,"endCursor":"c2"},"nodes":[{"number":4,"state":"OPEN","baseRefName":"main","statusCheckRollup":null},{"number":5,"state":"OPEN","baseRefName":"odd","statusCheckRollup":null}]}}}}'; exit 0 ;; esac
 case "$1 $2 $FAKE" in
-"api graphql partial"|"api graphql norules") echo '{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[{"number":3,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}]}},"trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}},"errors":[]}'; echo 'gh: not found' >&2; exit 1 ;;
+"api graphql partial"|"api graphql norules") echo '{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":true,"endCursor":"c1"},"nodes":[{"number":3,"state":"OPEN","baseRefName":"main","statusCheckRollup":{"contexts":{"pageInfo":{"hasNextPage":false},"nodes":[{"name":"ci","result":"SUCCESS"}]}}}]}},"linked":{"pr40":{"number":40,"state":"MERGED","baseRefName":"gone","statusCheckRollup":null}},"trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}},"errors":[]}'; echo 'gh: not found' >&2; exit 1 ;;
 "api graphql garbage") echo 'not json' ;;
 "api graphql down") echo 'HTTP 502: Bad Gateway' >&2; exit 1 ;;
 "api repos/{owner}/{repo}/rules/branches/main partial") echo '["ci"]' ;;
+"api repos/{owner}/{repo}/branches/main partial") echo '["lint"]' ;;
+"api repos/{owner}/{repo}/rules/branches/gone "*|"api repos/{owner}/{repo}/rules/branches/odd partial") echo '[]' ;;
+"api repos/{owner}/{repo}/branches/gone partial"|"api repos/{owner}/{repo}/branches/odd partial") echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;
 "api repos/{owner}/{repo}/rules/branches/main norules") echo 'HTTP 404: Not Found' >&2; exit 1 ;;
 "pr list partial") printf '7\n8\n' ;;
 esac
 "#;
 const ASKED: &str = "api\ngraphql\n-F\nowner={owner}\n-F\nname={repo}\n-f\nquery=query(";
 const RULES: &str = "api\nrepos/{owner}/{repo}/rules/branches/main\n--jq\n[.[] | select(.type == \"required_status_checks\") | .parameters.required_status_checks[].context]\n";
+const CLASSIC: &str =
+    "api\nrepos/{owner}/{repo}/branches/main\n--jq\n[.protection.required_status_checks.checks[]?.context]\n";
+const NEXT_PAGE: &str = "-f\nafter=c1\n";
 const HEADED: &str = "pr\nlist\n--head\nfeature\n--json\nnumber,isCrossRepository\n--jq\n.[] | select(.isCrossRepository | not) | .number\n";
-const SHOWN: &str = "flags:\norphan #3: open, no task\n";
+const SHOWN: &str = "flags:\norphan #3: open, no task\norphan #4: open, no task\norphan #5: open, no task\n";
+const SIGHTS: [&str; 3] = ["open required pending", "merged no checks", "open no checks"];
+const GONE_PROTECTION: &str = "\nrepos/{owner}/{repo}/branches/gone\n";
 const REASONS: [(&str, &str); 3] = [
     ("down", "unknown github: HTTP 502: Bad Gateway"),
     ("garbage", "unknown github: reply not JSON: not json"),
@@ -66,7 +75,10 @@ fn one_graphql_call_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_
     let state = meta_state::State::default();
     let shown = meta_status::Status::new(&state, &read, chrono::Utc::now().into()).to_string();
     assert!(shown == SHOWN && fake.asked("partial").starts_with(ASKED));
-    assert!(fake.asked("partial").ends_with(&format!("\n{RULES}{HEADED}")));
+    let asked = fake.asked("partial");
+    assert!(asked.contains(&format!("\n{RULES}{CLASSIC}")) && asked.ends_with(HEADED) && asked.contains(NEXT_PAGE));
+    assert!(asked.contains("rules/branches/gone") && !asked.contains(GONE_PROTECTION));
+    assert_eq!(["3", "40", "5"].map(|number| read.sight(number.parse().unwrap()).to_string()), SIGHTS);
     assert_eq!(pulls, ["7", "8"].map(|number| number.parse().unwrap()));
 }
 

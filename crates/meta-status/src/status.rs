@@ -84,7 +84,8 @@ impl<'view> Status<'view> {
         let unheld = held.map_or(Some(()), |()| None);
         let overdue = planned.due_time().filter(|due| *due < self.now);
         let stalled = possible.and(unheld).and(overdue).map(|due| Flag::Stalled(id, due));
-        let past_due = held.and(overdue).map(|due| Flag::PastDue(id, due));
+        let discussing = self.state.status_of(task).discussion();
+        let past_due = held.and(overdue).filter(|_| discussing.is_none()).map(|due| Flag::PastDue(id, due));
         let done = held.and(self.github.finished(task.pull_requests())).map(|()| Flag::HeldDone(id));
         let spent = possible.and(planned.effort_allowance()).and(match EffortSpend::measured_for(task) {
             EffortSpend::Unmeasured => None,
