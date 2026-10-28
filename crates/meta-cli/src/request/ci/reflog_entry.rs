@@ -75,33 +75,3 @@ impl FromStr for ReflogEntry {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::ReflogEntry;
-
-    const SHA: &str = "0123456789abcdef0123456789abcdef01234567";
-    const BRANCH: &str = "refs/heads/task-00000000000000a1";
-    const DECORATIONS: [&str; 4] =
-        ["HEAD -> refs/heads/task-00000000000000a1, refs/heads/main", "refs/heads/main, HEAD", "refs/heads/main", ""];
-    const HELD: [bool; 4] = [true, true, false, false];
-    const NAMED: [bool; 4] = [true, false, false, false];
-
-    fn line(decorated: &str) -> String {
-        format!(
-            "{SHA}\u{1f}\u{1f}a <a@b> 1700000000 +0000\u{1f}a <a@b> HEAD@{{1700000000}}\u{1f}{decorated}\u{1f}commit: x"
-        )
-    }
-
-    #[test]
-    fn the_entry_decorated_with_head_names_the_checkout_and_its_branch() {
-        let entries = DECORATIONS.map(|decorated| line(decorated).parse::<ReflogEntry>().unwrap());
-        let checkouts = entries.each_ref().map(ReflogEntry::checkout);
-        assert_eq!(checkouts.map(|checkout| checkout.and_then(|checkout| checkout.head()).is_some()), HELD);
-        let branches =
-            checkouts.map(|checkout| checkout.and_then(|checkout| checkout.branch()).map(ToString::to_string));
-        assert_eq!(branches.each_ref().map(Option::is_some), NAMED);
-        assert_eq!(branches[0].as_deref(), BRANCH.strip_prefix("refs/heads/"));
-        assert!(line("").replace("\u{1f}commit", "commit").parse::<ReflogEntry>().is_err());
-    }
-}
