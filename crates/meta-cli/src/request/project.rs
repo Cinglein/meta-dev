@@ -1,13 +1,13 @@
 mod config;
 
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::str::FromStr;
 use std::sync::OnceLock;
 use std::time::Instant;
 
 use meta_log::{GitLog, RemoteHeads};
+use meta_run::{Budget, Run};
 
 use crate::request::checkout::Checkout;
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
@@ -15,7 +15,6 @@ use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
 use crate::request::remote_failure::RemoteFailure;
 use crate::request::repository::Repository;
-use crate::request::timed_command::TimedCommand;
 pub use config::{BranchName, CiSettings, Config, GcMode, HeartbeatSettings, LogWindow, ProgramName, TickLimit};
 #[cfg(test)]
 mod tests;
@@ -24,6 +23,7 @@ mod tests;
 pub struct Project {
     root: PathBuf,
     config: Config,
+    ci: CiSettings,
     checkout: OnceLock<Checkout>,
     reflog: OnceLock<Option<Vec<ReflogEntry>>>,
 }
@@ -31,8 +31,8 @@ pub struct Project {
 impl Project {
     const CONFIG_FILE: &'static str = "meta.toml";
     const GIT_ENTRY: &'static str = ".git";
-    pub fn log(&self) -> Result<GitLog, CliFailure> {
-        self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote.clone()))
+    pub fn log(&self, budget: Budget) -> Result<GitLog, CliFailure> {
+        self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote.clone(), budget))
     }
 
     pub fn root(&self) -> &Path {
@@ -43,21 +43,28 @@ impl Project {
         &self.config
     }
 
-    pub fn push_failure(&self) -> Option<Listed> {
-        let remote = self.config.remote().ok()?.to_string();
-        let unprotected = self.unprotected_branch()?;
-        let pushed = Command::new("git")
-            .arg("-C")
-            .arg(&self.root)
-            .args(["push", "--quiet", "-u", &remote, &unprotected.to_string()])
-            .output()
-            .ok()?;
-        (!pushed.status.success()).then(|| {
-            Listed::new(format!("push of {unprotected} failed: {}", String::from_utf8_lossy(&pushed.stderr).trim()))
-        })
+    pub fn found(dir: &Path) -> Result<Option<Self>, CliFailure> {
+        let root = dir.ancestors().find(|ancestor| ancestor.join(Self::GIT_ENTRY).exists()).map(Path::to_path_buf);
+        let configured = root.filter(|root| root.join(Self::CONFIG_FILE).exists());
+        configured.map(Self::loaded).transpose()
     }
 
-    fn reflog(&self, deadline: Instant) -> Option<&[ReflogEntry]> {
+    pub fn ci_settings(&self) -> &CiSettings {
+        &self.ci
+    }
+
+    pub fn push_failure(&self, budget: Budget) -> Option<Listed> {
+        let remote = self.config.remote().ok()?.to_string();
+        let unprotected = self.unprotected_branch(budget.deadline())?;
+        let push = self.git(["push", "--quiet", "-u", &remote, &unprotected.to_string()]);
+        match push.ran(budget.deadline()) {
+            Ok(ran) if ran.success() => None,
+            Ok(ran) => Some(Listed::new(format!("push of {unprotected} failed: {}", ran.stderr()))),
+            Err(failure) => Some(Listed::new(format!("push of {unprotected} failed: {failure}"))),
+        }
+    }
+
+    pub fn reflog(&self, deadline: Instant) -> Option<&[ReflogEntry]> {
         self.reflog.get_or_init(|| self.git_lines(ReflogEntry::WALK.map(OsString::from), deadline)).as_deref()
     }
 
@@ -83,9 +90,8 @@ impl Project {
 
     pub fn remote_heads(&self, deadline: Instant) -> Result<RemoteHeads, Listed> {
         let remote = self.config.remote().map_err(|failure| Listed::new(failure.to_string()))?;
-        let mut command = Command::new("git");
-        command.arg("-C").arg(&self.root).args(["ls-remote", "--heads", &remote.to_string()]);
-        let listed = TimedCommand::new(command, deadline).stdout().map_err(|failure| {
+        let listed = self.git(["ls-remote", "--heads", &remote.to_string()]);
+        let listed = listed.stdout(deadline).map_err(|failure| {
             Listed::new(format!("remote unreachable: git ls-remote {remote}: {failure}; retry, or ask the owner"))
         })?;
         let Ok(heads) = listed.parse();
@@ -113,21 +119,33 @@ impl Project {
     }
 
     pub fn head(&self) -> Option<Commit> {
-        let deadline = self.config.ci_settings().remote_deadline();
+        let deadline = self.ci.remote_deadline();
         let heads: Vec<Commit> = self.git_lines(["rev-parse", "HEAD"].map(OsString::from), deadline)?;
         heads.into_iter().next()
     }
 
     pub fn repository(&self) -> Result<Repository, RemoteFailure> {
-        let deadline = self.config.ci_settings().remote_deadline();
+        let deadline = self.ci.remote_deadline();
         let remote = self.config.remote().map_err(|failure| RemoteFailure::NotGithub(Listed::new(failure)))?;
-        let mut command = Command::new("git");
-        command.arg("-C").arg(&self.root).args(["remote", "get-url"]).arg(remote.to_string());
-        let url = TimedCommand::new(command, deadline).stdout().map_err(|failure| {
+        let url = self.git(["remote", "get-url"]).arg(remote.to_string()).stdout(deadline).map_err(|failure| {
             RemoteFailure::GitFailed(Listed::new(format!("git failed reading the remote URL: {failure}")))
         })?;
         let named = format!("remote URL `{}` names no GitHub owner and repository", url.trim());
         url.lines().next().unwrap_or_default().parse().map_err(|()| RemoteFailure::NotGithub(Listed::new(named)))
+    }
+
+    fn loaded(root: PathBuf) -> Result<Self, CliFailure> {
+        let path = root.join(Self::CONFIG_FILE);
+        let refused =
+            |failure: &dyn std::fmt::Display| CliFailure::raised::<Setup>(format!("{}: {failure}", path.display()));
+        let text = std::fs::read_to_string(&path).map_err(|failure| refused(&failure))?;
+        let config = toml::from_str(&text).map_err(|failure| refused(&failure))?;
+        let ci = CiSettings::try_from(&config)?;
+        Ok(Self { root, config, ci, checkout: OnceLock::new(), reflog: OnceLock::new() })
+    }
+
+    fn git<Word: AsRef<OsStr>>(&self, words: impl IntoIterator<Item = Word>) -> Run {
+        Run::git(&self.root).args(words)
     }
 
     fn git_lines<Line: FromStr>(
@@ -135,9 +153,7 @@ impl Project {
         words: impl IntoIterator<Item = OsString>,
         deadline: Instant,
     ) -> Option<Vec<Line>> {
-        let mut command = Command::new("git");
-        command.arg("-C").arg(&self.root).args(words);
-        let output = TimedCommand::new(command, deadline).stdout().ok()?;
+        let output = self.git(words).stdout(deadline).ok()?;
         Some(output.lines().filter_map(|line| line.parse().ok()).collect())
     }
 
@@ -156,13 +172,9 @@ impl Project {
         })
     }
 
-    pub fn unprotected_branch(&self) -> Option<BranchName> {
-        let checkout = self.checkout(self.config.ci_settings().remote_deadline());
-        let unborn = || {
-            let current =
-                Command::new("git").arg("-C").arg(&self.root).args(["branch", "--show-current"]).output().ok()?;
-            String::from_utf8_lossy(&current.stdout).trim().parse().ok()
-        };
+    pub fn unprotected_branch(&self, deadline: Instant) -> Option<BranchName> {
+        let checkout = self.checkout(deadline);
+        let unborn = || self.git(["branch", "--show-current"]).stdout(deadline).ok()?.trim().parse().ok();
         let branch: BranchName = checkout.head().map_or_else(unborn, |_| checkout.branch().cloned())?;
         Some(branch).filter(|branch| self.config.protects(branch).is_none())
     }
@@ -172,16 +184,6 @@ impl TryFrom<&Path> for Project {
     type Error = CliFailure;
 
     fn try_from(dir: &Path) -> Result<Self, Self::Error> {
-        let root = dir
-            .ancestors()
-            .find(|ancestor| ancestor.join(Self::GIT_ENTRY).exists())
-            .map(Path::to_path_buf)
-            .ok_or_else(|| CliFailure::raised::<Setup>("not inside a git repository"))?;
-        let path = root.join(Self::CONFIG_FILE);
-        let text = std::fs::read_to_string(&path)
-            .map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
-        let config =
-            toml::from_str(&text).map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
-        Ok(Self { root, config, checkout: OnceLock::new(), reflog: OnceLock::new() })
+        Self::found(dir)?.ok_or_else(|| CliFailure::raised::<Setup>("not inside a git repository with a meta.toml"))
     }
 }

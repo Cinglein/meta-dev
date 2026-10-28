@@ -3,11 +3,12 @@ mod trunk;
 
 use std::collections::HashMap;
 
-use meta_pulls::{BaseBranch, LivePull};
+use meta_pulls::{BaseBranch, LivePull, RuleSource};
 use meta_schema::PullRequest;
 use serde::Deserialize;
 
 use crate::live_data::LiveData;
+use crate::live_query::LiveQuery;
 use crate::pull_alias::PullAlias;
 use crate::rulebook::Rulebook;
 use crate::trunk_run::TrunkRun;
@@ -41,6 +42,12 @@ impl Pulls {
     }
 
     #[must_use]
+    pub fn protection(&self, base: &BaseBranch) -> Option<RuleSource> {
+        let mut pulls = self.linked.values().flatten().chain(self.open.pull_requests().nodes());
+        pulls.any(|pull| pull.open_base() == Some(base)).then_some(RuleSource::Protection)
+    }
+
+    #[must_use]
     pub fn ruled(self, rules: Rulebook) -> Option<LiveData> {
         self.bases().iter().all(|base| rules.required(base).is_some()).then(|| LiveData::new(self, rules))
     }
@@ -54,6 +61,16 @@ impl Pulls {
     pub fn trunk_run(&self, workflow: WorkflowName) -> TrunkRun {
         let verdict = self.trunk.as_ref().map_or(TrunkVerdict::Unknown, |trunk| trunk.verdict(&workflow));
         TrunkRun::new(workflow, verdict)
+    }
+
+    #[must_use]
+    pub fn following(&self) -> Option<LiveQuery> {
+        self.open.pull_requests().page_info().following().map(LiveQuery::after)
+    }
+
+    #[must_use]
+    pub fn continued(self, next: Self) -> Self {
+        Self { open: self.open.continued(next.open), ..self }
     }
 
     #[must_use]

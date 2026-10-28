@@ -1,6 +1,6 @@
 use std::fmt;
-use std::process::Command;
 
+use meta_run::Run;
 use serde::{Deserialize, Serialize};
 
 use super::process_row::{GroupId, Pid};
@@ -12,8 +12,8 @@ pub enum Target {
 }
 
 impl Target {
-    pub fn appended(self, command: &mut Command) {
-        command.arg(self.to_string());
+    pub fn appended(self, run: Run) -> Run {
+        run.arg(self.to_string())
     }
 }
 
