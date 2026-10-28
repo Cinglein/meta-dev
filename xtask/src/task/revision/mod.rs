@@ -59,8 +59,8 @@ impl Revision {
         Ok(listed.and(untracked))
     }
 
-    pub fn emails(root: &Path, base: &BranchName) -> Result<String, Failure> {
-        Self::read(&Port::new(root), GitArgv::LogEmails, [base])
+    pub fn noreply_off(root: &Path, base: &BranchName) -> Result<(), Failure> {
+        ForeignEmails::refused(&Self::read(&Port::new(root), GitArgv::LogEmails, [base])?)
     }
 
     fn read<Word: AsRef<OsStr>>(
