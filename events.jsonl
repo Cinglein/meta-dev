@@ -837,3 +837,4 @@
 {"at":"2026-10-28T00:08:43.768853Z","actor":"claude-lead","kind":"TaskOpened","task":"task-d69c81d08d82cac7","text":"Paydown counts items addressed by the PR's linked tasks even if done (only retired excluded); done-before-merge currently voids paydown.","division":"features-and-maintenance"}
 {"at":"2026-10-28T00:25:30.534808Z","actor":"claude-stophook","kind":"TaskClaimed","task":"task-4bdfcb98aa65845e"}
 {"at":"2026-10-28T00:29:45.170778Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-87341e3156c2b3af","text":"Test fakes can diverge from real git and hide unsafe changes (#72: fake judged pause refs per ref; real rev-parse --revs-only drops later args). Fakes need real-git parity tests.","division":"features-and-maintenance","severity":"major"}
+{"at":"2026-10-28T00:30:02.377173Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-d756f2d83ad6b351"}
