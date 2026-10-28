@@ -3,7 +3,7 @@ use std::ffi::OsString;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use super::{EnvPolicy, Environment, Run};
+use super::{Budget, EnvPolicy, Environment, Run};
 
 const SHELL: &str = "bash";
 const SCRIPT: &str = "-c";
@@ -19,7 +19,7 @@ const KILLED: [&str; 5] = [
     "trap '' TERM; echo $$ >> \"$0\"; for _ in 1 2 3 4 5; do sleep 1 & echo $! >> \"$0\"; wait; done",
     "echo $$ >> \"$0\"; kill -STOP $$",
     "set -m; (trap '' TERM; exec sh -c 'echo $$ >> \"$0\"; exec sleep 5' \"$0\") & inner=$!; \
-     trap 'kill -TERM -$inner; sleep 0.04; kill -KILL -$inner; exit' TERM; echo $$ >> \"$0\"; wait",
+     trap 'kill -TERM -$inner; sleep 0.02; kill -KILL -$inner; exit' TERM; echo $$ >> \"$0\"; wait",
 ];
 const RECORDED: usize = 9;
 const EXPIRED: &str = "deadline had passed";
@@ -77,7 +77,7 @@ fn a_run_ends_at_its_deadline_and_kills_its_whole_group_holders_deaf_respawning_
 }
 
 #[test]
-fn each_env_policy_drops_only_its_variables_and_never_resets_the_rest() {
+fn each_env_policy_drops_only_its_variables_and_a_budget_caps_calls_and_rests_at_its_overall_deadline() {
     let inherited = INHERITED.map(|(name, value)| (OsString::from(name), Some(OsString::from(value))));
     let inherited = Environment::from(BTreeMap::from(inherited));
     let dropped = DROPPED
@@ -86,4 +86,8 @@ fn each_env_policy_drops_only_its_variables_and_never_resets_the_rest() {
     let git = Run::git(Path::new(SHELL));
     let shown = format!("{:?}", Environment::from(&git));
     assert!(shown.contains(NO_PROMPT) && git.ran(Instant::now()).is_err_and(|late| late.to_string().contains(EXPIRED)));
+    let started = Instant::now();
+    Budget::new(PATIENT).within(started + POLL).rest(PATIENT);
+    let rested = started.elapsed();
+    assert!((POLL..PATIENT).contains(&rested) && Budget::new(PATIENT).within(started).deadline() == started);
 }

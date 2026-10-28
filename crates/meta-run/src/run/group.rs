@@ -29,7 +29,7 @@ impl Group {
     const END_OF_OPTIONS: &'static str = "--";
     const GRACE: Duration = Duration::from_secs(1);
     const STEP: Duration = Duration::from_millis(5);
-    const HANDOFF: Duration = Duration::from_millis(50);
+    const HANDOFF: Duration = Duration::from_millis(30);
     const SETTLE: Duration = Self::HANDOFF.saturating_add(Self::HANDOFF);
     const SEARCH_PATH: [&'static str; 1] = ["PATH"];
 
@@ -101,6 +101,7 @@ impl Drop for Group {
 
 #[cfg(test)]
 mod tests {
+    use std::ffi::OsStr;
     use std::time::{Duration, Instant};
 
     use super::{Group, GroupId};
@@ -115,19 +116,28 @@ mod tests {
     const ALIVE: [&str; 1] = ["-0"];
     const PATIENT: Duration = Duration::from_secs(5);
     const LIMIT: Duration = Duration::from_millis(60);
+    const CLOSING: [&str; 3] = ["--exact", "run::group::tests::closing_runner_refuses_new_spawns", "--ignored"];
 
     #[test]
-    fn a_finished_run_leaves_the_live_groups_and_a_helper_past_its_deadline_is_killed_and_reaped() {
+    #[ignore = "run in a child process by the test below"]
+    fn closing_runner_refuses_new_spawns() {
+        Group::all_ended();
+        let ran = Run::new(SHELL, EnvPolicy::Inherit).ran(Instant::now() + PATIENT);
+        assert!(matches!(ran, Err(RunFailure::Interrupted(_))));
+    }
+
+    #[test]
+    fn helpers_past_their_deadline_are_reaped_finished_runs_leave_the_live_groups_and_closing_refuses_spawns() {
         let recorded = tempfile::NamedTempFile::new().unwrap();
-        let helper =
-            Run::new(SHELL, EnvPolicy::Inherit).args(ALONE).arg(recorded.path()).helped(Instant::now() + LIMIT);
+        let run = |program: &OsStr| Run::new(program, EnvPolicy::Inherit);
+        let helped = run(SHELL.as_ref()).args(ALONE).arg(recorded.path()).helped(Instant::now() + LIMIT);
         let pid = std::fs::read_to_string(recorded.path()).unwrap_or_default();
-        let probe = Run::new(KILL, EnvPolicy::Inherit).args(ALIVE).arg(pid.trim()).ran(Instant::now() + PATIENT);
-        let leader = Run::new(SHELL, EnvPolicy::Inherit).args(LEADER).stdout(Instant::now() + PATIENT);
+        let probe = run(KILL.as_ref()).args(ALIVE).arg(pid.trim()).ran(Instant::now() + PATIENT);
+        let leader = run(SHELL.as_ref()).args(LEADER).stdout(Instant::now() + PATIENT);
         let leader = leader.ok().and_then(|leader| leader.parse::<GroupId>().ok());
-        assert!(matches!(helper, Err(RunFailure::TimedOut(_))) && !pid.trim().is_empty());
-        assert!(
-            probe.is_ok_and(|probe| !probe.success()) && leader.is_some_and(|group| !Group::live().contains(&group))
-        );
+        let closing = run(std::env::current_exe().unwrap().as_os_str()).args(CLOSING);
+        assert!(matches!(helped, Err(RunFailure::TimedOut(_))) && probe.is_ok_and(|probe| !probe.success()));
+        assert!(!pid.trim().is_empty() && leader.is_some_and(|group| !Group::live().contains(&group)));
+        assert!(closing.ran(Instant::now() + PATIENT).is_ok_and(|closing| closing.success()));
     }
 }

@@ -42,8 +42,7 @@ impl LiveGithub {
 
     #[must_use]
     pub fn within(self, overall: Instant) -> Self {
-        let deadline = self.deadline.min(overall);
-        Self { deadline, ..self }
+        Self { program: self.program, root: self.root, deadline: self.deadline.min(overall), workflows: self.workflows }
     }
 
     pub fn read(&self, query: &LiveQuery) -> Github {

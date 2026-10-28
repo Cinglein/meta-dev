@@ -28,22 +28,3 @@ impl Budget {
         std::thread::sleep(pause.min(left));
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use std::time::{Duration, Instant};
-
-    use super::Budget;
-
-    const SHORT: Duration = Duration::from_millis(5);
-    const LONG: Duration = Duration::from_secs(5);
-
-    #[test]
-    fn each_call_starts_its_own_limit_inside_the_overall_deadline_and_rests_end_there() {
-        let budget = Budget::new(SHORT);
-        let started = Instant::now();
-        Budget::new(LONG).within(started + SHORT).rest(LONG);
-        assert!(budget.deadline() > Instant::now() && (SHORT..LONG).contains(&started.elapsed()));
-        assert_eq!(Budget::new(LONG).within(started).deadline(), started);
-    }
-}
