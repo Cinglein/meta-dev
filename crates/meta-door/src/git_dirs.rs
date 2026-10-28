@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Mutex, PoisonError};
 
+use crate::admin_file::AdminFile;
 use refusal::Refusal;
 
 #[derive(Debug)]
@@ -17,7 +18,6 @@ impl GitDirs {
     const ENTRY: &str = ".git";
     const HEAD: &str = "HEAD";
     const OBJECTS: &str = "objects";
-    const COMMON: &str = "commondir";
     const QUERY: [&str; 3] = ["rev-parse", "--path-format=absolute", "--git-common-dir"];
     const UNSET: [&str; 3] = ["GIT_DIR", "GIT_COMMON_DIR", "GIT_WORK_TREE"];
 
@@ -56,7 +56,7 @@ impl GitDirs {
 
     fn plain(directory: &Path) -> Option<PathBuf> {
         let own = directory.join(Self::ENTRY);
-        (own.is_dir() && !own.join(Self::COMMON).exists()).then_some(own)
+        (own.is_dir() && !own.join(AdminFile::CommonDir.name()).exists()).then_some(own)
     }
 
     fn answered(directory: &Path) -> Result<PathBuf, Refusal> {

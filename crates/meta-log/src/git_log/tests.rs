@@ -1,7 +1,7 @@
 use std::cell::Cell;
 use std::path::Path;
 
-use meta_door::{Door, Pair};
+use meta_door::{Door, Layout, Pair};
 use std::process::{Command, Output};
 use std::sync::{Arc, Mutex};
 
@@ -23,7 +23,8 @@ const SHOWN: &str = "meta/log on origin";
 const REJECTED_PREFIX: &str = "meta/log push rejected";
 const REFUSE_PUSHES: [&str; 2] = ["/usr/bin/false", "pre-receive"];
 const HOOKS_PATH: [&str; 2] = ["config", "core.hooksPath"];
-const CONFIG: &str = "config";
+const ENTRY: &str = ".git";
+const MAIN: &str = "main";
 const MAINTENANCE: &str = "[maintenance]\n\tauto = false\n";
 const STATUS: [&str; 3] = ["status", "--porcelain", "--branch"];
 const COUNT: [&str; 3] = ["rev-list", "--count", "meta/log"];
@@ -43,18 +44,13 @@ impl Git {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
     }
 
-    const TEMPLATE: &str = concat!("--template=", env!("CARGO_MANIFEST_DIR"), "/src/git_log/tests/template");
-
     fn laid(dir: &Path) {
-        assert!(Self::run(dir, &["init", "-q", Self::TEMPLATE, "--bare", "."]).status.success());
+        Door::skeleton(dir, Layout::Bare, MAIN, MAINTENANCE).unwrap();
     }
 
     fn cloned(dir: &Path, url: &str) {
-        let template = tempfile::tempdir().unwrap();
         let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
-        Door::write(template.path().join(CONFIG), [MAINTENANCE, &remote].concat()).unwrap();
-        let templated = format!("--template={}", template.path().display());
-        assert!(Self::run(dir, &["init", "-q", &templated, "."]).status.success());
+        Door::skeleton(&dir.join(ENTRY), Layout::Working, MAIN, &[MAINTENANCE, &remote].concat()).unwrap();
     }
 
     fn text(dir: &Path, words: &[&str]) -> String {

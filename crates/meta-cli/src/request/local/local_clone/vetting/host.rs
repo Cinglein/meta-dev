@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::sync::{Mutex, PoisonError};
 
-use meta_door::{Change, Door};
+use meta_door::{AdminFile, Change, Door};
 
 use super::alternates::Alternates;
 use super::cause::Cause;
@@ -69,7 +69,14 @@ impl Inspection for Host {
     }
 
     fn text(&self, path: &Path) -> Option<String> {
-        (self.entry(path) == EntryKind::File).then(|| Door::inspected(path).ok()).flatten()
+        let directory = path.parent()?;
+        let admin = path.file_name().and_then(OsStr::to_str).and_then(|name| name.parse::<AdminFile>().ok());
+        let read = || match (admin, Thaw::stored(path)) {
+            (Some(admin), _) => Door::inspected(directory, admin),
+            (None, Some(ledger)) => ledger.and_then(Door::read),
+            (None, None) => Door::read(path),
+        };
+        (self.entry(path) == EntryKind::File).then(read).and_then(Result::ok)
     }
 
     fn git(&self, call: &GitCall) -> Result<String, Kept> {

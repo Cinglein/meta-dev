@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use meta_door::{Change, Door};
+use meta_door::{Change, Door, Layout};
 use tempfile::TempDir;
 
 #[derive(Debug)]
@@ -14,7 +14,7 @@ impl Fixture {
     pub fn new() -> Fixture {
         let directory = TempDir::new().expect("temp dir");
         let work = directory.path().join("work");
-        Self::ran(Self::git(directory.path()).args(["init", "--quiet", "--template=", "-b", "change"]).arg(&work));
+        Door::skeleton(&work.join(".git"), Layout::Working, "change", "").expect("lay repository");
         Fixture { _directory: directory, work }
     }
 

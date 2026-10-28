@@ -32,4 +32,5 @@ toml = "0.9"
 workspace = true
 
 [dev-dependencies]
+meta-door = { path = "../crates/meta-door", features = ["skeleton"] }
 task = { path = "../tooling/task", features = ["test-policy"] }

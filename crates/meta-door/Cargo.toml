@@ -8,6 +8,7 @@ license.workspace = true
 
 [features]
 dangling-pause = []
+skeleton = []
 
 [dev-dependencies]
 tempfile.workspace = true

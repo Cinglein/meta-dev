@@ -35,10 +35,14 @@ impl Thaw {
     }
 
     pub fn ledger(&self) -> std::io::Result<Entry> {
-        let ledgers = self.ledger.parent().unwrap_or(&self.ledger);
-        let common = ledgers.ancestors().find(|dir| dir.join(Self::LEDGERS) == ledgers).unwrap_or(ledgers);
-        let store = MetaStore::located(common.parent().unwrap_or(common))?;
-        Ok(store.entry(self.ledger.strip_prefix(store.common()).unwrap_or(&self.ledger)))
+        Self::stored(&self.ledger).unwrap_or_else(|| Ok(Entry::from(&self.ledger)))
+    }
+
+    pub fn stored(ledger: &Path) -> Option<std::io::Result<Entry>> {
+        let ledgers = ledger.parent()?;
+        let common = ledgers.ancestors().find(|dir| dir.join(Self::LEDGERS) == ledgers)?;
+        let store = MetaStore::located(common.parent().unwrap_or(common));
+        Some(store.map(|store| store.entry(ledger.strip_prefix(store.common()).unwrap_or(ledger))))
     }
 
     pub fn files(&self) -> &[Thawed] {

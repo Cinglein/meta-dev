@@ -2,6 +2,7 @@ use std::fs::{self, File};
 use std::io;
 use std::path::{Path, PathBuf};
 
+use crate::admin_file::AdminFile;
 use crate::change::Change;
 use crate::entry::Entry;
 use crate::opening::Opening;
@@ -37,8 +38,29 @@ impl Door {
         fs::read_dir(path.into().cleared()?)?.map(|entry| entry.map(|entry| entry.path())).collect()
     }
 
-    pub fn inspected(admin_file: &Path) -> io::Result<String> {
-        fs::read_to_string(admin_file)
+    pub fn inspected(directory: &Path, admin: AdminFile) -> io::Result<String> {
+        fs::read_to_string(directory.join(admin.name()))
+    }
+}
+
+#[cfg(feature = "skeleton")]
+impl Door {
+    const SKELETON: [&str; 3] = ["objects", "refs/heads", "refs/tags"];
+    const UNBORN: &str = "ref: refs/heads/";
+    const HEAD: &str = "HEAD";
+    const CONFIG: &str = "config";
+    const NEWLINE: &str = "\n";
+
+    pub fn skeleton(git_dir: &Path, layout: crate::Layout, branch: &str, config: &str) -> io::Result<()> {
+        git_dir
+            .read_dir()
+            .map_or(true, |mut entries| entries.next().is_none())
+            .then_some(())
+            .ok_or(io::ErrorKind::AlreadyExists)?;
+        crate::git_dirs::GitDirs::outside(git_dir.to_path_buf())?;
+        Self::SKELETON.iter().try_for_each(|dir| fs::create_dir_all(git_dir.join(dir)))?;
+        fs::write(git_dir.join(Self::HEAD), [Self::UNBORN, branch, Self::NEWLINE].concat())?;
+        fs::write(git_dir.join(Self::CONFIG), [layout.core(), config].concat())
     }
 }
 
@@ -77,6 +99,12 @@ mod tests {
     const UP: &str = "..";
     const EMPTY: &str = "";
     const REFUSED: &str = "is inside the git dir";
+    #[cfg(feature = "skeleton")]
+    const ENTRY: &str = ".git";
+    #[cfg(feature = "skeleton")]
+    const BRANCH: &str = "laid";
+    #[cfg(feature = "skeleton")]
+    const SYMBOLIC: [&str; 2] = ["symbolic-ref", "HEAD"];
 
     #[test]
     fn the_door_refuses_the_git_dir_and_lets_meta_store_files_and_the_work_tree_through() {
@@ -101,5 +129,17 @@ mod tests {
         let linked = Door::paired(bare.path().join(HEAD), outside.path().join(HEAD), Pair::Symlink);
         let copied = Door::paired(bare.path().join(HEAD), outside.path().join(WORK), Pair::Copy);
         assert!(refused.contains(REFUSED) && linked.is_ok() && copied.is_err(), "{refused}");
+    }
+
+    #[cfg(feature = "skeleton")]
+    #[test]
+    fn a_skeleton_is_a_repository_git_reads_on_its_branch_and_never_lays_over_a_used_dir() {
+        let repository = tempfile::tempdir().unwrap();
+        let git_dir = repository.path().join(ENTRY);
+        Door::skeleton(&git_dir, crate::Layout::Working, BRANCH, EMPTY).unwrap();
+        let head = Command::new("git").current_dir(repository.path()).args(SYMBOLIC).output().unwrap();
+        let config = Door::inspected(&git_dir, crate::AdminFile::CommonDir).is_err();
+        let again = Door::skeleton(&git_dir, crate::Layout::Bare, BRANCH, EMPTY).is_err();
+        assert!(String::from_utf8_lossy(&head.stdout).contains(BRANCH) && config && again);
     }
 }
