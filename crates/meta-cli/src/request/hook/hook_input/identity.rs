@@ -49,8 +49,11 @@ impl FromStr for Identity {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Instant;
+
     use super::Identity;
 
+    const UNDECIDED: &str = "cannot check the commit email";
     const FOREIGN: &str = "Some One <someone@example.com> 1700000000 +0000\n";
     const NOREPLY: &str = "Some One <1+someone@users.noreply.github.com> 1700000000 +0000\n";
     const NAMED: &str = "someone@example.com is not noreply; git config user.name";
@@ -61,5 +64,12 @@ mod tests {
             |ident: &str| ident.parse::<Identity>().map(|identity| identity.refusal().map(|why| why.to_string()));
         assert!(refusal(FOREIGN).is_ok_and(|why| why.is_some_and(|why| why.starts_with(NAMED))));
         assert!(refusal(NOREPLY).is_ok_and(|why| why.is_none()));
+    }
+
+    #[test]
+    fn an_identity_check_that_runs_out_of_time_refuses_the_commit() {
+        let dir = tempfile::tempdir().unwrap();
+        let refused = Identity::refusal_in(dir.path(), Instant::now()).map(|why| why.to_string());
+        assert!(refused.is_some_and(|why| why.starts_with(UNDECIDED)));
     }
 }
