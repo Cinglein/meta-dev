@@ -846,3 +846,4 @@
 {"at":"2026-10-28T00:40:00.591549Z","actor":"claude-payw","kind":"TaskClaimed","task":"task-c2fcea91721b5b91"}
 {"at":"2026-10-28T00:40:02.055922Z","actor":"claude-payb","kind":"TaskClaimed","task":"task-ae6e747e2f49de5a"}
 {"at":"2026-10-28T00:40:03.643820Z","actor":"claude-payb","kind":"TaskClaimed","task":"task-918501f03d013d24"}
+{"at":"2026-10-28T00:40:10.573091Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-ba1fc185572af88d","text":"meta reopen drops the task's assignee, so a reopened task's PR fails the tracked-work check until re-claimed.","division":"features-and-maintenance","severity":"minor"}
