@@ -1,5 +1,5 @@
 mod baseline_file;
-mod bit_boundary;
+mod boundary;
 mod floor;
 mod key_name;
 mod least;
@@ -35,7 +35,7 @@ use std::path::Path;
 use crate::budgets::{Budgets, LegacyKey};
 use crate::domains::Domains;
 use crate::percent::Percent;
-use bit_boundary::BitBoundary;
+use boundary::Boundary;
 use enum_map::EnumMap;
 use least::Least;
 use meta_severity::Scales;
@@ -61,7 +61,8 @@ use crate::site::Site;
 pub struct Policy {
     vague: Vec<String>,
     wire_types: Vec<String>,
-    bit_boundary: BitBoundary,
+    bit_boundary: Boundary,
+    file_door: Boundary,
     surfaces: Vec<Surface>,
     branches: EnumMap<Branch, BranchName>,
     baseline: BaselineFile,
@@ -235,8 +236,13 @@ impl Policy {
     }
 
     #[must_use]
-    pub fn bit_boundary(&self) -> &BitBoundary {
+    pub fn bit_boundary(&self) -> &Boundary {
         &self.bit_boundary
+    }
+
+    #[must_use]
+    pub fn file_door(&self) -> &Boundary {
+        &self.file_door
     }
 
     #[must_use]

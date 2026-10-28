@@ -8,6 +8,7 @@ pub enum Finding {
     WireForm { wire: UsePath, context: Name },
     UnnamedSize { context: Name },
     TextOutsideDoor { handler: Name },
+    FileOutsideDoor { access: Name },
 }
 
 impl fmt::Display for Finding {
@@ -28,6 +29,10 @@ impl fmt::Display for Finding {
             Finding::TextOutsideDoor { handler } => write!(
                 formatter,
                 "{handler} handles text outside a door; parse in FromStr or render in Display"
+            ),
+            Finding::FileOutsideDoor { access } => write!(
+                formatter,
+                "{access} reaches the filesystem outside the file door (file_door in tooling/policy.toml)"
             ),
         }
     }
