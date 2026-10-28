@@ -167,7 +167,7 @@ mod tests {
     const NAMES: [&str; 4] = ["target/debug/deps/bin-1a2b3c", "exact", "slow", "bulk"];
     const TICK: Duration = Duration::from_millis(1);
     const WHOLE_IN_UNITS: usize = 4;
-    const REPORTED: [&str; 2] = ["slowest-test", "test-cpu-time"];
+    const REPORTED: [&str; 3] = ["slowest-test", "test-cpu-time", "test-time"];
     const NOTHING_TIMED: [&str; 1] = ["no tests were found to time"];
     const HEADLINE: &str = "timed";
 
