@@ -5,8 +5,6 @@ pub enum RuleSource {
 }
 
 impl RuleSource {
-    pub const BOTH: [Self; 2] = [Self::Rulesets, Self::Protection];
-
     #[must_use]
     pub fn filter(self) -> &'static str {
         match self {

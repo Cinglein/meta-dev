@@ -1,10 +1,8 @@
 use std::ffi::OsStr;
-use std::num::NonZeroUsize;
-use std::panic::resume_unwind;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use meta_pull_query::{LiveData, LiveQuery, Rulebook, WorkflowName};
+use meta_pull_query::{LiveData, LiveQuery, WorkflowName};
 use meta_pulls::{BaseBranch, RequiredChecks, RuleSource};
 use meta_run::{EnvPolicy, Run};
 use meta_schema::PullRequest;
@@ -12,9 +10,11 @@ use meta_status::{Github, GithubFailure};
 
 use crate::request::project::{BranchName, ProgramName, Project};
 use crate::request::repository::Repository;
+use base_rules::BaseRules;
 use open_pages::OpenPages;
 use unanswered::Unanswered;
 
+mod base_rules;
 mod open_pages;
 
 #[derive(Clone, Debug)]
@@ -35,7 +35,6 @@ impl LiveGithub {
     const SAME_REPOSITORY: [&'static str; 4] =
         ["--json", "number,isCrossRepository", "--jq", ".[] | select(.isCrossRepository | not) | .number"];
     const UNRULED: &'static str = "a base branch's rules were not read";
-    const REPOSITORY: &'static str = "GH_REPO";
 
     pub fn new(program: ProgramName, root: PathBuf, deadline: Instant, workflows: Vec<WorkflowName>) -> Self {
         Self { program, root, deadline, workflows, repository: None }
@@ -56,7 +55,8 @@ impl LiveGithub {
 
     #[must_use]
     pub fn within(self, overall: Instant) -> Self {
-        Self { deadline: self.deadline.min(overall), ..self }
+        let Self { program, root, deadline, workflows, repository } = self;
+        Self { program, root, deadline: deadline.min(overall), workflows, repository }
     }
 
     pub fn read(&self, query: &LiveQuery) -> Github {
@@ -71,21 +71,9 @@ impl LiveGithub {
 
     fn live(&self, query: &LiveQuery) -> Result<LiveData, GithubFailure> {
         let pulls = OpenPages::new(self, query).read()?;
-        let asked: Vec<(BaseBranch, RuleSource)> =
-            pulls.bases().into_iter().flat_map(|base| RuleSource::BOTH.map(|source| (base.clone(), source))).collect();
-        let width = std::thread::available_parallelism().map_or(1, NonZeroUsize::get);
-        let rules: Rulebook = asked.chunks(width).flat_map(|chunk| self.together(chunk)).collect::<Result<_, _>>()?;
+        let rules = BaseRules::new(self).read(pulls.bases())?;
         let data = pulls.ruled(rules).ok_or_else(|| GithubFailure::new(Self::UNRULED))?;
         Ok(data.requiring(self.workflows.clone()))
-    }
-
-    fn together(&self, chunk: &[(BaseBranch, RuleSource)]) -> Vec<Result<(BaseBranch, RequiredChecks), GithubFailure>> {
-        std::thread::scope(|scope| {
-            let read =
-                |(base, source): &(BaseBranch, RuleSource)| self.required(*source, base).map(|got| (base.clone(), got));
-            let running: Vec<_> = chunk.iter().map(|asked| scope.spawn(move || read(asked))).collect();
-            running.into_iter().map(|run| run.join().unwrap_or_else(|panic| resume_unwind(panic))).collect()
-        })
     }
 
     fn required(&self, source: RuleSource, base: &BaseBranch) -> Result<RequiredChecks, GithubFailure> {
@@ -103,7 +91,7 @@ impl LiveGithub {
 
     fn run<'words>(&self, words: impl Iterator<Item = &'words OsStr>) -> Run {
         let run = Run::new(&self.program, EnvPolicy::Inherit).args(words).dir(&self.root);
-        self.repository.iter().fold(run, |run, repository| run.var(Self::REPOSITORY, repository.to_string()))
+        self.repository.iter().fold(run, |run, repository| repository.named(run))
     }
 }
 

@@ -1,6 +1,7 @@
 use std::ffi::OsString;
-use std::fmt;
 use std::str::FromStr;
+
+use meta_run::Run;
 
 use crate::request::ci::Commit;
 
@@ -11,17 +12,17 @@ impl Repository {
     const SUFFIX: &'static str = ".git";
     const SEPARATORS: [char; 2] = ['/', ':'];
     const FIELD: &'static str = "-f";
+    const VARIABLE: &'static str = "GH_REPO";
+
+    #[must_use]
+    pub fn named(&self, run: Run) -> Run {
+        run.var(Self::VARIABLE, &self.0)
+    }
 
     pub fn variables(&self, commit: &Commit) -> impl Iterator<Item = OsString> {
         let (owner, name) = self.0.split_once('/').unwrap_or_default();
         let values = [format!("sha={commit}"), format!("owner={owner}"), format!("name={name}")];
         values.into_iter().flat_map(|value| [OsString::from(Self::FIELD), OsString::from(value)])
-    }
-}
-
-impl fmt::Display for Repository {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.0)
     }
 }
 

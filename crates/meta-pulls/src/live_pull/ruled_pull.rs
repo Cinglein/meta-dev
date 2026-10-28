@@ -31,26 +31,24 @@ impl<'pull> RuledPull<'pull> {
     #[must_use]
     pub fn red(self) -> Option<Self> {
         self.open()?;
-        self.checks()?.failing().map(|_| self)
+        self.checks(self.required?).failing().map(|_| self)
     }
 
     #[must_use]
     pub fn truncated(self) -> Option<Checks> {
         self.open()?;
-        let checks = self.checks()?;
+        let checks = self.checks(self.required?);
         checks.truncated().map(|()| checks)
     }
 
-    fn checks(self) -> Option<Checks> {
-        let rollup = self.pull.rollup.as_ref();
-        self.required
-            .map(|required| rollup.map_or_else(|| Rollup::default().checks(required), |rollup| rollup.checks(required)))
+    fn checks(self, required: &RequiredChecks) -> Checks {
+        self.pull.rollup.as_ref().map_or_else(|| Rollup::default().checks(required), |rollup| rollup.checks(required))
     }
 }
 
 impl fmt::Display for RuledPull<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{}", self.pull.state)?;
-        self.checks().map_or(Ok(()), |checks| write!(formatter, " {checks}"))
+        self.required.map_or(Ok(()), |required| write!(formatter, " {}", self.checks(required)))
     }
 }
