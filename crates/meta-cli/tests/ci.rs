@@ -140,7 +140,6 @@ impl Git {
     ];
 
     const LONG_AGO: &'static str = "@1000000000 +0000";
-    const ALTERNATES: &'static str = "objects/info/alternates";
 
     fn run(dir: &Path, words: &[&str]) -> Output {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
@@ -169,11 +168,6 @@ impl Git {
             .to_owned()
     }
 
-    fn share_objects(origin: &Path, clone: &Path) {
-        std::fs::create_dir_all(origin.join(Self::ALTERNATES).parent().unwrap()).unwrap();
-        std::fs::write(origin.join(Self::ALTERNATES), format!("{}\n", clone.join(".git/objects").display())).unwrap();
-    }
-
     fn pushed(repo: &Repo, branch: &str) {
         let tip = format!("{}\n", Self::head(repo.clone.path()));
         let refs = [repo.origin.path().join("refs/heads"), repo.clone.path().join(".git/refs/remotes/origin")];
@@ -182,15 +176,20 @@ impl Git {
             std::fs::write(named, &tip).unwrap();
         });
     }
+}
 
-    fn link_origin(dir: &Path, url: &str) {
+struct Origin;
+
+impl Origin {
+    const ALTERNATES: &'static str = "objects/info/alternates";
+
+    fn linked(origin: &Path, clone: &Path) {
+        let url = origin.display();
         let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
-        std::fs::OpenOptions::new()
-            .append(true)
-            .open(dir.join(".git/config"))
-            .unwrap()
-            .write_all(remote.as_bytes())
-            .unwrap();
+        let config = std::fs::OpenOptions::new().append(true).open(clone.join(".git/config"));
+        config.unwrap().write_all(remote.as_bytes()).unwrap();
+        std::fs::create_dir_all(origin.join(Self::ALTERNATES).parent().unwrap()).unwrap();
+        std::fs::write(origin.join(Self::ALTERNATES), format!("{}\n", clone.join(".git/objects").display())).unwrap();
     }
 }
 
@@ -345,8 +344,7 @@ impl Repo {
         let clone = tempfile::tempdir().unwrap();
         Skeleton::Bare.lay(origin.path(), "main");
         Skeleton::Working.lay(clone.path(), "feature");
-        Git::link_origin(clone.path(), origin.path().to_str().unwrap());
-        Git::share_objects(origin.path(), clone.path());
+        Origin::linked(origin.path(), clone.path());
         std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{limits}")).unwrap();
         std::fs::create_dir(clone.path().join("bin")).unwrap();
         std::fs::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
@@ -401,8 +399,9 @@ impl Repo {
         let events = self.clone.path().join(".git/meta-ci/ABCDEF1234/events");
         let lock = self.sessions.path().join(Planted::LOCKS).join(Git::head(self.clone.path()));
         let pauses = std::iter::successors(Some(Duration::ZERO), |_| Some(SETTLE_POLL)).take(SETTLE_LENGTH);
-        let mut polled = pauses.map(std::thread::sleep).map(|()| std::fs::read_to_string(&events).unwrap_or_default());
-        polled
+        pauses
+            .map(std::thread::sleep)
+            .map(|()| std::fs::read_to_string(&events).unwrap_or_default())
             .find(|text| {
                 let new = text.strip_prefix(seen).unwrap_or_default();
                 COMPLETIONS.iter().any(|completion| new.contains(completion))
