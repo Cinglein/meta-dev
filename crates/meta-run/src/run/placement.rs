@@ -1,3 +1,5 @@
+mod process_id;
+
 use std::os::unix::process::CommandExt as _;
 use std::time::{Duration, Instant};
 
@@ -5,6 +7,7 @@ use super::Run;
 use super::group::Group;
 use crate::ran::Ran;
 use crate::run_failure::RunFailure;
+use process_id::ProcessId;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Placement {
@@ -19,7 +22,7 @@ impl Placement {
     pub fn ran(self, run: Run, deadline: Instant) -> Result<Ran, RunFailure> {
         match self {
             Self::Terminal if std::fs::File::open(Self::TERMINAL).is_ok() => {
-                run.finished(deadline, |_| Some(()), Run::alone)
+                run.finished(deadline, |_| Some(()), ProcessId::ended)
             }
             Self::Nested => Self::grouped(run, deadline, Group::SETTLE),
             Self::Own | Self::Terminal => Self::grouped(run, deadline, Group::HANDOFF),
@@ -49,7 +52,7 @@ mod tests {
     const PTY: &str = "script -qec \"$0\" /dev/null 2>/dev/null || script -q /dev/null sh -c \"$0\"";
     const CHILD: &str =
         "--exact run::placement::tests::in_a_terminal_it_shares_the_group_and_closing_refuses --ignored";
-    const HELPER: &str = "sleep 5 & echo $! > \"$0\"; wait";
+    const HELPER: &str = "bash -c 'sleep 5 & echo $! > \"$0\"; wait' \"$0\" & wait";
     const HELD: &str = "case \"$(ps -o stat= -p \"$(cat \"$0\")\")\" in ''|Z*) ;; *) echo held;; esac";
     const POLL: Duration = Duration::from_millis(2);
     const WINDOW: Duration = Duration::from_secs(1);
