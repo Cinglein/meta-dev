@@ -180,6 +180,26 @@ impl Project {
     }
 }
 
+struct Refused {
+    tracked: String,
+    unwritable: String,
+    unchanged: bool,
+}
+
+impl Refused {
+    fn claims() -> Self {
+        let project = Project::seeded(Path::new(NOT_A_DIRECTORY));
+        let task = project.meta(OWNER, &OPEN).written().0;
+        let claim = [CLAIM, task.as_str(), WORKTREE];
+        let opened = Git::shown(project.origin.path(), &COUNT);
+        std::fs::write(project.clone.path().join(EXCLUDE), "").unwrap();
+        let tracked = project.meta(OWNER, &claim).complaint().0;
+        std::fs::write(project.clone.path().join(EXCLUDE), LOCAL_SETTINGS_RULE).unwrap();
+        let unwritable = project.meta(OWNER, &claim).complaint().0;
+        Self { tracked, unwritable, unchanged: Git::shown(project.origin.path(), &COUNT) == opened }
+    }
+}
+
 #[test]
 fn writes_go_to_the_remote_as_meta_actor_else_owner_listing_it_once_and_offline_writes_are_refused() {
     let project = Project::new();
@@ -197,26 +217,28 @@ fn writes_go_to_the_remote_as_meta_actor_else_owner_listing_it_once_and_offline_
 #[test]
 fn failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_and_a_noreply_worktree_is_listed() {
     let worktrees = tempfile::tempdir().unwrap();
-    let project = Project::seeded(Path::new(NOT_A_DIRECTORY));
+    let refusing = std::thread::spawn(Refused::claims);
+    let project = Project::seeded(worktrees.path());
     let task = project.meta(OWNER, &OPEN).written().0;
     let claim = [CLAIM, task.as_str(), WORKTREE];
     let writes = || Git::shown(project.origin.path(), &COUNT);
     let opened = writes();
-    std::fs::write(project.clone.path().join(EXCLUDE), "").unwrap();
-    let tracked = project.meta(OWNER, &claim).complaint().0;
-    std::fs::write(project.clone.path().join(EXCLUDE), LOCAL_SETTINGS_RULE).unwrap();
-    let unwritable = project.meta(OWNER, &claim).complaint().0;
-    Settings::written(project.clone.path(), worktrees.path());
     std::fs::write(project.clone.path().join(RECORD_DIR), "").unwrap();
     project.meta(OWNER, &claim);
     std::fs::remove_file(project.clone.path().join(RECORD_DIR)).unwrap();
     let failed = writes();
     let first = project.meta(OWNER, &claim).to_string().lines().last().unwrap_or_default().to_owned();
     let claimed = writes();
-    let shown = SHOWN_BY_GIT.map(|words| Git::shown(Path::new(&first), &words));
+    let shown = std::thread::scope(|scope| {
+        let first = &first;
+        SHOWN_BY_GIT
+            .map(|words| scope.spawn(move || Git::shown(Path::new(first), &words)))
+            .map(|shown| shown.join().unwrap())
+    });
     std::fs::remove_dir_all(&first).ok();
     let resumed = project.meta(OWNER, &claim).to_string();
-    assert!(failed == opened && claimed != opened && writes() == claimed);
+    let Refused { tracked, unwritable, unchanged } = refusing.join().unwrap();
+    assert!(failed == opened && claimed != opened && writes() == claimed && unchanged);
     assert!(tracked.contains(IGNORED) && unwritable.contains(NOT_A_DIRECTORY) && unwritable.contains(GIT_CALL));
     assert!(resumed.ends_with(&format!("{first}\n")) && Path::new(&first).exists());
     assert_eq!(shown, [NOREPLY, NOREPLY, AGENT, &task].map(|line| format!("{line}\n")));
