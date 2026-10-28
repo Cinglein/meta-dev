@@ -263,23 +263,44 @@ impl Scene {
     }
 }
 
+struct Scenes {
+    planning: Scene,
+    sweeping: Scene,
+}
+
+impl Scenes {
+    fn built() -> Self {
+        std::thread::scope(|scope| {
+            let planning = scope.spawn(Scene::new);
+            let sweeping = Scene::new();
+            Self { planning: planning.join().unwrap(), sweeping }
+        })
+    }
+
+    fn run(&self) -> Runs {
+        std::thread::scope(|scope| {
+            let ticking = scope.spawn(|| self.planning.meta(&GC_RUN));
+            let swept = self.sweeping.meta(&GC);
+            Runs { ticked: ticking.join().unwrap(), swept }
+        })
+    }
+}
+
+struct Runs {
+    ticked: String,
+    swept: String,
+}
+
 #[test]
 fn gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_with_reasons() {
-    let (planning, scene) = std::thread::scope(|scope| {
-        let planning = scope.spawn(Scene::new);
-        let scene = Scene::new();
-        (planning.join().unwrap(), scene)
-    });
-    let (planned, trees) = (planning.trees(), scene.trees());
+    let scenes = Scenes::built();
+    let [planning, scene] = [&scenes.planning, &scenes.sweeping];
+    let [planned, trees] = [planning.trees(), scene.trees()];
     let _held = [&planned, &trees].map(|trees| File::open(trees.join(BUSY).join(".git")).unwrap());
     let shows = |shown: &str, lines: &[Line]| lines.iter().all(|line| shown.contains(&Shown(line, &trees).to_string()));
     let freed = Freed(&trees).to_string();
     std::fs::write(scene.clone.path().join(TRAIL), Created(&trees, &RECORDED).to_string()).unwrap();
-    let (ticked, swept) = std::thread::scope(|scope| {
-        let ticking = scope.spawn(|| planning.meta(&GC_RUN));
-        let swept = scene.meta(&GC);
-        (ticking.join().unwrap(), swept)
-    });
+    let Runs { ticked, swept } = scenes.run();
     assert!(ticked.contains(&Shown(&PLANNED, &planned).to_string()) && planned.join(MERGED).exists(), "{ticked}");
     let trail = std::fs::read_to_string(scene.clone.path().join(TRAIL)).unwrap();
     let branch = Git::run(scene.clone.path(), &["branch", "--list", MERGED]).stdout;

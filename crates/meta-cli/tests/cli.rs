@@ -183,7 +183,8 @@ impl Project {
 struct Refused {
     tracked: String,
     unwritable: String,
-    unchanged: bool,
+    before: String,
+    after: String,
 }
 
 impl Refused {
@@ -191,12 +192,12 @@ impl Refused {
         let project = Project::seeded(Path::new(NOT_A_DIRECTORY));
         let task = project.meta(OWNER, &OPEN).written().0;
         let claim = [CLAIM, task.as_str(), WORKTREE];
-        let opened = Git::shown(project.origin.path(), &COUNT);
+        let before = Git::shown(project.origin.path(), &COUNT);
         std::fs::write(project.clone.path().join(EXCLUDE), "").unwrap();
         let tracked = project.meta(OWNER, &claim).complaint().0;
         std::fs::write(project.clone.path().join(EXCLUDE), LOCAL_SETTINGS_RULE).unwrap();
         let unwritable = project.meta(OWNER, &claim).complaint().0;
-        Self { tracked, unwritable, unchanged: Git::shown(project.origin.path(), &COUNT) == opened }
+        Self { tracked, unwritable, before, after: Git::shown(project.origin.path(), &COUNT) }
     }
 }
 
@@ -229,16 +230,11 @@ fn failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_a
     let failed = writes();
     let first = project.meta(OWNER, &claim).to_string().lines().last().unwrap_or_default().to_owned();
     let claimed = writes();
-    let shown = std::thread::scope(|scope| {
-        let first = &first;
-        SHOWN_BY_GIT
-            .map(|words| scope.spawn(move || Git::shown(Path::new(first), &words)))
-            .map(|shown| shown.join().unwrap())
-    });
+    let shown = SHOWN_BY_GIT.map(|words| Git::shown(Path::new(&first), &words));
     std::fs::remove_dir_all(&first).ok();
     let resumed = project.meta(OWNER, &claim).to_string();
-    let Refused { tracked, unwritable, unchanged } = refusing.join().unwrap();
-    assert!(failed == opened && claimed != opened && writes() == claimed && unchanged);
+    let Refused { tracked, unwritable, before, after } = refusing.join().unwrap();
+    assert!(failed == opened && claimed != opened && writes() == claimed && before == after);
     assert!(tracked.contains(IGNORED) && unwritable.contains(NOT_A_DIRECTORY) && unwritable.contains(GIT_CALL));
     assert!(resumed.ends_with(&format!("{first}\n")) && Path::new(&first).exists());
     assert_eq!(shown, [NOREPLY, NOREPLY, AGENT, &task].map(|line| format!("{line}\n")));

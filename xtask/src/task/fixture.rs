@@ -27,12 +27,17 @@ impl Fixture {
 
     pub fn built<const COUNT: usize>(build: impl Fn(usize) -> Fixture + Sync) -> [Fixture; COUNT] {
         std::thread::scope(|scope| {
-            let started: [_; COUNT] = std::array::from_fn(|at| {
-                let build = &build;
-                scope.spawn(move || build(at))
-            });
+            let started: [_; COUNT] = std::array::from_fn(|at| Self::started(scope, &build, at));
             started.map(|built| built.join().expect("fixture built"))
         })
+    }
+
+    fn started<'scope, 'env>(
+        scope: &'scope std::thread::Scope<'scope, 'env>,
+        build: &'env (impl Fn(usize) -> Fixture + Sync),
+        at: usize,
+    ) -> std::thread::ScopedJoinHandle<'scope, Fixture> {
+        scope.spawn(move || build(at))
     }
 
     pub fn branch(&self) {
