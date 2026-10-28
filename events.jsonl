@@ -1084,3 +1084,4 @@
 {"at":"2026-10-28T16:51:13.679666Z","actor":"claude-flaky","kind":"TaskOpened","task":"task-c1075cc0cfdf0ec2","text":"Fix flaky gh log-download test: widen gh_millis, keep log delay between limit and deadline","division":"performance-and-cost","addresses":["issue-ad246de6d361cb9a"]}
 {"at":"2026-10-28T16:51:24.653515Z","actor":"claude-flaky","kind":"TaskClaimed","task":"task-c1075cc0cfdf0ec2"}
 {"at":"2026-10-28T16:53:44.696072Z","actor":"claude-flaky","kind":"TaskLinked","task":"task-c1075cc0cfdf0ec2","pr":114}
+{"at":"2026-10-28T16:56:59.491375Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-778b6387845c9a2c","text":"Not needed (owner): the lead orchestrates agents directly and can stop them; no meta override, so nothing to spoof."}
