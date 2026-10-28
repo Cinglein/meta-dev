@@ -3,6 +3,7 @@ pub struct Quiet;
 impl Quiet {
     /* two */ //~ no-comments: comment
     /// three //~ no-comments: comment
+    #[doc = "four"] //~ no-comments: comment
     pub fn speak(&self) {}
 }
 const URL: &str = "https://example.com";
