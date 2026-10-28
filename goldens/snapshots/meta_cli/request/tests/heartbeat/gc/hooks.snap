@@ -1,0 +1,6 @@
+[
+    "{\"Planned\":\"freed x\\n\"}",
+    "{\"Freed\":\"freed x\\n\"}",
+    "{\"Failed\":\"broken\"}",
+    "{\"Unfinished\":\"`sh -c sleep 2` timed out; a run waiting for terminal input stalls until its deadline\"}",
+]

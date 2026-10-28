@@ -1,3 +1,4 @@
+mod debugged;
 mod mode;
 
 use std::path::{Path, PathBuf};

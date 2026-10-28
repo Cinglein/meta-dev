@@ -2,28 +2,24 @@ use chrono::TimeDelta;
 use meta_log::MemoryLog;
 
 use super::{Beat, Scene};
-use crate::request::heartbeat::{HeartbeatRecord, Snapshot, Tick};
-use crate::request::output::Output;
+use meta_golden::Golden;
 
-const FIRST: &str = "unknown github: offline\n";
-const ORPHAN: &str = "orphan #16: open, no task\n";
+use crate::request::heartbeat::{HeartbeatRecord, Snapshot, Tick};
+
 const NOTHING: &str = "";
 const TORN: &str = "{torn";
 const RECORD: &str = "meta-local/heartbeat.json";
 const EARLY: TimeDelta = TimeDelta::seconds(0);
 const MIDDLE: TimeDelta = TimeDelta::seconds(300);
 const LATE: TimeDelta = TimeDelta::seconds(600);
+const TICKS: [(Scene, TimeDelta); 3] = [(Scene::Offline, EARLY), (Scene::Orphaned, MIDDLE), (Scene::Orphaned, LATE)];
 
 #[test]
 fn a_tick_prints_only_new_flags_and_exits_non_zero_only_for_flags_needing_judgement() {
     let git_dir = tempfile::tempdir().unwrap();
     let log = MemoryLog::default();
-    let first = Tick::answer(git_dir.path(), &log, Scene::Offline.answering(), Beat::pulse(EARLY)).unwrap();
-    let second = Tick::answer(git_dir.path(), &log, Scene::Orphaned.answering(), Beat::pulse(MIDDLE)).unwrap();
-    let third = Tick::answer(git_dir.path(), &log, Scene::Orphaned.answering(), Beat::pulse(LATE)).unwrap();
-    assert!(matches!(&first, Output::Flagged(_)) && first.to_string() == FIRST);
-    assert!(matches!(&second, Output::Listed(_)) && second.to_string() == ORPHAN);
-    assert!(matches!(&third, Output::Listed(_)) && third.to_string() == NOTHING);
+    let ticks = TICKS.map(|(scene, at)| Tick::answer(git_dir.path(), &log, scene.answering(), Beat::pulse(at)));
+    Golden::for_test(module_path!(), "ticks").debugged(&ticks.map(Result::unwrap)).unwrap();
 }
 
 #[test]

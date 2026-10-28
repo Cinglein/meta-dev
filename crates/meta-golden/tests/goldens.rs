@@ -58,10 +58,12 @@ fn a_scenario_records_what_real_git_reports_as_checked_in_and_a_failed_setup_fai
 #[test]
 fn a_golden_passes_its_own_text_and_fails_on_any_other_and_meta_runs_from_the_bin_dir() {
     let root = tempfile::tempdir().unwrap();
+    let keyed = Golden::for_test(module_path!(), SCENARIO_FILE);
+    keyed.debugged(&TEXTS).unwrap();
     let file = root.path().join(SCENARIO_FILE);
-    std::fs::write(&file, TEXTS[0]).unwrap();
+    std::fs::write(&file, keyed.text().unwrap()).unwrap();
     let golden = Golden::new(&file);
-    assert!(golden.checked(TEXTS[0]).is_ok() && golden.checked(TEXTS[1]).is_err());
+    assert!(golden.debugged(&TEXTS).is_ok() && golden.debugged(TEXTS[1]).is_err());
     let [snapshot, snapshot_steps, online, online_steps] = SCENARIOS;
     let write = |(scenario, steps): (&str, &str)| {
         std::fs::write(root.path().join(scenario).with_extension(SCENARIO_FILE), steps)

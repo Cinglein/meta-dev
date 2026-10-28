@@ -1,0 +1,11 @@
+[
+    GcRestore(
+        "/trees/.gc-task-1x0",
+    ),
+    Gc(
+        Planned,
+    ),
+    Gc(
+        Done,
+    ),
+]

@@ -14,7 +14,7 @@ impl GoldenRefresh {
     const MESSAGES: &'static str = "--message-format=json";
     const VIEWS: [&'static [&'static str]; 4] = [
         &["meta-git-view", "--test", "goldens"],
-        &["meta-cli", "--lib", "--", "golden_view"],
+        &["meta-cli", "--lib"],
         &["meta-xtask", "--lib", "--", "golden_view"],
         &["task", "--lib"],
     ];
