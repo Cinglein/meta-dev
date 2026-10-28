@@ -20,7 +20,7 @@ pub struct GhJob {
     #[serde(default)]
     conclusion: Option<Conclusion>,
     #[serde(default)]
-    steps: Nodes<GhStep>,
+    steps: Option<Nodes<GhStep>>,
 }
 
 impl GhJob {
@@ -30,7 +30,19 @@ impl GhJob {
 
     #[must_use]
     pub fn unstarted(&self) -> Option<()> {
-        (self.conclusion == Some(Conclusion::Failure) && self.steps.nodes().is_empty()).then_some(())
+        (self.conclusion == Some(Conclusion::Failure)
+            && self.steps.as_ref().is_some_and(|steps| steps.nodes().is_empty()))
+        .then_some(())
+    }
+
+    #[must_use]
+    pub fn awaiting_steps(&self) -> bool {
+        self.failure().is_some() && self.steps.is_none()
+    }
+
+    #[must_use]
+    pub fn with_steps_of(&self, detailed: &Self) -> Self {
+        Self { steps: detailed.steps.clone(), ..self.clone() }
     }
 
     #[must_use]
@@ -39,8 +51,13 @@ impl GhJob {
     }
 
     pub fn failed_steps(&self) -> Vec<String> {
-        let steps: Vec<String> =
-            self.steps.nodes().iter().filter_map(GhStep::failure).map(|step| format!("{self} / {step}")).collect();
+        let steps: Vec<String> = self
+            .steps
+            .iter()
+            .flat_map(Nodes::nodes)
+            .filter_map(GhStep::failure)
+            .map(|step| format!("{self} / {step}"))
+            .collect();
         self.failure().map_or_else(Vec::new, |_| if steps.is_empty() { vec![self.to_string()] } else { steps })
     }
 }

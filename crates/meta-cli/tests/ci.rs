@@ -18,16 +18,19 @@ d="$FAKE_GH_DIR"; s="$FAKE_GH_SCENARIO"
 read -r now 2>/dev/null < "$d/clock"; echo "$now" >> "$d/calls"
 case "$s" in hang) exec sleep 5 ;; frozen) echo 0 > "$d/clock"; exec sleep 5 ;; esac
 [ "$3 $4" = "--job 11" ] && exec cat "$d/bin/failed.log"
+case "$*" in *history*) ;; *steps*) echo "$s" >> "$d/details"
+case "$s" in failure|broken) echo '{"checkSuites":{"nodes":[{"status":"COMPLETED","workflowRun":{},"checkRuns":{"nodes":[{"databaseId":11,"name":"ci","conclusion":"FAILURE","steps":{"nodes":[{"name":"Checkout","conclusion":"SUCCESS"},{"name":"cargo xtask ci","conclusion":"FAILURE"}]}}]}}]}}' ;;
+*) echo '{"checkSuites":{"nodes":[{"status":"COMPLETED","workflowRun":{},"checkRuns":{"nodes":[{"databaseId":11,"name":"ci","conclusion":"FAILURE","steps":{"nodes":[]}},{"databaseId":13,"name":"lint","conclusion":"FAILURE","steps":{"nodes":[{"name":"clippy","conclusion":"FAILURE"}]}}]}}]}}' ;; esac; exit 0 ;; esac
 read -r n 2>/dev/null < "$d/count" || n=0; n=$((n + 1)); echo "$n" > "$d/count"
 read -r head < "$d/bin/head"
 events="$d/.git/meta-ci/ABCDEF1234/events"
 state=IN_PROGRESS; result=null; jobs='{"databaseId":11,"name":"ci","conclusion":"SUCCESS"}'
-case "$s" in failure|broken) jobs='{"databaseId":11,"name":"ci","conclusion":"FAILURE","steps":{"nodes":[{"name":"Checkout","conclusion":"SUCCESS"},{"name":"cargo xtask ci","conclusion":"FAILURE"}]}},{"databaseId":12,"name":"docs"}' ;;
+case "$s" in failure|broken) jobs='{"databaseId":11,"name":"ci","conclusion":"FAILURE"},{"databaseId":12,"name":"docs"}' ;;
 unstarted|mixed) jobs='{"databaseId":11,"name":"ci","conclusion":"FAILURE"}' ;; esac
 case "$s$*" in failure*filterBy*|broken*filterBy*) ;; failure*|broken*) pad=; i=0; while [ "$i" -lt 50 ]; do pad="$pad{\"databaseId\":$((i + 100)),\"name\":\"job$i\",\"conclusion\":\"SUCCESS\"},"; i=$((i + 1)); done; jobs="${pad%,}" ;; esac
 case "$s" in late|broken|slow) ;; last) [ "$n" -ge 1 ] && state=COMPLETED result='"SUCCESS"' ;; success) [ "$n" -ge 4 ] && state=COMPLETED result='"SUCCESS"' ;; *) [ "$n" -ge 4 ] && state=COMPLETED result='"FAILURE"' ;; esac
 runs="{\"status\":\"$state\",\"conclusion\":$result,\"workflowRun\":{},\"checkRuns\":{\"nodes\":[$jobs]}}"
-[ "$s" = mixed ] && [ "$state" = COMPLETED ] && runs="$runs,{\"status\":\"COMPLETED\",\"conclusion\":\"FAILURE\",\"workflowRun\":{},\"checkRuns\":{\"nodes\":[{\"databaseId\":13,\"name\":\"lint\",\"conclusion\":\"FAILURE\",\"steps\":{\"nodes\":[{\"name\":\"clippy\",\"conclusion\":\"FAILURE\"}]}}]}}"
+[ "$s" = mixed ] && [ "$state" = COMPLETED ] && runs="$runs,{\"status\":\"COMPLETED\",\"conclusion\":\"FAILURE\",\"workflowRun\":{},\"checkRuns\":{\"nodes\":[{\"databaseId\":13,\"name\":\"lint\",\"conclusion\":\"FAILURE\"}]}}"
 case "$*" in *appId:15368*) ;; *) foreign=; i=0; while [ "$i" -lt 20 ]; do foreign="$foreign{\"status\":\"COMPLETED\",\"conclusion\":\"SUCCESS\"},"; i=$((i + 1)); done; runs="${foreign%,}" ;; esac
 if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
 elif [ "$s" = broken ] && [ "$n" -gt 5 ]; then echo 'HTTP 401: Bad credentials' >&2; exit 1
@@ -426,7 +429,8 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_pus
     let settled = repo.settled();
     let shown = format!("{posted}{}{stop}{}", waited.0, repo.hook(PRE, COMMIT));
     let told = [&posted, &waited.0].iter().filter(|told| told.contains(JOB_FAILED)).count();
-    assert!(told == 1 && !waited.1.success() && stop.contains(BLOCK_REASON));
+    let details = std::fs::read_to_string(repo.clone.path().join("details")).unwrap_or_default();
+    assert!(told == 1 && !waited.1.success() && stop.contains(BLOCK_REASON) && details.lines().count() == 1);
     assert!(settled.contains(STEP_LISTED) && shown.contains(STEP_LISTED) && shown.contains(CI_LOG_HINT));
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     let log = repo.session_command(CI_LOG).0;

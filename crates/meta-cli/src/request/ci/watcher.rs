@@ -23,7 +23,7 @@ use crate::request::project::{CiSettings, Project};
 use crate::request::remote_failure::RemoteFailure;
 use elapsed::Elapsed;
 pub use failure_log::FailureLog;
-use gh::{Gh, Observation};
+use gh::{Gh, GhJobs, Observation};
 use reach::Reach;
 use remote::Remote;
 use session_commits::SessionCommits;
@@ -118,6 +118,7 @@ impl Watcher {
         let gh = Gh::new(&settings, project.root().to_path_buf(), clock.deadline());
         let waits = settings.poll_schedule().waits(dir.expected());
         let remote = Remote::default();
+        let mut known = GhJobs::default();
         let watcher = Self { dir, commit, gh, clock, settings: settings.clone(), appeared: OnceCell::new() };
         let finished = waits
             .map_while(|wait| {
@@ -132,7 +133,8 @@ impl Watcher {
                 })?;
                 watcher.clock.pause(wait, &settings)?;
                 let repository = resolved.map_err(|retry| retry.unwrap_or_else(std::convert::identity));
-                let observed = repository.and_then(|repository| watcher.gh.observe(repository, &watcher.commit));
+                let observed =
+                    repository.and_then(|repository| watcher.gh.observe(repository, &watcher.commit, &mut known));
                 let learned = observed.as_ref().ok().and_then(Observation::expected);
                 learned.map(|expected| watcher.dir.learn(expected).ok());
                 Some(observed)

@@ -16,6 +16,32 @@ impl GhJobs {
         self.jobs.iter().filter(|job| job.unstarted().is_none()).find_map(GhJob::failure).map(Listed::new)
     }
 
+    pub fn joined<'jobs>(all: impl Iterator<Item = &'jobs Self>) -> Self {
+        Self { jobs: all.flat_map(|jobs| jobs.jobs.clone()).collect() }
+    }
+
+    pub fn awaiting_steps(&self, known: &Self) -> bool {
+        self.jobs.iter().any(|job| job.awaiting_steps() && known.matching(job).is_none())
+    }
+
+    pub fn learn(&mut self, detailed: Self) {
+        self.jobs.extend(detailed.jobs);
+    }
+
+    pub fn stepped(&self, known: &Self) -> Self {
+        let step = |job: &GhJob| {
+            known
+                .matching(job)
+                .filter(|_| job.awaiting_steps())
+                .map_or_else(|| job.clone(), |known| job.with_steps_of(known))
+        };
+        Self { jobs: self.jobs.iter().map(step).collect() }
+    }
+
+    fn matching(&self, job: &GhJob) -> Option<&GhJob> {
+        self.jobs.iter().find(|known| known.database_id() == job.database_id())
+    }
+
     pub fn is_empty(&self) -> bool {
         self.jobs.is_empty()
     }

@@ -15,7 +15,7 @@ pub struct PollSchedule {
 }
 
 impl PollSchedule {
-    const SCHEDULE_LEN: usize = 10;
+    const SCHEDULE_LEN: usize = 9;
 
     pub fn waits(self, learned: Option<Duration>) -> impl Iterator<Item = Duration> {
         let first = learned.unwrap_or(self.expected.duration());
@@ -33,7 +33,7 @@ mod tests {
 
     const SETTINGS: &str = "[ci]\nexpected_millis = 7\nbackoff_millis = 3\nbackoff_cap_millis = 20\n";
     const LEARNED: Duration = Duration::from_millis(5);
-    const WAITS: [u64; 9] = [7, 3, 6, 12, 20, 20, 20, 20, 20];
+    const WAITS: [u64; 8] = [7, 3, 6, 12, 20, 20, 20, 20];
 
     #[test]
     fn the_first_poll_waits_the_expected_run_then_waits_double_to_the_cap_and_the_last_runs_to_the_deadline() {
