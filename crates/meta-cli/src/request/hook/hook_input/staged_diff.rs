@@ -60,27 +60,19 @@ mod tests {
 
     const LEAK: &str = concat!("+cd /private/tmp/", "claude-501/x\n");
     const CLEAN: &str = "+clean\n";
-    const HEAD: &str = "diff --git a/a.txt b/a.txt\nindex 1..2 100644\n--- a/a.txt\n+++ b/a.txt\n";
-    const NEXT: &str = "diff --git a/b.txt b/b.txt\nnew file mode 100644\n--- /dev/null\n+++ b/b.txt\n";
     const REMOVED: &str = concat!("-/Users/", "alice/x\n");
-    const FIRST_HUNK: &str = "@@ -1,0 +2,1 @@\n";
-    const LATER_HUNK: &str = "@@ -9 +10,3 @@\n";
+    const A: &str = "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n";
+    const B: &str = "diff --git a/b.txt b/b.txt\n--- /dev/null\n+++ b/b.txt\n";
+    const EARLY: &str = "@@ -1,0 +2,1 @@\n";
+    const LATE: &str = "@@ -9 +10,3 @@\n";
     const WHERE: &str = "b.txt:12: scratch path in a staged line";
 
-    fn refusal(diff: &str) -> Option<String> {
-        diff.parse::<StagedDiff>().ok()?.refusal().map(|why| why.to_string())
-    }
-
     #[test]
-    fn the_first_scratch_or_home_path_among_added_lines_is_named_by_file_and_line() {
-        let diff = format!("{HEAD}{FIRST_HUNK}{CLEAN}{LATER_HUNK}{CLEAN}{CLEAN}{NEXT}{LATER_HUNK}{CLEAN}{CLEAN}{LEAK}");
-        let first = refusal(&diff).unwrap_or_default();
-        assert!(first.starts_with(WHERE), "{first}");
-    }
-
-    #[test]
-    fn removed_lines_clean_additions_and_an_empty_diff_are_not_refused() {
-        let removed = format!("{HEAD}{FIRST_HUNK}{REMOVED}{CLEAN}{NEXT}{LATER_HUNK}{REMOVED}");
-        assert!([removed, String::new()].iter().all(|diff| refusal(diff).is_none()));
+    fn the_first_scratch_or_home_path_among_added_lines_is_named_by_file_and_line_and_removals_pass() {
+        let refusal = |diff: &str| diff.parse::<StagedDiff>().unwrap().refusal().map(|why| why.to_string());
+        let leaked = format!("{A}{EARLY}{CLEAN}{LATE}{CLEAN}{CLEAN}{B}{LATE}{CLEAN}{CLEAN}{LEAK}");
+        let removed = format!("{A}{EARLY}{REMOVED}{CLEAN}{B}{LATE}{REMOVED}");
+        assert!(refusal(&leaked).is_some_and(|why| why.starts_with(WHERE)));
+        assert!(refusal(&removed).is_none() && refusal("").is_none());
     }
 }
