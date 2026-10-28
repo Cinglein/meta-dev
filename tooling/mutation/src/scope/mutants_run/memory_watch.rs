@@ -13,7 +13,6 @@ use task::Site;
 use task::{Interval, MemoryShare, Policy};
 
 pub struct MemoryWatch<'policy> {
-    root: Pid,
     budget: AvailableGib,
     policy: &'policy Policy,
     system: System,
@@ -25,7 +24,6 @@ pub struct MemoryWatch<'policy> {
 impl<'policy> MemoryWatch<'policy> {
     pub fn over(child: &Child, budget: AvailableGib, policy: &'policy Policy) -> MemoryWatch<'policy> {
         MemoryWatch {
-            root: Pid::from_u32(child.id()),
             budget,
             policy,
             system: System::new(),
@@ -35,27 +33,43 @@ impl<'policy> MemoryWatch<'policy> {
         }
     }
 
-    pub fn guard(mut self, child: &mut Child) -> Result<ExitStatus, Failure> {
+    pub fn guard(mut self, child: &mut Child, deadline: Option<Instant>) -> Result<ExitStatus, Failure> {
         let io = |error| Failure::Io { site: Site::File("cargo-mutants".into()), error };
         let every = self.policy.interval(Interval::SampleEvery).duration();
         let polled = iter::from_fn(|| {
             self.sample();
-            Some(child.try_wait().map_err(io))
+            let late = deadline.filter(|deadline| Instant::now() >= *deadline);
+            Some(child.try_wait().map_err(io).map(|waited| (waited, late)))
         })
         .find_map(|waited| match waited {
-            Ok(None) => {
+            Ok((None, None)) => {
                 thread::sleep(every);
                 None
             }
-            Ok(Some(status)) => Some(Ok(status)),
+            Ok((waited, _)) => Some(Ok(waited)),
             Err(error) => Some(Err(error)),
         });
-        let status = polled.unwrap_or_else(|| child.wait().map_err(io))?;
+        let status = polled.unwrap_or_else(|| child.wait().map(Some).map_err(io))?.ok_or_else(|| self.ended(child))?;
         if self.killed.is_empty() {
             Ok(status)
         } else {
             Err(Failure::BudgetEnforced { budget: self.budget, killed: KilledProcesses::from(self.killed) })
         }
+    }
+
+    pub fn ended(&mut self, child: &mut Child) -> Failure {
+        self.system.refresh_processes_specifics(
+            ProcessesToUpdate::All,
+            true,
+            ProcessRefreshKind::nothing().with_memory(),
+        );
+        let tree: Vec<&Process> =
+            self.grown(self.members.clone()).iter().filter_map(|pid| self.system.process(*pid)).collect();
+        let used = AvailableGib::from_bytes(tree.iter().map(|process| process.memory()).sum());
+        let killed = tree.iter().filter(|process| process.kill()).map(|process| KilledProcess::new(process, used));
+        let killed = KilledProcesses::from(killed.collect::<Vec<KilledProcess>>());
+        drop(child.wait());
+        Failure::PastDeadline { killed }
     }
 
     fn sample(&mut self) {
@@ -67,7 +81,8 @@ impl<'policy> MemoryWatch<'policy> {
                 ProcessRefreshKind::nothing().with_memory(),
             );
             self.last_discovery = Instant::now();
-            self.grown(vec![self.root])
+            let alive = self.members.iter().filter(|pid| self.system.process(**pid).is_some()).copied().collect();
+            self.grown(alive)
         } else {
             self.system.refresh_processes_specifics(
                 ProcessesToUpdate::Some(&self.members),
@@ -118,7 +133,7 @@ mod tests {
     fn a_tree_over_its_budget_is_killed_and_the_run_is_refused() {
         let policy = Policy::defaults();
         let mut child = Command::new("sleep").arg("30").spawn().unwrap();
-        let outcome = MemoryWatch::over(&child, AvailableGib::from_bytes(0), &policy).guard(&mut child);
+        let outcome = MemoryWatch::over(&child, AvailableGib::from_bytes(0), &policy).guard(&mut child, None);
         assert!(matches!(outcome, Err(Failure::BudgetEnforced { .. })));
     }
 }

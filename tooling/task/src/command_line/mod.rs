@@ -23,9 +23,6 @@ use std::fmt;
 use std::fs::File;
 use std::path::PathBuf;
 use std::process::{Child, Command, Output};
-use std::time::{Duration, Instant};
-
-use meta_run::Run;
 
 use crate::failure::Failure;
 
@@ -135,19 +132,6 @@ impl CommandLine {
 
     pub fn captured<S: Stream>(&self) -> Result<String, Failure> {
         self.output().map(|output| S::pick(&output))
-    }
-
-    pub fn stdout_within(&self, limit: Duration) -> Result<String, Failure> {
-        let ran = Run::from(self.command()).ran(Instant::now() + limit);
-        let printed = |printed: String| Failure::Printed {
-            command: self.to_string(),
-            printed,
-        };
-        let ran = ran.map_err(|failure| printed(failure.to_string()))?;
-        let stdout = ran.stdout().text().into_owned();
-        ran.success()
-            .then(|| stdout.clone())
-            .ok_or_else(|| printed(format!("{stdout}\n{}", ran.stderr())))
     }
 
     fn output(&self) -> Result<Output, Failure> {

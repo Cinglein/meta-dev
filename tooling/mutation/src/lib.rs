@@ -35,7 +35,7 @@ impl Mutants {
         let runs = scope.applied(line, &build, workspace, policy)?;
         let failed: Vec<CommandLine> = runs
             .iter()
-            .map(|run| run.accepted(budget, policy))
+            .map(|run| run.accepted(&build, budget, policy))
             .collect::<Result<Vec<bool>, Failure>>()?
             .into_iter()
             .zip(&runs)

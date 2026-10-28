@@ -205,12 +205,6 @@ impl Run {
     }
 }
 
-impl From<Command> for Run {
-    fn from(command: Command) -> Self {
-        Self { command, input: None, placement: Placement::Own }
-    }
-}
-
 impl From<&Run> for CommandLine {
     fn from(run: &Run) -> Self {
         Self::from(&run.command)

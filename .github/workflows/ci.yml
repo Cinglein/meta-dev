@@ -78,10 +78,10 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - &mutants-linker
         uses: rui314/setup-mold@v1
-      - &mutants-cache
-        uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2
         with:
           shared-key: mutants
+          save-if: false
       - &mutants-tool
         uses: taiki-e/install-action@v2
         with:
@@ -108,7 +108,9 @@ jobs:
       - *mutants-checkout
       - *mutants-toolchain
       - *mutants-linker
-      - *mutants-cache
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: mutants
       - *mutants-tool
       - run: cargo xtask mutants
         timeout-minutes: 5

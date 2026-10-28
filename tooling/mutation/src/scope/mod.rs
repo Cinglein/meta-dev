@@ -57,10 +57,12 @@ impl Scope {
                     .argument(MutantsArgument::InDiff)
                     .argument(workspace.target().path().join(Self::DIFF_FILE).display())
                     .argument(MutantsArgument::BaselineSkip);
-                Self::shard_runs(&line, workspace, &output, &shards)
+                let tested = Self::tested(workspace, &shards)?;
+                let runs = Self::shard_runs(&line, &output, &tested)?.into_iter();
+                Ok(runs.zip(TestPackages::baselines(&tested, build)).map(|(run, tests)| run.baselined(tests)).collect())
             }
             Scope::Workspace => match env::var(Self::SHARD_VARIABLE) {
-                Ok(spelled) => Self::shard_runs(&line, workspace, &output, &[spelled.parse()?]),
+                Ok(spelled) => Self::shard_runs(&line, &output, &Self::tested(workspace, &[spelled.parse()?])?),
                 Err(_) => Ok(vec![MutantsRun::new(
                     line.argument(MutantsArgument::Output)
                         .argument(output.root().display())
@@ -81,24 +83,20 @@ impl Scope {
             .line(CargoArgument::Mutants)
             .argument(MutantsArgument::InDiff)
             .argument(workspace.target().path().join(Self::DIFF_FILE).display());
-        let shards =
-            Packing::shards(&CrateLoad::listed(listing, policy, Interval::DiffJob)?, policy, Interval::DiffJob);
+        Ok(Packing::shards(&CrateLoad::listed(listing, policy, Interval::DiffJob)?, policy, Interval::DiffJob))
+    }
+
+    fn tested(workspace: &Workspace, shards: &[Shard]) -> Result<Vec<TestPackages>, Failure> {
         let tested = TestedCrates::collect(&workspace.source_files()?);
-        TestPackages::baselines(&shards, workspace.packages(), &tested, build)
-            .iter()
-            .try_for_each(|baseline| build.passes(baseline))?;
-        Ok(shards)
+        Ok(TestPackages::each_run(shards, workspace.packages(), &tested))
     }
 
     fn shard_runs(
         line: &CommandLine,
-        workspace: &Workspace,
         output: &OutputDirectory,
-        shards: &[Shard],
+        runs: &[TestPackages],
     ) -> Result<Vec<MutantsRun>, Failure> {
-        let tested = TestedCrates::collect(&workspace.source_files()?);
-        TestPackages::each_run(shards, workspace.packages(), &tested)
-            .into_iter()
+        runs.iter()
             .map(|tested_by| {
                 let directory = output.prepared_for(tested_by.run())?;
                 let prepared = line
