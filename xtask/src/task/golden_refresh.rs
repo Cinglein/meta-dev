@@ -15,7 +15,7 @@ impl GoldenRefresh {
     const VIEWS: [&'static [&'static str]; 3] = [
         &["meta-git-view", "--test", "goldens"],
         &["meta-cli", "--lib", "--", "golden_view"],
-        &["meta-xtask", "--lib", "--", "golden_view"],
+        &["meta-xtask", "--lib"],
     ];
     const BLESSED: &'static str = "1";
     const CI: &'static str = "CI";
