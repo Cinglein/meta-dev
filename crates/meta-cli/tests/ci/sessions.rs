@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use super::{
-    BLOCK, COMMIT, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSH_WORDS, Planted, Repo, STALLED, STOP,
+    BLOCK, COMMIT, CONFIG, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSH_WORDS, Planted, Repo, STALLED, STOP,
     Session, StartFile,
 };
 
@@ -52,17 +52,18 @@ impl Reviewer {
 
 #[test]
 fn a_slow_remote_blocks_at_the_stop_deadline_and_a_commit_in_the_start_second_is_not_the_sessions() {
-    let repo = Repo::limited(FAILURE, STALLED);
+    let repo = Repo::new(FAILURE);
     let clone: &Path = repo.clone.path();
     StartFile::plant(repo.sessions.path(), SAME, SAME_AT);
     Git::run_at(clone, &NEXT_COMMIT, SAME_AT);
     Git::run(clone, &PUSH_WORDS);
     Planted::settled(&repo, TIMED_OUT);
+    let same = Session { repo: &repo, cwd: clone, id: SAME }.hook(STOP, COMMIT);
+    std::fs::write(clone.join(CONFIG_FILE), [CONFIG, STALLED].concat()).unwrap();
     Git::run(clone, &SLOW_REMOTE);
     let started = std::time::Instant::now();
     let slow = repo.hook(STOP, COMMIT);
     let took = started.elapsed();
-    let same = Session { repo: &repo, cwd: clone, id: SAME }.hook(STOP, COMMIT);
     assert!(slow.contains(BLOCK) && slow.contains(OUT_OF_TIME) && took < SLOW && !same.contains(BLOCK));
 }
 
