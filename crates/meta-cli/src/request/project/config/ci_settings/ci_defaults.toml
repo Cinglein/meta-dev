@@ -4,5 +4,6 @@ timeout_millis = 3600000
 appear_millis = 120000
 remote_millis = 5000
 git_millis = 30000
+stop_millis = 6000
 log_lines = 120
 log_context = 8

@@ -51,10 +51,12 @@ impl<'run, Host: Inspection> Sweeper<'run, Host> {
                     stranded(quarantine, Some(path.clone()))
                 }),
             (false, _, None) => Assessed::Settled(Verdict::Live { path, lifetime: tracked.lifetime() }),
-            (false, _, Some(ending)) => match Vetted::proved(worktree, self.context, self.host) {
-                Ok(vetted) => Assessed::Vetted(Box::new(Candidate::new(tracked, vetted, ending))),
-                Err(kept) => Assessed::Settled(Verdict::Refused { sweep, path, kept, ending }),
-            },
+            (false, _, Some(ending)) => {
+                match Vetted::proved_among(worktree, self.context, self.host, self.context.checkouts(self.host)) {
+                    Ok(vetted) => Assessed::Vetted(Box::new(Candidate::new(tracked, vetted, ending))),
+                    Err(kept) => Assessed::Settled(Verdict::Refused { sweep, path, kept, ending }),
+                }
+            }
         }
     }
 

@@ -22,8 +22,12 @@ impl Git {
         Run::git(&self.repo).args(words)
     }
 
-    pub fn ran(run: Run) -> Result<Ran, LogFailure> {
-        Ok(run.ran(Instant::now() + Self::LIMIT)?)
+    pub fn network_deadline() -> Instant {
+        Instant::now() + Self::LIMIT
+    }
+
+    pub fn ran(run: Run, deadline: Instant) -> Result<Ran, LogFailure> {
+        Ok(run.ran(deadline)?)
     }
 }
 
@@ -41,8 +45,9 @@ mod tests {
     #[test]
     fn failures_name_the_git_command() {
         let git = Git::new(PathBuf::from(NOWHERE));
-        let failure =
-            Content::try_from(Git::ran(git.command(STATUS)).unwrap()).err().map(|failure| failure.to_string());
+        let failure = Content::try_from(Git::ran(git.command(STATUS), Git::network_deadline()).unwrap())
+            .err()
+            .map(|failure| failure.to_string());
         assert!(failure.is_some_and(|failure| failure.starts_with(FAILED)));
     }
 }

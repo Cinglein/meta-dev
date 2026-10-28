@@ -23,6 +23,8 @@ pub use occupancy::Occupancy;
 pub use vetted::Vetted;
 
 #[cfg(test)]
+mod among_tests;
+#[cfg(test)]
 pub mod fake_host;
 #[cfg(test)]
 mod quarantine_tests;

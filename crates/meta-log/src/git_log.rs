@@ -3,15 +3,19 @@ mod content;
 mod fetched;
 mod git;
 mod outcome;
+mod pacing;
 mod remote;
+mod remote_heads;
 mod sha;
 mod tip;
 
+pub use remote_heads::RemoteHeads;
 pub use sha::{NotCommitId, Sha};
 
 use std::cell::RefCell;
 use std::fmt;
 use std::path::PathBuf;
+use std::time::Instant;
 
 use meta_run::Ran;
 use meta_schema::Record;
@@ -25,6 +29,7 @@ use content::Content;
 use fetched::Fetched;
 use git::Git;
 use outcome::Outcome;
+use pacing::Pacing;
 use remote::Remote;
 use tip::Tip;
 
@@ -33,6 +38,7 @@ pub struct GitLog {
     git: Git,
     remote: Remote,
     known: RefCell<Option<Fetched>>,
+    pacing: Pacing,
 }
 
 impl GitLog {
@@ -41,7 +47,7 @@ impl GitLog {
     #[must_use]
     pub fn new(repo: PathBuf, remote: RemoteName) -> Self {
         let git = Git::new(repo);
-        Self { remote: Remote::new(git.clone(), remote), git, known: RefCell::default() }
+        Self { remote: Remote::new(git.clone(), remote), git, known: RefCell::default(), pacing: Pacing::Jittered }
     }
 
     pub fn fetched_tip(&self) -> Result<Option<Sha>, LogFailure> {
@@ -50,6 +56,10 @@ impl GitLog {
 
     pub fn snapshot_at(&self, tip: &Sha) -> Result<Snapshot, LogFailure> {
         Ok(self.remote.content_at(tip)?.snapshot())
+    }
+
+    pub fn read_listed(&self, heads: &RemoteHeads, deadline: Instant) -> Result<Snapshot, LogFailure> {
+        Ok(self.remote.content_listed(heads, deadline)?.snapshot())
     }
 
     fn commit(&self, tip: Option<&Sha>, content: &Content, record: &Record) -> Result<Sha, LogFailure> {
@@ -65,7 +75,8 @@ impl GitLog {
             Remote::FILE,
             staged = Self::STAGED,
         );
-        let imported = Git::ran(self.git.command(["fast-import", "--quiet", "--date-format=now"]).fed(stream))?;
+        let importing = self.git.command(["fast-import", "--quiet", "--date-format=now"]).fed(stream);
+        let imported = Git::ran(importing, Git::network_deadline())?;
         Ok(Content::try_from(imported)?.as_ref().parse()?)
     }
 
@@ -115,7 +126,7 @@ impl LogStore for GitLog {
         decide: &mut dyn FnMut(&Snapshot) -> Result<Record, Failure>,
     ) -> Result<Record, Failure> {
         Attempt::sequence()
-            .try_for_each(|attempt| Outcome::step(self.attempt(decide), attempt))
+            .try_for_each(|attempt| Outcome::step(self.attempt(decide), attempt, self.pacing))
             .break_value()
             .unwrap_or_else(|| Err(LogFailure::Contended.into()))
     }

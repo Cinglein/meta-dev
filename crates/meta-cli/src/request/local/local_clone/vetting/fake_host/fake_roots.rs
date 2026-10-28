@@ -17,8 +17,12 @@ impl<'host> FakeRoots<'host> {
     }
 
     pub fn verified(&self, arguments: &[OsString]) -> Option<Result<String, Kept>> {
-        let named = arguments.iter().find(|argument| Self::PAUSE_REFS.iter().any(|name| *argument == *name))?;
-        let found = self.pseudo.iter().chain(self.dangling).find(|name| **name == named);
-        Some(found.map(|_| Self::HELD.to_owned()).ok_or_else(|| Kept::Uninspected(Cause::new(""))))
+        let named: Vec<&OsString> =
+            arguments.iter().filter(|argument| Self::PAUSE_REFS.iter().any(|name| *argument == *name)).collect();
+        let first = named.first()?;
+        let held = |named: &&&OsString| self.pseudo.iter().chain(self.dangling).any(|name| **named == *name);
+        let leading = || named.iter().take_while(held).map(|_| Self::HELD).collect();
+        let alone = || Some(first).filter(held).map(|_| Self::HELD.to_owned()).ok_or(Kept::Uninspected(Cause::new("")));
+        Some(named.get(1).map_or_else(alone, |_| Ok(leading())))
     }
 }

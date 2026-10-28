@@ -2,15 +2,19 @@ mod git_limit;
 mod log_window;
 mod millis;
 mod program_name;
+mod stop_limit;
 
 use std::time::{Duration, Instant};
 
 use serde::Deserialize;
 
-pub use git_limit::GitLimit;
+use super::Config;
+use crate::request::cli_failure::{CliFailure, Setup};
+use git_limit::GitLimit;
 pub use log_window::LogWindow;
 pub use millis::Millis;
 pub use program_name::ProgramName;
+use stop_limit::StopLimit;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize)]
 pub struct CiSettings {
@@ -20,6 +24,7 @@ pub struct CiSettings {
     appear_millis: Millis,
     remote_millis: Millis,
     git_millis: GitLimit,
+    stop_millis: StopLimit,
     #[serde(flatten)]
     log_window: LogWindow,
 }
@@ -51,21 +56,47 @@ impl CiSettings {
         self.git_millis
     }
 
+    pub fn stop_limit(&self) -> StopLimit {
+        self.stop_millis
+    }
+
     pub fn log_window(&self) -> &LogWindow {
         &self.log_window
     }
 }
 
+impl TryFrom<&Config> for CiSettings {
+    type Error = CliFailure;
+
+    fn try_from(config: &Config) -> Result<Self, Self::Error> {
+        let mut merged: toml::Table = toml::from_str(Self::DEFAULTS).unwrap_or_default();
+        merged.extend(config.ci.clone());
+        toml::Value::Table(merged)
+            .try_into()
+            .map_err(|failure| CliFailure::raised::<Setup>(format!("meta.toml [ci]: {failure}")))
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::Duration;
+    use super::{CiSettings, Duration};
     use crate::request::project::config::Config;
 
     const CONFIGURED: &str = "[ci]\npoll_millis = 7";
+    const STOP_LIMITS: [&str; 2] = ["[ci]\nstop_millis = 6999", "[ci]\nstop_millis = 7000"];
+    const REFUSED: &str = "stop_millis must be under 7000 ms: Claude Code ends a Stop hook at 10 s";
 
     #[test]
     fn the_poll_interval_is_the_configured_poll_millis() {
         let config: Config = toml::from_str(CONFIGURED).unwrap();
         assert_eq!(config.ci_settings().poll_interval().duration(), Duration::from_millis(7));
+    }
+
+    #[test]
+    fn a_stop_limit_at_seven_seconds_or_more_is_refused() {
+        let configs = STOP_LIMITS.map(|text| toml::from_str::<Config>(text).unwrap());
+        let [under, at] = configs.each_ref().map(CiSettings::try_from);
+        assert!(under.is_ok_and(|settings| settings.stop_limit().deadline() > std::time::Instant::now()));
+        assert!(at.unwrap_err().to_string().contains(REFUSED));
     }
 }

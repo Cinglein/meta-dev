@@ -9,6 +9,7 @@ use meta_schema::{Event, NewTask, Record};
 mod malformed;
 
 use super::GitLog;
+use super::pacing::Pacing;
 use crate::LogStore;
 use crate::log_failure::LogFailure;
 
@@ -88,7 +89,10 @@ impl Fixture {
     }
 
     fn log(&self, clone: usize) -> GitLog {
-        GitLog::new(self.clones[clone].path().to_owned(), ORIGIN.parse().unwrap())
+        GitLog {
+            pacing: Pacing::Immediate,
+            ..GitLog::new(self.clones[clone].path().to_owned(), ORIGIN.parse().unwrap())
+        }
     }
 
     fn record() -> Record {
