@@ -1108,3 +1108,4 @@
 {"at":"2026-10-28T17:51:58.515681Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-87a9aefdc87f4e2f","text":"Reopened addressing the test-time Critical concern-282bdb036284f167 (owner: top priority)."}
 {"at":"2026-10-28T17:52:00.663097Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-160a074e62501498","text":"Reopened addressing the test-time Critical concern-282bdb036284f167 (owner: top priority)."}
 {"at":"2026-10-28T17:52:02.970609Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-4f73990a2e330396","text":"Reopened addressing the test-time Critical concern-282bdb036284f167 (owner: top priority)."}
+{"at":"2026-10-28T17:52:05.138948Z","actor":"claude-lead","kind":"TaskOpened","task":"task-bdd12976c165d7cd","text":"Functional core step 1: result type, git/gh ports, general golden harness with replayer and goldens CI job.","division":"performance-and-cost","addresses":["concern-282bdb036284f167"]}
