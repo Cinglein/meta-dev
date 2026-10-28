@@ -10,6 +10,7 @@ use task::MutantsArgument;
 use task::PackageGraph;
 use task::Shard;
 
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct TestPackages(BTreeSet<CrateName>);
 
 impl TestPackages {
@@ -32,12 +33,11 @@ impl TestPackages {
         tested: &TestedCrates,
         build: &MutantsBuild,
     ) -> Vec<CommandLine> {
-        let all: TestPackages =
+        let distinct: BTreeSet<TestPackages> =
             Self::each_run(shards, graph, tested).into_iter().map(|(_, packages)| packages).collect();
-        Some(all)
-            .filter(|all| !all.0.is_empty())
-            .map(|all| all.named(build.line(CargoArgument::Test), CargoArgument::Package))
-            .into_iter()
+        distinct
+            .iter()
+            .map(|packages| packages.named(build.line(CargoArgument::Test), CargoArgument::Package))
             .collect()
     }
 
@@ -47,12 +47,6 @@ impl TestPackages {
 
     fn named(&self, line: CommandLine, flag: impl fmt::Display + Copy) -> CommandLine {
         self.0.iter().fold(line, |line, name| line.argument(flag).argument(name))
-    }
-}
-
-impl FromIterator<TestPackages> for TestPackages {
-    fn from_iter<I: IntoIterator<Item = TestPackages>>(each_run: I) -> TestPackages {
-        TestPackages(each_run.into_iter().flat_map(|packages| packages.0).collect())
     }
 }
 
