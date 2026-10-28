@@ -998,3 +998,4 @@
 {"at":"2026-10-28T14:42:47.966134Z","actor":"claude-minorsb","kind":"TaskClaimed","task":"task-4199bcd73fed4e3e"}
 {"at":"2026-10-28T14:49:34.587250Z","actor":"claude-minorsb","kind":"TaskLinked","task":"task-4199bcd73fed4e3e","pr":99}
 {"at":"2026-10-28T14:52:05.400680Z","actor":"claude-lead","kind":"TaskOpened","task":"task-9d1ae4851cec0825","text":"State-machine tests for the meta log: random command sequences checked against a tiny reference model after each step.","division":"features-and-maintenance"}
+{"at":"2026-10-28T14:52:07.187123Z","actor":"claude-lead","kind":"TaskOpened","task":"task-78d1508b51b0e18a","text":"Differential tests: replay real meta/log under main and PR, and diff hook verdicts across binaries; grow into golden-file black-box tests.","division":"features-and-maintenance"}
