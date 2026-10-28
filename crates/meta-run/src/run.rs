@@ -155,7 +155,7 @@ impl Run {
 
     pub fn reported(self, deadline: Instant) -> Reported {
         let ran = self.ran(deadline)?;
-        if ran.success() { Ok(ran.into_stdout()) } else { Err(Unread::Failed(ran.stderr().clone())) }
+        if ran.success() { Ok(ran.into_stdout()) } else { Err(Unread::Failed(ran.status(), ran.stderr().clone())) }
     }
 
     pub fn detached(mut self) -> Result<(), RunFailure> {

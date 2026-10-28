@@ -2,7 +2,7 @@ use std::path::Path;
 use std::str::FromStr;
 use std::time::Instant;
 
-use meta_run::{GitArgv, Port, Unread};
+use meta_run::{GitArgv, Port, Stdout, Unread};
 use meta_schema::Email;
 
 use crate::request::output::Listed;
@@ -18,19 +18,21 @@ impl Identity {
             Listed::new(format!("cannot resolve the commit directory; use an absolute path: {}", directory.display()));
         (!directory.is_dir()).then_some(unresolved).or_else(|| match Self::foreign_in(directory, deadline) {
             Ok(foreign) => foreign?.refusal(),
-            Err(failure) => {
-                Some(Listed::new(format!("cannot check the commit email: {failure}; retry, or ask the owner")))
-            }
+            Err(failure) => Some(Listed::new(format!(
+                "cannot check the commit email in {}: {failure}; retry, or ask the owner",
+                directory.display()
+            ))),
         })
     }
 
     fn foreign_in(directory: &Path, deadline: Instant) -> Result<Option<Identity>, Unread> {
         let git = Port::new(directory);
         let shown = Self::IDENTS.iter().map(|ident| git.reported(GitArgv::Var, [ident], deadline));
-        let foreign = shown.into_iter().find_map(|shown| match shown.map(|shown| shown.text().parse::<Identity>()) {
-            Ok(Ok(identity)) => (!identity.0.noreply()).then_some(Ok(identity)),
-            Err(failure) => Some(Err(failure)),
-        });
+        let foreign =
+            shown.into_iter().find_map(|shown| match shown.map(|shown: Stdout| shown.text().parse::<Identity>()) {
+                Ok(Ok(identity)) => (!identity.0.noreply()).then_some(Ok(identity)),
+                Err(failure) => Some(Err(failure)),
+            });
         foreign.transpose()
     }
 
