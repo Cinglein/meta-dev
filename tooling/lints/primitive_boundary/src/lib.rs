@@ -24,11 +24,8 @@ impl PrimitiveBoundary {
             files
                 .iter()
                 .filter(|file| !support.contains(&file.path().to_owned()))
-                .flat_map(|file| {
-                    NumberSites::violations(file, policy)
-                        .into_iter()
-                        .chain(TextSites::violations(file))
-                })
+                .flat_map(|file| NumberSites::violations(file, policy))
+                .chain(TextSites::violations(files, &support))
                 .collect(),
         )
     }
