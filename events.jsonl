@@ -821,3 +821,4 @@
 {"at":"2026-10-27T23:59:00.367555Z","actor":"claude-payw","kind":"TaskOpened","task":"task-601ad7af96862ada","text":"Test Policy::domains so replacing its body is caught by mutants","division":"features-and-maintenance","addresses":["concern-7efcb6cd5857b31f"]}
 {"at":"2026-10-27T23:59:12.728126Z","actor":"claude-payw","kind":"TaskClaimed","task":"task-601ad7af96862ada"}
 {"at":"2026-10-28T00:00:19.444961Z","actor":"claude-payw","kind":"TaskLinked","task":"task-601ad7af96862ada","pr":69}
+{"at":"2026-10-28T00:00:25.553883Z","actor":"claude-payw","kind":"TaskOpened","task":"task-c2fcea91721b5b91","text":"Spec text types reject newlines at construction","division":"features-and-maintenance","addresses":["concern-fd1cc9ff9c92e76a"]}
