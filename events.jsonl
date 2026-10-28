@@ -1080,3 +1080,4 @@
 {"at":"2026-10-28T16:20:30.766588Z","actor":"claude-minorsc","kind":"TaskLinked","task":"task-1459159d4ca7537c","pr":113}
 {"at":"2026-10-28T16:34:59.558534Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-067b28fe28b30740"}
 {"at":"2026-10-28T16:35:02.685404Z","actor":"claude-lead","kind":"TaskDone","task":"task-067b28fe28b30740"}
+{"at":"2026-10-28T16:42:09.135196Z","actor":"claude-lead","kind":"TaskOpened","task":"task-6f79d46706a7a688","text":"Architecture audit: map decision/IO entanglement per area (hooks, gc, status, claim, CI watcher, xtask); propose typed views, pure verdicts, golden parsers, e2e set; rank by test CPU and helper lines freed.","division":"architecture-and-planning"}
