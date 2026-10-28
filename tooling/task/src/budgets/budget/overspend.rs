@@ -5,5 +5,4 @@ use serde::{Deserialize, Serialize};
 pub enum Overspend {
     #[default]
     Block,
-    Report,
 }

@@ -95,14 +95,6 @@ impl Budget {
     }
 
     #[must_use]
-    pub fn excuse(&self) -> Option<&'static str> {
-        match self.overspend {
-            Overspend::Block => None,
-            Overspend::Report => Some("report only"),
-        }
-    }
-
-    #[must_use]
     pub fn state(&self, lines: Option<&Lines>, spend: Option<&Amount>) -> Option<State> {
         match self.measure.enforcer() {
             Enforcer::Lint => spend.map(|_| State::Ok),

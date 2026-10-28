@@ -6,7 +6,7 @@ Rendered from the rule records in `self/spec` down to the next top-level heading
 - `budget-definition` (architecture-and-planning, rung 1, no enforcer): A budget is a typed definition with an id, in tooling/policy.toml. Spend events in the log point at it.
 - `budget-unit` (architecture-and-planning, rung 1, no enforcer): Unit, exactly one per budget: Count, Duration, Share (later maybe Money or CI minutes).
 - `budget-window` (architecture-and-planning, rung 1, no enforcer): Window: per change (ratchet against the merge base), rolling per period, or standing (open items at any time).
-- `budget-overspend` (architecture-and-planning, rung 1, no enforcer): Overspend action is part of the definition: block (default), report (shown, never blocks), or escalate to DISCUSS.
+- `budget-overspend` (architecture-and-planning, rung 1, no enforcer): Overspend action is part of the definition: block (default) or escalate to DISCUSS.
 - `budget-measured-spend` (architecture-and-planning, rung 1, no enforcer): Spend is recorded by measurement only (CI and tools). Severity is the judged exception, checked later by calibration.
 - `budget-raise` (architecture-and-planning, rung 1, no enforcer): Raising a budget is owner-only.
 - `budget-waivers` (architecture-and-planning, rung 1, no enforcer): Waivers are spend from the waiver budget of the division whose rule they bend. They replace raw lint baselines.
