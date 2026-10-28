@@ -7,8 +7,22 @@ pub enum LocalPath {
 }
 
 impl LocalPath {
-    pub fn in_line(_line: &str) -> Option<Self> {
-        [Self::Scratch, Self::Home].into_iter().find(|_| false)
+    const SCRATCH: &'static str = concat!("/private/tmp/", "claude-");
+    const HOME_ROOTS: [&'static str; 2] = ["/Users/", "/home/"];
+    const NAME_SYMBOLS: &'static str = "._-";
+
+    pub fn in_line(line: &str) -> Option<Self> {
+        line.contains(Self::SCRATCH)
+            .then_some(Self::Scratch)
+            .or_else(|| Self::HOME_ROOTS.iter().any(|root| Self::names_a_home(line, root)).then_some(Self::Home))
+    }
+
+    fn names_a_home(line: &str, root: &str) -> bool {
+        line.match_indices(root).any(|(at, _)| {
+            line.get(at + root.len()..)
+                .and_then(|after| after.chars().next())
+                .is_some_and(|first| first.is_ascii_alphanumeric() || Self::NAME_SYMBOLS.contains(first))
+        })
     }
 }
 
