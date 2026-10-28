@@ -37,6 +37,7 @@ impl Ledger {
 
     pub fn enforce_from(&mut self, policy_text: Option<&str>) -> Result<(), toml::de::Error> {
         self.prior = Some(policy_text.map_or_else(|| Ok(PriorStanding::default()), str::parse)?);
+        self.mode = Mode::Enforcing;
         Ok(())
     }
 
@@ -153,7 +154,7 @@ mod tests {
     use meta_state::State;
     use settings::EmbeddedDefaults;
 
-    use super::Ledger;
+    use super::{Ledger, Mode};
     use crate::budget::{Interval, Millis};
     use crate::budgets::{Amount, Budgets, ChangeLink, Measure, Standing};
     use crate::percent::Percent;
@@ -243,7 +244,10 @@ mod tests {
                 .map(|line| serde_json::from_str(line).unwrap())
                 .collect();
             let link = ChangeLink::new(link.parse().ok(), link.parse().ok());
-            let mut ledger = Ledger::default();
+            let mut ledger = Ledger {
+                mode: Mode::Enforcing,
+                ..Ledger::default()
+            };
             ledger.count(Some(Standing::read(
                 &State::fold(&records),
                 &link,
