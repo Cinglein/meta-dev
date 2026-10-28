@@ -52,9 +52,10 @@ impl TestPackages {
 
 #[cfg(test)]
 mod tests {
-    use super::{MutantsBuild, TestPackages};
+    use crate::scope::{MutantsBuild, MutantsRun, test_packages::TestPackages};
     use affected::TestedCrates;
     use settings::EmbeddedDefaults;
+    use std::path::PathBuf;
     use task::{CargoArgument, CommandLine, Failure, Interval, MemoryShare, PackageGraph, Policy};
     use task::{Program, Shard, SourceFile, Stdout};
     const METADATA: &str = r#"{"workspace_root": "/w", "packages": [
@@ -65,37 +66,38 @@ mod tests {
     const STATE: (&str, &str, &str) = ("state", "lib.rs", "#[cfg(test)] mod tests { #[test] fn t() {} }");
     const LINE: &str = "sh -c --package log --shard 0/2 --sharding=round-robin --test-package log --test-package state";
     const KEPT: &str = include_str!("../../../../.cargo/mutants.toml");
-    const SHELL: (&str, &str) = ("sh", "-c");
+    const SH: (&str, &str) = ("sh", "-c");
     const PASSING: &str = "true";
     const SLOW: &str = "exec sleep 1";
     const ORPHAN: &str = "meta-orphan";
     const ORPHANING: &str = "case \"$*\" in *--no-run*) ;; *) set -m; sleep 5 & echo $! > \"${TMPDIR:-/tmp}/meta-orphan.$PPID\"; exec sleep 1;; esac";
-    const LEFT: &str = "test -s \"$0\" && sleep 0.1 && ! ps -o stat= -p \"$(cat \"$0\")\" | grep -qv Z";
+    const LEFT: &str = "f=\"${TMPDIR:-/tmp}/meta-orphan.$PPID\"; test -s \"$f\" && sleep 0.1 && ! ps -o stat= -p \"$(cat \"$f\")\" | grep -qv Z";
     const FAILING: [(&str, &str); 4] = [("false", KEPT), (PASSING, "features = []"), (SLOW, KEPT), (ORPHANING, KEPT)];
-    const SHARES: [MemoryShare; 2] = [MemoryShare::Granted, MemoryShare::Reserve];
+    const GRANTED: MemoryShare = MemoryShare::Granted;
+    const STARVED: MemoryShare = MemoryShare::Reserve;
     const SHARDS: [&str; 2] = ["log+cli", "log/0/2"];
     const BASELINES: [&str; 2] = ["--all-features --package cli", "--all-features --package log --package state"];
     #[test]
     fn a_runs_baseline_is_its_own_tests_once_with_the_shards_build_and_limits_and_a_failing_one_ends_all_it_started() {
         let files = [SourceFile::parse(STATE.1, STATE.2.to_owned()).unwrap().in_crate(STATE.0.parse().unwrap())];
-        let (graph, tested, policy) =
-            (PackageGraph::from_metadata(METADATA).unwrap(), TestedCrates::collect(&files), Policy::defaults());
+        let (graph, tested) = (PackageGraph::from_metadata(METADATA).unwrap(), TestedCrates::collect(&files));
         let runs = TestPackages::each_run(&SHARDS.map(|shard| shard.parse::<Shard>().unwrap()), &graph, &tested);
-        let shell = CommandLine::new(Program::Executable(SHELL.0.into())).argument(SHELL.1);
+        let (policy, sh) = (Policy::defaults(), CommandLine::new(Program::Executable(SH.0.into())).argument(SH.1));
         let timeout = policy.interval(Interval::DiscoverEvery);
-        let [budget, starved] = SHARES.map(|share| policy.memory(share));
-        let build = |script, kept| MutantsBuild::sharing(shell.clone().argument(script), kept, timeout, timeout);
-        let passes = |build: &MutantsBuild, budget| build.passes(&build.line(CargoArgument::Test), budget, &policy);
-        let failed = FAILING.map(|(script, kept)| build(script, kept).and_then(|made| passes(&made, budget)).is_err());
-        let orphan = std::env::temp_dir().join(ORPHAN).with_extension(std::process::id().to_string());
-        let ended = shell.clone().argument(LEFT).argument(orphan.display()).captured::<Stdout>().is_ok();
-        std::fs::remove_file(&orphan).unwrap();
+        let build = |script, kept| MutantsBuild::sharing(sh.clone().argument(script), kept, timeout, timeout);
+        let passes = |build: &MutantsBuild, share| {
+            let run = MutantsRun::new(sh.clone(), PathBuf::new()).baselined(Some(build.line(CargoArgument::Test)));
+            run.accepted(build, policy.memory(share), &policy)
+        };
+        let failed = FAILING.map(|(script, kept)| build(script, kept).and_then(|made| passes(&made, GRANTED)).is_err());
+        let ended = sh.clone().argument(LEFT).captured::<Stdout>().is_ok();
+        std::fs::remove_file(std::env::temp_dir().join(ORPHAN).with_extension(std::process::id().to_string())).unwrap();
+        let starved = passes(&build(SLOW, KEPT).unwrap(), STARVED);
         let shown = TestPackages::baselines(&runs, &build(PASSING, KEPT).unwrap());
         let each = shown.iter().flatten().zip(BASELINES).all(|(line, packages)| line.to_string().ends_with(packages));
         let once = shown.iter().flatten().count() == BASELINES.len() && shown.len() > BASELINES.len();
-        let line = runs.last().map(|run| run.applied_to(shell.clone()).to_string());
-        assert!(line.as_deref() == Some(LINE) && each && once);
-        assert!(passes(&build(PASSING, KEPT).unwrap(), budget).is_ok() && !failed.contains(&false) && ended);
-        assert!(matches!(passes(&build(SLOW, KEPT).unwrap(), starved), Err(Failure::BudgetEnforced { .. })));
+        assert!(runs.last().is_some_and(|run| run.applied_to(sh.clone()).to_string() == LINE) && each && once);
+        assert!(passes(&build(PASSING, KEPT).unwrap(), GRANTED).is_ok() && !failed.contains(&false) && ended);
+        assert!(matches!(starved, Err(Failure::BudgetEnforced { .. })));
     }
 }
