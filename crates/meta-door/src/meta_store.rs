@@ -10,7 +10,7 @@ pub struct MetaStore(PathBuf);
 
 impl MetaStore {
     pub fn located(directory: &Path) -> io::Result<MetaStore> {
-        GitDirs::asked(directory).map(|dirs| MetaStore(dirs.into_common()))
+        GitDirs::common(directory).map(MetaStore)
     }
 
     #[must_use]

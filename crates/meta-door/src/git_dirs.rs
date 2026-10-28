@@ -8,31 +8,28 @@ use std::sync::{Mutex, PoisonError};
 
 use refusal::Refusal;
 
-#[derive(Clone, Debug)]
-pub struct GitDirs {
-    git: PathBuf,
-    common: PathBuf,
-}
+#[derive(Debug)]
+pub struct GitDirs;
 
-static KNOWN: Mutex<BTreeMap<PathBuf, GitDirs>> = Mutex::new(BTreeMap::new());
+static KNOWN: Mutex<BTreeMap<PathBuf, PathBuf>> = Mutex::new(BTreeMap::new());
 
 impl GitDirs {
     const ENTRY: &str = ".git";
     const HEAD: &str = "HEAD";
     const OBJECTS: &str = "objects";
     const COMMON: &str = "commondir";
-    const QUERY: [&str; 4] = ["rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir"];
+    const QUERY: [&str; 3] = ["rev-parse", "--path-format=absolute", "--git-common-dir"];
     const UNSET: [&str; 3] = ["GIT_DIR", "GIT_COMMON_DIR", "GIT_WORK_TREE"];
 
-    pub fn asked(directory: &Path) -> io::Result<GitDirs> {
+    pub fn common(directory: &Path) -> io::Result<PathBuf> {
         let directory = Self::real(directory);
         let known = KNOWN.lock().unwrap_or_else(PoisonError::into_inner).get(&directory).cloned();
         known.map_or_else(
             || {
-                let dirs =
+                let common =
                     Self::plain(&directory).map_or_else(|| Self::answered(&directory).map_err(io::Error::other), Ok)?;
-                KNOWN.lock().unwrap_or_else(PoisonError::into_inner).insert(directory.clone(), dirs.clone());
-                Ok(dirs)
+                KNOWN.lock().unwrap_or_else(PoisonError::into_inner).insert(directory.clone(), common.clone());
+                Ok(common)
             },
             Ok,
         )
@@ -44,20 +41,8 @@ impl GitDirs {
             directory.join(Self::ENTRY).exists()
                 || (directory.join(Self::HEAD).is_file() && directory.join(Self::OBJECTS).is_dir())
         });
-        let inside = repository
-            .map(Self::asked)
-            .transpose()?
-            .filter(|dirs| real.starts_with(&dirs.git) || real.starts_with(&dirs.common));
-        inside.map_or(Ok(path), |dirs| Err(io::Error::other(Refusal::Inside { path: real.clone(), git: dirs.git })))
-    }
-
-    pub fn into_common(self) -> PathBuf {
-        self.common
-    }
-
-    #[cfg(feature = "dangling-pause")]
-    pub fn git(&self) -> &Path {
-        &self.git
+        let inside = repository.map(Self::common).transpose()?.filter(|common| real.starts_with(common));
+        inside.map_or(Ok(path), |common| Err(io::Error::other(Refusal::Inside { path: real.clone(), git: common })))
     }
 
     fn real(path: &Path) -> PathBuf {
@@ -69,12 +54,12 @@ impl GitDirs {
             .unwrap_or_else(|| path.to_path_buf())
     }
 
-    fn plain(directory: &Path) -> Option<GitDirs> {
+    fn plain(directory: &Path) -> Option<PathBuf> {
         let own = directory.join(Self::ENTRY);
-        (own.is_dir() && !own.join(Self::COMMON).exists()).then(|| GitDirs { git: own.clone(), common: own })
+        (own.is_dir() && !own.join(Self::COMMON).exists()).then_some(own)
     }
 
-    fn answered(directory: &Path) -> Result<GitDirs, Refusal> {
+    fn answered(directory: &Path) -> Result<PathBuf, Refusal> {
         let command = Self::UNSET.iter().fold(Command::new("git"), |mut command, name| {
             command.env_remove(name);
             command
@@ -84,7 +69,7 @@ impl GitDirs {
         let text = String::from_utf8_lossy(&output.stdout);
         let lines: Vec<PathBuf> = text.lines().map(|line| Self::real(Path::new(line))).collect();
         match (output.status.success(), lines.as_slice()) {
-            (true, [git, common]) => Ok(GitDirs { git: git.clone(), common: common.clone() }),
+            (true, [common]) => Ok(common.clone()),
             _ => Err(Refusal::Unknown {
                 directory: directory.to_path_buf(),
                 said: String::from_utf8_lossy(&output.stderr).into_owned(),

@@ -46,11 +46,14 @@ impl Door {
 impl Door {
     const PAUSES: [&str; 4] = ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD"];
     const LINE_END: &str = "\n";
+    const GIT_DIR: [&str; 2] = ["rev-parse", "--absolute-git-dir"];
 
     pub fn dangling_pause(worktree: &Path, pause: &str, commit: &str) -> io::Result<()> {
         Self::PAUSES.contains(&pause).then_some(()).ok_or(io::ErrorKind::InvalidInput)?;
-        let dirs = crate::git_dirs::GitDirs::asked(worktree)?;
-        fs::write(dirs.git().join(pause), [commit, Self::LINE_END].concat())
+        let asked = std::process::Command::new("git").arg("-C").arg(worktree).args(Self::GIT_DIR).output()?;
+        let text = String::from_utf8_lossy(&asked.stdout);
+        let git = text.lines().next().ok_or(io::ErrorKind::NotFound)?;
+        fs::write(Path::new(git).join(pause), [commit, Self::LINE_END].concat())
     }
 }
 
