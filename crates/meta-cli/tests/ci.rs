@@ -70,7 +70,7 @@ const INJECTED: &str = " (injected clock)";
 const FOURTH_POLL: &str = ": failed after 4s";
 const NOT_WATCHED: &str = "CI not watched for";
 const PLAIN_PUSH: &str = "git push";
-const PUSH_WORDS: [&str; 4] = ["push", "-q", "origin", "feature"];
+const PUSHED_BRANCH: &str = "feature";
 const NEXT_COMMIT: [&str; 5] = ["commit", "-q", "--allow-empty", "-m", "next"];
 const UNSTARTED: &str = "unstarted";
 const POST: &str = "post-tool-use";
@@ -172,6 +172,29 @@ impl Git {
             .unwrap()
             .write_all(remote.as_bytes())
             .unwrap();
+    }
+}
+
+struct Remote;
+
+impl Remote {
+    const ALTERNATES: &'static str = "objects/info/alternates";
+    const OBJECTS: &'static str = ".git/objects";
+
+    fn lend(origin: &Path, clone: &Path) {
+        let alternates = origin.join(Self::ALTERNATES);
+        std::fs::create_dir_all(alternates.parent().unwrap()).unwrap();
+        std::fs::write(alternates, format!("{}\n", clone.join(Self::OBJECTS).display())).unwrap();
+    }
+
+    fn pushed(repo: &Repo, branch: &str) {
+        let head = Git::head(repo.clone.path());
+        let heads = format!("refs/heads/{branch}");
+        let tracking = format!("refs/remotes/origin/{branch}");
+        std::thread::scope(|scope| {
+            scope.spawn(|| Git::run(repo.origin.path(), &["update-ref", &heads, &head]));
+            Git::run(repo.clone.path(), &["update-ref", &tracking, &head]);
+        });
     }
 }
 
@@ -303,6 +326,7 @@ impl Repo {
         Skeleton::Bare.lay(origin.path(), "main");
         Skeleton::Working.lay(clone.path(), "feature");
         Git::link_origin(clone.path(), origin.path().to_str().unwrap());
+        Remote::lend(origin.path(), clone.path());
         std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{limits}")).unwrap();
         std::fs::create_dir(clone.path().join("bin")).unwrap();
         std::fs::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
@@ -391,14 +415,14 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_pus
 fn passing_runs_let_the_agent_stop_and_unstarted_ones_do_not() {
     let unstarted = Started::building(UNSTARTED, PATIENT);
     let repo = Repo::new(SUCCESS);
-    Git::run(repo.clone.path(), &PUSH_WORDS);
+    Remote::pushed(&repo, PUSHED_BRANCH);
     repo.hook(POST, PLAIN_PUSH);
     let waited = repo.session_command(CI_WAIT);
     assert!(waited.0.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
     assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     Stale::plant(&repo);
-    Git::run(repo.clone.path(), &PUSH_WORDS);
+    Remote::pushed(&repo, PUSHED_BRANCH);
     repo.hook(POST, PLAIN_PUSH);
     let unstarted = unstarted.join().unwrap();
     let settled = unstarted.settled();

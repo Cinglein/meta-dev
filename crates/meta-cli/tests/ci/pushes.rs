@@ -1,10 +1,10 @@
 use super::{
-    BLOCK, CI_WAIT, COMMIT, FAILED_EVENT, FAILURE, Git, JOB_FAILED, NEXT_COMMIT, POST, PRE, Planted, Repo, STOP,
-    SUCCESS, Session,
+    BLOCK, CI_WAIT, COMMIT, FAILED_EVENT, FAILURE, Git, JOB_FAILED, NEXT_COMMIT, POST, PRE, Planted, Remote, Repo,
+    STOP, SUCCESS, Session,
 };
 
 const STATUS: &str = "git status";
-const ELSEWHERE: [&str; 4] = ["push", "-q", "origin", "HEAD:elsewhere"];
+const ELSEWHERE: &str = "elsewhere";
 const DETACH: [&str; 3] = ["checkout", "-q", "--detach"];
 const BACK: [&str; 3] = ["checkout", "-q", "feature"];
 const NOT_PUSHED: &str = "is not pushed";
@@ -19,7 +19,7 @@ const DENIED: &str = "\"permissionDecision\":\"deny\"";
 fn stop_judges_every_pushed_commit_and_a_dead_watcher_restarts() {
     let repo = Repo::new(FAILURE);
     Planted::settled(&repo, Planted::RUNNING);
-    Git::run(repo.clone.path(), &ELSEWHERE);
+    Remote::pushed(&repo, ELSEWHERE);
     Git::run(repo.clone.path(), &DETACH);
     let detached = repo.hook(STOP, STATUS);
     let waited = repo.session_command(CI_WAIT).0;

@@ -1,9 +1,9 @@
 use super::seeded_log::{SeededLog, TASK};
-use super::{BLOCK, COMMIT, Git, NEXT_COMMIT, Planted, Repo, SHELL, STOP, SUCCESS, TIMED_OUT_STOP};
+use super::{BLOCK, COMMIT, Git, NEXT_COMMIT, Planted, Remote, Repo, SHELL, STOP, SUCCESS, TIMED_OUT_STOP};
 
 const TIMED_OUT: &str = "timed-out";
 const DETACH: [&str; 3] = ["checkout", "-q", "--detach"];
-const PUSH_HEAD: [&str; 4] = ["push", "-q", "origin", "HEAD:refs/heads/pushed"];
+const PUSHED: &str = "pushed";
 const WAIT_ON_CI: [&str; 4] = ["wait", TASK, "--on", "ci"];
 const TASKLESS: &str = "then run `meta wait <task> --on ci` here";
 const STOP_CALLS: [&str; 6] = ["cat-file", "log", "ls-remote", "merge-base", "rev-list", "rev-parse"];
@@ -12,7 +12,7 @@ struct Unresolved;
 
 impl Unresolved {
     fn pushed(repo: &Repo) -> String {
-        Git::run(repo.clone.path(), &PUSH_HEAD);
+        Remote::pushed(repo, PUSHED);
         Planted::settled(repo, TIMED_OUT);
         repo.hook(STOP, COMMIT)
     }
