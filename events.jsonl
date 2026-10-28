@@ -1049,3 +1049,4 @@
 {"at":"2026-10-28T15:43:12.098624Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-5eeb100856845f26","text":"Duplicate of task-378e07fc7d0ddaeb (heartbeat sharing); gc per-candidate repeats done in #87."}
 {"at":"2026-10-28T15:43:16.661083Z","actor":"claude-paydown","kind":"TaskClaimed","task":"task-0309b25196a17ba7"}
 {"at":"2026-10-28T15:46:58.634537Z","actor":"claude-perfsmall","kind":"TaskLinked","task":"task-81d2d6e6701b9173","pr":106}
+{"at":"2026-10-28T15:50:34.927506Z","actor":"claude-paydown","kind":"TaskLinked","task":"task-0309b25196a17ba7","pr":107}
