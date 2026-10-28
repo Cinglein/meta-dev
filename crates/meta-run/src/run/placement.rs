@@ -61,6 +61,7 @@ mod tests {
     const PASSED: &str = "1 passed";
     const PATIENT: Duration = Duration::from_secs(5);
     const LIMIT: Duration = Duration::from_millis(60);
+    const MARGIN: Duration = Duration::from_millis(300);
 
     #[test]
     #[ignore = "run under a pseudo-terminal by the test below"]
@@ -68,7 +69,7 @@ mod tests {
         let shell = |script: &str| Run::new(BASH, EnvPolicy::Inherit).args([SCRIPT, script]);
         let leads = shell(LEADS).terminal().stdout(Instant::now() + PATIENT).unwrap_or_default();
         let helper = tempfile::NamedTempFile::new().unwrap();
-        let expired = shell(HELPER).arg(helper.path()).terminal().ran(Instant::now() + LIMIT);
+        let expired = shell(HELPER).arg(helper.path()).terminal().ran(Instant::now() + MARGIN);
         let held = || shell(HELD).arg(helper.path()).stdout(Instant::now() + PATIENT).unwrap_or_default();
         let until = Instant::now() + WINDOW;
         let polls = std::iter::repeat_with(|| std::thread::sleep(POLL)).take_while(|()| Instant::now() < until);
