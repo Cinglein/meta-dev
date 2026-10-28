@@ -10,6 +10,7 @@ const SHELL: &str = "bash";
 const LEADS: &str = "kill -0 -- -$$ 2>/dev/null && echo leader; true";
 const LEADER: &str = "leader\n";
 const PATIENT: Duration = Duration::from_secs(5);
+const RETRIED: [Result<(), Option<i32>>; 2] = [Err(Some(1)), Err(Some(2))];
 const SCRIPT: &str = "-c";
 const FED: &str = "cat; echo oops >&2; echo more >&2; exit 3";
 const SHOWN: [&str; 2] = ["fed", "oops\nmore"];
@@ -103,9 +104,9 @@ fn each_env_policy_drops_only_its_variables_and_a_budget_caps_calls_and_rests_at
     assert!(Run::git(Path::new(SHELL)).ran(Instant::now()).is_err_and(|late| late.to_string().contains(EXPIRED)));
     let started = Instant::now();
     Budget::new(PATIENT).within(started + POLL).rest(PATIENT);
-    let mut calls = 1..;
+    let mut calls = 0..;
     let retry = |overall| Budget::new(PATIENT).within(overall).retried(|| Err::<(), _>(calls.next()));
-    assert_eq!([started + PATIENT, started].map(retry), [Err(Some(2)), Err(Some(3))]);
+    assert_eq!([started + PATIENT, started].map(retry), RETRIED);
     assert!((POLL..PATIENT).contains(&started.elapsed()) && Budget::new(PATIENT).within(started).deadline() == started);
 }
 
