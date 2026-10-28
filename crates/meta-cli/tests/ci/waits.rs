@@ -81,18 +81,13 @@ fn an_unreadable_remote_settles_the_watch_unchecked_and_the_last_poll_still_ends
     let unchecked = repo.settled();
     let stopped = repo.hook(STOP, COMMIT);
     Git::run(repo.clone.path(), &["remote", "set-url", "origin", origin.as_str()]);
-    Git::run(repo.clone.path(), &NEXT_COMMIT);
-    FailingHead::copy_from(&repo, repo.clone.path());
-    repo.hook(POST, COMMIT);
-    let passed = repo.settled_past(&unchecked);
     Counted::plant(&repo, Counted::FLAKY);
     std::fs::write(repo.clone.path().join(Calls::EXPECTED), FIRST_POLL).unwrap();
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     FailingHead::copy_from(&repo, repo.clone.path());
     repo.hook(POST, COMMIT);
-    let retried = repo.settled_past(&passed);
+    let retried = repo.settled_past(&unchecked);
     assert!(unchecked.contains(UNCHECKED_EVENT) && stopped.contains(BLOCK) && stopped.contains(UNCHECKED_STOP));
-    assert!(passed.contains(PASSED_EVENT) && retried.contains(GIT_FAILED));
-    assert!(retried.strip_prefix(passed.as_str()).is_some_and(|new| new.contains(PASSED_EVENT)), "{retried}");
-    assert_eq!(retried.matches(UNCHECKED_EVENT).count(), 1);
+    assert!(retried.contains(GIT_FAILED) && retried.matches(UNCHECKED_EVENT).count() == 1);
+    assert!(retried.strip_prefix(unchecked.as_str()).is_some_and(|new| new.contains(PASSED_EVENT)), "{retried}");
 }

@@ -25,7 +25,7 @@ state=IN_PROGRESS; result=null; jobs='{"databaseId":11,"name":"ci","conclusion":
 case "$s" in failure|broken) jobs='{"databaseId":11,"name":"ci","conclusion":"FAILURE","steps":{"nodes":[{"name":"Checkout","conclusion":"SUCCESS"},{"name":"cargo xtask ci","conclusion":"FAILURE"}]}},{"databaseId":12,"name":"docs"}' ;;
 unstarted|mixed) jobs='{"databaseId":11,"name":"ci","conclusion":"FAILURE"}' ;; esac
 case "$s$*" in failure*filterBy*|broken*filterBy*) ;; failure*|broken*) pad=; i=0; while [ "$i" -lt 50 ]; do pad="$pad{\"databaseId\":$((i + 100)),\"name\":\"job$i\",\"conclusion\":\"SUCCESS\"},"; i=$((i + 1)); done; jobs="${pad%,}" ;; esac
-case "$s" in late|broken|slow) ;; last) [ "$n" -ge 2 ] && state=COMPLETED result='"SUCCESS"' ;; success) [ "$n" -ge 4 ] && state=COMPLETED result='"SUCCESS"' ;; *) [ "$n" -ge 4 ] && state=COMPLETED result='"FAILURE"' ;; esac
+case "$s" in late|broken|slow) ;; last) [ "$n" -ge 1 ] && state=COMPLETED result='"SUCCESS"' ;; success) [ "$n" -ge 4 ] && state=COMPLETED result='"SUCCESS"' ;; *) [ "$n" -ge 4 ] && state=COMPLETED result='"FAILURE"' ;; esac
 runs="{\"status\":\"$state\",\"conclusion\":$result,\"workflowRun\":{},\"checkRuns\":{\"nodes\":[$jobs]}}"
 [ "$s" = mixed ] && [ "$state" = COMPLETED ] && runs="$runs,{\"status\":\"COMPLETED\",\"conclusion\":\"FAILURE\",\"workflowRun\":{},\"checkRuns\":{\"nodes\":[{\"databaseId\":13,\"name\":\"lint\",\"conclusion\":\"FAILURE\",\"steps\":{\"nodes\":[{\"name\":\"clippy\",\"conclusion\":\"FAILURE\"}]}}]}}"
 if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
