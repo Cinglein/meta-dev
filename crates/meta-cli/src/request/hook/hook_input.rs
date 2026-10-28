@@ -4,6 +4,7 @@ mod shell_command;
 mod tool_input;
 
 use std::path::PathBuf;
+use std::time::Instant;
 
 use meta_schema::Actor;
 use serde::Deserialize;
@@ -40,18 +41,18 @@ impl HookInput {
         self.session().map_or(Ok(()), |session| SessionStart::for_session(session).open().map_err(Listed::new))
     }
 
-    pub fn refusal(&self) -> Option<Listed> {
+    pub fn refusal(&self, deadline: Instant) -> Option<Listed> {
         let command = self.command()?;
-        let foreign =
-            command.commit_directories(&self.cwd()).iter().find_map(|directory| Identity::refusal_in(directory));
+        let directories = command.commit_directories(&self.cwd());
+        let foreign = directories.iter().find_map(|directory| Identity::refusal_in(directory, deadline));
         let writing = self.session().zip(command.writes());
         let unrecorded = writing.and_then(|(session, ())| SessionStart::for_session(session).record().err());
         unrecorded.or(foreign)
     }
 
-    pub fn unpushable(&self, project: &Project, subcommand: &str) -> Option<Listed> {
+    pub fn unpushable(&self, project: &Project, subcommand: &str, deadline: Instant) -> Option<Listed> {
         self.command()?.runs(subcommand)?;
-        PushedCommits::refusal_in(project.root(), project.config().remote().ok()?)
+        PushedCommits::refusal_in(project.root(), project.config().remote().ok()?, deadline)
     }
 
     pub fn publishing(&self) -> Option<PathBuf> {

@@ -1,3 +1,4 @@
+mod git_work;
 mod log_window;
 mod millis;
 mod poll_schedule;
@@ -6,23 +7,27 @@ mod stop_limit;
 
 use std::time::{Duration, Instant};
 
+use meta_run::Budget;
 use serde::Deserialize;
 
 use super::Config;
 use crate::request::cli_failure::{CliFailure, Setup};
+pub use git_work::GitWork;
 pub use log_window::LogWindow;
 pub use millis::Millis;
 use poll_schedule::PollSchedule;
 pub use program_name::ProgramName;
 use stop_limit::StopLimit;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
 pub struct CiSettings {
     program: ProgramName,
     poll_millis: Millis,
     timeout_millis: Millis,
     appear_millis: Millis,
     remote_millis: Millis,
+    git_millis: Millis,
+    claim_millis: Millis,
     gh_millis: Millis,
     stop_millis: StopLimit,
     #[serde(flatten)]
@@ -33,6 +38,8 @@ pub struct CiSettings {
 
 impl CiSettings {
     pub const DEFAULTS: &'static str = include_str!("ci_settings/ci_defaults.toml");
+    pub const ROUTINE: GitWork = GitWork::Routine;
+    pub const CLAIM: GitWork = GitWork::Claim;
 
     pub fn program(&self) -> &ProgramName {
         &self.program
@@ -56,6 +63,10 @@ impl CiSettings {
 
     pub fn remote_deadline(&self) -> Instant {
         Instant::now() + self.remote_millis.duration()
+    }
+
+    pub fn budget(&self, work: GitWork) -> Budget {
+        Budget::new(work.limit(self.git_millis, self.claim_millis).duration())
     }
 
     pub fn gh_limit(&self) -> Duration {
@@ -94,7 +105,7 @@ mod tests {
 
     #[test]
     fn the_poll_interval_and_the_overdue_mark_are_the_configured_millis() {
-        let settings = toml::from_str::<Config>(CONFIGURED).unwrap().ci_settings();
+        let settings = CiSettings::try_from(&toml::from_str::<Config>(CONFIGURED).unwrap()).unwrap();
         let overdue = [8, 9].map(|millis| settings.run_overdue(Duration::from_millis(millis)));
         assert_eq!((settings.poll_interval().duration(), overdue), (Duration::from_millis(7), [None, Some(())]));
     }

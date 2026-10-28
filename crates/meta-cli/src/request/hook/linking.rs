@@ -1,4 +1,5 @@
 use meta_log::LogStore as _;
+use meta_run::Budget;
 use meta_schema::Event;
 use meta_state::State;
 
@@ -13,14 +14,14 @@ use crate::request::writing::Writing;
 pub struct Linking;
 
 impl Linking {
-    pub fn after(input: &HookInput, known: Option<&Project>) -> Option<Listed> {
+    pub fn after(input: &HookInput, known: Option<&Project>, budget: Budget) -> Option<Listed> {
         let found = Project::try_from(input.publishing()?.as_path()).ok()?;
         let project = known.filter(|known| known.root() == found.root()).unwrap_or(&found);
-        let branch = project.unprotected_branch()?;
+        let branch = project.unprotected_branch(budget.deadline())?;
         let task = branch.task()?;
-        let pulls = LiveGithub::for_project(project).pulls_from(&branch);
+        let pulls = LiveGithub::for_project(project).within(budget.deadline()).pulls_from(&branch);
         pulls.first()?;
-        let log = project.log().ok()?;
+        let log = project.log(budget).ok()?;
         let links = State::fold(log.read().ok()?.records()).unlinked(task, &pulls);
         let actor = Request::actor().ok()?;
         let written = links.into_iter().map(|link| {

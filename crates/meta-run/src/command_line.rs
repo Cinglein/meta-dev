@@ -7,12 +7,13 @@ pub struct CommandLine(Vec<String>);
 
 impl From<&Command> for CommandLine {
     fn from(command: &Command) -> Self {
-        Self(command.get_args().map(OsStr::to_string_lossy).map(String::from).collect())
+        let words = [command.get_program()].into_iter().chain(command.get_args());
+        Self(words.map(OsStr::to_string_lossy).map(String::from).collect())
     }
 }
 
 impl fmt::Display for CommandLine {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "git {}", self.0.join(" "))
+        formatter.write_str(&self.0.join(" "))
     }
 }
