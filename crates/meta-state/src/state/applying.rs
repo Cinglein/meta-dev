@@ -8,7 +8,7 @@ use crate::stamp::Stamp;
 use crate::state::concern_state::ConcernState;
 use crate::state::issue_state::IssueState;
 use crate::state::{Retired, State};
-use crate::task_state::{Progress, TaskState};
+use crate::task_state::{Progress, Reopening, TaskState};
 
 #[derive(Debug)]
 pub struct Applying<'state> {
@@ -84,6 +84,7 @@ impl EventVisitor for Applying<'_> {
     }
 
     fn task_reopened(self, task: TaskRef) -> Self::Output {
-        self.state.task_mut(task.task())?.advance(|progress| progress.reopened().map(Progress::Active))
+        let reopening = Reopening::under(self.state.schema());
+        self.state.task_mut(task.task())?.advance(|progress| progress.reopened(reopening).map(Progress::Active))
     }
 }
