@@ -45,6 +45,6 @@ impl MutantsBuild {
     pub fn passes(&self, tests: &CommandLine) -> Result<(), Failure> {
         let printed = tests.clone().argument(CargoArgument::NoRun).captured::<Stdout>()?;
         eprint!("{printed}");
-        tests.captured::<Stdout>().map(|printed| eprint!("{printed}"))
+        tests.stdout_within(self.test_timeout.duration()).map(|printed| eprint!("{printed}"))
     }
 }

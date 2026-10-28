@@ -8,7 +8,8 @@ publish.workspace = true
 [dependencies]
 derive_more = { version = "2", features = ["add", "add_assign", "display", "from", "from_str", "into", "sum"] }
 enum-map = { version = "3", features = ["serde"] }
-meta-schema = { path = "../../crates/meta-schema" }
+meta-run = { path = "../../crates/meta-run" }
+meta-schema ={ path = "../../crates/meta-schema" }
 meta-severity = { path = "../../crates/meta-severity" }
 meta-state = { path = "../../crates/meta-state" }
 proc-macro2 = { version = "1", features = ["span-locations"] }
