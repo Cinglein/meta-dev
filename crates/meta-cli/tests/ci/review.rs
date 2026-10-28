@@ -43,7 +43,11 @@ impl Clones {
     fn made_with(repo: &Repo, options: &[&str]) -> tempfile::TempDir {
         let dir = tempfile::tempdir().unwrap();
         let origin = repo.origin.path().to_str().unwrap();
-        Git::run(dir.path(), &[["clone", "--shared"].as_slice(), options, &[origin, "."]].concat());
+        assert!(
+            Git::run(dir.path(), &[["clone", "--shared"].as_slice(), options, &[origin, "."]].concat())
+                .status
+                .success()
+        );
         std::fs::copy(repo.clone.path().join(CONFIG_FILE), dir.path().join(CONFIG_FILE)).unwrap();
         dir
     }
