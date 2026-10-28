@@ -50,7 +50,6 @@ impl Door {
                 .segments
                 .last()
                 .map(|segment| Name::from(&segment.ident)),
-            Type::Reference(reference) => Self::target_of(&reference.elem),
             _ => None,
         }
     }
