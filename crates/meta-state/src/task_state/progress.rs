@@ -95,6 +95,13 @@ impl Progress {
         }
     }
 
+    pub fn waited_by(&self) -> Option<&Actor> {
+        match self {
+            Self::Active(activity) => activity.waited_by(),
+            Self::Done(_) => None,
+        }
+    }
+
     pub fn unblocked(&self, by: &Actor) -> Result<Self, Refusal> {
         match self {
             Self::Active(activity) => activity.unblocked(by).map(Self::Active),

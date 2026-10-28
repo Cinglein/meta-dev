@@ -89,7 +89,12 @@ impl Watcher {
             .iter()
             .find(|(_, status)| status.is_none())
             .map(|(commit, _)| Listed::new(format!("CI not watched for {commit}: push again to watch it")));
-        let known = statuses.iter().find_map(|(_, status)| status.and_then(CiStatus::stop_reason));
+        let covered = |commit: &Commit| {
+            seen.as_ref().ok().and_then(|seen| WaitOnCi::owner_waited(project, seen, commit, deadline))
+        };
+        let known = statuses
+            .iter()
+            .find_map(|(commit, status)| status.and_then(CiStatus::stop_reason).filter(|_| covered(commit).is_none()));
         let unresolved = || seen.as_ref().ok().and_then(|seen| WaitOnCi::stop_reason(project, &dir, seen, deadline));
         let reason = unknown.or(unwritable).or(unpushed).or(unwatched).or(known).or_else(unresolved);
         let late = (Instant::now() >= deadline).then(|| Listed::new(Self::OUT_OF_TIME));

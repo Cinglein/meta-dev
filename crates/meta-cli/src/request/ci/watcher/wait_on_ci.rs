@@ -1,8 +1,8 @@
 use std::fmt;
 use std::time::Instant;
 
-use meta_schema::{CommitId, ExternalKind, Id, Task};
-use meta_state::{State, TaskStatus};
+use meta_schema::{Actor, CommitId, ExternalKind, Id, Task};
+use meta_state::{State, TaskState, TaskStatus};
 
 use super::session_commits::SessionCommits;
 use crate::request::ci::ci_status::CiStatus;
@@ -34,9 +34,7 @@ impl WaitOnCi {
         let commits = seen.pushed();
         let unresolved = |commit: &Commit| dir.status_of(commit).and_then(CiStatus::unresolved);
         commits.iter().find_map(unresolved)?;
-        let budget = project.ci_settings().budget(CiSettings::ROUTINE).within(deadline);
-        let read = project.log(budget).and_then(|log| log.read_listed(seen.heads()).map_err(CliFailure::from));
-        let state = read.map(|read| State::fold(read.records()));
+        let state = Self::state(project, seen, deadline);
         let head = seen.checkout().head().and_then(Commit::commit_id);
         let branch = seen.checkout().branch().filter(|branch| project.config().protects(branch).is_none());
         let task = branch.and_then(BranchName::task);
@@ -44,6 +42,23 @@ impl WaitOnCi {
             let what = unresolved(commit)?;
             Self::judging(&state, commit, head.as_ref(), task).map_or_else(Some, |wait| wait.reason(what))
         })
+    }
+
+    pub fn state(project: &Project, seen: &SessionCommits, deadline: Instant) -> Result<State, CliFailure> {
+        let budget = project.ci_settings().budget(CiSettings::ROUTINE).within(deadline);
+        let read = project.log(budget).and_then(|log| log.read_listed(seen.heads()).map_err(CliFailure::from));
+        read.map(|read| State::fold(read.records()))
+    }
+
+    pub fn owner_waited(project: &Project, seen: &SessionCommits, commit: &Commit, deadline: Instant) -> Option<()> {
+        let state = Self::state(project, seen, deadline).ok()?;
+        let at = commit.commit_id()?;
+        let waited_here = |known: &&TaskState| {
+            let progress = known.progress();
+            progress.waited_at() == Some(&at) && progress.waited_by() == Some(&Actor::owner())
+        };
+        let waiting = state.tasks().iter().filter(|known| state.status_of(known) == Self::ON_CI);
+        waiting.filter(waited_here).map(drop).next()
     }
 
     fn judging(

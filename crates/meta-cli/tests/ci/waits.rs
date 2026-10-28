@@ -111,9 +111,8 @@ fn a_wait_the_owner_recorded_lets_stop_pass_failed_ci_and_an_agents_wait_does_no
     acting(OWNER, &["resume", TASK]);
     acting(OWNER, &WAIT_ON_CI);
     let owner_waited = repo.hook(STOP, COMMIT);
-    let shown = format!("{blocked}\n{agent_waited}\n{owner_waited}");
     assert!(
         blocked.contains(FAILED_STOP) && agent_waited.contains(FAILED_STOP) && !owner_waited.contains(BLOCK),
-        "{shown}"
+        "{blocked}\n{agent_waited}\n{owner_waited}"
     );
 }

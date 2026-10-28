@@ -1,7 +1,7 @@
 use meta_schema::{Block, Blocker, Entry, Event, ExternalKind, TaskRef};
 
 use super::board::Board;
-use super::{ALICE, BOB, Events, Lifecycle, OPENED, OWNER};
+use super::{ALICE, BOB, Events, Lifecycle, OPENED, OWNER, State};
 use crate::refusal::Refusal;
 
 const CAROL: &str = "carol";
@@ -55,6 +55,8 @@ fn only_holders_wait_or_resume_and_the_last_holder_cannot_leave_a_wait() {
     assert_eq!(waiting.script().vet(ALICE, leaving.clone()), Err(Refusal::WaitWithoutHolder));
     let shared = waiting.script().clone().then(CAROL, Events::claim(board.task(), None));
     assert_eq!(shared.vet(ALICE, leaving), Ok(()));
+    let waited = State::fold(&shared.records);
+    assert_eq!(waited.tasks().first().and_then(|task| task.progress().waited_by()), Some(&Events::actor(ALICE)));
     let unheld = Block::new(board.other().task(), Blocker::External(ExternalKind::Ci));
     assert_eq!(board.script().vet(BOB, Event::TaskBlocked(unheld)), Err(Refusal::NotAssigned(Events::actor(BOB))));
 }
