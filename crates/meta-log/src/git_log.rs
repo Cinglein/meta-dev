@@ -7,7 +7,7 @@ mod remote;
 mod sha;
 mod tip;
 
-pub use sha::Sha;
+pub use sha::{NotCommitId, Sha};
 
 use std::cell::RefCell;
 use std::fmt;
@@ -66,7 +66,7 @@ impl GitLog {
             staged = Self::STAGED,
         );
         let imported = Git::ran(self.git.command(["fast-import", "--quiet", "--date-format=now"]).fed(stream))?;
-        Ok(Content::try_from(imported)?.as_ref().parse().unwrap_or_else(|never| match never {}))
+        Ok(Content::try_from(imported)?.as_ref().parse()?)
     }
 
     fn attempt<Failure: From<LogFailure>>(
