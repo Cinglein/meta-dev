@@ -1,5 +1,5 @@
-mod head_commit;
 mod identity;
+mod pushed_commits;
 mod shell_command;
 mod tool_input;
 
@@ -10,9 +10,10 @@ use serde::Deserialize;
 
 use crate::request::ci::{SessionId, SessionStart};
 use crate::request::output::Listed;
+use crate::request::project::Project;
 
-use head_commit::HeadCommit;
 use identity::Identity;
+use pushed_commits::PushedCommits;
 use shell_command::ShellCommand;
 use tool_input::ToolInput;
 
@@ -48,8 +49,9 @@ impl HookInput {
         unrecorded.or(foreign)
     }
 
-    pub fn commit_hold(&self, command: &ShellCommand) -> Option<Listed> {
-        command.commit_directories(&self.cwd()).iter().find_map(|directory| HeadCommit::refusal_in(directory))
+    pub fn unpushable(&self, project: &Project, subcommand: &str) -> Option<Listed> {
+        self.command()?.runs(subcommand)?;
+        PushedCommits::refusal_in(project.root(), project.config().remote().ok()?)
     }
 
     pub fn publishing(&self) -> Option<PathBuf> {

@@ -15,7 +15,7 @@ const PUSH_HEAD: &str = "pushed";
 const WAIT_ON_CI: [&str; 4] = ["wait", TASK, "--on", "ci"];
 const TASKLESS: &str = "then run `meta wait <task> --on ci` here";
 const POST_AND_STOP_CALLS: [&str; 8] =
-    ["cat-file", "diff-tree", "log", "log", "ls-remote", "merge-base", "rev-list", "rev-list"];
+    ["cat-file", "log", "log", "log", "ls-remote", "merge-base", "rev-list", "rev-list"];
 
 struct Unresolved;
 

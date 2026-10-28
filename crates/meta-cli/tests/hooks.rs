@@ -166,7 +166,8 @@ fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
     assert!(held.contains(HELD_REASON) && Git::head(repo.origin.path(), ALL_REFS) == Revision(String::new()));
     std::fs::write(home.join(LEAK_FILE), HOME_TEXT).unwrap();
     Git::run(home, &FIX_COMMIT);
-    let (after_fix, by_hand) = (repo.hook(POST, COMMIT, home), repo.hook(PRE, ALLOWED, home));
+    let after_fix = repo.hook(POST, COMMIT, home);
+    let by_hand = repo.hook(PRE, ALLOWED, home);
     assert!(after_fix.contains(HELD_REASON) && by_hand.contains(DENY) && by_hand.contains(HELD_REASON));
     Git::run(home, &UNDO_TWO);
     Git::run(home, &CLEAN_COMMIT);
