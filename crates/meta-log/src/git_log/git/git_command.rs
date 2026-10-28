@@ -84,7 +84,7 @@ impl GitCommand {
 
     pub fn sha(self) -> Result<Sha, LogFailure> {
         let content = self.content()?;
-        Ok(content.as_ref().parse().unwrap_or_else(|never| match never {}))
+        Ok(content.as_ref().parse()?)
     }
 }
 

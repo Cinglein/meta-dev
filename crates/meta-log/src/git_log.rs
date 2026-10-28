@@ -8,7 +8,7 @@ mod remote;
 mod sha;
 mod tip;
 
-pub use sha::Sha;
+pub use sha::{NotCommitId, Sha};
 
 use std::cell::RefCell;
 use std::fmt;
