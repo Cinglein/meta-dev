@@ -32,6 +32,7 @@ use ci::{Ci, LocalGate};
 use corpus_check::LintName;
 use crate_graph::CrateGraph;
 use failure::Failure;
+use meta_golden::Reach;
 use mutant_costs::MutantCosts;
 use mutation::{Mutants, Scope, ShardPlan, TriggerEvent};
 use stacked::Stacked;
@@ -51,6 +52,7 @@ pub enum Task {
     ExpressionFlow,
     FnShape,
     Goldens,
+    GoldensOnline,
     Graph,
     Lint,
     LiteralNames,
@@ -129,7 +131,8 @@ impl Task {
             )
             .run(workspace, &selection, &policy),
             Task::Clippy => Ok(Clippy::run(workspace, &selection, &policy)?),
-            Task::Goldens => GoldenRefresh::run(workspace),
+            Task::Goldens => GoldenRefresh::run(workspace, Reach::Offline),
+            Task::GoldensOnline => GoldenRefresh::run(workspace, Reach::Online),
             Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
             Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy, &mut ledger)
                 .and_then(|()| Ok(ledger.checked(&policy, &selection)?)),

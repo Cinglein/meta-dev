@@ -62,4 +62,6 @@ pub enum Failure {
     Untracked(Untracked),
     #[error("goldens: {0}")]
     Golden(#[from] GoldenFailure),
+    #[error("goldens: cargo built no `{0}` binary")]
+    Unbuilt(&'static str),
 }

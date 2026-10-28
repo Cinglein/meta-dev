@@ -3,6 +3,7 @@ mod tool_call;
 use meta_run::{GhArgv, GitArgv, MetaArgv, Port, Run, Tool};
 use serde::Deserialize;
 
+use crate::goldens::Reach;
 use crate::places::Places;
 use tool_call::ToolCall;
 
@@ -15,6 +16,13 @@ pub enum Call {
 }
 
 impl Call {
+    pub fn reach(&self) -> Reach {
+        match self {
+            Self::Gh(_) => Reach::Online,
+            Self::Git(_) | Self::Meta(_) => Reach::Offline,
+        }
+    }
+
     pub fn run(&self, places: &Places) -> Run {
         match self {
             Self::Git(call) => call.run(&Port::new(places.root()), places),

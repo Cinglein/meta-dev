@@ -5,7 +5,7 @@ use std::os::unix::process::CommandExt as _;
 use std::path::Path;
 use std::process::{Command, Output};
 
-use meta_golden::{Golden, Goldens, Replay};
+use meta_golden::{Golden, Goldens, Reach, Recording, Replay};
 use meta_run::{MetaArgv, Tool as _};
 
 const SCENARIO: &str = "injected-ident";
@@ -21,7 +21,12 @@ const LINE_END: &str = "\n";
 const TOPLEVEL: [&str; 2] = ["rev-parse", "--show-toplevel"];
 const NO_BRANCH: [&str; 4] = ["rev-parse", "--verify", "--quiet", "refs/heads/none"];
 const SCENARIO_FILE: &str = "toml";
-const META: [&str; 2] = ["snapshot.toml", "[[step]]\nrecord = \"list\"\nmeta = { call = \"list\" }\n"];
+const SCENARIOS: [&str; 4] = [
+    "snapshot",
+    "[[step]]\nrecord = \"list\"\nmeta = { call = \"list\" }\n",
+    "online",
+    "[[step]]\nrecord = \"checks\"\ngh = { call = \"commit-checks\" }\n",
+];
 const NO_BIN: &str = "";
 const MATCHED: [bool; 2] = [true, false];
 const UNBUILT: [&str; 2] =
@@ -34,7 +39,7 @@ fn a_scenario_records_what_real_git_reports_as_checked_in_and_a_failed_setup_fai
     let copy =
         |scenario| std::fs::copy(Goldens::workspace().dir().join(copied(scenario)), root.path().join(copied(scenario)));
     [SCENARIO, OUTSIDE].map(copy).into_iter().collect::<Result<Vec<_>, _>>().unwrap();
-    Goldens::new(root.path()).refreshed(Path::new(NO_BIN)).unwrap();
+    Goldens::new(root.path()).refreshed(Path::new(NO_BIN), Reach::Offline).unwrap();
     let recorded = Goldens::new(root.path()).recordings().unwrap();
     let goldens = [Goldens::workspace(), Goldens::new(&root.path().join(NO_BIN).join(SCENARIO_FILE))];
     let matched =
@@ -42,7 +47,7 @@ fn a_scenario_records_what_real_git_reports_as_checked_in_and_a_failed_setup_fai
     assert_eq!(matched.collect::<Vec<_>>(), [MATCHED; RECORDED_LEN]);
     let [unbuilt, steps] = UNBUILT;
     std::fs::write(root.path().join(unbuilt), steps).unwrap();
-    let rebuilt = Goldens::new(root.path()).refreshed(Path::new(NO_BIN));
+    let rebuilt = Goldens::new(root.path()).refreshed(Path::new(NO_BIN), Reach::Offline);
     assert!(rebuilt.is_err() && recorded.iter().all(|recording| recording.viewed(&recording.out()).is_err()));
 }
 
@@ -53,12 +58,19 @@ fn a_golden_passes_its_own_text_and_fails_on_any_other_and_meta_runs_from_the_bi
     std::fs::write(&file, TEXTS[0]).unwrap();
     let golden = Golden::new(&file);
     assert!(golden.checked(TEXTS[0]).is_ok() && golden.checked(TEXTS[1]).is_err());
-    let [scenario, steps] = META;
-    std::fs::write(root.path().join(scenario), steps).unwrap();
+    let [snapshot, snapshot_steps, online, online_steps] = SCENARIOS;
+    let write = |(scenario, steps): (&str, &str)| {
+        std::fs::write(root.path().join(scenario).with_extension(SCENARIO_FILE), steps)
+    };
+    [(snapshot, snapshot_steps), (online, online_steps)].map(write).into_iter().collect::<Result<Vec<_>, _>>().unwrap();
     std::os::unix::fs::symlink(env!("CARGO_BIN_EXE_meta-replay"), root.path().join(MetaArgv::PROGRAM)).unwrap();
-    Goldens::new(root.path()).refreshed(root.path()).unwrap();
-    let recorded = Goldens::new(root.path()).recordings().unwrap();
-    assert!(recorded.len() == 1 && recorded.iter().all(|recording| recording.argv().calls(MetaArgv::List)));
+    Goldens::new(root.path()).refreshed(root.path(), Reach::Offline).unwrap();
+    let recorded = Recording::all_in(&root.path().join(snapshot)).unwrap();
+    assert!(
+        recorded.len() == 1
+            && recorded.iter().all(|recording| recording.argv().calls(MetaArgv::List))
+            && !root.path().join(online).exists()
+    );
 }
 
 #[test]

@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 use meta_run::Unread;
 use serde::Deserialize;
 
+use super::reach::Reach;
 use crate::golden::Golden;
 use crate::golden_failure::GoldenFailure;
 use crate::places::Places;
@@ -19,6 +20,10 @@ pub struct Scenario {
 
 impl Scenario {
     const PATIENCE: Duration = Duration::from_secs(60);
+
+    pub fn reach(&self) -> Reach {
+        self.step.iter().map(ScenarioStep::reach).max().unwrap_or(Reach::Offline)
+    }
 
     pub fn recorded(&self, into: &Path, bin: &Path) -> Result<Vec<Recording>, GoldenFailure> {
         let unreadable = |source| GoldenFailure::Unreadable { path: into.to_path_buf(), source };

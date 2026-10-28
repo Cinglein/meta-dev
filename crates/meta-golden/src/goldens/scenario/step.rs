@@ -4,6 +4,7 @@ mod setup;
 use meta_run::{EnvPolicy, Run};
 use serde::Deserialize;
 
+use crate::goldens::Reach;
 use crate::places::Places;
 use call::Call;
 use setup::Setup;
@@ -32,6 +33,13 @@ impl ScenarioStep {
         ("LC_ALL", "C"),
     ];
     const CEILING: &'static str = "GIT_CEILING_DIRECTORIES";
+
+    pub fn reach(&self) -> Reach {
+        match self {
+            Self::Recorded { call, .. } => call.reach(),
+            Self::Setup(_) => Reach::Offline,
+        }
+    }
 
     pub fn record(&self) -> Option<&str> {
         match self {
