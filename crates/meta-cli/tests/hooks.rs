@@ -49,7 +49,7 @@ const SESSION_STARTED: &str = "meta-sessions/ABCDEF1234/started";
 const ENV_LINE: &str = "export META_ACTOR=claude-abcdef1234\nexport META_SESSION=ABCDEF12-34\n";
 const HANGING_UPLOAD: &str = "[remote \"origin\"]\n\tuploadpack = sh -c 'sleep 5' x\n";
 const META_TOML: &str = "meta.toml";
-const QUICK_GIT: &str = "[ci]\ngit_millis = 50\n";
+const QUICK_GIT: &str = "[ci]\ngit_millis = 20\n";
 const UNREADABLE: &str = "meta/log unreadable";
 
 #[path = "support/skeleton.rs"]

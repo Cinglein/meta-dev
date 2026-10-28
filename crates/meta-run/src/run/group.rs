@@ -26,7 +26,7 @@ impl Group {
     const PROBE: &'static str = "-0";
     const END_OF_OPTIONS: &'static str = "--";
     const GRACE: Duration = Duration::from_secs(1);
-    const STEP: Duration = Duration::from_millis(20);
+    const STEP: Duration = Duration::from_millis(5);
     const HANDOFF: Duration = Duration::from_millis(100);
     const SEARCH_PATH: [&'static str; 1] = ["PATH"];
 
@@ -93,7 +93,7 @@ mod tests {
     const KILL: &str = "kill";
     const ALIVE: [&str; 1] = ["-0"];
     const PATIENT: Duration = Duration::from_secs(5);
-    const LIMIT: Duration = Duration::from_millis(60);
+    const LIMIT: Duration = Duration::from_millis(30);
 
     #[test]
     fn a_helper_past_its_deadline_is_killed_reaped_and_dropped_from_the_live_groups() {
