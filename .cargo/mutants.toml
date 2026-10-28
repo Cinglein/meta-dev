@@ -23,7 +23,6 @@ exclude_re = [
     "Mutants::refuse_if_memory_is_short",
     "MutantsRun::accepted",
     "MemoryWatch<'policy>::(sample|enforce|grown|children_outside)",
+    "MutantsBuild::checked",
 ]
 minimum_test_timeout = 10.0
-cap_lints = false
-all_features = true

@@ -69,18 +69,28 @@ jobs:
     outputs:
       shards: ${{ steps.plan.outputs.shards }}
     steps:
-      - uses: actions/checkout@v5
+      - &mutants-checkout
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2
+      - &mutants-toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - &mutants-linker
+        uses: rui314/setup-mold@v1
+      - &mutants-cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: mutants
+      - &mutants-tool
+        uses: taiki-e/install-action@v2
         with:
           tool: cargo-mutants
       - id: plan
         run: |
           shards=$(cargo xtask mutants-diff-plan)
           echo "shards=$shards" >> "$GITHUB_OUTPUT"
+        env: &mutants-build-env
+          CARGO_INCREMENTAL: 1
 
   mutants:
     needs: mutants-plan
@@ -94,21 +104,14 @@ jobs:
     env:
       MUTANTS_SHARD: ${{ matrix.shard }}
     steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: rui314/setup-mold@v1
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: mutants
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-mutants
+      - *mutants-checkout
+      - *mutants-toolchain
+      - *mutants-linker
+      - *mutants-cache
+      - *mutants-tool
       - run: cargo xtask mutants
         timeout-minutes: 5
-        env:
-          CARGO_INCREMENTAL: 1
+        env: *mutants-build-env
       - uses: actions/upload-artifact@v4
         if: always()
         with:

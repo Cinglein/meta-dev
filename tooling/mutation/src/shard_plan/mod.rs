@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::scope::Scope;
+use crate::scope::{MutantsBuild, Scope};
 use affected::{CrateLoad, Packing};
 use task::Failure;
 use task::FullRun;
@@ -31,7 +31,7 @@ impl ShardPlan {
     }
 
     pub fn changed_lines(workspace: &Workspace, policy: &Policy) -> Result<ShardPlan, Failure> {
-        Scope::changed_shards(workspace, policy).map(ShardPlan)
+        Scope::changed_shards(&MutantsBuild::checked(workspace)?, workspace, policy).map(ShardPlan)
     }
 }
 

@@ -1,6 +1,5 @@
 use std::convert::Infallible;
 use std::fs;
-use std::io::ErrorKind;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -13,14 +12,9 @@ impl MissedList {
     const FILE: &str = "mutants.out/missed.txt";
     pub fn in_output(output: &Path) -> Result<MissedList, Failure> {
         let path = output.join(Self::FILE);
-        match fs::read_to_string(&path) {
-            Ok(listed) => {
-                let Ok(list) = listed.parse();
-                Ok(list)
-            }
-            Err(error) if error.kind() == ErrorKind::NotFound => Ok(MissedList(Vec::new())),
-            Err(error) => Err(Failure::Io { site: Site::File(path), error }),
-        }
+        let listed = fs::read_to_string(&path).map_err(|error| Failure::Io { site: Site::File(path), error })?;
+        let Ok(list) = listed.parse();
+        Ok(list)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -42,14 +36,11 @@ mod tests {
     #[test]
     fn a_missing_list_fails_closed_and_a_written_one_counts_its_lines() {
         let output = std::env::temp_dir().join(format!("meta-missed-{}", std::process::id()));
-        std::fs::create_dir_all(output.join(MissedList::FILE)).unwrap();
-        let unreadable = MissedList::in_output(&output).is_err();
-        std::fs::remove_dir(output.join(MissedList::FILE)).unwrap();
         let absent = MissedList::in_output(&output).is_err();
+        std::fs::create_dir_all(output.join(MissedList::FILE).parent().unwrap()).unwrap();
         std::fs::write(output.join(MissedList::FILE), "a.rs:1:1: delete x").unwrap();
         let present = MissedList::in_output(&output).unwrap();
         std::fs::remove_dir_all(&output).unwrap();
-        let Ok(blank) = " \n\n".parse::<MissedList>();
-        assert!(absent && unreadable && !present.is_empty() && blank.is_empty());
+        assert!(absent && !present.is_empty() && " \n\n".parse::<MissedList>().is_ok_and(|blank| blank.is_empty()));
     }
 }

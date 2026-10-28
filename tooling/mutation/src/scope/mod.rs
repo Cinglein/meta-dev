@@ -1,7 +1,9 @@
+mod mutants_build;
 mod mutants_run;
 mod output_directory;
 mod test_packages;
 
+pub use mutants_build::MutantsBuild;
 pub use mutants_run::MutantsRun;
 
 use std::env;
@@ -32,6 +34,7 @@ impl Scope {
     pub fn applied(
         self,
         line: CommandLine,
+        build: &MutantsBuild,
         workspace: &Workspace,
         policy: &Policy,
     ) -> Result<Vec<MutantsRun>, Failure> {
@@ -48,7 +51,7 @@ impl Scope {
                         )?;
                         vec![spelled.parse()?]
                     }
-                    Err(_) => Self::changed_shards(workspace, policy)?,
+                    Err(_) => Self::changed_shards(build, workspace, policy)?,
                 };
                 let line = line
                     .argument(MutantsArgument::InDiff)
@@ -68,15 +71,14 @@ impl Scope {
         }
     }
 
-    pub fn changed_shards(workspace: &Workspace, policy: &Policy) -> Result<Vec<Shard>, Failure> {
+    pub fn changed_shards(build: &MutantsBuild, workspace: &Workspace, policy: &Policy) -> Result<Vec<Shard>, Failure> {
         Self::write_diff(
             workspace.root(),
             policy.branch(Branch::Base),
             &workspace.target().path().join(Self::DIFF_FILE),
         )?;
-        let listing = workspace
-            .line(Program::Cargo)
-            .argument(CargoArgument::Mutants)
+        let listing = build
+            .line(CargoArgument::Mutants)
             .argument(MutantsArgument::InDiff)
             .argument(workspace.target().path().join(Self::DIFF_FILE).display());
         let shards =
@@ -87,7 +89,7 @@ impl Scope {
             .flat_map(Shard::runs)
             .map(|run| TestPackages::around(&run, workspace.packages(), &tested))
             .collect::<TestPackages>()
-            .passes_baseline(workspace.line(Program::Cargo).argument(CargoArgument::Test))?;
+            .passes_baseline(build)?;
         Ok(shards)
     }
 
