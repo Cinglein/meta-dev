@@ -143,8 +143,8 @@ impl Project {
 
     fn born_after(&self, commit: &Commit, start: &StartMoment) -> bool {
         let admin = MetaStore::located(&self.root).map(|store| store.admin());
-        let object = admin.and_then(|admin| admin.described(&admin.path().join(commit.loose_object())));
-        object.and_then(|object| object.modified()).is_ok_and(|modified| start.precedes(modified))
+        let written = admin.and_then(|admin| admin.object_written(&commit.loose_object()));
+        written.is_ok_and(|modified| start.precedes(modified))
     }
 
     pub fn checkout(&self, deadline: Instant) -> &Checkout {

@@ -74,6 +74,7 @@ mod tests {
     const INIT: [&str; 2] = ["init", "-q"];
     const REFS_DIR: &str = ".git/refs";
     const SHOUTED: &str = ".GIT";
+    const ENTRY: &str = ".git";
     const LAID: &str = "refs/heads/laid";
 
     #[test]
@@ -96,10 +97,11 @@ mod tests {
         let shouted = repository.path().join(SHOUTED);
         let folded = shouted.exists();
         let refused = Door::changed(shouted.join(LAID), Change::DirAll).is_err();
-        let admin = Door::inspected(&repository.path().join(".git")).is_ok();
+        let git_dir = repository.path().join(ENTRY);
+        let admin = Door::inspected(&git_dir).is_ok();
         let refs = repository.path().join(REFS_DIR);
-        let enclosed = Door::enclosing(&refs)
-            .is_some_and(|admin| admin.listed(&refs).is_ok() && admin.described(repository.path()).is_err());
+        let locked = |dir: &std::path::Path| Door::admin_kind(&dir.join(AdminFile::Locked.name()));
+        let enclosed = locked(&git_dir).is_some() && locked(&refs).is_none();
         assert!(Door::inspected(&refs).is_err() && refused == folded && admin && enclosed);
     }
 }

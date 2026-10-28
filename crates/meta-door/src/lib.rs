@@ -14,6 +14,7 @@ mod opening;
 mod pair;
 mod scratch;
 mod stored;
+mod walked;
 
 pub use change::Change;
 pub use door::Door;

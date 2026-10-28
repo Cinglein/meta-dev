@@ -56,7 +56,7 @@ impl Host {
 
 impl Inspection for Host {
     fn entry(&self, path: &Path) -> EntryKind {
-        EntryKind::from(Kind::found(Walker::inspected(path)))
+        EntryKind::from(Door::admin_kind(path).unwrap_or_else(|| Kind::found(Walker::inspected(path))))
     }
 
     fn canonical(&self, path: &Path) -> Option<PathBuf> {
@@ -82,7 +82,7 @@ impl Inspection for Host {
     }
 
     fn walked(&self, path: &Path) -> Vec<Found> {
-        Walker::new(path).descended(Path::new(""))
+        Walker::new(path).walked()
     }
 
     fn neighbours(&self, root: &Path) -> Vec<Alternates> {

@@ -6,6 +6,7 @@ pub enum Kind {
     Missing,
     File,
     Dir,
+    Admin,
     Link,
     Unreadable,
     Refused,

@@ -11,6 +11,7 @@ use crate::handle::Handle;
 use crate::kind::Kind;
 use crate::opening::Opening;
 use crate::pair::Pair;
+use crate::walked::Walked;
 
 #[derive(Debug)]
 pub struct Door;
@@ -85,9 +86,8 @@ impl Door {
             .ok_or_else(|| io::ErrorKind::PermissionDenied.into())
     }
 
-    #[must_use]
-    pub fn enclosing(path: &Path) -> Option<AdminDir> {
-        path.ancestors().find_map(|dir| Self::inspected(dir).ok())
+    pub fn walked(root: impl Into<Entry>) -> io::Result<Vec<Walked>> {
+        Ok(Walked::under(&root.into().cleared()?, Path::new("")))
     }
 
     #[must_use]
@@ -95,6 +95,12 @@ impl Door {
         let file = AdminFile::within(path)?;
         let admin = Self::inspected(file.directory_of(path)?).ok()?;
         Some(admin.text(file))
+    }
+
+    #[must_use]
+    pub fn admin_kind(path: &Path) -> Option<Kind> {
+        let file = AdminFile::within(path)?;
+        Some(Self::inspected(file.directory_of(path)?).ok()?.kind(file))
     }
 
     #[must_use]

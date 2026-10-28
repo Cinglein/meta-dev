@@ -14,7 +14,7 @@ impl From<Kind> for EntryKind {
         match kind {
             Kind::Missing => EntryKind::Missing,
             Kind::File => EntryKind::File,
-            Kind::Dir => EntryKind::Dir,
+            Kind::Dir | Kind::Admin => EntryKind::Dir,
             Kind::Link => EntryKind::Symlink,
             Kind::Unreadable | Kind::Refused => EntryKind::Unreadable,
         }
