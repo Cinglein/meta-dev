@@ -7,12 +7,12 @@ mod tests;
 
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::io::{ErrorKind, Write as _};
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::sync::{Mutex, PoisonError};
 
-use meta_door::kinds::AdminFile;
+use meta_door::kinds::Kind;
 use meta_door::{Change, Door};
 
 use super::alternates::Alternates;
@@ -56,27 +56,17 @@ impl Host {
 
 impl Inspection for Host {
     fn entry(&self, path: &Path) -> EntryKind {
-        match path.symlink_metadata() {
-            Ok(entry) if entry.is_symlink() => EntryKind::Symlink,
-            Ok(entry) if entry.is_dir() => EntryKind::Dir,
-            Ok(_) => EntryKind::File,
-            Err(failure) if failure.kind() == ErrorKind::NotFound => EntryKind::Missing,
-            Err(_) => EntryKind::Unreadable,
-        }
+        EntryKind::from(Kind::found(Walker::inspected(path)))
     }
 
     fn canonical(&self, path: &Path) -> Option<PathBuf> {
-        path.canonicalize().ok()
+        let admin = || Door::inspected(path).map(|admin| admin.path().to_path_buf());
+        Door::canonical(path).or_else(|_| admin()).ok()
     }
 
     fn text(&self, path: &Path) -> Option<String> {
-        let directory = path.parent()?;
-        let admin = path.file_name().and_then(OsStr::to_str).and_then(|name| name.parse::<AdminFile>().ok());
-        let read = || match (admin, Thaw::stored(path)) {
-            (Some(admin), _) => Door::inspected(directory, admin),
-            (None, Some(ledger)) => ledger.and_then(Door::read),
-            (None, None) => Door::read(path),
-        };
+        let stored = || Thaw::stored(path).map_or_else(|| Door::read(path), |ledger| ledger.and_then(Door::read));
+        let read = || Door::admin_text(path).unwrap_or_else(stored);
         (self.entry(path) == EntryKind::File).then(read).and_then(Result::ok)
     }
 
@@ -117,7 +107,7 @@ impl Inspection for Host {
         let files = found.filter(|found| found.kind() == EntryKind::File && found.shared().is_none());
         let originals = files.map(|found| {
             let file = quarantine.join(found.path());
-            file.symlink_metadata().map(|entry| Thawed::new(file, &entry.permissions()))
+            Walker::inspected(&file).map(|entry| Thawed::new(file, &entry.permissions()))
         });
         let thaw = plan.holding(
             originals.collect::<std::io::Result<_>>().map_err(|failure| Kept::Uninspected(Cause::new(failure)))?,

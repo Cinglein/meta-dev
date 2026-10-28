@@ -1,4 +1,4 @@
-use meta_door::kinds::{Permissions, PermissionsExt};
+use meta_door::kinds::{Kind, Permissions, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 use meta_door::{Change, Door, Pair};
@@ -38,7 +38,7 @@ impl Planted {
     }
 
     fn mode(&self, name: &str) -> u32 {
-        self.located(name).metadata().unwrap().permissions().mode() & MODE_BITS
+        Door::described(self.located(name)).unwrap().permissions().mode() & MODE_BITS
     }
 }
 
@@ -50,6 +50,9 @@ fn freezing_records_the_old_modes_first_skips_hard_links_and_thawing_restores_an
     let ledger = Door::read(thaw.ledger().unwrap()).unwrap();
     let frozen = [planted.mode(FILE), planted.mode(LINKED)];
     Host::default().thawed(&thaw);
-    assert!(ledger.contains(FILE) && !ledger.contains(LINKED) && !thaw.ledger().unwrap().path().exists(), "{ledger}");
+    assert!(
+        ledger.contains(FILE) && !ledger.contains(LINKED) && Door::kind(thaw.ledger().unwrap()) == Kind::Missing,
+        "{ledger}"
+    );
     assert_eq!([frozen, [planted.mode(FILE), planted.mode(LINKED)]], [[FROZEN, WRITABLE], [WRITABLE, WRITABLE]]);
 }

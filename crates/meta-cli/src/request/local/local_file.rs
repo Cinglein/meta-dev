@@ -5,7 +5,7 @@ use std::fmt;
 use std::io::{ErrorKind, Write as _};
 use std::path::{Path, PathBuf};
 
-use meta_door::kinds::File;
+use meta_door::kinds::Handle;
 
 use meta_door::{Change, Door, Entry, Opening, Pair};
 
@@ -35,7 +35,7 @@ impl LocalFile {
             .and_then(|mut file| writeln!(file, "{torn}{line}").map_err(|failure| self.failure(failure)))
     }
 
-    pub fn opened(&self, opening: Opening) -> Result<File, CliFailure> {
+    pub fn opened(&self, opening: Opening) -> Result<Handle, CliFailure> {
         self.parent_made()?;
         Door::opened(self.0.clone(), opening).map_err(|failure| self.failure(failure))
     }

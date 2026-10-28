@@ -34,9 +34,10 @@ impl TestRunner {
             site: Site::File(runs.to_path_buf()),
             error,
         };
-        let file = Door::opened(runs, Opening::Append).map_err(io)?;
+        let mut file = Door::opened(runs, Opening::Append).map_err(io)?;
         ran.iter()
-            .try_for_each(|run| writeln!(&file, "{run}"))
+            .try_for_each(|run| writeln!(file, "{run}"))
+            .and_then(|()| file.flush())
             .map_err(io)?;
         ran.into_iter().collect::<TestRuns>().passed().map(|_| ())
     }

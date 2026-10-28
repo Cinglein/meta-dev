@@ -9,7 +9,8 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use chrono::Utc;
-use meta_door::MetaStore;
+use meta_door::kinds::Kind;
+use meta_door::{Door, MetaStore};
 use meta_log::{LogStore, RemoteName};
 use meta_schema::{Actor, Claim, Event, Id, Record, Task};
 use meta_state::State;
@@ -72,7 +73,7 @@ impl LocalClone {
         let path = settings.worktree_root(&self.checkout).join(&branch);
         let base = self.base(project.config().remote()?, &branch, held)?;
         Some(())
-            .filter(|()| !path.exists())
+            .filter(|()| Door::described(&path).is_err())
             .ok_or_else(|| CliFailure::raised::<Setup>(format!("{} exists; move it away first", path.display())))?;
         let checkout = Git::new(&self.checkout);
         checkout.output(&["worktree", "prune"].map(OsStr::new))?;
@@ -93,7 +94,7 @@ impl LocalClone {
             let git_dir = worktree.output(&["rev-parse", "--absolute-git-dir"].map(OsStr::new))?;
             WorktreeIdentity::new(&name, &email).configured(&worktree)?;
             worktree.output(&["reset", "--hard", "--quiet"].map(OsStr::new))?;
-            let created = path.canonicalize().map_err(CliFailure::raised::<Setup>)?;
+            let created = Door::canonical(&path).map_err(CliFailure::raised::<Setup>)?;
             let id =
                 WorktreeId::parsed(Path::new(&git_dir)).ok_or_else(|| CliFailure::raised::<Setup>("no worktree id"))?;
             let recorded = RecordedWorktree::new(created.clone(), task).identified(id);
@@ -137,7 +138,7 @@ impl LocalClone {
             Tracked::new(worktree, lifetime)
         });
         let census = Census::new(tracked.collect(), self.listed()?);
-        let root = root.canonicalize().unwrap_or(root);
+        let root = Door::canonical(&root).unwrap_or(root);
         let context = Context::new(
             self.checkout.clone(),
             self.store.common().to_path_buf(),
@@ -150,7 +151,7 @@ impl LocalClone {
     }
 
     pub fn unstranded(&self, quarantine: &Path) -> Result<Output, CliFailure> {
-        let quarantine = quarantine.canonicalize().map_err(CliFailure::raised::<Setup>)?;
+        let quarantine = Door::canonical(quarantine).map_err(CliFailure::raised::<Setup>)?;
         let origin = Deletable::unstranded(&quarantine, self.store.common(), &Host::default())
             .map_err(CliFailure::raised::<Setup>)?;
         Ok(Output::Listed(Listed::new(format!("restored {} to {}\n", quarantine.display(), origin.display()))))
@@ -161,7 +162,7 @@ impl LocalClone {
         Ok(listed
             .lines()
             .filter_map(|line| line.strip_prefix(Self::LISTED_PREFIX))
-            .map(|path| Path::new(path).canonicalize().unwrap_or_else(|_| PathBuf::from(path)))
+            .map(|path| Door::canonical(path).unwrap_or_else(|_| PathBuf::from(path)))
             .filter(|path| *path != self.checkout)
             .collect())
     }
@@ -169,7 +170,7 @@ impl LocalClone {
     fn settings(&self) -> Result<LocalSettings, CliFailure> {
         let ignored = ["check-ignore", "--quiet", LocalSettings::FILE].map(OsStr::new);
         Some(())
-            .filter(|()| self.checkout.join(LocalSettings::FILE).exists())
+            .filter(|()| Door::kind(self.checkout.join(LocalSettings::FILE)) != Kind::Missing)
             .map_or(Some(()), |()| Git::new(&self.checkout).holds(&ignored))
             .ok_or_else(|| {
                 CliFailure::raised::<Setup>(format!(

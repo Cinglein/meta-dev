@@ -31,7 +31,7 @@ impl Corpus {
         Ok(Corpus {
             cases: directories
                 .iter()
-                .filter(|directory| directory.is_dir())
+                .filter(|directory| Door::kind(directory) == meta_door::kinds::Kind::Dir)
                 .map(|directory| Case::load(directory))
                 .collect::<Result<Vec<Case>, CorpusError>>()?,
         })

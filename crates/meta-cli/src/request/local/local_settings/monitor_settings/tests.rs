@@ -35,7 +35,7 @@ impl Home<'_> {
 fn scratch_roots_wider_than_the_project_and_unbounded_waits_are_refused_and_spared_keeps_its_floor() {
     let scratch = tempfile::tempdir().unwrap();
     meta_door::Door::changed(scratch.path().join(HOME).join(CHECKOUT), meta_door::Change::DirAll).unwrap();
-    let home = scratch.path().join(HOME).canonicalize().unwrap();
+    let home = meta_door::Door::canonical(scratch.path().join(HOME)).unwrap();
     let place = Home(&home);
     let wide = TOO_WIDE.map(|root| place.merged(&format!("scratch = [{root:?}]")).is_none());
     let long = TOO_LONG.map(|text| place.merged(text).is_none());

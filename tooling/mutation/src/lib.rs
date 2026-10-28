@@ -6,7 +6,7 @@ pub use scope::Scope;
 pub use shard_plan::ShardPlan;
 pub use trigger_event::TriggerEvent;
 
-use meta_door::kinds::File;
+use meta_door::kinds::Handle;
 use meta_door::{Change, Door, Opening};
 
 use sysinfo::{ProcessesToUpdate, System};
@@ -50,7 +50,7 @@ impl Mutants {
         failed.is_empty().then_some(()).ok_or_else(|| Failure::Runs(FailedRuns::from(failed)))
     }
 
-    fn exclusive_lock(workspace: &Workspace) -> Result<File, Failure> {
+    fn exclusive_lock(workspace: &Workspace) -> Result<Handle, Failure> {
         let path = workspace.target().path().join(Self::LOCK_FILE);
         let io = |error| Failure::Io { site: Site::File(path.clone()), error };
         Door::changed(workspace.target().path(), Change::DirAll).map_err(io)?;

@@ -1,6 +1,7 @@
 use std::fmt;
 use std::path::{Component, Path, PathBuf};
 
+use meta_door::Door;
 use serde::Deserialize;
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
@@ -11,7 +12,7 @@ impl AgentRoot {
     const HOME: &'static str = "~";
 
     pub fn own(path: &Path) -> Self {
-        Self(path.canonicalize().unwrap_or_else(|_| path.to_path_buf()))
+        Self(Door::canonical(path).unwrap_or_else(|_| path.to_path_buf()))
     }
 
     pub fn anchored(self, checkout: &Path, home: &Path) -> Option<Self> {
@@ -20,8 +21,7 @@ impl AgentRoot {
             Component::Normal(first) if first == Self::HOME => home.join(parts.as_path()),
             _ => checkout.join(&self.0),
         };
-        let root = joined
-            .canonicalize()
+        let root = Door::canonical(&joined)
             .ok()
             .or_else(|| joined.components().all(|part| part != Component::ParentDir).then_some(joined))?;
         let covers = |guarded: &Path| Self::own(guarded).0.starts_with(&root);

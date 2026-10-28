@@ -234,14 +234,15 @@ impl Planted {
         Door::changed(&hooks, Change::DirAll).unwrap();
         let hook = repo.clone.path().join(Self::PRE_RECEIVE);
         Door::write(&hook, Self::REFUSE).unwrap();
-        Door::changed(hook, Change::Permissions(Path::new(SHELL).metadata().unwrap().permissions())).unwrap();
+        let executable = Door::described(Door::canonical(SHELL).unwrap()).unwrap().permissions();
+        Door::changed(hook, Change::Permissions(executable)).unwrap();
         let hooks = hooks.display().to_string();
         assert!(Git::run(repo.origin.path(), &["config", "core.hooksPath", &hooks]).status.success());
     }
 
     fn locked(dir: impl Into<Entry>) -> Permissions {
         let dir = dir.into();
-        let open = dir.path().metadata().unwrap().permissions();
+        let open = Door::described(dir.clone()).unwrap().permissions();
         let mut locked = open.clone();
         locked.set_readonly(true);
         Door::changed(dir, Change::Permissions(locked)).unwrap();
@@ -297,7 +298,7 @@ impl Repo {
         Door::changed(clone.path().join("bin"), Change::Dir).unwrap();
         Door::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
         Door::write(clone.path().join("bin/failed.log"), FAILED_LOG).unwrap();
-        let executable = Path::new(SHELL).metadata().unwrap().permissions();
+        let executable = Door::described(Door::canonical(SHELL).unwrap()).unwrap().permissions();
         Door::changed(clone.path().join("bin/gh"), Change::Permissions(executable)).unwrap();
         Git::run_at(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"], Git::LONG_AGO);
         let sessions = tempfile::tempdir().unwrap();

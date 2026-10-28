@@ -32,7 +32,7 @@ impl Counted {
     fn install(repo: &Repo) {
         let wrapper = repo.clone.path().join(Self::WRAPPER);
         Door::write(&wrapper, Self::GIT).unwrap();
-        let executable = std::path::Path::new(SHELL).metadata().unwrap().permissions();
+        let executable = Door::described(Door::canonical(SHELL).unwrap()).unwrap().permissions();
         Door::changed(&wrapper, Change::Permissions(executable)).unwrap();
     }
 

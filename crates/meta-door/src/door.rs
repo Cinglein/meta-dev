@@ -1,11 +1,14 @@
-use std::fs::{self, File};
+use std::fs::{self, Metadata};
 use std::io;
 use std::path::{Path, PathBuf};
 
+use crate::admin_dir::AdminDir;
 use crate::admin_file::AdminFile;
 use crate::change::Change;
 use crate::entry::Entry;
 use crate::git_dirs::GitDirs;
+use crate::handle::Handle;
+use crate::kind::Kind;
 use crate::opening::Opening;
 use crate::pair::Pair;
 
@@ -13,6 +16,11 @@ use crate::pair::Pair;
 pub struct Door;
 
 impl Door {
+    const ENTRY: &str = ".git";
+    const HEAD: &str = "HEAD";
+    const OBJECTS: &str = "objects";
+    const LINKED: &str = "worktrees";
+
     pub fn read(path: impl Into<Entry>) -> io::Result<String> {
         fs::read_to_string(path.into().cleared()?)
     }
@@ -21,8 +29,8 @@ impl Door {
         fs::write(path.into().cleared()?, contents.as_ref())
     }
 
-    pub fn opened(path: impl Into<Entry>, opening: Opening) -> io::Result<File> {
-        opening.options().open(path.into().cleared()?)
+    pub fn opened(path: impl Into<Entry>, opening: Opening) -> io::Result<Handle> {
+        opening.options().open(path.into().cleared()?).map(Handle::new)
     }
 
     pub fn changed(path: impl Into<Entry>, change: Change) -> io::Result<()> {
@@ -45,8 +53,56 @@ impl Door {
         fs::read_dir(path.into().cleared()?)?.map(|entry| entry.map(|entry| entry.path())).collect()
     }
 
-    pub fn inspected(directory: &Path, admin: AdminFile) -> io::Result<String> {
-        fs::read_to_string(directory.join(admin.name()))
+    #[must_use]
+    pub fn kind(path: impl Into<Entry>) -> Kind {
+        Self::unfollowed(path.into()).map_or(Kind::Refused, |path| Kind::found(path.symlink_metadata()))
+    }
+
+    pub fn described(path: impl Into<Entry>) -> io::Result<Metadata> {
+        Self::unfollowed(path.into())?.symlink_metadata()
+    }
+
+    fn unfollowed(entry: Entry) -> io::Result<PathBuf> {
+        let parent = entry.map(|path| path.parent().map_or_else(PathBuf::new, Path::to_path_buf));
+        let name = entry.path().file_name().map(ToOwned::to_owned).ok_or(io::ErrorKind::InvalidInput);
+        let beside = name.map_err(io::Error::from).and_then(|name| parent.cleared().map(|parent| parent.join(name)));
+        beside.or_else(|_| entry.cleared())
+    }
+
+    pub fn canonical(path: impl Into<Entry>) -> io::Result<PathBuf> {
+        path.into().cleared()?.canonicalize()
+    }
+
+    pub fn inspected(directory: &Path) -> io::Result<AdminDir> {
+        let real = GitDirs::resolved(directory)?;
+        let repository = real
+            .ancestors()
+            .find(|dir| dir.join(Self::HEAD).is_file() && dir.join(Self::OBJECTS).is_dir())
+            .ok_or(io::ErrorKind::NotFound)?;
+        let common = GitDirs::common(repository)?;
+        (real == common || real.parent() == Some(common.join(Self::LINKED).as_path()))
+            .then(|| AdminDir::new(real))
+            .ok_or_else(|| io::ErrorKind::PermissionDenied.into())
+    }
+
+    #[must_use]
+    pub fn enclosing(path: &Path) -> Option<AdminDir> {
+        path.ancestors().find_map(|dir| Self::inspected(dir).ok())
+    }
+
+    #[must_use]
+    pub fn admin_text(path: &Path) -> Option<io::Result<String>> {
+        let file = AdminFile::within(path)?;
+        let admin = Self::inspected(file.directory_of(path)?).ok()?;
+        Some(admin.text(file))
+    }
+
+    #[must_use]
+    pub fn repository(directory: &Path) -> Option<PathBuf> {
+        directory
+            .ancestors()
+            .find(|ancestor| ancestor.join(Self::ENTRY).symlink_metadata().is_ok())
+            .map(Path::to_path_buf)
     }
 }
 
@@ -54,7 +110,6 @@ impl Door {
 impl Door {
     const SKELETON: [&str; 3] = ["objects", "refs/heads", "refs/tags"];
     const UNBORN: &str = "ref: refs/heads/";
-    const HEAD: &str = "HEAD";
     const CONFIG: &str = "config";
     const NEWLINE: &str = "\n";
 

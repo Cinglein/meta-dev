@@ -3,6 +3,7 @@ mod target_directory;
 pub use target_directory::TargetDirectory;
 
 use meta_door::Door;
+use meta_door::kinds::Kind;
 use std::collections::BTreeMap;
 use std::env;
 use std::path::{Path, PathBuf};
@@ -108,7 +109,7 @@ impl Workspace {
     }
 
     fn rust_files_in(path: PathBuf) -> Result<Vec<PathBuf>, Failure> {
-        if path.is_dir() {
+        if Door::kind(&path) == Kind::Dir {
             Self::rust_files_under(&path)
         } else {
             Ok(path

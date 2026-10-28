@@ -16,7 +16,7 @@ pub use stderr::Stderr;
 pub use stdout::Stdout;
 pub use stream::Stream;
 
-use meta_door::kinds::File;
+use meta_door::kinds::Handle;
 use std::collections::BTreeMap;
 use std::env;
 use std::ffi::OsString;
@@ -109,7 +109,7 @@ impl CommandLine {
         self.finished(self.command())
     }
 
-    pub fn run_holding(&self, held: File) -> Result<(), Failure> {
+    pub fn run_holding(&self, held: Handle) -> Result<(), Failure> {
         let mut command = self.command();
         command.stdin(held);
         self.finished(command)
@@ -215,8 +215,8 @@ mod tests {
             .captured::<Stdout>()
             .unwrap();
         assert_eq!(
-            PathBuf::from(shown.trim()).canonicalize().ok(),
-            directory.canonicalize().ok()
+            Door::canonical(shown.trim()).ok(),
+            Door::canonical(&directory).ok()
         );
         assert!(executable(succeeds).run().is_ok() && executable(fails).run().is_err());
         let complained = executable(shell).arguments(TO_STDERR).captured::<Stderr>();

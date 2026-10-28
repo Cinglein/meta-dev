@@ -1,5 +1,5 @@
 use std::fmt;
-use std::str::FromStr;
+use std::path::Path;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AdminFile {
@@ -7,29 +7,50 @@ pub enum AdminFile {
     CommonDir,
     WorktreeConfig,
     Alternates,
-}
-
-impl FromStr for AdminFile {
-    type Err = ();
-
-    fn from_str(name: &str) -> Result<AdminFile, ()> {
-        match name {
-            "gitdir" => Ok(AdminFile::GitDir),
-            "commondir" => Ok(AdminFile::CommonDir),
-            "config.worktree" => Ok(AdminFile::WorktreeConfig),
-            "alternates" => Ok(AdminFile::Alternates),
-            _ => Err(()),
-        }
-    }
+    Locked,
+    Reftable,
+    Modules,
+    RebaseMerge,
+    RebaseApply,
+    Sequencer,
 }
 
 impl AdminFile {
+    const ALL: [AdminFile; 10] = [
+        AdminFile::GitDir,
+        AdminFile::CommonDir,
+        AdminFile::WorktreeConfig,
+        AdminFile::Alternates,
+        AdminFile::Locked,
+        AdminFile::Reftable,
+        AdminFile::Modules,
+        AdminFile::RebaseMerge,
+        AdminFile::RebaseApply,
+        AdminFile::Sequencer,
+    ];
+
+    #[must_use]
+    pub fn within(path: &Path) -> Option<AdminFile> {
+        Self::ALL.into_iter().find(|admin| path.ends_with(admin.name()))
+    }
+
+    #[must_use]
+    pub fn directory_of(self, path: &Path) -> Option<&Path> {
+        path.ancestors().nth(Path::new(self.name()).components().count())
+    }
+
     pub(crate) fn name(self) -> &'static str {
         match self {
             AdminFile::GitDir => "gitdir",
             AdminFile::CommonDir => "commondir",
             AdminFile::WorktreeConfig => "config.worktree",
-            AdminFile::Alternates => "alternates",
+            AdminFile::Alternates => "objects/info/alternates",
+            AdminFile::Locked => "locked",
+            AdminFile::Reftable => "reftable",
+            AdminFile::Modules => "modules",
+            AdminFile::RebaseMerge => "rebase-merge",
+            AdminFile::RebaseApply => "rebase-apply",
+            AdminFile::Sequencer => "sequencer",
         }
     }
 }
@@ -42,21 +63,29 @@ impl fmt::Display for AdminFile {
 
 #[cfg(test)]
 mod tests {
-    use super::AdminFile;
+    use std::path::Path;
 
-    const NAMES: [&str; 4] = ["gitdir", "commondir", "config.worktree", "alternates"];
-    const REFS: [&str; 3] = ["HEAD", "packed-refs", "MERGE_HEAD"];
+    use super::AdminFile;
+    use crate::{Change, Door};
+
+    const NAMED: [&str; 2] = ["/clone/.git/worktrees/x/config.worktree", "/clone/.git/objects/info/alternates"];
+    const DIRS: [&str; 2] = ["/clone/.git/worktrees/x", "/clone/.git"];
+    const REFS: [&str; 3] = ["/clone/.git/HEAD", "/clone/.git/packed-refs", "/clone/.git/MERGE_HEAD"];
     const INIT: [&str; 2] = ["init", "-q"];
     const REFS_DIR: &str = ".git/refs";
     const SHOUTED: &str = ".GIT";
     const LAID: &str = "refs/heads/laid";
-    const EMPTY: &str = "";
 
     #[test]
-    fn only_the_four_admin_files_parse_and_each_shows_its_own_name() {
-        let shown = NAMES.map(|name| name.parse::<AdminFile>().map(|admin| admin.to_string()));
-        assert!(shown.iter().zip(NAMES).all(|(shown, name)| shown.as_deref() == Ok(name)));
-        assert!(REFS.iter().all(|name| name.parse::<AdminFile>().is_err()));
+    fn admin_files_are_named_by_their_tail_and_refs_never_are() {
+        let found = NAMED.map(|path| AdminFile::within(Path::new(path)));
+        let dirs =
+            NAMED.iter().zip(found).map(|(path, admin)| admin.and_then(|admin| admin.directory_of(Path::new(path))));
+        assert!(
+            dirs.eq(DIRS.map(|dir| Some(Path::new(dir))))
+                && found.iter().all(|admin| admin.is_some_and(|admin| admin.to_string().len() > 1))
+        );
+        assert!(REFS.iter().all(|path| AdminFile::within(Path::new(path)).is_none()));
     }
 
     #[test]
@@ -64,11 +93,13 @@ mod tests {
         let repository = tempfile::tempdir().unwrap();
         let init = std::process::Command::new("git").current_dir(repository.path()).args(INIT).status();
         assert!(init.unwrap().success());
-        let refs = repository.path().join(REFS_DIR);
-        std::fs::write(refs.join(AdminFile::GitDir.name()), EMPTY).unwrap();
         let shouted = repository.path().join(SHOUTED);
         let folded = shouted.exists();
-        let refused = crate::Door::changed(shouted.join(LAID), crate::Change::DirAll).is_err();
-        assert!(crate::Door::inspected(&refs, AdminFile::GitDir).is_err() && refused == folded);
+        let refused = Door::changed(shouted.join(LAID), Change::DirAll).is_err();
+        let admin = Door::inspected(&repository.path().join(".git")).is_ok();
+        let refs = repository.path().join(REFS_DIR);
+        let enclosed = Door::enclosing(&refs)
+            .is_some_and(|admin| admin.listed(&refs).is_ok() && admin.described(repository.path()).is_err());
+        assert!(Door::inspected(&refs).is_err() && refused == folded && admin && enclosed);
     }
 }

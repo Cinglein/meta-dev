@@ -48,7 +48,8 @@ mod tests {
         let output = Output::cleared(&root).unwrap();
         let prepared = output.prepared_for(&RUN.parse().unwrap()).unwrap();
         Door::write(prepared.join(RUN), RUN).unwrap();
-        assert!(!root.join(STALE).exists() && prepared.is_dir() && prepared.ends_with(RUN));
+        let stale = Door::read(root.join(STALE)).is_err();
+        assert!(stale && Door::listed(&prepared).is_ok() && prepared.ends_with(RUN));
         assert!(Output::cleared(&prepared).is_ok() && Output::cleared(&prepared.join(RUN)).is_err());
         Door::changed(&root, Change::RemoveDirAll).unwrap();
     }

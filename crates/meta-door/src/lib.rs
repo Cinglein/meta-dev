@@ -1,8 +1,11 @@
+mod admin_dir;
 mod admin_file;
 mod change;
 mod door;
 mod entry;
 mod git_dirs;
+mod handle;
+mod kind;
 pub mod kinds;
 #[cfg(feature = "skeleton")]
 mod layout;

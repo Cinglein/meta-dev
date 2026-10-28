@@ -1,3 +1,4 @@
+use std::io::ErrorKind;
 use std::path::PathBuf;
 
 use meta_door::{Change, Door, Opening};
@@ -21,7 +22,10 @@ impl SessionStart {
     pub fn open(&self) -> std::io::Result<()> {
         Door::changed(&self.0, Change::DirAll)?;
         let started = self.0.join(Self::STARTED);
-        started.try_exists()?.then_some(()).map_or_else(|| Door::write(&started, StartMoment::now().to_string()), Ok)
+        Door::described(&started).map(drop).or_else(|failure| match failure.kind() {
+            ErrorKind::NotFound => Door::write(&started, StartMoment::now().to_string()),
+            _ => Err(failure),
+        })
     }
 
     pub fn record(&self) -> Result<(), Listed> {
@@ -31,7 +35,7 @@ impl SessionStart {
     }
 
     pub fn read(&self) -> Option<StartMoment> {
-        self.0.join(Self::WRITES).try_exists().ok().filter(|writes| *writes)?;
+        Door::described(self.0.join(Self::WRITES)).ok()?;
         Door::read(self.0.join(Self::STARTED)).ok()?.parse().ok()
     }
 }

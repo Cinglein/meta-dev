@@ -3,6 +3,7 @@
 use std::fmt;
 use std::io::Write as _;
 
+use meta_door::kinds::Kind;
 use meta_door::{Change, Door, MetaStore, Opening};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
@@ -222,7 +223,7 @@ impl Scene {
         Door::write(clone.join("meta.local.toml"), Settings(&scene.trees()).to_string()).unwrap();
         Door::changed(clone.join("bin"), Change::Dir).unwrap();
         Door::write(clone.join("bin/gh"), FAKE_GH).unwrap();
-        let executable = Path::new("/bin/sh").metadata().unwrap().permissions();
+        let executable = Door::described(Door::canonical("/bin/sh").unwrap()).unwrap().permissions();
         Door::changed(clone.join("bin/gh"), Change::Permissions(executable)).unwrap();
         Git::seeded(scene.origin.path(), scene.clone.path());
         Git::added(&scene);
@@ -245,7 +246,7 @@ impl Scene {
     }
 
     fn trees(&self) -> PathBuf {
-        self.trees.path().canonicalize().unwrap()
+        Door::canonical(self.trees.path()).unwrap()
     }
 
     pub fn store(&self) -> MetaStore {
@@ -270,17 +271,24 @@ fn gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_wit
     let shows = |shown: &str, lines: &[Line]| lines.iter().all(|line| shown.contains(&Shown(line, &trees).to_string()));
     let freed = Freed(&trees).to_string();
     let ticked = scene.meta(&GC_RUN);
-    assert!(ticked.contains(&Shown(&PLANNED, &trees).to_string()) && trees.join(MERGED).exists(), "{ticked}");
+    assert!(
+        ticked.contains(&Shown(&PLANNED, &trees).to_string()) && Door::kind(trees.join(MERGED)) != Kind::Missing,
+        "{ticked}"
+    );
     Door::write(scene.store().entry(TRAIL), Created(&trees, &RECORDED).to_string()).unwrap();
     let swept = scene.meta(&GC);
     let trail = Door::read(scene.store().entry(TRAIL)).unwrap();
     let branch = Git::run(scene.clone.path(), &["branch", "--list", MERGED]).stdout;
     assert!(
-        shows(&swept, &SWEPT) && swept.contains(&freed) && !trees.join(MERGED).exists() && branch.is_empty(),
+        shows(&swept, &SWEPT)
+            && swept.contains(&freed)
+            && Door::kind(trees.join(MERGED)) == Kind::Missing
+            && branch.is_empty(),
         "{swept}"
     );
     assert!(
-        KEPT.iter().all(|name| trees.join(name).exists()) && TRAILED.iter().all(|entry| trail.contains(entry)),
+        KEPT.iter().all(|name| Door::kind(trees.join(name)) != Kind::Missing)
+            && TRAILED.iter().all(|entry| trail.contains(entry)),
         "{trail}"
     );
 }

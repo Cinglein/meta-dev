@@ -2,7 +2,7 @@ use std::fmt;
 
 use task::CrateName;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DevOnlyFinding {
     Dependency(CrateName),
     Feature(CrateName, String),

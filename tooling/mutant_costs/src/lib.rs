@@ -106,7 +106,7 @@ impl MutantCosts {
 
     fn outcome_files(path: &Path) -> Result<Vec<PathBuf>, Failure> {
         let io = |error| Failure::Io { site: Site::File(path.to_path_buf()), error };
-        if path.is_dir() {
+        if Door::kind(path) == meta_door::kinds::Kind::Dir {
             Door::listed(path)
                 .map_err(io)?
                 .iter()

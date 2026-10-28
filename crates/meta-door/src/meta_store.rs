@@ -1,6 +1,7 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
+use crate::admin_dir::AdminDir;
 use crate::entry::Entry;
 use crate::git_dirs::GitDirs;
 use crate::stored::Stored;
@@ -16,6 +17,11 @@ impl MetaStore {
     #[must_use]
     pub fn common(&self) -> &Path {
         &self.0
+    }
+
+    #[must_use]
+    pub fn admin(&self) -> AdminDir {
+        AdminDir::new(self.0.clone())
     }
 
     #[must_use]

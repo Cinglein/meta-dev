@@ -2,6 +2,8 @@ use std::path::Path;
 use std::process::Command;
 use std::str::FromStr;
 
+use meta_door::Door;
+use meta_door::kinds::Kind;
 use meta_schema::Email;
 
 use crate::request::output::Listed;
@@ -15,7 +17,8 @@ impl Identity {
     pub fn refusal_in(directory: &Path) -> Option<Listed> {
         let unresolved =
             Listed::new(format!("cannot resolve the commit directory; use an absolute path: {}", directory.display()));
-        (!directory.is_dir()).then_some(unresolved).or_else(|| Self::foreign_in(directory)?.refusal())
+        let real = Door::canonical(directory).unwrap_or_else(|_| directory.to_path_buf());
+        (Door::kind(real) != Kind::Dir).then_some(unresolved).or_else(|| Self::foreign_in(directory)?.refusal())
     }
 
     fn foreign_in(directory: &Path) -> Option<Identity> {

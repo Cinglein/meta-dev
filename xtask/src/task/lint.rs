@@ -1,4 +1,3 @@
-mod dev_only;
 mod spec_prose;
 
 use std::collections::BTreeMap;
@@ -7,13 +6,13 @@ use std::path::Path;
 use corpus_check::LintName;
 use crate_graph::CrateGraph;
 use strum::IntoEnumIterator;
-use task::{Amount, Branch, Ledger, Measure, Policy, Report, SourceFile};
+use task::{Amount, Branch, Ledger, Measure, Policy, Report, Site, SourceFile, Violation};
 use test_budget::TestBudget;
 
+use crate::task::cargo_metadata::{CargoMetadata, MetadataPackage};
 use crate::task::failure::Failure;
 use crate::task::ratchet::{Baseline, Drift, Ratchet, ViolationCount};
 use crate::task::revision::Revision;
-use dev_only::DevOnly;
 pub use spec_prose::SpecProse;
 
 #[derive(Debug)]
@@ -22,12 +21,15 @@ pub struct Lint {
 }
 
 impl Lint {
+    const DEV_ONLY: &str = "dev-only";
+    const DEV_ONLY_SUMMARY: &str = "test-only crates and door features stay in dev-dependencies";
+
     pub fn run(root: &Path, files: &[SourceFile], policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
         Revision::noreply_off(root, policy.branch(Branch::Base))?;
         let allowed = Baseline::admitted(root, policy.baseline(), policy.branch(Branch::Base))?;
         let base = || Revision::merge_base(root, policy.branch(Branch::Base));
         let spec = policy.spec().map(|spec| base().and_then(|base| SpecProse::since(root, spec, &base))).transpose()?;
-        let dev_only = DevOnly::report(root, files, policy);
+        let dev_only = Self::dev_only(root, files, policy);
         let observed = Self::gathered(files, policy, spec, dev_only).ratchet(&allowed, |_| true)?;
         println!("lint: {} rust files, {} baselined violations", files.len(), observed.total());
         ledger.spend(Measure::LintFindings, Amount::Baseline(policy.baseline().clone()));
@@ -38,10 +40,21 @@ impl Lint {
 
     pub fn shrink(root: &Path, files: &[SourceFile], policy: &Policy) -> Result<Baseline, Failure> {
         let path = policy.baseline().within(root);
-        let dev_only = DevOnly::report(root, files, policy);
+        let dev_only = Self::dev_only(root, files, policy);
         let observed = Self::gathered(files, policy, None, dev_only).ratchet(&Baseline::read(&path)?, Drift::grew)?;
         observed.write(&path)?;
         Ok(observed)
+    }
+
+    fn dev_only(root: &Path, files: &[SourceFile], policy: &Policy) -> Report {
+        let holds = |directory: &Path| files.iter().any(|file| root.join(file.path()).starts_with(directory));
+        let touched = |package: &MetadataPackage| package.local_manifest().and_then(Path::parent).is_some_and(holds);
+        let found = match files.first().map(|_| CargoMetadata::read(root)) {
+            None => Vec::new(),
+            Some(Ok(metadata)) => metadata.dev_only(policy, touched),
+            Some(Err(failure)) => vec![Violation::new(Site::Workspace, failure)],
+        };
+        Report::new(Self::DEV_ONLY_SUMMARY, found)
     }
 
     fn gathered(files: &[SourceFile], policy: &Policy, spec: Option<Report>, dev_only: Report) -> Lint {
@@ -49,7 +62,7 @@ impl Lint {
             reports: LintName::iter()
                 .map(|lint| (<&'static str>::from(lint), lint.report(files, policy)))
                 .chain(spec.map(|spec| (SpecProse::LINT, spec)))
-                .chain([(DevOnly::LINT, dev_only)])
+                .chain([(Self::DEV_ONLY, dev_only)])
                 .collect(),
         }
     }

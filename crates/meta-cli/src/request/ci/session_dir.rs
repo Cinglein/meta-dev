@@ -4,7 +4,7 @@ use std::fmt;
 use std::io::Write as _;
 use std::path::Path;
 
-use meta_door::kinds::File;
+use meta_door::kinds::Handle;
 
 use meta_door::{Change, Door, Entry, MetaStore, Opening, Pair};
 
@@ -75,7 +75,7 @@ impl SessionDir {
         Door::changed(self.named(Self::PROBE), Change::RemoveFile)
     }
 
-    pub fn claim(&self, commit: &Commit) -> Option<File> {
+    pub fn claim(&self, commit: &Commit) -> Option<Handle> {
         Door::changed(self.named(Self::LOCKS), Change::DirAll).ok()?;
         let lock =
             Door::opened(self.named(Self::LOCKS).map(|locks| locks.join(commit.argument())), Opening::Append).ok()?;

@@ -38,7 +38,7 @@ impl Project {
         let bin = clone.path().join("bin");
         Door::changed(&bin, Change::Dir).unwrap();
         Door::write(bin.join("gh"), FAKE_GH).unwrap();
-        let executable = std::path::Path::new("/bin/sh").metadata().unwrap().permissions();
+        let executable = Door::described(Door::canonical("/bin/sh").unwrap()).unwrap().permissions();
         Door::changed(bin.join("gh"), Change::Permissions(executable)).unwrap();
         Self { origin, clone }
     }

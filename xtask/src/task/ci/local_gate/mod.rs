@@ -1,5 +1,4 @@
 mod busy;
-mod cargo_metadata;
 mod checkout;
 mod config_effect;
 mod findings;
@@ -7,7 +6,6 @@ mod gate_child;
 mod gate_lock;
 mod gate_state;
 mod meta_rev;
-mod metadata_package;
 mod outside_config;
 mod passed_steps;
 mod posting;
@@ -23,7 +21,6 @@ pub use outside_config::OutsideConfig;
 pub use posting::Posting;
 pub use unready::Unready;
 
-use cargo_metadata::CargoMetadata;
 use checkout::Checkout;
 use config_effect::ConfigEffect;
 use findings::Findings;
@@ -31,7 +28,6 @@ use gate_child::GateChild;
 use gate_lock::GateLock;
 use gate_state::GateState;
 use meta_rev::MetaRev;
-use metadata_package::MetadataPackage;
 use passed_steps::PassedSteps;
 use recorded_times::RecordedTimes;
 use status_description::StatusDescription;
@@ -46,6 +42,7 @@ use meta_schema::PullRequest;
 
 use task::{Branch, CommandLine, GateEnvName, GateStatus, Policy, Program, Stdout};
 
+use crate::task::cargo_metadata::CargoMetadata;
 use crate::task::ci::head_branch::HeadBranch;
 use crate::task::ci::run_kind::RunKind;
 use crate::task::ci::standing_log::StandingLog;
@@ -192,6 +189,7 @@ impl LocalGate {
 #[cfg(test)]
 mod tests {
     use meta_door::Door;
+    use meta_door::kinds::Kind;
     use std::path::PathBuf;
 
     use settings::EmbeddedDefaults;
@@ -295,6 +293,6 @@ mod tests {
         Door::write(checkout.root().join(LEFTOVER), BETA).unwrap();
         let findings = Findings::new(Changed::new(Vec::new()), TOOLCHAIN.parse().unwrap());
         let posted = gate.concluded(&checkout, Ok(()), &findings);
-        assert!(LocalGate::refused(posted, Unready::Tampered) && !fixture.path(RECORDED).exists());
+        assert!(LocalGate::refused(posted, Unready::Tampered) && Door::kind(fixture.path(RECORDED)) == Kind::Missing);
     }
 }

@@ -1,4 +1,4 @@
-use meta_door::kinds::File;
+use meta_door::kinds::Handle;
 use meta_door::{Change, Door, Opening};
 use std::io::Write;
 use std::iter;
@@ -14,7 +14,7 @@ use crate::task::failure::Failure;
 
 #[derive(Debug)]
 pub struct GateLock {
-    held: File,
+    held: Handle,
 }
 
 impl GateLock {
@@ -45,13 +45,13 @@ impl GateLock {
         .any(|()| file.try_lock().is_ok())
         .then_some(())
         .ok_or_else(|| Failure::Busy(Busy::new(path.to_path_buf(), wait)))?;
-        file.set_len(0).map_err(io)?;
+        file.emptied().map_err(io)?;
         write!(file, "pid {}", process::id()).map_err(io)?;
         Ok(GateLock { held: file })
     }
 
-    pub fn inheritable(&self) -> Result<File, Failure> {
-        Ok(self.held.try_clone().map_err(|error| task::Failure::Io { site: Site::Workspace, error })?)
+    pub fn inheritable(&self) -> Result<Handle, Failure> {
+        Ok(self.held.cloned().map_err(|error| task::Failure::Io { site: Site::Workspace, error })?)
     }
 }
 
@@ -62,7 +62,9 @@ mod tests {
 
     use task::Millis;
 
-    use super::GateLock;
+    use meta_door::kinds::Kind;
+
+    use super::{Door, GateLock};
     use crate::task::fixture::Fixture;
 
     const LOCK: &str = "gate.lock";
@@ -99,6 +101,6 @@ mod tests {
         let other = GateLock::target(&fixture.beside(), &fixture.path(SCOPE));
         assert!(target.starts_with(fixture.beside()) && !target.starts_with(fixture.root()));
         assert!(target != other && target == GateLock::target(&fixture.beside(), fixture.root()));
-        assert!(GateLock::guarding(&target, Millis::default()).is_ok() && target.is_dir());
+        assert!(GateLock::guarding(&target, Millis::default()).is_ok() && Door::kind(&target) == Kind::Dir);
     }
 }

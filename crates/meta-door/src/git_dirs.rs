@@ -53,7 +53,14 @@ impl GitDirs {
     }
 
     pub fn resolved(path: impl AsRef<Path>) -> io::Result<PathBuf> {
-        std::path::absolute(path)?.components().try_fold(PathBuf::new(), Self::stepped)
+        let walked = std::path::absolute(path)?.components().try_fold(PathBuf::new(), Self::stepped)?;
+        Ok(walked
+            .ancestors()
+            .find_map(|ancestor| {
+                let rest = walked.strip_prefix(ancestor).ok()?;
+                ancestor.canonicalize().ok().map(|real| real.components().chain(rest.components()).collect())
+            })
+            .unwrap_or_else(|| walked.clone()))
     }
 
     fn stepped(real: PathBuf, component: Component<'_>) -> io::Result<PathBuf> {

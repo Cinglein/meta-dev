@@ -4,6 +4,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
+use meta_door::kinds::Kind;
 use meta_door::{Change, Door, Entry, MetaStore, Opening};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
@@ -221,7 +222,7 @@ fn failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_a
     let resumed = project.meta(OWNER, &claim).to_string();
     assert!(failed == opened && claimed != opened && writes() == claimed);
     assert!(tracked.contains(IGNORED) && unwritable.contains(NOT_A_DIRECTORY) && unwritable.contains(GIT_CALL));
-    assert!(resumed.ends_with(&format!("{first}\n")) && Path::new(&first).exists());
+    assert!(resumed.ends_with(&format!("{first}\n")) && Door::kind(&first) != Kind::Missing);
     assert_eq!(shown, [NOREPLY, NOREPLY, AGENT, &task].map(|line| format!("{line}\n")));
     let stray = worktrees.path().join(AGENT);
     Git::run(project.clone.path(), &[&STRAY[..], &[stray.to_str().unwrap()]].concat());
@@ -231,7 +232,7 @@ fn failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_a
     let run = project.meta(OWNER, &WORKTREES);
     let listed = run.to_string();
     assert!(listed.contains(&format!("{task} assigned {task} ")) && !listed.contains(MISSING));
-    let named = format!("{UNRECORDED} {}\n", stray.canonicalize().unwrap().display());
+    let named = format!("{UNRECORDED} {}\n", Door::canonical(&stray).unwrap().display());
     assert!(
         listed.ends_with(&named) && listed.matches(UNRECORDED).count() == 1 && run.complaint().0.contains(&torn_line)
     );

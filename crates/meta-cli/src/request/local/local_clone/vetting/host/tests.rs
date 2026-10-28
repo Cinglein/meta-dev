@@ -57,7 +57,7 @@ impl Planted {
     }
 
     fn located(&self, name: &str) -> PathBuf {
-        self.0.path().canonicalize().unwrap().join(name)
+        Door::canonical(self.0.path()).unwrap().join(name)
     }
 }
 

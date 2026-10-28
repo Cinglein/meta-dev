@@ -1,4 +1,4 @@
-use meta_door::kinds::File;
+use meta_door::kinds::Handle;
 
 use meta_door::{MetaStore, Opening};
 
@@ -7,7 +7,7 @@ use crate::request::local::LocalFile;
 
 #[derive(Debug)]
 pub struct GcLock {
-    _held: File,
+    _held: Handle,
 }
 
 impl GcLock {

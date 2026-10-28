@@ -5,7 +5,8 @@ use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
-use meta_door::Door;
+use meta_door::kinds::Kind;
+use meta_door::{Door, MetaStore};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n";
@@ -39,7 +40,7 @@ const FEATURE_BRANCH: &str = "feature";
 const REJECTED: &str = "rejected";
 const SESSION_START: &str = "session-start";
 const SESSION_FIELD: &str = r#""session_id":"ABCDEF12-34","#;
-const WATCHERS: &str = ".git/meta-ci";
+const WATCHERS: &str = "meta-ci";
 const NO_TASKS: &str = "Tasks: 0 unfinished";
 const SESSION_ACTOR: &str = "claude-abcdef1234";
 const SESSION_STARTED: &str = "meta-sessions/ABCDEF1234/started";
@@ -145,7 +146,10 @@ fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
     repo.hook(POST, COMMIT, home);
     assert_eq!(Git::head(repo.origin.path(), FEATURE_BRANCH), Git::head(repo.clone.path(), HEAD));
     Git::run(repo.clone.path(), &AMEND);
-    assert!(repo.hook(POST, COMMIT, home).contains(REJECTED) && !repo.clone.path().join(WATCHERS).exists());
+    assert!(
+        repo.hook(POST, COMMIT, home).contains(REJECTED)
+            && Door::kind(MetaStore::located(home).unwrap().entry(WATCHERS)) == Kind::Missing
+    );
 }
 
 #[test]
@@ -155,7 +159,7 @@ fn session_start_shows_state_and_names_the_session_actor() {
     let shown = repo.hook(SESSION_START, COMMIT, home);
     assert!(shown.contains(NO_TASKS) && shown.contains(SESSION_ACTOR));
     assert_eq!(Door::read(repo.env_file()).unwrap(), ENV_LINE);
-    assert!(home.join(SESSION_STARTED).exists());
+    assert_ne!(Door::kind(home.join(SESSION_STARTED)), Kind::Missing);
 }
 
 impl fmt::Display for Repo {

@@ -36,7 +36,7 @@ mod tests {
         let git_dir = repository.path().join(ENTRY);
         Door::skeleton(&git_dir, Layout::Working, BRANCH, EMPTY).unwrap();
         let head = Command::new("git").current_dir(repository.path()).args(SYMBOLIC).output().unwrap();
-        let config = Door::inspected(&git_dir, AdminFile::CommonDir).is_err();
+        let config = Door::inspected(&git_dir).is_ok_and(|admin| admin.text(AdminFile::CommonDir).is_err());
         let again = Door::skeleton(&git_dir, Layout::Bare, BRANCH, EMPTY).is_err();
         assert!(String::from_utf8_lossy(&head.stdout).contains(BRANCH) && config && again);
     }
