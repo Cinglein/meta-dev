@@ -48,3 +48,24 @@ impl TimedCommand {
             .ok_or_else(|| Listed::new(Self::TIMED_OUT))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::process::Command;
+    use std::time::{Duration, Instant};
+
+    use super::TimedCommand;
+
+    const HELD: [&str; 2] = ["-c", "set -m; sleep 2 & echo held"];
+    const LIMIT: Duration = Duration::from_millis(100);
+    const PROMPT: Duration = Duration::from_secs(1);
+
+    #[test]
+    fn a_grandchild_in_another_group_holding_the_pipes_cannot_outlast_the_deadline() {
+        let mut command = Command::new("bash");
+        command.args(HELD);
+        let started = Instant::now();
+        let finished = TimedCommand::new(command, started + LIMIT).finished();
+        assert!(finished.is_err() && started.elapsed() < PROMPT);
+    }
+}
