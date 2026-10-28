@@ -69,7 +69,7 @@ mod tests {
     const LOST: &str = "0123abc";
     const MOVED: &str = "4567def";
     const OTHER: &str = "[[package]]\nname = \"other\"\n";
-    const DECIDED: [Option<bool>; 7] = [Some(true), Some(false), None, Some(true), Some(false), None, Some(false)];
+    type Judged = Result<Option<Scales>, ()>;
     const UNSOURCED: &str = "[[package]]\nname = \"meta-xtask\"\n";
     const TOP: &str = "features-and-maintenance";
     const MAJOR: &str = "major";
@@ -131,32 +131,38 @@ mod tests {
             format!("{PIN}{commit}{END}")
         }
 
-        fn decided(databases: &Path, [then, now]: [&str; 2], policy_file: &str) -> Option<bool> {
+        fn decided(databases: &Path, [then, now]: [&str; 2], policy_file: &str) -> Judged {
             let consumer = Fixture::new();
             consumer.write(LOCK, then).write(policy_file, PRIOR).branch();
             consumer.write(LOCK, now);
-            Stranding::rescaling(consumer.root(), &Policy::defaults(), databases).map(|prior| prior.is_some()).ok()
+            Stranding::rescaling(consumer.root(), &Policy::defaults(), databases).map_err(|_| ())
+        }
+
+        fn referenced(databases: &Path, levels: &str) -> Judged {
+            let tracked = Fixture::new();
+            tracked.write(PriorPolicy::PATH, PRIOR).write(PriorPolicy::DEFAULT_LEVELS, levels).branch();
+            Stranding::rescaling(tracked.root(), &Policy::defaults(), databases).map_err(|_| ())
         }
     }
 
     #[test]
-    fn prior_levels_are_looked_up_only_when_the_pin_moved_and_an_undecidable_case_fails_closed() {
+    fn prior_levels_are_judged_only_when_found_and_every_other_case_reads_the_current_defaults_as_main_does() {
         let database = Stranding::database();
-        let [early, late] = [EARLIER, TIP].map(|name| database.revision(name).trim().to_owned());
+        let [early, late] = [EARLIER, TIP].map(|name| Stranding::pin(database.revision(name).trim()));
         let databases = database.root().parent().unwrap();
-        let [found, predates, missing, unmoved] =
-            [&late, &early, &LOST.to_owned(), &LOST.to_owned()].map(|commit| Stranding::pin(commit));
-        let moved = Stranding::pin(MOVED);
+        let [lost, moved] = [LOST, MOVED].map(Stranding::pin);
+        let current = serde_json::to_string(&Scale::top_default()).unwrap();
+        let [old, now] = [OLD_LEVELS, &current].map(|levels| Stranding::referenced(databases, levels));
         let decided = |then: &str, now: &str, file| Stranding::decided(databases, [then, now], file);
         let judged = [
-            decided(&found, &moved, PriorPolicy::PATH),
-            decided(&predates, &moved, PriorPolicy::PATH),
-            decided(&missing, &moved, PriorPolicy::PATH),
-            decided(&unmoved, &unmoved, PriorPolicy::PATH),
-            decided(OTHER, &found, PriorPolicy::PATH),
-            decided(UNSOURCED, &found, PriorPolicy::PATH),
-            decided(&found, &moved, README),
+            decided(&late, &moved, PriorPolicy::PATH),
+            decided(&early, &moved, PriorPolicy::PATH),
+            decided(&lost, &moved, PriorPolicy::PATH),
+            decided(&lost, &lost, PriorPolicy::PATH),
+            decided(OTHER, &late, PriorPolicy::PATH),
+            decided(UNSOURCED, &late, PriorPolicy::PATH),
+            decided(OTHER, &moved, README),
         ];
-        assert_eq!(judged, DECIDED);
+        assert_eq!(judged, [old, now.clone(), now.clone(), now.clone(), now.clone(), now, Ok(None)]);
     }
 }
