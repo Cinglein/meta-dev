@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use syn::visit::Visit;
 use syn::{
     Attribute, Expr, ExprCall, ExprMacro, ExprMethodCall, ExprPath, Ident, ImplItemFn, ItemImpl,
-    ItemMod, Macro, Meta, PathArguments,
+    ItemMod, Macro, PathArguments,
 };
 
 mod door;
@@ -210,15 +210,12 @@ impl<'ast> Visit<'ast> for TextSites {
     }
 
     fn visit_macro(&mut self, invocation: &'ast Macro) {
-        let seen = Door::in_tokens(invocation.tokens.clone(), self.within.as_ref());
+        let seen = Door::in_macro(invocation, self.within.as_ref());
         self.uses.extend(seen);
     }
 
     fn visit_attribute(&mut self, attribute: &'ast Attribute) {
-        let seen = match &attribute.meta {
-            Meta::List(list) => Door::in_tokens(list.tokens.clone(), self.within.as_ref()),
-            Meta::Path(_) | Meta::NameValue(_) => Vec::new(),
-        };
+        let seen = Door::in_attribute(attribute, self.within.as_ref());
         self.uses.extend(seen);
     }
 

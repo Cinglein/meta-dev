@@ -3,8 +3,9 @@ mod door_kind;
 use std::path::Path;
 
 use door_kind::DoorKind;
-use proc_macro2::TokenStream;
-use syn::{AngleBracketedGenericArguments, GenericArgument, Ident, ItemImpl, Type};
+use syn::{
+    AngleBracketedGenericArguments, Attribute, GenericArgument, Ident, ItemImpl, Macro, Type,
+};
 
 use task::Name;
 use task::Site;
@@ -26,25 +27,19 @@ impl Door {
     }
 
     pub fn of_callee(callee: &Ident, target: Option<Name>, within: Option<&Door>) -> Option<Door> {
-        DoorKind::of_callee(callee)
-            .filter(|kind| Self::is_outside(*kind, within))
-            .map(|kind| Door {
-                kind,
-                target,
-                site: None,
-            })
+        DoorKind::of_callee(callee).map(|kind| Door {
+            kind,
+            target,
+            site: within.and_then(|door| door.site.clone()),
+        })
     }
 
-    pub fn in_tokens(tokens: TokenStream, within: Option<&Door>) -> Vec<Door> {
-        DoorKind::in_tokens(tokens)
-            .into_iter()
-            .filter(|kind| Self::is_outside(*kind, within))
-            .map(|kind| Door {
-                kind,
-                target: None,
-                site: None,
-            })
-            .collect()
+    pub fn in_macro(invocation: &Macro, within: Option<&Door>) -> Vec<Door> {
+        Self::sighted(DoorKind::of_macro(invocation), within)
+    }
+
+    pub fn in_attribute(attribute: &Attribute, within: Option<&Door>) -> Vec<Door> {
+        Self::sighted(DoorKind::of_attribute(attribute), within)
     }
 
     pub fn target_of(ty: &Type) -> Option<Name> {
@@ -73,6 +68,7 @@ impl Door {
 
     pub fn is_reached_by(&self, seen: &Door, doors: &[Door]) -> bool {
         self.kind == seen.kind
+            && seen.site != self.site
             && seen.target.as_ref().is_none_or(|target| {
                 self.target.as_ref().is_none_or(|own| own == target)
                     || !doors
@@ -81,7 +77,14 @@ impl Door {
             })
     }
 
-    fn is_outside(kind: DoorKind, within: Option<&Door>) -> bool {
-        within.is_none_or(|door| door.kind != kind)
+    fn sighted(kinds: Vec<DoorKind>, within: Option<&Door>) -> Vec<Door> {
+        kinds
+            .into_iter()
+            .map(|kind| Door {
+                kind,
+                target: None,
+                site: within.and_then(|door| door.site.clone()),
+            })
+            .collect()
     }
 }
