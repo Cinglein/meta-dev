@@ -1,8 +1,16 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 
 use tempfile::TempDir;
+
+use crate::task::snapshot::Snapshot;
+
+static BUILT: LazyLock<Mutex<BuiltRepositories>> = LazyLock::new(Mutex::default);
+
+type BuiltRepositories = HashMap<Snapshot, Arc<OnceLock<Snapshot>>>;
 
 #[derive(Debug)]
 pub struct Fixture {
@@ -11,7 +19,9 @@ pub struct Fixture {
 }
 
 impl Fixture {
-    pub fn new() -> Fixture {
+    const TIP: &str = ".git/refs/heads/change";
+
+    pub fn new()-> Fixture {
         let directory = TempDir::new().expect("temp dir");
         let work = directory.path().join("work");
         let git_dir = work.join(".git");
@@ -24,6 +34,22 @@ impl Fixture {
     }
 
     pub fn branch(&self) {
+        if self.work.join(Self::TIP).exists() {
+            return self.branched();
+        }
+        let cell = Arc::clone(BUILT.lock().expect("cache lock").entry(Snapshot::files(&self.work)).or_default());
+        let mut built = false;
+        let repository = cell.get_or_init(|| {
+            built = true;
+            self.branched();
+            Snapshot::repository(&self.work)
+        });
+        if !built {
+            repository.restore(&self.work);
+        }
+    }
+
+    fn branched(&self) {
         self.committed();
         let tip = fs::read_to_string(self.work.join(".git/refs/heads/change")).expect("read branch tip");
         let remote = self.work.join(".git/refs/remotes/origin");
