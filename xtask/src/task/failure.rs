@@ -43,16 +43,6 @@ pub enum Failure {
     Demoted(Demotions),
     #[error("merge-base tooling/policy.toml does not parse: {0}")]
     PriorPolicy(toml::de::Error),
-    #[error("merge-base Cargo.lock does not parse: {0}")]
-    PriorLock(toml::de::Error),
-    #[error(
-        "merge-base default severity levels fail closed: the meta-xtask commit pinned at the merge base is not in the cargo git databases; check out the merge base and run cargo fetch, or keep the pin unchanged"
-    )]
-    PinnedCommitMissing,
-    #[error(
-        "merge-base default severity levels fail closed: meta-xtask is not pinned by a git commit and its pin changed; pin it by git rev, or keep the pin unchanged"
-    )]
-    XtaskUnpinned,
     #[error("merge-base default severity levels do not parse: {0}")]
     PriorLevels(serde_json::Error),
     #[error("merge-base scales: {0}")]

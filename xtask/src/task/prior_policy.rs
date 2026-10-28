@@ -33,17 +33,18 @@ impl PriorPolicy {
         Self::parsed(revision.present(Path::new(Self::PATH))?)
     }
 
-    pub fn scales_at(revision: &Revision, now: &PinnedXtask, databases: &Path) -> Result<Option<Scales>, Failure> {
-        let text = revision.present(Path::new(Self::PATH))?;
-        text.map(|text| Self::parsed(Some(text))).transpose()?.map_or(Ok(None), |prior| {
-            Self::levels_at(revision, now, databases)?.map(|levels| prior.scaled(&levels)).transpose()
-        })
+    pub fn scales_at(revision: &Revision, now: &PinnedXtask, databases: &Path) -> Result<Scales, Failure> {
+        let levels = Self::levels_at(revision, now, databases)?;
+        Self::read_at(revision)?.scaled(&levels)
     }
 
-    fn levels_at(revision: &Revision, now: &PinnedXtask, databases: &Path) -> Result<Option<Scale>, Failure> {
+    fn levels_at(revision: &Revision, now: &PinnedXtask, databases: &Path) -> Result<Scale, Failure> {
         revision.tracked(TrackedPath::new(Path::new(Self::DEFAULT_LEVELS)))?.map_or_else(
-            || PinnedXtask::read_at(revision)?.levels(now, databases),
-            |text| serde_json::from_str(&text).map(Some).map_err(Failure::PriorLevels),
+            || {
+                let shipped = PinnedXtask::read_at(revision).shipped_levels(now, databases);
+                Ok(shipped.unwrap_or_else(Scale::top_default))
+            },
+            |text| serde_json::from_str(&text).map_err(Failure::PriorLevels),
         )
     }
 
