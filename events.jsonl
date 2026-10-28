@@ -1056,3 +1056,4 @@
 {"at":"2026-10-28T15:50:45.830240Z","actor":"claude-lead","kind":"EntryRetired","entry":"issue-def2fd90374d56eb","text":"A deferral record, not a problem; tracked on the roadmap and revisited at gix 1.0."}
 {"at":"2026-10-28T15:50:48.874302Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-5161aac2f95e5fde","text":"Concurrency child division under P&C; spec rules (in-app first, loom-means-architecture-audit); heartbeat-run audit shipped to consumers, configured in policy.toml [concurrency]."}
 {"at":"2026-10-28T15:51:15.915686Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-8d5f54dffb67de52","text":"Measured: repeats are gc's per-candidate safety rechecks and one-per-process ls-remote; counts were per test binary. Nothing safe to cut."}
+{"at":"2026-10-28T15:52:51.672438Z","actor":"claude-cpucut","kind":"TaskLinked","task":"task-067b28fe28b30740","pr":108}
