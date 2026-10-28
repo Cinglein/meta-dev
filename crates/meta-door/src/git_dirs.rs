@@ -62,7 +62,7 @@ impl GitDirs {
             Component::CurDir => real,
             other => real.join(other),
         };
-        match (component, next.symlink_metadata()) {
+        match (component, next.read_link()) {
             (Component::Normal(_), Ok(_)) => {
                 next.canonicalize().map_err(|_| io::Error::other(Refusal::Dangling { path: next }))
             }
