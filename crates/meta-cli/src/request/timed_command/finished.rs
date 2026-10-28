@@ -27,7 +27,7 @@ impl Finished {
     }
 
     pub fn not_found(&self) -> Option<()> {
-        (!self.status.success() && self.errors.contains(Self::NOT_FOUND)).then_some(())
+        self.errors.contains(Self::NOT_FOUND).then_some(())
     }
 
     pub fn verdict(&self) -> Verdict {
