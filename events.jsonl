@@ -965,3 +965,4 @@
 {"at":"2026-10-28T11:11:12.957936Z","actor":"claude-minors","kind":"TaskOpened","task":"task-573eccaea1e8087a","text":"Reopen keeps the task's assignees so a reopened task's PR passes the tracked-work check","division":"features-and-maintenance","addresses":["concern-ba1fc185572af88d"]}
 {"at":"2026-10-28T11:11:22.998569Z","actor":"claude-minors","kind":"TaskClaimed","task":"task-573eccaea1e8087a"}
 {"at":"2026-10-28T11:12:23.763034Z","actor":"claude-minors","kind":"TaskLinked","task":"task-573eccaea1e8087a","pr":91}
+{"at":"2026-10-28T11:21:03.242216Z","actor":"claude-minors","kind":"TaskOpened","task":"task-9bd908e678d3d22c","text":"Standing caps use the policy base branch, not origin/HEAD, so one run has one base","division":"features-and-maintenance","addresses":["concern-79366fe830d1feb9"]}
