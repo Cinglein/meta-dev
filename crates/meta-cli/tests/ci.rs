@@ -28,6 +28,7 @@ case "$s$*" in failure*filterBy*|broken*filterBy*) ;; failure*|broken*) pad=; i=
 case "$s" in late|broken|slow) ;; last) [ "$n" -ge 1 ] && state=COMPLETED result='"SUCCESS"' ;; success) [ "$n" -ge 4 ] && state=COMPLETED result='"SUCCESS"' ;; *) [ "$n" -ge 4 ] && state=COMPLETED result='"FAILURE"' ;; esac
 runs="{\"status\":\"$state\",\"conclusion\":$result,\"workflowRun\":{},\"checkRuns\":{\"nodes\":[$jobs]}}"
 [ "$s" = mixed ] && [ "$state" = COMPLETED ] && runs="$runs,{\"status\":\"COMPLETED\",\"conclusion\":\"FAILURE\",\"workflowRun\":{},\"checkRuns\":{\"nodes\":[{\"databaseId\":13,\"name\":\"lint\",\"conclusion\":\"FAILURE\",\"steps\":{\"nodes\":[{\"name\":\"clippy\",\"conclusion\":\"FAILURE\"}]}}]}}"
+case "$*" in *appId:15368*) ;; *) foreign=; i=0; while [ "$i" -lt 20 ]; do foreign="$foreign{\"status\":\"COMPLETED\",\"conclusion\":\"SUCCESS\"},"; i=$((i + 1)); done; runs="${foreign%,}" ;; esac
 if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
 elif [ "$s" = broken ] && [ "$n" -gt 5 ]; then echo 'HTTP 401: Bad credentials' >&2; exit 1
 elif [ "$s" = none ] || [ "$4" != "sha=$head" ]; then runs=

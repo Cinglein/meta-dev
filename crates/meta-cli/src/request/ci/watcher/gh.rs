@@ -90,3 +90,6 @@ impl Gh {
         TimedCommand::new(command, self.deadline.min(Instant::now() + self.limit)).stdout().map_err(Self::failed)
     }
 }
+
+#[cfg(test)]
+mod tests;
