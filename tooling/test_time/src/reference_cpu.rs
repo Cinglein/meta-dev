@@ -12,7 +12,6 @@ pub(super) struct ReferenceCpu {
 
 impl ReferenceCpu {
     const VERSION: &str = "--version";
-    const UNMEASURED: &str = "the reference workload took no cpu time";
 
     pub(super) fn measured(policy: &Policy) -> Result<ReferenceCpu, Failure> {
         let line = CommandLine::new(Program::Git).argument(Self::VERSION);
@@ -20,12 +19,10 @@ impl ReferenceCpu {
         (0..policy.limit(Limit::ReferenceSpawns).count())
             .try_for_each(|_| line.captured::<Stdout>().map(|_| ()))?;
         let measured = ChildrenCpu::now()?.since(before);
-        (measured > Duration::ZERO)
-            .then_some(ReferenceCpu::new(
-                measured,
-                policy.interval(Interval::ReferenceCpu).duration(),
-            ))
-            .ok_or_else(|| Failure::Command(Self::UNMEASURED.to_owned()))
+        Ok(ReferenceCpu::new(
+            measured,
+            policy.interval(Interval::ReferenceCpu).duration(),
+        ))
     }
 
     pub(super) const fn new(measured: Duration, nominal: Duration) -> ReferenceCpu {
@@ -53,10 +50,12 @@ mod tests {
     use super::ReferenceCpu;
     use std::time::Duration;
     const RUNNER: [Duration; 2] = [Duration::from_secs(2), Duration::from_secs(1)];
+    const SHOWN: &str = "reference 2.00s against 1.00s";
 
     #[test]
     fn cpu_on_a_runner_twice_as_slow_as_the_reference_counts_half() {
         let [slow, nominal] = RUNNER;
-        assert_eq!(ReferenceCpu::new(slow, nominal).scaled(slow), nominal);
+        let reference = ReferenceCpu::new(slow, nominal);
+        assert!(reference.scaled(slow) == nominal && reference.to_string() == SHOWN);
     }
 }
