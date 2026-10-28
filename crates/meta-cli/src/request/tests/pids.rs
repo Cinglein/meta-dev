@@ -7,7 +7,7 @@ pub struct Pids;
 impl Pids {
     const KILL: &str = "kill";
     const ALIVE: &str = "-0";
-    const POLL: Duration = Duration::from_millis(10);
+    const POLL: Duration = Duration::from_millis(2);
     const WAIT: Duration = Duration::from_secs(1);
 
     pub fn gone(pids: &tempfile::NamedTempFile, recorders: &[&str]) -> bool {

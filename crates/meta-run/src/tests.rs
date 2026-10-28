@@ -20,7 +20,7 @@ const KILLED: [(&str, KillScope, &str); 3] = [
     ("echo $$ > \"$0\"; exec sleep 5", KillScope::Process, "process"),
 ];
 const KILL: [&str; 3] = ["kill", "-0", "-KILL"];
-const POLL: Duration = Duration::from_millis(10);
+const POLL: Duration = Duration::from_millis(2);
 const INHERITED: [(&str, &str); 4] = [("GIT_DIR", "d"), ("GIT_SSH_COMMAND", "s"), ("LANG", "C"), ("PATH", "/bin")];
 const DROPPED: [(EnvPolicy, &str); 4] = [
     (EnvPolicy::Inherit, ""),
