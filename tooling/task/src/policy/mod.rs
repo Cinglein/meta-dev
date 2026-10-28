@@ -257,6 +257,7 @@ mod tests {
     const CHECK: &str = "check";
     const LONG_ENOUGH: &str = "report";
     const TEST_TIME: &str = "extra-time";
+    const EXTRA: &str = "performance-and-cost/extra";
     const BUDGET: &str = "\n[domains.\"performance-and-cost/extra\"]\ntests = [\"*\"]\n\n[budgets.extra-time]\ndivision = \"performance-and-cost/extra\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
 
     #[test]
@@ -293,5 +294,6 @@ mod tests {
                 .budget(&TEST_TIME.parse().unwrap())
                 .is_some()
         );
+        assert!(budgeted.domains().domain(&EXTRA.parse().unwrap()).is_some());
     }
 }
