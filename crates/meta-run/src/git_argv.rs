@@ -13,6 +13,10 @@ pub enum GitArgv {
     ChangedNames,
     UntrackedNames,
     LogEmails,
+    Porcelain,
+    PushedHead,
+    Head,
+    PushedTips,
 }
 
 impl Tool for GitArgv {
@@ -28,6 +32,10 @@ impl Tool for GitArgv {
             Self::ChangedNames => &["diff", "--name-only", "--no-renames", "--relative", "-z"],
             Self::UntrackedNames => &["ls-files", "--others", "--exclude-standard", "-z"],
             Self::LogEmails => &["log", "--format=%ae%n%ce", "HEAD", "--not"],
+            Self::Porcelain => &["status", "--porcelain", "--untracked-files=all"],
+            Self::PushedHead => &["branch", "--remotes", "--contains", "HEAD"],
+            Self::Head => &["rev-parse", "HEAD"],
+            Self::PushedTips => &["branch", "--remotes", "--format=%(refname:lstrip=3)", "--points-at"],
         }
     }
 }
