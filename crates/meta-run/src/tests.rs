@@ -12,7 +12,7 @@ const SHOWN: [&str; 3] = ["fed", "oops\nmore", "oops"];
 const PATIENT: Duration = Duration::from_secs(5);
 const LEADS: &str = "[ \"$(ps -o pgid= -p $$ | tr -d ' ')\" = \"$$\" ] && echo leader; true";
 const LED: [(Option<KillScope>, &str); 2] = [(Some(KillScope::Group), "leader\n"), (None, "")];
-const LIMIT: Duration = Duration::from_millis(100);
+const LIMIT: Duration = Duration::from_millis(50);
 const PROMPT: Duration = Duration::from_secs(1);
 const KILLED: [(&str, KillScope, &str); 3] = [
     ("set -m; sleep 2 & echo $! > \"$0\"; echo held", KillScope::Group, "elsewhere"),

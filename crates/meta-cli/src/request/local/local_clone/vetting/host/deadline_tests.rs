@@ -15,7 +15,7 @@ const IDENTITY: [&str; 4] = ["-c", "user.name=t", "-c", "user.email=t@meta.inval
 const SETUP: [&[&str]; 2] = [&["init", "-q", "-b", "main"], &["commit", "-q", "--allow-empty", "-m", "start"]];
 const HANGING: &str =
     "[remote \"origin\"]\n\turl = ssh://meta.invalid/x\n[core]\n\tsshCommand = bash -c 'echo $$ >> $0 && sleep 5'";
-const CONFIG: &str = "remote = \"origin\"\n[ci]\ngit_millis = 100\n";
+const CONFIG: &str = "remote = \"origin\"\n[ci]\ngit_millis = 50\n";
 const LISTING: [&str; 2] = ["ls-remote", "origin"];
 const FETCH: [&str; 2] = ["fetch", "origin"];
 const PROMPT: Duration = Duration::from_secs(1);
