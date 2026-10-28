@@ -1,5 +1,6 @@
-use std::process::Command;
 use std::time::Duration;
+
+use meta_run::{EnvPolicy, Run};
 
 use crate::request::heartbeat::Tick;
 use crate::request::output::Output;
@@ -19,10 +20,8 @@ const TIMED_OUT: &str = "timed out";
 struct Shell;
 
 impl Shell {
-    pub fn running(script: &str) -> Command {
-        let mut command = Command::new(SHELL);
-        command.args(["-c", script]);
-        command
+    pub fn running(script: &str) -> Run {
+        Run::new(SHELL, EnvPolicy::Inherit).args(["-c", script])
     }
 }
 

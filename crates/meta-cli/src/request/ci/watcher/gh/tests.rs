@@ -31,7 +31,7 @@ impl Fixture {
         std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755)).unwrap();
         std::fs::write(dir.path().join("reply"), REPLY).unwrap();
         let text = format!("[ci]\nprogram = \"{}\"\ngh_millis = 10\n", program.display());
-        Self { dir, settings: toml::from_str::<Config>(&text).unwrap().ci_settings() }
+        Self { dir, settings: CiSettings::try_from(&toml::from_str::<Config>(&text).unwrap()).unwrap() }
     }
 
     fn excerpt(&self) -> String {
