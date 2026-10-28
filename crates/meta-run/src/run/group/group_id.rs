@@ -15,14 +15,14 @@ impl GroupId {
     const END_OF_OPTIONS: &'static str = "--";
     const SEARCH_PATH: [&'static str; 1] = ["PATH"];
 
-    pub fn signalled<'group>(
-        groups: impl IntoIterator<Item = &'group Self>,
+    pub fn signalled<Target: fmt::Display>(
+        targets: impl IntoIterator<Item = Target>,
         signal: &str,
         deadline: Instant,
     ) -> Result<Ran, RunFailure> {
         let kill = Run::new(Self::KILL, EnvPolicy::Only(&Self::SEARCH_PATH)).args([signal, Self::END_OF_OPTIONS]);
         let within = deadline.saturating_duration_since(Instant::now());
-        groups.into_iter().fold(kill, |kill, group| kill.arg(group.to_string())).helped(within)
+        targets.into_iter().fold(kill, |kill, target| kill.arg(target.to_string())).helped(within)
     }
 }
 
