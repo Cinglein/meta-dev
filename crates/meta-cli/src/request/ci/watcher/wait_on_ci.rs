@@ -35,7 +35,8 @@ impl WaitOnCi {
         let unresolved = |commit: &Commit| dir.status_of(commit).and_then(CiStatus::unresolved);
         commits.iter().find_map(unresolved)?;
         let budget = project.ci_settings().budget(CiSettings::ROUTINE).within(deadline);
-        let read = project.log(budget).and_then(|log| log.read_listed(seen.heads()).map_err(CliFailure::from));
+        let attempt = || project.log(budget).and_then(|log| log.read_listed(seen.heads()).map_err(CliFailure::from));
+        let read = budget.retried(attempt);
         let state = read.map(|read| State::fold(read.records()));
         let head = seen.checkout().head().and_then(Commit::commit_id);
         let branch = seen.checkout().branch().filter(|branch| project.config().protects(branch).is_none());

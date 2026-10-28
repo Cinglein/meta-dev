@@ -23,6 +23,14 @@ impl Budget {
         self.overall.map_or(call, |overall| call.min(overall))
     }
 
+    pub fn retried<Value, Failure>(
+        &self,
+        mut attempt: impl FnMut() -> Result<Value, Failure>,
+    ) -> Result<Value, Failure> {
+        let left = || self.overall.is_none_or(|overall| Instant::now() < overall);
+        attempt().or_else(|failure| left().then(&mut attempt).unwrap_or(Err(failure)))
+    }
+
     pub fn rest(&self, pause: Duration) {
         let left = self.overall.map_or(pause, |overall| overall.saturating_duration_since(Instant::now()));
         std::thread::sleep(pause.min(left));

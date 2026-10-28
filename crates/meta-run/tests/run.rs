@@ -94,7 +94,11 @@ fn each_env_policy_drops_only_its_variables_and_a_budget_caps_calls_and_rests_at
     let started = Instant::now();
     Budget::new(PATIENT).within(started + POLL).rest(PATIENT);
     let rested = started.elapsed();
+    let calls = std::cell::Cell::new(0);
+    let tried = |overall| Budget::new(PATIENT).within(overall).retried(|| Err::<(), _>(calls.replace(calls.get() + 1)));
+    let counts = [started + PATIENT, started].map(|overall| (tried(overall), calls.take()).1);
     assert!((POLL..PATIENT).contains(&rested) && Budget::new(PATIENT).within(started).deadline() == started);
+    assert_eq!(counts, [2, 1]);
 }
 
 impl std::fmt::Display for Scripted {
