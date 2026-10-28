@@ -22,7 +22,8 @@ const KILLED: [&str; 4] = [
     "trap '' TERM; echo $$ >> \"$0\"; for _ in 1 2 3 4 5; do sleep 1 & echo $! >> \"$0\"; wait; done",
     "echo $$ >> \"$0\"; kill -STOP $$",
 ];
-const RETRIED: [Result<(), &str>; 2] = [Err(KILLED[1]), Err(KILLED[2])];
+const TRIES: [Result<(), &str>; 5] = [Err(KILLED[1]), Err(KILLED[2]), Err(KILLED[1]), Ok(()), Err(KILLED[3])];
+const RETRIED: [Result<(), &str>; 3] = [Err(KILLED[2]), Ok(()), Err(KILLED[3])];
 const NESTED: &str = "set -m; (trap '' TERM; exec sh -c 'echo $$ >> \"$0\"; exec sleep 5' \"$0\") & inner=$!; \
      trap 'kill -TERM -$inner; sleep 0.05; kill -KILL -$inner; exit' TERM; echo $$ >> \"$0\"; wait";
 const RECORDED_LEN: usize = 9;
@@ -105,9 +106,11 @@ fn each_env_policy_drops_only_its_variables_and_a_budget_caps_calls_and_rests_at
     let started = Instant::now();
     Budget::new(PATIENT).within(started + POLL).rest(PATIENT);
     let at = std::cell::Cell::new(0);
-    let retry = |end| Budget::new(PATIENT).within(end).retried(|| Err::<(), _>(KILLED[at.replace(at.get() + 1)]));
-    assert_eq!([started + PATIENT, started].map(retry), RETRIED);
+    let retry = |end| Budget::new(PATIENT).within(end).retried(|| TRIES[at.replace(at.get() + 1)]);
+    assert_eq!([started + PATIENT, started + PATIENT, started].map(retry), RETRIED);
     assert!((POLL..PATIENT).contains(&started.elapsed()) && Budget::new(PATIENT).within(started).deadline() == started);
+    let whole = [Budget::new(POLL).within(started + PATIENT), Budget::new(PATIENT)].map(Budget::remaining_deadline);
+    assert!(whole[0] == started + PATIENT && whole[1] > started + POLL);
 }
 
 impl std::fmt::Display for Scripted {

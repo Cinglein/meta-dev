@@ -70,10 +70,6 @@ fn a_branch_task_waiting_elsewhere_says_resume_and_a_done_one_says_reopen() {
     let shown =
         [waiting.judged(HEAD, Some(waiting.task)), done.judged(HEAD, Some(done.task))].map(|wait| wait.to_string());
     assert!(shown[0].contains(RESUME) && shown[1].contains(REOPEN));
-}
-
-#[test]
-fn a_wait_at_head_leaves_another_unresolved_commit_blocked_and_an_unreadable_log_says_so() {
     let state = State::fold(&Board::claimed().waiting_at(HEAD).records);
     let elsewhere = WaitOnCi::in_state(&state, Some(&OLD.parse().unwrap()), Some(&HEAD.parse().unwrap()), None);
     let Ok(old) = OLD.parse::<Commit>();
@@ -82,4 +78,7 @@ fn a_wait_at_head_leaves_another_unresolved_commit_blocked_and_an_unreadable_log
     assert!(shown.contains(CHECKOUT_OLD));
     assert!(WORDING.iter().all(|part| shown.contains(part)));
     assert!(unreadable.unwrap_err().to_string().starts_with(UNREADABLE));
+    let mut reads = [Err(CliFailure::raised::<Invalid>(BROKEN)), Ok(state)].into_iter();
+    let read = WaitOnCi::state_within(meta_run::Budget::new(std::time::Duration::ZERO), || reads.next().unwrap());
+    assert!(read.is_ok() && reads.next().is_none());
 }
