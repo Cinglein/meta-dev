@@ -1,3 +1,4 @@
+mod pinned_xtask;
 mod prior_budget;
 
 use std::collections::BTreeMap;
@@ -9,7 +10,8 @@ use serde::Deserialize;
 use task::{BaselineFile, Surface};
 
 use crate::task::failure::Failure;
-use crate::task::revision::Revision;
+use crate::task::revision::{Revision, TrackedPath};
+pub use pinned_xtask::PinnedXtask;
 use prior_budget::PriorBudget;
 
 #[derive(Debug, Default, Deserialize)]
@@ -31,10 +33,19 @@ impl PriorPolicy {
         Self::parsed(revision.present(Path::new(Self::PATH))?)
     }
 
-    pub fn scales_at(revision: &Revision) -> Result<Scales, Failure> {
-        let levels = revision.present(Path::new(Self::DEFAULT_LEVELS))?;
-        let parsed = levels.map(|text| serde_json::from_str(&text).map_err(Failure::PriorLevels)).transpose()?;
-        Self::read_at(revision)?.scaled(&parsed.unwrap_or_else(Scale::top_default))
+    pub fn scales_at(revision: &Revision, now: &PinnedXtask, databases: &Path) -> Result<Scales, Failure> {
+        let levels = Self::levels_at(revision, now, databases)?;
+        Self::read_at(revision)?.scaled(&levels)
+    }
+
+    fn levels_at(revision: &Revision, now: &PinnedXtask, databases: &Path) -> Result<Scale, Failure> {
+        revision.tracked(TrackedPath::new(Path::new(Self::DEFAULT_LEVELS)))?.map_or_else(
+            || {
+                let shipped = PinnedXtask::read_at(revision).shipped_levels(now, databases);
+                Ok(shipped.unwrap_or_else(Scale::top_default))
+            },
+            |text| serde_json::from_str(&text).map_err(Failure::PriorLevels),
+        )
     }
 
     fn parsed(text: Option<String>) -> Result<PriorPolicy, Failure> {

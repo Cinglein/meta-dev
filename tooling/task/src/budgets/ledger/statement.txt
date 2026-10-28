@@ -16,8 +16,8 @@ performance-and-cost-major performance-and-cost       open_items major          
 performance-and-cost-minor performance-and-cost       open_items minor                     -          4          8 -
 performance-and-cost-unrated performance-and-cost       open_items unrated                   -          1          2 -
 slowest-test       performance-and-cost       slowest_test                     999ms      600ms     1000ms warn
-tangle-items       features-and-maintenance   tangle_items                       128         49         83 ok
+tangle-items       features-and-maintenance   tangle_items                       128         49         83 over
 test-cpu-time      performance-and-cost       test_cpu_time                        -     2400ms     4000ms -
-test-line-share    features-and-maintenance   test_line_share                    25%        10%        18% ok
+test-line-share    features-and-maintenance   test_line_share                    25%        10%        18% over
 test-time          performance-and-cost       test_wall_time                  8001ms     4800ms     8000ms over
 unit-time          performance-and-cost/unit  test_wall_time                  8001ms     2400ms     4000ms over
