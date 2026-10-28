@@ -1,7 +1,10 @@
 use std::fmt::{self, Write as _};
+use std::io;
 
+use meta_run::Ran;
 use meta_schema::Record;
 
+use crate::log_failure::LogFailure;
 use crate::skipped_line::{LineNumber, SkippedLine};
 use crate::snapshot::Snapshot;
 
@@ -28,6 +31,19 @@ impl Content {
 impl From<String> for Content {
     fn from(text: String) -> Self {
         Self(text)
+    }
+}
+
+impl TryFrom<Ran> for Content {
+    type Error = LogFailure;
+
+    fn try_from(ran: Ran) -> Result<Self, Self::Error> {
+        if ran.success() {
+            let text = ran.into_stdout().into_text();
+            text.map(Self).map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error).into())
+        } else {
+            Err(LogFailure::Git { command: ran.line().clone(), stderr: ran.stderr().clone() })
+        }
     }
 }
 

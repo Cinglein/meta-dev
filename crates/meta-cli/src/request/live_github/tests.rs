@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use meta_pull_query::LiveQuery;
 
 use super::LiveGithub;
-use crate::request::project::Config;
+use crate::request::project::{CiSettings, Config};
 
 const FAKE_GH: &str = r#"#!/bin/sh
 printf '%s\n' "$@" >> "$0.args"
@@ -51,7 +51,7 @@ impl Fake {
         std::fs::write(&script, FAKE_GH.replace("$FAKE", scenario)).unwrap();
         std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
         let config: Config = toml::from_str(&format!("[ci]\nprogram = {:?}", script.display().to_string())).unwrap();
-        let program = config.ci_settings().program().clone();
+        let program = CiSettings::try_from(&config).unwrap().program().clone();
         let workflows = WORKFLOWS.map(|name| name.parse().unwrap()).to_vec();
         let github = LiveGithub::new(program, dir.path().into(), Instant::now() + DEADLINE, workflows);
         Self { dir, github }

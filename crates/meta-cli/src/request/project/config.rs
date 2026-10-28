@@ -36,10 +36,6 @@ impl Config {
         &self.required_workflows
     }
 
-    pub fn ci_settings(&self) -> CiSettings {
-        CiSettings::try_from(self).unwrap_or_default()
-    }
-
     pub fn push_fix(&self, branch: &BranchName) -> &'static str {
         self.log_branches.iter().find(|log| *log == branch).map_or("open a PR", |_| "only `meta` writes it")
     }

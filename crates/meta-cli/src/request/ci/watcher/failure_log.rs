@@ -11,14 +11,14 @@ pub struct FailureLog;
 
 impl FailureLog {
     pub fn excerpt(project: &Project, session: &SessionId) -> Result<Output, CliFailure> {
-        let settings = project.config().ci_settings();
+        let settings = project.ci_settings();
         let seen = SessionCommits::judged(project, session, Reach::Remote, settings.remote_deadline())
             .map_err(CliFailure::raised::<Setup>)?;
         let pushed = seen.pushed();
         pushed.first().ok_or_else(|| CliFailure::raised::<Setup>("no CI tracked for this session"))?;
         let deadline = std::time::Instant::now() + settings.remaining(std::time::Duration::ZERO).unwrap_or_default();
         let repository = project.repository().map_err(|failure| CliFailure::raised::<Setup>(failure.into_listed()))?;
-        let gh = Gh::new(&settings, project.root().to_path_buf(), deadline);
+        let gh = Gh::new(settings, project.root(), deadline);
         Ok(Output::Listed(gh.failed_excerpt(&repository, pushed, settings.log_window())))
     }
 }

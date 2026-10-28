@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 meta-schema.workspace = true
+meta-run.workspace = true
 chrono.workspace = true
 serde.workspace = true
 serde_json.workspace = true
