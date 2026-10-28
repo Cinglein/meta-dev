@@ -205,9 +205,7 @@ impl Door {
     }
 
     pub fn is_mentioned_by(&self, seen: &Door) -> bool {
-        self.kind == seen.kind
-            && seen.site != self.site
-            && (self.target.is_none() || seen.target == self.target)
+        seen.site != self.site && (self.target.is_none() || seen.target == self.target)
     }
 
     fn sighted(kinds: Vec<DoorKind>, within: Option<&Door>) -> Vec<Door> {
