@@ -1,5 +1,6 @@
 mod baseline_file;
 mod bit_boundary;
+mod file_door;
 mod floor;
 mod key_name;
 mod least;
@@ -37,6 +38,7 @@ use crate::domains::Domains;
 use crate::percent::Percent;
 use bit_boundary::BitBoundary;
 use enum_map::EnumMap;
+use file_door::FileDoor;
 use least::Least;
 use meta_severity::Scales;
 use policy_failure::PolicyFailure;
@@ -62,7 +64,7 @@ pub struct Policy {
     vague: Vec<String>,
     wire_types: Vec<String>,
     bit_boundary: BitBoundary,
-    file_door: Vec<CrateName>,
+    file_door: FileDoor,
     surfaces: Vec<Surface>,
     branches: EnumMap<Branch, BranchName>,
     baseline: BaselineFile,
@@ -241,7 +243,7 @@ impl Policy {
     }
 
     #[must_use]
-    pub fn file_door(&self) -> &[CrateName] {
+    pub fn file_door(&self) -> &FileDoor {
         &self.file_door
     }
 

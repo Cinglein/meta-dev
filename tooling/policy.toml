@@ -15,7 +15,6 @@ wire_types = [
     "core::any::Any",
 ]
 bit_boundary = []
-file_door = ["meta-door"]
 gate = "local-gate"
 gate_wait = 600000
 surfaces = [
@@ -36,6 +35,10 @@ surfaces = [
     "plugin",
     "self/spec",
 ]
+
+[file_door]
+crates = ["meta-door"]
+dev_only = ["tempfile"]
 
 [spec]
 package = "meta-spec"

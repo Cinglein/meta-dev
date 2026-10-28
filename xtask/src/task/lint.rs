@@ -1,3 +1,4 @@
+mod dev_only;
 mod spec_prose;
 
 use std::collections::BTreeMap;
@@ -12,6 +13,7 @@ use test_budget::TestBudget;
 use crate::task::failure::Failure;
 use crate::task::ratchet::{Baseline, Drift, Ratchet, ViolationCount};
 use crate::task::revision::Revision;
+use dev_only::DevOnly;
 pub use spec_prose::SpecProse;
 
 #[derive(Debug)]
@@ -25,7 +27,8 @@ impl Lint {
         let allowed = Baseline::admitted(root, policy.baseline(), policy.branch(Branch::Base))?;
         let base = || Revision::merge_base(root, policy.branch(Branch::Base));
         let spec = policy.spec().map(|spec| base().and_then(|base| SpecProse::since(root, spec, &base))).transpose()?;
-        let observed = Self::gathered(files, policy, spec).ratchet(&allowed, |_| true)?;
+        let dev_only = DevOnly::report(root, files, policy);
+        let observed = Self::gathered(files, policy, spec, dev_only).ratchet(&allowed, |_| true)?;
         println!("lint: {} rust files, {} baselined violations", files.len(), observed.total());
         ledger.spend(Measure::LintFindings, Amount::Baseline(policy.baseline().clone()));
         ledger.spend(Measure::TestLineShare, TestBudget::line_share(files, policy));
@@ -35,16 +38,18 @@ impl Lint {
 
     pub fn shrink(root: &Path, files: &[SourceFile], policy: &Policy) -> Result<Baseline, Failure> {
         let path = policy.baseline().within(root);
-        let observed = Self::gathered(files, policy, None).ratchet(&Baseline::read(&path)?, Drift::grew)?;
+        let dev_only = DevOnly::report(root, files, policy);
+        let observed = Self::gathered(files, policy, None, dev_only).ratchet(&Baseline::read(&path)?, Drift::grew)?;
         observed.write(&path)?;
         Ok(observed)
     }
 
-    fn gathered(files: &[SourceFile], policy: &Policy, spec: Option<Report>) -> Lint {
+    fn gathered(files: &[SourceFile], policy: &Policy, spec: Option<Report>, dev_only: Report) -> Lint {
         Lint {
             reports: LintName::iter()
                 .map(|lint| (<&'static str>::from(lint), lint.report(files, policy)))
                 .chain(spec.map(|spec| (SpecProse::LINT, spec)))
+                .chain([(DevOnly::LINT, dev_only)])
                 .collect(),
         }
     }

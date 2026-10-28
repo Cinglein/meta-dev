@@ -15,8 +15,6 @@ impl FileSites {
     const OWNERS: [&str; 3] = ["std", "tokio", "unix"];
     const MODULE: &str = "fs";
     const FILE: &str = "File";
-    const OPENING: [&str; 3] = ["open", "create", "options"];
-    const OPTIONS: &str = "OpenOptions";
     const PATH_SEPARATOR: char = ':';
     const LIST_SEPARATOR: char = ',';
 
@@ -70,16 +68,12 @@ impl FileSites {
     fn reached(owner: &Ident, rest: &[TokenTree]) -> Option<Ident> {
         let owns = Name::from(owner).matches::<Whole>(&Self::OWNERS);
         let module = |item: &[TokenTree]| match item {
-            [TokenTree::Ident(module), after @ ..]
-                if *module == Self::MODULE && Self::opens(after) =>
-            {
-                Some(module.clone())
-            }
+            [TokenTree::Ident(module), ..] if *module == Self::MODULE => Some(module.clone()),
             _ => None,
         };
         match rest {
             [TokenTree::Ident(opening), ..]
-                if *owner == Self::FILE && Name::from(opening).matches::<Whole>(&Self::OPENING) =>
+                if *owner == Self::FILE && Name::from(opening).casing() == Casing::Lower =>
             {
                 Some(opening.clone())
             }
@@ -91,25 +85,6 @@ impl FileSites {
             }
             _ if owns => module(rest),
             _ => None,
-        }
-    }
-
-    fn opens(after: &[TokenTree]) -> bool {
-        let opening = |tree: &TokenTree| {
-            matches!(tree, TokenTree::Ident(name)
-                if *name == Self::OPTIONS || Name::from(name).casing() == Casing::Lower)
-        };
-        let spread = |tree: &TokenTree| match tree {
-            TokenTree::Group(group) => group.stream().into_iter().collect(),
-            other => vec![other.clone()],
-        };
-        match after {
-            [TokenTree::Punct(first), TokenTree::Punct(_), next, ..]
-                if first.as_char() == Self::PATH_SEPARATOR =>
-            {
-                spread(next).iter().any(opening)
-            }
-            _ => true,
         }
     }
 }

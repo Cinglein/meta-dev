@@ -98,13 +98,9 @@ mod tests {
     const WORK: &str = "work";
     const UP: &str = "..";
     const EMPTY: &str = "";
+    const PLANTED: &str = "meta-local/planted";
+    const CLIMB: &str = "missing/../.git/refs/heads/climbed";
     const REFUSED: &str = "is inside the git dir";
-    #[cfg(feature = "skeleton")]
-    const ENTRY: &str = ".git";
-    #[cfg(feature = "skeleton")]
-    const BRANCH: &str = "laid";
-    #[cfg(feature = "skeleton")]
-    const SYMBOLIC: [&str; 2] = ["symbolic-ref", "HEAD"];
 
     #[test]
     fn the_door_refuses_the_git_dir_and_lets_meta_store_files_and_the_work_tree_through() {
@@ -121,25 +117,27 @@ mod tests {
     }
 
     #[test]
-    fn a_bare_repository_is_refused_by_name_and_a_link_may_point_into_it_but_a_copy_may_not_read_it() {
+    fn a_bare_repository_is_refused_by_name_and_neither_a_link_nor_a_copy_may_reach_into_it() {
         let bare = tempfile::tempdir().unwrap();
         let outside = tempfile::tempdir().unwrap();
         assert!(Command::new("git").current_dir(bare.path()).args(BARE).status().unwrap().success());
         let refused = Door::write(bare.path().join(STORED_REFS), EMPTY).unwrap_err().to_string();
         let linked = Door::paired(bare.path().join(HEAD), outside.path().join(HEAD), Pair::Symlink);
         let copied = Door::paired(bare.path().join(HEAD), outside.path().join(WORK), Pair::Copy);
-        assert!(refused.contains(REFUSED) && linked.is_ok() && copied.is_err(), "{refused}");
+        assert!(refused.contains(REFUSED) && linked.is_err() && copied.is_err(), "{refused}");
     }
 
-    #[cfg(feature = "skeleton")]
     #[test]
-    fn a_skeleton_is_a_repository_git_reads_on_its_branch_and_never_lays_over_a_used_dir() {
+    fn a_planted_link_or_a_climb_out_of_a_missing_dir_never_reaches_the_git_dir() {
         let repository = tempfile::tempdir().unwrap();
-        let git_dir = repository.path().join(ENTRY);
-        Door::skeleton(&git_dir, crate::Layout::Working, BRANCH, EMPTY).unwrap();
-        let head = Command::new("git").current_dir(repository.path()).args(SYMBOLIC).output().unwrap();
-        let config = Door::inspected(&git_dir, crate::AdminFile::CommonDir).is_err();
-        let again = Door::skeleton(&git_dir, crate::Layout::Bare, BRANCH, EMPTY).is_err();
-        assert!(String::from_utf8_lossy(&head.stdout).contains(BRANCH) && config && again);
+        assert!(Command::new("git").current_dir(repository.path()).args(INIT).status().unwrap().success());
+        let store = MetaStore::located(repository.path()).unwrap();
+        let refs = store.common().join(STORED_REFS);
+        Door::changed(store.entry(AREA), Change::DirAll).unwrap();
+        let linked = Door::paired(&refs, store.entry(TRAIL), Pair::Symlink);
+        std::os::unix::fs::symlink(&refs, store.entry(PLANTED).path()).unwrap();
+        let through = Door::write(store.entry(PLANTED), EMPTY);
+        let climbed = Door::changed(repository.path().join(CLIMB), Change::DirAll);
+        assert!(linked.is_err() && through.is_err() && climbed.is_err() && !refs.exists());
     }
 }

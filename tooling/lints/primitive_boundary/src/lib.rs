@@ -37,7 +37,7 @@ impl PrimitiveBoundary {
                         .filter(|file| {
                             !file
                                 .crate_name()
-                                .is_some_and(|name| policy.file_door().contains(name))
+                                .is_some_and(|name| policy.file_door().covers(name))
                         })
                         .flat_map(FileSites::violations),
                 )
