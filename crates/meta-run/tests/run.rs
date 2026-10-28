@@ -1,7 +1,6 @@
 #![allow(clippy::unwrap_used)]
 
 use std::collections::BTreeMap;
-use std::ffi::OsString;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
@@ -23,6 +22,8 @@ const KILLED: [&str; 4] = [
     "trap '' TERM; echo $$ >> \"$0\"; for _ in 1 2 3 4 5; do sleep 1 & echo $! >> \"$0\"; wait; done",
     "echo $$ >> \"$0\"; kill -STOP $$",
 ];
+const TRIES: [Result<(), &str>; 5] = [Err(KILLED[1]), Err(KILLED[2]), Err(KILLED[1]), Ok(()), Err(KILLED[3])];
+const RETRIED: [Result<(), &str>; 3] = [Err(KILLED[2]), Ok(()), Err(KILLED[3])];
 const NESTED: &str = "set -m; (trap '' TERM; exec sh -c 'echo $$ >> \"$0\"; exec sleep 5' \"$0\") & inner=$!; \
      trap 'kill -TERM -$inner; sleep 0.05; kill -KILL -$inner; exit' TERM; echo $$ >> \"$0\"; wait";
 const RECORDED_LEN: usize = 9;
@@ -96,18 +97,18 @@ fn a_run_ends_at_its_deadline_and_kills_its_whole_group_holders_deaf_respawning_
 
 #[test]
 fn each_env_policy_drops_only_its_variables_and_a_budget_caps_calls_and_rests_at_its_overall_deadline() {
-    let inherited = INHERITED.map(|(name, value)| (OsString::from(name), Some(OsString::from(value))));
-    let inherited = Environment::from(BTreeMap::from(inherited));
+    let inherited = Environment::from(BTreeMap::from(INHERITED.map(|(name, value)| (name.into(), Some(value.into())))));
     let dropped = DROPPED
         .map(|(policy, _)| format!("{:?}", Environment::from(&Run::inheriting(SHELL, policy, inherited.clone()))));
     assert_eq!(dropped, DROPPED.map(|(_, dropped)| format!("Environment({{{dropped}}})")));
-    let git = Run::git(Path::new(SHELL));
-    let shown = format!("{:?}", Environment::from(&git));
-    assert!(shown.contains(NO_PROMPT) && git.ran(Instant::now()).is_err_and(|late| late.to_string().contains(EXPIRED)));
+    assert!(format!("{:?}", Environment::from(&Run::git(Path::new(SHELL)))).contains(NO_PROMPT));
+    assert!(Run::git(Path::new(SHELL)).ran(Instant::now()).is_err_and(|late| late.to_string().contains(EXPIRED)));
     let started = Instant::now();
     Budget::new(PATIENT).within(started + POLL).rest(PATIENT);
-    let rested = started.elapsed();
-    assert!((POLL..PATIENT).contains(&rested) && Budget::new(PATIENT).within(started).deadline() == started);
+    let at = std::cell::Cell::new(0);
+    let retry = |end| Budget::new(PATIENT).within(end).retried(|| TRIES[at.replace(at.get() + 1)]);
+    assert_eq!([started + PATIENT, started + PATIENT, started].map(retry), RETRIED);
+    assert!((POLL..PATIENT).contains(&started.elapsed()) && Budget::new(PATIENT).within(started).deadline() == started);
     let whole = [Budget::new(POLL).within(started + PATIENT), Budget::new(PATIENT)].map(Budget::remaining_deadline);
     assert!(whole[0] == started + PATIENT && whole[1] > started + POLL);
 }
