@@ -376,6 +376,10 @@ impl Repo {
     }
 
     fn settled(&self) -> String {
+        self.settled_past("")
+    }
+
+    pub fn settled_past(&self, seen: &str) -> String {
         let events = self.clone.path().join(".git/meta-ci/ABCDEF1234/events");
         let lock = self.sessions.path().join(Planted::LOCKS).join(Git::head(self.clone.path()));
         std::iter::repeat_with(|| {
@@ -384,7 +388,8 @@ impl Repo {
         })
         .take(SETTLE_LENGTH)
         .find(|text| {
-            COMPLETIONS.iter().any(|completion| text.contains(completion))
+            let new = text.strip_prefix(seen).unwrap_or_default();
+            COMPLETIONS.iter().any(|completion| new.contains(completion))
                 && std::fs::File::open(&lock).map_or(true, |watcher| watcher.try_lock().is_ok())
         })
         .unwrap_or_default()

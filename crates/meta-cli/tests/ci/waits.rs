@@ -1,7 +1,7 @@
 use super::seeded_log::{SeededLog, TASK};
 use super::{
-    BLOCK, COMMIT, DEADLINE, Git, LAST, NEXT_COMMIT, PASSED_EVENT, POST, Planted, Repo, SHELL, STOP, SUCCESS,
-    TIMED_OUT_STOP,
+    BLOCK, COMMIT, DEADLINE, FailingHead, Git, LAST, NEXT_COMMIT, PASSED_EVENT, POST, Planted, Repo, SHELL, STOP,
+    SUCCESS, TIMED_OUT_STOP,
 };
 
 const TIMED_OUT: &str = "timed-out";
@@ -65,19 +65,19 @@ fn on_a_detached_head_a_wait_covers_only_its_head_and_a_typical_stop_lists_the_r
 }
 
 #[test]
-fn the_last_poll_ends_before_the_real_deadline_so_a_run_finishing_late_still_passes() {
+fn an_unreadable_remote_settles_the_watch_unchecked_and_the_last_poll_still_ends_before_the_real_deadline() {
     let repo = Repo::limited(LAST, DEADLINE);
-    repo.hook(POST, COMMIT);
-    assert!(repo.settled().contains(PASSED_EVENT));
-}
-
-#[test]
-fn an_unreadable_remote_settles_the_watch_unchecked_and_stop_fails_closed() {
-    let repo = Repo::new(SUCCESS);
+    let origin = repo.origin.path().to_str().unwrap().to_owned();
     std::os::unix::fs::symlink(repo.origin.path(), repo.clone.path().join(NAMELESS)).unwrap();
     Git::run(repo.clone.path(), &["remote", "set-url", "origin", NAMELESS]);
     repo.hook(POST, COMMIT);
-    let settled = repo.settled();
+    let unchecked = repo.settled();
     let stopped = repo.hook(STOP, COMMIT);
-    assert!(settled.contains(UNCHECKED_EVENT) && stopped.contains(BLOCK) && stopped.contains(UNCHECKED_STOP));
+    Git::run(repo.clone.path(), &["remote", "set-url", "origin", origin.as_str()]);
+    Git::run(repo.clone.path(), &NEXT_COMMIT);
+    FailingHead::copy_from(&repo, repo.clone.path());
+    repo.hook(POST, COMMIT);
+    let passed = repo.settled_past(&unchecked);
+    assert!(unchecked.contains(UNCHECKED_EVENT) && stopped.contains(BLOCK) && stopped.contains(UNCHECKED_STOP));
+    assert!(passed.contains(PASSED_EVENT));
 }
