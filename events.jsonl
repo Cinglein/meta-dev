@@ -1149,3 +1149,4 @@
 {"at":"2026-10-28T20:13:54.839968Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-79bab6623cc9a724"}
 {"at":"2026-10-28T20:13:56.949976Z","actor":"claude-lead","kind":"TaskDone","task":"task-79bab6623cc9a724"}
 {"at":"2026-10-28T20:15:08.821484Z","actor":"claude-mutbase","kind":"TaskClaimed","task":"task-54dfa1b4a98412da"}
+{"at":"2026-10-28T20:26:46.116097Z","actor":"claude-mutbase","kind":"TaskLinked","task":"task-54dfa1b4a98412da","pr":131}
