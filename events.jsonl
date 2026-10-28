@@ -1053,3 +1053,4 @@
 {"at":"2026-10-28T15:50:39.319960Z","actor":"claude-lead","kind":"ItemRated","item":"issue-ad246de6d361cb9a","division":"performance-and-cost","change":{"step":"first","level":"minor"}}
 {"at":"2026-10-28T15:50:41.458139Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-d6c0f2359586dfac","text":"A rule, not a problem: mis-filed as a concern; goes into the spec via task-5161aac2."}
 {"at":"2026-10-28T15:50:43.430204Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-8b16d0f9ba747004","text":"A rule, not a problem: mis-filed as a concern; goes into the spec via task-5161aac2."}
+{"at":"2026-10-28T15:50:45.830240Z","actor":"claude-lead","kind":"EntryRetired","entry":"issue-def2fd90374d56eb","text":"A deferral record, not a problem; tracked on the roadmap and revisited at gix 1.0."}
