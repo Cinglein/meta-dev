@@ -1,0 +1,55 @@
+mod step;
+
+use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
+
+use meta_run::Unread;
+use serde::Deserialize;
+
+use crate::golden::Golden;
+use crate::golden_failure::GoldenFailure;
+use crate::places::Places;
+use crate::recording::Recording;
+use step::Step;
+
+#[derive(Debug, Deserialize)]
+pub struct Scenario {
+    #[serde(skip)]
+    path: PathBuf,
+    step: Vec<Step>,
+}
+
+impl Scenario {
+    const PATIENCE: Duration = Duration::from_secs(60);
+
+    pub fn recorded(&self, into: &Path, bin: &Path) -> Result<Vec<Recording>, GoldenFailure> {
+        let unreadable = |source| GoldenFailure::Unreadable { path: self.path.clone(), source };
+        let root = tempfile::tempdir().map_err(unreadable)?;
+        let places = Places::new(root.path(), bin);
+        let unbuilt = |unread| GoldenFailure::Unbuilt { scenario: self.path.clone(), unread };
+        let recorded = self.step.iter().enumerate().map(|(index, step)| {
+            let ran = step.run(&places).ran(Instant::now() + Self::PATIENCE);
+            let ran = ran.map_err(|failure| unbuilt(Unread::from(failure)))?;
+            match step.record() {
+                Some(name) => Ok(Some(Recording::ran(into.join(format!("{index:02}-{name}")), &ran, &places))),
+                None if ran.success() => Ok(None),
+                None => Err(unbuilt(Unread::Failed(ran.stderr().clone()))),
+            }
+        });
+        recorded.filter_map(Result::transpose).collect()
+    }
+}
+
+impl TryFrom<&Path> for Scenario {
+    type Error = GoldenFailure;
+
+    fn try_from(path: &Path) -> Result<Self, Self::Error> {
+        let text = Golden::new(path).text()?;
+        let malformed = |failure: toml::de::Error| GoldenFailure::Malformed {
+            path: path.to_path_buf(),
+            reason: failure.to_string(),
+        };
+        let scenario: Self = toml::from_str(&text).map_err(malformed)?;
+        Ok(Self { path: path.to_path_buf(), ..scenario })
+    }
+}

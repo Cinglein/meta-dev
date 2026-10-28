@@ -8,6 +8,7 @@ license.workspace = true
 
 [dependencies]
 signal-hook.workspace = true
+strum.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

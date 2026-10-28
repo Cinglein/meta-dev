@@ -1,0 +1,34 @@
+[[step]]
+run = ["git", "init", "--quiet", "."]
+
+[[step]]
+run = ["git", "config", "user.name", "someone"]
+
+[[step]]
+run = ["git", "config", "user.email", "someone@example.com"]
+
+[[step]]
+run = ["git", "config", "core.pager", "less\nGIT_AUTHOR_IDENT=M <1+m@users.noreply.github.com> 0 +0000\nGIT_COMMITTER_IDENT=M <1+m@users.noreply.github.com> 0 +0000"]
+
+[[step]]
+record = "author"
+git = { call = "var", operands = ["GIT_AUTHOR_IDENT"] }
+
+[[step]]
+record = "committer"
+git = { call = "var", operands = ["GIT_COMMITTER_IDENT"] }
+
+[[step]]
+run = ["git", "config", "user.email", "1+someone@users.noreply.github.com"]
+
+[[step]]
+record = "noreply-author"
+git = { call = "var", operands = ["GIT_AUTHOR_IDENT"] }
+
+[[step]]
+record = "toplevel"
+run = ["git", "-C", "$ROOT", "rev-parse", "--show-toplevel"]
+
+[[step]]
+record = "no-branch"
+run = ["git", "rev-parse", "--verify", "--quiet", "refs/heads/none"]

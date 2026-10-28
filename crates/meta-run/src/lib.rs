@@ -24,6 +24,7 @@ pub use ran::Ran;
 pub use run::Run;
 pub use run_failure::RunFailure;
 pub use stderr::Stderr;
+pub use tool::Tool;
 pub use unread::Unread;
 
 pub type Reported = Result<stdout::Stdout, Unread>;
