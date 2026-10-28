@@ -39,6 +39,8 @@ toml.workspace = true
 
 [dev-dependencies]
 meta-golden.workspace = true
+meta-laws.workspace = true
+proptest.workspace = true
 tempfile.workspace = true
 
 [lints]
