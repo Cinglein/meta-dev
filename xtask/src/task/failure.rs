@@ -1,5 +1,4 @@
 use std::io;
-use std::path::PathBuf;
 
 use meta_log::LogFailure;
 use meta_severity::{Demotions, ScaleFailure, Strands};
@@ -31,10 +30,6 @@ pub enum Failure {
     Configured(OutsideConfig),
     #[error("cargo metadata: {0}")]
     Metadata(#[from] serde_json::Error),
-    #[error("merge-base [spec] in tooling/policy.toml: {0}")]
-    PriorSpec(toml::de::Error),
-    #[error("merge-base spec file {} is unreadable", .0.display())]
-    PriorSpecFile(PathBuf),
     #[error("{0}")]
     Identity(ForeignEmails),
     #[error("{0}")]

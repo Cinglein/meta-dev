@@ -74,11 +74,10 @@ mod tests {
 
     use super::Revision;
     use crate::task::fixture::Fixture;
-    use crate::task::lint::SpecProse;
     use crate::task::prior_policy::PriorPolicy;
     use crate::task::ratchet::Baseline;
     use crate::task::surfaces::Surfaces;
-    use task::{BaselineFile, BranchName, SpecSettings, Surface};
+    use task::{BaselineFile, BranchName, Surface};
 
     const PARENT_POLICY: &str = "tooling/policy.toml";
     const PARENT_BASELINE: &str = "lint-baseline.toml";
@@ -94,7 +93,6 @@ mod tests {
     const BASE: &str = "origin/main";
     const LOST: &str = "0123abc";
     const ABSENT: &str = "absent.toml";
-    const SPEC: &str = "package = \"spec\"\nfile = \"context/SPEC.md\"\n";
     const CHANGED: &str =
         "surfaces = [\"tooling/policy.toml\"]\nbaseline = \"lint-baseline.toml\"\nbit_boundary = []\n";
 
@@ -125,11 +123,10 @@ mod tests {
     }
 
     #[test]
-    fn a_git_failure_reading_the_prior_policy_or_spec_fails_closed() {
+    fn a_git_failure_reading_the_prior_policy_fails_closed() {
         let fixture = Fixture::new();
         fixture.write(PARENT_POLICY, PARENT_TEXT).branch();
         let lost = Revision { root: fixture.root().to_path_buf(), commit: LOST.parse().unwrap() };
-        let spec: SpecSettings = toml::from_str(SPEC).unwrap();
-        assert!(PriorPolicy::read_at(&lost).is_err() && SpecProse::since(fixture.root(), &spec, &lost).is_err());
+        assert!(PriorPolicy::read_at(&lost).is_err());
     }
 }

@@ -93,6 +93,9 @@ paths = ["*"]
 tests = ["*"]
 workflows = ["*"]
 
+[domains."features-and-maintenance/context"]
+paths = ["CLAUDE.md", "context/*"]
+
 [budgets.test-time]
 division = "performance-and-cost"
 measure = "test_wall_time"
@@ -249,4 +252,22 @@ window = "standing"
 division = "architecture-and-planning"
 measure = { open_items = { severity = "unrated" } }
 allowance = { count = 2 }
+window = "standing"
+
+[budgets.prose-words]
+division = "features-and-maintenance"
+measure = "words"
+allowance = { count = 5000 }
+window = "standing"
+
+[budgets.context-words]
+division = "features-and-maintenance/context"
+measure = "words"
+allowance = { of = "prose-words", count = 4000 }
+window = "standing"
+
+[budgets.verbose-items]
+division = "features-and-maintenance"
+measure = { open_items = { verbose = 25 } }
+allowance = { count = 35 }
 window = "standing"

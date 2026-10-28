@@ -2,6 +2,18 @@
 [domains."features-and-maintenance/nav"]
 paths = ["crates*"]
 
+[budgets.t-nav-words]
+division = "features-and-maintenance/nav"
+measure = "words"
+allowance = { of = "prose-words", count = 2 }
+window = "standing"
+
+[budgets.t-verbose]
+division = "features-and-maintenance"
+measure = { open_items = { verbose = 3 } }
+allowance = { count = 4 }
+window = "standing"
+
 [budgets.t-open-tasks]
 division = "features-and-maintenance"
 measure = { open_items = { kind = "task" } }

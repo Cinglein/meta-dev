@@ -1,18 +1,16 @@
-mod spec_prose;
-
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use corpus_check::LintName;
 use crate_graph::CrateGraph;
 use strum::IntoEnumIterator;
-use task::{Amount, Branch, Ledger, Measure, Policy, Report, SourceFile};
+use task::{Amount, Branch, CommandLine, Ledger, Measure, Policy, Program, Report, Site, SourceFile, Stdout};
 use test_budget::TestBudget;
 
 use crate::task::failure::Failure;
 use crate::task::ratchet::{Baseline, Drift, Ratchet, ViolationCount};
 use crate::task::revision::Revision;
-pub use spec_prose::SpecProse;
 
 #[derive(Debug)]
 pub struct Lint {
@@ -20,32 +18,41 @@ pub struct Lint {
 }
 
 impl Lint {
+    const GIT: &str = "git";
+    const PROSE_FILES: [&str; 7] = ["ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", "*.md"];
+
     pub fn run(root: &Path, files: &[SourceFile], policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
         Revision::noreply_off(root, policy.branch(Branch::Base))?;
         let allowed = Baseline::admitted(root, policy.baseline(), policy.branch(Branch::Base))?;
-        let base = || Revision::merge_base(root, policy.branch(Branch::Base));
-        let spec = policy.spec().map(|spec| base().and_then(|base| SpecProse::since(root, spec, &base))).transpose()?;
-        let observed = Self::gathered(files, policy, spec).ratchet(&allowed, |_| true)?;
+        let observed = Self::gathered(files, policy).ratchet(&allowed, |_| true)?;
         println!("lint: {} rust files, {} baselined violations", files.len(), observed.total());
         ledger.spend(Measure::LintFindings, Amount::Baseline(policy.baseline().clone()));
         ledger.spend(Measure::TestLineShare, TestBudget::line_share(files, policy));
         ledger.spend(Measure::TangleItems, CrateGraph::largest_tangle(files));
-        Ok(())
+        Self::prose(root, policy, ledger)
     }
 
     pub fn shrink(root: &Path, files: &[SourceFile], policy: &Policy) -> Result<Baseline, Failure> {
         let path = policy.baseline().within(root);
-        let observed = Self::gathered(files, policy, None).ratchet(&Baseline::read(&path)?, Drift::grew)?;
+        let observed = Self::gathered(files, policy).ratchet(&Baseline::read(&path)?, Drift::grew)?;
         observed.write(&path)?;
         Ok(observed)
     }
 
-    fn gathered(files: &[SourceFile], policy: &Policy, spec: Option<Report>) -> Lint {
+    fn prose(root: &Path, policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
+        let git = CommandLine::new(Program::Executable(PathBuf::from(Self::GIT))).in_directory(root.to_path_buf());
+        let listed = git.arguments(Self::PROSE_FILES).captured::<Stdout>()?;
+        listed.split('\0').filter(|path| !path.is_empty()).try_for_each(|path| {
+            let text = fs::read_to_string(root.join(path))
+                .map_err(|error| task::Failure::Io { site: Site::File(root.join(path)), error })?;
+            ledger.measure(PathBuf::from(path), &text, policy.spec());
+            Ok::<(), Failure>(())
+        })
+    }
+
+    fn gathered(files: &[SourceFile], policy: &Policy) -> Lint {
         Lint {
-            reports: LintName::iter()
-                .map(|lint| (<&'static str>::from(lint), lint.report(files, policy)))
-                .chain(spec.map(|spec| (SpecProse::LINT, spec)))
-                .collect(),
+            reports: LintName::iter().map(|lint| (<&'static str>::from(lint), lint.report(files, policy))).collect(),
         }
     }
 
@@ -70,6 +77,12 @@ mod tests {
 
     const LINT_FINDINGS: &str = "lint-findings";
     const MEASURED_OK: &str = "-                     - ok";
+    const PROSE_WORDS: &str = "prose-words ";
+    const PROSE_SPENT: &str = " words                                6 ";
+    const PROSE: &str = "a b c\n";
+    const TRACKED: &str = "notes.md";
+    const UNTRACKED: &str = "docs/more.md";
+    const NOT_PROSE: &str = "notes.txt";
     const LINT: &str = "no-comments";
     const HEADLINE: &str = "comments go";
     const ALLOWED: &str = "no-comments = 1";
@@ -93,16 +106,22 @@ mod tests {
     }
 
     #[test]
-    fn a_baseline_above_the_findings_fails_until_shrunk_to_them() {
+    fn a_baseline_above_the_findings_fails_until_shrunk_to_them_and_markdown_prose_is_counted() {
         let fixture = Fixture::new();
-        fixture.write(BASELINE, ALLOWED).branch();
+        fixture.write(BASELINE, ALLOWED).write(TRACKED, PROSE).branch();
+        fixture.write(UNTRACKED, PROSE).write(NOT_PROSE, PROSE);
         let (policy, mut ledger) = (Policy::defaults(), Ledger::default());
         assert!(Lint::run(fixture.root(), &[], &policy, &mut ledger).is_err());
         Lint::shrink(fixture.root(), &[], &policy).unwrap();
         assert_eq!(fs::read_to_string(fixture.path(BASELINE)).ok().as_deref(), Some(""));
         let passed = Lint::run(fixture.root(), &[], &policy, &mut ledger).is_ok();
         let statement = ledger.statement(&policy).to_string();
-        assert!(passed && statement.lines().any(|row| row.starts_with(LINT_FINDINGS) && row.ends_with(MEASURED_OK)));
+        let counted = statement.lines().any(|row| row.starts_with(PROSE_WORDS) && row.contains(PROSE_SPENT));
+        assert!(
+            passed
+                && counted
+                && statement.lines().any(|row| row.starts_with(LINT_FINDINGS) && row.ends_with(MEASURED_OK))
+        );
     }
 
     #[test]

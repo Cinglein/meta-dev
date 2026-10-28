@@ -5,6 +5,7 @@ mod ledger;
 mod legacy_key;
 mod standing;
 mod tree_failure;
+mod word_count;
 
 use std::collections::{BTreeMap, BTreeSet};
 
