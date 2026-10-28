@@ -19,6 +19,7 @@ use statement::Statement;
 #[derive(Debug, Default)]
 pub struct Ledger {
     spent: BTreeMap<Measure, Amount>,
+    based: BTreeMap<Measure, Amount>,
     standing: Option<Standing>,
     prior: Option<PriorStanding>,
     mode: Mode,
@@ -52,6 +53,10 @@ impl Ledger {
         self.spent.insert(measure, amount);
     }
 
+    pub fn measured_at_base(&mut self, base: Ledger) {
+        self.based = base.spent;
+    }
+
     pub fn count(&mut self, standing: Option<Standing>) {
         self.standing = standing;
     }
@@ -70,17 +75,33 @@ impl Ledger {
 
     #[must_use]
     pub fn exposure_of(&self, budget: &Budget) -> Exposure {
-        match (
-            budget.measure().item_filter(),
-            self.mode,
-            self.standing.as_ref(),
-        ) {
+        let measure = budget.measure();
+        match (budget.standing_in(), self.mode, self.standing.as_ref()) {
             (None, ..) => Exposure::Diff,
             (Some(_), Mode::Reporting, _) => Exposure::Reported,
             (Some(_), Mode::Enforcing, None) => Exposure::Within,
-            (Some(filter), Mode::Enforcing, Some(standing)) => {
-                standing.exposure(filter, budget.division())
+            (Some(division), Mode::Enforcing, Some(standing)) => {
+                let ranked = measure
+                    .item_filter()
+                    .cloned()
+                    .or_else(|| standing.least_severe(division));
+                match (
+                    standing.exposure(ranked.as_ref(), division),
+                    measure.item_filter(),
+                ) {
+                    (Exposure::Within, None) => self.trend(measure),
+                    (exposure, _) => exposure,
+                }
             }
+        }
+    }
+
+    fn trend(&self, measure: &Measure) -> Exposure {
+        match (self.based.get(measure), self.spent.get(measure)) {
+            (Some(base), Some(head)) if head < base => Exposure::Improves,
+            (Some(base), Some(head)) if head == base => Exposure::Unchanged,
+            (Some(_), Some(_)) => Exposure::Within,
+            (None, _) | (_, None) => Exposure::Unmeasured,
         }
     }
 

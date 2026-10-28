@@ -81,16 +81,15 @@ impl Measure {
     }
 
     #[must_use]
-    pub const fn window(&self) -> Window {
+    pub const fn window(&self) -> Option<Window> {
         match self {
-            Measure::OpenItems(_) => Window::Standing,
+            Measure::OpenItems(_) => Some(Window::Standing),
+            Measure::TestLineShare | Measure::TangleItems => None,
             Measure::TestWallTime
             | Measure::SlowestTest
             | Measure::WorkflowWallTime(_)
             | Measure::MutantPrice
-            | Measure::LintFindings
-            | Measure::TestLineShare
-            | Measure::TangleItems => Window::PerChange,
+            | Measure::LintFindings => Some(Window::PerChange),
         }
     }
 }
