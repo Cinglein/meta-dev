@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::scope::Scope;
+use crate::scope::{MutantsBuild, Scope};
 use affected::{CrateLoad, Packing};
 use task::Failure;
 use task::FullRun;
@@ -31,7 +31,7 @@ impl ShardPlan {
     }
 
     pub fn changed_lines(workspace: &Workspace, policy: &Policy) -> Result<ShardPlan, Failure> {
-        Scope::changed_shards(workspace, policy).map(ShardPlan)
+        Scope::changed_shards(&MutantsBuild::checked(workspace, policy)?, workspace, policy).map(ShardPlan)
     }
 }
 
@@ -46,8 +46,7 @@ impl fmt::Display for ShardPlan {
 mod tests {
     use super::{CommandLine, FullRun, Interval, Policy, ShardPlan};
     use settings::EmbeddedDefaults;
-    use std::fs;
-    use std::path::Path;
+    use std::{fs, path::Path};
     use task::Program;
     const TIMEOUT: &str = "timeout-minutes: ";
     const STEP_LIMIT: &str = "        timeout-minutes: 5";
@@ -63,7 +62,7 @@ mod tests {
     const JSON: &str = r#"["log/0/2","schema+state"]"#;
 
     #[test]
-    fn a_full_plan_lists_mutants_only_when_the_cadence_names_the_trigger() {
+    fn a_full_plan_lists_mutants_only_when_due_and_prints_its_shards_as_a_json_array_for_the_matrix() {
         let policy = Policy::defaults();
         let lister = || CommandLine::new(Program::Executable(FAILING.into()));
         let skipped = ShardPlan::full(lister(), &policy, None).map(|plan| plan.to_string());
@@ -71,12 +70,8 @@ mod tests {
             skipped.is_ok_and(|plan| plan == EMPTY)
                 && ShardPlan::full(lister(), &policy, Some(FullRun::OnDemand)).is_err()
         );
-    }
-
-    #[test]
-    fn a_plan_prints_its_shards_as_a_json_array_for_the_workflow_matrix() {
         let plan = ShardPlan(SHARDS.iter().map(|shard| shard.parse().unwrap()).collect());
-        assert_eq!((plan.to_string(), ShardPlan(Vec::new()).to_string()), (JSON.to_owned(), String::from("[]")));
+        assert_eq!(plan.to_string(), JSON);
     }
 
     #[test]

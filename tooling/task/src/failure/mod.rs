@@ -61,6 +61,8 @@ pub enum Failure {
         budget: AvailableGib,
         killed: KilledProcesses,
     },
+    #[error("refused: past its deadline, killed {killed}, own process groups included")]
+    PastDeadline { killed: KilledProcesses },
     #[error("{site}: {error}")]
     Io { site: Site, error: io::Error },
     #[error("{site}: {error}")]

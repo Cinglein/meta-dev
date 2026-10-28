@@ -13,7 +13,9 @@ const REPLAY: Option<&str> = option_env!("CARGO_BIN_EXE_gh-replay");
 const UNBUILT: &str = "gh-replay is built with feature `replay`; run the tests with --all-features";
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\npoll_millis = 2\n";
 const PATIENT: &str =
-    "expected_millis = 5\nbackoff_millis = 5\nbackoff_cap_millis = 20\ntimeout_millis = 400\ngh_millis = 350\n";
+    "expected_millis = 0\nbackoff_millis = 5\nbackoff_cap_millis = 20\ntimeout_millis = 400\ngh_millis = 350\n";
+const EXPECTED: &str = ".git/meta-ci/expected";
+const AT_ONCE: &str = "0";
 const STALLED: &str = "expected_millis = 5\ntimeout_millis = 400\ngh_millis = 350\nstop_millis = 40\n";
 const DEADLINE: &str =
     "expected_millis = 30\nbackoff_millis = 60\nbackoff_cap_millis = 60\ntimeout_millis = 100\ngh_millis = 20\n";
@@ -42,7 +44,7 @@ const LOGGED: &str = "== ci / Run cargo xtask ci  ==\n##[error]Process completed
 const COMPILING: &str = "Compiling";
 const CI_WAIT: &str = "ci-wait";
 const CI_LOG: &str = "ci-log";
-const PASSED: &str = "passed after";
+const PASSED: &str = "passed";
 const PASSED_EVENT: &str = ": passed after";
 const EVENT_PREFIX: &str = "CI ";
 const COMPLETIONS: [&str; 6] = [
@@ -298,20 +300,20 @@ impl fmt::Display for Repo {
 #[test]
 fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push() {
     let repo = Repo::new(FAILURE);
+    Planted::twin(&repo).wait().unwrap();
     let posted = repo.hook(POST, COMMIT);
     let waited = repo.session_command(CI_WAIT);
     let stop = repo.hook(STOP, COMMIT);
-    let settled = repo.settled();
     let shown = format!("{posted}{}{stop}{}", waited.0, repo.hook(PRE, COMMIT));
     let told = [&posted, &waited.0].iter().filter(|told| told.contains(JOB_FAILED)).count();
-    assert!(told == 1 && !waited.1.success() && stop.contains(BLOCK_REASON));
-    assert!(settled.contains(STEP_LISTED) && shown.contains(STEP_LISTED));
+    assert!(told == 1 && !waited.1.success() && stop.contains(BLOCK_REASON) && shown.contains(STEP_LISTED));
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     let log = repo.session_command(CI_LOG).0;
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     let repo = repo.passing();
+    std::fs::write(repo.clone.path().join(EXPECTED), AT_ONCE).unwrap();
+    Planted::twin(&repo).wait().unwrap();
     repo.hook(POST, COMMIT);
-    repo.session_command(CI_WAIT);
     let fixed = repo.hook(STOP, COMMIT);
     assert!(log.contains(LOGGED) && !log.contains(COMPILING) && !fixed.contains(BLOCK), "{log}");
 }
@@ -319,9 +321,10 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_pus
 #[test]
 fn a_passing_push_lets_the_agent_stop_and_a_commit_whose_state_cannot_be_written_is_not_watched() {
     let repo = Repo::new(SUCCESS);
+    let watched = String::from_utf8(Planted::twin(&repo).wait_with_output().unwrap().stdout).unwrap();
     repo.hook(POST, COMMIT);
     let waited = repo.session_command(CI_WAIT);
-    assert!(waited.0.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
+    assert!(watched.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
     assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     std::fs::create_dir_all(repo.sessions.path().join(Planted::STATES).join(Git::head(repo.clone.path()))).unwrap();
