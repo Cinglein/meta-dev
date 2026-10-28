@@ -2,6 +2,7 @@ mod base_branch;
 mod checks;
 mod pull_state;
 mod rollup;
+mod rule_source;
 mod ruled_pull;
 
 use meta_schema::PullRequest;
@@ -10,6 +11,7 @@ use serde::Deserialize;
 pub use base_branch::BaseBranch;
 pub use pull_state::PullState;
 use rollup::Rollup;
+pub use rule_source::RuleSource;
 pub use ruled_pull::RuledPull;
 
 #[derive(Clone, Debug, Deserialize)]

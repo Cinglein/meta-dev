@@ -3,13 +3,16 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
 
-use meta_pull_query::{LiveData, LiveQuery, LiveReply, Pulls, Rulebook, WorkflowName};
-use meta_pulls::{BaseBranch, RequiredChecks};
+use meta_pull_query::{LiveData, LiveQuery, Rulebook, WorkflowName};
+use meta_pulls::{BaseBranch, RequiredChecks, RuleSource};
 use meta_schema::PullRequest;
 use meta_status::{Github, GithubFailure};
 
 use crate::request::project::{BranchName, ProgramName, Project};
 use crate::request::timed_command::{Finished, TimedCommand};
+use open_pages::OpenPages;
+
+mod open_pages;
 
 #[derive(Clone, Debug)]
 pub struct LiveGithub {
@@ -23,8 +26,7 @@ impl LiveGithub {
     const GRAPHQL: [&'static str; 6] = ["api", "graphql", "-F", "owner={owner}", "-F", "name={repo}"];
     const QUERY: &'static str = "-f";
     const API: &'static str = "api";
-    const REQUIRED: [&'static str; 2] =
-        ["--jq", "[.[] | select(.type == \"required_status_checks\") | .parameters.required_status_checks[].context]"];
+    const FILTER: &'static str = "--jq";
     const HEADED: [&'static str; 3] = ["pr", "list", "--head"];
     const SAME_REPOSITORY: [&'static str; 4] =
         ["--json", "number,isCrossRepository", "--jq", ".[] | select(.isCrossRepository | not) | .number"];
@@ -52,7 +54,7 @@ impl LiveGithub {
     }
 
     fn live(&self, query: &LiveQuery) -> Result<LiveData, GithubFailure> {
-        let pulls = self.pulls(query)?;
+        let pulls = OpenPages::new(self, query).read()?;
         let rules: Rulebook = pulls
             .bases()
             .into_iter()
@@ -62,18 +64,16 @@ impl LiveGithub {
         Ok(data.requiring(self.workflows.clone()))
     }
 
-    fn pulls(&self, query: &LiveQuery) -> Result<Pulls, GithubFailure> {
-        let field = query.field();
-        let words = Self::GRAPHQL.map(OsStr::new).into_iter().chain([OsStr::new(Self::QUERY), OsStr::new(&field)]);
-        let finished = self.ran(words).map_err(GithubFailure::new)?;
-        let reply = serde_json::from_str::<LiveReply>(finished.output()).ok().and_then(LiveReply::answered);
-        reply.ok_or_else(|| GithubFailure::new(finished))
+    fn rules(&self, base: &BaseBranch) -> Result<RequiredChecks, GithubFailure> {
+        RuleSource::ALL
+            .into_iter()
+            .try_fold(RequiredChecks::default(), |all, source| Ok(all.united(self.required(source, base)?)))
     }
 
-    fn rules(&self, base: &BaseBranch) -> Result<RequiredChecks, GithubFailure> {
-        let endpoint = base.rules_endpoint();
-        let words = [OsStr::new(Self::API), OsStr::new(&endpoint)].into_iter().chain(Self::REQUIRED.map(OsStr::new));
-        let printed = self.ran(words).and_then(Finished::succeeded).map_err(GithubFailure::new)?;
+    fn required(&self, source: RuleSource, base: &BaseBranch) -> Result<RequiredChecks, GithubFailure> {
+        let endpoint = base.endpoint(source);
+        let words = [Self::API, endpoint.as_str(), Self::FILTER, source.filter()].map(OsStr::new);
+        let printed = self.ran(words.into_iter()).and_then(Finished::succeeded).map_err(GithubFailure::new)?;
         serde_json::from_str(&printed).map_err(GithubFailure::new)
     }
 
