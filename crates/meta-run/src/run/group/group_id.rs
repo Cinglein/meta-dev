@@ -32,15 +32,6 @@ impl From<&Child> for GroupId {
     }
 }
 
-#[cfg(test)]
-impl std::str::FromStr for GroupId {
-    type Err = std::num::ParseIntError;
-
-    fn from_str(leader: &str) -> Result<Self, Self::Err> {
-        leader.trim().parse().map(Self)
-    }
-}
-
 impl fmt::Display for GroupId {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "-{}", self.0)

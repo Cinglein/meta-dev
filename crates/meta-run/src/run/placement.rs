@@ -34,36 +34,57 @@ impl Placement {
 
 #[cfg(test)]
 mod tests {
+    use super::super::group::Group;
+    use super::Placement;
     use crate::env_policy::EnvPolicy;
     use crate::run::Run;
+    use crate::run_failure::RunFailure;
     use std::time::{Duration, Instant};
 
-    const SHELL: &str = "bash";
+    const BASH: &str = "bash";
     const SCRIPT: &str = "-c";
-    const LEADS: [&str; 2] = [SCRIPT, "kill -0 -- -$$ 2>/dev/null && echo leader; true"];
-    const PROMPT: &str = "GIT_TERMINAL_PROMPT";
+    const LEADS: &str = "kill -0 -- -$$ 2>/dev/null && echo leader; echo -$$";
+    const ALONE: &str = "echo $$ > \"$0\"; exec sleep 5";
+    const ALIVE: &str = "kill -0 $0 2>/dev/null && echo alive; true";
     const PTY: &str = "script -qec \"$0\" /dev/null 2>/dev/null || script -q /dev/null sh -c \"$0\"";
-    const CHILD: &str = "--exact run::placement::tests::under_a_terminal_it_shares_the_callers_group --ignored";
-    const LEADER: &str = "leader\n";
-    const TERMINAL: &str = "/dev/tty";
+    const CHILD: &str =
+        "--exact run::placement::tests::in_a_terminal_it_shares_the_group_and_closing_refuses --ignored";
+    const LEADER: &str = "leader";
+    const PROMPT: &str = "GIT_TERMINAL_PROMPT";
     const PASSED: &str = "1 passed";
     const PATIENT: Duration = Duration::from_secs(5);
+    const LIMIT: Duration = Duration::from_millis(60);
 
     #[test]
     #[ignore = "run under a pseudo-terminal by the test below"]
-    fn under_a_terminal_it_shares_the_callers_group() {
-        let leads = Run::new(SHELL, EnvPolicy::Inherit).args(LEADS).terminal();
-        assert_eq!(leads.stdout(Instant::now() + PATIENT).unwrap(), "");
+    fn in_a_terminal_it_shares_the_group_and_closing_refuses() {
+        let shell = |script: &str| Run::new(BASH, EnvPolicy::Inherit).args([SCRIPT, script]);
+        let leads = shell(LEADS).terminal().stdout(Instant::now() + PATIENT).unwrap_or_default();
+        Group::all_ended();
+        let refused = shell(LEADS).ran(Instant::now() + PATIENT);
+        assert!(!leads.is_empty() && !leads.contains(LEADER) && matches!(refused, Err(RunFailure::Interrupted(_))));
     }
 
     #[test]
-    fn a_terminal_run_leads_its_own_group_unless_meta_has_a_terminal_and_never_stops_git_prompting() {
-        let leads = Run::new(SHELL, EnvPolicy::Inherit).args(LEADS).terminal().stdout(Instant::now() + PATIENT);
+    fn terminal_runs_lead_their_group_without_a_terminal_let_git_prompt_and_runs_and_helpers_leave_nothing_behind() {
+        let recorded = tempfile::NamedTempFile::new().unwrap();
+        let shell = |script: &str| Run::new(BASH, EnvPolicy::Inherit).args([SCRIPT, script]);
+        let helped = shell(ALONE).arg(recorded.path()).helped(LIMIT);
+        let pid = std::fs::read_to_string(recorded.path()).unwrap_or_default();
+        let alive = shell(ALIVE).arg(pid.trim()).stdout(Instant::now() + PATIENT).unwrap_or_default();
+        let shown = shell(LEADS).terminal().stdout(Instant::now() + PATIENT).unwrap_or_default();
+        let group = shown.lines().last().unwrap_or_default();
         let child = format!("{} {CHILD}", std::env::current_exe().unwrap().display());
-        let pty = Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, PTY, &child]).stdout(Instant::now() + PATIENT);
-        assert!(leads.is_ok_and(|leads| leads == std::fs::File::open(TERMINAL).map_or(LEADER, |_| "")));
-        assert!(pty.is_ok_and(|shown| shown.contains(PASSED)));
-        let terminal = Run::git(SHELL.as_ref()).terminal();
+        let pty = shell(PTY).arg(child).stdout(Instant::now() + PATIENT).unwrap_or_default();
+        let detached = std::fs::File::open(Placement::TERMINAL).map_or(LEADER, |_| group);
+        assert!(shown.starts_with(detached) && !Group::live().keys().any(|live| live.to_string() == group));
+        assert!(
+            matches!(helped, Err(RunFailure::TimedOut(_)))
+                && alive.is_empty()
+                && !pid.is_empty()
+                && pty.contains(PASSED)
+        );
+        let terminal = Run::git(BASH.as_ref()).terminal();
         assert!(terminal.command.get_envs().all(|(name, value)| name != PROMPT || value.is_none()));
     }
 }

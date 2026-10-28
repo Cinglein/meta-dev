@@ -16,6 +16,3 @@ pub use ran::Ran;
 pub use run::Run;
 pub use run_failure::RunFailure;
 pub use stderr::Stderr;
-
-#[cfg(test)]
-mod tests;
