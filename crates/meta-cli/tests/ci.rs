@@ -105,21 +105,29 @@ const FAILED_EVENT: &str = ": failed after";
 const COMPLETIONS: [&str; 5] =
     [": passed after", ": failed after", ": timed-out after", ": unavailable after", ": absent after"];
 
+#[path = "support/scenes.rs"]
+mod scenes;
 #[path = "support/seeded_log.rs"]
 mod seeded_log;
+use scenes::{Scene, Scenes};
 #[path = "support/skeleton.rs"]
 mod skeleton;
 use skeleton::Skeleton;
 #[path = "ci/merges.rs"]
 mod merges;
+use merges::MergeCountedByParents;
 #[path = "ci/pushes.rs"]
 mod pushes;
+use pushes::{OneCommitOneWatcher, StopJudgesPushedCommits, UnwritableSessionStart};
 #[path = "ci/review.rs"]
 mod review;
+use review::{CommitTextAndDates, ReadersAndSingleBranchClones, ReflogOffOrStateLocked};
 #[path = "ci/sessions.rs"]
 mod sessions;
+use sessions::{OtherSessionsNeverBlock, StartSecondCommitCounts};
 #[path = "ci/waits.rs"]
 mod waits;
+use waits::WaitCoversOnlyItsHead;
 
 struct Git;
 
@@ -231,7 +239,7 @@ struct Followed {
 }
 
 impl Followed {
-    fn up(none: &Repo, appeared: &Repo, hanging: &Repo) -> Self {
+    fn gathered(none: &Repo, appeared: &Repo, hanging: &Repo) -> Self {
         std::thread::scope(|scope| {
             let hung = scope.spawn(|| [hanging.hook(STOP, COMMIT), hanging.session_command(CI_WAIT).0]);
             let early = scope.spawn(|| appeared.hook(STOP, COMMIT));
@@ -411,80 +419,109 @@ impl fmt::Display for Repo {
     }
 }
 
-#[test]
-fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push() {
-    let repo = Repo::new(FAILURE);
-    let posted = repo.hook(POST, COMMIT);
-    let waited = repo.session_command(CI_WAIT);
-    let stop = repo.hook(STOP, COMMIT);
-    let settled = repo.settled();
-    let shown = format!("{posted}{}{stop}{}", waited.0, repo.hook(PRE, COMMIT));
-    let told = [&posted, &waited.0].iter().filter(|told| told.contains(JOB_FAILED)).count();
-    assert!(told == 1 && !waited.1.success() && stop.contains(BLOCK_REASON));
-    assert!(settled.contains(STEP_LISTED) && shown.contains(STEP_LISTED) && shown.contains(CI_LOG_HINT));
-    Git::run(repo.clone.path(), &NEXT_COMMIT);
-    let log = repo.session_command(CI_LOG).0;
-    Git::run(repo.clone.path(), &NEXT_COMMIT);
-    let repo = repo.passing();
-    repo.hook(POST, COMMIT);
-    repo.session_command(CI_WAIT);
-    let fixed = repo.hook(STOP, COMMIT);
-    assert!(log.contains(PANIC_BLOCK) && !log.contains(COMPILING) && !fixed.contains(BLOCK));
+struct FirstFailureBlocksStop;
+
+impl Scene for FirstFailureBlocksStop {
+    fn hold() {
+        let repo = Repo::new(FAILURE);
+        let posted = repo.hook(POST, COMMIT);
+        let waited = repo.session_command(CI_WAIT);
+        let stop = repo.hook(STOP, COMMIT);
+        let settled = repo.settled();
+        let shown = format!("{posted}{}{stop}{}", waited.0, repo.hook(PRE, COMMIT));
+        let told = [&posted, &waited.0].iter().filter(|told| told.contains(JOB_FAILED)).count();
+        assert!(told == 1 && !waited.1.success() && stop.contains(BLOCK_REASON));
+        assert!(settled.contains(STEP_LISTED) && shown.contains(STEP_LISTED) && shown.contains(CI_LOG_HINT));
+        Git::run(repo.clone.path(), &NEXT_COMMIT);
+        let log = repo.session_command(CI_LOG).0;
+        Git::run(repo.clone.path(), &NEXT_COMMIT);
+        let repo = repo.passing();
+        repo.hook(POST, COMMIT);
+        repo.session_command(CI_WAIT);
+        let fixed = repo.hook(STOP, COMMIT);
+        assert!(log.contains(PANIC_BLOCK) && !log.contains(COMPILING) && !fixed.contains(BLOCK));
+    }
+}
+
+struct PassingRunsLetStop;
+
+impl Scene for PassingRunsLetStop {
+    fn hold() {
+        let unstarted = Started::building(UNSTARTED, PATIENT);
+        let repo = Repo::new(SUCCESS);
+        Remote::pushed(&repo, PUSHED_BRANCH);
+        repo.hook(POST, PLAIN_PUSH);
+        let waited = repo.session_command(CI_WAIT);
+        assert!(waited.0.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
+        assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
+        Git::run(repo.clone.path(), &NEXT_COMMIT);
+        Stale::plant(&repo);
+        Remote::pushed(&repo, PUSHED_BRANCH);
+        repo.hook(POST, PLAIN_PUSH);
+        let unstarted = unstarted.join().unwrap();
+        let settled = unstarted.settled();
+        let wait = unstarted.session_command(CI_WAIT).1;
+        let unwatched = repo.hook(STOP, COMMIT);
+        assert!(
+            settled.contains(UNAVAILABLE)
+                && unstarted.hook(STOP, COMMIT).contains(UNSTARTED_STOP)
+                && !wait.success()
+                && unwatched.contains(NOT_WATCHED)
+        );
+    }
+}
+
+struct AbsentAndTimedOutRuns;
+
+impl Scene for AbsentAndTimedOutRuns {
+    fn hold() {
+        let repos =
+            [(NONE, PATIENT), (LATE, PATIENT), (BROKEN, PATIENT), (MIXED, PATIENT), (HANG, QUICK), (FROZEN, QUICK)]
+                .map(|(scenario, limits)| Started::building(scenario, limits))
+                .map(|started| started.join().unwrap());
+        let [absent, late, broken, mixed, hung, frozen] = repos.each_ref().map(Repo::settled);
+        let [none, appeared, _, _, hanging, _] = &repos;
+        let Followed { waited, none_stop, appeared_stop, hanging_stop, hanging_wait } =
+            Followed::gathered(none, appeared, hanging);
+        assert!(
+            absent.contains(ABSENT)
+                && absent.split_once(NO_RUN_YET).is_some_and(|(_, after)| !after.contains(NO_RUN_YET))
+                && none_stop.contains(&format!("{ABSENT_STOP}{INJECTED}"))
+                && !waited.1.success()
+                && waited.0.contains(&format!("CI absent{INJECTED}"))
+        );
+        assert!(
+            [&late, &hung, &frozen].iter().all(|settled| settled.contains(TIMED_OUT))
+                && [&appeared_stop, &hanging_stop].iter().all(|stop| stop.contains(TIMED_OUT_STOP))
+                && late.contains(NO_RUN_YET)
+                && late.contains(RUN_APPEARED)
+        );
+        assert!(
+            broken.contains(LIST_ERROR)
+                && broken.contains(VIEW_ERROR)
+                && broken.contains(FAILED_EVENT)
+                && mixed.contains(FOURTH_POLL)
+                && [broken, frozen].iter().all(|settled| settled.lines().all(|line| line.contains(INJECTED)))
+                && ![hung, hanging_stop, hanging_wait].iter().any(|real| real.contains(INJECTED))
+        );
+    }
 }
 
 #[test]
-fn passing_runs_let_the_agent_stop_and_unstarted_ones_do_not() {
-    let unstarted = Started::building(UNSTARTED, PATIENT);
-    let repo = Repo::new(SUCCESS);
-    Remote::pushed(&repo, PUSHED_BRANCH);
-    repo.hook(POST, PLAIN_PUSH);
-    let waited = repo.session_command(CI_WAIT);
-    assert!(waited.0.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
-    assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
-    Git::run(repo.clone.path(), &NEXT_COMMIT);
-    Stale::plant(&repo);
-    Remote::pushed(&repo, PUSHED_BRANCH);
-    repo.hook(POST, PLAIN_PUSH);
-    let unstarted = unstarted.join().unwrap();
-    let settled = unstarted.settled();
-    let wait = unstarted.session_command(CI_WAIT).1;
-    let unwatched = repo.hook(STOP, COMMIT);
-    assert!(
-        settled.contains(UNAVAILABLE)
-            && unstarted.hook(STOP, COMMIT).contains(UNSTARTED_STOP)
-            && !wait.success()
-            && unwatched.contains(NOT_WATCHED)
-    );
-}
-
-#[test]
-fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
-    let repos = [(NONE, PATIENT), (LATE, PATIENT), (BROKEN, PATIENT), (MIXED, PATIENT), (HANG, QUICK), (FROZEN, QUICK)]
-        .map(|(scenario, limits)| Started::building(scenario, limits))
-        .map(|started| started.join().unwrap());
-    let [absent, late, broken, mixed, hung, frozen] = repos.each_ref().map(Repo::settled);
-    let [none, appeared, _, _, hanging, _] = &repos;
-    let Followed { waited, none_stop, appeared_stop, hanging_stop, hanging_wait } =
-        Followed::up(none, appeared, hanging);
-    assert!(
-        absent.contains(ABSENT)
-            && absent.split_once(NO_RUN_YET).is_some_and(|(_, after)| !after.contains(NO_RUN_YET))
-            && none_stop.contains(&format!("{ABSENT_STOP}{INJECTED}"))
-            && !waited.1.success()
-            && waited.0.contains(&format!("CI absent{INJECTED}"))
-    );
-    assert!(
-        [&late, &hung, &frozen].iter().all(|settled| settled.contains(TIMED_OUT))
-            && [&appeared_stop, &hanging_stop].iter().all(|stop| stop.contains(TIMED_OUT_STOP))
-            && late.contains(NO_RUN_YET)
-            && late.contains(RUN_APPEARED)
-    );
-    assert!(
-        broken.contains(LIST_ERROR)
-            && broken.contains(VIEW_ERROR)
-            && broken.contains(FAILED_EVENT)
-            && mixed.contains(FOURTH_POLL)
-            && [broken, frozen].iter().all(|settled| settled.lines().all(|line| line.contains(INJECTED)))
-            && ![hung, hanging_stop, hanging_wait].iter().any(|real| real.contains(INJECTED))
-    );
+fn every_ci_scene_holds_when_the_scenes_run_beside_each_other() {
+    Scenes::together(&[
+        FirstFailureBlocksStop::hold,
+        PassingRunsLetStop::hold,
+        AbsentAndTimedOutRuns::hold,
+        MergeCountedByParents::hold,
+        StopJudgesPushedCommits::hold,
+        OneCommitOneWatcher::hold,
+        UnwritableSessionStart::hold,
+        CommitTextAndDates::hold,
+        ReadersAndSingleBranchClones::hold,
+        ReflogOffOrStateLocked::hold,
+        StartSecondCommitCounts::hold,
+        OtherSessionsNeverBlock::hold,
+        WaitCoversOnlyItsHead::hold,
+    ]);
 }

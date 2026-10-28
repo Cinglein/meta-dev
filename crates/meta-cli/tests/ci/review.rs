@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use super::scenes::Scene;
 use super::{
     BLOCK, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSHED_BRANCH, Planted, Remote, Repo, STOP, Session,
     StartFile,
@@ -50,73 +51,83 @@ impl Clones {
     }
 }
 
-#[test]
-fn commit_text_commit_dates_and_a_cd_first_never_hide_a_commit() {
-    let repo = Repo::new(FAILURE);
-    let clone: &Path = repo.clone.path();
-    let [away, cd, text, dated] = [(repo.sessions.path(), CD), (clone, CD), (clone, TEXT), (clone, DATED)]
-        .map(|(cwd, id)| Session { repo: &repo, cwd, id });
-    away.hook(PRE, CD_FIRST);
+pub struct CommitTextAndDates;
 
-    Git::run_at(clone, &NEXT_COMMIT, CD_AT);
-    Remote::pushed(&repo, PUSHED_BRANCH);
-    let first = cd.hook(STOP, READ);
-    let _: Vec<()> = [(TEXT, TEXT_AT), (DATED, DATED_AT)]
-        .iter()
-        .map(|(id, at)| StartFile::plant(repo.sessions.path(), id, at))
-        .collect();
-    text.hook(PRE, WRITE);
-    Git::run_at(clone, &SPOOF, TEXT_COMMIT_AT);
-    Remote::pushed(&repo, PUSHED_BRANCH);
-    let spoofed = text.hook(STOP, READ);
-    Git::run_at(clone, &OLD_AUTHOR, DATED_COMMIT_AT);
-    Git::run_at(clone, &AUTHOR_DATES, DATED_COMMIT_AT);
-    Remote::pushed(&repo, PUSHED_BRANCH);
-    assert!([first, spoofed, dated.hook(STOP, READ)].iter().all(|stop| stop.contains(BLOCK)));
+impl Scene for CommitTextAndDates {
+    fn hold() {
+        let repo = Repo::new(FAILURE);
+        let clone: &Path = repo.clone.path();
+        let [away, cd, text, dated] = [(repo.sessions.path(), CD), (clone, CD), (clone, TEXT), (clone, DATED)]
+            .map(|(cwd, id)| Session { repo: &repo, cwd, id });
+        away.hook(PRE, CD_FIRST);
+
+        Git::run_at(clone, &NEXT_COMMIT, CD_AT);
+        Remote::pushed(&repo, PUSHED_BRANCH);
+        let first = cd.hook(STOP, READ);
+        let _: Vec<()> = [(TEXT, TEXT_AT), (DATED, DATED_AT)]
+            .iter()
+            .map(|(id, at)| StartFile::plant(repo.sessions.path(), id, at))
+            .collect();
+        text.hook(PRE, WRITE);
+        Git::run_at(clone, &SPOOF, TEXT_COMMIT_AT);
+        Remote::pushed(&repo, PUSHED_BRANCH);
+        let spoofed = text.hook(STOP, READ);
+        Git::run_at(clone, &OLD_AUTHOR, DATED_COMMIT_AT);
+        Git::run_at(clone, &AUTHOR_DATES, DATED_COMMIT_AT);
+        Remote::pushed(&repo, PUSHED_BRANCH);
+        assert!([first, spoofed, dated.hook(STOP, READ)].iter().all(|stop| stop.contains(BLOCK)));
+    }
 }
 
-#[test]
-fn readers_and_single_branch_clones_are_judged_by_what_the_remote_holds() {
-    let repo = Repo::new(FAILURE);
-    let clone: &Path = repo.clone.path();
-    Remote::pushed(&repo, MAIN);
-    let single = Clones::made_with(&repo, &SINGLE);
-    let [reader, worker, lone] =
-        [(clone, READER), (clone, WORKER), (single.path(), LONE)].map(|(cwd, id)| Session { repo: &repo, cwd, id });
-    let _: Vec<String> =
-        [(&reader, READ), (&worker, WRITE), (&lone, WRITE)].iter().map(|(s, c)| s.hook(PRE, c)).collect();
-    Git::run(clone, &NEXT_COMMIT);
-    worker.hook(POST, WRITE);
-    Git::run(clone, &NEXT_COMMIT);
-    let read = reader.hook(STOP, READ);
-    let _: Vec<_> = [BRANCH.as_slice(), &NEXT_COMMIT, &PUSH_BRANCH]
-        .iter()
-        .map(|words| Git::run_at(single.path(), words, LATER))
-        .collect();
-    FailingHead::copy_from(&repo, single.path());
-    let pushed = lone.hook(STOP, READ);
-    Git::run(single.path(), &BACK_TO_MAIN);
-    let stops = [pushed, lone.hook(STOP, READ)];
-    assert!(!read.contains(BLOCK) && stops.iter().all(|stop| stop.contains(BLOCK) && !stop.contains(NOT_PUSHED)));
+pub struct ReadersAndSingleBranchClones;
+
+impl Scene for ReadersAndSingleBranchClones {
+    fn hold() {
+        let repo = Repo::new(FAILURE);
+        let clone: &Path = repo.clone.path();
+        Remote::pushed(&repo, MAIN);
+        let single = Clones::made_with(&repo, &SINGLE);
+        let [reader, worker, lone] =
+            [(clone, READER), (clone, WORKER), (single.path(), LONE)].map(|(cwd, id)| Session { repo: &repo, cwd, id });
+        let _: Vec<String> =
+            [(&reader, READ), (&worker, WRITE), (&lone, WRITE)].iter().map(|(s, c)| s.hook(PRE, c)).collect();
+        Git::run(clone, &NEXT_COMMIT);
+        worker.hook(POST, WRITE);
+        Git::run(clone, &NEXT_COMMIT);
+        let read = reader.hook(STOP, READ);
+        let _: Vec<_> = [BRANCH.as_slice(), &NEXT_COMMIT, &PUSH_BRANCH]
+            .iter()
+            .map(|words| Git::run_at(single.path(), words, LATER))
+            .collect();
+        FailingHead::copy_from(&repo, single.path());
+        let pushed = lone.hook(STOP, READ);
+        Git::run(single.path(), &BACK_TO_MAIN);
+        let stops = [pushed, lone.hook(STOP, READ)];
+        assert!(!read.contains(BLOCK) && stops.iter().all(|stop| stop.contains(BLOCK) && !stop.contains(NOT_PUSHED)));
+    }
 }
 
-#[test]
-fn a_reflog_that_is_off_or_an_unwritable_state_dir_fails_closed() {
-    let repo = Repo::new(FAILURE);
-    let clone: &Path = repo.clone.path();
-    Remote::pushed(&repo, PUSHED_BRANCH);
-    let quiet = Clones::made_with(&repo, &NO_REFLOG);
-    let [blind, locked] = [(quiet.path(), BLIND), (clone, LOCKED)].map(|(cwd, id)| Session { repo: &repo, cwd, id });
-    blind.hook(PRE, WRITE);
-    Git::run(quiet.path(), &NEXT_COMMIT);
-    Git::run(quiet.path(), &PUSH_ASIDE);
-    let off = blind.hook(STOP, READ);
-    std::fs::create_dir_all(clone.join(STATE_ROOT)).unwrap();
-    let open = Planted::locked(&clone.join(STATE_ROOT));
-    locked.hook(PRE, WRITE);
-    Git::run_at(clone, &NEXT_COMMIT, LATER);
-    let warned = locked.hook(POST, WRITE);
-    let stop = locked.hook(STOP, READ);
-    std::fs::set_permissions(clone.join(STATE_ROOT), open).unwrap();
-    assert!(off.contains(REFLOG_OFF) && warned.contains(NOT_WATCHED) && stop.contains(BLOCK));
+pub struct ReflogOffOrStateLocked;
+
+impl Scene for ReflogOffOrStateLocked {
+    fn hold() {
+        let repo = Repo::new(FAILURE);
+        let clone: &Path = repo.clone.path();
+        Remote::pushed(&repo, PUSHED_BRANCH);
+        let quiet = Clones::made_with(&repo, &NO_REFLOG);
+        let [blind, locked] =
+            [(quiet.path(), BLIND), (clone, LOCKED)].map(|(cwd, id)| Session { repo: &repo, cwd, id });
+        blind.hook(PRE, WRITE);
+        Git::run(quiet.path(), &NEXT_COMMIT);
+        Git::run(quiet.path(), &PUSH_ASIDE);
+        let off = blind.hook(STOP, READ);
+        std::fs::create_dir_all(clone.join(STATE_ROOT)).unwrap();
+        let open = Planted::locked(&clone.join(STATE_ROOT));
+        locked.hook(PRE, WRITE);
+        Git::run_at(clone, &NEXT_COMMIT, LATER);
+        let warned = locked.hook(POST, WRITE);
+        let stop = locked.hook(STOP, READ);
+        std::fs::set_permissions(clone.join(STATE_ROOT), open).unwrap();
+        assert!(off.contains(REFLOG_OFF) && warned.contains(NOT_WATCHED) && stop.contains(BLOCK));
+    }
 }

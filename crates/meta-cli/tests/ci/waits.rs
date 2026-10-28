@@ -1,3 +1,4 @@
+use super::scenes::Scene;
 use super::seeded_log::{SeededLog, TASK};
 use super::{BLOCK, COMMIT, Git, NEXT_COMMIT, Planted, Remote, Repo, SHELL, STOP, SUCCESS, TIMED_OUT_STOP};
 
@@ -40,18 +41,21 @@ impl Counted {
     }
 }
 
-#[test]
-fn on_a_detached_head_a_wait_covers_only_its_head_and_a_typical_stop_lists_the_remote_once() {
-    let repo = Repo::new(SUCCESS);
-    SeededLog::CLAIMED.plant(repo.origin.path());
-    Git::run(repo.clone.path(), &DETACH);
-    let unrecorded = Unresolved::pushed(&repo);
-    repo.meta(&WAIT_ON_CI);
-    let recorded = repo.hook(STOP, COMMIT);
-    Git::run(repo.clone.path(), &NEXT_COMMIT);
-    Counted::install(&repo);
-    let moved_on = Unresolved::pushed(&repo);
-    assert!(unrecorded.contains(TIMED_OUT_STOP) && unrecorded.contains(TASKLESS));
-    assert!(serde_json::from_str::<serde_json::Value>(&unrecorded).is_ok() && !recorded.contains(BLOCK));
-    assert!(moved_on.contains(TASKLESS) && Counted::calls(&repo) == STOP_CALLS);
+pub struct WaitCoversOnlyItsHead;
+
+impl Scene for WaitCoversOnlyItsHead {
+    fn hold() {
+        let repo = Repo::new(SUCCESS);
+        SeededLog::CLAIMED.plant(repo.origin.path());
+        Git::run(repo.clone.path(), &DETACH);
+        let unrecorded = Unresolved::pushed(&repo);
+        repo.meta(&WAIT_ON_CI);
+        let recorded = repo.hook(STOP, COMMIT);
+        Git::run(repo.clone.path(), &NEXT_COMMIT);
+        Counted::install(&repo);
+        let moved_on = Unresolved::pushed(&repo);
+        assert!(unrecorded.contains(TIMED_OUT_STOP) && unrecorded.contains(TASKLESS));
+        assert!(serde_json::from_str::<serde_json::Value>(&unrecorded).is_ok() && !recorded.contains(BLOCK));
+        assert!(moved_on.contains(TASKLESS) && Counted::calls(&repo) == STOP_CALLS);
+    }
 }
