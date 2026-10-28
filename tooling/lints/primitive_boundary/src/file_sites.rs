@@ -13,10 +13,16 @@ pub struct FileSites;
 
 impl FileSites {
     const OWNERS: [&str; 3] = ["std", "tokio", "unix"];
+    const PATHS: [&str; 2] = ["Path", "PathBuf"];
+    const QUERIES: [&str; 9] = [
+        "exists", "try_exists", "is_file", "is_dir", "metadata", "symlink_metadata",
+        "canonicalize", "read_dir", "read_link",
+    ];
     const MODULE: &str = "fs";
     const FILE: &str = "File";
     const PATH_SEPARATOR: char = ':';
     const LIST_SEPARATOR: char = ',';
+    const METHOD: char = '.';
 
     pub fn violations(file: &SourceFile) -> Vec<Violation> {
         file.text()
@@ -52,6 +58,17 @@ impl FileSites {
     fn access(trees: &[TokenTree]) -> Option<Ident> {
         match trees {
             [
+                TokenTree::Punct(dot),
+                TokenTree::Ident(query),
+                TokenTree::Group(arguments),
+                ..,
+            ] if dot.as_char() == Self::METHOD
+                && arguments.delimiter() == Delimiter::Parenthesis
+                && Name::from(query).matches::<Whole>(&Self::QUERIES) =>
+            {
+                Some(query.clone())
+            }
+            [
                 TokenTree::Ident(owner),
                 TokenTree::Punct(first),
                 TokenTree::Punct(second),
@@ -76,6 +93,12 @@ impl FileSites {
                 if *owner == Self::FILE && Name::from(opening).casing() == Casing::Lower =>
             {
                 Some(opening.clone())
+            }
+            [TokenTree::Ident(query), ..]
+                if Name::from(owner).matches::<Whole>(&Self::PATHS)
+                    && Name::from(query).matches::<Whole>(&Self::QUERIES) =>
+            {
+                Some(query.clone())
             }
             [TokenTree::Group(group), ..] if owns && group.delimiter() == Delimiter::Brace => {
                 let items: Vec<TokenTree> = group.stream().into_iter().collect();
