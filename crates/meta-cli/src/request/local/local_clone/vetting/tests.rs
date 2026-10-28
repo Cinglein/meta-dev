@@ -154,7 +154,7 @@ const OPEN: [&[&str]; 4] = [
     &["/trees/task-00000000000000b1/target/debug/out"],
     &["/trees/task-00000000000000b10/x"],
     &[],
-    &["/clone/.git/worktrees/task-00000000000000b1/HEAD"],
+    &["/clone/.git/worktrees/task-00000000000000b1/index"],
 ];
 const MOVED_REFS: &str = "c1 refs/heads/task-00000000000000b1\nc1 refs/worktree/bisect\n";
 const NO_LSOF: &str = "no lsof";

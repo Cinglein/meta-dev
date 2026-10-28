@@ -39,12 +39,14 @@ impl Git {
     }
 
     fn laid(dir: &Path, bare: bool) {
-        let git_dir = if bare { dir.to_path_buf() } else { dir.join(".git") };
-        std::fs::create_dir_all(git_dir.join("objects")).unwrap();
-        std::fs::create_dir_all(git_dir.join("refs")).unwrap();
-        std::fs::write(git_dir.join("HEAD"), "ref: refs/heads/main\n").unwrap();
-        let config = format!("[core]\n\trepositoryformatversion = 0\n\tbare = {bare}\n[maintenance]\n\tauto = false\n");
-        std::fs::write(git_dir.join("config"), config).unwrap();
+        let (git_dir, shape) = if bare { (dir.to_path_buf(), "--bare") } else { (dir.join(".git"), "-q") };
+        assert!(Self::run(dir, &["init", "-q", "--template=", shape, "."]).status.success());
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(git_dir.join("config"))
+            .unwrap()
+            .write_all(b"[maintenance]\n\tauto = false\n")
+            .unwrap();
     }
 
     fn link_origin(dir: &Path, url: &str) {

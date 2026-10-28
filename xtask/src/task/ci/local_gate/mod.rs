@@ -224,7 +224,7 @@ mod tests {
     const SURFACED: &str = "; surfaces changed\n";
     const TIMED_ALL: &str = ": fmt 1.0s, clippy 1.0s,";
     const PUSHED_AT_HEAD: &str = "main";
-    const SECOND_PUSH: &str = ".git/refs/remotes/origin/second";
+    const SECOND_PUSH: &str = "second";
     const LISTING: &str = "printf '7\\n'\n";
     const LISTED: &str = "7";
     const HEAD: &str = "HEAD";
@@ -256,7 +256,7 @@ mod tests {
         let named = || gate.head_branch(&fixture.revision(HEAD).parse().unwrap());
         let pushed = named().ok() == PUSHED_AT_HEAD.parse().ok();
         assert!(pushed && gate.ready().is_ok() && LocalGate::METADATA.contains(&ALL_FEATURES));
-        fixture.write(SECOND_PUSH, &fixture.revision(HEAD));
+        fixture.pushed(SECOND_PUSH);
         let several = LocalGate::refused(named(), Unready::Unnamed);
         fixture.write(FAKE_GH, LISTING);
         let listed = gate.open_pull(&PUSHED_AT_HEAD.parse().unwrap()).unwrap() == LISTED.parse().ok();

@@ -42,11 +42,8 @@ mod tests {
 
     const WORKTREE: &str = "linked";
     const ENTRY: &str = ".git";
-    const HEAD: &str = "HEAD";
     const COMMON: &str = "commondir";
     const ADMIN: &str = ".git/worktrees/linked";
-    const MAIN_HEAD: &str = "ref: refs/heads/main\n";
-    const LINKED_HEAD: &str = "ref: refs/heads/linked\n";
     const BACK_TO_COMMON: &str = "../..\n";
 
     struct Layout;
@@ -56,8 +53,6 @@ mod tests {
             let admin = main.join(ADMIN);
             std::fs::create_dir_all(&admin).unwrap();
             std::fs::create_dir_all(main.join(WORKTREE)).unwrap();
-            std::fs::write(main.join(ENTRY).join(HEAD), MAIN_HEAD).unwrap();
-            std::fs::write(admin.join(HEAD), LINKED_HEAD).unwrap();
             std::fs::write(admin.join(COMMON), BACK_TO_COMMON).unwrap();
             let link = format!("{} {}\n", GitLink::PREFIX, admin.display());
             std::fs::write(main.join(WORKTREE).join(ENTRY), link).unwrap();

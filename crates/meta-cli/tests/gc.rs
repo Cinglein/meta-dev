@@ -17,7 +17,6 @@ const DIRTY: &str = "task-00000000000000a3";
 const BUSY: &str = "task-00000000000000a4";
 const GONE: &str = "task-00000000000000a5";
 const PAUSED: &str = "task-00000000000000a6";
-const DANGLING: &str = "1111111111111111111111111111111111111111\n";
 const RECORDED: [&str; 6] = [MERGED, OPEN, DIRTY, BUSY, GONE, PAUSED];
 const ADDED: [&str; 5] = [MERGED, OPEN, DIRTY, BUSY, PAUSED];
 const STRAY: &str = "stray";
@@ -227,7 +226,7 @@ impl Scene {
         Git::run(&trees.join(DIRTY), &["update-ref", "WIP", "HEAD"]);
         Git::run(&trees.join(DIRTY), &["reset", "-q", "--hard", "HEAD~1"]);
         Git::run(&trees.join(DIRTY), &["update-ref", "-d", "ORIG_HEAD"]);
-        std::fs::write(self.clone.path().join(".git/worktrees").join(PAUSED).join("MERGE_HEAD"), DANGLING).unwrap();
+        Git::run(&trees.join(PAUSED), &["update-ref", "CHERRY_PICK_HEAD", "HEAD"]);
         std::fs::create_dir_all(self.clone.path().join(".git/meta-local")).unwrap();
         let trail: String = RECORDED.iter().map(|task| Created(&trees, task).to_string()).collect();
         std::fs::write(self.clone.path().join(TRAIL), trail).unwrap();

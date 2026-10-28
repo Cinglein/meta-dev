@@ -153,15 +153,7 @@ impl Git {
     }
 
     fn head(dir: &Path) -> String {
-        let git_dir = dir.join(".git");
-        let text = std::fs::read_to_string(git_dir.join("HEAD")).ok().filter(|_| git_dir.is_dir());
-        let read = text.and_then(|text| match text.trim().strip_prefix("ref: ") {
-            Some(name) => std::fs::read_to_string(git_dir.join(name)).ok(),
-            None => Some(text),
-        });
-        read.unwrap_or_else(|| String::from_utf8(Self::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap())
-            .trim()
-            .to_owned()
+        String::from_utf8(Self::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap().trim().to_owned()
     }
 
     fn link_origin(dir: &Path, url: &str) {

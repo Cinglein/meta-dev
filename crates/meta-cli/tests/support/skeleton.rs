@@ -1,32 +1,24 @@
-use std::fmt;
+use std::io::Write as _;
 use std::path::Path;
+use std::process::Command;
 
 pub enum Skeleton {
     Bare,
     Working,
 }
 
-struct Head<'name>(&'name str);
-
-impl fmt::Display for Head<'_> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(formatter, "ref: refs/heads/{}", self.0)
-    }
-}
-
 impl Skeleton {
-    const BARE: &'static str = "[core]\n\trepositoryformatversion = 0\n\tbare = true\n[maintenance]\n\tauto = false\n";
-    const WORKING: &'static str =
-        "[core]\n\trepositoryformatversion = 0\n\tbare = false\n[maintenance]\n\tauto = false\n";
+    const INIT: [&'static str; 4] = ["init", "-q", "--template=", "-b"];
+    const MAINTENANCE: &'static str = "[maintenance]\n\tauto = false\n";
 
     pub fn lay(self, dir: &Path, branch: &str) {
-        let (git_dir, config) = match self {
-            Self::Bare => (dir.to_path_buf(), Self::BARE),
-            Self::Working => (dir.join(".git"), Self::WORKING),
+        let (git_dir, shape) = match self {
+            Self::Bare => (dir.to_path_buf(), "--bare"),
+            Self::Working => (dir.join(".git"), "-q"),
         };
-        std::fs::create_dir_all(git_dir.join("objects")).unwrap();
-        std::fs::create_dir_all(git_dir.join("refs")).unwrap();
-        std::fs::write(git_dir.join("HEAD"), Head(branch).to_string()).unwrap();
-        std::fs::write(git_dir.join("config"), config).unwrap();
+        let init = Command::new("git").arg("-C").arg(dir).args(Self::INIT).args([branch, shape, "."]).status();
+        assert!(init.unwrap().success());
+        let config = std::fs::OpenOptions::new().append(true).open(git_dir.join("config"));
+        config.unwrap().write_all(Self::MAINTENANCE.as_bytes()).unwrap();
     }
 }
