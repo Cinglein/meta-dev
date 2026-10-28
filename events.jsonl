@@ -1190,3 +1190,4 @@
 {"at":"2026-10-28T22:26:05.124906Z","actor":"claude-lead","kind":"TaskOpened","task":"task-198554abbe4ca8a0","text":"GitHub service: per-project local process owns all gh calls; batched GraphQL poll with ETags; local cache served to meta, agents and hooks with age; stale fails closed. Reads first.","division":"architecture-and-planning"}
 {"at":"2026-10-28T22:26:22.562285Z","actor":"claude-slowci","kind":"SchemaVersion","version":7}
 {"at":"2026-10-28T22:26:23.913877Z","actor":"claude-slowci","kind":"TaskOpened","task":"task-796fe17ba6190be3","text":"Main red: ci_wait tests wait in real time; make the clock a value","division":"performance-and-cost","addresses":["concern-cfb56a6e3975d7ac"]}
+{"at":"2026-10-28T22:26:35.040341Z","actor":"claude-slowci","kind":"TaskClaimed","task":"task-796fe17ba6190be3"}
