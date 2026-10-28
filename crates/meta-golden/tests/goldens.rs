@@ -1,16 +1,22 @@
 #![allow(clippy::unwrap_used)]
 
+use std::os::unix::ffi::OsStrExt as _;
+use std::os::unix::process::CommandExt as _;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Output};
 
 use meta_golden::{Golden, Goldens, Replay};
 
 const SCENARIO: &str = "injected-ident";
-const RECORDED_LEN: usize = 5;
+const RECORDED_LEN: usize = 6;
 const TEXTS: [&str; 2] = ["a\nb", "a\nc"];
-const REPLAYED: [&str; 3] = ["someone@example.com", "1+someone@users.noreply.github.com", "no recording answers"];
+const REPLAYED: [&str; 4] =
+    ["someone@example.com", "1+someone@users.noreply.github.com", "no recording answers", "recordings ran out"];
 const ASKED: [&str; 2] = ["var", "GIT_AUTHOR_IDENT"];
-const UNRECORDED: [&str; 1] = ["var"];
+const PROGRAMS: [&str; 2] = ["git", "gh"];
+const GIT_DIR: &str = "GIT_DIR";
+const LINE_END: &str = "\n";
+const TOPLEVEL: [&str; 2] = ["rev-parse", "--show-toplevel"];
 const NO_BRANCH: [&str; 4] = ["rev-parse", "--verify", "--quiet", "refs/heads/none"];
 const SCENARIO_FILE: &str = "toml";
 const NO_BIN: &str = "";
@@ -44,19 +50,28 @@ fn a_golden_passes_its_own_text_and_fails_on_any_other() {
 }
 
 #[test]
-fn the_replayer_answers_each_call_with_the_next_recording_and_refuses_an_unrecorded_one() {
-    let trail = tempfile::NamedTempFile::new().unwrap();
-    let replayed = |asked: &[&str]| {
+fn the_replayer_answers_each_call_with_the_next_recording_and_refuses_once_they_run_out() {
+    let root = tempfile::tempdir().unwrap();
+    let [git, gh] = PROGRAMS;
+    let replayed = |program: &str, asked: &[&str]| {
         let mut replay = Command::new(env!("CARGO_BIN_EXE_meta-replay"));
-        let replay = replay.args(asked).env(Replay::TRAIL, trail.path());
+        let replay = replay.arg0(program).args(asked).current_dir(root.path()).env(Replay::TRAIL, root.path());
         replay.env(Replay::RECORDINGS, Goldens::workspace().dir().join(SCENARIO)).output().unwrap()
     };
-    let answers = [ASKED, ASKED, ASKED].map(|asked| replayed(&asked));
-    assert!(answers.iter().all(|answer| answer.status.success()));
-    let [author, noreply, repeated] = answers.map(|answer| String::from_utf8(answer.stdout).unwrap());
-    let [no_branch, unrecorded] = [&NO_BRANCH[..], &UNRECORDED].map(replayed);
-    let [foreign, noreply_email, unanswered] = REPLAYED;
-    assert!(author.contains(foreign) && noreply.contains(noreply_email) && repeated == noreply);
-    let complaint = String::from_utf8_lossy(&unrecorded.stderr);
-    assert!(!no_branch.status.success() && !unrecorded.status.success() && complaint.contains(unanswered));
+    let [author, noreply, exhausted] = [ASKED, ASKED, ASKED].map(|asked| replayed(git, &asked));
+    let [outside, inside, no_branch] = [&TOPLEVEL[..], &TOPLEVEL, &NO_BRANCH].map(|asked| replayed(git, asked));
+    let [foreign, noreply_email, unanswered, ran_out] = REPLAYED;
+    let shown = |answer: &Output| String::from_utf8_lossy(&answer.stdout).into_owned();
+    let root_line = [root.path().canonicalize().unwrap().as_os_str().as_bytes(), LINE_END.as_bytes()].concat();
+    assert!(shown(&author).contains(foreign) && shown(&noreply).contains(noreply_email) && inside.stdout == root_line);
+    let real = Command::new(git).args(TOPLEVEL).current_dir(root.path()).env_remove(GIT_DIR).output().unwrap();
+    let other_program = replayed(gh, &ASKED);
+    assert!(
+        outside.status.code() == real.status.code()
+            && real.status.code() != Some(1)
+            && [&author, &noreply, &inside].iter().all(|answer| answer.status.success())
+            && [&exhausted, &no_branch, &other_program].iter().all(|answer| answer.status.code() == Some(1))
+    );
+    let complained = [&exhausted, &other_program].map(|answer| String::from_utf8_lossy(&answer.stderr).into_owned());
+    assert!(complained[0].contains(ran_out) && complained[1].contains(unanswered), "{complained:?}");
 }
