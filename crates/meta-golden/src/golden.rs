@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::difference::Difference;
 use crate::golden_failure::GoldenFailure;
+use crate::goldens::Goldens;
 use mode::Mode;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -11,10 +12,20 @@ pub struct Golden(PathBuf);
 
 impl Golden {
     pub const BLESS: &'static str = Mode::BLESS;
+    const SNAPSHOTS: &'static str = "snapshots";
+    const MODULE_SEPARATOR: &'static str = "::";
+    const SNAPSHOT: &'static str = "snap";
 
     #[must_use]
     pub fn new(path: &Path) -> Self {
         Self(path.to_path_buf())
+    }
+
+    #[must_use]
+    pub fn for_test(module: &str, name: &str) -> Self {
+        let root = Goldens::workspace().dir().join(Self::SNAPSHOTS);
+        let dir = module.split(Self::MODULE_SEPARATOR).fold(root, |dir, part| dir.join(part));
+        Self(dir.join(name).with_extension(Self::SNAPSHOT))
     }
 
     pub fn checked(&self, actual: &str) -> Result<(), GoldenFailure> {
