@@ -1075,3 +1075,4 @@
 {"at":"2026-10-28T16:07:50.267028Z","actor":"claude-cpucut","kind":"TaskLinked","task":"task-067b28fe28b30740","pr":111}
 {"at":"2026-10-28T16:13:40.357408Z","actor":"claude-minorsc","kind":"TaskLinked","task":"task-f92dc3388135ab01","pr":110}
 {"at":"2026-10-28T16:13:44.664059Z","actor":"claude-minorsc","kind":"TaskClaimed","task":"task-4b10585564659b7d"}
+{"at":"2026-10-28T16:15:19.526882Z","actor":"claude-minorsc","kind":"TaskLinked","task":"task-4b10585564659b7d","pr":112}
