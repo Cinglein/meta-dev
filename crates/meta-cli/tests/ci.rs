@@ -13,8 +13,8 @@ const REPLAY: Option<&str> = option_env!("CARGO_BIN_EXE_gh-replay");
 const UNBUILT: &str = "gh-replay is built with feature `replay`; run the tests with --all-features";
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\npoll_millis = 2\n";
 const PATIENT: &str =
-    "expected_millis = 5\nbackoff_millis = 5\nbackoff_cap_millis = 20\ntimeout_millis = 3000\ngh_millis = 1000\n";
-const STALLED: &str = "expected_millis = 5\ntimeout_millis = 3000\ngh_millis = 1000\nstop_millis = 40\n";
+    "expected_millis = 5\nbackoff_millis = 5\nbackoff_cap_millis = 20\ntimeout_millis = 400\ngh_millis = 350\n";
+const STALLED: &str = "expected_millis = 5\ntimeout_millis = 400\ngh_millis = 350\nstop_millis = 40\n";
 const DEADLINE: &str =
     "expected_millis = 30\nbackoff_millis = 60\nbackoff_cap_millis = 60\ntimeout_millis = 100\ngh_millis = 20\n";
 const SETTLE_POLL: Duration = Duration::from_millis(2);
@@ -25,7 +25,6 @@ const FAILURE: Answer =
     Answer { checks: "01-failed-test-time", logs: &["02-failed-test-time-ci-log", "03-failed-test-time-gate-log"] };
 const SUCCESS: Answer = Answer { checks: "04-passed", logs: &[] };
 const NOT_WATCHED: &str = "CI not watched for";
-const PLAIN_PUSH: &str = "git push";
 const PUSHED: &str = "feature";
 const NEXT_COMMIT: [&str; 5] = ["commit", "-q", "--allow-empty", "-m", "next"];
 const POST: &str = "post-tool-use";
@@ -261,9 +260,8 @@ impl Repo {
         let sessions = tempfile::tempdir().unwrap();
         let origin = sessions.path().join(Self::ORIGIN);
         let clone = tempfile::tempdir().unwrap();
-        assert!(Git::run(sessions.path(), &["init", "-q", "--bare", Self::ORIGIN]).status.success());
-        Git::run(clone.path(), &["init", "-q", "-b", PUSHED]);
-        Git::run(clone.path(), &["remote", "add", "origin", origin.to_str().unwrap()]);
+        assert!(Git::run(sessions.path(), &["init", "-q", "--bare", "-b", PUSHED, Self::ORIGIN]).status.success());
+        Git::run(sessions.path(), &["clone", "-q", Self::ORIGIN, clone.path().to_str().unwrap()]);
         Git::run_at(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"], Git::LONG_AGO);
         StartFile::plant(sessions.path(), SESSION_FILE, "0");
         let repo = Self { origin, clone, sessions, answer };
@@ -359,14 +357,12 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_pus
 #[test]
 fn a_passing_push_lets_the_agent_stop_and_a_commit_whose_state_cannot_be_written_is_not_watched() {
     let repo = Repo::new(SUCCESS);
-    Git::pushed(&repo, PUSHED);
-    repo.hook(POST, PLAIN_PUSH);
+    repo.hook(POST, COMMIT);
     let waited = repo.session_command(CI_WAIT);
     assert!(waited.0.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
     assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     Stale::plant(&repo);
-    Git::pushed(&repo, PUSHED);
-    repo.hook(POST, PLAIN_PUSH);
+    repo.hook(POST, COMMIT);
     assert!(repo.hook(STOP, COMMIT).contains(NOT_WATCHED));
 }
