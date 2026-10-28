@@ -1085,3 +1085,4 @@
 {"at":"2026-10-28T16:51:24.653515Z","actor":"claude-flaky","kind":"TaskClaimed","task":"task-c1075cc0cfdf0ec2"}
 {"at":"2026-10-28T16:53:44.696072Z","actor":"claude-flaky","kind":"TaskLinked","task":"task-c1075cc0cfdf0ec2","pr":114}
 {"at":"2026-10-28T16:56:59.491375Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-778b6387845c9a2c","text":"Not needed (owner): the lead orchestrates agents directly and can stop them; no meta override, so nothing to spoof."}
+{"at":"2026-10-28T16:57:51.241575Z","actor":"claude-lead","kind":"TaskOpened","task":"task-678ef62e3cf8dbca","text":"Functional core step 1: shared pieces (command result type, decided-or-need-facts type, typed git/gh ports over meta-run, parser crate with golden harness, regenerate-goldens CI job).","division":"performance-and-cost"}
