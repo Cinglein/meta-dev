@@ -935,3 +935,4 @@
 {"at":"2026-10-28T08:06:13.793085Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-b8afc88d9376a330","text":"Claim git calls stop at claim_millis (10 min); on timeout Run::alone kills git only, leaving ssh/index-pack helpers in meta's group.","division":"features-and-maintenance","severity":"minor"}
 {"at":"2026-10-28T08:06:15.389451Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-7ecc21803d9347a2","text":"macOS: inherited ignored signals aren't detected, so nohup meta and background meta from scripts die on HUP/INT (also xtask gate).","division":"features-and-maintenance","severity":"minor"}
 {"at":"2026-10-28T08:11:05.136353Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-9c5d64605234df8b"}
+{"at":"2026-10-28T08:11:06.975035Z","actor":"claude-lead","kind":"TaskDone","task":"task-9c5d64605234df8b"}
