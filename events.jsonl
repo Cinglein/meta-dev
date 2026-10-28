@@ -1093,3 +1093,4 @@
 {"at":"2026-10-28T16:58:54.397297Z","actor":"claude-lead","kind":"TaskDone","task":"task-c1075cc0cfdf0ec2"}
 {"at":"2026-10-28T16:59:11.115976Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-06aae741b4d67744","text":"Folded into the general golden-file harness (task-678ef62e): one mechanism for git, gh and meta output snapshots."}
 {"at":"2026-10-28T16:59:14.872718Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-78d1508b51b0e18a","text":"Differential tests on the golden harness: replay real meta/log under main and PR, diff hook verdicts across binaries; golden black-box scenarios."}
+{"at":"2026-10-28T16:59:17.286600Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-678ef62e3cf8dbca","text":"Functional core step 1: command result type, decided-or-need-facts type, typed git/gh ports over meta-run, general golden-file harness (git, gh replayer, meta output) with regenerate command and CI job."}
