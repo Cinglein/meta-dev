@@ -1,4 +1,5 @@
-use std::path::Path;
+use std::env;
+use std::path::{Path, PathBuf};
 
 use meta_log::Snapshot;
 use meta_severity::{Scales, Strands};
@@ -17,11 +18,18 @@ impl Stranding {
         policy: &Policy,
         read: impl FnOnce() -> Result<Snapshot, Failure>,
     ) -> Result<(), Failure> {
-        Self::rescaling(root, policy)?.map_or(Ok(()), |before| Self::judged(&before, policy.scales(), read()))
+        let databases = env::var_os("CARGO_HOME")
+            .map(PathBuf::from)
+            .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".cargo")))
+            .unwrap_or_default()
+            .join("git/db");
+        Self::rescaling(root, policy, &databases)?
+            .map_or(Ok(()), |before| Self::judged(&before, policy.scales(), read()))
     }
 
-    pub fn rescaling(root: &Path, policy: &Policy) -> Result<Option<Scales>, Failure> {
-        let before = PriorPolicy::scales_at(&Revision::merge_base(root, policy.branch(Branch::Base))?)?;
+    pub fn rescaling(root: &Path, policy: &Policy, databases: &Path) -> Result<Option<Scales>, Failure> {
+        let before =
+            PriorPolicy::scales_at(&Revision::merge_base(root, policy.branch(Branch::Base))?, databases)?;
         Ok(Some(before).filter(|before| before != policy.scales()))
     }
 
@@ -40,7 +48,7 @@ impl Stranding {
 mod tests {
     use meta_log::Snapshot;
     use meta_schema::{Event, NewConcern, Record};
-    use meta_severity::Scales;
+    use meta_severity::{Scale, Scales};
     use settings::EmbeddedDefaults;
     use task::Policy;
 
@@ -50,6 +58,9 @@ mod tests {
 
     const PRIOR: &str = "[[scales.features-and-maintenance]]\nname = \"blocker\"\nmeaning = \"x\"\n\n[[scales.features-and-maintenance]]\nname = \"nuisance\"\nmeaning = \"x\"\n";
     const OLD_LEVELS: &str = r#"[{"name": "blocker", "meaning": "x"}, {"name": "nuisance", "meaning": "x"}]"#;
+    const LOCK: &str = "Cargo.lock";
+    const PIN: &str = "[[package]]\nname = \"meta-xtask\"\nsource = \"git+https://example.invalid/meta-dev?tag=v0#";
+    const UNSOURCED: &str = "[[package]]\nname = \"meta-xtask\"\n";
     const TOP: &str = "features-and-maintenance";
     const MAJOR: &str = "major";
     const CAPS: &str = "\n[budgets.features-and-maintenance-critical]";
@@ -84,14 +95,22 @@ mod tests {
 
     #[test]
     fn scales_changed_since_the_merge_base_policy_or_default_levels_are_judged_and_unchanged_ones_are_not() {
-        let [fixture, relevelled] = [Fixture::new(), Fixture::new()];
-        fixture.write(PriorPolicy::PATH, PRIOR).branch();
+        let [fixture, relevelled, shipped, pinned, unpinned] = [(); 5].map(|()| Fixture::new());
+        let current = serde_json::to_string(&Scale::top_default()).unwrap();
+        fixture.write(PriorPolicy::PATH, PRIOR).write(PriorPolicy::DEFAULT_LEVELS, &current).branch();
         relevelled.write(PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS).branch();
+        shipped.write(PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS).committed();
+        pinned.write(LOCK, &format!("{PIN}{}\"\n", shipped.revision("HEAD").trim())).branch();
+        unpinned.write(LOCK, UNSOURCED).branch();
+        let databases = shipped.root().parent().unwrap();
         let uncapped = Policy::DEFAULTS.split(CAPS).next().unwrap_or_default();
         let same: Policy = toml::from_str(&format!("{uncapped}\n{PRIOR}")).unwrap();
         let before: Scales = serde_json::from_str(OVERRIDDEN).unwrap();
-        assert_eq!(Stranding::rescaling(fixture.root(), &Policy::defaults()).unwrap(), Some(before));
-        assert_eq!(Stranding::rescaling(fixture.root(), &same).unwrap(), None);
-        assert!(Stranding::rescaling(relevelled.root(), &Policy::defaults()).unwrap().is_some());
+        let read = |fixture: &Fixture, policy: &Policy| Stranding::rescaling(fixture.root(), policy, databases);
+        assert_eq!(read(&fixture, &Policy::defaults()).unwrap(), Some(before));
+        assert_eq!(read(&fixture, &same).unwrap(), None);
+        assert!(read(&relevelled, &Policy::defaults()).unwrap().is_some());
+        assert!(read(&pinned, &Policy::defaults()).unwrap().is_some());
+        assert!(read(&unpinned, &Policy::defaults()).is_err());
     }
 }

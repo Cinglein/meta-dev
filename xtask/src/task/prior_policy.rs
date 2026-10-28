@@ -31,7 +31,7 @@ impl PriorPolicy {
         Self::parsed(revision.present(Path::new(Self::PATH))?)
     }
 
-    pub fn scales_at(revision: &Revision) -> Result<Scales, Failure> {
+    pub fn scales_at(revision: &Revision, _databases: &Path) -> Result<Scales, Failure> {
         let levels = revision.present(Path::new(Self::DEFAULT_LEVELS))?;
         let parsed = levels.map(|text| serde_json::from_str(&text).map_err(Failure::PriorLevels)).transpose()?;
         Self::read_at(revision)?.scaled(&parsed.unwrap_or_else(Scale::top_default))
