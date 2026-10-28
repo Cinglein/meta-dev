@@ -3,8 +3,8 @@ use std::path::PathBuf;
 
 use syn::visit::Visit;
 use syn::{
-    Attribute, Expr, ExprCall, ExprMacro, ExprMethodCall, ExprPath, Ident, ImplItemFn, ItemImpl,
-    ItemMod, Macro, PathArguments,
+    Attribute, Expr, ExprCall, ExprMacro, ExprMethodCall, ExprPath, Field, Ident, ImplItemFn,
+    ItemEnum, ItemImpl, ItemMod, ItemStruct, Macro, PathArguments,
 };
 
 mod door;
@@ -26,6 +26,7 @@ pub struct TextSites {
     generics: Vec<Name>,
     doors: Vec<Door>,
     uses: Vec<Door>,
+    mentions: Vec<Door>,
     found: BTreeMap<PathBuf, Vec<Ident>>,
 }
 
@@ -47,6 +48,7 @@ impl TextSites {
             generics: Vec::new(),
             doors: Vec::new(),
             uses: Vec::new(),
+            mentions: Vec::new(),
             found: BTreeMap::new(),
         };
         let sites = files.iter().fold(empty, |sites, file| {
@@ -87,7 +89,10 @@ impl TextSites {
             .filter(|door| {
                 self.uses.iter().any(|seen| {
                     seen.is_active_among(&open) && door.is_reached_by(seen, &self.doors)
-                })
+                }) || self
+                    .mentions
+                    .iter()
+                    .any(|seen| seen.is_active_among(&open) && door.is_mentioned_by(seen))
             })
             .cloned()
             .collect();
@@ -98,11 +103,17 @@ impl TextSites {
         }
     }
 
-    fn noted(&mut self, callee: Option<&Ident>, target: Option<Name>) {
+    fn noted(&mut self, callee: Option<&Ident>, target: Option<Name>, mentioned: Vec<Name>) {
         let concrete = target.filter(|target| !self.generics.contains(target));
         let seen =
             callee.and_then(|callee| Door::of_callee(callee, concrete, self.within.as_ref()));
+        let named: Vec<Name> = mentioned
+            .into_iter()
+            .filter(|name| !self.generics.contains(name))
+            .collect();
+        let mentions = Door::mentioned(named, self.within.as_ref());
         self.uses.extend(seen);
+        self.mentions.extend(mentions);
     }
 
     fn sited(&mut self, handler: Option<Ident>) {
@@ -177,6 +188,7 @@ impl<'ast> Visit<'ast> for TextSites {
         self.noted(
             Some(&call.method),
             Door::first_type(call.turbofish.as_ref()),
+            Door::names_in_arguments(call.turbofish.as_ref()),
         );
         syn::visit::visit_expr_method_call(self, call);
     }
@@ -191,8 +203,8 @@ impl<'ast> Visit<'ast> for TextSites {
             .nth(1)
             .map(|segment| Name::from(&segment.ident))
             .filter(|owner| !owner.matches::<Whole>(&Self::TRAIT_OWNERS));
-        let generic = last.and_then(|segment| match &segment.arguments {
-            PathArguments::AngleBracketed(arguments) => Door::first_type(Some(arguments)),
+        let arguments = last.and_then(|segment| match &segment.arguments {
+            PathArguments::AngleBracketed(arguments) => Some(arguments),
             _ => None,
         });
         let qualified = expr
@@ -201,7 +213,8 @@ impl<'ast> Visit<'ast> for TextSites {
             .and_then(|qself| Door::target_of(&qself.ty));
         self.noted(
             last.map(|segment| &segment.ident),
-            generic.or(qualified).or(owner),
+            Door::first_type(arguments).or(qualified).or(owner),
+            Door::names_in_arguments(arguments),
         );
         syn::visit::visit_expr_path(self, expr);
     }
@@ -218,13 +231,63 @@ impl<'ast> Visit<'ast> for TextSites {
     }
 
     fn visit_macro(&mut self, invocation: &'ast Macro) {
-        let seen = Door::in_macro(invocation, self.within.as_ref());
+        let tokens = Door::unknown_tokens(invocation);
+        let seen = Door::in_macro(invocation, self.within.as_ref())
+            .into_iter()
+            .chain(Door::in_unknown(&tokens, self.within.as_ref()));
+        let mentions = Door::mentioned_in(tokens, self.within.as_ref());
         self.uses.extend(seen);
+        self.mentions.extend(mentions);
+    }
+
+    fn visit_item_struct(&mut self, item: &'ast ItemStruct) {
+        let attributes: Vec<&Attribute> = item
+            .attrs
+            .iter()
+            .chain(item.fields.iter().flat_map(|field| field.attrs.iter()))
+            .collect();
+        let names = [Name::from(&item.ident)]
+            .into_iter()
+            .chain(
+                item.fields
+                    .iter()
+                    .flat_map(|field| Door::names_in(&field.ty)),
+            )
+            .collect();
+        let seen = Door::of_type_item(&attributes, names, self.within.as_ref());
+        self.mentions.extend(seen);
+    }
+
+    fn visit_item_enum(&mut self, item: &'ast ItemEnum) {
+        let fields: Vec<&Field> = item
+            .variants
+            .iter()
+            .flat_map(|variant| variant.fields.iter())
+            .collect();
+        let attributes: Vec<&Attribute> = item
+            .attrs
+            .iter()
+            .chain(
+                item.variants
+                    .iter()
+                    .flat_map(|variant| variant.attrs.iter()),
+            )
+            .chain(fields.iter().flat_map(|field| field.attrs.iter()))
+            .collect();
+        let names = [Name::from(&item.ident)]
+            .into_iter()
+            .chain(fields.iter().flat_map(|field| Door::names_in(&field.ty)))
+            .collect();
+        let seen = Door::of_type_item(&attributes, names, self.within.as_ref());
+        self.mentions.extend(seen);
     }
 
     fn visit_attribute(&mut self, attribute: &'ast Attribute) {
-        let seen = Door::in_attribute(attribute, self.within.as_ref());
+        let tokens = Door::signal_tokens(attribute);
+        let seen = Door::in_unknown(&tokens, self.within.as_ref());
+        let mentions = Door::mentioned_in(tokens, self.within.as_ref());
         self.uses.extend(seen);
+        self.mentions.extend(mentions);
     }
 
     fn visit_expr_call(&mut self, call: &'ast ExprCall) {
