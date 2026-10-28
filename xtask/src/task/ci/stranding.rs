@@ -66,8 +66,6 @@ mod tests {
     const TIP: &str = "HEAD";
     const LOST: &str = "0123abc";
     const MOVED: &str = "4567def";
-    const OTHER: &str = "[[package]]\nname = \"other\"\n";
-    type Judged = Option<Option<Scales>>;
     const UNSOURCED: &str = "[[package]]\nname = \"meta-xtask\"\n";
     const TOP: &str = "features-and-maintenance";
     const MAJOR: &str = "major";
@@ -106,11 +104,10 @@ mod tests {
         let fixture = Fixture::new();
         let current = serde_json::to_string(&Scale::top_default()).unwrap();
         fixture.write(PriorPolicy::PATH, PRIOR).write(PriorPolicy::DEFAULT_LEVELS, &current).branch();
-        let databases = fixture.root();
         let uncapped = Policy::DEFAULTS.split(CAPS).next().unwrap_or_default();
         let same: Policy = toml::from_str(&format!("{uncapped}\n{PRIOR}")).unwrap();
         let before: Scales = serde_json::from_str(OVERRIDDEN).unwrap();
-        let read = |fixture: &Fixture, policy: &Policy| Stranding::rescaling(fixture.root(), policy, databases);
+        let read = |fixture: &Fixture, policy: &Policy| Stranding::rescaling(fixture.root(), policy, fixture.root());
         assert_eq!(read(&fixture, &Policy::defaults()).unwrap(), Some(before));
         assert_eq!(read(&fixture, &same).unwrap(), None);
     }
@@ -122,17 +119,17 @@ mod tests {
             database
         }
 
-        fn decided(databases: &Path, [then, now]: [&str; 2], policy_file: &str) -> Judged {
+        fn decided(databases: &Path, [then, now]: [&str; 2], policy_file: &str) -> Result<Option<Scales>, ()> {
             let consumer = Fixture::new();
             consumer.write(LOCK, then).write(policy_file, PRIOR).branch();
             consumer.write(LOCK, now);
-            Stranding::rescaling(consumer.root(), &Policy::defaults(), databases).ok()
+            Stranding::rescaling(consumer.root(), &Policy::defaults(), databases).map_err(|_| ())
         }
 
-        fn referenced(databases: &Path, levels: &str) -> Judged {
+        fn referenced(databases: &Path, levels: &str) -> Result<Option<Scales>, ()> {
             let tracked = Fixture::new();
             tracked.write(PriorPolicy::PATH, PRIOR).write(PriorPolicy::DEFAULT_LEVELS, levels).branch();
-            Stranding::rescaling(tracked.root(), &Policy::defaults(), databases).ok()
+            Stranding::rescaling(tracked.root(), &Policy::defaults(), databases).map_err(|_| ())
         }
     }
 
@@ -146,15 +143,16 @@ mod tests {
         let current = serde_json::to_string(&Scale::top_default()).unwrap();
         let [old, now] = [OLD_LEVELS, &current].map(|levels| Stranding::referenced(databases, levels));
         let decided = |then: &str, now: &str, file| Stranding::decided(databases, [then, now], file);
+        assert_ne!(old, now);
         let judged = [
             decided(&late, &moved, PriorPolicy::PATH),
             decided(&early, &moved, PriorPolicy::PATH),
             decided(&lost, &moved, PriorPolicy::PATH),
-            decided(&lost, &lost, PriorPolicy::PATH),
-            decided(OTHER, &late, PriorPolicy::PATH),
+            decided(&late, &late, PriorPolicy::PATH),
+            decided("", &late, PriorPolicy::PATH),
             decided(UNSOURCED, &late, PriorPolicy::PATH),
-            decided(OTHER, &moved, TOP),
+            decided("", &moved, TOP),
         ];
-        assert_eq!(judged, [old, now.clone(), now.clone(), now.clone(), now.clone(), now, Some(None)]);
+        assert_eq!(judged, [old, now.clone(), now.clone(), now.clone(), now.clone(), now, Ok(None)]);
     }
 }
