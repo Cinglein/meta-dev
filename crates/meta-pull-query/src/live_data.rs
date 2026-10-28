@@ -27,7 +27,7 @@ impl LiveData {
     #[must_use]
     pub fn pull(&self, pull_request: PullRequest) -> Option<RuledPull<'_>> {
         let pull = self.pulls.pull(pull_request)?;
-        self.rules.required(pull.base()).map(|required| RuledPull::new(pull, required))
+        RuledPull::new(pull, self.rules.required(pull.base()))
     }
 
     #[must_use]

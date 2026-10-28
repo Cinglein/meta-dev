@@ -1,4 +1,5 @@
 use std::ffi::OsString;
+use std::fmt;
 use std::str::FromStr;
 
 use crate::request::ci::Commit;
@@ -15,6 +16,12 @@ impl Repository {
         let (owner, name) = self.0.split_once('/').unwrap_or_default();
         let values = [format!("sha={commit}"), format!("owner={owner}"), format!("name={name}")];
         values.into_iter().flat_map(|value| [OsString::from(Self::FIELD), OsString::from(value)])
+    }
+}
+
+impl fmt::Display for Repository {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.0)
     }
 }
 

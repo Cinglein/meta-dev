@@ -14,6 +14,10 @@ impl Rulebook {
 
 impl FromIterator<(BaseBranch, RequiredChecks)> for Rulebook {
     fn from_iter<Rules: IntoIterator<Item = (BaseBranch, RequiredChecks)>>(rules: Rules) -> Self {
-        Self(rules.into_iter().collect())
+        Self(rules.into_iter().fold(HashMap::new(), |mut book, (base, required)| {
+            let united = book.remove(&base).unwrap_or_default().united(required);
+            book.insert(base, united);
+            book
+        }))
     }
 }

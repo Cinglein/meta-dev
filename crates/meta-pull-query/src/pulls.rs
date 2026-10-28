@@ -3,7 +3,7 @@ mod trunk;
 
 use std::collections::HashMap;
 
-use meta_pulls::{BaseBranch, LivePull, RuleSource};
+use meta_pulls::{BaseBranch, LivePull};
 use meta_schema::PullRequest;
 use serde::Deserialize;
 
@@ -34,17 +34,12 @@ impl Pulls {
             .values()
             .flatten()
             .chain(self.open.pull_requests().nodes())
-            .map(|pull| pull.base().clone())
+            .filter_map(LivePull::open_base)
+            .cloned()
             .collect();
         bases.sort_by_key(ToString::to_string);
         bases.dedup();
         bases
-    }
-
-    #[must_use]
-    pub fn protection(&self, base: &BaseBranch) -> Option<RuleSource> {
-        let mut pulls = self.linked.values().flatten().chain(self.open.pull_requests().nodes());
-        pulls.any(|pull| pull.open_base() == Some(base)).then_some(RuleSource::Protection)
     }
 
     #[must_use]
