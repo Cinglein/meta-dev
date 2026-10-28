@@ -1,0 +1,42 @@
+[
+    Flagged(
+        Listed(
+            "flags:\nheartbeat stale: never ticked\n",
+        ),
+    ),
+    Listed(
+        Listed(
+            "heartbeat 2026-10-26 12:00Z, 60s ago\nflags:\norphan #16: open, no task\n",
+        ),
+    ),
+    Listed(
+        Listed(
+            "heartbeat 2026-10-26 12:00Z, 900s ago\nflags:\norphan #16: open, no task\n",
+        ),
+    ),
+    Flagged(
+        Listed(
+            "heartbeat 2026-10-26 12:00Z, 901s ago\nflags:\nheartbeat stale: 901s since the last tick, limit 900s\norphan #16: open, no task\n",
+        ),
+    ),
+    Listed(
+        Listed(
+            "heartbeat 2026-10-26 12:00Z, 1s ago\nflags: none\n",
+        ),
+    ),
+    Listed(
+        Listed(
+            "heartbeat 2026-10-26 12:00Z, 0s ago\nflags: none\n",
+        ),
+    ),
+    Listed(
+        Listed(
+            "heartbeat 2026-10-26 12:00Z, 0s ago\nflags: none\n",
+        ),
+    ),
+    Flagged(
+        Listed(
+            "heartbeat 2026-10-26 12:00Z, 0s ago\nflags:\nheartbeat clock skew: snapshot is 3600s in the future, limit 60s\n",
+        ),
+    ),
+]

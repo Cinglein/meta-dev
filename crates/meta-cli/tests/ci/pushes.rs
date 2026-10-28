@@ -1,6 +1,5 @@
-use super::{COMMIT, PRE, Planted, Repo, SUCCESS, Session};
+use super::{COMMIT, PASSED, PRE, Planted, Repo, SUCCESS, Session};
 
-const PASSED: &str = "passed";
 const STUCK: &str = "STUCK9";
 const START_DIR: &str = "meta-sessions/STUCK9";
 const DENIED: &str = "\"permissionDecision\":\"deny\"";

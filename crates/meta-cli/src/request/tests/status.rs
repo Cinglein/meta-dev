@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 
+use meta_golden::Golden;
 use meta_log::LogStore as _;
-
 use meta_pull_query::LiveQuery;
 use meta_severity::Scales;
 use meta_status::{Github, GithubFailure};
@@ -12,10 +12,8 @@ use crate::request::output::Output;
 use crate::request::status_view::StatusView;
 
 const OFFLINE: &str = "offline";
-const FLAGGED: &str = "unknown github: offline\n";
-const HEADER: &str = "flags:\nunknown github: offline\nfeatures-and-maintenance\n  ";
-const SHOWN_LINK: &str = " assigned | #12 unknown | held by owner | --dashed text\n";
-const TALLY: &str = "severity, open concerns and issues (counts roll up):\n";
+const TASK: &str = "$TASK";
+const ASKED: &str = "pr12:";
 const STATUS_FLAGS: [&str; 3] = [PROGRAM, "status", "--flags"];
 
 struct Asked(RefCell<String>);
@@ -37,13 +35,11 @@ fn status_asks_github_about_linked_pull_requests_and_a_second_link_of_one_is_ref
     meta.run(OWNER, &[CLAIM, &task]).unwrap();
     meta.run(OWNER, &[LINK, &task, PULL_REQUEST]).unwrap();
     let asked = Asked(RefCell::default());
-    let flags = asked.answer(&meta, StatusView::Flags);
-    let tree = asked.answer(&meta, StatusView::Tree).to_string();
-    assert!(matches!(&flags, Output::Flagged(_)) && flags.to_string() == FLAGGED && asked.0.borrow().contains("pr12:"));
-    assert!(tree.starts_with(HEADER) && tree.ends_with(&format!("{task}{SHOWN_LINK}{TALLY}")));
-    let parsed = Request::try_from(STATUS_FLAGS.map(String::from).to_vec()).unwrap();
-    assert!(matches!(parsed, Request::Status(StatusView::Flags)));
+    let [flags, tree] = [StatusView::Flags, StatusView::Tree].map(|view| asked.answer(&meta, view));
+    let parsed = Request::try_from(STATUS_FLAGS.map(String::from).to_vec());
     let written = meta.0.read().unwrap().records().len();
-    let refused = meta.run(OWNER, &[LINK, &task, PULL_REQUEST]).unwrap_err().to_string();
-    assert!(refused.contains("#12 is already linked") && meta.0.read().unwrap().records().len() == written);
+    let refused = meta.run(OWNER, &[LINK, &task, PULL_REQUEST]).map_err(|failure| failure.to_string());
+    let shown = format!("{flags:?}\n{tree}{parsed:?}\n{refused:?}\n").replace(&task, TASK);
+    Golden::for_test(module_path!(), "status").checked(&shown).unwrap();
+    assert!(asked.0.borrow().contains(ASKED) && meta.0.read().unwrap().records().len() == written);
 }

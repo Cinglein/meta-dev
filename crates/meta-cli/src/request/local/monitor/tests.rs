@@ -4,6 +4,7 @@ mod stale_marks;
 use std::path::Path;
 
 use chrono::{DateTime, TimeDelta, Utc};
+use meta_golden::Golden;
 
 use super::Monitor;
 use super::patrol::Patrol;
@@ -44,39 +45,8 @@ const CWDS: &str =
 p100\nn/p-worktrees/t\np101\nn/p-worktrees/t\np105\nn/p-worktrees/t\np106\nn/other\np110\nn/p-worktrees/t\np120\nn/other
 p130\nn/p\np140\nn/p\np200\nn/p\np201\nn/p\np300\nn/other\np102\nn/other\np60\nn/p\n";
 const UPTIME: &str = "12:00  up 26 days, 19:01, 1 user, load averages: 1.00 2.00 3.01\n";
-const LOOKED: &str = "cwds 400,500,501,502,503,504,100,101,106,110,120,130,140,200,300,60\n";
 const STOPPING: &str = "stop = [\"orphaned\", \"cpu-time\", \"wall-time\"]\nspared = []";
-const STOPPED: &str = "cwds 400,500,501,502,503,504,100,101,106,110,120,130,140,200,300,60\n-TERM -100\npause 5s\ncwds 100,102,105\n-KILL 100\n";
-const REPORT: &str = "monitor 2026-10-27 12:00Z, machine load 3.01 over 15 min (context only)
-obvious:
-  monitor: agent work pid 100 orphaned past its limit, target -100: bash -c while true; do :; done
-  monitor: no agent marker under a root, pid 120 orphaned past its limit, target 120: tail -f log
-  monitor: no agent marker under a root, pid 140 orphaned past its limit, target 140: bash -c source env.sh && make
-  monitor: no agent marker under a root, pid 200 orphaned past its limit, target 200: bash -c while true; do :; done
-watch:
-  pid 504 cargo test: cpu 2400s flat, 1 ticks since 2026-10-27 12:00Z, last 2026-10-27 12:00Z
-processes under this project's roots:
-  not agent work, no marker, root p, pid 500 age 36000s cpu 1s 0.00: -zsh
-  not agent work, no marker, root p, pid 501 age 36000s cpu 7200s 0.05: claude
-  not agent work, no marker, root p, pid 502 age 32400s cpu 1s 0.00: node mcp-server
-  agent, session alive, marker, root p-worktrees, pid 503 age 10s cpu 0s 0.00: zsh -c source snapshot-zsh-1.sh && eval 'cargo t
-  agent, session alive, marker, root p-worktrees, pid 504 age 18000s cpu 2400s 0.99: cargo test
-  agent, marker, root p-worktrees, pid 100 orphaned age 64800s cpu 17460s 0.27: bash -c while true; do :; done
-  agent, marker, root p-worktrees, pid 101 age 1s cpu 0s 0.00: sleep 1
-  agent, marker, root p-worktrees, pid 110 orphaned age 600s cpu 0s 0.00: sleep 600
-  unsure, no marker, no root, pid 120 orphaned age 64800s cpu 1s 0.00: tail -f log
-  unsure, no marker, root p, pid 130 orphaned age 540s cpu 2400s 0.99: cargo run
-  unsure, no marker, root p, pid 140 orphaned age 64800s cpu 1s 0.00: bash -c source env.sh && make
-  unsure, no marker, root p, pid 200 orphaned age 64800s cpu 14400s 0.27: bash -c while true; do :; done
-  not agent work, no marker, root p, pid 60 orphaned age 1s cpu 0s 0.00: meta monitor tick
-";
 const PROMOTING: &str = "watch_ticks = 2\nkept_entries = 6";
-const TRAIL: &str = "2026-10-27 12:05Z monitor: no agent marker under a root, pid 201 orphaned past its limit, target 201: bash -c while true; do :; done
-2026-10-27 12:05Z monitor: watched long enough, pid 504 cargo test: cpu 2700s rising, 2 ticks since 2026-10-27 12:00Z, last 2026-10-27 12:05Z
-2026-10-27 12:10Z monitor: watched long enough, pid 505 cargo test: cpu 2700s flat, 2 ticks since 2026-10-27 12:05Z, last 2026-10-27 12:10Z
-2026-10-27 13:01Z monitor: process table unreadable
-2026-10-27 13:02Z monitor failed: settings unreadable
-";
 const LOOP: [&str; 2] = ["  100     1   100", "  201     1   201"];
 const JOINED: [&str; 2] =
     ["  101   100   100", "  505   503   503   05:00:00 0:40:00.00  99.0 cargo test\n  101   100   100"];
@@ -98,24 +68,27 @@ impl Watch {
         state.text().unwrap().is_empty().then(|| state.replaced(MARKED).unwrap());
         Monitor::patrolled(git_dir, &Patrol::new(&settings.unwrap(), host), now).unwrap()
     }
+
+    fn shown(host: &FakeMachine, after: &str) -> String {
+        format!("{host}{after}\n")
+    }
+
+    fn reported(overrides: &str) -> String {
+        let git_dir = tempfile::tempdir().unwrap();
+        let host = FakeMachine::new(&[SCENE, AFTER], CWDS, UPTIME);
+        let report = Watch::patrolled(&host, git_dir.path(), overrides, TimeDelta::zero());
+        Watch::shown(&host, &format!("succeeds: {}\n{report}", report.exit_code() == std::process::ExitCode::SUCCESS))
+    }
 }
 
 #[test]
 fn by_default_the_monitor_signals_nothing_and_reports_this_projects_processes_in_two_tiers() {
-    let git_dir = tempfile::tempdir().unwrap();
-    let host = FakeMachine::new(&[SCENE, AFTER], CWDS, UPTIME);
-    let report = Watch::patrolled(&host, git_dir.path(), "", TimeDelta::zero());
-    assert_eq!(host.to_string(), LOOKED);
-    assert_eq!(report.to_string(), REPORT);
+    Golden::for_test(module_path!(), "report").checked(&Watch::reported("")).unwrap();
 }
 
 #[test]
 fn opted_in_stopping_spares_the_owner_shell_claude_its_children_other_projects_and_a_mixed_group() {
-    let git_dir = tempfile::tempdir().unwrap();
-    let host = FakeMachine::new(&[SCENE, AFTER], CWDS, UPTIME);
-    let found = Watch::patrolled(&host, git_dir.path(), STOPPING, TimeDelta::zero());
-    assert_eq!(host.to_string(), STOPPED);
-    assert!(matches!(found, Output::Flagged(_)));
+    Golden::for_test(module_path!(), "stopping").checked(&Watch::reported(STOPPING)).unwrap();
 }
 
 #[test]
@@ -141,5 +114,6 @@ fn watch_items_persist_into_obvious_and_the_trail_keeps_no_repeats_failures_or_b
     let heartbeat = HeartbeatSettings::try_from(&Config::default()).unwrap();
     let report = Monitor::Report.answer(&clone, &heartbeat).unwrap().to_string();
     assert!(ticks.iter().all(|tick| matches!(tick, Output::Flagged(_))) && report == ticks[4].to_string());
-    assert_eq!(Output::Listed(Listed::new("")).raised_with(recent).to_string(), TRAIL);
+    let trail = Output::Listed(Listed::new("")).raised_with(recent).to_string();
+    Golden::for_test(module_path!(), "trail").checked(&trail).unwrap();
 }

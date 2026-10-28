@@ -1,6 +1,4 @@
-use super::{BLOCK, CI_WAIT, COMMIT, DEADLINE, Git, NEXT_COMMIT, PASSED_EVENT, POST, Repo, STOP, SUCCESS};
-
-const EXPECTED: &str = ".git/meta-ci/expected";
+use super::{BLOCK, CI_WAIT, COMMIT, DEADLINE, EXPECTED, Git, NEXT_COMMIT, PASSED_EVENT, POST, Repo, STOP, SUCCESS};
 const NAMELESS: &str = "origin.git";
 const FIRST_POLL: &str = "30";
 const UNCHECKED_EVENT: &str = ": unchecked after";

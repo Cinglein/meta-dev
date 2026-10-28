@@ -1,0 +1,63 @@
+[
+    (
+        Total,
+        Some(
+            Budget {
+                division: Division {
+                    top: PerformanceAndCost,
+                    below: [],
+                },
+                measure: TestWallTime,
+                allowance: Whole(
+                    Duration(
+                        Millis(
+                            8000,
+                        ),
+                    ),
+                ),
+                window: PerChange,
+                source: Ci,
+                warning: WarningLine(
+                    Percent(
+                        60,
+                    ),
+                ),
+                tolerance: None,
+                overspend: Block,
+            },
+        ),
+    ),
+    (
+        PriceTolerance,
+        Some(
+            Budget {
+                division: Division {
+                    top: PerformanceAndCost,
+                    below: [],
+                },
+                measure: MutantPrice,
+                allowance: Whole(
+                    Share(
+                        Percent(
+                            100,
+                        ),
+                    ),
+                ),
+                window: PerChange,
+                source: Ci,
+                warning: WarningLine(
+                    Percent(
+                        60,
+                    ),
+                ),
+                tolerance: Some(
+                    Percent(
+                        25,
+                    ),
+                ),
+                overspend: Block,
+            },
+        ),
+    ),
+]
+[]
