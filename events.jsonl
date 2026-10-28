@@ -868,3 +868,4 @@
 {"at":"2026-10-28T00:44:04.955178Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-15761e89811112e8","text":"Test-line share ignores integration tests under tests/, so test bloat can move there unmeasured."}
 {"at":"2026-10-28T00:44:06.582157Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-be820ca7e77035de","text":"Monitor never marks a loop escaped from a short agent command, so it is reported, never stopped; leases close it."}
 {"at":"2026-10-28T00:44:08.165331Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-054e144922a5cf38","text":"Basho policy.toml uses deprecated keys; its .gitignore lacks meta.local.toml; meta init/upgrade should write both."}
+{"at":"2026-10-28T00:44:09.754146Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-8e18408c1ffecb96","text":"Consumers never have default_levels.json at the merge base, so a meta-xtask bump changing default levels goes unjudged."}
