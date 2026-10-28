@@ -7,6 +7,8 @@ pub enum Refusal {
     Inside { path: PathBuf, git: PathBuf },
     Unknown { directory: PathBuf, said: String },
     Unrun { directory: PathBuf, failure: io::Error },
+    Escaped { path: PathBuf, area: PathBuf },
+    Dangling { path: PathBuf },
 }
 
 impl fmt::Display for Refusal {
@@ -23,6 +25,17 @@ impl fmt::Display for Refusal {
             }
             Refusal::Unrun { directory, failure } => {
                 write!(formatter, "{}: git did not run: {failure}", directory.display())
+            }
+            Refusal::Escaped { path, area } => {
+                write!(
+                    formatter,
+                    "{} resolves outside {}; meta files stay in their area",
+                    path.display(),
+                    area.display()
+                )
+            }
+            Refusal::Dangling { path } => {
+                write!(formatter, "{} is a link to nothing; the door does not follow it", path.display())
             }
         }
     }

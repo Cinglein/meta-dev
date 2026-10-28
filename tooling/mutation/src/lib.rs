@@ -6,8 +6,8 @@ pub use scope::Scope;
 pub use shard_plan::ShardPlan;
 pub use trigger_event::TriggerEvent;
 
+use meta_door::kinds::File;
 use meta_door::{Change, Door, Opening};
-use std::fs::File;
 
 use sysinfo::{ProcessesToUpdate, System};
 

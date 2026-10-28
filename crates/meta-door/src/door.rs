@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::admin_file::AdminFile;
 use crate::change::Change;
 use crate::entry::Entry;
+use crate::git_dirs::GitDirs;
 use crate::opening::Opening;
 use crate::pair::Pair;
 
@@ -30,8 +31,14 @@ impl Door {
 
     pub fn paired(from: impl Into<Entry>, to: impl Into<Entry>, pair: Pair) -> io::Result<()> {
         let from = from.into();
-        let source = if pair == Pair::Symlink { from.path().to_path_buf() } else { from.cleared()? };
-        pair.applied(&source, &to.into().cleared()?)
+        let to = to.into().cleared()?;
+        let source = if pair == Pair::Symlink {
+            let pointed = to.parent().map_or_else(|| from.path().to_path_buf(), |parent| parent.join(from.path()));
+            GitDirs::outside(pointed).map(|_| from.path().to_path_buf())?
+        } else {
+            from.cleared()?
+        };
+        pair.applied(&source, &to)
     }
 
     pub fn listed(path: impl Into<Entry>) -> io::Result<Vec<PathBuf>> {
@@ -57,7 +64,7 @@ impl Door {
             .map_or(true, |mut entries| entries.next().is_none())
             .then_some(())
             .ok_or(io::ErrorKind::AlreadyExists)?;
-        crate::git_dirs::GitDirs::outside(git_dir.to_path_buf())?;
+        GitDirs::outside(git_dir.to_path_buf())?;
         Self::SKELETON.iter().try_for_each(|dir| fs::create_dir_all(git_dir.join(dir)))?;
         fs::write(git_dir.join(Self::HEAD), [Self::UNBORN, branch, Self::NEWLINE].concat())?;
         fs::write(git_dir.join(Self::CONFIG), [layout.core(), config].concat())

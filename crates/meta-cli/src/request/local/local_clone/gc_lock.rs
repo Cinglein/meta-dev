@@ -1,4 +1,4 @@
-use std::fs::File;
+use meta_door::kinds::File;
 
 use meta_door::{MetaStore, Opening};
 

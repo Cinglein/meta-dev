@@ -10,7 +10,7 @@ license.workspace = true
 dangling-pause = []
 skeleton = []
 
-[dev-dependencies]
+[dependencies]
 tempfile.workspace = true
 
 [lints]

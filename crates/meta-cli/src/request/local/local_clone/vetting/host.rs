@@ -12,7 +12,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::sync::{Mutex, PoisonError};
 
-use meta_door::{AdminFile, Change, Door};
+use meta_door::kinds::AdminFile;
+use meta_door::{Change, Door};
 
 use super::alternates::Alternates;
 use super::cause::Cause;

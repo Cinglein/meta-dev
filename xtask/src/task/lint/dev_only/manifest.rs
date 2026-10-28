@@ -36,7 +36,8 @@ impl Manifest {
             .flatten()
             .filter_map(|(dependency, spec)| {
                 let crate_name: CrateName = dependency.parse().ok()?;
-                let enabled = Self::named(spec.get(Self::FEATURES).and_then(Value::as_array).into_iter().flatten());
+                let listed = spec.get(Self::FEATURES).and_then(Value::as_array).into_iter().flatten();
+                let enabled: BTreeSet<String> = listed.filter_map(Value::as_str).map(str::to_owned).collect();
                 let door = doors.iter().find(|door| door.package().as_ref() == Some(&crate_name));
                 let gated = door.and_then(|door| door.gates().intersection(&enabled).next().cloned());
                 match (policy.file_door().dev_only().contains(&crate_name), gated) {
@@ -52,9 +53,5 @@ impl Manifest {
     fn gates(&self) -> BTreeSet<String> {
         let features = self.table.get(Self::FEATURES).and_then(Value::as_table);
         features.into_iter().flat_map(|features| features.keys().cloned()).collect()
-    }
-
-    fn named<'value>(values: impl Iterator<Item = &'value Value>) -> BTreeSet<String> {
-        values.filter_map(Value::as_str).map(str::to_owned).collect()
     }
 }

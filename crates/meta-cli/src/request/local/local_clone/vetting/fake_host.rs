@@ -23,8 +23,7 @@ use crate::request::local::recorded_worktree::RecordedWorktree;
 use crate::request::local::worktree_id::WorktreeId;
 use fake_batch::FakeBatch;
 use fake_roots::FakeRoots;
-use std::fs::Permissions;
-use std::os::unix::fs::PermissionsExt;
+use meta_door::kinds::{Permissions, PermissionsExt};
 
 pub const TASK: &str = "task-00000000000000b1";
 pub const PATH: &str = "/trees/task-00000000000000b1";

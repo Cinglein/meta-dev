@@ -3,14 +3,15 @@ mod change;
 mod door;
 mod entry;
 mod git_dirs;
+pub mod kinds;
 #[cfg(feature = "skeleton")]
 mod layout;
 mod meta_store;
 mod opening;
 mod pair;
+mod scratch;
 mod stored;
 
-pub use admin_file::AdminFile;
 pub use change::Change;
 pub use door::Door;
 pub use entry::Entry;
@@ -19,3 +20,4 @@ pub use layout::Layout;
 pub use meta_store::MetaStore;
 pub use opening::Opening;
 pub use pair::Pair;
+pub use scratch::Scratch;

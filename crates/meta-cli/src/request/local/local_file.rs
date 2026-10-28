@@ -5,7 +5,7 @@ use std::fmt;
 use std::io::{ErrorKind, Write as _};
 use std::path::{Path, PathBuf};
 
-use std::fs::File;
+use meta_door::kinds::File;
 
 use meta_door::{Change, Door, Entry, Opening, Pair};
 

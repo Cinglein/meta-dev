@@ -31,7 +31,7 @@ impl Entry {
     pub(crate) fn cleared(self) -> io::Result<PathBuf> {
         match self {
             Entry::Checked(path) => GitDirs::outside(path),
-            Entry::Stored(stored) => Ok(stored.into_path()),
+            Entry::Stored(stored) => stored.cleared(),
         }
     }
 }

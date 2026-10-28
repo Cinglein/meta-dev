@@ -1,10 +1,9 @@
-use meta_door::{Change, Door, Opening};
-use std::fs::File;
+use meta_door::kinds::File;
+use meta_door::{Change, Door, Opening, Scratch};
 use std::io;
 use std::path::{Path, PathBuf};
 
 use task::{CommandLine, Program, Site, Stdout};
-use tempfile::TempDir;
 
 use crate::task::ci::local_gate::{MetaRev, RecordedTimes, Toolchain, Unready, Worktrees};
 use crate::task::failure::Failure;
@@ -41,7 +40,7 @@ impl Checkout {
 
     pub fn add(repository: &Path, commit: Commit, parent: &Path) -> Result<Checkout, Failure> {
         let io = |error| Failure::from(task::Failure::Io { site: Site::File(parent.into()), error });
-        let place = TempDir::new_in(parent).map_err(io)?.keep();
+        let place = Scratch::made(parent).map_err(io)?.kept();
         let lock = Self::claimed(&place).map_err(io)?;
         Self::git(repository)
             .arguments(Self::ADD)

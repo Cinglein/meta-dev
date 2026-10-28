@@ -22,7 +22,8 @@ mod tests {
     use std::process::Command;
 
     use super::Layout;
-    use crate::{AdminFile, Door};
+    use crate::Door;
+    use crate::admin_file::AdminFile;
 
     const ENTRY: &str = ".git";
     const BRANCH: &str = "laid";

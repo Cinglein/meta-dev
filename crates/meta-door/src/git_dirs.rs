@@ -1,8 +1,9 @@
 mod refusal;
 
 use std::collections::BTreeMap;
+use std::ffi::OsStr;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 use std::sync::{Mutex, PoisonError};
 
@@ -22,7 +23,7 @@ impl GitDirs {
     const UNSET: [&str; 3] = ["GIT_DIR", "GIT_COMMON_DIR", "GIT_WORK_TREE"];
 
     pub fn common(directory: &Path) -> io::Result<PathBuf> {
-        let directory = Self::real(directory);
+        let directory = Self::resolved(directory)?;
         let known = KNOWN.lock().unwrap_or_else(PoisonError::into_inner).get(&directory).cloned();
         known.map_or_else(
             || {
@@ -36,7 +37,7 @@ impl GitDirs {
     }
 
     pub fn outside(path: PathBuf) -> io::Result<PathBuf> {
-        let real = Self::real(&std::path::absolute(&path)?);
+        let real = Self::resolved(&path)?;
         let repository = real.ancestors().find(|directory| {
             directory.join(Self::ENTRY).exists()
                 || (directory.join(Self::HEAD).is_file() && directory.join(Self::OBJECTS).is_dir())
@@ -45,13 +46,28 @@ impl GitDirs {
         inside.map_or(Ok(path), |common| Err(io::Error::other(Refusal::Inside { path: real.clone(), git: common })))
     }
 
-    fn real(path: &Path) -> PathBuf {
-        path.ancestors()
-            .find_map(|ancestor| {
-                let rest = path.strip_prefix(ancestor).ok()?;
-                ancestor.canonicalize().ok().map(|real| real.components().chain(rest.components()).collect())
-            })
-            .unwrap_or_else(|| path.to_path_buf())
+    pub fn within(path: PathBuf, common: &Path, area: &OsStr) -> io::Result<PathBuf> {
+        let real = Self::resolved(&path)?;
+        let area = Self::resolved(common)?.join(area);
+        if real.starts_with(&area) { Ok(path) } else { Err(io::Error::other(Refusal::Escaped { path: real, area })) }
+    }
+
+    pub fn resolved(path: impl AsRef<Path>) -> io::Result<PathBuf> {
+        std::path::absolute(path)?.components().try_fold(PathBuf::new(), Self::stepped)
+    }
+
+    fn stepped(real: PathBuf, component: Component<'_>) -> io::Result<PathBuf> {
+        let next = match component {
+            Component::ParentDir => real.parent().map_or_else(|| real.clone(), Path::to_path_buf),
+            Component::CurDir => real,
+            other => real.join(other),
+        };
+        match (component, next.symlink_metadata()) {
+            (Component::Normal(_), Ok(meta)) if meta.is_symlink() => {
+                next.canonicalize().map_err(|_| io::Error::other(Refusal::Dangling { path: next }))
+            }
+            _ => Ok(next),
+        }
     }
 
     fn plain(directory: &Path) -> Option<PathBuf> {
@@ -67,7 +83,7 @@ impl GitDirs {
         let output = { command }.arg("-C").arg(directory).args(Self::QUERY).output();
         let output = output.map_err(|failure| Refusal::Unrun { directory: directory.to_path_buf(), failure })?;
         let text = String::from_utf8_lossy(&output.stdout);
-        let lines: Vec<PathBuf> = text.lines().map(|line| Self::real(Path::new(line))).collect();
+        let lines: Vec<PathBuf> = text.lines().filter_map(|line| Self::resolved(Path::new(line)).ok()).collect();
         match (output.status.success(), lines.as_slice()) {
             (true, [common]) => Ok(common.clone()),
             _ => Err(Refusal::Unknown {

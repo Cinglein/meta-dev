@@ -4,7 +4,7 @@ use std::fmt;
 use std::io::Write as _;
 use std::path::Path;
 
-use std::fs::File;
+use meta_door::kinds::File;
 
 use meta_door::{Change, Door, Entry, MetaStore, Opening, Pair};
 

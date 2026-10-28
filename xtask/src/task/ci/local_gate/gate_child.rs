@@ -3,8 +3,8 @@ use std::env;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
+use meta_door::Scratch;
 use task::{CommandLine, GateEnvName, Program, Site};
-use tempfile::TempDir;
 
 use crate::task::ci::head_branch::HeadBranch;
 use crate::task::ci::local_gate::{LocalGate, Toolchain};
@@ -13,7 +13,7 @@ use crate::task::failure::Failure;
 
 #[derive(Debug)]
 pub struct GateChild {
-    home: TempDir,
+    home: Scratch,
     cargo_home: PathBuf,
     rustup_home: PathBuf,
     target: PathBuf,
@@ -36,7 +36,7 @@ impl GateChild {
     const BUILD_DIR: &str = "CARGO_BUILD_BUILD_DIR";
 
     pub fn new(parent: &Path, target: PathBuf, times: PathBuf, toolchain: Toolchain) -> Result<GateChild, Failure> {
-        let home = TempDir::new_in(parent)
+        let home = Scratch::made(parent)
             .map_err(|error| task::Failure::Io { site: Site::File(parent.to_path_buf()), error })?;
         let real_home = env::home_dir().unwrap_or_default();
         let real =

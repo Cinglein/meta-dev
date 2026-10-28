@@ -16,11 +16,11 @@ pub use stderr::Stderr;
 pub use stdout::Stdout;
 pub use stream::Stream;
 
+use meta_door::kinds::File;
 use std::collections::BTreeMap;
 use std::env;
 use std::ffi::OsString;
 use std::fmt;
-use std::fs::File;
 use std::path::PathBuf;
 use std::process::{Child, Command, Output};
 

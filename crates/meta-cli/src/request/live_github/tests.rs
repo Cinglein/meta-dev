@@ -1,5 +1,4 @@
-use std::fs::Permissions;
-use std::os::unix::fs::PermissionsExt as _;
+use meta_door::kinds::{Permissions, PermissionsExt as _};
 use std::path::Path;
 
 use meta_door::{Change, Door};

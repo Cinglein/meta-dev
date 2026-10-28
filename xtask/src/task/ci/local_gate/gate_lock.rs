@@ -1,5 +1,5 @@
+use meta_door::kinds::File;
 use meta_door::{Change, Door, Opening};
-use std::fs::File;
 use std::io::Write;
 use std::iter;
 use std::path::{Component, Path, PathBuf};

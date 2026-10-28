@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 
+use meta_door::kinds::Permissions;
 use std::fmt;
-use std::fs::Permissions;
 use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitStatus, Output, Stdio};

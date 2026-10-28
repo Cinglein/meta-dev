@@ -1,5 +1,4 @@
-use std::fs::{DirEntry, ReadDir};
-use std::os::unix::fs::MetadataExt as _;
+use meta_door::kinds::{DirEntry, MetadataExt as _, ReadDir};
 use std::path::Path;
 
 use crate::request::local::byte_count::ByteCount;
