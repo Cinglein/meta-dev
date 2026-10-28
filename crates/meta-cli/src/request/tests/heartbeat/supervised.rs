@@ -40,5 +40,5 @@ fn an_inner_failure_and_a_run_past_the_limit_are_both_refused_and_leave_no_proce
     let pid = tempfile::NamedTempFile::new().unwrap();
     let hung = Tick::supervised(Shell::running(HANGS).arg(pid.path()), TickLimit::from(IMPATIENT)).unwrap_err();
     assert!(failed.to_string().contains(OOPS) && hung.to_string().contains(GAVE_UP));
-    assert!(hung.to_string().contains(TIMED_OUT) && Pids::gone(pid.path(), &[HANGS]));
+    assert!(hung.to_string().contains(TIMED_OUT) && Pids::gone(&pid, &[HANGS]));
 }

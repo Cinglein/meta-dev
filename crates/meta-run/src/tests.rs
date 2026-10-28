@@ -8,8 +8,7 @@ use super::{EnvPolicy, Environment, KillScope, Run, RunFailure};
 const SHELL: &str = "bash";
 const SCRIPT: &str = "-c";
 const FED: &str = "cat; echo oops >&2; echo more >&2; exit 3";
-const INPUT: &str = "fed";
-const SHOWN: [&str; 2] = ["oops\nmore", "oops"];
+const SHOWN: [&str; 3] = ["fed", "oops\nmore", "oops"];
 const PATIENT: Duration = Duration::from_secs(5);
 const LEADS: &str = "[ \"$(ps -o pgid= -p $$ | tr -d ' ')\" = \"$$\" ] && echo leader; true";
 const LED: [(Option<KillScope>, &str); 2] = [(Some(KillScope::Group), "leader\n"), (None, "")];
@@ -20,9 +19,7 @@ const KILLED: [(&str, KillScope, &str); 3] = [
     ("sleep 5 & echo $! > \"$0\"", KillScope::Group, "group"),
     ("echo $$ > \"$0\"; exec sleep 5", KillScope::Process, "process"),
 ];
-const KILL: &str = "kill";
-const SIGNALS: [&str; 2] = ["-0", "-KILL"];
-const POLLS: usize = 50;
+const KILL: [&str; 3] = ["kill", "-0", "-KILL"];
 const POLL: Duration = Duration::from_millis(10);
 const INHERITED: [(&str, &str); 4] = [("GIT_DIR", "d"), ("GIT_SSH_COMMAND", "s"), ("LANG", "C"), ("PATH", "/bin")];
 const DROPPED: [(EnvPolicy, &str); 4] = [
@@ -42,23 +39,22 @@ impl Scripted {
 
     fn signalled(file: &Path, signal: &str) -> bool {
         let pid = std::fs::read_to_string(file).unwrap();
-        Run::new(KILL, EnvPolicy::Inherit).args([signal, pid.trim()]).ran(Instant::now() + PATIENT).unwrap().success()
+        let kill = Run::new(KILL[0], EnvPolicy::Inherit).args([signal, pid.trim()]);
+        kill.ran(Instant::now() + PATIENT).unwrap().success()
     }
 
     fn gone(file: &Path) -> bool {
-        (0..POLLS).any(|_| {
-            std::thread::sleep(POLL);
-            !Self::signalled(file, SIGNALS[0])
-        })
+        let polls = (0..PROMPT.as_millis() / POLL.as_millis()).map(|_| std::thread::sleep(POLL));
+        polls.into_iter().any(|()| !Self::signalled(file, KILL[1]))
     }
 }
 
 #[test]
 fn a_run_feeds_its_input_returns_both_streams_and_leads_its_own_group_only_when_asked() {
-    let run = Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, FED]).fed(INPUT.to_owned());
+    let run = Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, FED]).fed(SHOWN[0].to_owned());
     let ran = run.ran(Instant::now() + PATIENT).unwrap();
-    assert!(!ran.success() && ran.stdout().text() == INPUT && ran.stderr().to_string() == SHOWN[0]);
-    assert_eq!(ran.succeeded().unwrap_err().to_string(), SHOWN[1]);
+    assert!(!ran.success() && ran.stdout().text() == SHOWN[0] && ran.stderr().to_string() == SHOWN[1]);
+    assert_eq!(ran.succeeded().unwrap_err().to_string(), SHOWN[2]);
     let led = LED.map(|(scope, _)| {
         let run = scope.into_iter().fold(Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, LEADS]), Run::scoped);
         run.stdout(Instant::now() + PATIENT).unwrap()
@@ -76,7 +72,7 @@ fn a_run_ends_at_its_deadline_and_kills_its_scope_even_when_a_grandchild_holds_t
     };
     let runs: Vec<_> = KILLED.into_iter().zip(files.clone()).map(run).collect();
     assert!(runs.into_iter().all(|run| run.join().unwrap()) && started.elapsed() < PROMPT);
-    assert!(Scripted::signalled(&files[0], SIGNALS[1]) && files.iter().all(|file| Scripted::gone(file)));
+    assert!(Scripted::signalled(&files[0], KILL[2]) && files.iter().all(|file| Scripted::gone(file)));
 }
 
 #[test]
