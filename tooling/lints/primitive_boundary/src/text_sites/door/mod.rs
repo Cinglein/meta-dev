@@ -4,10 +4,11 @@ use std::path::Path;
 
 use door_kind::DoorKind;
 use proc_macro2::{TokenStream, TokenTree};
+use quote::ToTokens;
 use syn::punctuated::Punctuated;
 use syn::{
     AngleBracketedGenericArguments, Attribute, GenericArgument, Ident, ItemImpl, Macro, Meta,
-    PathArguments, Token, Type,
+    Token, Type,
 };
 
 use task::Site;
@@ -157,43 +158,11 @@ impl Door {
     }
 
     pub fn names_in(ty: &Type) -> Vec<Name> {
-        match ty {
-            Type::Path(path) => path
-                .path
-                .segments
-                .iter()
-                .flat_map(|segment| {
-                    [Name::from(&segment.ident)]
-                        .into_iter()
-                        .chain(Self::names_in_segment(&segment.arguments))
-                })
-                .collect(),
-            Type::Reference(reference) => Self::names_in(&reference.elem),
-            Type::Slice(slice) => Self::names_in(&slice.elem),
-            Type::Array(array) => Self::names_in(&array.elem),
-            Type::Paren(paren) => Self::names_in(&paren.elem),
-            Type::Group(group) => Self::names_in(&group.elem),
-            Type::Tuple(tuple) => tuple.elems.iter().flat_map(Self::names_in).collect(),
-            _ => Vec::new(),
-        }
-    }
-
-    pub fn names_in_segment(arguments: &PathArguments) -> Vec<Name> {
-        match arguments {
-            PathArguments::AngleBracketed(arguments) => Self::names_in_arguments(Some(arguments)),
-            _ => Vec::new(),
-        }
+        Self::names_in_tokens(ty.to_token_stream())
     }
 
     pub fn names_in_arguments(arguments: Option<&AngleBracketedGenericArguments>) -> Vec<Name> {
-        arguments
-            .into_iter()
-            .flat_map(|arguments| arguments.args.iter())
-            .flat_map(|argument| match argument {
-                GenericArgument::Type(ty) => Self::names_in(ty),
-                _ => Vec::new(),
-            })
-            .collect()
+        Self::names_in_tokens(arguments.map(ToTokens::to_token_stream).unwrap_or_default())
     }
 
     pub fn target_of(ty: &Type) -> Option<Name> {
