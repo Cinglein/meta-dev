@@ -11,6 +11,7 @@ license = "UNLICENSED"
 [workspace.dependencies]
 meta-schema = { path = "crates/meta-schema" }
 meta-log = { path = "crates/meta-log" }
+meta-run = { path = "crates/meta-run" }
 meta-state = { path = "crates/meta-state" }
 meta-gh = { path = "crates/meta-gh" }
 meta-listing = { path = "crates/meta-listing" }

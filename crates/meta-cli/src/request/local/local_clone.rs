@@ -28,7 +28,7 @@ use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::git_link::GitLink;
 use crate::request::live_github::LiveGithub;
 use crate::request::output::{Listed, Output};
-use crate::request::project::Project;
+use crate::request::project::{CiSettings, Project};
 use crate::request::writing::Writing;
 use collection::{Census, Collection, Sweeper, Tracked};
 use gc_lock::GcLock;
@@ -41,14 +41,15 @@ use worktree_identity::WorktreeIdentity;
 pub struct LocalClone {
     checkout: PathBuf,
     git_dir: GitDir,
+    settings: CiSettings,
 }
 
 impl LocalClone {
     const LISTED_PREFIX: &'static str = "worktree ";
     const WORKTREE_CONFIG: &'static str = "config.worktree";
 
-    pub fn new(checkout: PathBuf, git_dir: PathBuf) -> Self {
-        Self { checkout, git_dir: GitDir::new(git_dir) }
+    pub fn new(checkout: PathBuf, git_dir: PathBuf, settings: CiSettings) -> Self {
+        Self { checkout, git_dir: GitDir::new(git_dir), settings }
     }
 
     pub fn checkout(&self) -> &Path {
@@ -78,7 +79,7 @@ impl LocalClone {
         Some(())
             .filter(|()| !path.exists())
             .ok_or_else(|| CliFailure::raised::<Setup>(format!("{} exists; move it away first", path.display())))?;
-        let checkout = Git::new(&self.checkout);
+        let checkout = Git::new(&self.checkout, &self.settings);
         checkout.output(&["worktree", "prune"].map(OsStr::new))?;
         checkout.output(&["config", "extensions.worktreeConfig", "true"].map(OsStr::new))?;
         let new_branch = base
@@ -93,7 +94,7 @@ impl LocalClone {
         let name = identity.name().to_string();
         let email = identity.email().to_string();
         let settled = || {
-            let worktree = Git::new(&path);
+            let worktree = Git::new(&path, &self.settings);
             let git_dir = worktree.output(&["rev-parse", "--absolute-git-dir"].map(OsStr::new))?;
             let identity = WorktreeIdentity::new(&name, &email).to_string();
             LocalFile::new(Path::new(&git_dir).join(Self::WORKTREE_CONFIG)).replaced(&identity)?;
@@ -149,20 +150,21 @@ impl LocalClone {
             root,
             project.config().remote()?.clone(),
         );
-        let collection = Collection::swept(&Sweeper::new(sweep, &context, &Host::default()), &census);
+        let collection = Collection::swept(&Sweeper::new(sweep, &context, &Host::new(self.settings.clone())), &census);
         collection.trailed(Utc::now()).iter().try_for_each(|entry| LocalTrail::append(self.git_dir.as_ref(), entry))?;
         Ok(Output::Listed(Listed::new(collection)))
     }
 
     pub fn unstranded(&self, quarantine: &Path) -> Result<Output, CliFailure> {
         let quarantine = std::fs::canonicalize(quarantine).map_err(CliFailure::raised::<Setup>)?;
-        let origin = Deletable::unstranded(&quarantine, self.git_dir.as_ref(), &Host::default())
+        let origin = Deletable::unstranded(&quarantine, self.git_dir.as_ref(), &Host::new(self.settings.clone()))
             .map_err(CliFailure::raised::<Setup>)?;
         Ok(Output::Listed(Listed::new(format!("restored {} to {}\n", quarantine.display(), origin.display()))))
     }
 
     fn listed(&self) -> Result<Vec<PathBuf>, CliFailure> {
-        let listed = Git::new(&self.checkout).output(&["worktree", "list", "--porcelain"].map(OsStr::new))?;
+        let listed =
+            Git::new(&self.checkout, &self.settings).output(&["worktree", "list", "--porcelain"].map(OsStr::new))?;
         Ok(listed
             .lines()
             .filter_map(|line| line.strip_prefix(Self::LISTED_PREFIX))
@@ -175,7 +177,7 @@ impl LocalClone {
         let ignored = ["check-ignore", "--quiet", LocalSettings::FILE].map(OsStr::new);
         Some(())
             .filter(|()| self.checkout.join(LocalSettings::FILE).exists())
-            .map_or(Some(()), |()| Git::new(&self.checkout).holds(&ignored))
+            .map_or(Some(()), |()| Git::new(&self.checkout, &self.settings).holds(&ignored))
             .ok_or_else(|| {
                 CliFailure::raised::<Setup>(format!(
                     "{file} is not gitignored; add /{file} to .gitignore",
@@ -186,7 +188,7 @@ impl LocalClone {
     }
 
     fn base(&self, remote: &RemoteName, branch: &str, held: Option<()>) -> Result<Option<String>, CliFailure> {
-        let checkout = Git::new(&self.checkout);
+        let checkout = Git::new(&self.checkout, &self.settings);
         checkout.output(&["fetch", "--quiet", &remote.to_string()].map(OsStr::new))?;
         let verified = |name: &str| checkout.holds(&["rev-parse", "--verify", "--quiet", name].map(OsStr::new));
         match verified(&format!("refs/heads/{branch}")) {
@@ -206,7 +208,7 @@ impl LocalClone {
     }
 
     fn rolled_back(&self, added: Option<&Path>, new_branch: Option<&str>, failure: CliFailure) -> CliFailure {
-        let checkout = Git::new(&self.checkout);
+        let checkout = Git::new(&self.checkout, &self.settings);
         added.and_then(|path| {
             checkout.holds(&[OsStr::new("worktree"), OsStr::new("remove"), OsStr::new("--force"), path.as_os_str()])
         });
@@ -223,6 +225,6 @@ impl TryFrom<&Project> for LocalClone {
             GitLink::common_dir(project.root()).ok_or_else(|| CliFailure::raised::<Setup>("no git directory"))?;
         let checkout =
             git_dir.parent().map(Path::to_path_buf).ok_or_else(|| CliFailure::raised::<Setup>("no checkout"))?;
-        Ok(Self::new(checkout, git_dir))
+        Ok(Self::new(checkout, git_dir, project.config().ci_settings()))
     }
 }

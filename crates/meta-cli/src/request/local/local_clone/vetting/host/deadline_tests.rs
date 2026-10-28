@@ -1,7 +1,8 @@
 use std::ffi::OsStr;
 use std::io::Write as _;
-use std::process::Command;
 use std::time::{Duration, Instant};
+
+use meta_run::Run;
 
 use super::Host;
 use crate::request::local::local_clone::vetting::git_call::GitCall;
@@ -20,9 +21,9 @@ struct Hanging(tempfile::TempDir);
 impl Hanging {
     fn new() -> Self {
         let repo = Self(tempfile::tempdir().unwrap());
-        SETUP.iter().for_each(|words| {
-            Command::new("git").arg("-C").arg(repo.0.path()).args(IDENTITY).args(*words).status().unwrap();
-        });
+        let set_up =
+            SETUP.map(|words| Run::git(repo.0.path()).args(IDENTITY).args(words).stdout(Instant::now() + PROMPT));
+        set_up.into_iter().collect::<Result<Vec<_>, _>>().unwrap();
         let config = std::fs::OpenOptions::new().append(true).open(repo.0.path().join(".git/config"));
         config.unwrap().write_all(HANGING.as_bytes()).unwrap();
         std::fs::write(repo.0.path().join("meta.toml"), CONFIG).unwrap();
@@ -33,11 +34,12 @@ impl Hanging {
 #[test]
 fn a_push_and_a_gc_ls_remote_to_a_hanging_remote_give_up_at_the_deadline() {
     let repo = Hanging::new();
+    let project = Project::try_from(repo.0.path()).unwrap();
     let started = Instant::now();
-    let pushed = Project::try_from(repo.0.path()).unwrap().push_failure();
+    let pushed = project.push_failure();
     let pushed_in = started.elapsed();
     let call = GitCall::common(&repo.0.path().join(".git"), &LISTING.map(OsStr::new));
-    let listed = Host::default().git(&call);
+    let listed = Host::new(project.config().ci_settings()).git(&call);
     assert!(pushed.is_some() && pushed_in < PROMPT);
     assert!(listed.is_err() && started.elapsed() < PROMPT + PROMPT);
 }

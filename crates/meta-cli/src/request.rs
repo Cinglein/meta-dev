@@ -12,7 +12,6 @@ mod rate;
 mod relocate;
 mod scale_policy;
 mod status_view;
-mod timed_command;
 mod writing;
 
 use std::path::PathBuf;

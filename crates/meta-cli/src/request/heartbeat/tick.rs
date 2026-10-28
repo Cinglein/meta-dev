@@ -1,11 +1,11 @@
 mod gave_up;
 
 use std::path::Path;
-use std::process::Command;
 
 use chrono::Utc;
 use meta_log::LogStore;
 use meta_pull_query::LiveQuery;
+use meta_run::Run;
 use meta_status::Github;
 
 use super::gc_hook::GcHook;
@@ -18,7 +18,6 @@ use crate::request::local::LocalClone;
 use crate::request::output::{Listed, Output};
 use crate::request::project::{Project, TickLimit};
 use crate::request::status_view::StatusView;
-use crate::request::timed_command::TimedCommand;
 use gave_up::GaveUp;
 
 #[derive(Debug)]
@@ -43,11 +42,14 @@ impl Tick {
         })
     }
 
-    pub fn supervised(command: Command, limit: TickLimit) -> Result<Output, CliFailure> {
-        let finished = TimedCommand::new(command, limit.deadline())
-            .finished()
-            .map_err(|reason| CliFailure::raised::<Setup>(GaveUp::after(limit, reason)))?;
-        finished.verdict().answered(&finished)
+    pub fn supervised(run: Run, limit: TickLimit) -> Result<Output, CliFailure> {
+        let ran = run.ran(limit.deadline());
+        let ran = ran.map_err(|reason| CliFailure::raised::<Setup>(GaveUp::after(limit, Listed::new(reason))))?;
+        match (ran.success(), ran.stderr().first_line()) {
+            (true, _) => Ok(Output::Listed(Listed::new(ran.stdout().text()))),
+            (false, None) => Ok(Output::Flagged(Listed::new(ran.stdout().text()))),
+            (false, Some(complaint)) => Err(CliFailure::raised::<Setup>(complaint)),
+        }
     }
 
     pub fn live(project: &Project, clone: &LocalClone) -> Result<Output, CliFailure> {

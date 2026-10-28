@@ -1,6 +1,7 @@
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+
+use meta_run::{EnvPolicy, Environment, Run};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GitCall {
@@ -12,7 +13,6 @@ pub struct GitCall {
 
 impl GitCall {
     const PROGRAM: &'static str = "git";
-    const GIT_PREFIX: &'static str = "GIT_";
     const ISOLATED: [(&'static str, &'static str); 3] =
         [("GIT_CONFIG_GLOBAL", "/dev/null"), ("GIT_CONFIG_SYSTEM", "/dev/null"), ("GIT_CONFIG_NOSYSTEM", "1")];
     const PINNED: [&'static str; 15] = [
@@ -42,6 +42,7 @@ impl GitCall {
         Self { input: Some(input), ..self }
     }
 
+    #[cfg(test)]
     pub fn input(&self) -> Option<&str> {
         self.input.as_deref()
     }
@@ -51,14 +52,11 @@ impl GitCall {
         Self { git_dir: git_dir.to_path_buf(), work_tree: None, words, input: None }
     }
 
-    pub fn command(&self, inherited: impl IntoIterator<Item = OsString>) -> Command {
-        let mut command = Command::new(Self::PROGRAM);
-        let cleared = inherited
-            .into_iter()
-            .filter(|name| name.as_encoded_bytes().starts_with(Self::GIT_PREFIX.as_bytes()))
-            .fold(&mut command, |command, name| command.env_remove(name));
-        cleared.envs(Self::ISOLATED).args(self.arguments()).current_dir(self.directory());
-        command
+    pub fn run(&self, inherited: Environment) -> Run {
+        let run = Run::inheriting(Self::PROGRAM, EnvPolicy::NoGitVars, inherited);
+        let run = Self::ISOLATED.iter().fold(run, |run, (name, value)| run.var(name, value));
+        let run = run.args(self.arguments()).dir(self.directory());
+        self.input.iter().fold(run, |run, input| run.fed(input.clone()))
     }
 
     pub fn arguments(&self) -> Vec<OsString> {

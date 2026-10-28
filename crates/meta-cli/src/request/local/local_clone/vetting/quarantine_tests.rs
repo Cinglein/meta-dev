@@ -1,6 +1,8 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
+
+use meta_run::{CommandLine, Environment};
 
 use super::deletable::Deletable;
 use super::entry_kind::EntryKind;
@@ -19,13 +21,12 @@ const RESTORED: &str = " /trees/task-00000000000000b1";
 const REMOVE: &str = "worktree remove";
 const FROZEN: &str = "frozen /trees/.gc-task-00000000000000b1-1x0";
 const THAWED: &str = "thawed /trees/.gc-task-00000000000000b1-1x0";
-const INHERITED: [&str; 3] = ["GIT_DIR", "HOME", "GIT_INDEX_FILE"];
-const ISOLATED: [(&str, Option<&str>); 5] = [
-    ("GIT_CONFIG_GLOBAL", Some("/dev/null")),
-    ("GIT_CONFIG_NOSYSTEM", Some("1")),
-    ("GIT_CONFIG_SYSTEM", Some("/dev/null")),
-    ("GIT_DIR", None),
-    ("GIT_INDEX_FILE", None),
+const INHERITED: [(&str, &str); 3] = [("GIT_DIR", "d"), ("HOME", "h"), ("GIT_INDEX_FILE", "i")];
+const ISOLATED: [(&str, &str); 4] = [
+    ("GIT_CONFIG_GLOBAL", "/dev/null"),
+    ("GIT_CONFIG_NOSYSTEM", "1"),
+    ("GIT_CONFIG_SYSTEM", "/dev/null"),
+    ("HOME", "h"),
 ];
 const STAT_PINS: [&str; 2] = ["core.trustctime=true", "core.checkStat=default"];
 const REFUSALS: [&str; 4] = ["no recorded worktree id", "changed during checks", "in use", "in use"];
@@ -65,12 +66,14 @@ fn a_file_or_commit_made_after_the_vet_is_caught_in_quarantine_and_the_worktree_
 #[test]
 fn vetting_git_ignores_inherited_git_variables_and_global_and_system_config_and_pins_stat_checks() {
     let call = GitCall::common(Path::new(QUARANTINE), &[OsStr::new(LATE)]);
-    let command = call.command(INHERITED.map(OsString::from));
-    let envs: HashMap<&OsStr, Option<&OsStr>> = command.get_envs().collect();
-    let expected: HashMap<&OsStr, Option<&OsStr>> =
-        ISOLATED.iter().map(|(name, value)| (OsStr::new(*name), value.map(OsStr::new))).collect();
-    assert_eq!(envs, expected);
-    assert!(STAT_PINS.iter().all(|pin| command.get_args().any(|argument| argument == *pin)));
+    let vars = |vars: &[(&str, &str)]| {
+        let vars = vars.iter().map(|(name, value)| (OsString::from(name), OsString::from(value)));
+        Environment::from(vars.collect::<BTreeMap<_, _>>())
+    };
+    let run = call.run(vars(&INHERITED));
+    assert_eq!(Environment::from(&run), vars(&ISOLATED));
+    let line = CommandLine::from(&run).to_string();
+    assert!(STAT_PINS.iter().all(|pin| line.split(' ').any(|argument| argument == *pin)));
 }
 
 #[test]

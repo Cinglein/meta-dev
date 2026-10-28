@@ -121,7 +121,8 @@ fn opted_in_stopping_spares_the_owner_shell_claude_its_children_other_projects_a
 #[test]
 fn watch_items_persist_into_obvious_and_the_trail_keeps_no_repeats_failures_or_blind_ticks_within_its_cap() {
     let checkout = tempfile::tempdir().unwrap();
-    let clone = LocalClone::new(checkout.path().to_path_buf(), checkout.path().join(GIT));
+    let clone =
+        LocalClone::new(checkout.path().to_path_buf(), checkout.path().join(GIT), Config::default().ci_settings());
     let git_dir = clone.git_dir().as_ref();
     let later = SCENE.replace(LOOP[0], LOOP[1]).replace(JOINED[0], JOINED[1]).replace(RISING[0], RISING[1]);
     let scenes = [Some(SCENE), Some(later.as_str()), Some(later.as_str()), None, None];

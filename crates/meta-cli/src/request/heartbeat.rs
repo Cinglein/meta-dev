@@ -6,10 +6,10 @@ mod pulse;
 mod snapshot;
 mod tick;
 
-use std::process::Command;
 use std::str::FromStr;
 
 use chrono::Utc;
+use meta_run::{EnvPolicy, Run};
 
 use crate::request::cli_failure::{CliFailure, Misuse, Setup};
 use crate::request::local::{LocalClone, Monitor};
@@ -88,10 +88,9 @@ impl Heartbeat {
         }
     }
 
-    fn inner(project: &Project, run: &str) -> Result<Command, CliFailure> {
-        let mut command = Command::new(std::env::current_exe().map_err(CliFailure::raised::<Setup>)?);
-        command.args([Self::HEARTBEAT, run]).current_dir(project.root());
-        Ok(command)
+    fn inner(project: &Project, run: &str) -> Result<Run, CliFailure> {
+        let program = std::env::current_exe().map_err(CliFailure::raised::<Setup>)?;
+        Ok(Run::new(program, EnvPolicy::Inherit).args([Self::HEARTBEAT, run]).dir(project.root()))
     }
 
     fn plist(clone: &LocalClone, settings: &HeartbeatSettings) -> Result<Output, CliFailure> {

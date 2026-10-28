@@ -1,15 +1,15 @@
 use std::ffi::OsStr;
 use std::path::PathBuf;
-use std::process::Command;
 use std::time::Instant;
 
 use meta_pull_query::{LiveData, LiveQuery, LiveReply, Pulls, Rulebook, WorkflowName};
 use meta_pulls::{BaseBranch, RequiredChecks};
+use meta_run::{EnvPolicy, Run};
 use meta_schema::PullRequest;
 use meta_status::{Github, GithubFailure};
 
 use crate::request::project::{BranchName, ProgramName, Project};
-use crate::request::timed_command::{Finished, TimedCommand};
+use unanswered::Unanswered;
 
 #[derive(Clone, Debug)]
 pub struct LiveGithub {
@@ -47,7 +47,7 @@ impl LiveGithub {
 
     pub fn pulls_from(&self, branch: &BranchName) -> Vec<PullRequest> {
         let words = Self::HEADED.map(OsStr::new).into_iter().chain([branch.as_ref()]);
-        let listed = self.ran(words.chain(Self::SAME_REPOSITORY.map(OsStr::new))).and_then(Finished::succeeded);
+        let listed = self.run(words.chain(Self::SAME_REPOSITORY.map(OsStr::new))).stdout(self.deadline);
         listed.unwrap_or_default().lines().filter_map(|line| line.parse().ok()).collect()
     }
 
@@ -65,27 +65,23 @@ impl LiveGithub {
     fn pulls(&self, query: &LiveQuery) -> Result<Pulls, GithubFailure> {
         let field = query.field();
         let words = Self::GRAPHQL.map(OsStr::new).into_iter().chain([OsStr::new(Self::QUERY), OsStr::new(&field)]);
-        let finished = self.ran(words).map_err(GithubFailure::new)?;
-        let reply = serde_json::from_str::<LiveReply>(finished.output()).ok().and_then(LiveReply::answered);
-        reply.ok_or_else(|| GithubFailure::new(finished))
+        let ran = self.run(words).ran(self.deadline).map_err(GithubFailure::new)?;
+        let reply = serde_json::from_str::<LiveReply>(&ran.stdout().text()).ok().and_then(LiveReply::answered);
+        reply.ok_or_else(|| GithubFailure::new(Unanswered::new(&ran)))
     }
 
     fn rules(&self, base: &BaseBranch) -> Result<RequiredChecks, GithubFailure> {
         let endpoint = base.rules_endpoint();
         let words = [OsStr::new(Self::API), OsStr::new(&endpoint)].into_iter().chain(Self::REQUIRED.map(OsStr::new));
-        let printed = self.ran(words).and_then(Finished::succeeded).map_err(GithubFailure::new)?;
+        let printed = self.run(words).stdout(self.deadline).map_err(GithubFailure::new)?;
         serde_json::from_str(&printed).map_err(GithubFailure::new)
     }
 
-    fn ran<'words>(
-        &self,
-        words: impl Iterator<Item = &'words OsStr>,
-    ) -> Result<Finished, crate::request::output::Listed> {
-        let mut command = Command::new(&self.program);
-        command.args(words).current_dir(&self.root);
-        TimedCommand::new(command, self.deadline).finished()
+    fn run<'words>(&self, words: impl Iterator<Item = &'words OsStr>) -> Run {
+        Run::new(&self.program, EnvPolicy::Inherit).args(words).dir(&self.root)
     }
 }
 
 #[cfg(test)]
 mod tests;
+mod unanswered;

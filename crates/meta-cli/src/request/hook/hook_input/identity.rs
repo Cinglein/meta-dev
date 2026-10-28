@@ -1,7 +1,8 @@
 use std::path::Path;
-use std::process::Command;
 use std::str::FromStr;
+use std::time::Instant;
 
+use meta_run::Run;
 use meta_schema::Email;
 
 use crate::request::output::Listed;
@@ -12,16 +13,16 @@ pub struct Identity(Email);
 impl Identity {
     const IDENTS: [&'static str; 2] = ["GIT_AUTHOR_IDENT", "GIT_COMMITTER_IDENT"];
 
-    pub fn refusal_in(directory: &Path) -> Option<Listed> {
+    pub fn refusal_in(directory: &Path, deadline: Instant) -> Option<Listed> {
         let unresolved =
             Listed::new(format!("cannot resolve the commit directory; use an absolute path: {}", directory.display()));
-        (!directory.is_dir()).then_some(unresolved).or_else(|| Self::foreign_in(directory)?.refusal())
+        (!directory.is_dir()).then_some(unresolved).or_else(|| Self::foreign_in(directory, deadline)?.refusal())
     }
 
-    fn foreign_in(directory: &Path) -> Option<Identity> {
+    fn foreign_in(directory: &Path, deadline: Instant) -> Option<Identity> {
         Self::IDENTS.iter().find_map(|ident| {
-            let shown = Command::new("git").arg("-C").arg(directory).args(["var", ident]).output().ok()?;
-            let Ok(identity) = String::from_utf8_lossy(&shown.stdout).parse::<Identity>();
+            let shown = Run::git(directory).args(["var", ident]).ran(deadline).ok()?;
+            let Ok(identity) = shown.stdout().text().parse::<Identity>();
             Some(identity).filter(|identity| !identity.0.noreply())
         })
     }

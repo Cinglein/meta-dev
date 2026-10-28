@@ -403,6 +403,7 @@ dependencies = [
  "meta-log",
  "meta-pull-query",
  "meta-pulls",
+ "meta-run",
  "meta-schema",
  "meta-severity",
  "meta-state",
@@ -436,6 +437,7 @@ name = "meta-log"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "meta-run",
  "meta-schema",
  "serde",
  "serde_json",
@@ -459,6 +461,14 @@ version = "0.1.0"
 dependencies = [
  "meta-schema",
  "serde",
+]
+
+[[package]]
+name = "meta-run"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]

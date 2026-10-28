@@ -1,10 +1,10 @@
-mod git_command;
-
 use std::ffi::OsStr;
 use std::path::PathBuf;
-use std::process::Command;
+use std::time::{Duration, Instant};
 
-pub use git_command::GitCommand;
+use meta_run::{Ran, Run};
+
+use crate::log_failure::LogFailure;
 
 #[derive(Clone, Debug)]
 pub struct Git {
@@ -12,17 +12,18 @@ pub struct Git {
 }
 
 impl Git {
-    const ISOLATED: [&'static str; 3] = ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"];
+    const LIMIT: Duration = Duration::from_secs(30);
 
     pub fn new(repo: PathBuf) -> Self {
         Self { repo }
     }
 
-    pub fn command<Word: AsRef<OsStr>>(&self, words: impl IntoIterator<Item = Word>) -> GitCommand {
-        let mut command = Command::new("git");
-        command.arg("-C").arg(&self.repo).args(words);
-        Self::ISOLATED.iter().fold(&mut command, |command, variable| command.env_remove(variable));
-        GitCommand::new(command)
+    pub fn command<Word: AsRef<OsStr>>(&self, words: impl IntoIterator<Item = Word>) -> Run {
+        Run::git(&self.repo).args(words)
+    }
+
+    pub fn ran(run: Run) -> Result<Ran, LogFailure> {
+        Ok(run.ran(Instant::now() + Self::LIMIT)?)
     }
 }
 
@@ -31,6 +32,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::Git;
+    use crate::git_log::content::Content;
 
     const NOWHERE: &str = "/nonexistent/meta";
     const STATUS: [&str; 1] = ["status"];
@@ -38,8 +40,9 @@ mod tests {
 
     #[test]
     fn failures_name_the_git_command() {
+        let git = Git::new(PathBuf::from(NOWHERE));
         let failure =
-            Git::new(PathBuf::from(NOWHERE)).command(STATUS).content().err().map(|failure| failure.to_string());
+            Content::try_from(Git::ran(git.command(STATUS)).unwrap()).err().map(|failure| failure.to_string());
         assert!(failure.is_some_and(|failure| failure.starts_with(FAILED)));
     }
 }

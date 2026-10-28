@@ -1,16 +1,15 @@
 mod config;
 
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::str::FromStr;
 
 use meta_log::GitLog;
+use meta_run::{Ran, Run, RunFailure};
 
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
-use crate::request::timed_command::TimedCommand;
 pub use config::{BranchName, CiSettings, Config, GcMode, HeartbeatSettings, LogWindow, ProgramName, TickLimit};
 #[cfg(test)]
 mod tests;
@@ -39,15 +38,11 @@ impl Project {
     pub fn push_failure(&self) -> Option<Listed> {
         let remote = self.config.remote().ok()?.to_string();
         let unprotected = self.unprotected_branch()?;
-        let pushed = Command::new("git")
-            .arg("-C")
-            .arg(&self.root)
-            .args(["push", "--quiet", "-u", &remote, &unprotected.to_string()])
-            .output()
-            .ok()?;
-        (!pushed.status.success()).then(|| {
-            Listed::new(format!("push of {unprotected} failed: {}", String::from_utf8_lossy(&pushed.stderr).trim()))
-        })
+        match self.git(["push", "--quiet", "-u", &remote, &unprotected.to_string()]) {
+            Ok(ran) if ran.success() => None,
+            Ok(ran) => Some(Listed::new(format!("push of {unprotected} failed: {}", ran.stderr()))),
+            Err(failure) => Some(Listed::new(format!("push of {unprotected} failed: {failure}"))),
+        }
     }
 
     pub fn created_after(&self, start: &StartMoment) -> Option<Vec<Commit>> {
@@ -73,10 +68,8 @@ impl Project {
 
     pub fn remote_heads(&self) -> Result<Vec<Commit>, Listed> {
         let remote = self.config.remote().map_err(|failure| Listed::new(failure.to_string()))?;
-        let mut command = Command::new("git");
-        command.arg("-C").arg(&self.root).args(["ls-remote", "--heads", &remote.to_string()]);
-        let deadline = self.config.ci_settings().remote_deadline();
-        let listed = TimedCommand::new(command, deadline).stdout().map_err(|failure| {
+        let listed = Run::git(&self.root).args(["ls-remote", "--heads", &remote.to_string()]);
+        let listed = listed.stdout(self.config.ci_settings().remote_deadline()).map_err(|failure| {
             Listed::new(format!("remote unreachable: git ls-remote {remote}: {failure}; retry, or ask the owner"))
         })?;
         Ok(listed.lines().filter_map(|line| line.parse().ok()).collect())
@@ -107,15 +100,13 @@ impl Project {
         heads.into_iter().next()
     }
 
+    fn git<Word: AsRef<OsStr>>(&self, words: impl IntoIterator<Item = Word>) -> Result<Ran, RunFailure> {
+        Run::git(&self.root).args(words).ran(self.config.ci_settings().git_limit().deadline())
+    }
+
     fn git_lines<Line: FromStr>(&self, words: impl IntoIterator<Item = OsString>) -> Option<Vec<Line>> {
-        let output = Command::new("git")
-            .arg("-C")
-            .arg(&self.root)
-            .args(words)
-            .output()
-            .ok()
-            .filter(|output| output.status.success())?;
-        Some(String::from_utf8_lossy(&output.stdout).lines().filter_map(|line| line.parse().ok()).collect())
+        let output = self.git(words).and_then(Ran::succeeded).ok()?;
+        Some(output.lines().filter_map(|line| line.parse().ok()).collect())
     }
 
     fn born_after(&self, commit: &Commit, start: &StartMoment) -> bool {
@@ -127,8 +118,8 @@ impl Project {
     }
 
     pub fn unprotected_branch(&self) -> Option<BranchName> {
-        let current = Command::new("git").arg("-C").arg(&self.root).args(["branch", "--show-current"]).output().ok()?;
-        let branch: BranchName = String::from_utf8_lossy(&current.stdout).trim().parse().ok()?;
+        let current = self.git(["branch", "--show-current"]).and_then(Ran::succeeded).ok()?;
+        let branch: BranchName = current.trim().parse().ok()?;
         Some(branch).filter(|branch| !branch.to_string().is_empty() && self.config.protects(branch).is_none())
     }
 }

@@ -4,16 +4,15 @@ mod raw_log;
 
 use std::ffi::OsString;
 use std::path::PathBuf;
-use std::process::Command;
 use std::time::Instant;
 
 use crate::request::ci::ci_status::CiStatus;
 use crate::request::ci::commit::Commit;
 use crate::request::output::Listed;
 use crate::request::project::ProgramName;
-use crate::request::timed_command::TimedCommand;
 use gh_jobs::GhJobs;
 use meta_gh::GhRun;
+use meta_run::{EnvPolicy, Run};
 pub use observation::Observation;
 pub use raw_log::RawLog;
 
@@ -75,9 +74,8 @@ impl Gh {
     }
 
     fn text(&self, words: impl Iterator<Item = OsString>) -> Result<String, Listed> {
-        let mut command = Command::new(&self.program);
-        command.args(words).current_dir(&self.root);
-        TimedCommand::new(command, self.deadline).stdout()
+        let run = Run::new(&self.program, EnvPolicy::Inherit).args(words).dir(&self.root);
+        run.stdout(self.deadline).map_err(Listed::new)
     }
 
     fn json<Parsed: serde::de::DeserializeOwned>(

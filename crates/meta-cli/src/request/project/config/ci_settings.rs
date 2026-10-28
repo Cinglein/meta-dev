@@ -1,3 +1,4 @@
+mod git_limit;
 mod log_window;
 mod millis;
 mod program_name;
@@ -6,6 +7,7 @@ use std::time::{Duration, Instant};
 
 use serde::Deserialize;
 
+pub use git_limit::GitLimit;
 pub use log_window::LogWindow;
 pub use millis::Millis;
 pub use program_name::ProgramName;
@@ -17,6 +19,7 @@ pub struct CiSettings {
     timeout_millis: Millis,
     appear_millis: Millis,
     remote_millis: Millis,
+    git_millis: GitLimit,
     #[serde(flatten)]
     log_window: LogWindow,
 }
@@ -42,6 +45,10 @@ impl CiSettings {
 
     pub fn remote_deadline(&self) -> Instant {
         Instant::now() + self.remote_millis.duration()
+    }
+
+    pub fn git_limit(&self) -> GitLimit {
+        self.git_millis
     }
 
     pub fn log_window(&self) -> &LogWindow {

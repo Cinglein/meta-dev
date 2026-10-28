@@ -9,6 +9,7 @@ use serde::Deserialize;
 
 use crate::request::ci::{SessionId, SessionStart};
 use crate::request::output::Listed;
+use crate::request::project::Config;
 
 use identity::Identity;
 use shell_command::ShellCommand;
@@ -37,10 +38,11 @@ impl HookInput {
         self.session().map_or(Ok(()), |session| SessionStart::for_session(session).open().map_err(Listed::new))
     }
 
-    pub fn refusal(&self) -> Option<Listed> {
+    pub fn refusal(&self, config: &Config) -> Option<Listed> {
         let command = self.command()?;
-        let foreign =
-            command.commit_directories(&self.cwd()).iter().find_map(|directory| Identity::refusal_in(directory));
+        let deadline = config.ci_settings().git_limit().deadline();
+        let directories = command.commit_directories(&self.cwd());
+        let foreign = directories.iter().find_map(|directory| Identity::refusal_in(directory, deadline));
         let writing = self.session().zip(command.writes());
         let unrecorded = writing.and_then(|(session, ())| SessionStart::for_session(session).record().err());
         unrecorded.or(foreign)

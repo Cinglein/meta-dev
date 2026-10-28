@@ -8,9 +8,9 @@ mod watch_clock;
 
 use std::cell::OnceCell;
 use std::ops::ControlFlow;
-use std::os::unix::process::CommandExt as _;
-use std::process::{Command, Stdio};
 use std::time::Duration;
+
+use meta_run::{EnvPolicy, Run};
 
 use super::ci_status::CiStatus;
 use super::commit::Commit;
@@ -48,16 +48,9 @@ impl Watcher {
         let status = dir.status_of(commit).map_or_else(|| dir.watch(commit).map(|()| CiStatus::Running), Ok);
         let idle = status.map_err(unwatched)?.finished().is_none().then(|| dir.claim(commit).map(drop)).flatten();
         idle.map_or(Ok(()), |()| {
-            Command::new(std::env::current_exe().map_err(unwatched)?)
-                .args(["ci-watch", &session.to_string(), &commit.to_string()])
-                .current_dir(project.root())
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .process_group(i32::default())
-                .spawn()
-                .map(|_| ())
-                .map_err(unwatched)
+            let watch = Run::new(std::env::current_exe().map_err(unwatched)?, EnvPolicy::Inherit);
+            let watch = watch.args(["ci-watch", &session.to_string(), &commit.to_string()]).dir(project.root());
+            watch.detached().map_err(|failure| Listed::new(format!("CI not watched: {failure}")))
         })
     }
 

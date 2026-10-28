@@ -12,15 +12,14 @@ pub use sha::Sha;
 use std::cell::RefCell;
 use std::fmt;
 use std::path::PathBuf;
-use std::process::Output;
 
+use meta_run::Ran;
 use meta_schema::Record;
 
 use crate::LogStore;
 use crate::log_failure::LogFailure;
 use crate::remote_name::RemoteName;
 use crate::snapshot::Snapshot;
-use crate::stderr::Stderr;
 use attempt::Attempt;
 use content::Content;
 use fetched::Fetched;
@@ -66,7 +65,8 @@ impl GitLog {
             Remote::FILE,
             staged = Self::STAGED,
         );
-        self.git.command(["fast-import", "--quiet", "--date-format=now"]).input(Content::from(stream)).sha()
+        let imported = Git::ran(self.git.command(["fast-import", "--quiet", "--date-format=now"]).fed(stream))?;
+        Ok(Content::try_from(imported)?.as_ref().parse().unwrap_or_else(|never| match never {}))
     }
 
     fn attempt<Failure: From<LogFailure>>(
@@ -80,7 +80,6 @@ impl GitLog {
         let commit = self.commit(before.tip(), &appended, &record)?;
         let pushed = self.remote.push(&commit, before.tip())?;
         pushed
-            .status
             .success()
             .then(|| {
                 self.known.replace(Some(Fetched::new(Some(commit), appended)));
@@ -96,11 +95,11 @@ impl GitLog {
         Ok(fetched)
     }
 
-    fn after_failed_push(&self, before: &Fetched, record: Record, pushed: &Output) -> Result<Outcome, LogFailure> {
+    fn after_failed_push(&self, before: &Fetched, record: Record, pushed: &Ran) -> Result<Outcome, LogFailure> {
         let now = self.fresh()?;
         match (now.content().snapshot().records().contains(&record), now.tip() == before.tip()) {
             (true, _) => Ok(Outcome::Appended(record)),
-            (false, true) => Err(LogFailure::Rejected(Stderr::from(pushed))),
+            (false, true) => Err(LogFailure::Rejected(pushed.stderr().clone())),
             (false, false) => Ok(Outcome::Raced),
         }
     }
