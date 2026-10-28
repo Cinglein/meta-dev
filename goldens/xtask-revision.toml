@@ -1,0 +1,81 @@
+[[step]]
+run = ["git", "init", "--quiet", "--initial-branch=change", "."]
+
+[[step]]
+run = ["git", "config", "user.name", "fixture"]
+
+[[step]]
+run = ["git", "config", "user.email", "1+fixture@users.noreply.github.com"]
+
+[[step]]
+run = ["sh", "-c", "mkdir -p tooling && printf 'surfaces = []\\n' > tooling/policy.toml && printf 'crate-graph = 1\\n' > lint-baseline.toml"]
+
+[[step]]
+run = ["git", "add", "--all"]
+
+[[step]]
+run = ["git", "commit", "--quiet", "-m", "base"]
+
+[[step]]
+run = ["git", "checkout", "--quiet", "-b", "main"]
+
+[[step]]
+run = ["git", "-c", "user.email=main@example.com", "commit", "--quiet", "--allow-empty", "-m", "main"]
+
+[[step]]
+run = ["git", "update-ref", "refs/remotes/origin/main", "main"]
+
+[[step]]
+run = ["git", "checkout", "--quiet", "change"]
+
+[[step]]
+run = ["git", "-c", "committer.email=noreply@github.com", "commit", "--quiet", "--allow-empty", "-m", "side"]
+
+[[step]]
+run = ["git", "merge", "--quiet", "--no-edit", "origin/main"]
+
+[[step]]
+run = ["git", "-c", "author.email=author@example.com", "-c", "committer.email=committer@example.com", "commit", "--quiet", "--allow-empty", "-m", "head"]
+
+[[step]]
+run = ["sh", "-c", "printf 'crate-graph = 2\\n' > lint-baseline.toml && printf 'x\\n' > tooling/new.toml"]
+
+[[step]]
+record = "merge-base"
+git = { call = "merge-base", operands = ["origin/main"] }
+
+[[step]]
+record = "no-merge-base"
+git = { call = "merge-base", operands = ["refs/heads/none"] }
+
+[[step]]
+record = "present"
+git = { call = "ls-tree", operands = ["origin/main", "--", "lint-baseline.toml"] }
+
+[[step]]
+record = "absent"
+git = { call = "ls-tree", operands = ["origin/main", "--", "absent.toml"] }
+
+[[step]]
+record = "full-tree"
+git = { call = "ls-tree", operands = ["--full-tree", "origin/main", "--", "tooling/policy.toml"] }
+
+[[step]]
+record = "lost-commit"
+git = { call = "ls-tree", operands = ["0123abc", "--", "lint-baseline.toml"] }
+
+[[step]]
+record = "blob"
+git = { call = "cat-blob", operands = ["origin/main:./lint-baseline.toml"] }
+
+[[step]]
+record = "changed"
+git = { call = "changed-names", operands = ["origin/main"] }
+
+[[step]]
+record = "untracked"
+git = { call = "untracked-names" }
+
+[[step]]
+record = "emails-off-base"
+git = { call = "log-emails", operands = ["origin/main"] }

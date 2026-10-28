@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use meta_golden::GoldenFailure;
 use meta_log::LogFailure;
+use meta_run::Unread;
 use meta_severity::{Demotions, ScaleFailure, Strands};
 use thiserror::Error;
 
@@ -62,4 +63,6 @@ pub enum Failure {
     Untracked(Untracked),
     #[error("goldens: {0}")]
     Golden(#[from] GoldenFailure),
+    #[error("git: {0}")]
+    Git(Unread),
 }

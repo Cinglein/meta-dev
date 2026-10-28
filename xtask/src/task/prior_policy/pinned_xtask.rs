@@ -59,7 +59,7 @@ impl PinnedXtask {
             .flatten()
             .flatten()
             .find_map(|entry| {
-                Revision::in_database(entry.path(), commit.clone())
+                Revision::in_database(&entry.path(), commit.clone())
                     .tracked(TrackedPath::new(Path::new(PriorPolicy::DEFAULT_LEVELS)))
                     .ok()
                     .flatten()

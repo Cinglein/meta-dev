@@ -113,27 +113,6 @@ impl Fixture {
         })
     }
 
-    pub fn criss_cross(&self, main: [&str; 2], side: [&str; 2], head: [&str; 2]) -> &Fixture {
-        let commit = |branch: &str, mark: &str, [author, committer]: [&str; 2], parents: &str| {
-            format!(
-                "commit {branch}\nmark :{mark}\nauthor fixture <{author}> 1700000000 +0000\ncommitter fixture <{committer}> 1700000000 +0000\ndata 8\nfixture\n{parents}\n"
-            )
-        };
-        let stream = [
-            commit("refs/remotes/origin/main", "1", main, "from refs/remotes/origin/main^0\n"),
-            commit("refs/heads/change", "2", side, "from refs/heads/change^0\n"),
-            commit("refs/heads/change", "3", side, "from :2\nmerge :1\n"),
-            commit("refs/remotes/origin/main", "4", main, "from :2\nmerge :1\n"),
-            commit("refs/heads/change", "5", head, "from :3\n"),
-        ]
-        .concat();
-        let mut child =
-            Self::git(&self.work).args(["fast-import", "--quiet"]).stdin(Stdio::piped()).spawn().expect("run git");
-        child.stdin.take().expect("stdin").write_all(stream.as_bytes()).expect("write stream");
-        child.wait().expect("wait git").success().then_some(()).expect("git succeeds");
-        self
-    }
-
     pub fn write(&self, path: &str, text: &str) -> &Fixture {
         let file = self.path(path);
         fs::create_dir_all(file.parent().expect("parent")).expect("create dirs");

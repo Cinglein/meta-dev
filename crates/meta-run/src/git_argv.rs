@@ -7,6 +7,12 @@ use crate::tool::Tool;
 #[strum(serialize_all = "kebab-case")]
 pub enum GitArgv {
     Var,
+    MergeBase,
+    LsTree,
+    CatBlob,
+    ChangedNames,
+    UntrackedNames,
+    LogEmails,
 }
 
 impl Tool for GitArgv {
@@ -16,6 +22,12 @@ impl Tool for GitArgv {
     fn words(self) -> &'static [&'static str] {
         match self {
             Self::Var => &["var"],
+            Self::MergeBase => &["merge-base", "HEAD"],
+            Self::LsTree => &["ls-tree", "-z", "--name-only"],
+            Self::CatBlob => &["cat-file", "blob"],
+            Self::ChangedNames => &["diff", "--name-only", "--no-renames", "--relative", "-z"],
+            Self::UntrackedNames => &["ls-files", "--others", "--exclude-standard", "-z"],
+            Self::LogEmails => &["log", "--format=%ae%n%ce", "HEAD", "--not"],
         }
     }
 }

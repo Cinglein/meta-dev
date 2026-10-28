@@ -7,7 +7,7 @@ use std::path::Path;
 use meta_schema::Division;
 use meta_severity::{Scale, Scales};
 use serde::Deserialize;
-use task::{BaselineFile, Surface};
+use task::{BaselineFile, BranchName, Surface};
 
 use crate::task::failure::Failure;
 use crate::task::revision::{Revision, TrackedPath};
@@ -31,6 +31,10 @@ impl PriorPolicy {
 
     pub fn read_at(revision: &Revision) -> Result<PriorPolicy, Failure> {
         Self::parsed(revision.present(Path::new(Self::PATH))?)
+    }
+
+    pub fn text_at_merge_base(root: &Path, base: &BranchName) -> Result<Option<String>, Failure> {
+        Revision::merge_base(root, base)?.present(Path::new(Self::PATH))
     }
 
     pub fn scales_at(revision: &Revision, now: &PinnedXtask, databases: &Path) -> Result<Scales, Failure> {
