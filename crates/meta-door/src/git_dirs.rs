@@ -2,6 +2,7 @@ mod refusal;
 
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
+use std::fs;
 use std::io;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
@@ -19,6 +20,7 @@ impl GitDirs {
     const ENTRY: &str = ".git";
     const HEAD: &str = "HEAD";
     const OBJECTS: &str = "objects";
+    const GITDIR: &str = "gitdir: ";
     const QUERY: [&str; 3] = ["rev-parse", "--path-format=absolute", "--git-common-dir"];
     const UNSET: [&str; 3] = ["GIT_DIR", "GIT_COMMON_DIR", "GIT_WORK_TREE"];
 
@@ -28,7 +30,7 @@ impl GitDirs {
         known.map_or_else(
             || {
                 let common =
-                    Self::plain(&directory).map_or_else(|| Self::answered(&directory).map_err(io::Error::other), Ok)?;
+                    Self::read(&directory).map_or_else(|| Self::answered(&directory).map_err(io::Error::other), Ok)?;
                 KNOWN.lock().unwrap_or_else(PoisonError::into_inner).insert(directory.clone(), common.clone());
                 Ok(common)
             },
@@ -77,9 +79,16 @@ impl GitDirs {
         }
     }
 
-    fn plain(directory: &Path) -> Option<PathBuf> {
+    fn read(directory: &Path) -> Option<PathBuf> {
         let own = directory.join(Self::ENTRY);
-        (own.is_dir() && !own.join(AdminFile::CommonDir.name()).exists()).then_some(own)
+        let gitfile = fs::read_to_string(&own).ok();
+        let pointed = gitfile.and_then(|text| Some(directory.join(text.lines().next()?.strip_prefix(Self::GITDIR)?)));
+        let bare = (directory.join(Self::HEAD).is_file() && directory.join(Self::OBJECTS).is_dir())
+            .then(|| directory.to_path_buf());
+        let admin = Self::resolved(pointed.or_else(|| own.is_dir().then_some(own)).or(bare)?).ok()?;
+        let shared = fs::read_to_string(admin.join(AdminFile::CommonDir.name())).ok();
+        let common = shared.and_then(|text| Some(admin.join(text.lines().next()?)));
+        Self::resolved(common.unwrap_or(admin)).ok()
     }
 
     fn answered(directory: &Path) -> Result<PathBuf, Refusal> {
