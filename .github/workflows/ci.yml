@@ -35,6 +35,23 @@ jobs:
         env:
           PULL_REQUEST: ${{ github.event.pull_request.number }}
 
+  goldens:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: git --version && gh --version
+      - run: cargo xtask goldens
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: goldens match a fresh recording (run `cargo xtask goldens` and commit the diff)
+        run: git add --intent-to-add goldens && git diff --exit-code -- goldens
+
   stacked:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -119,7 +136,7 @@ jobs:
         shell: bash
 
   ci-gate:
-    needs: [ci, stacked, mutants-plan, mutants, mutant-costs]
+    needs: [ci, goldens, stacked, mutants-plan, mutants, mutant-costs]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:

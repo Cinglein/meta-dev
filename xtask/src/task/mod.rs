@@ -4,6 +4,7 @@ mod coverage;
 mod failure;
 #[cfg(test)]
 mod fixture;
+mod golden_refresh;
 mod lint;
 mod prior_policy;
 mod ratchet;
@@ -20,6 +21,7 @@ use task::{Branch, Ledger, Policy, Program, Selection, Workspace};
 
 use crate::task::clippy::Clippy;
 use crate::task::coverage::Coverage;
+use crate::task::golden_refresh::GoldenRefresh;
 use crate::task::lint::Lint;
 use crate::task::surfaces::Surfaces;
 use crate::task::test::Test;
@@ -48,6 +50,7 @@ pub enum Task {
     EnumPredicates,
     ExpressionFlow,
     FnShape,
+    Goldens,
     Graph,
     Lint,
     LiteralNames,
@@ -126,6 +129,7 @@ impl Task {
             )
             .run(workspace, &selection, &policy),
             Task::Clippy => Ok(Clippy::run(workspace, &selection, &policy)?),
+            Task::Goldens => GoldenRefresh::run(workspace),
             Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
             Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy, &mut ledger)
                 .and_then(|()| Ok(ledger.checked(&policy, &selection)?)),

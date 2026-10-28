@@ -1,6 +1,7 @@
 use std::io;
 use std::path::PathBuf;
 
+use meta_golden::GoldenFailure;
 use meta_log::LogFailure;
 use meta_severity::{Demotions, ScaleFailure, Strands};
 use thiserror::Error;
@@ -59,4 +60,6 @@ pub enum Failure {
     Unfetched,
     #[error("untracked work fails closed: {0}")]
     Untracked(Untracked),
+    #[error("goldens: {0}")]
+    Golden(#[from] GoldenFailure),
 }

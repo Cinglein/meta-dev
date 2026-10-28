@@ -13,6 +13,8 @@ Principles, ladder and design: `context/SPEC.md`. Build stages: `context/BOOTSTR
 - `self/spec` (`meta-spec`): spec rules as typed records; `context/SPEC.md` is rendered from them
   (`cargo run -p meta-spec`). `cargo xtask ci` checks the render in its `spec` step.
 - `examples/consumer/`: a small workspace that uses the tooling with its own policy; CI runs it.
+- `goldens/`: real recorded git, gh and meta output (`<scenario>.toml` steps, `<scenario>/` recordings).
+  `cargo xtask goldens` re-records them; CI job `goldens` fails on any diff. Tests feed views, not fakes.
 - `context/` and this file: agent context (prose category 1). `README.md` and `docs/`: STE100
   documentation only (category 2).
 

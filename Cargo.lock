@@ -562,6 +562,7 @@ dependencies = [
  "affected",
  "corpus_check",
  "crate_graph",
+ "meta-golden",
  "meta-log",
  "meta-run",
  "meta-schema",
