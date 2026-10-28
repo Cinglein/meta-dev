@@ -5,7 +5,7 @@ use std::ffi::OsString;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use meta_run::{Budget, EnvPolicy, Environment, Ran, Run, RunFailure};
+use meta_run::{Budget, EnvPolicy, Environment, Ran, Run, RunFailure, Unread};
 
 const SHELL: &str = "bash";
 const LEADS: &str = "kill -0 -- -$$ 2>/dev/null && echo leader; true";
@@ -67,8 +67,10 @@ fn a_run_feeds_its_input_returns_both_streams_and_leads_its_own_group() {
     assert!(!ran.success() && ran.stdout().text() == SHOWN[0] && ran.stderr().to_string() == SHOWN[1]);
     let reported = Scripted::shell(FED).fed(SHOWN[0].to_owned()).reported(Instant::now() + PATIENT);
     let complained = |shown: String| shown == COMPLAINT;
+    let exited = matches!(&reported, Err(Unread::Failed(status, _)) if *status == ran.status() && !status.success());
     assert!(
-        ran.succeeded().is_err_and(|ran| complained(ran.to_string()))
+        exited
+            && ran.succeeded().is_err_and(|ran| complained(ran.to_string()))
             && reported.is_err_and(|unread| complained(unread.to_string()))
     );
     let led = Scripted::shell(LEADS).reported(Instant::now() + PATIENT).map(|out| out.text().into_owned());
