@@ -1,5 +1,4 @@
 use std::fmt;
-use std::time::{Duration, Instant};
 
 use crate::env_policy::EnvPolicy;
 use crate::kill_scope::KillScope;
@@ -16,13 +15,11 @@ impl KillTarget {
     const KILL: &'static str = "kill";
     const SIGNAL: &'static str = "-KILL";
     const END_OF_OPTIONS: &'static str = "--";
-    const GRACE: Duration = Duration::from_secs(1);
     const SEARCH_PATH: [&'static str; 1] = ["PATH"];
 
     pub fn ended(self) {
         let kill = Run::new(Self::KILL, EnvPolicy::Only(&Self::SEARCH_PATH)).scoped(KillScope::Process);
-        let spawned = kill.args([Self::SIGNAL, Self::END_OF_OPTIONS]).arg(self.to_string()).spawned();
-        drop(spawned.map(|kill| kill.settled(Instant::now() + Self::GRACE)));
+        drop(kill.args([Self::SIGNAL, Self::END_OF_OPTIONS]).arg(self.to_string()).spawned());
     }
 }
 

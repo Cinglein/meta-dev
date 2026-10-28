@@ -11,6 +11,8 @@ const FED: &str = "cat; echo oops >&2; echo more >&2; exit 3";
 const INPUT: &str = "fed";
 const SHOWN: [&str; 2] = ["oops\nmore", "oops"];
 const PATIENT: Duration = Duration::from_secs(5);
+const LEADS: &str = "[ \"$(ps -o pgid= -p $$ | tr -d ' ')\" = \"$$\" ] && echo leader; true";
+const LED: [(KillScope, &str); 2] = [(KillScope::Group, "leader\n"), (KillScope::Process, "")];
 const LIMIT: Duration = Duration::from_millis(100);
 const PROMPT: Duration = Duration::from_secs(1);
 const HELD_ELSEWHERE: &str = "set -m; sleep 2 & echo held";
@@ -50,11 +52,16 @@ impl Scripted {
 }
 
 #[test]
-fn a_run_feeds_its_input_and_returns_its_status_and_both_streams() {
+fn a_run_feeds_its_input_returns_both_streams_and_leads_its_own_group_only_in_group_scope() {
     let run = Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, FED]).fed(INPUT.to_owned());
     let ran = run.ran(Instant::now() + PATIENT).unwrap();
     assert!(!ran.success() && ran.stdout().text() == INPUT && ran.stderr().to_string() == SHOWN[0]);
     assert_eq!(ran.succeeded().unwrap_err().to_string(), SHOWN[1]);
+    let led = LED.map(|(scope, _)| {
+        let run = Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, LEADS]).scoped(scope);
+        run.stdout(Instant::now() + PATIENT).unwrap()
+    });
+    assert_eq!(led, LED.map(|(_, shown)| shown.to_owned()));
 }
 
 #[test]
