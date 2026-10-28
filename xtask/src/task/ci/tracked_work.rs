@@ -36,12 +36,12 @@ impl TrackedWork {
 
 #[cfg(test)]
 mod tests {
+    use meta_golden::Golden;
     use meta_log::{LogFailure, Snapshot};
     use meta_schema::Record;
 
     use super::TrackedWork;
     use crate::task::ci::run_kind::RunKind;
-    use crate::task::ci::untracked::Untracked;
     use crate::task::failure::Failure;
 
     const LOG: &str = "TaskOpened a1 TaskClaimed a1 TaskOpened b2 TaskOpened c3 EntryRetired c3 TaskOpened d4 TaskClaimed d4 TaskLinked d4 TaskDone d4";
@@ -52,9 +52,6 @@ mod tests {
     const REFUSED: [&str; 4] = ["feature-x", "task-00000000000000e5", "task-00000000000000c3", "task-00000000000000b2"];
     const DONE: &str = "task-00000000000000d4";
     const PASSED: [&str; 3] = ["task-00000000000000a1-rated", "task-00000000000000a1/rated", DONE];
-    const OPEN: [&str; 3] = ["meta open \"", "--division ", "meta claim <task> --worktree"];
-    const CLAIM: &str = "meta claim task-00000000000000b2";
-    const REBUILD: &str = "bump meta-xtask / merge main, then rebuild meta";
     const GATE: (&str, &str) = ("META_GATE_BRANCH", PASSED[1]);
     const PUSH: [(&str, &str); 2] = [("GITHUB_EVENT_NAME", "push"), ("GITHUB_HEAD_REF", "")];
     const SIGNALS: [(&str, &str); 4] =
@@ -72,17 +69,6 @@ mod tests {
         fn unreadable() -> Result<Snapshot, Failure> {
             Err(Failure::StandingLog(LogFailure::Contended))
         }
-
-        fn shown([plain, unknown, retired, unclaimed]: [&str; 4]) -> Vec<Option<String>> {
-            let task = |id: &str| id.parse().unwrap();
-            let named = [
-                Untracked::Unknown(task(unknown)),
-                Untracked::Retired(task(retired)),
-                Untracked::Unclaimed(task(unclaimed)),
-            ];
-            let reasons = [Untracked::NoBranch, Untracked::NotTask(plain.parse().unwrap())].into_iter().chain(named);
-            reasons.map(|reason| Some(Failure::Untracked(reason).to_string())).collect()
-        }
     }
 
     impl RunKind {
@@ -94,15 +80,10 @@ mod tests {
     #[test]
     fn no_branch_no_task_unknown_retired_or_unclaimed_tasks_and_an_unreadable_log_fail_with_the_remedy() {
         let found = [None].into_iter().chain(REFUSED.map(Some)).map(|branch| TrackedWork::judged(branch, LINKED));
-        let shown = TrackedWork::shown(REFUSED);
-        assert_eq!(found.map(|refused| refused.err().map(|failure| failure.to_string())).collect::<Vec<_>>(), shown);
-        let (claim, open) = shown.split_last().unwrap();
-        let opens = open.iter().flatten().all(|open| OPEN.iter().all(|step| open.contains(step)));
-        assert!(opens && claim.as_ref().is_some_and(|claim| claim.contains(CLAIM) && !claim.contains(OPEN[0])));
-        let refused =
+        let unreadable =
             TrackedWork::refuse_untracked(&RunKind::Pull(PASSED[0].parse().ok(), None), TrackedWork::unreadable);
-        let refused = refused.err().map(|failure| failure.to_string()).unwrap_or_default();
-        assert!(refused.contains(REBUILD) && !refused.contains(OPEN[0]));
+        let refused = found.chain([unreadable]).map(|refused| refused.err().map(|failure| failure.to_string()));
+        Golden::for_test(module_path!(), "refused").debugged(&refused.collect::<Vec<_>>()).unwrap();
     }
 
     #[test]

@@ -1,0 +1,20 @@
+[
+    Some(
+        "untracked work fails closed: pull request head branch unknown; meta open \"<title>\" --division <path>, then meta claim <task> --worktree, then work on the branch that claim makes",
+    ),
+    Some(
+        "untracked work fails closed: branch feature-x names no task (task-<id>, task-<id>-<suffix> or task-<id>/<suffix>); meta open \"<title>\" --division <path>, then meta claim <task> --worktree, then work on the branch that claim makes",
+    ),
+    Some(
+        "untracked work fails closed: task-00000000000000e5 is not in meta/log; meta open \"<title>\" --division <path>, then meta claim <task> --worktree, then work on the branch that claim makes",
+    ),
+    Some(
+        "untracked work fails closed: task-00000000000000c3 is retired; meta open \"<title>\" --division <path>, then meta claim <task> --worktree, then work on the branch that claim makes",
+    ),
+    Some(
+        "untracked work fails closed: task-00000000000000b2 has no assignee; meta claim task-00000000000000b2",
+    ),
+    Some(
+        "untracked work fails closed: cannot read meta/log (standing budgets fail closed: meta/log is unreadable: meta/log kept moving; gave up); bump meta-xtask / merge main, then rebuild meta",
+    ),
+]
