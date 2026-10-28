@@ -99,3 +99,33 @@ impl<Write: Fn() -> Result<String, CliFailure>> ClaimHands for ClaimRun<'_, Writ
         self.checkout.holds(GitArgv::BranchDelete, &[self.worktree.branch().as_ref()]);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use meta_schema::Id;
+
+    use super::{ClaimHands, ClaimRun, LocalClone};
+    use crate::request::local::local_settings::LocalSettings;
+    use crate::request::local::local_trail::LocalTrail;
+    use crate::request::local::recorded_worktree::RecordedWorktree;
+    use crate::request::local::trail_entry::TrailEntry;
+    use crate::request::project::{CiSettings, Config};
+
+    const NOWHERE: &str = "/nonexistent/clone";
+    const SETTINGS: &str = "[identity]\nname = \"a\"\nemail = \"1+a@users.noreply.github.com\"";
+
+    #[test]
+    fn pruning_runs_git_in_the_checkout_and_an_untrailed_worktree_leaves_the_trail() {
+        let git_dir = tempfile::tempdir().unwrap();
+        let settings = CiSettings::try_from(&Config::default()).unwrap();
+        let clone = LocalClone::new(PathBuf::from(NOWHERE), git_dir.path().to_path_buf(), settings);
+        let worktree = RecordedWorktree::new(PathBuf::from(NOWHERE).join(NOWHERE), Id::generate());
+        LocalTrail::append(git_dir.path(), &TrailEntry::Created(worktree.clone())).unwrap();
+        let local: LocalSettings = SETTINGS.parse().unwrap();
+        let run = ClaimRun::new(&clone, worktree, local.identity().unwrap(), || Ok(String::new()));
+        let untrailed = run.untrailed().is_ok() && LocalTrail::read(git_dir.path()).unwrap().current().is_empty();
+        assert!(run.pruned().is_err() && untrailed);
+    }
+}
