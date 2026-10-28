@@ -13,11 +13,12 @@ use crate::request::writing::Writing;
 pub struct Linking;
 
 impl Linking {
-    pub fn after(input: &HookInput) -> Option<Listed> {
-        let project = Project::try_from(input.publishing()?.as_path()).ok()?;
+    pub fn after(input: &HookInput, known: Option<&Project>) -> Option<Listed> {
+        let found = Project::try_from(input.publishing()?.as_path()).ok()?;
+        let project = known.filter(|known| known.root() == found.root()).unwrap_or(&found);
         let branch = project.unprotected_branch()?;
         let task = branch.task()?;
-        let pulls = LiveGithub::for_project(&project).pulls_from(&branch);
+        let pulls = LiveGithub::for_project(project).pulls_from(&branch);
         pulls.first()?;
         let log = project.log().ok()?;
         let links = State::fold(log.read().ok()?.records()).unlinked(task, &pulls);
