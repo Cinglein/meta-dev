@@ -937,3 +937,4 @@
 {"at":"2026-10-28T08:11:05.136353Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-9c5d64605234df8b"}
 {"at":"2026-10-28T08:11:06.975035Z","actor":"claude-lead","kind":"TaskDone","task":"task-9c5d64605234df8b"}
 {"at":"2026-10-28T08:33:40.924857Z","actor":"claude-mut56","kind":"TaskOpened","task":"task-c75f22cce1ac9b15","text":"Kill three surviving mutants: run_overdue, SessionDir::watch, pushed_among (which hangs the tests when stubbed); keep within the test-line budget","division":"performance-and-cost"}
+{"at":"2026-10-28T08:33:46.724958Z","actor":"claude-mut56","kind":"TaskClaimed","task":"task-c75f22cce1ac9b15"}
