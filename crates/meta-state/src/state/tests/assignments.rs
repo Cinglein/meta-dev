@@ -1,3 +1,5 @@
+use meta_schema::Event;
+
 use super::{ALICE, BOB, DONE, Events, Lifecycle, OPENED, OWNER, RELEASED, REOPENED, Script};
 use crate::refusal::Refusal;
 use crate::state::State;
@@ -5,6 +7,8 @@ use crate::task_state::TaskStatus;
 
 const CAROL: &str = "carol";
 const DAVE: &str = "dave";
+const V6: &str = r#"{"kind":"SchemaVersion","version":6}"#;
+const V7: &str = r#"{"kind":"SchemaVersion","version":7}"#;
 
 #[test]
 fn several_actors_hold_one_task_and_a_takeover_swaps_exactly_one() {
@@ -36,21 +40,21 @@ fn unassigning_leaves_the_others_and_the_last_one_reopens_the_task() {
 }
 
 #[test]
-fn finishing_ends_every_assignment_and_reopening_restores_them() {
+fn finishing_ends_every_assignment_and_only_a_reopen_after_the_v7_marker_restores_them() {
     let task = Events::task(vec![]);
     let id = task.task();
-    let done = Script::default()
-        .then(OWNER, Lifecycle::event(&task, OPENED))
-        .then(ALICE, Events::claim(id, None))
-        .then(BOB, Events::claim(id, None))
-        .then(BOB, Lifecycle::event(&task, DONE));
-    assert!(done.assigned().is_empty() && matches!(done.status(), TaskStatus::Done(_)));
-    let reopened = done.then(ALICE, Lifecycle::event(&task, REOPENED));
-    assert_eq!(
-        (reopened.assigned(), reopened.status()),
-        (vec![Events::actor(ALICE), Events::actor(BOB)], TaskStatus::Assigned)
-    );
-    let held = reopened.assigned();
-    let reclaimed = reopened.then(ALICE, Events::claim(id, None));
-    assert!(State::fold(&reclaimed.records).anomalies().is_empty() && reclaimed.assigned() == held);
+    let marker = |json: &str| serde_json::from_str::<Event>(json).unwrap();
+    let finished = |script: Script| {
+        let claimed = script.then(ALICE, Events::claim(id, None)).then(BOB, Events::claim(id, None));
+        claimed.then(BOB, Lifecycle::event(&task, DONE))
+    };
+    let opened = Script::default().then(OWNER, marker(V6)).then(OWNER, Lifecycle::event(&task, OPENED));
+    let old = finished(opened);
+    assert!(old.assigned().is_empty() && matches!(old.status(), TaskStatus::Done(_)));
+    let cleared = old.then(ALICE, Lifecycle::event(&task, REOPENED));
+    let kept = finished(cleared.clone()).then(OWNER, marker(V7)).then(ALICE, Lifecycle::event(&task, REOPENED));
+    let both = vec![Events::actor(ALICE), Events::actor(BOB)];
+    assert_eq!((cleared.assigned(), cleared.status()), (vec![], TaskStatus::Open));
+    let reclaimed = kept.clone().then(ALICE, Events::claim(id, None));
+    assert!(State::fold(&reclaimed.records).anomalies().is_empty() && reclaimed.assigned() == both);
 }
