@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 use super::Run;
 use crate::env_policy::EnvPolicy;
+use crate::environment::Environment;
 use pid::Pid;
 
 #[derive(Debug, Default)]
@@ -28,22 +29,26 @@ impl Tree {
         let root = Pid::from(&*child);
         let deadline = Instant::now() + Self::GRACE;
         let signals = std::iter::once(Self::SIGNALS[0]).chain(std::iter::repeat(Self::SIGNALS[1]));
-        let live = signals.take_while(|_| Instant::now() < deadline);
-        let _swept = live.into_iter().try_for_each(|signal| Self::listed(deadline).signalled(root, signal, deadline));
+        let _swept =
+            signals.into_iter().try_for_each(|signal| Self::listed(deadline).signalled(root, signal, deadline));
         Run::alone(child);
     }
 
     fn listed(deadline: Instant) -> Self {
-        let ps = Run { ended: Run::alone, ..Run::new(Self::PS, EnvPolicy::Only(&Self::SEARCH_PATH)) };
-        let Ok(tree) = ps.args(Self::LISTING).stdout(deadline).unwrap_or_default().parse();
+        let ps = Self::single(Self::PS).args(Self::LISTING);
+        let Ok(tree) = ps.stdout(deadline).unwrap_or_default().parse();
         tree
+    }
+
+    fn single(program: &str) -> Run {
+        Run::ending(program, EnvPolicy::Only(&Self::SEARCH_PATH), Environment::current(), Run::alone)
     }
 
     fn signalled(&self, root: Pid, signal: &str, deadline: Instant) -> ControlFlow<()> {
         let below = self.below(root);
         below.first().map_or(ControlFlow::Break(()), |_| {
-            let kill = Run { ended: Run::alone, ..Run::new(Self::KILL, EnvPolicy::Only(&Self::SEARCH_PATH)) };
-            let kill = below.iter().fold(kill.args([signal, Self::END_OF_OPTIONS]), |kill, pid| pid.appended(kill));
+            let kill = Self::single(Self::KILL).args([signal, Self::END_OF_OPTIONS]);
+            let kill = below.iter().fold(kill, |kill, pid| pid.appended(kill));
             drop(kill.ran(deadline));
             std::thread::sleep(Self::PAUSE);
             ControlFlow::Continue(())

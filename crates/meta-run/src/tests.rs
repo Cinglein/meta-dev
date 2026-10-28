@@ -16,7 +16,7 @@ const PROMPT: Duration = Duration::from_secs(1);
 const KILLED: [&str; 3] = [
     "set -m; sleep 2 & echo $! >> \"$0\"; echo held",
     "sleep 5 & echo $! >> \"$0\"; wait",
-    "echo $$ >> \"$0\"; exec sleep 5",
+    "sleep 0 & echo $$ >> \"$0\"; exec sleep 5",
 ];
 const PS: [&str; 4] = ["ps", "-o", "stat=", "-p"];
 const KILL: [&str; 2] = ["kill", "-KILL"];
@@ -41,7 +41,8 @@ impl Scripted {
     fn gone(pids: &Path) -> bool {
         let listed = std::fs::read_to_string(pids).unwrap().lines().collect::<Vec<_>>().join(",");
         let live = || Run::new(PS[0], EnvPolicy::Inherit).args(&PS[1..]).arg(&listed).stdout(Instant::now() + PATIENT);
-        let polls = (0..PROMPT.as_millis() / POLL.as_millis()).map(|_| std::thread::sleep(POLL));
+        let until = Instant::now() + PROMPT;
+        let polls = std::iter::repeat_with(|| std::thread::sleep(POLL)).take_while(|()| Instant::now() < until);
         polls.into_iter().any(|()| live().unwrap_or_default().lines().all(|state| state.starts_with('Z')))
     }
 }

@@ -35,15 +35,24 @@ impl Run {
 
     #[must_use]
     pub fn new(program: impl AsRef<OsStr>, env: EnvPolicy) -> Self {
-        Self::inheriting(program, env, Environment::current())
+        Self::ending(program, env, Environment::current(), Tree::ended)
     }
 
     #[must_use]
     pub fn inheriting(program: impl AsRef<OsStr>, env: EnvPolicy, inherited: Environment) -> Self {
+        Self::ending(program, env, inherited, Tree::ended)
+    }
+
+    pub(crate) fn ending(
+        program: impl AsRef<OsStr>,
+        env: EnvPolicy,
+        inherited: Environment,
+        ended: fn(&mut Child),
+    ) -> Self {
         let mut command = Command::new(program);
         let kept = env.applied(inherited.clone());
         inherited.dropped(&kept, &mut command);
-        Self { command, ended: Tree::ended, input: None }
+        Self { command, ended, input: None }
     }
 
     #[must_use]
