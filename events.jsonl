@@ -1018,3 +1018,4 @@
 {"at":"2026-10-28T15:20:18.700519Z","actor":"claude-lead","kind":"TaskOpened","task":"task-fb059b29b586e019","text":"Concurrency registry lint: every thread spawn/scope, parallel iterator, lock and retry loop listed with owner and reason; unlisted ones fail.","division":"performance-and-cost"}
 {"at":"2026-10-28T15:20:21.466170Z","actor":"claude-lead","kind":"TaskOpened","task":"task-5161aac2f95e5fde","text":"Add a concurrency child division under performance-and-cost and run the periodic concurrency audit from meta's heartbeat there.","division":"performance-and-cost"}
 {"at":"2026-10-28T15:21:05.538478Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-e010247ab85c3cfa"}
+{"at":"2026-10-28T15:21:07.280153Z","actor":"claude-lead","kind":"TaskDone","task":"task-e010247ab85c3cfa"}
