@@ -47,8 +47,12 @@ impl PinnedXtask {
     }
 
     pub fn shipped_levels(&self, now: &PinnedXtask, databases: &Path) -> Option<Scale> {
+        self.moved_from(now).and_then(|then| Self::shipped_in(then, databases))
+    }
+
+    fn moved_from(&self, now: &PinnedXtask) -> Option<&Commit> {
         match self {
-            PinnedXtask::Git(then) if self != now => Self::shipped_in(then, databases),
+            PinnedXtask::Git(then) if self != now => Some(then),
             PinnedXtask::Git(_) | PinnedXtask::Unpinned => None,
         }
     }
@@ -65,5 +69,27 @@ impl PinnedXtask {
                     .flatten()
             })
             .and_then(|text| serde_json::from_str(&text).ok())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PinnedXtask;
+
+    const EARLY: &str = "0123abc";
+    const LOCKS: [&str; 4] = [
+        "[[package]]\nname = \"meta-xtask\"\nsource = \"git+https://example.invalid/meta-dev?tag=v0#0123abc\"\n",
+        "[[package]]\nname = \"meta-xtask\"\nsource = \"git+https://example.invalid/meta-dev?tag=v0#4567def\"\n",
+        "[[package]]\nname = \"meta-xtask\"\n",
+        "",
+    ];
+
+    #[test]
+    fn only_a_git_pin_that_moved_since_the_merge_base_asks_for_its_shipped_levels() {
+        let [early, late, unsourced, unlocked] = LOCKS.map(PinnedXtask::in_lock);
+        let moved = [(&early, &late), (&early, &early), (&unsourced, &late), (&unlocked, &early), (&early, &unlocked)]
+            .map(|(then, now)| then.moved_from(now).map(ToString::to_string));
+        assert!(unsourced == PinnedXtask::Unpinned && unlocked == PinnedXtask::Unpinned);
+        assert_eq!(moved, [Some(EARLY.to_owned()), None, None, None, Some(EARLY.to_owned())]);
     }
 }

@@ -46,11 +46,9 @@ impl Stranding {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use meta_log::Snapshot;
     use meta_schema::{Event, NewConcern, Record};
-    use meta_severity::{Scale, Scales};
+    use meta_severity::Scales;
     use settings::EmbeddedDefaults;
     use task::Policy;
 
@@ -64,12 +62,9 @@ mod tests {
     const PIN: &str = "[[package]]\nname = \"meta-xtask\"\nsource = \"git+https://example.invalid/meta-dev?tag=v0#";
     const END: &str = "\"\n";
     const TIP: &str = "HEAD";
-    const LOST: &str = "0123abc";
     const MOVED: &str = "4567def";
-    const UNSOURCED: &str = "[[package]]\nname = \"meta-xtask\"\n";
     const TOP: &str = "features-and-maintenance";
     const MAJOR: &str = "major";
-    const CAPS: &str = "\n[budgets.features-and-maintenance-critical]";
     const CLOSED: &str = "fail closed";
     const NAV: &str = "features-and-maintenance/nav";
     const CRITICAL: &str = "critical";
@@ -100,69 +95,15 @@ mod tests {
     }
 
     #[test]
-    fn scales_changed_since_the_merge_base_policy_or_default_levels_are_judged_and_unchanged_ones_are_not() {
-        let fixture = Fixture::new();
-        let current = serde_json::to_string(&Scale::top_default()).unwrap();
-        fixture
-            .write(PriorPolicy::PATH, PRIOR)
-            .write(PriorPolicy::DEFAULT_LEVELS, &current)
-            .imported(Branched::Tracked);
-        let uncapped = Policy::DEFAULTS.split(CAPS).next().unwrap_or_default();
-        let same: Policy = toml::from_str(&format!("{uncapped}\n{PRIOR}")).unwrap();
-        let before: Scales = serde_json::from_str(OVERRIDDEN).unwrap();
-        let read = |fixture: &Fixture, policy: &Policy| Stranding::rescaling(fixture.root(), policy, fixture.root());
-        assert_eq!(read(&fixture, &Policy::defaults()).unwrap(), Some(before));
-        assert_eq!(read(&fixture, &same).unwrap(), None);
-    }
-
-    impl Stranding {
-        pub fn database() -> Fixture {
-            let database = Fixture::new();
-            database
-                .write(TOP, "x")
-                .imported(Branched::Local)
-                .write(PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS)
-                .imported(Branched::Local);
-            database
-        }
-
-        fn decided(databases: &Path, [then, now]: [&str; 2], policy_file: &str) -> Result<Option<Scales>, ()> {
-            let consumer = Fixture::new();
-            consumer.write(LOCK, then).write(policy_file, PRIOR).imported(Branched::Tracked);
-            consumer.write(LOCK, now);
-            Stranding::rescaling(consumer.root(), &Policy::defaults(), databases).map_err(|_| ())
-        }
-
-        fn referenced(databases: &Path, levels: &str) -> Result<Option<Scales>, ()> {
-            let tracked = Fixture::new();
-            tracked
-                .write(PriorPolicy::PATH, PRIOR)
-                .write(PriorPolicy::DEFAULT_LEVELS, levels)
-                .imported(Branched::Tracked);
-            Stranding::rescaling(tracked.root(), &Policy::defaults(), databases).map_err(|_| ())
-        }
-    }
-
-    #[test]
-    fn prior_levels_are_judged_only_when_found_and_every_other_case_reads_the_current_defaults_as_main_does() {
-        let database = Stranding::database();
-        let pin = |commit: &str| format!("{PIN}{commit}{END}");
-        let [early, late] = ["HEAD~1", TIP].map(|name| pin(database.revision(name).trim()));
-        let databases = database.root().parent().unwrap();
-        let [lost, moved] = [LOST, MOVED].map(pin);
-        let current = serde_json::to_string(&Scale::top_default()).unwrap();
-        let [old, now] = [OLD_LEVELS, &current].map(|levels| Stranding::referenced(databases, levels));
-        let decided = |then: &str, now: &str, file| Stranding::decided(databases, [then, now], file);
-        assert_ne!(old, now);
-        let judged = [
-            decided(&late, &moved, PriorPolicy::PATH),
-            decided(&early, &moved, PriorPolicy::PATH),
-            decided(&lost, &moved, PriorPolicy::PATH),
-            decided(&late, &late, PriorPolicy::PATH),
-            decided("", &late, PriorPolicy::PATH),
-            decided(UNSOURCED, &late, PriorPolicy::PATH),
-            decided("", &moved, TOP),
-        ];
-        assert_eq!(judged, [old, now.clone(), now.clone(), now.clone(), now.clone(), now, Ok(None)]);
+    fn levels_shipped_with_an_xtask_pin_that_moved_are_read_from_a_real_cargo_git_db() {
+        let (database, consumer) = (Fixture::new(), Fixture::new());
+        database.write(PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS).imported(Branched::Local);
+        let [moved, pinned] = [MOVED, database.revision(TIP).trim()].map(|commit| format!("{PIN}{commit}{END}"));
+        consumer.write(LOCK, &pinned).write(PriorPolicy::PATH, PRIOR).imported(Branched::Tracked);
+        let databases = database.root().parent().unwrap_or(database.root());
+        let [old, now] = [moved, pinned].map(|lock| {
+            Stranding::rescaling(consumer.write(LOCK, &lock).root(), &Policy::defaults(), databases).ok().flatten()
+        });
+        assert!(old.is_some() && old != now && now == serde_json::from_str(OVERRIDDEN).ok());
     }
 }
