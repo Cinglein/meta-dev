@@ -23,6 +23,11 @@ impl Budget {
         self.overall.map_or(call, |overall| call.min(overall))
     }
 
+    #[must_use]
+    pub fn remaining_deadline(self) -> Instant {
+        self.overall.unwrap_or_else(|| Instant::now() + self.per_call)
+    }
+
     pub fn rest(&self, pause: Duration) {
         let left = self.overall.map_or(pause, |overall| overall.saturating_duration_since(Instant::now()));
         std::thread::sleep(pause.min(left));
