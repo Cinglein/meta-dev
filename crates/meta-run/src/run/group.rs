@@ -84,16 +84,26 @@ mod tests {
 
     use super::{Group, GroupId};
     use crate::env_policy::EnvPolicy;
+    use crate::environment::Environment;
     use crate::run::Run;
+    use crate::run_failure::RunFailure;
 
-    const SHELL: [&str; 2] = ["sh", "-c"];
-    const LEADER: &str = "echo $$";
+    const SHELL: &str = "sh";
+    const ALONE: [&str; 2] = ["-c", "echo $$ > \"$0\"; exec sleep 5"];
+    const KILL: &str = "kill";
+    const ALIVE: [&str; 1] = ["-0"];
     const PATIENT: Duration = Duration::from_secs(5);
+    const LIMIT: Duration = Duration::from_millis(60);
 
     #[test]
-    fn a_finished_run_leaves_the_live_groups() {
-        let shown = Run::new(SHELL[0], EnvPolicy::Inherit).args([SHELL[1], LEADER]).stdout(Instant::now() + PATIENT);
-        let group: GroupId = shown.unwrap().parse().unwrap();
-        assert!(!Group::live().contains(&group));
+    fn a_helper_past_its_deadline_is_killed_reaped_and_dropped_from_the_live_groups() {
+        let recorded = tempfile::NamedTempFile::new().unwrap();
+        let helper = Run::ending(SHELL, EnvPolicy::Inherit, Environment::current(), Run::alone).args(ALONE);
+        let ran = helper.arg(recorded.path()).ran(Instant::now() + LIMIT);
+        let pid = std::fs::read_to_string(recorded.path()).unwrap();
+        let probed = Run::new(KILL, EnvPolicy::Inherit).args(ALIVE).arg(pid.trim()).ran(Instant::now() + PATIENT);
+        let group: GroupId = pid.parse().unwrap();
+        assert!(matches!(ran, Err(RunFailure::TimedOut(_))) && !Group::live().contains(&group));
+        assert!(probed.is_ok_and(|probed| !probed.success()));
     }
 }

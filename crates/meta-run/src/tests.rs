@@ -38,11 +38,9 @@ struct Scripted;
 impl Scripted {
     fn timed_out(script: &'static str, pids: &Path) -> String {
         let run = Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, script]).arg(pids);
-        let failure = run.ran(Instant::now() + LIMIT).err();
-        failure
-            .filter(|failure| matches!(failure, RunFailure::TimedOut(_)))
-            .map(|failure| failure.to_string())
-            .unwrap_or_default()
+        let failure =
+            run.ran(Instant::now() + LIMIT).err().filter(|failure| matches!(failure, RunFailure::TimedOut(_)));
+        failure.map(|failure| failure.to_string()).unwrap_or_default()
     }
 
     fn gone(pids: &Path) -> bool {
@@ -64,10 +62,8 @@ fn a_run_feeds_its_input_returns_both_streams_and_leads_its_own_group() {
     let ran = run.ran(Instant::now() + PATIENT).unwrap();
     assert!(!ran.success() && ran.stdout().text() == SHOWN[0] && ran.stderr().to_string() == SHOWN[1]);
     assert_eq!(ran.succeeded().unwrap_err().to_string(), SHOWN[2]);
-    assert_eq!(
-        Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, LEADS]).stdout(Instant::now() + PATIENT).unwrap(),
-        LEADER
-    );
+    let leads = Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, LEADS]);
+    assert_eq!(leads.stdout(Instant::now() + PATIENT).unwrap(), LEADER);
 }
 
 #[test]
