@@ -48,7 +48,7 @@ impl<'host> Sweep<'host> {
 }
 
 #[test]
-fn a_sweeps_one_worktree_and_remote_listing_judge_head_and_sharing_without_a_head_read_and_a_failed_listing_keeps_the_worktree() {
+fn one_worktree_and_remote_listing_per_sweep_judge_head_and_sharing_and_a_failed_listing_keeps_the_worktree() {
     let hosts = LISTINGS.map(|listing| {
         let mut host = FakeHost::clean();
         host.answer_is(LIST, listing);
