@@ -26,11 +26,11 @@ const POLLS: usize = 50;
 const POLL: Duration = Duration::from_millis(10);
 const ENV: &str = "/usr/bin/env";
 const INHERITED: [(&str, &str); 4] = [("GIT_DIR", "d"), ("GIT_SSH_COMMAND", "s"), ("LANG", "C"), ("PATH", "/bin")];
-const KEPT: [(EnvPolicy, &str); 4] = [
-    (EnvPolicy::Inherit, "GIT_DIR GIT_SSH_COMMAND LANG PATH"),
-    (EnvPolicy::NoRepoVars, "GIT_SSH_COMMAND LANG PATH"),
-    (EnvPolicy::NoGitVars, "LANG PATH"),
-    (EnvPolicy::Only(&["LANG"]), "LANG"),
+const DROPPED: [(EnvPolicy, &[&str]); 4] = [
+    (EnvPolicy::Inherit, &[]),
+    (EnvPolicy::NoRepoVars, &["GIT_DIR"]),
+    (EnvPolicy::NoGitVars, &["GIT_DIR", "GIT_SSH_COMMAND"]),
+    (EnvPolicy::Only(&["LANG"]), &["GIT_DIR", "GIT_SSH_COMMAND", "PATH"]),
 ];
 
 struct Scripted;
@@ -76,15 +76,12 @@ fn a_run_ends_at_its_deadline_and_kills_its_scope_even_when_a_grandchild_holds_t
 }
 
 #[test]
-fn each_env_policy_passes_on_only_its_variables() {
-    let shown = KEPT.map(|(policy, _)| {
-        let inherited = INHERITED.map(|(name, value)| (OsString::from(name), OsString::from(value)));
-        let run = Run::inheriting(ENV, policy, Environment::from(BTreeMap::from(inherited)));
-        let printed = run.stdout(Instant::now() + PATIENT).unwrap();
-        let mut names: Vec<&str> =
-            printed.lines().filter_map(|line| line.split_once('=')).map(|(name, _)| name).collect();
-        names.sort_unstable();
-        names.join(" ")
+fn each_env_policy_drops_only_its_variables_and_never_resets_the_rest() {
+    let inherited = INHERITED.map(|(name, value)| (OsString::from(name), Some(OsString::from(value))));
+    let inherited = Environment::from(BTreeMap::from(inherited));
+    let dropped = DROPPED.map(|(policy, _)| Environment::from(&Run::inheriting(ENV, policy, inherited.clone())));
+    let expected = DROPPED.map(|(_, names)| {
+        Environment::from(names.iter().map(|name| (OsString::from(name), None)).collect::<BTreeMap<_, _>>())
     });
-    assert_eq!(shown, KEPT.map(|(_, kept)| kept.to_owned()));
+    assert_eq!(dropped, expected);
 }

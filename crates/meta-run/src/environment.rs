@@ -3,12 +3,12 @@ use std::ffi::{OsStr, OsString};
 use std::process::Command;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Environment(BTreeMap<OsString, OsString>);
+pub struct Environment(BTreeMap<OsString, Option<OsString>>);
 
 impl Environment {
     #[must_use]
     pub fn current() -> Self {
-        Self(std::env::vars_os().collect())
+        Self(std::env::vars_os().map(|(name, value)| (name, Some(value))).collect())
     }
 
     pub(crate) fn without<'name>(mut self, names: impl IntoIterator<Item = &'name str>) -> Self {
@@ -26,20 +26,20 @@ impl Environment {
         self
     }
 
-    pub(crate) fn exported(self, command: &mut Command) {
-        command.env_clear().envs(self.0);
+    pub(crate) fn dropped(self, kept: &Self, command: &mut Command) {
+        let dropped = self.0.into_keys().filter(|name| !kept.0.contains_key(name));
+        dropped.fold(command, |command, name| command.env_remove(name));
     }
 }
 
-impl From<BTreeMap<OsString, OsString>> for Environment {
-    fn from(vars: BTreeMap<OsString, OsString>) -> Self {
+impl From<BTreeMap<OsString, Option<OsString>>> for Environment {
+    fn from(vars: BTreeMap<OsString, Option<OsString>>) -> Self {
         Self(vars)
     }
 }
 
 impl From<&Command> for Environment {
     fn from(command: &Command) -> Self {
-        let set = command.get_envs().filter_map(|(name, value)| value.map(|value| (name.into(), value.into())));
-        Self(set.collect())
+        Self(command.get_envs().map(|(name, value)| (name.into(), value.map(OsStr::to_os_string))).collect())
     }
 }

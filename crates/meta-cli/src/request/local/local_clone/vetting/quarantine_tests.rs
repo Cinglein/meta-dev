@@ -22,11 +22,12 @@ const REMOVE: &str = "worktree remove";
 const FROZEN: &str = "frozen /trees/.gc-task-00000000000000b1-1x0";
 const THAWED: &str = "thawed /trees/.gc-task-00000000000000b1-1x0";
 const INHERITED: [(&str, &str); 3] = [("GIT_DIR", "d"), ("HOME", "h"), ("GIT_INDEX_FILE", "i")];
-const ISOLATED: [(&str, &str); 4] = [
-    ("GIT_CONFIG_GLOBAL", "/dev/null"),
-    ("GIT_CONFIG_NOSYSTEM", "1"),
-    ("GIT_CONFIG_SYSTEM", "/dev/null"),
-    ("HOME", "h"),
+const ISOLATED: [(&str, Option<&str>); 5] = [
+    ("GIT_CONFIG_GLOBAL", Some("/dev/null")),
+    ("GIT_CONFIG_NOSYSTEM", Some("1")),
+    ("GIT_CONFIG_SYSTEM", Some("/dev/null")),
+    ("GIT_DIR", None),
+    ("GIT_INDEX_FILE", None),
 ];
 const STAT_PINS: [&str; 2] = ["core.trustctime=true", "core.checkStat=default"];
 const REFUSALS: [&str; 4] = ["no recorded worktree id", "changed during checks", "in use", "in use"];
@@ -66,11 +67,11 @@ fn a_file_or_commit_made_after_the_vet_is_caught_in_quarantine_and_the_worktree_
 #[test]
 fn vetting_git_ignores_inherited_git_variables_and_global_and_system_config_and_pins_stat_checks() {
     let call = GitCall::common(Path::new(QUARANTINE), &[OsStr::new(LATE)]);
-    let vars = |vars: &[(&str, &str)]| {
-        let vars = vars.iter().map(|(name, value)| (OsString::from(name), OsString::from(value)));
+    let vars = |vars: &[(&str, Option<&str>)]| {
+        let vars = vars.iter().map(|(name, value)| (OsString::from(name), value.map(OsString::from)));
         Environment::from(vars.collect::<BTreeMap<_, _>>())
     };
-    let run = call.run(vars(&INHERITED));
+    let run = call.run(vars(&INHERITED.map(|(name, value)| (name, Some(value)))));
     assert_eq!(Environment::from(&run), vars(&ISOLATED));
     let line = CommandLine::from(&run).to_string();
     assert!(STAT_PINS.iter().all(|pin| line.split(' ').any(|argument| argument == *pin)));

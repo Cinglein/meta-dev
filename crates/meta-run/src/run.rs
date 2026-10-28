@@ -32,7 +32,8 @@ impl Run {
     #[must_use]
     pub fn inheriting(program: impl AsRef<OsStr>, env: EnvPolicy, inherited: Environment) -> Self {
         let mut command = Command::new(program);
-        env.applied(inherited).exported(&mut command);
+        let kept = env.applied(inherited.clone());
+        inherited.dropped(&kept, &mut command);
         Self { command, scope: KillScope::Group, input: None }
     }
 
