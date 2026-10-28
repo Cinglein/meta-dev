@@ -957,3 +957,4 @@
 {"at":"2026-10-28T10:18:22.068019Z","actor":"claude-spawns2","kind":"IssueReported","issue":"issue-ad246de6d361cb9a","text":"ci test an_unreadable_remote_settles_the_watch_unchecked... flaked on PR #88 CI (timed-out after 0s under a 100 ms real deadline); passes 8/8 locally; gh test a_log_download_may_outlast_the_call_limit flaked once locally under load","division":"performance-and-cost"}
 {"at":"2026-10-28T10:30:53.346367Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-928f0f401cd7c831"}
 {"at":"2026-10-28T10:30:55.017141Z","actor":"claude-lead","kind":"TaskDone","task":"task-928f0f401cd7c831"}
+{"at":"2026-10-28T10:55:43.004074Z","actor":"claude-spawns2","kind":"TaskOpened","task":"task-73b96ac64a911e2e","text":"Kill the missed Checkout::read mutant on main (mutants shard meta-cli/8/31 at 0f2e7c5)","division":"performance-and-cost"}
