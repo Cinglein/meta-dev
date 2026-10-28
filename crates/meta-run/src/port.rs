@@ -48,13 +48,16 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use super::Port;
+    use crate::command_line::CommandLine;
     use crate::environment::Environment;
     use crate::git_argv::GitArgv;
+    use crate::meta_argv::MetaArgv;
 
     const MISSING: &str = "/nonexistent/git";
     const NO_PROMPT: &str = "\"GIT_TERMINAL_PROMPT\": Some(\"0\")";
     const UNREAD: [&str; 2] = ["`/nonexistent/git var` ran out of time", "/nonexistent/git var: entity not found"];
     const NO_OPERANDS: [&str; 0] = [];
+    const META_LIST: [&str; 2] = ["meta", "list"];
     const PATIENT: Duration = Duration::from_secs(5);
 
     #[test]
@@ -65,6 +68,7 @@ mod tests {
             .map(|deadline| port.reported(GitArgv::Var, NO_OPERANDS, deadline).map_err(|unread| unread.to_string()));
         let [late_shown, unspawned_shown] = UNREAD;
         assert!(shown.contains(NO_PROMPT) && late.is_err_and(|late| late == late_shown));
-        assert!(unspawned.is_err_and(|unspawned| unspawned.starts_with(unspawned_shown)));
+        let meta = CommandLine::from(&Port::new(Path::new(MISSING)).run(MetaArgv::List, NO_OPERANDS));
+        assert!(unspawned.is_err_and(|unspawned| unspawned.starts_with(unspawned_shown)) && meta.words() == META_LIST);
     }
 }

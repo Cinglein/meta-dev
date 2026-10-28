@@ -1,4 +1,6 @@
+use std::ffi::OsStr;
 use std::fmt;
+use std::path::Path;
 use std::str::FromStr;
 
 use meta_run::Tool;
@@ -11,13 +13,17 @@ impl Argv {
     #[must_use]
     pub fn calls<Call: Tool>(&self, call: Call) -> bool {
         let words = call.words().iter().copied();
-        self.0.first().is_some_and(|program| program == Call::PROGRAM)
+        self.program() == Some(OsStr::new(Call::PROGRAM))
             && self.0.iter().skip(1).map(String::as_str).take(call.words().len()).eq(words)
     }
 
     #[must_use]
     pub fn answers(&self, asked: &Self) -> bool {
-        self.0.get(1..) == asked.0.get(1..)
+        self.program() == asked.program() && self.0.get(1..) == asked.0.get(1..)
+    }
+
+    fn program(&self) -> Option<&OsStr> {
+        self.0.first().and_then(|program| Path::new(program).file_name())
     }
 }
 

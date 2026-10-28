@@ -19,4 +19,8 @@ pub enum GoldenFailure {
     Unbuilt { scenario: PathBuf, unread: Unread },
     #[error("no recording answers {0}")]
     Unanswered(Argv),
+    #[error("recordings ran out for {asked}: all {answers_len} were answered")]
+    Exhausted { asked: Argv, answers_len: usize },
+    #[error("goldens are not blessed in CI; run `cargo xtask goldens` locally and commit the diff")]
+    BlessedInCi,
 }
