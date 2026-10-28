@@ -1208,3 +1208,4 @@
 {"at":"2026-10-28T23:01:21.243139Z","actor":"claude-lead","kind":"TaskOpened","task":"task-a29f99a353fb8afd","text":"meta status reads rules only for open-PR bases, concurrently; repo passed to gh explicitly.","division":"performance-and-cost","addresses":["concern-a6375369ebaf3ce6"]}
 {"at":"2026-10-28T23:01:25.554721Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-a29f99a353fb8afd"}
 {"at":"2026-10-28T23:01:27.155747Z","actor":"claude-lead","kind":"TaskLinked","task":"task-a29f99a353fb8afd","pr":137}
+{"at":"2026-10-28T23:01:28.839763Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-2afb92b19578703f","text":"Fold rule reads into the status GraphQL query (GitHub service PR 2; GraphQL rules confirmed readable for an admin token)."}
