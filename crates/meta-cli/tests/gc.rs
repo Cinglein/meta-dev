@@ -66,7 +66,7 @@ END
 const FAKE_GH: &str = r#"#!/bin/sh
 case "$1 $2" in
 "api graphql") echo '{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[{"number":2,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}]}},"linked":{"pr1":{"number":1,"state":"MERGED","baseRefName":"main","statusCheckRollup":null},"pr2":{"number":2,"state":"OPEN","baseRefName":"main","statusCheckRollup":null},"pr3":{"number":3,"state":"CLOSED","baseRefName":"main","statusCheckRollup":null},"pr4":{"number":4,"state":"MERGED","baseRefName":"main","statusCheckRollup":null},"pr5":{"number":5,"state":"MERGED","baseRefName":"main","statusCheckRollup":null}}}}' ;;
-"api repos/{owner}/{repo}/rules/branches/main") echo '[]' ;;
+"api repos/{owner}/{repo}/rules/branches/main"|"api repos/{owner}/{repo}/branches/main") echo '[]' ;;
 esac
 "#;
 const EXCLUDED: &str = "/meta.local.toml\n/bin\ntarget/\n";

@@ -3,15 +3,15 @@ use std::time::{Duration, Instant};
 use serde::Deserialize;
 
 use super::millis::Millis;
+use crate::request::hook::HookEvent;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(try_from = "Millis")]
 pub struct StopLimit(Duration);
 
 impl StopLimit {
-    const HOOK_TIMEOUT: Duration = Duration::from_secs(10);
-    const MARGIN: Duration = Duration::from_secs(3);
-    const CEILING: Duration = Self::HOOK_TIMEOUT.saturating_sub(Self::MARGIN);
+    const HOOK_TIMEOUT: Duration = HookEvent::Stop.timeout();
+    const CEILING: Duration = Self::HOOK_TIMEOUT.saturating_sub(HookEvent::MARGIN);
 
     pub fn deadline(self) -> Instant {
         Instant::now() + self.0

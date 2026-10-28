@@ -2,6 +2,7 @@ use std::fmt;
 use std::path::Path;
 use std::str::FromStr;
 
+use super::TrackedPath;
 use crate::task::failure::Failure;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -10,6 +11,10 @@ pub struct Commit(String);
 impl Commit {
     pub fn object(&self, path: &Path) -> String {
         format!("{}:./{}", self.0, path.display())
+    }
+
+    pub fn tracked(&self, path: TrackedPath) -> String {
+        format!("{}:{}", self.0, path.path().display())
     }
 }
 

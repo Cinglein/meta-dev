@@ -4,6 +4,7 @@ use super::{BROKEN, FakeMachine, GIT, Monitor, NOW, STATE, UPTIME, Watch};
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::local_settings::LocalSettings;
 use crate::request::local::{LocalClone, LocalFile};
+use crate::request::project::{CiSettings, Config};
 
 const UNREADABLE: &str = "[monitor]\ngrace_seconds = 31\n";
 const ORPHANS: &str = "stop = [\"orphaned\"]\norphan_seconds = 60";
@@ -49,7 +50,8 @@ fn a_remembered_mark_is_dropped_when_its_leader_changed_it_went_unseen_or_left_t
 fn a_failure_is_noted_once_even_when_the_local_settings_are_unreadable() {
     let checkout = tempfile::tempdir().unwrap();
     LocalFile::new(checkout.path().join(LocalSettings::FILE)).replaced(UNREADABLE).unwrap();
-    let clone = LocalClone::new(checkout.path().to_path_buf(), checkout.path().join(GIT));
+    let settings = CiSettings::try_from(&Config::default()).unwrap();
+    let clone = LocalClone::new(checkout.path().to_path_buf(), checkout.path().join(GIT), settings);
     let failure = CliFailure::raised::<Setup>(BROKEN);
     Monitor::noted(&clone, &failure, NOW.parse().unwrap());
     Monitor::noted(&clone, &failure, NOW.parse().unwrap());

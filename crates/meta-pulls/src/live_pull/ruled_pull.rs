@@ -36,6 +36,7 @@ impl<'pull> RuledPull<'pull> {
 
     #[must_use]
     pub fn truncated(self) -> Option<Checks> {
+        self.open()?;
         let checks = self.checks();
         checks.truncated().map(|()| checks)
     }
