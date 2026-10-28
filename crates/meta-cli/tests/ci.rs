@@ -12,7 +12,7 @@ const PATIENT: &str = "appear_millis = 2000\n";
 const STALLED: &str = "appear_millis = 2000\nstop_millis = 40\n";
 const QUICK: &str = "appear_millis = 20\ntimeout_millis = 50\ngh_millis = 20\n";
 const DEADLINE: &str =
-    "expected_millis = 80\nbackoff_millis = 80\nbackoff_cap_millis = 80\ntimeout_millis = 150\ngh_millis = 20\n";
+    "expected_millis = 30\nbackoff_millis = 60\nbackoff_cap_millis = 60\ntimeout_millis = 100\ngh_millis = 20\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 d="$FAKE_GH_DIR"; s="$FAKE_GH_SCENARIO"
 read -r now 2>/dev/null < "$d/clock"; echo "$now" >> "$d/calls"
@@ -68,7 +68,7 @@ const INJECTED: &str = " (injected clock)";
 const FOURTH_POLL: &str = ": failed after 510s";
 const NOT_WATCHED: &str = "CI not watched for";
 const PLAIN_PUSH: &str = "git push";
-const PUSH_WORDS: [&str; 4] = ["push", "-q", "origin", "feature"];
+const PUSHED: &str = "feature";
 const NEXT_COMMIT: [&str; 5] = ["commit", "-q", "--allow-empty", "-m", "next"];
 const UNSTARTED: &str = "unstarted";
 const POST: &str = "post-tool-use";
@@ -140,6 +140,7 @@ impl Git {
     ];
 
     const LONG_AGO: &'static str = "@1000000000 +0000";
+    const ALTERNATES: &'static str = "objects/info/alternates";
 
     fn run(dir: &Path, words: &[&str]) -> Output {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
@@ -166,6 +167,20 @@ impl Git {
         read.unwrap_or_else(|| String::from_utf8(Self::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap())
             .trim()
             .to_owned()
+    }
+
+    fn share_objects(origin: &Path, clone: &Path) {
+        std::fs::create_dir_all(origin.join(Self::ALTERNATES).parent().unwrap()).unwrap();
+        std::fs::write(origin.join(Self::ALTERNATES), format!("{}\n", clone.join(".git/objects").display())).unwrap();
+    }
+
+    fn pushed(repo: &Repo, branch: &str) {
+        let tip = format!("{}\n", Self::head(repo.clone.path()));
+        let refs = [repo.origin.path().join("refs/heads"), repo.clone.path().join(".git/refs/remotes/origin")];
+        refs.iter().map(|refs| refs.join(branch)).for_each(|named| {
+            std::fs::create_dir_all(named.parent().unwrap()).unwrap();
+            std::fs::write(named, &tip).unwrap();
+        });
     }
 
     fn link_origin(dir: &Path, url: &str) {
@@ -331,6 +346,7 @@ impl Repo {
         Skeleton::Bare.lay(origin.path(), "main");
         Skeleton::Working.lay(clone.path(), "feature");
         Git::link_origin(clone.path(), origin.path().to_str().unwrap());
+        Git::share_objects(origin.path(), clone.path());
         std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{limits}")).unwrap();
         std::fs::create_dir(clone.path().join("bin")).unwrap();
         std::fs::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
@@ -429,14 +445,14 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_pus
 fn passing_runs_let_the_agent_stop_and_unstarted_ones_do_not() {
     let unstarted = Started::building(UNSTARTED, PATIENT);
     let repo = Repo::new(SUCCESS);
-    Git::run(repo.clone.path(), &PUSH_WORDS);
+    Git::pushed(&repo, PUSHED);
     repo.hook(POST, PLAIN_PUSH);
     let waited = repo.session_command(CI_WAIT);
     assert!(waited.0.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
     assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     Stale::plant(&repo);
-    Git::run(repo.clone.path(), &PUSH_WORDS);
+    Git::pushed(&repo, PUSHED);
     repo.hook(POST, PLAIN_PUSH);
     let unstarted = unstarted.join().unwrap();
     let settled = unstarted.settled();
