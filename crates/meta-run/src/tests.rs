@@ -13,14 +13,14 @@ const PATIENT: Duration = Duration::from_secs(5);
 const LEADS: &str = "kill -0 -- -$$ 2>/dev/null && echo leader; true";
 const LIMIT: Duration = Duration::from_millis(60);
 const PROMPT: Duration = Duration::from_secs(1);
-const KILLED: [&str; 5] = [
+const KILLED: [&str; 4] = [
     "sleep 5 & echo $! >> \"$0\"; echo $$ >> \"$0\"; echo held",
     "bash -c 'trap \"\" TERM; echo $$ >> \"$0\"; exec sleep 5' \"$0\" & echo $$ >> \"$0\"; wait",
     "trap '' TERM; echo $$ >> \"$0\"; for _ in 1 2 3 4 5; do sleep 1 & echo $! >> \"$0\"; wait; done",
     "echo $$ >> \"$0\"; kill -STOP $$",
-    "set -m; (trap '' TERM; exec sh -c 'echo $$ >> \"$0\"; exec sleep 5' \"$0\") & inner=$!; \
-     trap 'kill -TERM -$inner; sleep 0.02; kill -KILL -$inner; exit' TERM; echo $$ >> \"$0\"; wait",
 ];
+const NESTED: &str = "set -m; (trap '' TERM; exec sh -c 'echo $$ >> \"$0\"; exec sleep 5' \"$0\") & inner=$!; \
+     trap 'kill -TERM -$inner; sleep 0.05; kill -KILL -$inner; exit' TERM; echo $$ >> \"$0\"; wait";
 const RECORDED: usize = 9;
 const EXPIRED: &str = "deadline had passed";
 const STALLS: &str = "waiting for terminal input";
@@ -38,9 +38,8 @@ const DROPPED: [(EnvPolicy, &str); 4] = [
 struct Scripted;
 
 impl Scripted {
-    fn timed_out(script: &'static str, pids: &Path) -> String {
-        let ran = Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, script]).arg(pids).ran(Instant::now() + LIMIT);
-        ran.err().map(|failure| failure.to_string()).unwrap_or_default()
+    fn timed_out(run: Run) -> String {
+        run.ran(Instant::now() + LIMIT).err().map(|failure| failure.to_string()).unwrap_or_default()
     }
 
     fn gone(pids: &Path) -> bool {
@@ -70,8 +69,9 @@ fn a_run_feeds_its_input_returns_both_streams_and_leads_its_own_group() {
 fn a_run_ends_at_its_deadline_and_kills_its_whole_group_holders_deaf_respawning_and_stalled_alike() {
     let killed = tempfile::NamedTempFile::new().unwrap();
     let started = Instant::now();
-    let runs = KILLED.map(|script| (script, killed.path().to_path_buf()));
-    let runs = runs.map(|(script, pids)| std::thread::spawn(move || Scripted::timed_out(script, &pids)));
+    let runs = KILLED.map(|script| Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, script]).arg(killed.path()));
+    let runs = runs.into_iter().chain([Run::nested(SHELL).args([SCRIPT, NESTED]).arg(killed.path())]);
+    let runs: Vec<_> = runs.map(|run| std::thread::spawn(move || Scripted::timed_out(run))).collect();
     assert!(runs.into_iter().all(|run| run.join().unwrap().contains(STALLS)) && started.elapsed() < PROMPT);
     assert!(Scripted::gone(killed.path()), "{:?}", std::fs::read_to_string(killed.path()));
 }

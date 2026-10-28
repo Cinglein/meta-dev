@@ -19,7 +19,7 @@ impl<'dir> Git<'dir> {
     }
 
     pub fn output(&self, words: &[&OsStr]) -> Result<String, CliFailure> {
-        let ran = Run::git(self.dir).args(words).ran(self.settings.budget(CiSettings::CLAIM).deadline());
+        let ran = Run::git(self.dir).args(words).terminal().ran(self.settings.budget(CiSettings::CLAIM).deadline());
         let ran = ran.map_err(CliFailure::raised::<Setup>)?;
         ran.success().then(|| ran.stdout().text().trim().to_owned()).ok_or_else(|| {
             let line: Vec<_> = words.iter().map(|word| word.to_string_lossy()).collect();

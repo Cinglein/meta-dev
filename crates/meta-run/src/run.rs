@@ -1,4 +1,6 @@
 mod group;
+mod interrupts;
+mod placement;
 
 use std::ffi::OsStr;
 use std::io::{Read, Write as _};
@@ -17,11 +19,14 @@ use crate::run_failure::RunFailure;
 use crate::stderr::Stderr;
 use crate::stdout::Stdout;
 use group::Group;
+use interrupts::Interrupts;
+use placement::Placement;
 
 #[derive(Debug)]
 pub struct Run {
     command: Command,
     input: Option<String>,
+    placement: Placement,
 }
 
 impl Run {
@@ -41,7 +46,7 @@ impl Run {
         let mut command = Command::new(program);
         let kept = env.applied(inherited.clone());
         inherited.dropped(&kept, &mut command);
-        Self { command, input: None }
+        Self { command, input: None, placement: Placement::Own }
     }
 
     #[must_use]
@@ -78,15 +83,32 @@ impl Run {
         Self { input: Some(input), ..self }
     }
 
-    pub fn ran(mut self, deadline: Instant) -> Result<Ran, RunFailure> {
-        let line = CommandLine::from(&self.command);
-        Group::accepting().ok_or(RunFailure::Interrupted(line))?;
-        self.command.process_group(i32::default());
-        self.finished(deadline, Group::joined, Group::ended)
+    #[must_use]
+    pub fn nested(program: impl AsRef<OsStr>) -> Self {
+        let run = Self::new(program, EnvPolicy::Inherit);
+        Self { command: run.command, input: run.input, placement: Placement::Nested }
     }
 
-    pub(crate) fn helped(self, deadline: Instant) -> Result<Ran, RunFailure> {
-        self.finished(deadline, |_| Some(()), Self::alone)
+    #[must_use]
+    pub fn terminal(self) -> Self {
+        Self { command: self.command, input: self.input, placement: Placement::Terminal }
+    }
+
+    pub fn ran(self, deadline: Instant) -> Result<Ran, RunFailure> {
+        let watch = Interrupts::watched();
+        let line = CommandLine::from(&self.command);
+        let ran =
+            Group::accepting().ok_or(RunFailure::Interrupted(line)).and_then(|()| self.placement.ran(self, deadline));
+        watch.honored();
+        ran
+    }
+
+    pub fn honor_interrupt() {
+        Interrupts::watched().honored();
+    }
+
+    pub(crate) fn helped(self, within: Duration) -> Result<Ran, RunFailure> {
+        self.finished(Instant::now() + within, |_| Some(()), Self::alone)
     }
 
     pub(crate) fn alone(child: &mut Child) {
@@ -97,8 +119,8 @@ impl Run {
     fn finished<Member>(
         mut self,
         deadline: Instant,
-        joined: fn(&mut Child) -> Option<Member>,
-        ended: fn(&mut Child),
+        joined: impl FnOnce(&mut Child) -> Option<Member>,
+        ended: impl FnOnce(&mut Child),
     ) -> Result<Ran, RunFailure> {
         let line = CommandLine::from(&self.command);
         deadline.checked_duration_since(Instant::now()).ok_or_else(|| RunFailure::Expired(line.clone()))?;
@@ -126,6 +148,7 @@ impl Run {
 
     pub fn detached(mut self) -> Result<(), RunFailure> {
         let line = CommandLine::from(&self.command);
+        let _watched = Interrupts::watched();
         Group::accepting().ok_or_else(|| RunFailure::Interrupted(line.clone()))?;
         let quiet = self.command.process_group(i32::default()).stdin(Stdio::null()).stdout(Stdio::null());
         quiet.stderr(Stdio::null()).spawn().map(drop).map_err(|source| RunFailure::Unspawned { line, source })
