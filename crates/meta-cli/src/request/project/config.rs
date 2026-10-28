@@ -37,9 +37,7 @@ impl Config {
     }
 
     pub fn ci_settings(&self) -> CiSettings {
-        let mut merged: toml::Table = toml::from_str(CiSettings::DEFAULTS).unwrap_or_default();
-        merged.extend(self.ci.clone());
-        toml::Value::Table(merged).try_into().unwrap_or_default()
+        CiSettings::try_from(self).unwrap_or_default()
     }
 
     pub fn push_fix(&self, branch: &BranchName) -> &'static str {
