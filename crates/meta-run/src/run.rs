@@ -45,10 +45,20 @@ impl Run {
 
     #[must_use]
     pub fn inheriting(program: impl AsRef<OsStr>, env: EnvPolicy, inherited: Environment) -> Self {
-        let mut command = Command::new(program);
+        let run = Self { command: Command::new(program), input: None, placement: Placement::Own };
+        run.policed_from(env, inherited)
+    }
+
+    #[must_use]
+    pub fn policed(self, env: EnvPolicy) -> Self {
+        self.policed_from(env, Environment::current())
+    }
+
+    #[must_use]
+    pub fn policed_from(mut self, env: EnvPolicy, inherited: Environment) -> Self {
         let kept = env.applied(inherited.clone());
-        inherited.dropped(&kept, &mut command);
-        Self { command, input: None, placement: Placement::Own }
+        inherited.dropped(&kept, &mut self.command);
+        self
     }
 
     #[must_use]
@@ -155,7 +165,7 @@ impl Run {
 
     pub fn reported(self, deadline: Instant) -> Reported {
         let ran = self.ran(deadline)?;
-        if ran.success() { Ok(ran.into_stdout()) } else { Err(Unread::Failed(ran.stderr().clone())) }
+        if ran.success() { Ok(ran.into_stdout()) } else { Err(Unread::Failed(ran.status(), ran.stderr().clone())) }
     }
 
     pub fn detached(mut self) -> Result<(), RunFailure> {

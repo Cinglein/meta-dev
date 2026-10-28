@@ -2,7 +2,7 @@ use std::path::Path;
 use std::time::Instant;
 
 use meta_git_view::Ident;
-use meta_run::{GitArgv, Port, Unread};
+use meta_run::{GitArgv, Port, Stdout, Unread};
 use meta_schema::Email;
 
 use crate::request::output::Listed;
@@ -18,19 +18,21 @@ impl Identity {
             Listed::new(format!("cannot resolve the commit directory; use an absolute path: {}", directory.display()));
         (!directory.is_dir()).then_some(unresolved).or_else(|| match Self::foreign_in(directory, deadline) {
             Ok(foreign) => foreign.as_ref().map(Identity::refusal),
-            Err(failure) => {
-                Some(Listed::new(format!("cannot check the commit email: {failure}; retry, or ask the owner")))
-            }
+            Err(failure) => Some(Listed::new(format!(
+                "cannot check the commit email in {}: {failure}; retry, or ask the owner",
+                directory.display()
+            ))),
         })
     }
 
     fn foreign_in(directory: &Path, deadline: Instant) -> Result<Option<Identity>, Unread> {
         let git = Port::new(directory);
         let shown = Self::IDENTS.iter().map(|ident| git.reported(GitArgv::Var, [ident], deadline));
-        let foreign = shown.into_iter().find_map(|shown| match shown.map(|shown| shown.text().parse::<Ident>()) {
-            Ok(Ok(ident)) => Identity::try_from(ident).ok().map(Ok),
-            Err(failure) => Some(Err(failure)),
-        });
+        let foreign =
+            shown.into_iter().find_map(|shown| match shown.map(|shown: Stdout| shown.text().parse::<Ident>()) {
+                Ok(Ok(ident)) => Identity::try_from(ident).ok().map(Ok),
+                Err(failure) => Some(Err(failure)),
+            });
         foreign.transpose()
     }
 
@@ -72,6 +74,7 @@ mod tests {
         assert!(refusal(FOREIGN).is_ok_and(|why| why.is_ok_and(|why| why.starts_with(NAMED))));
         assert!(refusal(NOREPLY).is_ok_and(|why| why.is_err()));
         let late = Identity::refusal_in(&std::env::temp_dir(), Instant::now()).map(|why| why.to_string());
-        assert!(late.is_some_and(|why| why.starts_with(UNDECIDED)));
+        let named = std::env::temp_dir().display().to_string();
+        assert!(late.is_some_and(|why| why.starts_with(UNDECIDED) && why.contains(&named)));
     }
 }
