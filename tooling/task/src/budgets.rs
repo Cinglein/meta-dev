@@ -205,7 +205,7 @@ tolerance = 10
     }
 
     #[test]
-    fn a_budget_with_one_unit_names_a_defined_parent_sits_inside_its_division_and_fits_its_share() {
+    fn a_part_names_a_defined_parent_sits_inside_its_division_and_fits_its_share() {
         let refusals = REFUSED.map(|tree| {
             let measured = tree.replace(STANDING, PER_CHANGE).replace(WINDOW, MEASURED);
             toml::from_str::<Budgets>(&measured)

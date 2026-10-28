@@ -202,8 +202,7 @@ mod tests {
     }
 
     #[test]
-    fn a_standing_budget_counts_its_division_subtree_and_blocks_a_linked_change_unless_it_pays_down()
-     {
+    fn an_over_standing_budget_blocks_a_change_linked_inside_its_division_unless_it_pays_down() {
         let policy = Policy::with_added(STANDING).unwrap();
         let shown = LINKS.map(|link| {
             format!(
