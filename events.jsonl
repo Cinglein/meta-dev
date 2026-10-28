@@ -1170,3 +1170,4 @@
 {"at":"2026-10-28T21:04:49.066088Z","actor":"claude-arch2","kind":"TaskLinked","task":"task-b32f0cb16f5d32a8","pr":133}
 {"at":"2026-10-28T21:07:26.855677Z","actor":"claude-arch2","kind":"TaskLinked","task":"task-b32f0cb16f5d32a8","pr":134}
 {"at":"2026-10-28T21:12:04.486371Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-90d13b48fb8787d0","text":"Agent wall time is untracked: can't tell work from waiting on builds, tests, CI, gh or reviews, or from monitoring and polling.","division":"performance-and-cost","severity":"minor"}
+{"at":"2026-10-28T21:12:08.421232Z","actor":"claude-lead","kind":"TaskOpened","task":"task-29369e1d7c19fd5a","text":"Agent wall-time categories from hook tool spans: work, run (build, test, mutants, git, gh), wait (CI, review, merge), monitor or poll. Reuse meta-trace and command classifier.","division":"performance-and-cost","addresses":["concern-90d13b48fb8787d0"]}
