@@ -51,6 +51,7 @@ literals_per_test = 4
 largest_integer = 64
 scc_items = 83
 slowest_shown = 5
+reference_spawns = 1000
 
 [floors]
 fn_name = 3
@@ -80,6 +81,7 @@ test_timeout = 30000
 full_job = 480000
 diff_job = 360000
 job_setup = 90000
+reference_cpu = 1080
 
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]
