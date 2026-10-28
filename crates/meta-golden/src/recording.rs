@@ -45,9 +45,12 @@ impl Recording {
         Self::files(&self.stem).into_iter().zip(self.texts()).try_for_each(|(file, text)| file.written(&text))
     }
 
-    pub fn checked_in(&self, dir: &Path) -> Result<(), GoldenFailure> {
-        let name = self.stem.file_name().map_or_else(PathBuf::new, PathBuf::from);
-        Self::files(&dir.join(name)).iter().zip(self.texts()).try_for_each(|(golden, text)| golden.checked(&text))
+    pub fn checked_in(&self, goldens: &Goldens) -> Result<(), GoldenFailure> {
+        let scenario = self.stem.parent().and_then(Path::file_name).map_or_else(PathBuf::new, PathBuf::from);
+        Self::files(&goldens.dir().join(scenario).join(self.name()))
+            .iter()
+            .zip(self.texts())
+            .try_for_each(|(golden, text)| golden.checked(&text))
     }
 
     pub fn viewed(&self, view: &impl Debug) -> Result<(), GoldenFailure> {
@@ -64,12 +67,15 @@ impl Recording {
         &self.out
     }
 
-    #[must_use]
-    pub fn answered(&self) -> ExitCode {
-        print!("{}", self.out);
+    pub(crate) fn answered(&self, places: &Places) -> ExitCode {
+        print!("{}", places.shown(&self.out).to_string_lossy());
         drop(std::io::stdout().flush());
-        eprint!("{}", self.err);
+        eprint!("{}", places.shown(&self.err).to_string_lossy());
         self.status.exit_code()
+    }
+
+    pub(crate) fn name(&self) -> PathBuf {
+        self.stem.file_name().map_or_else(PathBuf::new, PathBuf::from)
     }
 
     fn files(stem: &Path) -> [Golden; Self::FILES.len()] {
