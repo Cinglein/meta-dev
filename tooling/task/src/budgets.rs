@@ -169,12 +169,14 @@ window = "per_change"
 source = "ci"
 warning = 50
 tolerance = 10
+overspend = "report"
 "#;
-    const WRITTEN: &str = "[ci]\ndivision = \"performance-and-cost\"\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 60\noverspend = \"block\"\n\n[ci.measure]\nworkflow_wall_time = \"diff_job\"\n\n[ci.allowance]\nduration = 4000\n\n[ci-lints]\ndivision = \"performance-and-cost/lints\"\nmeasure = \"slowest_test\"\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 50\ntolerance = 10\noverspend = \"block\"\n\n[ci-lints.allowance]\nof = \"ci\"\npercent = 40\n\n[ci-tests]\ndivision = \"performance-and-cost/tests\"\nmeasure = \"test_wall_time\"\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 60\noverspend = \"block\"\n\n[ci-tests.allowance]\nof = \"ci\"\npercent = 60\n";
+    const WRITTEN: &str = "[ci]\ndivision = \"performance-and-cost\"\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 60\noverspend = \"block\"\n\n[ci.measure]\nworkflow_wall_time = \"diff_job\"\n\n[ci.allowance]\nduration = 4000\n\n[ci-lints]\ndivision = \"performance-and-cost/lints\"\nmeasure = \"slowest_test\"\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 50\ntolerance = 10\noverspend = \"report\"\n\n[ci-lints.allowance]\nof = \"ci\"\npercent = 40\n\n[ci-tests]\ndivision = \"performance-and-cost/tests\"\nmeasure = \"test_wall_time\"\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 60\noverspend = \"block\"\n\n[ci-tests.allowance]\nof = \"ci\"\npercent = 60\n";
     const WINDOW: &str = "window = ";
     const MEASURED: &str = "measure = \"tangle_items\"\nsource = \"ci\"\nwindow = ";
     const PART: &str = "ci-tests";
     const WHOLE: &str = "ci";
+    const REPORTED: &str = "ci-lints";
     const PART_AMOUNT: &str = "2400ms";
     const OVER: Option<State> = Some(State::Over);
     const WARN: Option<State> = Some(State::Warn);
@@ -213,11 +215,17 @@ tolerance = 10
     ];
 
     #[test]
-    fn a_budget_reads_back_with_its_default_overspend_and_a_part_keeps_its_share() {
+    fn a_budget_reads_back_with_its_overspend_and_a_part_keeps_its_share() {
         let budgets: Budgets = toml::from_str(TREE).unwrap();
         assert_eq!(toml::to_string(&budgets).unwrap(), WRITTEN);
-        let [part, whole] = [PART, WHOLE].map(|id| budgets.budget(&id.parse().unwrap()).unwrap());
-        assert!(part.blocks(OVER) && whole.blocks(OVER) && !whole.blocks(WARN));
+        let [part, whole, reported] =
+            [PART, WHOLE, REPORTED].map(|id| budgets.budget(&id.parse().unwrap()).unwrap());
+        assert!(
+            part.blocks(OVER)
+                && whole.blocks(OVER)
+                && !whole.blocks(WARN)
+                && !reported.blocks(OVER)
+        );
         assert_eq!(
             budgets
                 .amount(part)

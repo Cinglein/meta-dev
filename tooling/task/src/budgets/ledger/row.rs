@@ -68,9 +68,10 @@ impl fmt::Display for Row<'_> {
             shown(self.lines.as_ref().map(ToString::to_string)),
             shown(self.state().map(|state| state.to_string())),
         )?;
-        self.exposure
-            .excuse()
+        [self.exposure.excuse(), self.budget.excuse()]
+            .into_iter()
+            .flatten()
             .filter(|_| self.state() == Some(State::Over))
-            .map_or(Ok(()), |excuse| write!(formatter, ", {excuse}"))
+            .try_for_each(|excuse| write!(formatter, ", {excuse}"))
     }
 }

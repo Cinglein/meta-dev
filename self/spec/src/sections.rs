@@ -34,7 +34,7 @@ pub const SECTIONS: &[Section] = &[
             Rule::new(
                 RuleId::new("budget-overspend"),
                 ArchitectureAndPlanning,
-                Wording::new("Overspend action is part of the definition: block (default) or escalate to DISCUSS."),
+                Wording::new("Overspend action is part of the definition: block (default), report (shown, never blocks), or escalate to DISCUSS."),
                 Tracked,
             ),
             Rule::new(
