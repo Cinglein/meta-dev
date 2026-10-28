@@ -187,22 +187,12 @@ impl Git {
     fn added(scene: &Scene) {
         let clone = scene.clone.path();
         let trees = scene.trees();
-        std::thread::scope(|scope| {
-            let stray = scope.spawn(|| {
-                Self::run(clone, &["worktree", "add", "-q", "--detach", trees.join(STRAY).to_str().unwrap()])
-            });
-            let added: Vec<_> = ADDED
-                .iter()
-                .map(|task| {
-                    let trees = &trees;
-                    scope.spawn(move || {
-                        Self::run(clone, &["worktree", "add", "-q", trees.join(task).to_str().unwrap(), task])
-                    })
-                })
-                .collect();
-            assert!(added.into_iter().all(|added| added.join().unwrap().status.success()));
-            assert!(stray.join().unwrap().status.success());
-        });
+        let added: Vec<Output> = ADDED
+            .iter()
+            .map(|task| Self::run(clone, &["worktree", "add", "-q", trees.join(task).to_str().unwrap(), task]))
+            .collect();
+        assert!(added.iter().all(|output| output.status.success()));
+        Self::run(clone, &["worktree", "add", "-q", "--detach", trees.join(STRAY).to_str().unwrap()]);
     }
 }
 
