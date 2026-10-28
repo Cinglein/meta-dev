@@ -1,0 +1,1 @@
+["git","rev-parse","--verify","--quiet","refs/heads/none"]

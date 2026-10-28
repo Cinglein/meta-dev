@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 use std::time::Instant;
 
 use meta_log::{GitLog, RemoteHeads};
-use meta_run::{Budget, Run};
+use meta_run::{Budget, GitArgv, Port, Run};
 
 use crate::request::checkout::Checkout;
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
@@ -18,6 +18,8 @@ use crate::request::repository::Repository;
 pub use config::{BranchName, CiSettings, Config, GcMode, HeartbeatSettings, LogWindow, ProgramName, TickLimit};
 #[cfg(test)]
 mod tests;
+
+const NO_OPERANDS: [&str; 0] = [];
 
 #[derive(Debug)]
 pub struct Project {
@@ -57,7 +59,7 @@ impl Project {
         let remote = self.config.remote().ok()?.to_string();
         let unprotected = self.unprotected_branch(budget.deadline())?;
         let push = self.git(["push", "--quiet", "-u", &remote, &unprotected.to_string()]);
-        match push.ran(budget.deadline()) {
+        match push.ran(budget.remaining_deadline()) {
             Ok(ran) if ran.success() => None,
             Ok(ran) => Some(Listed::new(format!("push of {unprotected} failed: {}", ran.stderr()))),
             Err(failure) => Some(Listed::new(format!("push of {unprotected} failed: {failure}"))),
@@ -65,69 +67,46 @@ impl Project {
     }
 
     pub fn reflog(&self, deadline: Instant) -> Option<&[ReflogEntry]> {
-        self.reflog.get_or_init(|| self.git_lines(ReflogEntry::WALK.map(OsString::from), deadline)).as_deref()
+        self.reflog.get_or_init(|| self.lines(GitArgv::ReflogWalk, NO_OPERANDS, deadline)).as_deref()
     }
 
     pub fn created_after(&self, start: &StartMoment, deadline: Instant) -> Option<Vec<Commit>> {
         let entries = self.reflog(deadline).filter(|entries| !entries.is_empty())?;
-        let befores = entries.iter().skip(1).map(Some).chain([None]);
-        let created: Vec<Commit> = entries
-            .iter()
-            .zip(befores)
-            .filter_map(|(entry, before)| {
-                entry.created_after(start, before, |commit| self.born_after(commit, start, deadline)).cloned()
-            })
-            .collect();
-        Some(
-            created
-                .iter()
-                .enumerate()
-                .filter(|(at, commit)| created.iter().position(|other| other == *commit) == Some(*at))
-                .map(|(_, commit)| commit.clone())
-                .collect(),
-        )
+        Some(ReflogEntry::created(entries, start, |commit| self.born_after(commit, start, deadline)))
     }
 
     pub fn remote_heads(&self, deadline: Instant) -> Result<RemoteHeads, Listed> {
         let remote = self.config.remote().map_err(|failure| Listed::new(failure.to_string()))?;
-        let listed = self.git(["ls-remote", "--heads", &remote.to_string()]);
-        let listed = listed.stdout(deadline).map_err(|failure| {
+        let listed = Port::new(&self.root).reported(GitArgv::RemoteHeads, [remote.to_string()], deadline);
+        let listed = listed.map_err(|failure| {
             Listed::new(format!("remote unreachable: git ls-remote {remote}: {failure}; retry, or ask the owner"))
         })?;
-        let Ok(heads) = listed.parse();
+        let Ok(heads) = listed.text().parse();
         Ok(heads)
     }
 
-    pub fn pushed_among(&self, commits: &[Commit], heads: &[Commit], deadline: Instant) -> Vec<Commit> {
-        let remote = commits.first().and_then(|_| self.config.remote().ok());
-        let listed = commits.iter().map(Commit::argument);
-        let ahead = remote.map(|remote| {
-            let words = [OsString::from("rev-list"), OsString::from("--ignore-missing")].into_iter().chain(listed);
-            let not = words.chain([OsString::from("--not"), OsString::from(format!("--remotes={remote}"))]);
-            not.chain(heads.iter().map(Commit::argument))
-        });
-        let unpushed: Option<Vec<Commit>> = ahead.and_then(|words| self.git_lines(words, deadline));
-        unpushed.map_or_else(Vec::new, |unpushed| {
-            commits.iter().filter(|commit| !unpushed.contains(commit)).cloned().collect()
-        })
+    pub fn unpushed(&self, commits: &[Commit], heads: &[Commit], deadline: Instant) -> Option<Vec<Commit>> {
+        let remote = commits.first().and_then(|_| self.config.remote().ok())?;
+        let not = [OsString::from("--not"), OsString::from(format!("--remotes={remote}"))];
+        let words = commits.iter().map(Commit::argument).chain(not).chain(heads.iter().map(Commit::argument));
+        self.lines(GitArgv::Unpushed, words, deadline)
     }
 
-    pub fn independent_tips(&self, pushed: Vec<Commit>, deadline: Instant) -> Vec<Commit> {
-        let independent = [OsString::from("merge-base"), OsString::from("--independent")];
-        let tips = pushed.get(1).map(|_| independent.into_iter().chain(pushed.iter().map(Commit::argument)));
-        tips.and_then(|words| self.git_lines(words, deadline)).unwrap_or(pushed)
+    pub fn independent_tips(&self, pushed: &[Commit], deadline: Instant) -> Option<Vec<Commit>> {
+        pushed.get(1)?;
+        self.lines(GitArgv::IndependentTips, pushed.iter().map(Commit::argument), deadline)
     }
 
     pub fn head(&self) -> Option<Commit> {
-        let deadline = self.ci.remote_deadline();
-        let heads: Vec<Commit> = self.git_lines(["rev-parse", "HEAD"].map(OsString::from), deadline)?;
+        let heads: Vec<Commit> = self.lines(GitArgv::Head, NO_OPERANDS, self.ci.remote_deadline())?;
         heads.into_iter().next()
     }
 
     pub fn repository(&self) -> Result<Repository, RemoteFailure> {
         let deadline = self.ci.remote_deadline();
         let remote = self.config.remote().map_err(|failure| RemoteFailure::NotGithub(Listed::new(failure)))?;
-        let url = self.git(["remote", "get-url"]).arg(remote.to_string()).stdout(deadline).map_err(|failure| {
+        let url = Port::new(&self.root).reported(GitArgv::RemoteUrl, [remote.to_string()], deadline);
+        let url = url.map(|url| url.text().into_owned()).map_err(|failure| {
             RemoteFailure::GitFailed(Listed::new(format!("git failed reading the remote URL: {failure}")))
         })?;
         let named = format!("remote URL `{}` names no GitHub owner and repository", url.trim());
@@ -148,21 +127,20 @@ impl Project {
         Run::git(&self.root).args(words)
     }
 
-    fn git_lines<Line: FromStr>(
+    fn lines<Line: FromStr>(
         &self,
-        words: impl IntoIterator<Item = OsString>,
+        call: GitArgv,
+        operands: impl IntoIterator<Item = impl AsRef<OsStr>>,
         deadline: Instant,
     ) -> Option<Vec<Line>> {
-        let output = self.git(words).stdout(deadline).ok()?;
-        Some(output.lines().filter_map(|line| line.parse().ok()).collect())
+        let output = Port::new(&self.root).reported(call, operands, deadline).ok()?;
+        Some(output.text().lines().filter_map(|line| line.parse().ok()).collect())
     }
 
     fn born_after(&self, commit: &Commit, start: &StartMoment, deadline: Instant) -> bool {
-        let words = [OsString::from("rev-parse"), OsString::from("--git-path"), commit.loose_object().into_os_string()];
-        let paths: Option<Vec<PathBuf>> = self.git_lines(words, deadline);
-        let path = paths.and_then(|paths| paths.into_iter().next()).map(|path| self.root.join(path));
-        let modified = path.and_then(|path| std::fs::metadata(path).and_then(|meta| meta.modified()).ok());
-        modified.is_some_and(|modified| start.precedes(modified))
+        let reported = Port::new(&self.root).reported(GitArgv::GitPath, [commit.loose_object()], deadline);
+        let modified = |path: &Path| std::fs::metadata(self.root.join(path)).and_then(|meta| meta.modified()).ok();
+        reported.is_ok_and(|git_path| start.born_after(&git_path.text(), modified))
     }
 
     pub fn checkout(&self, deadline: Instant) -> &Checkout {

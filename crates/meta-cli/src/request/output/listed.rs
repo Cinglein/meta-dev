@@ -6,7 +6,7 @@ use meta_state::{State, Summary};
 
 use crate::request::cli_failure::CliFailure;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Listed(String);
 
 impl Listed {

@@ -84,12 +84,13 @@ mod tests {
     const TICK: Duration = Duration::from_millis(1);
     const FAILED: &str = "1 of 2 tests failed; 1 test binaries did not list their tests";
     const LINE_BREAK: &str = "\n";
-    const SLOWEST: &str = "bin passes took 1.0ms";
-    const BAD: [&str; 3] = ["passed\tsoon\tx\ty", "skipped\tx", "unlisted"];
+    const SLOWEST: &str = "bin passes took 1.0ms, cpu 1.0ms";
+    const BAD: [&str; 3] = ["passed\t1\tsoon\tx\ty", "skipped\tx", "unlisted"];
 
     #[test]
     fn recorded_runs_read_back_and_a_failing_test_or_an_unlisted_binary_fails_the_one_run() {
-        let [passed, failed] = NAMES.map(|name| TestTiming::new(Path::new(BINARY), name, TICK));
+        let [passed, failed] =
+            NAMES.map(|name| TestTiming::new(Path::new(BINARY), name, TICK, TICK));
         let read = |runs: Vec<TestRun>| {
             let lines: Vec<String> = runs.iter().map(ToString::to_string).collect();
             lines.join(LINE_BREAK).parse().and_then(TestRuns::passed)
