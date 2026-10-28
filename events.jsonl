@@ -1191,3 +1191,4 @@
 {"at":"2026-10-28T22:26:22.562285Z","actor":"claude-slowci","kind":"SchemaVersion","version":7}
 {"at":"2026-10-28T22:26:23.913877Z","actor":"claude-slowci","kind":"TaskOpened","task":"task-796fe17ba6190be3","text":"Main red: ci_wait tests wait in real time; make the clock a value","division":"performance-and-cost","addresses":["concern-cfb56a6e3975d7ac"]}
 {"at":"2026-10-28T22:26:35.040341Z","actor":"claude-slowci","kind":"TaskClaimed","task":"task-796fe17ba6190be3"}
+{"at":"2026-10-28T22:28:41.338942Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-198554abbe4ca8a0","text":"GitHub service: per-project process runs all gh reads and writes (open, tag, link, merge, update); cached batched reads. CI rejects PRs not linked in meta/log. Parallel to test work."}
