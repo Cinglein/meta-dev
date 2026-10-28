@@ -84,12 +84,9 @@ impl Scope {
         let shards =
             Packing::shards(&CrateLoad::listed(listing, policy, Interval::DiffJob)?, policy, Interval::DiffJob);
         let tested = TestedCrates::collect(&workspace.source_files()?);
-        shards
+        TestPackages::baselines(&shards, workspace.packages(), &tested, build)
             .iter()
-            .flat_map(Shard::runs)
-            .map(|run| TestPackages::around(&run, workspace.packages(), &tested))
-            .collect::<TestPackages>()
-            .passes_baseline(build)?;
+            .try_for_each(|baseline| build.passes(baseline))?;
         Ok(shards)
     }
 
@@ -100,17 +97,15 @@ impl Scope {
         shards: &[Shard],
     ) -> Result<Vec<MutantsRun>, Failure> {
         let tested = TestedCrates::collect(&workspace.source_files()?);
-        shards
-            .iter()
-            .flat_map(Shard::runs)
-            .map(|run| {
+        TestPackages::each_run(shards, workspace.packages(), &tested)
+            .into_iter()
+            .map(|(run, tested_by)| {
                 let directory = output.prepared_for(&run)?;
                 let prepared = line
                     .clone()
                     .argument(MutantsArgument::Output)
                     .argument(directory.display())
                     .argument(MutantsArgument::TestWorkspaceOff);
-                let tested_by = TestPackages::around(&run, workspace.packages(), &tested);
                 Ok(MutantsRun::new(tested_by.applied_to(run.applied_to(prepared)), directory))
             })
             .collect()

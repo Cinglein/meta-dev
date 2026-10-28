@@ -6,7 +6,6 @@ use affected::TestedCrates;
 use task::CargoArgument;
 use task::CommandLine;
 use task::CrateName;
-use task::Failure;
 use task::MutantsArgument;
 use task::PackageGraph;
 use task::Shard;
@@ -18,12 +17,28 @@ impl TestPackages {
         TestPackages(tested.around(graph, &run.crates()))
     }
 
-    pub fn applied_to(&self, line: CommandLine) -> CommandLine {
-        self.named(line, MutantsArgument::TestPackage)
+    pub fn each_run(shards: &[Shard], graph: &PackageGraph, tested: &TestedCrates) -> Vec<(Shard, TestPackages)> {
+        let runs = shards.iter().flat_map(Shard::runs);
+        runs.map(|run| {
+            let packages = Self::around(&run, graph, tested);
+            (run, packages)
+        })
+        .collect()
     }
 
-    pub fn passes_baseline(&self, build: &MutantsBuild) -> Result<(), Failure> {
-        build.passes(&self.named(build.line(CargoArgument::Test), CargoArgument::Package))
+    pub fn baselines(
+        shards: &[Shard],
+        graph: &PackageGraph,
+        tested: &TestedCrates,
+        build: &MutantsBuild,
+    ) -> Vec<CommandLine> {
+        let all: TestPackages =
+            Self::each_run(shards, graph, tested).into_iter().map(|(_, packages)| packages).collect();
+        vec![all.named(build.line(CargoArgument::Test), CargoArgument::Package)]
+    }
+
+    pub fn applied_to(&self, line: CommandLine) -> CommandLine {
+        self.named(line, MutantsArgument::TestPackage)
     }
 
     fn named(&self, line: CommandLine, flag: impl fmt::Display + Copy) -> CommandLine {
@@ -42,7 +57,7 @@ mod tests {
     use super::TestPackages;
     use crate::scope::MutantsBuild;
     use affected::TestedCrates;
-    use task::{CommandLine, Millis, PackageGraph, Program, SourceFile};
+    use task::{CargoArgument, CommandLine, Millis, PackageGraph, Program, SourceFile};
     const METADATA: &str = r#"{"workspace_root": "/w", "packages": [
         {"name": "log", "manifest_path": "/w/crates/log/Cargo.toml", "dependencies": []},
         {"name": "state", "manifest_path": "/w/crates/state/Cargo.toml", "dependencies": [{"name": "log", "path": "/w/crates/log"}]},
@@ -63,18 +78,21 @@ mod tests {
     const TIMEOUT: Millis = Millis::new(300);
 
     #[test]
-    fn a_failing_unmutated_run_of_the_tests_around_the_shards_with_their_build_settings_is_refused() {
+    fn each_run_has_a_baseline_of_its_own_tests_with_the_shards_build_and_timeout_and_a_failing_one_is_refused() {
         let files = FILES.map(|(name, path, text)| {
             SourceFile::parse(path, text.to_owned()).unwrap().in_crate(name.parse().unwrap())
         });
-        let graph = PackageGraph::from_metadata(METADATA).unwrap();
-        let packages = TestPackages::around(&"log".parse().unwrap(), &graph, &TestedCrates::collect(&files));
-        let line = packages.applied_to(CommandLine::new(Program::GitHub));
-        let gated = CASES.iter().all(|(cargo, settings, passes)| {
+        let (graph, tested) = (PackageGraph::from_metadata(METADATA).unwrap(), TestedCrates::collect(&files));
+        let line = TestPackages::around(&"log".parse().unwrap(), &graph, &tested)
+            .applied_to(CommandLine::new(Program::GitHub));
+        let build = |cargo: &[&str], settings| {
             let cargo = CommandLine::new(Program::Executable(cargo[0].into())).arguments(&cargo[1..]);
-            MutantsBuild::sharing(cargo, settings, TIMEOUT).and_then(|build| packages.passes_baseline(&build)).is_ok()
-                == *passes
+            MutantsBuild::sharing(cargo, settings, TIMEOUT)
+        };
+        let gated = CASES.iter().all(|(cargo, settings, passes)| {
+            build(cargo, settings).and_then(|build| build.passes(&build.line(CargoArgument::Test))).is_ok() == *passes
         });
-        assert!(line.to_string() == LINE && gated);
+        let none = TestPackages::baselines(&[], &graph, &tested, &build(&["gh"], "").unwrap());
+        assert!(line.to_string() == LINE && gated && none.is_empty());
     }
 }
