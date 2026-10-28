@@ -993,3 +993,4 @@
 {"at":"2026-10-28T14:37:54.191245Z","actor":"claude-cpucut","kind":"TaskClaimed","task":"task-067b28fe28b30740"}
 {"at":"2026-10-28T14:38:47.616186Z","actor":"claude-minorsa","kind":"TaskLinked","task":"task-965b7114cb349f44","pr":96}
 {"at":"2026-10-28T14:38:49.133482Z","actor":"claude-minorsa","kind":"TaskLinked","task":"task-e010247ab85c3cfa","pr":98}
+{"at":"2026-10-28T14:42:00.851888Z","actor":"claude-minorsb","kind":"TaskLinked","task":"task-14417fa941c6bf5a","pr":97}
