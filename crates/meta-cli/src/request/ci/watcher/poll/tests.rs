@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use super::Poll;
 use crate::request::ci::ci_status::CiStatus;
-use crate::request::ci::watcher::gh::Observation;
 use crate::request::ci::watcher::gh::replies::Replies;
+use crate::request::ci::watcher::gh::{Gh, Observation};
 use crate::request::ci::watcher::note::Note;
 use crate::request::output::Listed;
 
@@ -11,6 +11,7 @@ const NO_RUN: &str = "sha=45ae6b129220283516130564830df7c0e6c67fb1";
 const FAILED: &str = "sha=e6554a9caf9e41b1c37dc15dd1e6896c276cb81d";
 const PASSED: &str = "sha=0517805f95e8ed06ed80c08dd2624fcc86e8402a";
 const OVERDUE: Option<()> = Some(());
+const UNSTARTED: &str = r#"{"checkSuites":{"nodes":[{"status":"COMPLETED","conclusion":"FAILURE","workflowRun":{"databaseId":1},"checkRuns":{"nodes":[{"name":"ci","conclusion":"FAILURE","steps":{"nodes":[]}}]},"otherJobs":{"nodes":[]}}]}}"#;
 const AWAITED: [&str; 2] = ["no run yet; Stop stays blocked until one appears or the wait is recorded", "run appeared"];
 const ERRORS: [&str; 2] = ["gh failed: HTTP 502: Bad Gateway", "gh failed: HTTP 401: Bad credentials"];
 const JOB_FAILED: &str = "ci failed; run `meta ci-log`";
@@ -54,7 +55,7 @@ fn gh_errors_are_noted_once_each_and_keep_a_failed_status_and_a_failed_job_says_
 #[test]
 fn a_watch_concludes_failed_with_its_steps_else_finished_else_absent_else_timed_out() {
     let [failed, passed] = [FAILED, PASSED].map(Replies::observed);
-    let unstarted = Observation::new(Vec::new(), None, Some(CiStatus::Unavailable), None);
+    let unstarted = Observation::from(&Gh::checks_in(UNSTARTED).unwrap());
     let lasts = [Some(&failed), Some(&passed), None, None, Some(&unstarted)];
     let currents = [None, Some(CiStatus::Running), Some(CiStatus::Absent), Some(CiStatus::Running), None];
     let concluded = lasts.iter().zip(currents).map(|(last, current)| Note::concluded(current, *last, LONG));
