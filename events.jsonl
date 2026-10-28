@@ -941,3 +941,4 @@
 {"at":"2026-10-28T08:37:34.677280Z","actor":"claude-mut56","kind":"TaskLinked","task":"task-c75f22cce1ac9b15","pr":85}
 {"at":"2026-10-28T08:41:00.939302Z","actor":"claude-lead","kind":"TaskOpened","task":"task-6029a089944dfb72","text":"Main red on test time (4134, 4862 ms after #56): cut real waits in the slowest tests so full runs sit well under 4000 ms.","division":"performance-and-cost"}
 {"at":"2026-10-28T08:41:21.162755Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-c75f22cce1ac9b15"}
+{"at":"2026-10-28T08:41:22.911117Z","actor":"claude-lead","kind":"TaskDone","task":"task-c75f22cce1ac9b15"}
