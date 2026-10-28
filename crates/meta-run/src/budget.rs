@@ -27,7 +27,7 @@ impl Budget {
         &self,
         mut attempt: impl FnMut() -> Result<Value, Failure>,
     ) -> Result<Value, Failure> {
-        let left = || self.overall.is_none_or(|overall| Instant::now() < overall);
+        let left = || self.overall.is_none_or(|overall| overall.checked_duration_since(Instant::now()).is_some());
         attempt().or_else(|failure| left().then(&mut attempt).unwrap_or(Err(failure)))
     }
 
