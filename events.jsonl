@@ -1207,3 +1207,4 @@
 {"at":"2026-10-28T22:56:51.442555Z","actor":"claude-frict","kind":"TaskOpened","task":"task-a9c7cdb7c21a29da","text":"Claim and ci-wait work in a fresh clone without hand-made files","division":"features-and-maintenance","addresses":["concern-358e46e233ed0796"]}
 {"at":"2026-10-28T23:01:21.243139Z","actor":"claude-lead","kind":"TaskOpened","task":"task-a29f99a353fb8afd","text":"meta status reads rules only for open-PR bases, concurrently; repo passed to gh explicitly.","division":"performance-and-cost","addresses":["concern-a6375369ebaf3ce6"]}
 {"at":"2026-10-28T23:01:25.554721Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-a29f99a353fb8afd"}
+{"at":"2026-10-28T23:01:27.155747Z","actor":"claude-lead","kind":"TaskLinked","task":"task-a29f99a353fb8afd","pr":137}
