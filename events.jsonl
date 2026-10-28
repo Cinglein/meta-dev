@@ -936,3 +936,4 @@
 {"at":"2026-10-28T08:06:15.389451Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-7ecc21803d9347a2","text":"macOS: inherited ignored signals aren't detected, so nohup meta and background meta from scripts die on HUP/INT (also xtask gate).","division":"features-and-maintenance","severity":"minor"}
 {"at":"2026-10-28T08:11:05.136353Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-9c5d64605234df8b"}
 {"at":"2026-10-28T08:11:06.975035Z","actor":"claude-lead","kind":"TaskDone","task":"task-9c5d64605234df8b"}
+{"at":"2026-10-28T08:33:40.924857Z","actor":"claude-mut56","kind":"TaskOpened","task":"task-c75f22cce1ac9b15","text":"Kill three surviving mutants: run_overdue, SessionDir::watch, pushed_among (which hangs the tests when stubbed); keep within the test-line budget","division":"performance-and-cost"}
