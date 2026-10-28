@@ -10,6 +10,7 @@ name = "meta"
 path = "src/main.rs"
 
 [dependencies]
+meta-door.workspace = true
 meta-schema.workspace = true
 meta-log.workspace = true
 meta-listing.workspace = true
@@ -27,6 +28,7 @@ thiserror.workspace = true
 toml.workspace = true
 
 [dev-dependencies]
+meta-door = { workspace = true, features = ["dangling-pause"] }
 tempfile.workspace = true
 
 [lints]

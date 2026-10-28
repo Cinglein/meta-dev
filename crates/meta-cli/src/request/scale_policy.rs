@@ -20,7 +20,7 @@ impl ScalePolicy {
     const FILE: &'static str = "tooling/policy.toml";
 
     pub fn read(root: &Path) -> Result<ScalePolicy, CliFailure> {
-        std::fs::read_to_string(root.join(Self::FILE)).map_or_else(
+        meta_door::Door::read(root.join(Self::FILE)).map_or_else(
             |_| Ok(ScalePolicy::default()),
             |text| toml::from_str(&text).map_err(CliFailure::raised::<Setup>),
         )

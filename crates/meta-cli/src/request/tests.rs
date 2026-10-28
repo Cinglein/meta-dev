@@ -6,9 +6,12 @@ mod moving;
 mod notices;
 #[cfg(test)]
 mod rating;
+mod repository;
 #[cfg(test)]
 mod status;
 mod usage;
+
+pub use repository::Repository;
 
 use meta_log::{LogStore, MemoryLog};
 use meta_severity::Scales;

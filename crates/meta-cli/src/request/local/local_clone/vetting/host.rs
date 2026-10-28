@@ -12,6 +12,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::sync::{Mutex, PoisonError};
 
+use meta_door::{Change, Door};
+
 use super::alternates::Alternates;
 use super::cause::Cause;
 use super::entry_kind::EntryKind;
@@ -67,7 +69,7 @@ impl Inspection for Host {
     }
 
     fn text(&self, path: &Path) -> Option<String> {
-        (self.entry(path) == EntryKind::File).then(|| std::fs::read_to_string(path).ok()).flatten()
+        (self.entry(path) == EntryKind::File).then(|| Door::inspected(path).ok()).flatten()
     }
 
     fn git(&self, call: &GitCall) -> Result<String, Kept> {
@@ -113,11 +115,12 @@ impl Inspection for Host {
             originals.collect::<std::io::Result<_>>().map_err(|failure| Kept::Uninspected(Cause::new(failure)))?,
         );
         let ledger = serde_json::to_string(&thaw).map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
-        LocalFile::new(thaw.ledger()).replaced(&ledger).map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
+        let entry = thaw.ledger().map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
+        LocalFile::new(entry).replaced(&ledger).map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
         let failed = thaw.files().iter().find_map(|thawed| {
             let mut read_only = thawed.permissions();
             read_only.set_readonly(true);
-            std::fs::set_permissions(thawed.path(), read_only).err()
+            Door::changed(thawed.path(), Change::Permissions(read_only)).err()
         });
         failed.map_or(Ok(thaw.clone()), |failure| {
             self.thawed(&thaw);
@@ -126,8 +129,10 @@ impl Inspection for Host {
     }
 
     fn thawed(&self, thaw: &Thaw) {
-        thaw.files().iter().for_each(|thawed| drop(std::fs::set_permissions(thawed.path(), thawed.permissions())));
-        drop(std::fs::remove_file(thaw.ledger()));
+        thaw.files()
+            .iter()
+            .for_each(|thawed| drop(Door::changed(thawed.path(), Change::Permissions(thawed.permissions()))));
+        drop(thaw.ledger().and_then(|ledger| Door::changed(ledger, Change::RemoveFile)));
     }
 
     fn stamp(&self) -> Stamp {

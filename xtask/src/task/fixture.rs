@@ -1,7 +1,7 @@
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use meta_door::{Change, Door};
 use tempfile::TempDir;
 
 #[derive(Debug)]
@@ -14,22 +14,18 @@ impl Fixture {
     pub fn new() -> Fixture {
         let directory = TempDir::new().expect("temp dir");
         let work = directory.path().join("work");
-        let git_dir = work.join(".git");
-        fs::create_dir_all(git_dir.join("objects")).expect("objects dir");
-        fs::create_dir_all(git_dir.join("refs/heads")).expect("refs dir");
-        fs::write(git_dir.join("HEAD"), "ref: refs/heads/change\n").expect("write HEAD");
-        fs::write(git_dir.join("config"), "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = false\n")
-            .expect("write config");
+        Self::ran(Self::git(directory.path()).args(["init", "--quiet", "--template=", "-b", "change"]).arg(&work));
         Fixture { _directory: directory, work }
     }
 
     pub fn branch(&self) {
-        self.committed();
-        let tip = fs::read_to_string(self.work.join(".git/refs/heads/change")).expect("read branch tip");
-        let remote = self.work.join(".git/refs/remotes/origin");
-        fs::create_dir_all(&remote).expect("remote refs dir");
-        fs::write(remote.join("main"), tip).expect("write origin main");
-        fs::write(remote.join("HEAD"), "ref: refs/remotes/origin/main\n").expect("write origin HEAD");
+        self.committed().updated("refs/remotes/origin/main");
+        Self::ran(Self::git(&self.work).args(["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"]));
+    }
+
+    pub fn updated(&self, reference: &str) -> &Fixture {
+        Self::ran(Self::git(&self.work).args(["update-ref", reference, "HEAD"]));
+        self
     }
 
     pub fn committed(&self) -> &Fixture {
@@ -65,11 +61,8 @@ impl Fixture {
     }
 
     pub fn revision(&self, name: &str) -> String {
-        let tip = fs::read_to_string(self.work.join(".git/refs/heads/change")).ok().filter(|_| name == "HEAD");
-        tip.unwrap_or_else(|| {
-            let output = Self::git(&self.work).args(["rev-parse", name]).output().expect("run git");
-            String::from_utf8_lossy(&output.stdout).into_owned()
-        })
+        let output = Self::git(&self.work).args(["rev-parse", name]).output().expect("run git");
+        String::from_utf8_lossy(&output.stdout).into_owned()
     }
 
     pub fn commit(&self, emails: [&str; 2]) -> &Fixture {
@@ -100,8 +93,8 @@ impl Fixture {
 
     pub fn write(&self, path: &str, text: &str) -> &Fixture {
         let file = self.path(path);
-        fs::create_dir_all(file.parent().expect("parent")).expect("create dirs");
-        fs::write(file, text).expect("write file");
+        Door::changed(file.parent().expect("parent"), Change::DirAll).expect("create dirs");
+        Door::write(file, text).expect("write file");
         self
     }
 

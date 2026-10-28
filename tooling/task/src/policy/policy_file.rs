@@ -7,13 +7,14 @@ use meta_severity::Scales;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
-use super::boundary::Boundary;
+use super::bit_boundary::BitBoundary;
 use super::least::Least;
 use super::policy_failure::PolicyFailure;
 use super::{BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface};
 use crate::branches::{Branch, BranchName};
 use crate::budget::{AvailableGib, Interval, MemoryShare, Millis, MutantMillis, MutationCadence};
 use crate::budgets::{Amount, BudgetDrafts, Budgets, LegacyKey, Measure};
+use crate::crate_name::CrateName;
 use crate::domains::Domains;
 use crate::gate_env_name::GateEnvName;
 use crate::gate_status::GateStatus;
@@ -25,9 +26,9 @@ use entries::Entries;
 pub struct PolicyFile {
     vague: Vec<String>,
     wire_types: Vec<String>,
-    bit_boundary: Boundary,
-    #[serde(default)]
-    file_door: Boundary,
+    bit_boundary: BitBoundary,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    file_door: Vec<CrateName>,
     surfaces: Vec<Surface>,
     branches: EnumMap<Branch, BranchName>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -1,22 +1,27 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
+use super::super::Repository;
 use super::{Beat, SETTINGS};
 use crate::request::Request;
 use crate::request::heartbeat::{Heartbeat, LaunchdPlist};
 use crate::request::local::LocalClone;
 
 const CHECKOUT: &str = "/work/a&b";
-const GIT_DIR: &str = "/work/a&b/.git";
+const GIT_DIR: &str = "/work/a&amp;b/.git";
 const PROGRAM: &str = "/bin/meta";
 const SEARCH_PATH: &str = "/usr/bin";
 
 #[test]
 fn the_plist_runs_tick_in_the_clone_on_the_policy_interval_and_escapes_markup() {
-    let clone = LocalClone::new(PathBuf::from(CHECKOUT), PathBuf::from(GIT_DIR));
+    let repository = Repository::new();
+    let clone = LocalClone::new(PathBuf::from(CHECKOUT), repository.store().clone());
     let settings = Beat::settings(SETTINGS).unwrap();
     let plist = LaunchdPlist::new(PathBuf::from(PROGRAM), &clone, &settings, OsString::from(SEARCH_PATH));
-    assert_eq!(plist.to_string(), include_str!("plist.plist"));
+    assert_eq!(
+        plist.to_string().replace(&repository.store().common().display().to_string(), GIT_DIR),
+        include_str!("plist.plist")
+    );
 }
 
 #[test]

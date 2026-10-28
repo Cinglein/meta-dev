@@ -1,3 +1,5 @@
+use meta_door::{Change, Door};
+
 use super::{
     BLOCK, CI_WAIT, COMMIT, FAILED_EVENT, FAILURE, Git, JOB_FAILED, NEXT_COMMIT, POST, PRE, Planted, Repo, STOP,
     SUCCESS, Session,
@@ -9,7 +11,7 @@ const DETACH: [&str; 3] = ["checkout", "-q", "--detach"];
 const BACK: [&str; 3] = ["checkout", "-q", "feature"];
 const NOT_PUSHED: &str = "is not pushed";
 const UNWRITABLE: &str = "CI state unwritable";
-const SESSION_DIR: &str = ".git/meta-ci/ABCDEF1234";
+const SESSION_DIR: &str = "meta-ci/ABCDEF1234";
 const PASSED: &str = "passed";
 const STUCK: &str = "STUCK9";
 const START_DIR: &str = "meta-sessions/STUCK9";
@@ -23,14 +25,14 @@ fn stop_judges_every_pushed_commit_and_a_dead_watcher_restarts() {
     Git::run(repo.clone.path(), &DETACH);
     let detached = repo.hook(STOP, STATUS);
     let waited = repo.session_command(CI_WAIT).0;
-    Planted::refusal(repo.origin.path());
+    Planted::refusal(&repo);
     Git::run(repo.clone.path(), &BACK);
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     repo.hook(POST, COMMIT);
     let rejected = repo.hook(STOP, COMMIT);
-    let open = Planted::locked(&repo.clone.path().join(SESSION_DIR));
+    let open = Planted::locked(repo.store().entry(SESSION_DIR));
     let unwritable = repo.hook(STOP, COMMIT);
-    std::fs::set_permissions(repo.clone.path().join(SESSION_DIR), open).unwrap();
+    Door::changed(repo.store().entry(SESSION_DIR), Change::Permissions(open)).unwrap();
     assert!(
         detached.contains(BLOCK)
             && waited.contains(JOB_FAILED)
@@ -52,9 +54,9 @@ fn one_commit_gets_one_watcher() {
 fn an_unwritable_session_start_refuses_the_writing_command() {
     let repo = Repo::new(SUCCESS);
     let start = repo.sessions.path().join(START_DIR);
-    std::fs::create_dir_all(&start).unwrap();
+    Door::changed(&start, Change::DirAll).unwrap();
     let open = Planted::locked(&start);
     let refused = Session { repo: &repo, cwd: repo.clone.path(), id: STUCK }.hook(PRE, COMMIT);
-    std::fs::set_permissions(&start, open).unwrap();
+    Door::changed(&start, Change::Permissions(open)).unwrap();
     assert!(refused.contains(DENIED) && refused.contains(START_DIR));
 }

@@ -3,11 +3,13 @@ use std::path::{Path, PathBuf};
 use meta_schema::{Actor, Claim, Event, Id, NewTask, Record, Task};
 use meta_state::State;
 
+use super::LocalFile;
 use super::local_settings::LocalSettings;
 use super::local_trail::LocalTrail;
 use super::recorded_worktree::RecordedWorktree;
 use super::trail_entry::TrailEntry;
 use super::worktrees::Worktrees;
+use crate::request::tests::Repository;
 
 const CHECKOUT: &str = "/work/clone";
 const SIBLING: &str = "/work/clone-worktrees";
@@ -24,7 +26,6 @@ const STRAY: &str = "/nonexistent/stray";
 const QUARANTINED: &str = "/nonexistent/.gc-gone-1x0";
 const MISSING: &str = " missing";
 const UNRECORDED: &str = "unrecorded ";
-const TRAIL_DIR: &str = "meta-local";
 const TRAIL: &str = "meta-local/worktrees.jsonl";
 const TORN: &str = "{\"change\":\"Crea";
 const WARNING: &str = "skipped worktree record line 1: ";
@@ -56,7 +57,7 @@ fn settings_default_to_a_sibling_root_resolve_relative_roots_and_refuse_foreign_
     let relative: LocalSettings = RELATIVE.parse().unwrap();
     let roots = [absent.worktree_root(checkout), relative.worktree_root(checkout)];
     assert_eq!(roots, [PathBuf::from(SIBLING), PathBuf::from(NESTED)]);
-    assert!(absent.identity().is_err() && LocalTrail::read(Path::new(NOWHERE)).unwrap().current().is_empty());
+    assert!(absent.identity().is_err() && LocalTrail::read(Repository::new().store()).unwrap().current().is_empty());
     let unreadable = LocalSettings::read(Path::new(NOT_A_DIRECTORY)).unwrap_err().to_string();
     assert!(REFUSED.iter().all(|text| text.parse::<LocalSettings>().is_err()) && unreadable.contains(NOT_A_DIRECTORY));
 }
@@ -82,14 +83,14 @@ fn worktrees_join_the_current_trail_to_task_status_and_flag_missing_and_unrecord
 
 #[test]
 fn appends_after_a_torn_line_start_a_new_line_and_reads_skip_the_torn_line_with_a_warning() {
-    let git_dir = tempfile::tempdir().unwrap();
-    std::fs::create_dir(git_dir.path().join(TRAIL_DIR)).unwrap();
-    std::fs::write(git_dir.path().join(TRAIL), TORN).unwrap();
+    let repository = Repository::new();
+    let store = repository.store();
+    LocalFile::new(store.entry(TRAIL)).replaced(TORN).unwrap();
     let created =
         [GONE, STRAY].map(|path| TrailEntry::Created(RecordedWorktree::new(PathBuf::from(path), Id::generate())));
     let moved = TrailEntry::Moved { path: PathBuf::from(GONE), to: PathBuf::from(QUARANTINED), at: chrono::Utc::now() };
-    assert!(created.iter().chain([&moved]).all(|entry| LocalTrail::append(git_dir.path(), entry).is_ok()));
-    let trail = LocalTrail::read(git_dir.path()).unwrap();
+    assert!(created.iter().chain([&moved]).all(|entry| LocalTrail::append(store, entry).is_ok()));
+    let trail = LocalTrail::read(store).unwrap();
     let torn: Vec<String> = trail.torn().iter().map(ToString::to_string).collect();
     assert!(torn.len() == 1 && torn.iter().all(|line| line.starts_with(WARNING)));
     let paths: Vec<PathBuf> = trail.current().iter().map(|worktree| worktree.path().to_path_buf()).collect();

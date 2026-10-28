@@ -2,9 +2,9 @@ mod target_directory;
 
 pub use target_directory::TargetDirectory;
 
+use meta_door::Door;
 use std::collections::BTreeMap;
 use std::env;
-use std::fs::{self, DirEntry};
 use std::path::{Path, PathBuf};
 
 use crate::command_line::{CargoArgument, CommandLine, Program, Stdout};
@@ -33,7 +33,7 @@ impl Workspace {
         let root = here
             .ancestors()
             .find(|directory| {
-                fs::read_to_string(directory.join(Self::MANIFEST))
+                Door::read(directory.join(Self::MANIFEST))
                     .is_ok_and(|manifest| manifest.contains(Self::WORKSPACE_TABLE))
             })
             .ok_or(Failure::NoWorkspace)?
@@ -99,19 +99,15 @@ impl Workspace {
             site: Site::File(directory.to_path_buf()),
             error,
         };
-        fs::read_dir(directory)
+        Door::listed(directory)
             .map_err(io)?
-            .map(|entry| {
-                entry
-                    .map_err(io)
-                    .and_then(|entry| Self::rust_files_in(&entry))
-            })
+            .into_iter()
+            .map(Self::rust_files_in)
             .collect::<Result<Vec<Vec<PathBuf>>, Failure>>()
             .map(|nested| nested.into_iter().flatten().collect())
     }
 
-    fn rust_files_in(entry: &DirEntry) -> Result<Vec<PathBuf>, Failure> {
-        let path = entry.path();
+    fn rust_files_in(path: PathBuf) -> Result<Vec<PathBuf>, Failure> {
         if path.is_dir() {
             Self::rust_files_under(&path)
         } else {
@@ -128,7 +124,7 @@ impl Workspace {
 #[cfg(test)]
 mod tests {
     use super::{PackageGraph, TargetDirectory, Workspace};
-    use std::fs;
+    use meta_door::{Change, Door};
     const TREE: [&str; 4] = ["a/src/a.rs", "b/b.rs", "target/skipped.rs", "a/notes.txt"];
     const FOUND: [&str; 2] = ["a:a/src/a.rs", "b:b/b.rs"];
     const TEXT: &str = "pub struct Found;";
@@ -140,10 +136,11 @@ mod tests {
 
     #[test]
     fn rust_files_are_found_below_the_members_only_and_named_relative_to_the_root() {
-        let root = std::env::temp_dir().join(format!("tooling-workspace-{}", std::process::id()));
+        let scratch = tempfile::tempdir().unwrap();
+        let root = scratch.path().to_path_buf();
         TREE.iter().map(|file| root.join(file)).for_each(|path| {
-            fs::create_dir_all(path.parent().unwrap()).unwrap();
-            fs::write(&path, TEXT).unwrap();
+            Door::changed(path.parent().unwrap(), Change::DirAll).unwrap();
+            Door::write(&path, TEXT).unwrap();
         });
         let metadata = METADATA.replace(ROOT_MARK, &root.display().to_string());
         let packages = PackageGraph::from_metadata(&metadata).unwrap();
@@ -158,6 +155,5 @@ mod tests {
             .iter()
             .map(|file| format!("{}:{}", file.crate_name().unwrap(), file.path().display()));
         assert!(found.eq(FOUND.map(String::from)) && workspace.target().path().ends_with("built"));
-        fs::remove_dir_all(workspace.root()).unwrap();
     }
 }

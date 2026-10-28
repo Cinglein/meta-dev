@@ -2,18 +2,21 @@ mod watch_state;
 
 use std::fmt;
 use std::io::Write as _;
-use std::path::PathBuf;
+use std::path::Path;
+
+use std::fs::File;
+
+use meta_door::{Change, Door, Entry, MetaStore, Opening, Pair};
 
 use super::ci_status::CiStatus;
 use super::commit::Commit;
 use super::session_id::SessionId;
-use crate::request::git_link::GitLink;
 use crate::request::output::Listed;
 use crate::request::project::Project;
 use watch_state::WatchState;
 
 #[derive(Clone, Debug)]
-pub struct SessionDir(PathBuf);
+pub struct SessionDir(Entry);
 
 impl SessionDir {
     const ROOT: &'static str = "meta-ci";
@@ -25,12 +28,13 @@ impl SessionDir {
     const PROBE: &'static str = "probe";
 
     pub fn for_session(project: &Project, session: &SessionId) -> Option<Self> {
-        GitLink::common_dir(project.root()).map(|base| Self(base.join(Self::ROOT).join(session.file_name())))
+        let store = MetaStore::located(project.root()).ok()?;
+        Some(Self(store.entry(Path::new(Self::ROOT).join(session.file_name()))))
     }
 
     pub fn record(&self, line: impl fmt::Display) -> std::io::Result<()> {
-        std::fs::create_dir_all(&self.0)?;
-        std::fs::OpenOptions::new().create(true).append(true).open(self.0.join(Self::EVENTS)).and_then(|events| {
+        Door::changed(self.0.clone(), Change::DirAll)?;
+        Door::opened(self.named(Self::EVENTS), Opening::Append).and_then(|events| {
             let mut whole = std::io::BufWriter::new(events);
             writeln!(whole, "{line}")?;
             whole.flush()
@@ -38,13 +42,11 @@ impl SessionDir {
     }
 
     pub fn news(&self) -> Option<Listed> {
-        let events = std::fs::read_to_string(self.0.join(Self::EVENTS)).ok()?;
-        let seen: usize = std::fs::read_to_string(self.0.join(Self::SEEN))
-            .ok()
-            .and_then(|text| text.parse().ok())
-            .unwrap_or_default();
+        let events = Door::read(self.named(Self::EVENTS)).ok()?;
+        let seen: usize =
+            Door::read(self.named(Self::SEEN)).ok().and_then(|text| text.parse().ok()).unwrap_or_default();
         let lines: Vec<&str> = events.lines().collect();
-        write!(std::fs::File::create(self.0.join(Self::SEEN)).ok()?, "{}", lines.len()).ok()?;
+        write!(Door::opened(self.named(Self::SEEN), Opening::Truncate).ok()?, "{}", lines.len()).ok()?;
         let unseen = lines.get(seen..).filter(|unseen| !unseen.is_empty())?;
         Some(Listed::new(unseen.join("\n")))
     }
@@ -54,30 +56,33 @@ impl SessionDir {
     }
 
     pub fn settle(&self, commit: &Commit, status: CiStatus) -> std::io::Result<()> {
-        let folder = self.0.join(Self::STATES);
-        std::fs::create_dir_all(&folder)?;
-        let target = folder.join(commit.argument());
-        let temp = target.with_extension(Self::PARTIAL);
-        write!(std::fs::File::create(&temp)?, "{}", WatchState::new(commit.clone(), status))?;
-        std::fs::rename(&temp, target)
+        Door::changed(self.named(Self::STATES), Change::DirAll)?;
+        let target = self.named(Self::STATES).map(|states| states.join(commit.argument()));
+        let temp = target.map(|target| target.with_extension(Self::PARTIAL));
+        write!(Door::opened(temp.clone(), Opening::Truncate)?, "{}", WatchState::new(commit.clone(), status))?;
+        Door::paired(temp, target, Pair::Rename)
     }
 
     pub fn status_of(&self, commit: &Commit) -> Option<CiStatus> {
-        let text = std::fs::read_to_string(self.0.join(Self::STATES).join(commit.argument())).ok()?;
+        let text = Door::read(self.named(Self::STATES).map(|states| states.join(commit.argument()))).ok()?;
         let state: WatchState = text.parse().ok()?;
         state.matching(commit).map(WatchState::status)
     }
 
     pub fn writable(&self) -> std::io::Result<()> {
-        std::fs::create_dir_all(&self.0)?;
-        std::fs::File::create(self.0.join(Self::PROBE))?;
-        std::fs::remove_file(self.0.join(Self::PROBE))
+        Door::changed(self.0.clone(), Change::DirAll)?;
+        Door::opened(self.named(Self::PROBE), Opening::Truncate)?;
+        Door::changed(self.named(Self::PROBE), Change::RemoveFile)
     }
 
-    pub fn claim(&self, commit: &Commit) -> Option<std::fs::File> {
-        let folder = self.0.join(Self::LOCKS);
-        std::fs::create_dir_all(&folder).ok()?;
-        let lock = std::fs::File::options().create(true).append(true).open(folder.join(commit.argument())).ok()?;
+    pub fn claim(&self, commit: &Commit) -> Option<File> {
+        Door::changed(self.named(Self::LOCKS), Change::DirAll).ok()?;
+        let lock =
+            Door::opened(self.named(Self::LOCKS).map(|locks| locks.join(commit.argument())), Opening::Append).ok()?;
         lock.try_lock().ok().map(|()| lock)
+    }
+
+    fn named(&self, name: &str) -> Entry {
+        self.0.map(|session| session.join(name))
     }
 }

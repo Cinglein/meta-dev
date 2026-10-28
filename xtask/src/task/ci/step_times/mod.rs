@@ -38,7 +38,7 @@ impl fmt::Display for StepTimes {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use meta_door::Door;
     use std::time::Duration;
 
     use super::StepTimes;
@@ -63,6 +63,6 @@ mod tests {
         assert!(times.record(CiStep::Fmt, Ok(SECOND)).is_ok());
         assert!(times.failing(CiStep::Clippy).is_err());
         Ci::new(None, None, Some(fixture.path(TIMES)), LogSource::Origin).recorded(&times).unwrap();
-        assert_eq!(fs::read_to_string(fixture.path(TIMES)).ok().as_deref(), Some(SHOWN));
+        assert_eq!(Door::read(fixture.path(TIMES)).ok().as_deref(), Some(SHOWN));
     }
 }

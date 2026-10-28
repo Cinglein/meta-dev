@@ -1,4 +1,5 @@
-use std::fs::{self, File, OpenOptions};
+use meta_door::{Change, Door, Opening};
+use std::fs::File;
 use std::io::Write;
 use std::iter;
 use std::path::{Component, Path, PathBuf};
@@ -29,13 +30,14 @@ impl GateLock {
     }
 
     pub fn guarding(target: &Path, wait: Millis) -> Result<GateLock, Failure> {
-        fs::create_dir_all(target).map_err(|error| task::Failure::Io { site: Site::File(target.into()), error })?;
+        Door::changed(target, Change::DirAll)
+            .map_err(|error| task::Failure::Io { site: Site::File(target.into()), error })?;
         Self::acquire(&target.with_extension(Self::LOCK), wait.duration())
     }
 
     fn acquire(path: &Path, wait: Duration) -> Result<GateLock, Failure> {
         let io = |error| Failure::from(task::Failure::Io { site: Site::File(path.into()), error });
-        let mut file = OpenOptions::new().create(true).truncate(false).read(true).write(true).open(path).map_err(io)?;
+        let mut file = Door::opened(path, Opening::Held).map_err(io)?;
         let deadline = Instant::now().checked_add(wait).unwrap_or_else(Instant::now);
         iter::successors(Some(()), |()| {
             deadline.checked_duration_since(Instant::now()).map(|_| thread::sleep(Self::PAUSE))

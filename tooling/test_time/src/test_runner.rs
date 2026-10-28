@@ -1,7 +1,7 @@
 mod test_binary;
 
+use meta_door::{Door, Opening};
 use std::env;
-use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -34,11 +34,7 @@ impl TestRunner {
             site: Site::File(runs.to_path_buf()),
             error,
         };
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(runs)
-            .map_err(io)?;
+        let file = Door::opened(runs, Opening::Append).map_err(io)?;
         ran.iter()
             .try_for_each(|run| writeln!(&file, "{run}"))
             .map_err(io)?;
@@ -48,7 +44,7 @@ impl TestRunner {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use meta_door::Door;
     use std::path::PathBuf;
 
     use super::{TestBinary, TestRunner};
@@ -65,7 +61,7 @@ mod tests {
             TestRunner::recorded(&TestBinary::new(PathBuf::from(binary), []), runs.path())
         };
         assert!(recorded(CANNOT_LIST).is_err() && recorded(LISTS_NOTHING).is_ok());
-        let read = fs::read_to_string(runs.path()).unwrap();
+        let read = Door::read(runs.path()).unwrap();
         assert!(read.starts_with(FIRST) && read.ends_with(LAST), "{read}");
     }
 }

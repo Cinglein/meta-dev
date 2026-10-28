@@ -7,6 +7,7 @@ publish.workspace = true
 
 [dependencies]
 affected = { path = "../affected" }
+meta-door = { path = "../../crates/meta-door" }
 task = { path = "../task" }
 settings = { path = "../settings" }
 serde = { version = "1", features = ["derive"] }
@@ -16,6 +17,7 @@ sysinfo = "0.39"
 
 [dev-dependencies]
 task = { path = "../task", features = ["test-policy"] }
+tempfile.workspace = true
 
 [lints]
 workspace = true

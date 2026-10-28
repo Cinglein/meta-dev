@@ -1,7 +1,7 @@
 use std::fmt;
-use std::path::Path;
 
 use chrono::{DateTime, Utc};
+use meta_door::MetaStore;
 use meta_schema::DueTime;
 
 use super::finding::Finding;
@@ -41,12 +41,12 @@ impl MonitorReport {
         &self.state
     }
 
-    pub fn write(&self, git_dir: &Path) -> Result<(), CliFailure> {
-        LocalFile::new(git_dir.join(Self::FILE)).replaced(&self.to_string())
+    pub fn write(&self, store: &MetaStore) -> Result<(), CliFailure> {
+        LocalFile::new(store.entry(Self::FILE)).replaced(&self.to_string())
     }
 
-    pub fn latest(git_dir: &Path) -> Result<String, CliFailure> {
-        let text = LocalFile::new(git_dir.join(Self::FILE)).text()?;
+    pub fn latest(store: &MetaStore) -> Result<String, CliFailure> {
+        let text = LocalFile::new(store.entry(Self::FILE)).text()?;
         Ok(if text.is_empty() { Self::NONE_YET.to_owned() } else { text })
     }
 }

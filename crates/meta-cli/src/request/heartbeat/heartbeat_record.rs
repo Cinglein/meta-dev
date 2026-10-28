@@ -1,5 +1,4 @@
-use std::path::Path;
-
+use meta_door::MetaStore;
 use serde::{Deserialize, Serialize};
 
 use super::gc_hook::GcHook;
@@ -16,8 +15,8 @@ pub struct HeartbeatRecord {
 impl HeartbeatRecord {
     const FILE: &'static str = "meta-local/heartbeat.json";
 
-    pub fn read(git_dir: &Path) -> Result<Option<Self>, CliFailure> {
-        let file = LocalFile::new(git_dir.join(Self::FILE));
+    pub fn read(store: &MetaStore) -> Result<Option<Self>, CliFailure> {
+        let file = LocalFile::new(store.entry(Self::FILE));
         let text = file.text()?;
         (!text.is_empty()).then(|| serde_json::from_str(&text)).transpose().map_err(|failure| file.failure(failure))
     }
@@ -26,8 +25,8 @@ impl HeartbeatRecord {
         Self { latest, previous: before.map(|before| before.latest) }
     }
 
-    pub fn write(&self, git_dir: &Path) -> Result<(), CliFailure> {
-        let file = LocalFile::new(git_dir.join(Self::FILE));
+    pub fn write(&self, store: &MetaStore) -> Result<(), CliFailure> {
+        let file = LocalFile::new(store.entry(Self::FILE));
         file.replaced(&serde_json::to_string(self).map_err(|failure| file.failure(failure))?)
     }
 

@@ -4,12 +4,12 @@ mod expectation;
 mod mismatch;
 
 use std::collections::BTreeSet;
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use case::Case;
 use corpus_error::CorpusError;
 use expectation::Expectation;
+use meta_door::Door;
 use mismatch::Mismatch;
 use strum::IntoEnumIterator;
 
@@ -27,10 +27,7 @@ impl Corpus {
     pub fn load() -> Result<Corpus, CorpusError> {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join(Self::DIRECTORY);
         let io = |error| CorpusError::Io { site: Site::File(root.clone()), error };
-        let directories = fs::read_dir(&root)
-            .map_err(io)?
-            .map(|entry| entry.map(|entry| entry.path()).map_err(io))
-            .collect::<Result<BTreeSet<PathBuf>, CorpusError>>()?;
+        let directories: BTreeSet<PathBuf> = Door::listed(&root).map_err(io)?.into_iter().collect();
         Ok(Corpus {
             cases: directories
                 .iter()

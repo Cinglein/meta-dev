@@ -1,10 +1,10 @@
 mod heartbeat_flag;
 
 use std::fmt;
-use std::path::Path;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use meta_door::MetaStore;
 use meta_schema::DueTime;
 use meta_status::Flags;
 
@@ -23,8 +23,8 @@ pub struct LatestFlags {
 }
 
 impl LatestFlags {
-    pub fn answer(git_dir: &Path, settings: &HeartbeatSettings, now: DateTime<Utc>) -> Result<Output, CliFailure> {
-        let record = HeartbeatRecord::read(git_dir)?;
+    pub fn answer(store: &MetaStore, settings: &HeartbeatSettings, now: DateTime<Utc>) -> Result<Output, CliFailure> {
+        let record = HeartbeatRecord::read(store)?;
         Ok(record.map_or_else(Self::never_ticked, |record| Self::seen(record.latest().clone(), settings, now)).output())
     }
 

@@ -3,6 +3,8 @@
 use std::io::Write as _;
 use std::process::{Command, Output, Stdio};
 
+use meta_door::{Change, Door};
+
 #[path = "support/seeded_log.rs"]
 mod seeded_log;
 #[path = "support/skeleton.rs"]
@@ -33,17 +35,15 @@ impl Project {
         let clone = tempfile::tempdir().unwrap();
         Skeleton::Bare.lay(origin.path(), "main");
         Skeleton::Working.lay(clone.path(), TASK);
-        let remote = format!(
-            "[remote \"origin\"]\n\turl = {}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n",
-            origin.path().display()
-        );
-        let config = clone.path().join(".git/config");
-        std::fs::write(&config, [std::fs::read_to_string(&config).unwrap(), remote].concat()).unwrap();
-        std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
+        let url = origin.path().display().to_string();
+        let added = Command::new("git").arg("-C").arg(clone.path()).args(["remote", "add", "origin", &url]).status();
+        assert!(added.unwrap().success());
+        Door::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
         let bin = clone.path().join("bin");
-        std::fs::create_dir(&bin).unwrap();
-        std::fs::write(bin.join("gh"), FAKE_GH).unwrap();
-        std::fs::set_permissions(bin.join("gh"), std::fs::metadata("/bin/sh").unwrap().permissions()).unwrap();
+        Door::changed(&bin, Change::Dir).unwrap();
+        Door::write(bin.join("gh"), FAKE_GH).unwrap();
+        let executable = std::path::Path::new("/bin/sh").metadata().unwrap().permissions();
+        Door::changed(bin.join("gh"), Change::Permissions(executable)).unwrap();
         Self { origin, clone }
     }
 

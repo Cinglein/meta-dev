@@ -1,9 +1,9 @@
 use std::convert::Infallible;
-use std::fs;
 use std::io::ErrorKind;
 use std::path::Path;
 use std::str::FromStr;
 
+use meta_door::Door;
 use task::Failure;
 use task::Site;
 
@@ -13,7 +13,7 @@ impl MissedList {
     const FILE: &str = "mutants.out/missed.txt";
     pub fn in_output(output: &Path) -> Result<MissedList, Failure> {
         let path = output.join(Self::FILE);
-        match fs::read_to_string(&path) {
+        match Door::read(&path) {
             Ok(listed) => {
                 let Ok(list) = listed.parse();
                 Ok(list)
@@ -39,16 +39,17 @@ impl FromStr for MissedList {
 #[cfg(test)]
 mod tests {
     use super::MissedList;
+    use meta_door::{Change, Door};
     #[test]
     fn a_missing_list_is_empty_and_a_written_one_counts_its_lines() {
-        let output = std::env::temp_dir().join(format!("meta-missed-{}", std::process::id()));
-        let absent = MissedList::in_output(&output).unwrap();
-        std::fs::create_dir_all(output.join(MissedList::FILE)).unwrap();
-        let unreadable = MissedList::in_output(&output).is_err();
-        std::fs::remove_dir(output.join(MissedList::FILE)).unwrap();
-        std::fs::write(output.join(MissedList::FILE), "a.rs:1:1: delete x").unwrap();
-        let present = MissedList::in_output(&output).unwrap();
-        std::fs::remove_dir_all(&output).unwrap();
+        let scratch = tempfile::tempdir().unwrap();
+        let output = scratch.path();
+        let absent = MissedList::in_output(output).unwrap();
+        Door::changed(output.join(MissedList::FILE), Change::DirAll).unwrap();
+        let unreadable = MissedList::in_output(output).is_err();
+        Door::changed(output.join(MissedList::FILE), Change::RemoveDir).unwrap();
+        Door::write(output.join(MissedList::FILE), "a.rs:1:1: delete x").unwrap();
+        let present = MissedList::in_output(output).unwrap();
         let Ok(blank) = " \n\n".parse::<MissedList>();
         assert!(absent.is_empty() && unreadable && !present.is_empty() && blank.is_empty());
     }

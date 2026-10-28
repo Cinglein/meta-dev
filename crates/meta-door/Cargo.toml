@@ -1,0 +1,16 @@
+[package]
+name = "meta-door"
+description = "The one door for filesystem access: paths inside a git dir are refused; meta's own files go through MetaStore."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[features]
+dangling-pause = []
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

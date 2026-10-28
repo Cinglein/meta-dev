@@ -9,6 +9,7 @@ publish.workspace = true
 affected = { path = "../tooling/affected" }
 corpus_check = { path = "../tooling/corpus_check" }
 crate_graph = { path = "../tooling/lints/crate_graph" }
+meta-door = { path = "../crates/meta-door" }
 meta-log = { path = "../crates/meta-log" }
 meta-schema = { path = "../crates/meta-schema" }
 meta-severity = { path = "../crates/meta-severity" }

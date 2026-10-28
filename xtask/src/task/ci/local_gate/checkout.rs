@@ -1,4 +1,5 @@
-use std::fs::{self, File};
+use meta_door::{Change, Door, Opening};
+use std::fs::File;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -59,7 +60,7 @@ impl Checkout {
 
     pub fn sweep(repository: &Path, parent: &Path) -> Result<PathBuf, Failure> {
         let io = |error| task::Failure::Io { site: Site::File(parent.into()), error };
-        fs::create_dir_all(parent).map_err(io)?;
+        Door::changed(parent, Change::DirAll).map_err(io)?;
         let parent = parent.canonicalize().map_err(io)?;
         let listed: Worktrees = Self::git(repository).arguments(Self::LIST).captured::<Stdout>()?.parse()?;
         listed.below(&parent).iter().filter(|place| Self::claimed(place).is_ok()).try_for_each(|place| {
@@ -120,7 +121,7 @@ impl Checkout {
     }
 
     pub fn version(&self) -> Result<MetaRev, Failure> {
-        fs::read_to_string(self.root().join(Self::CARGO_LOCK)).ok().and_then(|lock| lock.parse().ok()).map_or_else(
+        Door::read(self.root().join(Self::CARGO_LOCK)).ok().and_then(|lock| lock.parse().ok()).map_or_else(
             || {
                 if self.place.join(Self::META_SOURCE).exists() {
                     Self::git(&self.place).arguments(Self::SHORT_HEAD).captured::<Stdout>()?.parse()
@@ -133,13 +134,13 @@ impl Checkout {
     }
 
     fn discarded(place: &Path) {
-        fs::remove_dir_all(place).ok();
-        fs::remove_file(place.with_extension(Self::HELD)).ok();
-        fs::remove_file(place.with_extension(Self::TIMES)).ok();
+        Door::changed(place, Change::RemoveDirAll).ok();
+        Door::changed(place.with_extension(Self::HELD), Change::RemoveFile).ok();
+        Door::changed(place.with_extension(Self::TIMES), Change::RemoveFile).ok();
     }
 
     fn claimed(place: &Path) -> io::Result<File> {
-        let lock = File::create(place.with_extension(Self::HELD))?;
+        let lock = Door::opened(place.with_extension(Self::HELD), Opening::Truncate)?;
         lock.try_lock()?;
         Ok(lock)
     }
@@ -149,11 +150,10 @@ impl Checkout {
     }
 
     fn orphans(parent: &Path) -> Vec<PathBuf> {
-        fs::read_dir(parent)
+        Door::listed(parent)
             .map(|entries| {
                 entries
-                    .flatten()
-                    .map(|entry| entry.path())
+                    .into_iter()
                     .filter(|path| path.is_file())
                     .map(|path| path.with_extension(""))
                     .filter(|place| !place.exists())
@@ -177,9 +177,8 @@ impl Drop for Checkout {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use meta_door::{Door, Pair};
     use std::mem;
-    use std::os::unix::fs::symlink;
     use std::path::{Path, PathBuf};
 
     use super::Checkout;
@@ -188,8 +187,7 @@ mod tests {
     use crate::task::revision::Commit;
 
     const IGNORE: &str = ".gitignore";
-    const IGNORED: &str = "consumer/hello.txt\n";
-    const EXCLUDED: &str = ".git/info/exclude";
+    const IGNORED: &str = "consumer/hello.txt\n.cargo/config.toml\n";
     const CARGO_CONFIG: &str = ".cargo/config.toml";
     const PROBE: &str = "[env]\nGATE_PROBE = \"leaked\"\n";
     const COMMITTED: &str = "consumer/committed.txt";
@@ -207,7 +205,7 @@ mod tests {
 
     impl Fixture {
         fn checked_out(&self) -> Checkout {
-            self.write(IGNORE, IGNORED).write(COMMITTED, "").write(HELLO, "").write(EXCLUDED, CARGO_CONFIG);
+            self.write(IGNORE, IGNORED).write(COMMITTED, "").write(HELLO, "");
             self.write(TRACKED_LOCK, LOCKED);
             self.write(CARGO_CONFIG, PROBE).branch();
             self.added()
@@ -236,9 +234,9 @@ mod tests {
         assert!(checkout.root().join("committed.txt").exists() && !checkout.root().join("hello.txt").exists());
         let local = checkout.version().is_ok_and(|version| version == MetaRev::local());
         assert!(checkout.scope() == Path::new(SCOPE) && checkout.intact().is_ok() && local);
-        fs::write(checkout.root().join(LOCKFILE), LOCKED_AGAIN).unwrap();
+        Door::write(checkout.root().join(LOCKFILE), LOCKED_AGAIN).unwrap();
         let relocked = checkout.intact().is_err();
-        symlink(fixture.root(), checkout.root().join(LINK)).unwrap();
+        Door::paired(fixture.root(), checkout.root().join(LINK), Pair::Symlink).unwrap();
         let outside = checkout.above().is_some_and(|above| checkout.root().starts_with(above))
             && checkout.holds(&checkout.root())
             && !checkout.holds(&checkout.root().join(LINK).join(COMMITTED));
@@ -254,7 +252,7 @@ mod tests {
         drop(checkout);
         let unknown: Commit = UNKNOWN.parse().unwrap();
         assert!(Checkout::add(&fixture.path(SCOPE), unknown, &parent).is_err());
-        assert!(fs::read_dir(&parent).unwrap().next().is_none());
+        assert_eq!(Door::listed(&parent).unwrap(), Vec::<PathBuf>::new());
     }
 
     #[test]
@@ -263,7 +261,7 @@ mod tests {
         let stale = Fixture::abandoned(fixture.checked_out());
         let live = fixture.added();
         let orphan = fixture.beside().join(ORPHAN);
-        fs::write(&orphan, "").unwrap();
+        Door::write(&orphan, "").unwrap();
         Checkout::sweep(&fixture.path(SCOPE), &fixture.beside()).unwrap();
         assert!(!stale.exists() && !stale.with_extension(HELD).exists() && live.root().exists() && !orphan.exists());
     }

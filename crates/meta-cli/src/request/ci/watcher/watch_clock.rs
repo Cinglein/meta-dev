@@ -46,7 +46,7 @@ impl WatchClock {
     }
 
     fn reading(injected: Option<&PathBuf>) -> Option<ClockReading> {
-        injected.and_then(|file| std::fs::read_to_string(file).ok()).and_then(|text| text.parse().ok())
+        injected.and_then(|file| meta_door::Door::read(file).ok()).and_then(|text| text.parse().ok())
     }
 }
 

@@ -1,5 +1,5 @@
 mod baseline_file;
-mod boundary;
+mod bit_boundary;
 mod floor;
 mod key_name;
 mod least;
@@ -28,14 +28,14 @@ pub use spec_settings::SpecSettings;
 pub use surface::Surface;
 pub use wire_type::WireType;
 
-use std::fs;
+use meta_door::Door;
 use std::num::NonZeroU64;
 use std::path::Path;
 
 use crate::budgets::{Budgets, LegacyKey};
 use crate::domains::Domains;
 use crate::percent::Percent;
-use boundary::Boundary;
+use bit_boundary::BitBoundary;
 use enum_map::EnumMap;
 use least::Least;
 use meta_severity::Scales;
@@ -61,8 +61,8 @@ use crate::site::Site;
 pub struct Policy {
     vague: Vec<String>,
     wire_types: Vec<String>,
-    bit_boundary: Boundary,
-    file_door: Boundary,
+    bit_boundary: BitBoundary,
+    file_door: Vec<CrateName>,
     surfaces: Vec<Surface>,
     branches: EnumMap<Branch, BranchName>,
     baseline: BaselineFile,
@@ -111,7 +111,7 @@ impl Policy {
 
     pub fn read(root: &Path) -> Result<Policy, Failure> {
         let path = root.join(Self::PATH);
-        let text = fs::read_to_string(&path).map_err(|error| Failure::Io {
+        let text = Door::read(&path).map_err(|error| Failure::Io {
             site: Site::File(path.clone()),
             error,
         })?;
@@ -236,12 +236,12 @@ impl Policy {
     }
 
     #[must_use]
-    pub fn bit_boundary(&self) -> &Boundary {
+    pub fn bit_boundary(&self) -> &BitBoundary {
         &self.bit_boundary
     }
 
     #[must_use]
-    pub fn file_door(&self) -> &Boundary {
+    pub fn file_door(&self) -> &[CrateName] {
         &self.file_door
     }
 

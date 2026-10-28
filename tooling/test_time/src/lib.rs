@@ -7,8 +7,8 @@ mod test_runner;
 mod test_runs;
 mod test_timing;
 
+use meta_door::Door;
 use std::cmp::Reverse;
-use std::fs;
 use std::time::Duration;
 
 use cargo_build::CargoBuild;
@@ -86,7 +86,7 @@ impl TestTime {
                 let documented_ran = documented
                     .reaching()
                     .map_or(Ok(()), |documented| cargo(documented).doctests().run());
-                let timings = fs::read_to_string(runs.path())
+                let timings = Door::read(runs.path())
                     .map_err(|error| Failure::Io {
                         site: Site::File(runs.path().to_path_buf()),
                         error,

@@ -1,5 +1,5 @@
+use meta_door::Door;
 use std::fmt;
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::task::ci::local_gate::PassedSteps;
@@ -18,12 +18,12 @@ impl RecordedTimes {
     }
 
     pub fn passed(&self) -> Result<PassedSteps, Failure> {
-        fs::read_to_string(&self.0).unwrap_or_default().parse()
+        Door::read(&self.0).unwrap_or_default().parse()
     }
 }
 
 impl fmt::Display for RecordedTimes {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&fs::read_to_string(&self.0).unwrap_or_default())
+        formatter.write_str(&Door::read(&self.0).unwrap_or_default())
     }
 }

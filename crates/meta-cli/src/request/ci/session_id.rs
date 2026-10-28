@@ -3,6 +3,7 @@ use std::io::Write as _;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use meta_door::{Door, Opening};
 use meta_schema::Actor;
 use serde::Deserialize;
 
@@ -21,10 +22,7 @@ impl SessionId {
         let actor = actor.or_else(|| {
             format!("claude-{}", self.file_name().display().to_string().to_ascii_lowercase()).parse().ok()
         })?;
-        std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(std::env::var_os("CLAUDE_ENV_FILE")?)
+        Door::opened(std::env::var_os("CLAUDE_ENV_FILE")?, Opening::Append)
             .ok()?
             .write_all(format!("export META_ACTOR={actor}\nexport {}={}\n", Self::VARIABLE, self.0).as_bytes())
             .ok()?;

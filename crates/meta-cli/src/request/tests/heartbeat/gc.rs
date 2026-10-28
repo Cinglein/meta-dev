@@ -2,8 +2,10 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use chrono::TimeDelta;
+use meta_door::Door;
 use meta_log::MemoryLog;
 
+use super::super::Repository;
 use super::{Beat, Scene};
 use crate::request::heartbeat::{GcHook, LatestFlags, Tick};
 use crate::request::local::Sweep;
@@ -54,11 +56,12 @@ fn gc_runs_in_its_own_child_under_its_own_deadline_and_a_timeout_never_reads_as_
 
 #[test]
 fn the_flags_snapshot_is_written_first_and_gc_reports_into_it_afterwards() {
-    let git_dir = tempfile::tempdir().unwrap();
-    Tick::answer(git_dir.path(), &MemoryLog::default(), Scene::Quiet.answering(), Beat::pulse(ZERO)).unwrap();
-    let pending = std::fs::read_to_string(git_dir.path().join(RECORD)).unwrap();
-    Tick::reported(git_dir.path(), serde_json::from_str(r#"{"Freed":"freed x\n"}"#).unwrap()).unwrap();
-    let reported = std::fs::read_to_string(git_dir.path().join(RECORD)).unwrap();
-    let flagged = LatestFlags::answer(git_dir.path(), &Beat::settings(UNKNOWN).unwrap(), Beat::after(ZERO)).unwrap();
+    let repository = Repository::new();
+    let store = repository.store();
+    Tick::answer(store, &MemoryLog::default(), Scene::Quiet.answering(), Beat::pulse(ZERO)).unwrap();
+    let pending = Door::read(store.entry(RECORD)).unwrap();
+    Tick::reported(store, serde_json::from_str(r#"{"Freed":"freed x\n"}"#).unwrap()).unwrap();
+    let reported = Door::read(store.entry(RECORD)).unwrap();
+    let flagged = LatestFlags::answer(store, &Beat::settings(UNKNOWN).unwrap(), Beat::after(ZERO)).unwrap();
     assert!(pending.contains(PENDING) && reported.contains(FREED) && flagged.to_string().contains(DISABLED_FLAG));
 }

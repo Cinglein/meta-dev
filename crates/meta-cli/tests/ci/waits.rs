@@ -1,3 +1,5 @@
+use meta_door::{Change, Door};
+
 use super::seeded_log::{SeededLog, TASK};
 use super::{BLOCK, COMMIT, Git, NEXT_COMMIT, POST, Planted, Repo, SHELL, STOP, SUCCESS, TIMED_OUT_STOP};
 
@@ -29,12 +31,13 @@ impl Counted {
 
     fn install(repo: &Repo) {
         let wrapper = repo.clone.path().join(Self::WRAPPER);
-        std::fs::write(&wrapper, Self::GIT).unwrap();
-        std::fs::set_permissions(&wrapper, std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
+        Door::write(&wrapper, Self::GIT).unwrap();
+        let executable = std::path::Path::new(SHELL).metadata().unwrap().permissions();
+        Door::changed(&wrapper, Change::Permissions(executable)).unwrap();
     }
 
     fn calls(repo: &Repo) -> Vec<String> {
-        let text = std::fs::read_to_string(repo.clone.path().join(Self::CALLS)).unwrap_or_default();
+        let text = Door::read(repo.clone.path().join(Self::CALLS)).unwrap_or_default();
         let mut calls: Vec<String> = text.lines().map(str::to_owned).collect();
         calls.sort_unstable();
         calls
@@ -55,5 +58,6 @@ fn on_a_detached_head_a_wait_covers_only_its_head_and_a_typical_stop_lists_the_r
     let moved_on = Unresolved::pushed(&repo);
     assert!(unrecorded.contains(TIMED_OUT_STOP) && unrecorded.contains(TASKLESS));
     assert!(serde_json::from_str::<serde_json::Value>(&unrecorded).is_ok() && !recorded.contains(BLOCK));
-    assert!(moved_on.contains(TASKLESS) && Counted::calls(&repo) == POST_AND_STOP_CALLS);
+    let calls = Counted::calls(&repo);
+    assert!(moved_on.contains(TASKLESS) && calls == POST_AND_STOP_CALLS, "{calls:?}");
 }

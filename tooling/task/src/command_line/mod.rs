@@ -177,7 +177,7 @@ impl fmt::Display for CommandLine {
 #[cfg(test)]
 mod tests {
     use super::{CargoArgument, CommandLine, Program, Stderr, Stdout};
-    use std::fs::File;
+    use meta_door::{Door, Opening};
     use std::path::{Path, PathBuf};
     const GIT: &str = "git";
     const SHOWN: &str = "git fmt --all";
@@ -238,9 +238,15 @@ mod tests {
             .environment(VARIABLE, PathBuf::from(TARGET))
             .captured::<Stdout>();
         assert_eq!(shown.ok().as_deref(), Some(TARGET));
-        let manifest = || File::open(Path::new(env!("CARGO_MANIFEST_DIR")).join(MANIFEST)).unwrap();
+        let manifest = || {
+            Door::opened(
+                Path::new(env!("CARGO_MANIFEST_DIR")).join(MANIFEST),
+                Opening::Read,
+            )
+            .unwrap()
+        };
         let reads = shell().arguments(READS_PACKAGE);
-        let empty = File::open(EMPTY).unwrap();
+        let empty = Door::opened(EMPTY, Opening::Read).unwrap();
         assert!(reads.run_holding(manifest()).is_ok() && reads.run_holding(empty).is_err());
     }
 }

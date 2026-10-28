@@ -59,7 +59,7 @@ impl Lint {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use meta_door::Door;
 
     use settings::EmbeddedDefaults;
 
@@ -99,7 +99,7 @@ mod tests {
         let (policy, mut ledger) = (Policy::defaults(), Ledger::default());
         assert!(Lint::run(fixture.root(), &[], &policy, &mut ledger).is_err());
         Lint::shrink(fixture.root(), &[], &policy).unwrap();
-        assert_eq!(fs::read_to_string(fixture.path(BASELINE)).ok().as_deref(), Some(""));
+        assert_eq!(Door::read(fixture.path(BASELINE)).ok().as_deref(), Some(""));
         let passed = Lint::run(fixture.root(), &[], &policy, &mut ledger).is_ok();
         let statement = ledger.statement(&policy).to_string();
         assert!(passed && statement.lines().any(|row| row.starts_with(LINT_FINDINGS) && row.ends_with(MEASURED_OK)));

@@ -15,7 +15,7 @@ wire_types = [
     "core::any::Any",
 ]
 bit_boundary = []
-file_door = ["crates/meta-door"]
+file_door = ["meta-door"]
 gate = "local-gate"
 gate_wait = 600000
 surfaces = [

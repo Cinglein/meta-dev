@@ -2,11 +2,11 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct Boundary(Vec<PathBuf>);
+pub struct BitBoundary(Vec<PathBuf>);
 
-impl Boundary {
+impl BitBoundary {
     #[must_use]
     pub fn covers(&self, path: &Path) -> bool {
         self.0.iter().any(|boundary| path.starts_with(boundary))
@@ -17,7 +17,7 @@ impl Boundary {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use super::Boundary;
+    use super::BitBoundary;
 
     const BOUNDARY: &str = "crates/board/src/bits";
     const INSIDE: &str = "crates/board/src/bits/mask.rs";
@@ -25,7 +25,7 @@ mod tests {
 
     #[test]
     fn a_boundary_covers_the_files_below_it_only() {
-        let boundary = Boundary(vec![PathBuf::from(BOUNDARY)]);
+        let boundary = BitBoundary(vec![PathBuf::from(BOUNDARY)]);
         assert!(boundary.covers(Path::new(INSIDE)) && !boundary.covers(Path::new(OUTSIDE)));
     }
 }

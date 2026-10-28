@@ -1,7 +1,7 @@
 mod unconverted;
 
+use meta_door::Door;
 use std::fmt;
-use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -37,10 +37,6 @@ impl SpecView {
         policy.spec().map(|spec| Self::root().join(spec.file())).ok_or_else(|| io::Error::other(Self::UNSET))
     }
 
-    pub fn written(file: &Path) -> io::Result<String> {
-        fs::read_to_string(file)
-    }
-
     pub fn follow(file: &Path, argument: Option<&str>) -> io::Result<()> {
         match argument {
             Some(argument) if argument == SpecSettings::CHECK => {
@@ -62,15 +58,15 @@ impl SpecView {
     }
 
     pub fn ensure_rendered(file: &Path) -> io::Result<()> {
-        let written = Self::written(file)?;
+        let written = Door::read(file)?;
         (Self::over(&written, SECTIONS).to_string() == written)
             .then_some(())
             .ok_or_else(|| io::Error::other(Self::STALE))
     }
 
     pub fn rewrite(file: &Path) -> io::Result<SpecView> {
-        let view = Self::over(&Self::written(file)?, SECTIONS);
-        fs::write(file, view.to_string()).map(|()| view)
+        let view = Self::over(&Door::read(file)?, SECTIONS);
+        Door::write(file, view.to_string()).map(|()| view)
     }
 
     fn over(written: &str, sections: &'static [Section]) -> SpecView {
@@ -90,8 +86,8 @@ impl fmt::Display for SpecView {
 
 #[cfg(test)]
 mod tests {
+    use meta_door::Door;
     use std::collections::BTreeSet;
-    use std::fs;
 
     use tempfile::TempDir;
 
@@ -140,7 +136,7 @@ mod tests {
         let root = TempDir::new().unwrap();
         let file = root.path().join(SPEC);
         assert!(SpecView::follow(&file, None).is_err());
-        fs::write(&file, PROSE).unwrap();
+        Door::write(&file, PROSE).unwrap();
         assert!(SpecView::follow(&file, CHECK).is_err());
         SpecView::follow(&file, OTHER).unwrap();
         assert!(SpecView::follow(&file, CHECK).is_ok());

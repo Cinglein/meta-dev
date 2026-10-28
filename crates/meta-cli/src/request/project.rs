@@ -127,7 +127,7 @@ impl Project {
         let words = [OsString::from("rev-parse"), OsString::from("--git-path"), commit.loose_object().into_os_string()];
         let paths: Option<Vec<PathBuf>> = self.git_lines(words, deadline);
         let path = paths.and_then(|paths| paths.into_iter().next()).map(|path| self.root.join(path));
-        let modified = path.and_then(|path| std::fs::metadata(path).and_then(|meta| meta.modified()).ok());
+        let modified = path.and_then(|path| path.metadata().and_then(|meta| meta.modified()).ok());
         modified.is_some_and(|modified| start.precedes(modified))
     }
 
@@ -157,7 +157,7 @@ impl TryFrom<&Path> for Project {
             .map(Path::to_path_buf)
             .ok_or_else(|| CliFailure::raised::<Setup>("not inside a git repository"))?;
         let path = root.join(Self::CONFIG_FILE);
-        let text = std::fs::read_to_string(&path)
+        let text = meta_door::Door::read(&path)
             .map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
         let config =
             toml::from_str(&text).map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;

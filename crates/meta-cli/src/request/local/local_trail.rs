@@ -2,8 +2,9 @@ mod torn_line;
 
 use std::convert::Infallible;
 use std::num::NonZeroUsize;
-use std::path::Path;
 use std::str::FromStr;
+
+use meta_door::MetaStore;
 
 use super::local_file::LocalFile;
 use super::recorded_worktree::RecordedWorktree;
@@ -20,13 +21,13 @@ pub struct LocalTrail {
 impl LocalTrail {
     const FILE: &'static str = "meta-local/worktrees.jsonl";
 
-    pub fn read(git_dir: &Path) -> Result<Self, CliFailure> {
-        let Ok(trail) = LocalFile::new(git_dir.join(Self::FILE)).text()?.parse();
+    pub fn read(store: &MetaStore) -> Result<Self, CliFailure> {
+        let Ok(trail) = LocalFile::new(store.entry(Self::FILE)).text()?.parse();
         Ok(trail)
     }
 
-    pub fn append(git_dir: &Path, entry: &TrailEntry) -> Result<(), CliFailure> {
-        let file = LocalFile::new(git_dir.join(Self::FILE));
+    pub fn append(store: &MetaStore, entry: &TrailEntry) -> Result<(), CliFailure> {
+        let file = LocalFile::new(store.entry(Self::FILE));
         file.appended(serde_json::to_string(entry).map_err(|failure| file.failure(failure))?)
     }
 

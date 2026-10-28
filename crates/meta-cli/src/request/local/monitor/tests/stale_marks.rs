@@ -1,9 +1,10 @@
 use chrono::TimeDelta;
 
-use super::{BROKEN, FakeMachine, GIT, Monitor, NOW, STATE, UPTIME, Watch};
+use super::{BROKEN, FakeMachine, Monitor, NOW, STATE, UPTIME, Watch};
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::local_settings::LocalSettings;
 use crate::request::local::{LocalClone, LocalFile};
+use crate::request::tests::Repository;
 
 const UNREADABLE: &str = "[monitor]\ngrace_seconds = 31\n";
 const ORPHANS: &str = "stop = [\"orphaned\"]\norphan_seconds = 60";
@@ -36,35 +37,35 @@ const ACTS: &str = "cwds 700,710,720,730\n-TERM -720\npause 5s\n";
 
 #[test]
 fn a_remembered_mark_is_dropped_when_its_leader_changed_it_went_unseen_or_left_the_project() {
-    let git_dir = tempfile::tempdir().unwrap();
-    let state = LocalFile::new(git_dir.path().join(STATE));
+    let git_dir = Repository::new();
+    let state = LocalFile::new(git_dir.store().entry(STATE));
     state.replaced(BEFORE).unwrap();
     let host = FakeMachine::new(&[TABLE], CWDS, UPTIME);
-    Watch::patrolled(&host, git_dir.path(), WALL, TimeDelta::zero());
+    Watch::patrolled(&host, git_dir.store(), WALL, TimeDelta::zero());
     assert_eq!(host.to_string(), ACTS);
     assert_eq!(state.text().unwrap(), AFTER);
 }
 
 #[test]
 fn a_failure_is_noted_once_even_when_the_local_settings_are_unreadable() {
-    let checkout = tempfile::tempdir().unwrap();
+    let checkout = Repository::new();
     LocalFile::new(checkout.path().join(LocalSettings::FILE)).replaced(UNREADABLE).unwrap();
-    let clone = LocalClone::new(checkout.path().to_path_buf(), checkout.path().join(GIT));
+    let clone = LocalClone::new(checkout.path().to_path_buf(), checkout.store().clone());
     let failure = CliFailure::raised::<Setup>(BROKEN);
     Monitor::noted(&clone, &failure, NOW.parse().unwrap());
     Monitor::noted(&clone, &failure, NOW.parse().unwrap());
-    let trail = LocalFile::new(clone.git_dir().as_ref().join(TRAIL)).text().unwrap();
+    let trail = LocalFile::new(clone.store().entry(TRAIL)).text().unwrap();
     assert_eq!(trail.lines().count(), TRAIL_LEN);
     assert!(trail.contains(BROKEN));
 }
 
 #[test]
 fn a_leaderless_mark_is_dropped_when_the_group_id_now_holds_a_process_started_after_it_was_last_seen() {
-    let git_dir = tempfile::tempdir().unwrap();
-    let state = LocalFile::new(git_dir.path().join(STATE));
+    let git_dir = Repository::new();
+    let state = LocalFile::new(git_dir.store().entry(STATE));
     state.replaced(LEADERLESS).unwrap();
     let host = FakeMachine::new(&[REUSED], REUSED_CWDS, UPTIME);
-    Watch::patrolled(&host, git_dir.path(), ORPHANS, TimeDelta::zero());
+    Watch::patrolled(&host, git_dir.store(), ORPHANS, TimeDelta::zero());
     assert_eq!(host.to_string(), LOOKED);
     assert_eq!(state.text().unwrap(), UNMARKED);
 }

@@ -6,7 +6,8 @@ pub use scope::Scope;
 pub use shard_plan::ShardPlan;
 pub use trigger_event::TriggerEvent;
 
-use std::fs::{self, File};
+use meta_door::{Change, Door, Opening};
+use std::fs::File;
 
 use sysinfo::{ProcessesToUpdate, System};
 
@@ -52,8 +53,8 @@ impl Mutants {
     fn exclusive_lock(workspace: &Workspace) -> Result<File, Failure> {
         let path = workspace.target().path().join(Self::LOCK_FILE);
         let io = |error| Failure::Io { site: Site::File(path.clone()), error };
-        fs::create_dir_all(workspace.target().path()).map_err(io)?;
-        let lock = File::create(&path).map_err(io)?;
+        Door::changed(workspace.target().path(), Change::DirAll).map_err(io)?;
+        let lock = Door::opened(&path, Opening::Truncate).map_err(io)?;
         lock.try_lock().map_err(|_| Failure::LockHeld(path.clone()))?;
         Ok(lock)
     }

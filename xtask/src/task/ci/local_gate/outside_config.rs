@@ -1,5 +1,5 @@
+use meta_door::Door;
 use std::fmt;
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::task::ci::local_gate::ConfigEffect;
@@ -17,7 +17,7 @@ impl OutsideConfig {
         let nested = above.ancestors().flat_map(|directory| Self::NESTED.map(|file| directory.join(file)));
         let configs = nested
             .chain(Self::HOME.map(|file| cargo_home.join(file)))
-            .filter(|file| fs::read_to_string(file).is_ok_and(|text| text.parse().ok() != Some(ConfigEffect::Neutral)));
+            .filter(|file| Door::read(file).is_ok_and(|text| text.parse().ok() != Some(ConfigEffect::Neutral)));
         let tools = above.ancestors().flat_map(|directory| Self::TOOLS.map(|file| directory.join(file)));
         OutsideConfig(configs.chain(tools.filter(|file| file.exists())).collect())
     }
@@ -40,7 +40,7 @@ impl fmt::Display for OutsideConfig {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use meta_door::{Change, Door};
     use std::path::{Path, PathBuf};
 
     use super::OutsideConfig;
@@ -57,8 +57,8 @@ mod tests {
 
     impl Fixture {
         fn placed(file: &Path, text: &str) -> PathBuf {
-            fs::create_dir_all(file.parent().unwrap()).unwrap();
-            fs::write(file, text).unwrap();
+            Door::changed(file.parent().unwrap(), Change::DirAll).unwrap();
+            Door::write(file, text).unwrap();
             file.to_path_buf()
         }
 

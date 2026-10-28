@@ -31,7 +31,7 @@ impl Surfaces {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use meta_door::Door;
 
     use settings::EmbeddedDefaults;
 
@@ -70,7 +70,7 @@ mod tests {
         let [summarized, other, narrowed] = [(); 3].map(|()| Fixture::surfaced());
         summarized.write(BASELINE, RAISED).write(UNTRACKED, RAISED);
         Surfaces::announce(summarized.root(), &Policy::defaults(), Some(&summarized.path(SUMMARY))).unwrap();
-        let written = fs::read_to_string(summarized.path(SUMMARY)).unwrap_or_default();
+        let written = Door::read(summarized.path(SUMMARY)).unwrap_or_default();
         assert!(written.ends_with(&format!("{LISTED}- {UNTRACKED}\n")));
         let dropped = narrowed.write(POLICY, NARROWED).write(BASELINE, RAISED).listed(&[]);
         let unlisted = other.write(SOURCE, BETA).listed(&[POLICY, BASELINE]);

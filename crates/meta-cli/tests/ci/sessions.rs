@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use meta_door::{Change, Door, Pair};
+
 use super::{
     BLOCK, COMMIT, CONFIG, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSH_WORDS, Planted, Repo, STALLED, STOP,
     Session, StartFile,
@@ -16,7 +18,7 @@ const WORKTREE: &str = "other";
 const ADD_WORKTREE: [&str; 6] = ["worktree", "add", "-q", WORKTREE, "-b", WORKTREE];
 const FEATURE: &str = "feature";
 const PULL_WORDS: [&str; 4] = ["pull", "-q", "origin", WORKTREE];
-const STATE_ROOT: &str = ".git/meta-ci";
+const STATE_ROOT: &str = "meta-ci";
 const FUTURE: &str = "@4000000001 +0000";
 const FUTURE_START: &str = "4000000000";
 const SAME: &str = "SAME5";
@@ -34,7 +36,7 @@ impl Reviewer {
         let reviewer = tempfile::tempdir().unwrap();
         let origin = repo.origin.path().to_str().unwrap();
         Git::run(reviewer.path(), &["clone", "-q", "-b", FEATURE, origin, "."]);
-        std::fs::copy(repo.clone.path().join(CONFIG_FILE), reviewer.path().join(CONFIG_FILE)).unwrap();
+        Door::paired(repo.clone.path().join(CONFIG_FILE), reviewer.path().join(CONFIG_FILE), Pair::Copy).unwrap();
         reviewer
     }
 
@@ -45,7 +47,7 @@ impl Reviewer {
     fn worktree(repo: &Repo) -> std::path::PathBuf {
         Git::run(repo.clone.path(), &ADD_WORKTREE);
         let other = repo.clone.path().join(WORKTREE);
-        std::fs::copy(repo.clone.path().join(CONFIG_FILE), other.join(CONFIG_FILE)).unwrap();
+        Door::paired(repo.clone.path().join(CONFIG_FILE), other.join(CONFIG_FILE), Pair::Copy).unwrap();
         other
     }
 }
@@ -59,7 +61,7 @@ fn a_slow_remote_blocks_at_the_stop_deadline_and_a_commit_in_the_start_second_is
     Git::run(clone, &PUSH_WORDS);
     Planted::settled(&repo, TIMED_OUT);
     let same = Session { repo: &repo, cwd: clone, id: SAME }.hook(STOP, COMMIT);
-    std::fs::write(clone.join(CONFIG_FILE), [CONFIG, STALLED].concat()).unwrap();
+    Door::write(clone.join(CONFIG_FILE), [CONFIG, STALLED].concat()).unwrap();
     Git::run(clone, &SLOW_REMOTE);
     let started = std::time::Instant::now();
     let slow = repo.hook(STOP, COMMIT);
@@ -96,9 +98,9 @@ fn other_sessions_commits_and_a_read_only_state_dir_never_block() {
     Git::run_at(reviewer.path(), &PULL_WORDS, FUTURE);
     puller.hook(POST, PULL);
     let passed = [mine.hook(STOP, BUILD), puller.hook(STOP, PULL)];
-    let open = Planted::locked(&clone.join(STATE_ROOT));
+    let open = Planted::locked(repo.store().entry(STATE_ROOT));
     let locked = reader.hook(STOP, BUILD);
-    std::fs::set_permissions(clone.join(STATE_ROOT), open).unwrap();
+    Door::changed(repo.store().entry(STATE_ROOT), Change::Permissions(open)).unwrap();
     assert!(
         theirs.hook(STOP, COMMIT).contains(BLOCK) && !passed.iter().chain([&locked]).any(|stop| stop.contains(BLOCK))
     );
