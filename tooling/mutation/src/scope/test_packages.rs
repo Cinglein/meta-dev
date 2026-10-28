@@ -58,7 +58,7 @@ mod tests {
     use crate::scope::MutantsBuild;
     use affected::TestedCrates;
     use settings::EmbeddedDefaults;
-    use task::{CargoArgument, CommandLine, Interval, PackageGraph, Policy, Program, Shard, SourceFile};
+    use task::{CargoArgument, CommandLine, Interval, PackageGraph, Policy, Program, Shard, SourceFile, Stdout};
     const METADATA: &str = r#"{"workspace_root": "/w", "packages": [
         {"name": "log", "manifest_path": "/w/crates/log/Cargo.toml", "dependencies": []},
         {"name": "state", "manifest_path": "/w/crates/state/Cargo.toml", "dependencies": [{"name": "log", "path": "/w/crates/log"}]},
@@ -70,8 +70,18 @@ mod tests {
     const SHELL: (&str, &str) = ("sh", "-c");
     const PASSING: &str = "true";
     const SLOW: &str = "case \"$*\" in *--no-run*) ;; *) exec sleep 1;; esac";
-    const CASES: [(&str, &str, bool); 4] =
-        [("false", KEPT, false), (PASSING, KEPT, true), (PASSING, "all_features = true", false), (SLOW, KEPT, false)];
+    const SLOW_BUILD: &str = "case \"$*\" in *--no-run*) exec sleep 1;; esac";
+    const ORPHAN: &str = "meta-orphan";
+    const ORPHANING: &str = "case \"$*\" in *--no-run*) ;; *) set -m; sleep 5 & echo $! > \"${TMPDIR:-/tmp}/meta-orphan.$PPID\"; exec sleep 1;; esac";
+    const LEFT: &str = "sleep 0.1; case \"$(ps -o stat= -p \"$(cat \"$0\")\")\" in ''|Z*) ;; *) echo left;; esac";
+    const CASES: [(&str, &str, bool); 6] = [
+        ("false", KEPT, false),
+        (PASSING, KEPT, true),
+        (PASSING, "all_features = true", false),
+        (SLOW, KEPT, false),
+        (SLOW_BUILD, KEPT, false),
+        (ORPHANING, KEPT, false),
+    ];
     const SHARDS: [&str; 2] = ["log+cli", "log/0/2"];
     const BASELINES: [&str; 2] = ["--all-features --package cli", "--all-features --package log --package state"];
 
@@ -83,13 +93,18 @@ mod tests {
         let shell = CommandLine::new(Program::Executable(SHELL.0.into())).argument(SHELL.1);
         let line = TestPackages::around(shards[1].clone(), &graph, &tested).applied_to(shell.clone());
         let timeout = Policy::defaults().interval(Interval::DiscoverEvery);
-        let build = |script, settings| MutantsBuild::sharing(shell.clone().argument(script), settings, timeout);
-        let gated = CASES.into_iter().all(|(script, settings, passes)| {
-            build(script, settings).and_then(|build| build.passes(&build.line(CargoArgument::Test))).is_ok() == passes
+        let build = |script, settings| MutantsBuild::sharing(shell.clone().argument(script), settings, timeout, timeout);
+        let wrong = CASES.into_iter().filter(|&(script, settings, passes)| {
+            build(script, settings).and_then(|build| build.passes(&build.line(CargoArgument::Test))).is_ok() != passes
         });
+        let gated = wrong.count() == 0;
+        let orphan = std::env::temp_dir().join(ORPHAN).with_extension(std::process::id().to_string());
+        let left = shell.clone().argument(LEFT).argument(orphan.display()).captured::<Stdout>().unwrap_or_default();
+        let ended = std::fs::read_to_string(&orphan).is_ok_and(|pid| !pid.is_empty()) && left.is_empty();
+        std::fs::remove_file(&orphan).unwrap();
         let shown = |shards: &[Shard]| TestPackages::baselines(shards, &graph, &tested, &build(PASSING, KEPT).unwrap());
         let each = shown(&shards).iter().zip(BASELINES).all(|(line, packages)| line.to_string().ends_with(packages));
         let counted = shown(&shards).len() == BASELINES.len() && shown(&[]).is_empty();
-        assert!(line.to_string() == LINE && gated && each && counted);
+        assert!(line.to_string() == LINE && gated && each && counted && ended);
     }
 }

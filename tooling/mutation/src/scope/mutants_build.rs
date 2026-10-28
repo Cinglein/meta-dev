@@ -25,10 +25,16 @@ impl MutantsBuild {
             Err(error) if error.kind() == ErrorKind::NotFound => Ok(String::new()),
             read => read.map_err(|error| Failure::Io { site: Site::File(path), error }),
         }?;
-        Self::sharing(workspace.line(Program::Cargo), &settings, policy.interval(Interval::TestTimeout))
+        let limits = [Interval::TestTimeout, Interval::DiffJob].map(|interval| policy.interval(interval));
+        Self::sharing(workspace.line(Program::Cargo), &settings, limits[0], limits[1])
     }
 
-    pub fn sharing(cargo: CommandLine, settings: &str, test_timeout: Millis) -> Result<MutantsBuild, Failure> {
+    pub fn sharing(
+        cargo: CommandLine,
+        settings: &str,
+        test_timeout: Millis,
+        _build_limit: Millis,
+    ) -> Result<MutantsBuild, Failure> {
         settings.parse::<MutantsSettings>().map(|_| MutantsBuild { cargo, test_timeout })
     }
 
