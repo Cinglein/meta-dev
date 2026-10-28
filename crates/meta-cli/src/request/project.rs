@@ -4,10 +4,12 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
+use std::sync::OnceLock;
 use std::time::Instant;
 
 use meta_log::{GitLog, RemoteHeads};
 
+use crate::request::checkout::Checkout;
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Listed;
@@ -20,6 +22,7 @@ mod tests;
 pub struct Project {
     root: PathBuf,
     config: Config,
+    checkout: OnceLock<Checkout>,
 }
 
 impl Project {
@@ -128,10 +131,19 @@ impl Project {
         modified.is_some_and(|modified| start.precedes(modified))
     }
 
+    pub fn checkout(&self, deadline: Instant) -> &Checkout {
+        self.checkout.get_or_init(|| Checkout::read(&self.root, deadline))
+    }
+
     pub fn unprotected_branch(&self) -> Option<BranchName> {
-        let current = Command::new("git").arg("-C").arg(&self.root).args(["branch", "--show-current"]).output().ok()?;
-        let branch: BranchName = String::from_utf8_lossy(&current.stdout).trim().parse().ok()?;
-        Some(branch).filter(|branch| !branch.to_string().is_empty() && self.config.protects(branch).is_none())
+        let checkout = self.checkout(self.config.ci_settings().remote_deadline());
+        let unborn = || {
+            let current =
+                Command::new("git").arg("-C").arg(&self.root).args(["branch", "--show-current"]).output().ok()?;
+            String::from_utf8_lossy(&current.stdout).trim().parse().ok()
+        };
+        let branch: BranchName = checkout.head().map_or_else(unborn, |_| checkout.branch().cloned())?;
+        Some(branch).filter(|branch| self.config.protects(branch).is_none())
     }
 }
 
@@ -149,6 +161,6 @@ impl TryFrom<&Path> for Project {
             .map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
         let config =
             toml::from_str(&text).map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
-        Ok(Self { root, config })
+        Ok(Self { root, config, checkout: OnceLock::new() })
     }
 }

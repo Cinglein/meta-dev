@@ -1,9 +1,10 @@
+use std::path::Path;
 use std::process::Command;
 use std::str::FromStr;
 use std::time::Instant;
 
 use crate::request::ci::Commit;
-use crate::request::project::{BranchName, Project};
+use crate::request::project::BranchName;
 use crate::request::timed_command::TimedCommand;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -16,9 +17,9 @@ impl Checkout {
     const HEADS: &'static str = "refs/heads/";
     const NAMED_HEAD: [&'static str; 4] = ["rev-parse", "HEAD", "--symbolic-full-name", "HEAD"];
 
-    pub fn read(project: &Project, deadline: Instant) -> Self {
+    pub fn read(root: &Path, deadline: Instant) -> Self {
         let mut command = Command::new("git");
-        command.arg("-C").arg(project.root()).args(Self::NAMED_HEAD);
+        command.arg("-C").arg(root).args(Self::NAMED_HEAD);
         let Ok(checkout) = TimedCommand::new(command, deadline).stdout().unwrap_or_default().parse();
         checkout
     }

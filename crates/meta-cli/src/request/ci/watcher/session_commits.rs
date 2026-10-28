@@ -1,15 +1,13 @@
-mod checkout;
-
 use std::panic::resume_unwind;
 use std::time::Instant;
 
 use meta_log::RemoteHeads;
 
 use super::reach::Reach;
+use crate::request::checkout::Checkout;
 use crate::request::ci::{Commit, SessionId, SessionStart};
 use crate::request::output::Listed;
 use crate::request::project::Project;
-use checkout::Checkout;
 
 #[derive(Debug)]
 pub struct SessionCommits {
@@ -24,7 +22,7 @@ impl SessionCommits {
 
     pub fn judged(project: &Project, session: &SessionId, reach: Reach, deadline: Instant) -> Result<Self, Listed> {
         std::thread::scope(|scope| {
-            let checkout = scope.spawn(|| Checkout::read(project, deadline));
+            let checkout = scope.spawn(|| project.checkout(deadline).clone());
             let start = SessionStart::for_session(session).read();
             let created = start.map_or(Some(Vec::new()), |start| project.created_after(&start, deadline));
             let created = created.ok_or_else(|| Listed::new(Self::REFLOG_OFF))?;

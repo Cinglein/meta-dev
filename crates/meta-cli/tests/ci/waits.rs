@@ -1,12 +1,13 @@
 use super::seeded_log::{SeededLog, TASK};
-use super::{BLOCK, COMMIT, Git, NEXT_COMMIT, Planted, Repo, SHELL, STOP, SUCCESS, TIMED_OUT_STOP};
+use super::{BLOCK, COMMIT, Git, NEXT_COMMIT, POST, Planted, Repo, SHELL, STOP, SUCCESS, TIMED_OUT_STOP};
 
 const TIMED_OUT: &str = "timed-out";
 const DETACH: [&str; 3] = ["checkout", "-q", "--detach"];
 const PUSH_HEAD: [&str; 4] = ["push", "-q", "origin", "HEAD:refs/heads/pushed"];
 const WAIT_ON_CI: [&str; 4] = ["wait", TASK, "--on", "ci"];
 const TASKLESS: &str = "then run `meta wait <task> --on ci` here";
-const STOP_CALLS: [&str; 6] = ["cat-file", "log", "ls-remote", "merge-base", "rev-list", "rev-parse"];
+const POST_AND_STOP_CALLS: [&str; 9] =
+    ["cat-file", "log", "log", "ls-remote", "merge-base", "rev-list", "rev-list", "rev-parse", "rev-parse"];
 
 struct Unresolved;
 
@@ -50,8 +51,9 @@ fn on_a_detached_head_a_wait_covers_only_its_head_and_a_typical_stop_lists_the_r
     let recorded = repo.hook(STOP, COMMIT);
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     Counted::install(&repo);
+    repo.hook(POST, COMMIT);
     let moved_on = Unresolved::pushed(&repo);
     assert!(unrecorded.contains(TIMED_OUT_STOP) && unrecorded.contains(TASKLESS));
     assert!(serde_json::from_str::<serde_json::Value>(&unrecorded).is_ok() && !recorded.contains(BLOCK));
-    assert!(moved_on.contains(TASKLESS) && Counted::calls(&repo) == STOP_CALLS);
+    assert!(moved_on.contains(TASKLESS) && Counted::calls(&repo) == POST_AND_STOP_CALLS);
 }

@@ -102,7 +102,7 @@ impl HookEvent {
     }
 
     fn outside_projects(self, input: &HookInput) -> Option<Reply> {
-        let linked = (self == Self::PostToolUse).then(|| Linking::after(input)).flatten();
+        let linked = (self == Self::PostToolUse).then(|| Linking::after(input, None)).flatten();
         let linking = linked.map(|linked| Reply::new(self, Verdict::Allow, Some(linked)));
         let refusal = (self == Self::PreToolUse).then(|| input.refusal()).flatten();
         refusal.map(|refusal| Reply::new(self, Verdict::Deny(Denial::from(refusal)), None)).or(linking)
@@ -110,7 +110,7 @@ impl HookEvent {
 
     fn after_tool_use(project: &Project, input: &HookInput) -> Reply {
         let (pushed, linked) = std::thread::scope(|scope| {
-            let linked = scope.spawn(|| Linking::after(input));
+            let linked = scope.spawn(|| Linking::after(input, Some(project)));
             (Self::after_push(project, input), linked.join())
         });
         let linked = linked.unwrap_or_else(|panic| resume_unwind(panic));
