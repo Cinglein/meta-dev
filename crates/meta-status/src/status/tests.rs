@@ -20,7 +20,7 @@ const REPLY: &str = r#"{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage
 {"number":14,"state":"OPEN","baseRefName":"main","statusCheckRollup":null},
 {"number":15,"state":"OPEN","baseRefName":"main","statusCheckRollup":{"contexts":{"pageInfo":{"hasNextPage":false},"nodes":[{"name":"ci","result":"FAILURE"}]}}},
 {"number":16,"state":"OPEN","baseRefName":"main","headRefName":"task-00000000000000c0-2","statusCheckRollup":null},
-{"number":17,"state":"OPEN","baseRefName":"main","headRefName":"task-00000000000000c0","statusCheckRollup":null},
+{"number":19,"state":"OPEN","baseRefName":"main","headRefName":"task-00000000000000c0","statusCheckRollup":null},
 {"number":18,"state":"OPEN","baseRefName":"main","headRefName":"task-00000000000000c0-x","statusCheckRollup":null}]}},"linked":{
 "pr13":{"number":13,"state":"OPEN","baseRefName":"main","statusCheckRollup":{"contexts":{"pageInfo":{"hasNextPage":false},"nodes":[{"name":"ci","result":"FAILURE"}]}}},
 "pr14":{"number":14,"state":"OPEN","baseRefName":"main","statusCheckRollup":{"contexts":{"pageInfo":{"hasNextPage":true},"nodes":[{"name":"ci","result":"FAILURE"}]}}},
@@ -133,7 +133,7 @@ fn the_tree_runs_from_divisions_down_to_tasks_with_pull_requests_holders_effort_
     let shown = Status::new(&state, &github, NOW.parse().unwrap()).to_string();
     let tree = shown.split_once("orphan #18: open, no task\n").map(|(_, tree)| tree).unwrap_or_default();
     let expected = format!(
-        "root\n  {} open | #99 unknown | #16 open required pending | #17 open required pending | no holder | legacy root task\nfeatures-and-maintenance\n  {} open | #14 open checks truncated | no holder | effort 5000 tokens, spend unmeasured | due 2026-10-01 00:00Z | one two three four five six seven eight…\n  {} {} | #15 open required red | no holder | due 2026-10-01 00:00Z | finished\n  features-and-maintenance/ci\n    {} assigned | #13 open required red | held by alice | due 2026-10-01 00:00Z | held\nperformance-and-cost\n  {} in discussion {} | no holder | due 2026-10-01 00:00Z | discussed\n",
+        "root\n  {} open | #99 unknown | #16 open required pending | #19 open required pending | no holder | legacy root task\nfeatures-and-maintenance\n  {} open | #14 open checks truncated | no holder | effort 5000 tokens, spend unmeasured | due 2026-10-01 00:00Z | one two three four five six seven eight…\n  {} {} | #15 open required red | no holder | due 2026-10-01 00:00Z | finished\n  features-and-maintenance/ci\n    {} assigned | #13 open required red | held by alice | due 2026-10-01 00:00Z | held\nperformance-and-cost\n  {} in discussion {} | no holder | due 2026-10-01 00:00Z | discussed\n",
         tasks.root.task(),
         tasks.late.task(),
         tasks.finished.task(),
