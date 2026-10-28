@@ -19,7 +19,6 @@ impl FailureLog {
         let deadline = std::time::Instant::now() + settings.remaining(std::time::Duration::ZERO).unwrap_or_default();
         let repository = project.repository().map_err(|failure| CliFailure::raised::<Setup>(failure.into_listed()))?;
         let gh = Gh::new(&settings, project.root().to_path_buf(), deadline);
-        let raw = gh.failed_logs(&repository, pushed);
-        Ok(Output::Listed(raw.excerpt(settings.log_window())))
+        Ok(Output::Listed(gh.failed_excerpt(&repository, pushed, settings.log_window())))
     }
 }

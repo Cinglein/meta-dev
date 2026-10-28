@@ -1,6 +1,7 @@
 mod ancestor;
 
 use std::collections::BinaryHeap;
+use std::ffi::OsString;
 use std::time::Duration;
 
 use meta_gh::Nodes;
@@ -20,6 +21,10 @@ pub struct CommitChecks {
 impl CommitChecks {
     pub fn actions(&self) -> Vec<&GhSuite> {
         self.suites.nodes().iter().filter_map(GhSuite::of_actions).collect()
+    }
+
+    pub fn failed_job_ids(&self) -> Vec<OsString> {
+        self.actions().iter().flat_map(|suite| suite.jobs().failed_job_ids()).collect()
     }
 
     pub fn expected(&self) -> Option<Duration> {
