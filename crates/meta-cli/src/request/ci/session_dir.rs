@@ -98,3 +98,17 @@ impl SessionDir {
         write!(std::fs::File::create(self.own.with_file_name(Self::EXPECTED))?, "{}", ExpectedRun::from(expected))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{CiStatus, Commit, SessionDir};
+
+    #[test]
+    fn a_watched_commit_reads_back_as_running() {
+        let dir = tempfile::tempdir().unwrap();
+        let session = SessionDir { own: dir.path().join("own"), shared: dir.path().join("shared") };
+        let Ok(commit): Result<Commit, _> = "0123456789abcdef0123456789abcdef01234567".parse();
+        session.watch(&commit).unwrap();
+        assert_eq!(session.status_of(&commit), Some(CiStatus::Running));
+    }
+}
