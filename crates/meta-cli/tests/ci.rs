@@ -10,7 +10,8 @@ const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 2\n";
 const PATIENT: &str = "appear_millis = 2000\n";
 const STALLED: &str = "appear_millis = 2000\nstop_millis = 40\n";
-const QUICK: &str = "appear_millis = 20\ntimeout_millis = 80\n";
+const QUICK: &str = "appear_millis = 20\ntimeout_millis = 80\ngh_millis = 20\n";
+const DEADLINE: &str = "expected_millis = 60\nbackoff_millis = 60\nbackoff_cap_millis = 60\ntimeout_millis = 170\ngh_millis = 20\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 d="$FAKE_GH_DIR"; s="$FAKE_GH_SCENARIO"
 read -r now 2>/dev/null < "$d/clock"; echo "$now" >> "$d/calls"
@@ -22,7 +23,7 @@ events="$d/.git/meta-ci/ABCDEF1234/events"
 state=IN_PROGRESS; result=null; jobs='{"databaseId":11,"name":"ci","conclusion":"SUCCESS"}'
 case "$s" in failure|broken) jobs='{"databaseId":11,"name":"ci","conclusion":"FAILURE","steps":{"nodes":[{"name":"Checkout","conclusion":"SUCCESS"},{"name":"cargo xtask ci","conclusion":"FAILURE"}]}},{"databaseId":12,"name":"docs"}' ;;
 unstarted|mixed) jobs='{"databaseId":11,"name":"ci","conclusion":"FAILURE"}' ;; esac
-case "$s" in late|broken|slow) ;; success) [ "$n" -ge 4 ] && state=COMPLETED result='"SUCCESS"' ;; *) [ "$n" -ge 4 ] && state=COMPLETED result='"FAILURE"' ;; esac
+case "$s" in late|broken|slow) ;; last) [ "$n" -ge 3 ] && state=COMPLETED result='"SUCCESS"' ;; success) [ "$n" -ge 4 ] && state=COMPLETED result='"SUCCESS"' ;; *) [ "$n" -ge 4 ] && state=COMPLETED result='"FAILURE"' ;; esac
 runs="{\"status\":\"$state\",\"conclusion\":$result,\"workflowRun\":{},\"checkRuns\":{\"nodes\":[$jobs]}}"
 [ "$s" = mixed ] && [ "$state" = COMPLETED ] && runs="$runs,{\"status\":\"COMPLETED\",\"conclusion\":\"FAILURE\",\"workflowRun\":{},\"checkRuns\":{\"nodes\":[{\"databaseId\":13,\"name\":\"lint\",\"conclusion\":\"FAILURE\",\"steps\":{\"nodes\":[{\"name\":\"clippy\",\"conclusion\":\"FAILURE\"}]}}]}}"
 if [ "$s" = broken ] && [ "$n" -lt 3 ]; then echo 'HTTP 502: Bad Gateway' >&2; exit 1
@@ -58,6 +59,7 @@ const LATE: &str = "late";
 const BROKEN: &str = "broken";
 const MIXED: &str = "mixed";
 const HANG: &str = "hang";
+const LAST: &str = "last";
 const FROZEN: &str = "frozen";
 const INJECTED: &str = " (injected clock)";
 const FOURTH_POLL: &str = ": failed after 510s";
@@ -95,8 +97,8 @@ const RUN_APPEARED: &str = "run appeared";
 const LIST_ERROR: &str = "gh failed: HTTP 502: Bad Gateway";
 const VIEW_ERROR: &str = "gh failed: HTTP 401: Bad credentials";
 const FAILED_EVENT: &str = ": failed after";
-const COMPLETIONS: [&str; 5] =
-    [": passed after", ": failed after", ": timed-out after", ": unavailable after", ": absent after"];
+const COMPLETIONS: [&str; 6] =
+    [": passed after", ": failed after", ": timed-out after", ": unavailable after", ": absent after", ": unchecked after"];
 
 #[path = "support/seeded_log.rs"]
 mod seeded_log;
@@ -351,7 +353,7 @@ impl Repo {
         let mut command = Command::new(META);
         command.args(words).current_dir(self.clone.path()).env("PATH", path).env("TMPDIR", self.sessions.path());
         command.env("FAKE_GH_DIR", self.clone.path()).env("FAKE_GH_SCENARIO", self.scenario);
-        command.envs((self.scenario != HANG).then(|| ("META_TEST_CLOCK", self.clone.path().join("clock"))));
+        command.envs([HANG, LAST].iter().all(|real| *real != self.scenario).then(|| ("META_TEST_CLOCK", self.clone.path().join("clock"))));
         command
     }
 
