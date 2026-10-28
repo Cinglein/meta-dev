@@ -4,6 +4,7 @@ mod git;
 mod quarantine;
 mod vetting;
 mod worktree_identity;
+mod worktree_listing;
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -34,6 +35,7 @@ use gc_lock::GcLock;
 use git::Git;
 use vetting::{Context, Deletable, Host};
 use worktree_identity::WorktreeIdentity;
+use worktree_listing::WorktreeListing;
 
 #[derive(Debug)]
 pub struct LocalClone {
@@ -42,8 +44,6 @@ pub struct LocalClone {
 }
 
 impl LocalClone {
-    const LISTED_PREFIX: &'static str = "worktree ";
-
     pub fn new(checkout: PathBuf, store: MetaStore) -> Self {
         Self { checkout, store }
     }
@@ -137,7 +137,6 @@ impl LocalClone {
             let lifetime = status.lifetime(worktree.task());
             Tracked::new(worktree, lifetime)
         });
-        let census = Census::new(tracked.collect(), self.listed()?);
         let root = Door::canonical(&root).unwrap_or(root);
         let context = Context::new(
             self.checkout.clone(),
@@ -145,7 +144,10 @@ impl LocalClone {
             root,
             project.config().remote()?.clone(),
         );
-        let collection = Collection::swept(&Sweeper::new(sweep, &context, &Host::default()), &census);
+        let host = Host::default();
+        let listed = context.worktrees(&host).as_ref().map_err(CliFailure::raised::<Setup>)?;
+        let census = Census::new(tracked.collect(), listed.paths(&self.checkout));
+        let collection = Collection::swept(&Sweeper::new(sweep, &context, &host), &census);
         collection.trailed(Utc::now()).iter().try_for_each(|entry| LocalTrail::append(&self.store, entry))?;
         Ok(Output::Listed(Listed::new(collection)))
     }
@@ -159,12 +161,7 @@ impl LocalClone {
 
     fn listed(&self) -> Result<Vec<PathBuf>, CliFailure> {
         let listed = Git::new(&self.checkout).output(&["worktree", "list", "--porcelain"].map(OsStr::new))?;
-        Ok(listed
-            .lines()
-            .filter_map(|line| line.strip_prefix(Self::LISTED_PREFIX))
-            .map(|path| Door::canonical(path).unwrap_or_else(|_| PathBuf::from(path)))
-            .filter(|path| *path != self.checkout)
-            .collect())
+        Ok(WorktreeListing::from(listed).paths(&self.checkout))
     }
 
     fn settings(&self) -> Result<LocalSettings, CliFailure> {

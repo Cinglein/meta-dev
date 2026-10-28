@@ -7,6 +7,7 @@ use std::str::FromStr;
 use super::commit::Commit;
 use super::start_moment::StartMoment;
 use super::unix_seconds::UnixSeconds;
+use crate::request::checkout::Checkout;
 use identity::Identity;
 use move_subject::{CommitAction, MoveSubject};
 use stamp::Stamp;
@@ -17,12 +18,27 @@ pub struct ReflogEntry {
     parents: Vec<Commit>,
     committer: Identity,
     moved: Stamp,
+    checkout: Option<Checkout>,
     subject: MoveSubject,
 }
 
 impl ReflogEntry {
-    pub const FORMAT: &'static str = "--format=%H%x1f%P%x1f%cn <%ce>%x1f%gn <%ge> %gd%x1f%gs";
+    pub const WALK: [&'static str; 9] = [
+        "log",
+        "--walk-reflogs",
+        "--date=unix",
+        "--decorate=full",
+        "--decorate-refs=HEAD",
+        "--decorate-refs=refs/heads/",
+        "--format=%H%x1f%P%x1f%cn <%ce>%x1f%gn <%ge> %gd%x1f%D%x1f%gs",
+        "HEAD",
+        "--",
+    ];
     const SEPARATOR: char = '\u{1f}';
+
+    pub fn checkout(&self) -> Option<&Checkout> {
+        self.checkout.as_ref()
+    }
 
     pub fn created_after(
         &self,
@@ -44,13 +60,17 @@ impl FromStr for ReflogEntry {
     fn from_str(line: &str) -> Result<Self, ()> {
         let fields: Vec<&str> = line.split(Self::SEPARATOR).collect();
         match fields.as_slice() {
-            [sha, parents, committer, moved, subject] => Ok(Self {
-                commit: sha.parse().map_err(drop)?,
-                parents: parents.split_whitespace().filter_map(|parent| parent.parse().ok()).collect(),
-                committer: committer.parse().map_err(drop)?,
-                moved: moved.parse().map_err(drop)?,
-                subject: subject.parse().map_err(drop)?,
-            }),
+            [sha, parents, committer, moved, decorated, subject] => {
+                let commit: Commit = sha.parse().map_err(drop)?;
+                Ok(Self {
+                    checkout: Checkout::decorated(&commit, decorated),
+                    commit,
+                    parents: parents.split_whitespace().filter_map(|parent| parent.parse().ok()).collect(),
+                    committer: committer.parse().map_err(drop)?,
+                    moved: moved.parse().map_err(drop)?,
+                    subject: subject.parse().map_err(drop)?,
+                })
+            }
             _ => Err(()),
         }
     }
