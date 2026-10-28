@@ -1002,3 +1002,4 @@
 {"at":"2026-10-28T14:52:08.777873Z","actor":"claude-lead","kind":"TaskOpened","task":"task-c739cb168fe7065f","text":"Fuzz git-output and log parsers (worktree porcelain, reflog decorations, scratch-path diff, events.jsonl) with cargo-fuzz.","division":"features-and-maintenance"}
 {"at":"2026-10-28T14:52:10.684383Z","actor":"claude-lead","kind":"TaskOpened","task":"task-06aae741b4d67744","text":"Snapshot tests (insta) for hook decisions and CLI output, replacing hand-written string assertions.","division":"features-and-maintenance"}
 {"at":"2026-10-28T14:52:12.405596Z","actor":"claude-lead","kind":"TaskOpened","task":"task-5103ef71c1453478","text":"Measure cargo-nextest overhead vs current runner on the full suite (CPU and wall); adopt only if net positive.","division":"performance-and-cost"}
+{"at":"2026-10-28T14:52:15.430461Z","actor":"claude-cpucut","kind":"TaskLinked","task":"task-067b28fe28b30740","pr":101}
