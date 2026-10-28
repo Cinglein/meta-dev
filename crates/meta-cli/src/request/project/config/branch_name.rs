@@ -6,11 +6,12 @@ use meta_schema::{Id, Task};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(transparent)]
+#[serde(try_from = "String", into = "String")]
 pub struct BranchName(String);
 
 impl BranchName {
     const HEADS: &'static str = "refs/heads/";
+    const EMPTY: &'static str = "empty branch name";
 
     pub fn task(&self) -> Option<Id<Task>> {
         self.0.split('/').find_map(|segment| segment.parse().ok())
@@ -22,10 +23,30 @@ impl BranchName {
 }
 
 impl FromStr for BranchName {
-    type Err = std::convert::Infallible;
+    type Err = &'static str;
 
     fn from_str(name: &str) -> Result<Self, Self::Err> {
-        Ok(Self(name.strip_prefix(Self::HEADS).unwrap_or(name).to_owned()))
+        Self::try_from(name.strip_prefix(Self::HEADS).unwrap_or(name).to_owned())
+    }
+}
+
+impl TryFrom<String> for BranchName {
+    type Error = &'static str;
+
+    fn try_from(name: String) -> Result<Self, Self::Error> {
+        Some(name).filter(|name| !name.is_empty()).map(Self).ok_or(Self::EMPTY)
+    }
+}
+
+impl From<BranchName> for String {
+    fn from(branch: BranchName) -> Self {
+        branch.0
+    }
+}
+
+impl From<&Id<Task>> for BranchName {
+    fn from(task: &Id<Task>) -> Self {
+        Self(task.to_string())
     }
 }
 
