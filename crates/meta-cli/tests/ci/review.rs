@@ -12,6 +12,7 @@ const NO_REFLOG: [&str; 4] = ["-c", "core.logAllRefUpdates=false", "-b", "featur
 const PUSH_ASIDE: [&str; 4] = ["push", "-q", "origin", "HEAD:aside"];
 const REFLOG_OFF: &str = "reflog";
 const NOT_WATCHED: &str = "CI not watched";
+const UNWRITABLE: &str = "CI state unwritable: ";
 const STATE_ROOT: &str = ".git/meta-ci";
 const CONFIG_FILE: &str = "meta.toml";
 
@@ -51,5 +52,7 @@ fn a_reflog_that_is_off_or_an_unwritable_state_dir_fails_closed() {
     let warned = locked.hook(POST, WRITE);
     let stop = locked.hook(STOP, READ);
     std::fs::set_permissions(clone.join(STATE_ROOT), open).unwrap();
-    assert!(off.contains(REFLOG_OFF) && warned.contains(NOT_WATCHED) && stop.contains(BLOCK));
+    assert!(
+        off.contains(REFLOG_OFF) && warned.contains(NOT_WATCHED) && stop.contains(BLOCK) && stop.contains(UNWRITABLE)
+    );
 }

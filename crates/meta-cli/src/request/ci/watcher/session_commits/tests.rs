@@ -6,6 +6,7 @@ use meta_log::RemoteHeads;
 use meta_run::GitArgv;
 
 use super::SessionCommits;
+use crate::request::ci::watcher::reach::Reach;
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
 
 const SCENARIO: &str = "ci-session";
@@ -80,7 +81,8 @@ fn commits_the_remote_holds_on_any_branch_count_as_pushed_and_only_independent_t
     let tips = Recorded::listed(GitArgv::IndependentTips);
     let tipped = judged.into_iter().rev().zip(tips).map(|(seen, tips)| seen.tipped(Some(tips)));
     assert_eq!(pushed, [Recorded::commits(&CREATED[5..]), Recorded::commits(&PUSHED_BY_HEADS)]);
-    assert_eq!(heads.tips::<Commit>(), Recorded::commits(&TIPS));
+    let asked = [Reach::Remote, Reach::Tracking].map(|reach| reach.asks_remote(&created));
+    assert_eq!((heads.tips::<Commit>(), asked), (Recorded::commits(&TIPS), [Some(()), None]));
     let tipped: Vec<_> = tipped.map(|seen| (seen.unpushed_head().cloned(), seen.pushed().to_vec())).collect();
     assert_eq!(tipped, [(created.first().cloned(), Recorded::commits(&INDEPENDENT))]);
 }

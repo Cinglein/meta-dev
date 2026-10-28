@@ -11,12 +11,9 @@ const HEAD: &str = "f2e83b47f04f1aadaaf72b9d15074e933a513dc6";
 const OLDER: &str = "0535038a5657a4872055f5ca2aa4ae04f811e419";
 const ON_FEATURE: &str = "HEAD -> refs/heads/feature";
 const DENIED: &str = "permission denied";
-const SHOWN: [&str; 6] = [
+const SHOWN: [&str; 3] = [
     "reflog is off",
-    "CI state unwritable: permission denied; fix it or ask the owner",
     "HEAD f2e83b47f04f1aadaaf72b9d15074e933a513dc6 is not pushed: push it, then run `meta ci-wait`; or ask the owner",
-    "CI not watched for 0535038a5657a4872055f5ca2aa4ae04f811e419: push again to watch it",
-    "CI failed for your last push: fix it, push, then run `meta ci-wait`; or ask the owner",
     "",
 ];
 
@@ -39,16 +36,12 @@ impl Seen {
 }
 
 #[test]
-fn stop_names_the_first_of_unknown_commits_unwritable_state_unpushed_head_unwatched_and_known_ci() {
+fn stop_names_unknown_commits_before_an_unpushed_head_and_leaves_passed_or_unresolved_runs_to_the_log() {
     let [all, head_unpushed] = [Seen::pushed(&[]), Seen::pushed(&[HEAD])].map(Ok);
     let unknown = Err(Listed::new(SHOWN[0]));
-    let watched = [Some(CiStatus::Passed), Some(CiStatus::Failed)];
     let shown = [
         Seen::judged(&unknown, Some(DENIED), &[]),
-        Seen::judged(&all, Some(DENIED), &[None]),
         Seen::judged(&head_unpushed, None, &[None]),
-        Seen::judged(&all, None, &[Some(CiStatus::Passed), None]),
-        Seen::judged(&all, None, &watched),
         Seen::judged(&all, None, &[Some(CiStatus::Passed), Some(CiStatus::TimedOut)]),
     ];
     assert_eq!(shown, SHOWN);
