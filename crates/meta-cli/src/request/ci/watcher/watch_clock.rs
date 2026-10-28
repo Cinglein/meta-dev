@@ -75,14 +75,14 @@ mod tests {
     use std::time::Duration;
 
     use super::WatchClock;
-    use crate::request::project::Config;
+    use crate::request::project::{CiSettings, Config};
 
     const SETTINGS: &str = "[ci]\ntimeout_millis = 20\ngh_millis = 10\n";
     const PAST_TIMEOUT: Duration = Duration::from_millis(10);
 
     #[test]
     fn a_pause_stops_one_gh_limit_before_the_timeout_and_remaining_ends_at_the_timeout() {
-        let settings = toml::from_str::<Config>(SETTINGS).unwrap().ci_settings();
+        let settings = CiSettings::try_from(&toml::from_str::<Config>(SETTINGS).unwrap()).unwrap();
         let clock = WatchClock::start(&settings);
         let first = (clock.remaining(&settings), clock.pause(Duration::MAX, &settings));
         let second = clock.pause(Duration::MAX, &settings);

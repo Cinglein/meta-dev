@@ -1,20 +1,18 @@
 use std::io;
-use std::time::Duration;
 
+use meta_run::{CommandLine, RunFailure, Stderr};
 use thiserror::Error;
 
-use crate::command_line::CommandLine;
 use crate::git_log::{NotCommitId, Sha};
 use crate::remote_name::RemoteName;
 use crate::skipped_line::LineNumber;
-use crate::stderr::Stderr;
 
 #[derive(Debug, Error)]
 pub enum LogFailure {
     #[error("offline: cannot fetch meta/log from {remote}: \"{stderr}\"; nothing written")]
     Offline { remote: RemoteName, stderr: Stderr },
-    #[error("offline: `{command}` timed out after {after:?}; nothing written")]
-    TimedOut { command: CommandLine, after: Duration },
+    #[error("offline: {0}; nothing written")]
+    Unrun(#[from] RunFailure),
     #[error("meta/log {0} is unreadable by this meta; upgrade meta before writing")]
     Unreadable(LineNumber),
     #[error("meta/log on {0} must hold only events.jsonl; nothing written")]
