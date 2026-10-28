@@ -25,7 +25,9 @@ fn every_recorded_commit_checks_reply_golden_view_is_its_observation() -> Result
 
 #[test]
 fn the_excerpt_shows_the_failed_steps_of_every_recorded_log_and_names_a_failed_download() {
-    let checks = [Gh::checks_in(Replies::about(FAILED).out())];
+    let checks =
+        Replies::recorded(GhArgv::CommitChecks).into_iter().filter(|reply| reply.argv().to_string().contains(FAILED));
+    let checks: Vec<_> = checks.map(|reply| Gh::checks_in(reply.out())).collect();
     let logs = Replies::recorded(GhArgv::FailedLog).into_iter().map(|log| Ok(log.out().to_owned()));
     let logs: Vec<_> = logs.chain([Err(Gh::failed(DOWN))]).collect();
     let settings = CiSettings::try_from(&Config::default()).unwrap();

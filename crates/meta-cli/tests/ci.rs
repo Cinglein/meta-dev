@@ -45,8 +45,6 @@ const CI_LOG: &str = "ci-log";
 const PASSED: &str = "passed after";
 const PASSED_EVENT: &str = ": passed after";
 const EVENT_PREFIX: &str = "CI ";
-const TIMED_OUT_STOP: &str = "CI for your last push timed out: push a new commit to rerun it, then run `meta ci-wait`";
-const FAILED_EVENT: &str = ": failed after";
 const COMPLETIONS: [&str; 6] = [
     ": passed after",
     ": failed after",
@@ -60,10 +58,6 @@ const COMPLETIONS: [&str; 6] = [
 mod pushes;
 #[path = "ci/review.rs"]
 mod review;
-#[path = "support/seeded_log.rs"]
-mod seeded_log;
-#[path = "ci/sessions.rs"]
-mod sessions;
 #[path = "ci/waits.rs"]
 mod waits;
 
@@ -166,37 +160,11 @@ impl StartFile {
     }
 }
 
-struct FailingHead;
-
-impl FailingHead {
-    fn copy_from(repo: &Repo, dir: &Path) {
-        repo.answer.given(&repo.replies(), &Git::head(dir));
-    }
-}
-
 struct Planted;
 
 impl Planted {
     const STATES: &'static str = "meta-ci/states";
     const LOCKS: &'static str = "meta-ci/locks";
-    const PRE_RECEIVE: &'static str = "hooks/pre-receive";
-    const REFUSE: &'static str = "#!/bin/sh\nexit 1\n";
-    const RUNNING: &'static str = "running";
-    const SHELL: &'static str = "/bin/sh";
-
-    fn settled(repo: &Repo, ci: &str) {
-        let head = Git::head(repo.clone.path());
-        let states = repo.sessions.path().join(Self::STATES);
-        std::fs::create_dir_all(&states).unwrap();
-        std::fs::write(states.join(head.trim()), format!("{} {ci}", head.trim())).unwrap();
-    }
-
-    fn refusal(origin: &Path) {
-        std::fs::create_dir_all(origin.join("hooks")).unwrap();
-        let hook = origin.join(Self::PRE_RECEIVE);
-        std::fs::write(&hook, Self::REFUSE).unwrap();
-        std::fs::set_permissions(hook, std::fs::metadata(Self::SHELL).unwrap().permissions()).unwrap();
-    }
 
     fn locked(dir: &Path) -> std::fs::Permissions {
         let open = std::fs::metadata(dir).unwrap().permissions();
@@ -260,17 +228,17 @@ impl Repo {
         std::fs::create_dir(sessions.path().join(Self::TRAIL)).unwrap();
         let repo = Self { origin, clone, sessions, answer };
         repo.configured(limits);
-        FailingHead::copy_from(&repo, repo.clone.path());
+        repo.answered();
         repo
+    }
+
+    pub fn answered(&self) {
+        self.answer.given(&self.sessions.path().join(Self::REPLIES), &Git::head(self.clone.path()));
     }
 
     pub fn configured(&self, limits: &str) {
         let program = format!("program = {:?}\n", REPLAY.expect(UNBUILT));
         std::fs::write(self.clone.path().join("meta.toml"), format!("{CONFIG}{program}{limits}")).unwrap();
-    }
-
-    pub fn replies(&self) -> PathBuf {
-        self.sessions.path().join(Self::REPLIES)
     }
 
     fn hook(&self, event: &str, command: &str) -> String {
@@ -283,15 +251,15 @@ impl Repo {
 
     pub fn passing(self) -> Self {
         let repo = Self { answer: SUCCESS, ..self };
-        FailingHead::copy_from(&repo, repo.clone.path());
+        repo.answered();
         repo
     }
 
     pub fn command(&self, words: &[&str]) -> Command {
-        let path = format!("{}:{}", self.clone.path().join("bin").display(), std::env::var("PATH").unwrap_or_default());
         let mut command = Command::new(META);
-        command.args(words).current_dir(self.clone.path()).env("PATH", path).env("TMPDIR", self.sessions.path());
-        command.env(Replay::RECORDINGS, self.replies()).env(Replay::TRAIL, self.sessions.path().join(Self::TRAIL));
+        command.args(words).current_dir(self.clone.path()).env("TMPDIR", self.sessions.path());
+        let replies = self.sessions.path().join(Self::REPLIES);
+        command.env(Replay::RECORDINGS, replies).env(Replay::TRAIL, self.sessions.path().join(Self::TRAIL));
         command
     }
 

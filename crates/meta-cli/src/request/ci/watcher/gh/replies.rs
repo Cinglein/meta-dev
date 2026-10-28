@@ -13,11 +13,9 @@ impl Replies {
         recordings.into_iter().filter(|recording| recording.argv().calls(call)).collect()
     }
 
-    pub fn about(sha: &str) -> Recording {
-        Self::recorded(GhArgv::CommitChecks).into_iter().find(|reply| reply.argv().to_string().contains(sha)).unwrap()
-    }
-
     pub fn observed(sha: &str) -> Observation {
-        Observation::from(&Gh::checks_in(Self::about(sha).out()).unwrap())
+        let reply =
+            Self::recorded(GhArgv::CommitChecks).into_iter().find(|reply| reply.argv().to_string().contains(sha));
+        Observation::from(&Gh::checks_in(reply.unwrap().out()).unwrap())
     }
 }

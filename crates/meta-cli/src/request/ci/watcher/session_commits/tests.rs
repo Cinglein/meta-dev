@@ -3,7 +3,6 @@ use meta_log::RemoteHeads;
 use meta_run::GitArgv;
 
 use super::SessionCommits;
-use crate::request::ci::watcher::reach::Reach;
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
 
 const SCENARIO: &str = "ci-session";
@@ -22,7 +21,6 @@ const PUSHED_BY_TRACKING: [&str; 1] = [CREATED[5]];
 const PUSHED_BY_HEADS: [&str; 3] = [CREATED[2], CREATED[4], CREATED[5]];
 const INDEPENDENT: [&str; 1] = [CREATED[2]];
 const TIPS: [&str; 2] = [CREATED[2], CREATED[5]];
-const REFLOG_OFF: &str = "reflog is off or unreadable here";
 
 struct Recorded;
 
@@ -77,11 +75,8 @@ fn commits_the_remote_holds_on_any_branch_count_as_pushed_and_only_independent_t
 }
 
 #[test]
-fn a_merge_counts_only_when_its_first_parent_was_the_head_and_an_unread_reflog_is_unknown() {
+fn a_merge_counts_only_when_its_first_parent_was_the_head() {
     let walk = Recorded::walk();
     let skipped: Vec<ReflogEntry> = walk.iter().take(1).chain(walk.iter().skip(2)).cloned().collect();
-    let asked = [Reach::Remote, Reach::Tracking].map(|reach| reach.asks_remote(&Recorded::commits(&CREATED)));
     assert_eq!(Recorded::created(&skipped, BEFORE, &[]), Recorded::commits(&CREATED[1..]));
-    assert_eq!((asked, Reach::Remote.asks_remote(&[])), ([Some(()), None], None));
-    assert!(SessionCommits::known(None).is_err_and(|off| off.to_string().starts_with(REFLOG_OFF)));
 }

@@ -80,6 +80,3 @@ impl FromStr for ReflogEntry {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

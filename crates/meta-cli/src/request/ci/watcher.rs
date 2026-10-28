@@ -5,6 +5,7 @@ mod poll;
 mod reach;
 mod remote;
 mod session_commits;
+mod stop_view;
 mod wait_on_ci;
 mod watch_clock;
 
@@ -28,6 +29,7 @@ use poll::Poll;
 use reach::Reach;
 use remote::Remote;
 use session_commits::SessionCommits;
+use stop_view::{StopView, Watched};
 use wait_on_ci::WaitOnCi;
 use watch_clock::WatchClock;
 
@@ -67,29 +69,21 @@ impl Watcher {
         let dir = SessionDir::for_session(project, session)?;
         let deadline = project.ci_settings().stop_limit().deadline();
         let seen = SessionCommits::judged(project, session, Reach::Remote, deadline);
-        let unknown = seen.as_ref().err().map(|reason| Listed::new(reason.to_string()));
         let commits = seen.as_ref().map(|seen| seen.pushed().to_vec()).unwrap_or_default();
-        let unwritable = commits
-            .first()
-            .and(dir.writable().err())
-            .map(|error| Listed::new(format!("CI state unwritable: {error}; fix it or ask the owner")));
-        let unpushed = seen.as_ref().ok().and_then(SessionCommits::unpushed_head).map(|commit| {
-            Listed::new(format!("HEAD {commit} is not pushed: push it, then run `meta ci-wait`; or ask the owner"))
-        });
-        let statuses: Vec<(Commit, Option<CiStatus>)> = commits
+        let unwritable = commits.first().and(dir.writable().err()).map(|error| error.to_string());
+        let statuses: Vec<Watched> = commits
             .iter()
             .map(|commit| {
                 Self::spawn(project, session, commit).ok();
-                (commit.clone(), dir.status_of(commit))
+                Watched::new(commit.clone(), dir.status_of(commit))
             })
             .collect();
-        let unwatched = statuses
-            .iter()
-            .find(|(_, status)| status.is_none())
-            .map(|(commit, _)| Listed::new(format!("CI not watched for {commit}: push again to watch it")));
-        let known = statuses.iter().find_map(|(_, status)| status.and_then(CiStatus::stop_reason));
-        let unresolved = || seen.as_ref().ok().and_then(|seen| WaitOnCi::stop_reason(project, &dir, seen, deadline));
-        let reason = unknown.or(unwritable).or(unpushed).or(unwatched).or(known).or_else(unresolved);
+        let reason = match StopView::new(&seen, unwritable, statuses).reason() {
+            ControlFlow::Break(reason) => Some(Listed::new(reason)),
+            ControlFlow::Continue(statuses) => {
+                seen.as_ref().ok().and_then(|seen| WaitOnCi::stop_reason(project, &statuses, seen, deadline))
+            }
+        };
         let late = (Instant::now() >= deadline).then(|| Listed::new(Self::OUT_OF_TIME));
         late.or(reason)
     }
