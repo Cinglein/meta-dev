@@ -5,6 +5,7 @@ mod repository;
 mod stack_answer;
 
 use std::env;
+use std::time::Duration;
 
 use gh_argument::GhArgument;
 use gh_field::GhField;
@@ -13,7 +14,7 @@ use repository::Repository;
 use stack_answer::StackAnswer;
 
 use task::Failure;
-use task::{Branch, Policy};
+use task::{Branch, BranchName, Policy};
 use task::{CommandLine, Program, Stdout};
 
 #[derive(Debug)]
@@ -23,6 +24,7 @@ impl Stacked {
     const NUMBER: &str = "PULL_REQUEST";
     const REPOSITORY: &str = "GITHUB_REPOSITORY";
     const BASE: &str = "GITHUB_BASE_REF";
+    const WAITS: [Duration; 3] = [Duration::from_secs(2); 3];
     const QUERY: &str = "query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { baseRefName stack { number } } } }";
     const BASE_AND_STACK: &str = r#".data.repository.pullRequest | "\(.baseRefName) \(.stack.number // "none")""#;
 
@@ -32,10 +34,16 @@ impl Stacked {
         let on_default = env::var(Self::BASE).ok().and_then(|base| base.parse().ok());
         let answer = match on_default.and_then(|base| StackAnswer::on_default_branch(base, default)) {
             Some(answer) => answer,
-            None => Self::base_and_stack(&Self::required(Self::REPOSITORY)?.parse()?, &number)?.parse()?,
+            None => Self::asked(&number, default)?,
         };
         println!("{}", answer.verdict(&number, default)?);
         Ok(())
+    }
+
+    fn asked(number: &str, default: &BranchName) -> Result<StackAnswer, Failure> {
+        let repository: Repository = Self::required(Self::REPOSITORY)?.parse()?;
+        let ask = || Self::base_and_stack(&repository, number)?.parse::<StackAnswer>();
+        StackAnswer::settled(ask, default, &Self::WAITS)
     }
 
     fn required(name: &'static str) -> Result<String, Failure> {

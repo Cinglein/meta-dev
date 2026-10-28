@@ -3,8 +3,6 @@ use std::path::Path;
 use std::str::FromStr;
 
 use super::link::{Link, Scope};
-use crate::request::local::local_clone::vetting::context::Context;
-use crate::request::local::local_clone::vetting::git_call::GitCall;
 use crate::request::local::local_clone::vetting::inspection::Inspection;
 use crate::request::local::local_clone::vetting::kept::Kept;
 
@@ -13,16 +11,11 @@ pub struct Checkouts(Vec<String>);
 
 impl Checkouts {
     const ON_BRANCH: [&'static str; 3] = ["symbolic-ref", "-q", "HEAD"];
-    const LIST: [&'static str; 3] = ["worktree", "list", "--porcelain"];
+    pub const LIST: [&'static str; 3] = ["worktree", "list", "--porcelain"];
     const BLOCKS: &'static str = "\n\n";
     const WORKTREE: &'static str = "worktree ";
     const BRANCH: &'static str = "branch ";
     const SEPARATOR: &'static str = "\0";
-
-    pub fn listed(context: &Context, host: &impl Inspection) -> Result<Self, Kept> {
-        let Ok(checkouts) = host.git(&GitCall::common(context.common(), &Self::LIST.map(OsStr::new)))?.parse();
-        Ok(checkouts)
-    }
 
     pub fn held_now(link: &Link, branch: &str, host: &impl Inspection) -> Result<(), Kept> {
         let head = link.git(host, Scope::Worktree, &Self::ON_BRANCH.map(OsStr::new)).ok();

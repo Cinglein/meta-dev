@@ -56,6 +56,7 @@ impl fmt::Display for HookEvent {
 
 impl HookEvent {
     const COMMIT: &'static str = "commit";
+    const PUSH: &'static str = "push";
     const SHORT: Duration = Duration::from_secs(10);
     const SESSION: Duration = Duration::from_secs(30);
     const LONG: Duration = Duration::from_secs(60);
@@ -117,6 +118,7 @@ impl HookEvent {
                     .command()
                     .and_then(|command| command.refusal(project.config()))
                     .or_else(|| input.refusal(budget.deadline()))
+                    .or_else(|| input.unpushable(project, Self::PUSH, budget.deadline()))
                     .map(Denial::from)
                     .map_or(Verdict::Allow, Verdict::Deny),
                 None,
@@ -156,7 +158,10 @@ impl HookEvent {
     }
 
     fn after_push(project: &Project, input: &HookInput, budget: Budget) -> Option<Listed> {
-        let failure = input.command()?.runs(Self::COMMIT).and_then(|()| project.push_failure(budget));
+        let command = input.command()?;
+        let failure = command.runs(Self::COMMIT).and_then(|()| {
+            input.unpushable(project, Self::COMMIT, budget.deadline()).or_else(|| project.push_failure(budget))
+        });
         failure.or(input.session().and_then(|session| Watcher::watch_all(project, session, budget).err()))
     }
 }

@@ -6,22 +6,22 @@ use super::{
 
 const TIMED_OUT: &str = "timed-out";
 const NAMELESS: &str = "origin.git";
-const FIRST_POLL: &str = "80";
+const FIRST_POLL: &str = "30";
 const GIT_FAILED: &str = "simulated git failure";
 const UNCHECKED_EVENT: &str = ": unchecked after";
 const UNCHECKED_STOP: &str = "couldn't check CI for your last push";
 const DETACH: [&str; 3] = ["checkout", "-q", "--detach"];
-const PUSH_HEAD: [&str; 4] = ["push", "-q", "origin", "HEAD:refs/heads/pushed"];
+const PUSH_HEAD: &str = "pushed";
 const WAIT_ON_CI: [&str; 4] = ["wait", TASK, "--on", "ci"];
 const TASKLESS: &str = "then run `meta wait <task> --on ci` here";
-const POST_AND_STOP_CALLS: [&str; 9] =
-    ["cat-file", "log", "log", "ls-remote", "merge-base", "rev-list", "rev-list", "rev-parse", "rev-parse"];
+const POST_AND_STOP_CALLS: [&str; 8] =
+    ["cat-file", "log", "log", "log", "ls-remote", "merge-base", "rev-list", "rev-list"];
 
 struct Unresolved;
 
 impl Unresolved {
     fn pushed(repo: &Repo) -> String {
-        Git::run(repo.clone.path(), &PUSH_HEAD);
+        Git::pushed(repo, PUSH_HEAD);
         Planted::settled(repo, TIMED_OUT);
         repo.hook(STOP, COMMIT)
     }

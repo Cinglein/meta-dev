@@ -7,9 +7,14 @@ pub struct Unanswered<'ran>(&'ran Ran);
 
 impl<'ran> Unanswered<'ran> {
     const SHOWN_REPLY_LEN: usize = 40;
+    const NOT_FOUND: &'static str = "HTTP 404";
 
     pub fn new(ran: &'ran Ran) -> Self {
         Self(ran)
+    }
+
+    pub fn not_found(&self) -> Option<()> {
+        self.0.stderr().to_string().contains(Self::NOT_FOUND).then_some(())
     }
 }
 

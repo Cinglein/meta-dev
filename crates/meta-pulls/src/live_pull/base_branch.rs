@@ -2,14 +2,19 @@ use std::fmt;
 
 use serde::Deserialize;
 
+use super::RuleSource;
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Deserialize)]
 #[serde(transparent)]
 pub struct BaseBranch(String);
 
 impl BaseBranch {
     #[must_use]
-    pub fn rules_endpoint(&self) -> String {
-        format!("repos/{{owner}}/{{repo}}/rules/branches/{self}")
+    pub fn endpoint(&self, source: RuleSource) -> String {
+        match source {
+            RuleSource::Rulesets => format!("repos/{{owner}}/{{repo}}/rules/branches/{self}"),
+            RuleSource::Protection => format!("repos/{{owner}}/{{repo}}/branches/{self}"),
+        }
     }
 }
 
