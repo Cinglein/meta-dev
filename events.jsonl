@@ -1081,3 +1081,4 @@
 {"at":"2026-10-28T16:34:59.558534Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-067b28fe28b30740"}
 {"at":"2026-10-28T16:35:02.685404Z","actor":"claude-lead","kind":"TaskDone","task":"task-067b28fe28b30740"}
 {"at":"2026-10-28T16:42:09.135196Z","actor":"claude-lead","kind":"TaskOpened","task":"task-6f79d46706a7a688","text":"Architecture audit: map decision/IO entanglement per area (hooks, gc, status, claim, CI watcher, xtask); propose typed views, pure verdicts, golden parsers, e2e set; rank by test CPU and helper lines freed.","division":"architecture-and-planning"}
+{"at":"2026-10-28T16:51:13.679666Z","actor":"claude-flaky","kind":"TaskOpened","task":"task-c1075cc0cfdf0ec2","text":"Fix flaky gh log-download test: widen gh_millis, keep log delay between limit and deadline","division":"performance-and-cost","addresses":["issue-ad246de6d361cb9a"]}
