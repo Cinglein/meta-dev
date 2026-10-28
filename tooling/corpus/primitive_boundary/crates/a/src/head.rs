@@ -1,0 +1,6 @@
+use std::path::Path; pub struct Head; impl Head { const NAME: &'static str = "HEAD"; const CONFIG: &'static str = "config"; }
+impl Head { pub fn branch(dir: &Path) -> Option<String> { std::fs::read_to_string(dir.join(".git").join("HEAD")).ok() } } //~ primitive-boundary: HEAD is a git ref file
+impl Head { pub fn named(dir: &Path) -> bool { dir.join(Self::NAME).exists() && dir.join(Self::CONFIG).exists() && dir.join("logs").exists() } } //~ primitive-boundary: HEAD is a git ref file
+impl Head { pub fn packed() -> bool { Path::new("x/.git/packed-refs").exists() && Path::new("x").join("refs/remotes/origin/HEAD").exists() } } //~ primitive-boundary: x/.git/packed-refs is //~ primitive-boundary: refs/remotes/origin/HEAD is
+impl Head { pub fn paused() -> Vec<&'static str> { vec![".git/worktrees/a/MERGE_HEAD", "rev-parse", "HEAD", "refs/heads/main", ".git/config"] } } //~ primitive-boundary: .git/worktrees/a/MERGE_HEAD is
+#[cfg(test)] mod tests { impl super::Head { fn laid(dir: &std::path::Path) { std::fs::write(dir.join(".git/HEAD"), "ref: refs/heads/main\n").ok(); } } } //~ primitive-boundary: .git/HEAD is

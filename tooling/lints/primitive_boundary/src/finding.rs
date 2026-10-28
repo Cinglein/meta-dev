@@ -8,6 +8,7 @@ pub enum Finding {
     WireForm { wire: UsePath, context: Name },
     UnnamedSize { context: Name },
     TextOutsideDoor { handler: Name },
+    RefFile { path: Name },
 }
 
 impl fmt::Display for Finding {
@@ -28,6 +29,10 @@ impl fmt::Display for Finding {
             Finding::TextOutsideDoor { handler } => write!(
                 formatter,
                 "{handler} handles text outside a door; parse in FromStr or render in Display"
+            ),
+            Finding::RefFile { path } => write!(
+                formatter,
+                "{path} is a git ref file, laid out differently under reftable; read and write refs through git (rev-parse, symbolic-ref, update-ref)"
             ),
         }
     }
