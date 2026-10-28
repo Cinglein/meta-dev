@@ -1,16 +1,17 @@
-use std::process::Command;
-use std::time::{Duration, Instant};
+use std::time::UNIX_EPOCH;
 
 use super::Project;
-use crate::request::ci::Commit;
+use crate::request::ci::{Commit, StartMoment};
 
-const CONFIGS: [&str; 3] = ["remote = \"origin\"", "[ci]\nstop_millis = 9000", "[ci]\ngit_millis = \"soon\""];
-const SHOWN: [&str; 3] = ["origin", "stop_millis must be under", "git_millis"];
+const CONFIGS: [&str; 3] = ["[ci]\nstop_millis = 9000", "[ci]\ngit_millis = \"soon\"", "remote = \"origin\""];
+const SHOWN: [&str; 3] = ["stop_millis must be under", "git_millis", "origin"];
+const GIT: [&str; 3] = [".git/refs", ".git/objects/f2", ".git/HEAD"];
+const SHAS: [&str; 2] = ["f2e83b47f04f1aadaaf72b9d15074e933a513dc6", "9271c82b76058cb9022078bf58c641cfc6a5b0d7"];
 
 #[test]
-fn a_project_serves_its_meta_toml_a_refused_ci_setting_refuses_it_and_no_meta_toml_is_no_project() {
+fn a_project_serves_its_meta_toml_and_reads_head_and_object_births_through_git_and_no_meta_toml_is_no_project() {
     let dir = tempfile::tempdir().unwrap();
-    std::fs::create_dir(dir.path().join(".git")).unwrap();
+    GIT[..2].iter().for_each(|made| std::fs::create_dir_all(dir.path().join(made)).unwrap());
     assert!(Project::found(dir.path()).is_ok_and(|project| project.is_none()));
     let shown = CONFIGS.map(|text| {
         std::fs::write(dir.path().join("meta.toml"), text).unwrap();
@@ -18,18 +19,13 @@ fn a_project_serves_its_meta_toml_a_refused_ci_setting_refuses_it_and_no_meta_to
             .map_or_else(|failure| failure.to_string(), |project| format!("{:?}", project.config().remote()))
     });
     assert!(shown.iter().zip(SHOWN).all(|(shown, named)| shown.contains(named)), "{shown:?}");
-}
-
-const REMOTE: &str = "origin";
-const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
-
-#[test]
-fn a_project_serves_its_meta_toml_and_counts_commits_the_remote_does_not_list_as_pushed() {
-    let dir = tempfile::tempdir().unwrap();
-    Command::new("git").arg("init").arg("-q").arg(dir.path()).status().unwrap();
-    std::fs::write(dir.path().join("meta.toml"), format!("remote = \"{REMOTE}\"")).unwrap();
+    let [head, unborn] = SHAS.map(|sha| sha.parse::<Commit>().unwrap());
+    let object = dir.path().join(GIT[0]).with_file_name(head.loose_object());
+    [dir.path().join(GIT[2]), object.clone()].iter().try_for_each(|file| std::fs::write(file, SHAS[0])).unwrap();
+    let modified = std::fs::metadata(object).and_then(|meta| meta.modified()).unwrap().duration_since(UNIX_EPOCH);
+    let starts = [0, modified.unwrap().as_nanos()].map(|nanos| nanos.to_string().parse::<StartMoment>().unwrap());
     let project = Project::try_from(dir.path()).unwrap();
-    let Ok(commit): Result<Commit, _> = COMMIT.parse();
-    let pushed = project.pushed_among(std::slice::from_ref(&commit), &[], Instant::now() + Duration::from_secs(30));
-    assert_eq!((project.config().remote().unwrap().to_string(), pushed), (REMOTE.to_owned(), vec![commit]));
+    let deadline = project.ci_settings().remote_deadline();
+    let judged = starts.map(|start| [&head, &unborn].map(|commit| project.born_after(commit, &start, deadline)));
+    assert!(judged == [[true, false], [false, false]] && project.head() == Some(head), "{judged:?}");
 }
