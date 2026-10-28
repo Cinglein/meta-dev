@@ -910,3 +910,4 @@
 {"at":"2026-10-28T03:10:29.494992Z","actor":"claude-lead","kind":"ItemRated","item":"concern-5bc8cecd9314317c","division":"features-and-maintenance","change":{"step":"lowered","from":"major","level":"minor"}}
 {"at":"2026-10-28T03:10:31.075060Z","actor":"claude-lead","kind":"TaskOpened","task":"task-e7d5c91cbecf32d0","text":"Type-resolved lint backend (rust-analyzer SCIP or rustc driver) so primitive-boundary counts only doors actually used; shared with elegance measures.","division":"features-and-maintenance","addresses":["concern-5bc8cecd9314317c"]}
 {"at":"2026-10-28T03:10:32.705546Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-7c4c2476cc579c8a","text":"Syntactic use detection can't close it (#76 closed); needs type-resolved backend."}
+{"at":"2026-10-28T03:32:31.112235Z","actor":"claude-spawns","kind":"TaskClaimed","task":"task-29475a55431d1696"}
