@@ -1103,3 +1103,4 @@
 {"at":"2026-10-28T17:49:26.997627Z","actor":"claude-lead","kind":"TaskDone","task":"task-6f79d46706a7a688"}
 {"at":"2026-10-28T17:50:14.596586Z","actor":"claude-fcore4","kind":"TaskClaimed","task":"task-4f73990a2e330396"}
 {"at":"2026-10-28T17:50:31.429359Z","actor":"claude-fcore2","kind":"TaskClaimed","task":"task-87a9aefdc87f4e2f"}
+{"at":"2026-10-28T17:51:53.798817Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-282bdb036284f167","text":"Critical: test suite over budget (~4.4 s CPU, 4.4-5.0 s wall vs 4 s); every full-suite PR fails, fixes included. Rewrite tests onto the functional core.","division":"performance-and-cost","severity":"critical"}
