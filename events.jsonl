@@ -987,3 +987,4 @@
 {"at":"2026-10-28T14:33:55.853271Z","actor":"claude-minorsa","kind":"TaskClaimed","task":"task-965b7114cb349f44"}
 {"at":"2026-10-28T14:33:58.897549Z","actor":"claude-minorsa","kind":"TaskClaimed","task":"task-e010247ab85c3cfa"}
 {"at":"2026-10-28T14:35:16.987324Z","actor":"claude-minorsb","kind":"TaskLinked","task":"task-2515e8a808484a36","pr":95}
+{"at":"2026-10-28T14:35:28.611777Z","actor":"claude-minorsb","kind":"TaskOpened","task":"task-14417fa941c6bf5a","text":"Merge-base default levels fall back to the meta-xtask version pinned there, failing closed","division":"features-and-maintenance","addresses":["concern-8e18408c1ffecb96"]}
