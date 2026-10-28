@@ -23,6 +23,7 @@ pub struct CiSettings {
     timeout_millis: Millis,
     appear_millis: Millis,
     remote_millis: Millis,
+    gh_millis: Millis,
     stop_millis: StopLimit,
     #[serde(flatten)]
     poll_schedule: PollSchedule,
@@ -55,6 +56,10 @@ impl CiSettings {
 
     pub fn remote_deadline(&self) -> Instant {
         Instant::now() + self.remote_millis.duration()
+    }
+
+    pub fn gh_limit(&self) -> Duration {
+        self.gh_millis.duration().min(self.timeout_millis.duration())
     }
 
     pub fn stop_limit(&self) -> StopLimit {

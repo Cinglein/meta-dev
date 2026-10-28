@@ -36,15 +36,16 @@ impl WatchClock {
     }
 
     pub fn remaining(&self, settings: &CiSettings) -> Option<()> {
-        self.left(settings).map(drop)
+        self.left(settings, Duration::ZERO).map(drop)
     }
 
-    pub fn pause(&self, wait: Duration, settings: &CiSettings) {
-        let pause = self.left(settings).map_or(Duration::ZERO, |left| wait.min(left));
+    pub fn pause(&self, wait: Duration, settings: &CiSettings) -> Option<()> {
+        let pause = self.left(settings, settings.gh_limit()).map(|window| wait.min(window))?;
         let reading = Self::reading(self.injected.as_ref()).map_or(self.origin, ClockReading::elapsed);
         let advanced =
             self.injected.as_ref().map(|file| std::fs::write(file, (reading + pause).as_millis().to_string()));
         advanced.map_or_else(|| std::thread::sleep(pause), drop);
+        Some(())
     }
 
     pub fn elapsed(&self) -> Duration {
@@ -52,9 +53,9 @@ impl WatchClock {
             .map_or_else(|| self.started.elapsed(), |now| now.elapsed().saturating_sub(self.origin))
     }
 
-    fn left(&self, settings: &CiSettings) -> Option<Duration> {
-        self.deadline.checked_duration_since(Instant::now()).filter(|left| !left.is_zero())?;
-        settings.remaining(self.elapsed())
+    fn left(&self, settings: &CiSettings, reserve: Duration) -> Option<Duration> {
+        self.deadline.checked_duration_since(Instant::now()).filter(|left| *left > reserve)?;
+        settings.remaining(self.elapsed())?.checked_sub(reserve).filter(|left| !left.is_zero())
     }
 
     fn reading(injected: Option<&PathBuf>) -> Option<ClockReading> {

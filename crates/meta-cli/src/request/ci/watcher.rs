@@ -110,21 +110,24 @@ impl Watcher {
         let _lock = dir.claim(&commit).ok_or_else(|| CliFailure::raised::<Invalid>("another watcher has it"))?;
         let settled = dir.status_of(&commit).and_then(CiStatus::finished);
         settled.map_or(Ok(()), |status| Err(CliFailure::raised::<Invalid>(format!("already {status}"))))?;
-        let repository = project.repository().ok_or_else(|| CliFailure::raised::<Setup>("no remote URL"))?;
         let settings = project.config().ci_settings();
+        let repository = project.repository().ok_or_else(|| {
+            let status = CiStatus::Unchecked;
+            dir.record(format!("CI {commit}{}: {status} after 0s{}", WatchClock::mark(), status.detail())).ok();
+            dir.settle(&commit, status).ok();
+            CliFailure::raised::<Setup>("no remote URL")
+        })?;
         let clock = WatchClock::start(&settings);
-        let gh = Gh::new(settings.program().clone(), project.root().to_path_buf(), clock.deadline(), repository);
+        let gh = Gh::new(&settings, project.root().to_path_buf(), clock.deadline(), repository);
         let waits = settings.poll_schedule().waits(dir.expected());
         let watcher = Self { dir, commit, gh, clock, settings: settings.clone(), appeared: OnceCell::new() };
         let finished = waits
             .map_while(|wait| {
-                watcher.clock.remaining(&settings)?;
-                watcher.clock.pause(wait, &settings);
+                watcher.clock.pause(wait, &settings)?;
                 let observed = watcher.gh.observe(&watcher.commit);
                 let learned = observed.as_ref().ok().and_then(Observation::expected);
                 learned.map(|expected| watcher.dir.learn(expected).ok());
-                let in_time = watcher.clock.remaining(&settings);
-                observed.is_ok().then_some(()).or(in_time).map(|()| observed)
+                Some(observed)
             })
             .try_fold(None, |reported, observed| watcher.step(reported, observed));
         Ok(watcher.conclude(finished.break_value().as_ref()))

@@ -7,12 +7,12 @@ mod raw_log;
 use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::Command;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::request::ci::ci_status::CiStatus;
 use crate::request::ci::commit::Commit;
 use crate::request::output::Listed;
-use crate::request::project::ProgramName;
+use crate::request::project::{CiSettings, ProgramName};
 use crate::request::repository::Repository;
 use crate::request::timed_command::TimedCommand;
 use commit_checks::CommitChecks;
@@ -27,6 +27,7 @@ pub struct Gh {
     program: ProgramName,
     root: PathBuf,
     deadline: Instant,
+    limit: Duration,
     repository: Repository,
 }
 
@@ -38,8 +39,8 @@ impl Gh {
     const VIEW_JOB: [&'static str; 3] = ["run", "view", "--job"];
     const LOG_FAILED: &'static str = "--log-failed";
 
-    pub fn new(program: ProgramName, root: PathBuf, deadline: Instant, repository: Repository) -> Self {
-        Self { program, root, deadline, repository }
+    pub fn new(settings: &CiSettings, root: PathBuf, deadline: Instant, repository: Repository) -> Self {
+        Self { program: settings.program().clone(), root, deadline, limit: settings.gh_limit(), repository }
     }
 
     pub fn observe(&self, commit: &Commit) -> Result<Observation, Listed> {
@@ -82,6 +83,6 @@ impl Gh {
     fn text(&self, words: impl Iterator<Item = OsString>) -> Result<String, Listed> {
         let mut command = Command::new(&self.program);
         command.args(words).current_dir(&self.root);
-        TimedCommand::new(command, self.deadline).stdout()
+        TimedCommand::new(command, self.deadline.min(Instant::now() + self.limit)).stdout()
     }
 }

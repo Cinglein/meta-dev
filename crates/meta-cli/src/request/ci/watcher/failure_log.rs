@@ -18,7 +18,7 @@ impl FailureLog {
         pushed.first().ok_or_else(|| CliFailure::raised::<Setup>("no CI tracked for this session"))?;
         let deadline = std::time::Instant::now() + settings.remaining(std::time::Duration::ZERO).unwrap_or_default();
         let repository = project.repository().ok_or_else(|| CliFailure::raised::<Setup>("no remote URL"))?;
-        let gh = Gh::new(settings.program().clone(), project.root().to_path_buf(), deadline, repository);
+        let gh = Gh::new(&settings, project.root().to_path_buf(), deadline, repository);
         let raw = gh.failed_logs(pushed);
         Ok(Output::Listed(raw.excerpt(settings.log_window())))
     }
