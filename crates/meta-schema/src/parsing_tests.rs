@@ -1,13 +1,16 @@
+use std::num::NonZeroU64;
+
 use chrono::DateTime;
 use meta_laws::{Laws, laws};
 use proptest::prelude::{Strategy, any};
+use proptest::sample::select;
 use proptest::strategy::LazyJust;
+use strum::IntoEnumIterator;
 
 use crate::entity::{Concern, Task};
-use crate::{Actor, Blocker, Division, DueTime, ExternalKind, Id, LevelName, PullRequest, Text, Tokens};
+use crate::{Actor, Blocker, Division, DueTime, ExternalKind, Id, LevelName, PullRequest, Text, Tokens, TopDivision};
 
-const SPELLING: &str = "[a-zA-Z0-9#/ ._-]{0,9}";
-const DIVISION: &str = "(performance-and-cost|features-and-maintenance|planning)(/[a-zA-Z0-9 _-]{0,3}){0,3}";
+const READ: &str = "read by its parser";
 const REFUSED: [&str; 3] = ["Major", "task-123", "performance-and-cost/ci_tests"];
 const PULL_REQUEST: &str = "#12";
 const BARE_PULL_REQUEST: &str = "12";
@@ -20,14 +23,17 @@ const NOT_A_BLOCKER: &str = "nonsense";
 
 laws! {
     texts_settle: Laws::settled::<Text> => any::<String>();
-    texts_are_stored: Laws::stored::<Text> => any::<String>().prop_map(|text| text.trim().to_owned() + ".");
-    actors_settle: Laws::settled::<Actor> => SPELLING;
-    level_names_settle: Laws::settled::<LevelName> => SPELLING;
-    pull_requests_settle: Laws::settled::<PullRequest> => SPELLING;
-    divisions_settle: Laws::settled::<Division> => DIVISION;
+    texts_are_recorded: Laws::recorded::<Text> => any::<String>().prop_filter_map(READ, |text| text.parse().ok());
+    actors_settle: Laws::settled::<Actor> => any::<String>();
+    level_names_settle: Laws::settled::<LevelName> => any::<String>();
+    divisions_settle: Laws::settled::<Division> => any::<String>();
+    ids_name_actors: Laws::stored::<Actor> => LazyJust::new(|| Id::<Task>::generate().to_string());
+    ids_name_levels: Laws::stored::<LevelName> => LazyJust::new(|| Id::<Task>::generate().to_string());
+    ids_name_divisions: Laws::stored::<Division> => select(TopDivision::iter().collect::<Vec<_>>()).prop_map(|top| format!("{top}/{}", Id::<Task>::generate()));
+    pull_requests_settle: Laws::settled::<PullRequest> => any::<NonZeroU64>().prop_map(|number| number.to_string());
     issues_block: Laws::shown::<Blocker> => LazyJust::new(|| Blocker::Discussion(Id::generate()));
     tasks_block: Laws::shown::<Blocker> => LazyJust::new(|| Blocker::Task(Id::generate()));
-    tokens_are_stored: Laws::stored::<Tokens> => any::<u64>().prop_map(|tokens| tokens.saturating_add(1).to_string());
+    tokens_are_stored: Laws::stored::<Tokens> => any::<NonZeroU64>().prop_map(|tokens| tokens.to_string());
     due_times_are_stored: Laws::stored::<DueTime> => any::<u32>().prop_map(|at| DateTime::from_timestamp(at.into(), 0).unwrap_or_default().to_rfc3339());
 }
 

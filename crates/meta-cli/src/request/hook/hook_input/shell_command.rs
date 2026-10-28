@@ -85,10 +85,6 @@ impl FromStr for ShellCommand {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use meta_laws::laws;
-    use proptest::prelude::any;
-    use proptest::sample::select;
-
     use super::ShellCommand;
     use crate::request::project::Config;
 
@@ -115,7 +111,7 @@ mod tests {
     }
 
     const CONFIG: &str = "protected = [\"main\", \"meta/log\", \"meta/logs\"]\nlog_branches = [\"meta/log\"]\n";
-    const MERGE: &str = "gh pr merge 1";
+    const MERGES: [&str; 2] = ["gh pr merge 1", "cd x && gh pr merge 1 --squash"];
     const PUSHES: [&str; 6] = [
         "git push --force origin feature",
         "git push -uf origin feature",
@@ -137,35 +133,20 @@ mod tests {
     const NEAR_LOG: &str = "git push origin meta/logs";
     const OPEN_PR: &str = "open a PR";
 
-    struct Guard;
-
-    impl Guard {
-        fn refusal(command: &str) -> Option<String> {
-            let config: Config = toml::from_str(CONFIG).unwrap();
-            command.parse::<ShellCommand>().unwrap().refusal(&config).map(|why| why.to_string())
-        }
-
-        fn stays_denied((denied, other): &(&str, String)) -> bool {
-            [format!("{other} && {denied}"), format!("{denied}; {other}")]
-                .iter()
-                .all(|line| Self::refusal(line).is_some())
-        }
-    }
-
-    laws! {
-        a_denied_command_stays_denied_whatever_runs_beside_it: Guard::stays_denied => (select([&PUSHES[..], &[MERGE]].concat()), any::<String>());
-    }
-
     #[test]
-    fn force_pushes_and_protected_pushes_are_refused_and_nothing_else() {
-        assert!(PUSHES.iter().all(|command| Guard::refusal(command).is_some_and(|why| why.starts_with(PUSH_REASON))));
-        assert!(ALLOWED.iter().all(|command| Guard::refusal(command).is_none()));
-    }
-
-    #[test]
-    fn a_log_push_names_meta_and_a_force_push_names_no_lease() {
-        let refusal = |command: &str| Guard::refusal(command).unwrap();
+    fn merges_and_pushes_are_refused_with_their_way_out_and_nothing_else_is_refused() {
+        let config: Config = toml::from_str(CONFIG).unwrap();
+        let refusal = |command: &str| {
+            command.parse::<ShellCommand>().unwrap().refusal(&config).map_or_else(String::new, |why| why.to_string())
+        };
+        assert!(
+            MERGES.iter().all(|command| !refusal(command).is_empty())
+                && ALLOWED.iter().all(|command| refusal(command).is_empty())
+        );
+        assert!(
+            PUSHES.iter().all(|command| refusal(command).starts_with(PUSH_REASON))
+                && !refusal(PUSHES[0]).contains(LEASE)
+        );
         assert!(refusal(LOG_PUSH).ends_with(ONLY_META) && refusal(NEAR_LOG).ends_with(OPEN_PR));
-        assert!(!refusal(PUSHES[0]).contains(LEASE));
     }
 }

@@ -41,3 +41,19 @@ impl Laws {
         read.is_ok_and(|read| read == *value)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::num::NonZeroU32;
+
+    use super::Laws;
+
+    const UNEQUAL: &str = "NaN";
+
+    #[test]
+    fn a_value_unequal_to_itself_breaks_every_law_and_a_law_runs_more_than_one_case() {
+        assert!(!Laws::shown(&f64::NAN) && !Laws::settled::<f64>(UNEQUAL));
+        assert!(!Laws::stored::<f64>(UNEQUAL) && !Laws::recorded(&f64::NAN));
+        assert!(Laws::cases() > Some(NonZeroU32::MIN));
+    }
+}
