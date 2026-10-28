@@ -405,6 +405,8 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "meta-gh",
+ "meta-git-view",
+ "meta-golden",
  "meta-listing",
  "meta-log",
  "meta-pull-query",
@@ -429,6 +431,28 @@ dependencies = [
  "chrono",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "meta-git-view"
+version = "0.1.0"
+dependencies = [
+ "meta-golden",
+ "meta-run",
+ "meta-schema",
+]
+
+[[package]]
+name = "meta-golden"
+version = "0.1.0"
+dependencies = [
+ "meta-run",
+ "serde",
+ "serde_json",
+ "strum",
+ "tempfile",
+ "thiserror",
+ "toml 0.8.23",
 ]
 
 [[package]]
@@ -476,6 +500,7 @@ name = "meta-run"
 version = "0.1.0"
 dependencies = [
  "signal-hook",
+ "strum",
  "tempfile",
  "thiserror",
 ]
@@ -544,6 +569,7 @@ dependencies = [
  "affected",
  "corpus_check",
  "crate_graph",
+ "meta-golden",
  "meta-log",
  "meta-run",
  "meta-schema",

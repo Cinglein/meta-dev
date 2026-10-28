@@ -6,13 +6,11 @@ use meta_run::Budget;
 use meta_log::{GitLog, Snapshot};
 use meta_severity::Scales;
 use meta_state::State;
-use task::{Branch, ChangeLink, Ledger, Policy, Standing};
+use task::{ChangeLink, Ledger, Policy, Standing};
 
 use crate::task::ci::log_source::LogSource;
 use crate::task::ci::run_kind::RunKind;
 use crate::task::failure::Failure;
-use crate::task::prior_policy::PriorPolicy;
-use crate::task::revision::Revision;
 
 pub struct StandingLog;
 
@@ -49,21 +47,19 @@ impl StandingLog {
         Ok(())
     }
 
-    pub fn enforcing(run: &RunKind, root: &Path, policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
+    pub fn enforcing(
+        run: &RunKind,
+        ledger: &mut Ledger,
+        prior: impl FnOnce() -> Result<Option<String>, Failure>,
+    ) -> Result<(), Failure> {
         run.by_kind(
             ledger,
-            |ledger| Self::enforced_from(root, policy, ledger),
+            |ledger| ledger.enforce_from(prior()?.as_deref()).map_err(Failure::PriorPolicy),
             |ledger| {
                 ledger.report_only();
                 Ok(())
             },
         )
-    }
-
-    pub fn enforced_from(root: &Path, policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
-        let base = Revision::merge_base(root, policy.branch(Branch::Base))?;
-        let text = base.present(Path::new(PriorPolicy::PATH))?;
-        ledger.enforce_from(text.as_deref()).map_err(Failure::PriorPolicy)
     }
 
     fn standing(snapshot: Result<Snapshot, Failure>, scales: &Scales, link: &ChangeLink) -> Result<Standing, Failure> {
@@ -85,9 +81,6 @@ mod tests {
     const GATE_CLOSED: &str = "local gate fails closed";
     const GATE_EMPTY: &str = "local gate fails closed: meta/log has no events";
     const NOTHING: &str = "";
-    const POLICY: &str = "tooling/policy.toml";
-    const ORIGIN_HEAD: &str = ".git/refs/remotes/origin/HEAD";
-    const ELSEWHERE: &str = "ref: refs/remotes/origin/elsewhere\n";
     const CAPS: &str = "\n[budgets.features-and-maintenance-critical]";
     const TOP: &str = "features-and-maintenance";
     const MINOR: &str = "minor";
@@ -107,12 +100,10 @@ mod tests {
 
     #[test]
     fn the_merge_base_policy_decides_whether_standing_budgets_are_enforced() {
-        let fixture = Fixture::new();
-        fixture.write(POLICY, STANDING).branch();
-        fixture.write(POLICY, NOTHING).committed().write(ORIGIN_HEAD, ELSEWHERE);
         let (bare, mut pull, mut push) = (StandingLog::policy(NOTHING), Ledger::default(), Ledger::default());
-        let enforced = StandingLog::enforcing(&RunKind::Pull(None, None), fixture.root(), &bare, &mut pull);
-        let reported = StandingLog::enforcing(&RunKind::Other, fixture.root(), &bare, &mut push);
+        let prior = || Ok(Some(STANDING.to_owned()));
+        let enforced = StandingLog::enforcing(&RunKind::Pull(None, None), &mut pull, prior);
+        let reported = StandingLog::enforcing(&RunKind::Other, &mut push, || Err(Failure::NoLog));
         assert!(enforced.is_ok() && pull.reads_standing(&bare) && !pull.reports_only());
         assert!(reported.is_ok() && push.reports_only());
     }
