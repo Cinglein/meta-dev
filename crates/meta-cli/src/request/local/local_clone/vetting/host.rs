@@ -7,10 +7,13 @@ mod tests;
 
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::io::{ErrorKind, Write as _};
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::sync::{Mutex, PoisonError};
+
+use meta_door::kinds::Kind;
+use meta_door::{Change, Door};
 
 use super::alternates::Alternates;
 use super::cause::Cause;
@@ -53,21 +56,18 @@ impl Host {
 
 impl Inspection for Host {
     fn entry(&self, path: &Path) -> EntryKind {
-        match path.symlink_metadata() {
-            Ok(entry) if entry.is_symlink() => EntryKind::Symlink,
-            Ok(entry) if entry.is_dir() => EntryKind::Dir,
-            Ok(_) => EntryKind::File,
-            Err(failure) if failure.kind() == ErrorKind::NotFound => EntryKind::Missing,
-            Err(_) => EntryKind::Unreadable,
-        }
+        EntryKind::from(Door::admin_kind(path).unwrap_or_else(|| Kind::found(Walker::inspected(path))))
     }
 
     fn canonical(&self, path: &Path) -> Option<PathBuf> {
-        path.canonicalize().ok()
+        let admin = || Door::inspected(path).map(|admin| admin.path().to_path_buf());
+        Door::canonical(path).or_else(|_| admin()).ok()
     }
 
     fn text(&self, path: &Path) -> Option<String> {
-        (self.entry(path) == EntryKind::File).then(|| std::fs::read_to_string(path).ok()).flatten()
+        let stored = || Thaw::stored(path).map_or_else(|| Door::read(path), |ledger| ledger.and_then(Door::read));
+        let read = || Door::admin_text(path).unwrap_or_else(stored);
+        (self.entry(path) == EntryKind::File).then(read).and_then(Result::ok)
     }
 
     fn git(&self, call: &GitCall) -> Result<String, Kept> {
@@ -82,7 +82,7 @@ impl Inspection for Host {
     }
 
     fn walked(&self, path: &Path) -> Vec<Found> {
-        Walker::new(path).descended(Path::new(""))
+        Walker::new(path).walked()
     }
 
     fn neighbours(&self, root: &Path) -> Vec<Alternates> {
@@ -107,17 +107,18 @@ impl Inspection for Host {
         let files = found.filter(|found| found.kind() == EntryKind::File && found.shared().is_none());
         let originals = files.map(|found| {
             let file = quarantine.join(found.path());
-            file.symlink_metadata().map(|entry| Thawed::new(file, &entry.permissions()))
+            Walker::inspected(&file).map(|entry| Thawed::new(file, &entry.permissions()))
         });
         let thaw = plan.holding(
             originals.collect::<std::io::Result<_>>().map_err(|failure| Kept::Uninspected(Cause::new(failure)))?,
         );
         let ledger = serde_json::to_string(&thaw).map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
-        LocalFile::new(thaw.ledger()).replaced(&ledger).map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
+        let entry = thaw.ledger().map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
+        LocalFile::new(entry).replaced(&ledger).map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
         let failed = thaw.files().iter().find_map(|thawed| {
             let mut read_only = thawed.permissions();
             read_only.set_readonly(true);
-            std::fs::set_permissions(thawed.path(), read_only).err()
+            Door::changed(thawed.path(), Change::Permissions(read_only)).err()
         });
         failed.map_or(Ok(thaw.clone()), |failure| {
             self.thawed(&thaw);
@@ -126,8 +127,10 @@ impl Inspection for Host {
     }
 
     fn thawed(&self, thaw: &Thaw) {
-        thaw.files().iter().for_each(|thawed| drop(std::fs::set_permissions(thawed.path(), thawed.permissions())));
-        drop(std::fs::remove_file(thaw.ledger()));
+        thaw.files()
+            .iter()
+            .for_each(|thawed| drop(Door::changed(thawed.path(), Change::Permissions(thawed.permissions()))));
+        drop(thaw.ledger().and_then(|ledger| Door::changed(ledger, Change::RemoveFile)));
     }
 
     fn stamp(&self) -> Stamp {

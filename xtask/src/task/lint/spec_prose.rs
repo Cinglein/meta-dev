@@ -1,7 +1,7 @@
 mod prior_spec;
 mod prose_words;
 
-use std::fs;
+use meta_door::Door;
 use std::path::Path;
 
 use task::{Report, Site, SpecSettings, Violation};
@@ -19,7 +19,7 @@ impl SpecProse {
     pub const LINT: &str = "spec-prose";
 
     pub fn since(root: &Path, spec: &SpecSettings, base: &Revision) -> Result<Report, Failure> {
-        let written = fs::read_to_string(root.join(spec.file())).unwrap_or_default();
+        let written = Door::read(root.join(spec.file())).unwrap_or_default();
         let prior =
             PriorSpec::prose(base.present(Path::new(PriorPolicy::PATH))?.as_deref(), |path| base.present(path))?;
         Ok(Self::report(spec, &written, prior.as_deref()))

@@ -36,6 +36,10 @@ surfaces = [
     "self/spec",
 ]
 
+[file_door]
+crates = ["meta-door"]
+dev_only = ["tempfile"]
+
 [spec]
 package = "meta-spec"
 file = "context/SPEC.md"

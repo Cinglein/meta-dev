@@ -45,8 +45,8 @@ impl fmt::Display for ShardPlan {
 #[cfg(test)]
 mod tests {
     use super::{CommandLine, FullRun, Interval, Policy, ShardPlan};
+    use meta_door::Door;
     use settings::EmbeddedDefaults;
-    use std::fs;
     use std::path::Path;
     use task::Program;
     const TIMEOUT: &str = "timeout-minutes: ";
@@ -93,7 +93,7 @@ mod tests {
             let step = |indent| u64::from(Some(indent) != job_indent);
             found.len() > 1 && found.iter().all(|(indent, minutes)| minutes + step(*indent) == limit)
         };
-        let read = |workflow: &str| fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(workflow)).unwrap();
+        let read = |workflow: &str| Door::read(Path::new(env!("CARGO_MANIFEST_DIR")).join(workflow)).unwrap();
         assert!(WORKFLOWS.iter().all(|(workflow, job)| fits(&read(workflow), *job)));
         assert!(!fits(&read(WORKFLOWS[0].0).replace(STEP_LIMIT, STEP_LIMIT_TOO_LONG), WORKFLOWS[0].1));
     }

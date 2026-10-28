@@ -13,8 +13,7 @@ pub use local_gate::{Busy, LocalGate, OutsideConfig, Posting, Unready};
 pub use log_source::LogSource;
 pub use untracked::Untracked;
 
-use std::fs::File;
-use std::io::Write;
+use meta_door::{Door, Opening};
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -82,7 +81,7 @@ impl Ci {
     fn recorded(&self, times: &StepTimes) -> Result<(), Failure> {
         self.record
             .as_ref()
-            .map_or(Ok(()), |path| File::create(path).and_then(|mut file| write!(file, "{times}")))
+            .map_or(Ok(()), |path| Door::opened(path, Opening::Truncate).and_then(|mut file| file.written(times)))
             .map_err(Failure::Summary)
     }
 }

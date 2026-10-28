@@ -1,8 +1,10 @@
 #![allow(clippy::unwrap_used)]
 
 use std::fmt;
-use std::fs::File;
 use std::io::Write as _;
+
+use meta_door::kinds::Kind;
+use meta_door::{Change, Door, MetaStore, Opening};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
@@ -22,7 +24,7 @@ const REVERTED: &str = "task-00000000000000a8";
 const REBASED: &str = "task-00000000000000a9";
 const PAUSES: [[&str; 2]; 4] =
     [[PAUSED, "MERGE_HEAD"], [PICKED, "CHERRY_PICK_HEAD"], [REVERTED, "REVERT_HEAD"], [REBASED, "REBASE_HEAD"]];
-const DANGLING: &str = "1111111111111111111111111111111111111111\n";
+const DANGLING: &str = "1111111111111111111111111111111111111111";
 const RECORDED: [&str; 9] = [MERGED, OPEN, DIRTY, BUSY, GONE, PAUSED, PICKED, REVERTED, REBASED];
 const ADDED: [&str; 8] = [MERGED, OPEN, DIRTY, BUSY, PAUSED, PICKED, REVERTED, REBASED];
 const STRAY: &str = "stray";
@@ -89,7 +91,8 @@ const SWEPT: [Line; 10] = [
     Line("unrecorded ", STRAY, ": left alone\n"),
     Line("closed ", GONE, ": missing\n"),
 ];
-const TRAIL: &str = ".git/meta-local/worktrees.jsonl";
+const TRAIL: &str = "meta-local/worktrees.jsonl";
+const TRAIL_DIR: &str = "meta-local";
 const TRAILED: [&str; 3] = ["\"change\":\"Freed\"", "\"change\":\"Refused\"", "\"change\":\"Closed\""];
 const KEPT: [&str; 8] = [OPEN, DIRTY, BUSY, STRAY, PAUSED, PICKED, REVERTED, REBASED];
 
@@ -109,7 +112,7 @@ struct Freed<'trees>(&'trees Path);
 impl fmt::Display for Freed<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let worktree = self.0.join(MERGED);
-        let linked = std::fs::read_to_string(worktree.join(".git")).unwrap_or_default();
+        let linked = Door::read(worktree.join(".git")).unwrap_or_default();
         let bytes = [linked.as_str(), CONFIG, CARGO_TAG].concat().len();
         writeln!(formatter, "freed {}: {bytes} bytes; pr #1 merged", worktree.display())
     }
@@ -200,6 +203,7 @@ struct Scene {
     origin: tempfile::TempDir,
     clone: tempfile::TempDir,
     trees: tempfile::TempDir,
+    excludes: tempfile::NamedTempFile,
 }
 
 impl Scene {
@@ -208,26 +212,19 @@ impl Scene {
             origin: tempfile::tempdir().unwrap(),
             clone: tempfile::tempdir().unwrap(),
             trees: tempfile::tempdir().unwrap(),
+            excludes: tempfile::NamedTempFile::new().unwrap(),
         };
-        Skeleton::Bare.lay(scene.origin.path(), "main");
-        Skeleton::Working.lay(scene.clone.path(), "main");
-        let remote = format!(
-            "[remote \"origin\"]\n\turl = {}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n",
-            scene.origin.path().display()
-        );
-        let config = scene.clone.path().join(".git/config");
-        std::fs::write(&config, [std::fs::read_to_string(&config).unwrap(), remote].concat()).unwrap();
-        std::fs::write(scene.clone.path().join("meta.toml"), CONFIG).unwrap();
-        std::fs::create_dir(scene.clone.path().join(".git/info")).unwrap();
-        std::fs::write(scene.clone.path().join(".git/info/exclude"), EXCLUDED).unwrap();
-        std::fs::write(scene.clone.path().join("meta.local.toml"), Settings(&scene.trees()).to_string()).unwrap();
-        std::fs::create_dir(scene.clone.path().join("bin")).unwrap();
-        std::fs::write(scene.clone.path().join("bin/gh"), FAKE_GH).unwrap();
-        std::fs::set_permissions(
-            scene.clone.path().join("bin/gh"),
-            std::fs::metadata("/bin/sh").unwrap().permissions(),
-        )
-        .unwrap();
+        Skeleton::laid(scene.origin.path(), scene.clone.path(), "main");
+        let clone = scene.clone.path();
+        Door::write(scene.excludes.path(), EXCLUDED).unwrap();
+        let excludes = scene.excludes.path().display().to_string();
+        assert!(Git::run(clone, &["config", "core.excludesFile", &excludes]).status.success());
+        Door::write(clone.join("meta.toml"), CONFIG).unwrap();
+        Door::write(clone.join("meta.local.toml"), Settings(&scene.trees()).to_string()).unwrap();
+        Door::changed(clone.join("bin"), Change::Dir).unwrap();
+        Door::write(clone.join("bin/gh"), FAKE_GH).unwrap();
+        let executable = Door::described(Door::canonical("/bin/sh").unwrap()).unwrap().permissions();
+        Door::changed(clone.join("bin/gh"), Change::Permissions(executable)).unwrap();
         Git::seeded(scene.origin.path(), scene.clone.path());
         Git::added(&scene);
         scene.planted();
@@ -236,21 +233,24 @@ impl Scene {
 
     fn planted(&self) {
         let trees = self.trees();
-        std::fs::create_dir_all(trees.join(MERGED).join("target/debug")).unwrap();
-        std::fs::write(trees.join(MERGED).join("target/debug/.cargo-lock"), "").unwrap();
-        std::fs::write(trees.join(MERGED).join("target/CACHEDIR.TAG"), CARGO_TAG).unwrap();
+        Door::changed(trees.join(MERGED).join("target/debug"), Change::DirAll).unwrap();
+        Door::write(trees.join(MERGED).join("target/debug/.cargo-lock"), "").unwrap();
+        Door::write(trees.join(MERGED).join("target/CACHEDIR.TAG"), CARGO_TAG).unwrap();
         Git::run(&trees.join(DIRTY), &["commit", "-q", "--allow-empty", "-m", "precious"]);
         Git::run(&trees.join(DIRTY), &["update-ref", "WIP", "HEAD"]);
         Git::run(&trees.join(DIRTY), &["reset", "-q", "--hard", "HEAD~1"]);
         Git::run(&trees.join(DIRTY), &["update-ref", "-d", "ORIG_HEAD"]);
-        let linked = self.clone.path().join(".git/worktrees");
-        PAUSES.iter().try_for_each(|[task, pause]| std::fs::write(linked.join(task).join(pause), DANGLING)).unwrap();
-        std::fs::create_dir_all(self.clone.path().join(".git/meta-local")).unwrap();
-        std::fs::write(self.clone.path().join(TRAIL), Created(&trees, &[MERGED]).to_string()).unwrap();
+        PAUSES.iter().try_for_each(|[task, pause]| Door::dangling_pause(&trees.join(task), pause, DANGLING)).unwrap();
+        Door::changed(self.store().entry(TRAIL_DIR), Change::DirAll).unwrap();
+        Door::write(self.store().entry(TRAIL), Created(&trees, &[MERGED]).to_string()).unwrap();
     }
 
     fn trees(&self) -> PathBuf {
-        std::fs::canonicalize(self.trees.path()).unwrap()
+        Door::canonical(self.trees.path()).unwrap()
+    }
+
+    pub fn store(&self) -> MetaStore {
+        MetaStore::located(self.clone.path()).unwrap()
     }
 
     fn meta(&self, words: &[&str]) -> String {
@@ -267,21 +267,28 @@ impl Scene {
 fn gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_with_reasons() {
     let scene = Scene::new();
     let trees = scene.trees();
-    let _held = File::open(trees.join(BUSY).join(".git")).unwrap();
+    let _held = Door::opened(trees.join(BUSY).join(".git"), Opening::Read).unwrap();
     let shows = |shown: &str, lines: &[Line]| lines.iter().all(|line| shown.contains(&Shown(line, &trees).to_string()));
     let freed = Freed(&trees).to_string();
     let ticked = scene.meta(&GC_RUN);
-    assert!(ticked.contains(&Shown(&PLANNED, &trees).to_string()) && trees.join(MERGED).exists(), "{ticked}");
-    std::fs::write(scene.clone.path().join(TRAIL), Created(&trees, &RECORDED).to_string()).unwrap();
+    assert!(
+        ticked.contains(&Shown(&PLANNED, &trees).to_string()) && Door::kind(trees.join(MERGED)) != Kind::Missing,
+        "{ticked}"
+    );
+    Door::write(scene.store().entry(TRAIL), Created(&trees, &RECORDED).to_string()).unwrap();
     let swept = scene.meta(&GC);
-    let trail = std::fs::read_to_string(scene.clone.path().join(TRAIL)).unwrap();
+    let trail = Door::read(scene.store().entry(TRAIL)).unwrap();
     let branch = Git::run(scene.clone.path(), &["branch", "--list", MERGED]).stdout;
     assert!(
-        shows(&swept, &SWEPT) && swept.contains(&freed) && !trees.join(MERGED).exists() && branch.is_empty(),
+        shows(&swept, &SWEPT)
+            && swept.contains(&freed)
+            && Door::kind(trees.join(MERGED)) == Kind::Missing
+            && branch.is_empty(),
         "{swept}"
     );
     assert!(
-        KEPT.iter().all(|name| trees.join(name).exists()) && TRAILED.iter().all(|entry| trail.contains(entry)),
+        KEPT.iter().all(|name| Door::kind(trees.join(name)) != Kind::Missing)
+            && TRAILED.iter().all(|entry| trail.contains(entry)),
         "{trail}"
     );
 }

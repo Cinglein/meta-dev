@@ -6,11 +6,12 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+meta-door = { path = "../../crates/meta-door" }
 task = { path = "../task" }
 strum = { version = "0.28", features = ["derive"] }
-tempfile = { workspace = true }
 
 [dev-dependencies]
+tempfile = { workspace = true }
 task = { path = "../task", features = ["test-policy"] }
 settings = { path = "../settings" }
 

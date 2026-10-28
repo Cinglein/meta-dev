@@ -56,7 +56,7 @@ impl PriorPolicy {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use meta_door::Door;
     use std::path::Path;
 
     use meta_schema::Division;
@@ -74,7 +74,7 @@ mod tests {
         let nav: Division = NAV.parse().unwrap();
         let prior = PriorPolicy::parsed(Some(SCALED.to_owned())).unwrap();
         let shipped = Path::new(env!("CARGO_MANIFEST_DIR")).join(UP).join(PriorPolicy::DEFAULT_LEVELS);
-        let levels: Scale = serde_json::from_str(&fs::read_to_string(shipped).unwrap()).unwrap();
+        let levels: Scale = serde_json::from_str(&Door::read(shipped).unwrap()).unwrap();
         assert_eq!(prior.scaled(&levels).unwrap().owner(&nav), Some(&nav));
         assert!(PriorPolicy::parsed(None).is_ok() && PriorPolicy::parsed(Some(UNREADABLE.to_owned())).is_err());
         assert_eq!(levels, Scale::top_default());

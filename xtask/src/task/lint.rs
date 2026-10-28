@@ -6,9 +6,10 @@ use std::path::Path;
 use corpus_check::LintName;
 use crate_graph::CrateGraph;
 use strum::IntoEnumIterator;
-use task::{Amount, Branch, Ledger, Measure, Policy, Report, SourceFile};
+use task::{Amount, Branch, Ledger, Measure, Policy, Report, Site, SourceFile, Violation};
 use test_budget::TestBudget;
 
+use crate::task::cargo_metadata::{CargoMetadata, MetadataPackage};
 use crate::task::failure::Failure;
 use crate::task::ratchet::{Baseline, Drift, Ratchet, ViolationCount};
 use crate::task::revision::Revision;
@@ -20,12 +21,16 @@ pub struct Lint {
 }
 
 impl Lint {
+    const DEV_ONLY: &str = "dev-only";
+    const DEV_ONLY_SUMMARY: &str = "test-only crates and door features stay in dev-dependencies";
+
     pub fn run(root: &Path, files: &[SourceFile], policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
         Revision::noreply_off(root, policy.branch(Branch::Base))?;
         let allowed = Baseline::admitted(root, policy.baseline(), policy.branch(Branch::Base))?;
         let base = || Revision::merge_base(root, policy.branch(Branch::Base));
         let spec = policy.spec().map(|spec| base().and_then(|base| SpecProse::since(root, spec, &base))).transpose()?;
-        let observed = Self::gathered(files, policy, spec).ratchet(&allowed, |_| true)?;
+        let dev_only = Self::dev_only(root, files, policy);
+        let observed = Self::gathered(files, policy, spec, dev_only).ratchet(&allowed, |_| true)?;
         println!("lint: {} rust files, {} baselined violations", files.len(), observed.total());
         ledger.spend(Measure::LintFindings, Amount::Baseline(policy.baseline().clone()));
         ledger.spend(Measure::TestLineShare, TestBudget::line_share(files, policy));
@@ -35,16 +40,29 @@ impl Lint {
 
     pub fn shrink(root: &Path, files: &[SourceFile], policy: &Policy) -> Result<Baseline, Failure> {
         let path = policy.baseline().within(root);
-        let observed = Self::gathered(files, policy, None).ratchet(&Baseline::read(&path)?, Drift::grew)?;
+        let dev_only = Self::dev_only(root, files, policy);
+        let observed = Self::gathered(files, policy, None, dev_only).ratchet(&Baseline::read(&path)?, Drift::grew)?;
         observed.write(&path)?;
         Ok(observed)
     }
 
-    fn gathered(files: &[SourceFile], policy: &Policy, spec: Option<Report>) -> Lint {
+    fn dev_only(root: &Path, files: &[SourceFile], policy: &Policy) -> Report {
+        let holds = |directory: &Path| files.iter().any(|file| root.join(file.path()).starts_with(directory));
+        let touched = |package: &MetadataPackage| package.local_manifest().and_then(Path::parent).is_some_and(holds);
+        let found = match files.first().map(|_| CargoMetadata::read(root)) {
+            None => Vec::new(),
+            Some(Ok(metadata)) => metadata.dev_only(policy, touched),
+            Some(Err(failure)) => vec![Violation::new(Site::Workspace, failure)],
+        };
+        Report::new(Self::DEV_ONLY_SUMMARY, found)
+    }
+
+    fn gathered(files: &[SourceFile], policy: &Policy, spec: Option<Report>, dev_only: Report) -> Lint {
         Lint {
             reports: LintName::iter()
                 .map(|lint| (<&'static str>::from(lint), lint.report(files, policy)))
                 .chain(spec.map(|spec| (SpecProse::LINT, spec)))
+                .chain([(Self::DEV_ONLY, dev_only)])
                 .collect(),
         }
     }
@@ -59,7 +77,7 @@ impl Lint {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use meta_door::Door;
 
     use settings::EmbeddedDefaults;
 
@@ -99,7 +117,7 @@ mod tests {
         let (policy, mut ledger) = (Policy::defaults(), Ledger::default());
         assert!(Lint::run(fixture.root(), &[], &policy, &mut ledger).is_err());
         Lint::shrink(fixture.root(), &[], &policy).unwrap();
-        assert_eq!(fs::read_to_string(fixture.path(BASELINE)).ok().as_deref(), Some(""));
+        assert_eq!(Door::read(fixture.path(BASELINE)).ok().as_deref(), Some(""));
         let passed = Lint::run(fixture.root(), &[], &policy, &mut ledger).is_ok();
         let statement = ledger.statement(&policy).to_string();
         assert!(passed && statement.lines().any(|row| row.starts_with(LINT_FINDINGS) && row.ends_with(MEASURED_OK)));

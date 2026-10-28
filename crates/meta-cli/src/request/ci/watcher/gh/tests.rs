@@ -1,5 +1,7 @@
-use std::os::unix::fs::PermissionsExt as _;
 use std::time::{Duration, Instant};
+
+use meta_door::kinds::{Permissions, PermissionsExt as _};
+use meta_door::{Change, Door};
 
 use tempfile::TempDir;
 
@@ -27,9 +29,9 @@ impl Fixture {
     fn new() -> Self {
         let dir = tempfile::tempdir().unwrap();
         let program = dir.path().join("gh");
-        std::fs::write(&program, SCRIPT).unwrap();
-        std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755)).unwrap();
-        std::fs::write(dir.path().join("reply"), REPLY).unwrap();
+        Door::write(&program, SCRIPT).unwrap();
+        Door::changed(&program, Change::Permissions(Permissions::from_mode(0o755))).unwrap();
+        Door::write(dir.path().join("reply"), REPLY).unwrap();
         let text = format!("[ci]\nprogram = \"{}\"\ngh_millis = 10\n", program.display());
         Self { dir, settings: toml::from_str::<Config>(&text).unwrap().ci_settings() }
     }
@@ -45,7 +47,7 @@ impl Fixture {
 fn a_log_download_may_outlast_the_call_limit_and_a_failed_one_says_so() {
     let fixture = Fixture::new();
     let failed = fixture.excerpt();
-    std::fs::write(fixture.dir.path().join("ok"), "").unwrap();
+    Door::write(fixture.dir.path().join("ok"), "").unwrap();
     let slow = fixture.excerpt();
     assert!(slow.contains("test slow ... FAILED") && failed.contains("gh failed: boom"), "{failed}\n{slow}");
 }

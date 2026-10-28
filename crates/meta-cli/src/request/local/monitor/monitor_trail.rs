@@ -1,8 +1,7 @@
 mod monitor_entry;
 
-use std::path::Path;
-
 use chrono::{DateTime, Utc};
+use meta_door::MetaStore;
 
 use super::finding::Finding;
 use crate::request::cli_failure::CliFailure;
@@ -16,8 +15,8 @@ pub struct MonitorTrail(LocalFile);
 impl MonitorTrail {
     const FILE: &'static str = "meta-local/monitor.jsonl";
 
-    pub fn new(git_dir: &Path) -> Self {
-        Self(LocalFile::new(git_dir.join(Self::FILE)))
+    pub fn new(store: &MetaStore) -> Self {
+        Self(LocalFile::new(store.entry(Self::FILE)))
     }
 
     pub fn appended(

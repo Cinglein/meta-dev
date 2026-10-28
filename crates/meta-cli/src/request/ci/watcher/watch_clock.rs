@@ -43,7 +43,7 @@ impl WatchClock {
         let pause = self.left(settings, settings.gh_limit()).map(|window| wait.min(window))?;
         let reading = Self::reading(self.injected.as_ref()).map_or(self.origin, ClockReading::elapsed);
         let advanced =
-            self.injected.as_ref().map(|file| std::fs::write(file, (reading + pause).as_millis().to_string()));
+            self.injected.as_ref().map(|file| meta_door::Door::write(file, (reading + pause).as_millis().to_string()));
         advanced.map_or_else(|| std::thread::sleep(pause), drop);
         Some(())
     }
@@ -60,7 +60,7 @@ impl WatchClock {
     }
 
     fn reading(injected: Option<&PathBuf>) -> Option<ClockReading> {
-        injected.and_then(|file| std::fs::read_to_string(file).ok()).and_then(|text| text.parse().ok())
+        injected.and_then(|file| meta_door::Door::read(file).ok()).and_then(|text| text.parse().ok())
     }
 }
 

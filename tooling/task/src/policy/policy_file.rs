@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
 use super::bit_boundary::BitBoundary;
+use super::file_door::FileDoor;
 use super::least::Least;
 use super::policy_failure::PolicyFailure;
 use super::{BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface};
@@ -26,6 +27,8 @@ pub struct PolicyFile {
     vague: Vec<String>,
     wire_types: Vec<String>,
     bit_boundary: BitBoundary,
+    #[serde(default)]
+    file_door: FileDoor,
     surfaces: Vec<Surface>,
     branches: EnumMap<Branch, BranchName>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -60,6 +63,7 @@ impl PolicyFile {
             vague: policy.vague.clone(),
             wire_types: policy.wire_types.clone(),
             bit_boundary: policy.bit_boundary.clone(),
+            file_door: policy.file_door.clone(),
             surfaces: policy.surfaces.clone(),
             branches: policy.branches.clone(),
             baseline: None,
@@ -154,6 +158,7 @@ impl PolicyFile {
             vague: self.vague,
             wire_types: self.wire_types,
             bit_boundary: self.bit_boundary,
+            file_door: self.file_door,
             surfaces: self.surfaces,
             branches: self.branches,
             baseline: baseline

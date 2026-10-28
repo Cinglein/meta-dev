@@ -71,7 +71,7 @@ impl Heartbeat {
                     settings.gc_limit().deadline(),
                     settings.gc_mode(),
                 );
-                Tick::reported(clone.git_dir().as_ref(), gc)?;
+                Tick::reported(clone.store(), gc)?;
                 ticked
             }
             Self::TickRun => Tick::live(project, &clone),
@@ -81,7 +81,7 @@ impl Heartbeat {
             ),
             Self::Flags => {
                 let now = Utc::now();
-                let flags = LatestFlags::answer(clone.git_dir().as_ref(), &settings, now)?;
+                let flags = LatestFlags::answer(clone.store(), &settings, now)?;
                 Ok(flags.raised_with(Monitor::recent(&clone, now)?))
             }
             Self::Plist => Self::plist(&clone, &settings),

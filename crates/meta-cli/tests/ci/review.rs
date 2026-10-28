@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use meta_door::{Change, Door, Pair};
+
 use super::{
     BLOCK, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSHED, Planted, Repo, STOP, Session, StartFile,
 };
@@ -34,7 +36,7 @@ const BACK_TO_MAIN: [&str; 3] = ["checkout", "-q", "main"];
 const NOT_PUSHED: &str = "is not pushed";
 const REFLOG_OFF: &str = "reflog";
 const NOT_WATCHED: &str = "CI not watched";
-const STATE_ROOT: &str = ".git/meta-ci";
+const STATE_ROOT: &str = "meta-ci";
 const CONFIG_FILE: &str = "meta.toml";
 
 struct Clones;
@@ -44,7 +46,7 @@ impl Clones {
         let dir = tempfile::tempdir().unwrap();
         let origin = repo.origin.path().to_str().unwrap();
         Git::run(dir.path(), &[["clone"].as_slice(), options, &[origin, "."]].concat());
-        std::fs::copy(repo.clone.path().join(CONFIG_FILE), dir.path().join(CONFIG_FILE)).unwrap();
+        Door::paired(repo.clone.path().join(CONFIG_FILE), dir.path().join(CONFIG_FILE), Pair::Copy).unwrap();
         dir
     }
 }
@@ -110,12 +112,12 @@ fn a_reflog_that_is_off_or_an_unwritable_state_dir_fails_closed() {
     Git::run(quiet.path(), &NEXT_COMMIT);
     Git::run(quiet.path(), &PUSH_ASIDE);
     let off = blind.hook(STOP, READ);
-    std::fs::create_dir_all(clone.join(STATE_ROOT)).unwrap();
-    let open = Planted::locked(&clone.join(STATE_ROOT));
+    Door::changed(repo.store().entry(STATE_ROOT), Change::DirAll).unwrap();
+    let open = Planted::locked(repo.store().entry(STATE_ROOT));
     locked.hook(PRE, WRITE);
     Git::run_at(clone, &NEXT_COMMIT, LATER);
     let warned = locked.hook(POST, WRITE);
     let stop = locked.hook(STOP, READ);
-    std::fs::set_permissions(clone.join(STATE_ROOT), open).unwrap();
+    Door::changed(repo.store().entry(STATE_ROOT), Change::Permissions(open)).unwrap();
     assert!(off.contains(REFLOG_OFF) && warned.contains(NOT_WATCHED) && stop.contains(BLOCK));
 }

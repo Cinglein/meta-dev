@@ -9,6 +9,7 @@ publish.workspace = true
 affected = { path = "../tooling/affected" }
 corpus_check = { path = "../tooling/corpus_check" }
 crate_graph = { path = "../tooling/lints/crate_graph" }
+meta-door = { path = "../crates/meta-door" }
 meta-log = { path = "../crates/meta-log" }
 meta-schema = { path = "../crates/meta-schema" }
 meta-severity = { path = "../crates/meta-severity" }
@@ -20,7 +21,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 stacked = { path = "../tooling/stacked" }
 strum = { version = "0.28", features = ["derive"] }
-tempfile = "3"
 test_budget = { path = "../tooling/lints/test_budget" }
 thiserror = "2"
 task = { path = "../tooling/task" }
@@ -31,4 +31,6 @@ toml = "0.9"
 workspace = true
 
 [dev-dependencies]
+tempfile = "3"
+meta-door = { path = "../crates/meta-door", features = ["skeleton"] }
 task = { path = "../tooling/task", features = ["test-policy"] }

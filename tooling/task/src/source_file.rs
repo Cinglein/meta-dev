@@ -1,4 +1,4 @@
-use std::fs;
+use meta_door::Door;
 use std::path::{Path, PathBuf};
 
 use syn::ItemMod;
@@ -24,7 +24,7 @@ impl SourceFile {
         crate_name: CrateName,
     ) -> Result<Self, Failure> {
         let path = workspace.relative(file);
-        let text = fs::read_to_string(file).map_err(|error| Failure::Io {
+        let text = Door::read(file).map_err(|error| Failure::Io {
             site: Site::File(path.clone()),
             error,
         })?;

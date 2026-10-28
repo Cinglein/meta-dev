@@ -9,6 +9,7 @@ publish = false
 license = "UNLICENSED"
 
 [workspace.dependencies]
+meta-door = { path = "crates/meta-door" }
 meta-schema = { path = "crates/meta-schema" }
 meta-log = { path = "crates/meta-log" }
 meta-state = { path = "crates/meta-state" }

@@ -4,9 +4,10 @@ mod tally;
 
 use std::collections::BTreeMap;
 use std::fmt;
-use std::fs;
 use std::num::NonZeroU64;
 use std::path::{Path, PathBuf};
+
+use meta_door::Door;
 
 use outcomes::Outcomes;
 use overrun::Overrun;
@@ -47,7 +48,7 @@ impl MutantCosts {
         let io = |error| Failure::Io { site: Site::File(directory.to_path_buf()), error };
         Self::outcome_files(directory)?
             .iter()
-            .map(|file| fs::read_to_string(file).map_err(io))
+            .map(|file| Door::read(file).map_err(io))
             .map(|json| Outcomes::parse(&json?))
             .collect()
     }
@@ -105,10 +106,11 @@ impl MutantCosts {
 
     fn outcome_files(path: &Path) -> Result<Vec<PathBuf>, Failure> {
         let io = |error| Failure::Io { site: Site::File(path.to_path_buf()), error };
-        if path.is_dir() {
-            fs::read_dir(path)
+        if Door::kind(path) == meta_door::kinds::Kind::Dir {
+            Door::listed(path)
                 .map_err(io)?
-                .map(|entry| Self::outcome_files(&entry.map_err(io)?.path()))
+                .iter()
+                .map(|entry| Self::outcome_files(entry))
                 .collect::<Result<Vec<Vec<PathBuf>>, Failure>>()
                 .map(|nested| nested.into_iter().flatten().collect())
         } else {
@@ -141,8 +143,9 @@ impl fmt::Display for MutantCosts {
 #[cfg(test)]
 mod tests {
     use super::{Failure, Interval, MutantCosts, Outcomes};
+    use meta_door::{Change, Door};
     use settings::EmbeddedDefaults;
-    use std::{env, fs, iter, process};
+    use std::iter;
     use task::Policy;
     const LISTED: &str = "meta-cli";
     const SAMPLE: usize = 30;
@@ -227,14 +230,14 @@ mod tests {
     #[test]
     fn nested_outcome_files_make_one_run_and_a_baseline_dearer_than_the_crate_overhead_fails() {
         let policy = Policy::defaults();
-        let root = env::temp_dir().join(format!("{SCRATCH}-{}", process::id()));
-        let file = NESTED.iter().fold(root.clone(), |path, part| path.join(part));
-        fs::create_dir_all(file.parent().unwrap()).unwrap();
-        fs::write(&file, SLOW_BASELINE).unwrap();
-        fs::write(root.join(DECOY), SCRATCH).unwrap();
-        let found = MutantCosts::outcome_files(&root);
-        let run = MutantCosts::read_run(&root);
-        fs::remove_dir_all(&root).unwrap();
+        let scratch = tempfile::tempdir().unwrap();
+        let root = scratch.path();
+        let file = NESTED.iter().fold(root.to_path_buf(), |path, part| path.join(part));
+        Door::changed(file.parent().unwrap(), Change::DirAll).unwrap();
+        Door::write(&file, SLOW_BASELINE).unwrap();
+        Door::write(root.join(DECOY), SCRATCH).unwrap();
+        let found = MutantCosts::outcome_files(root);
+        let run = MutantCosts::read_run(root);
         assert_eq!(found.unwrap(), vec![file]);
         let costs = MutantCosts::across([run.unwrap()], &policy);
         assert!(matches!(costs.priced_within(&policy, Interval::FullJob), Err(Failure::Underpriced(_))));

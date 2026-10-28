@@ -104,6 +104,7 @@ dependencies = [
  "fn_shape",
  "literal_names",
  "manual_iteration",
+ "meta-door",
  "module_nesting",
  "named_lifetimes",
  "named_numbers",
@@ -398,6 +399,7 @@ name = "meta-cli"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "meta-door",
  "meta-gh",
  "meta-listing",
  "meta-log",
@@ -413,6 +415,13 @@ dependencies = [
  "tempfile",
  "thiserror",
  "toml 0.8.23",
+]
+
+[[package]]
+name = "meta-door"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
 ]
 
 [[package]]
@@ -438,6 +447,7 @@ name = "meta-log"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "meta-door",
  "meta-schema",
  "serde",
  "serde_json",
@@ -491,6 +501,7 @@ name = "meta-spec"
 version = "0.1.0"
 dependencies = [
  "corpus_check",
+ "meta-door",
  "meta-xtask",
  "strum",
  "task",
@@ -527,6 +538,7 @@ dependencies = [
  "affected",
  "corpus_check",
  "crate_graph",
+ "meta-door",
  "meta-log",
  "meta-schema",
  "meta-severity",
@@ -557,10 +569,12 @@ dependencies = [
 name = "mutant_costs"
 version = "0.1.0"
 dependencies = [
+ "meta-door",
  "serde",
  "serde_json",
  "settings",
  "task",
+ "tempfile",
 ]
 
 [[package]]
@@ -568,12 +582,14 @@ name = "mutation"
 version = "0.1.0"
 dependencies = [
  "affected",
+ "meta-door",
  "serde",
  "serde_json",
  "settings",
  "strum",
  "sysinfo",
  "task",
+ "tempfile",
 ]
 
 [[package]]
@@ -726,6 +742,7 @@ checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 name = "primitive_boundary"
 version = "0.1.0"
 dependencies = [
+ "proc-macro2",
  "syn 2.0.119",
  "task",
 ]
@@ -989,6 +1006,7 @@ version = "0.1.0"
 dependencies = [
  "derive_more",
  "enum-map",
+ "meta-door",
  "meta-schema",
  "meta-severity",
  "meta-state",
@@ -1000,6 +1018,7 @@ dependencies = [
  "strum",
  "syn 2.0.119",
  "sysinfo",
+ "tempfile",
  "thiserror",
  "toml 0.9.12+spec-1.1.0",
 ]
@@ -1031,6 +1050,7 @@ dependencies = [
 name = "test_time"
 version = "0.1.0"
 dependencies = [
+ "meta-door",
  "settings",
  "strum",
  "task",

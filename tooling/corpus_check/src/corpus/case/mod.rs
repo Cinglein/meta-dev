@@ -1,9 +1,9 @@
 mod annotated_source;
 
-use std::fs;
 use std::path::{Component, Path};
 
 use annotated_source::AnnotatedSource;
+use meta_door::Door;
 
 use super::corpus_error::CorpusError;
 use super::expectation::Expectation;
@@ -53,8 +53,7 @@ impl Case {
 
     fn reading(mut self, directory: &Path, file: &Path) -> Result<Case, CorpusError> {
         let path = file.strip_prefix(directory).unwrap_or(file).to_path_buf();
-        let text =
-            fs::read_to_string(file).map_err(|error| CorpusError::Io { site: Site::File(path.clone()), error })?;
+        let text = Door::read(file).map_err(|error| CorpusError::Io { site: Site::File(path.clone()), error })?;
         let source: AnnotatedSource = text.parse()?;
         self.expected.extend(source.expectations(&self.name, &path));
         let parsed = source.source_file(path.clone())?;

@@ -1,5 +1,5 @@
+use meta_door::Door;
 use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
 use std::io::ErrorKind;
 use std::path::Path;
 
@@ -19,7 +19,7 @@ pub struct Baseline(BTreeMap<String, ViolationCount>);
 
 impl Baseline {
     pub fn read(path: &Path) -> Result<Baseline, Failure> {
-        match fs::read_to_string(path) {
+        match Door::read(path) {
             Ok(text) => Ok(toml::from_str(&text)?),
             Err(error) if error.kind() == ErrorKind::NotFound => Ok(Baseline::default()),
             Err(error) => Err(Failure::from(task::Failure::Io { site: Site::File(path.to_path_buf()), error })),
@@ -39,7 +39,7 @@ impl Baseline {
 
     pub fn write(&self, path: &Path) -> Result<(), Failure> {
         let text = toml::to_string(self)?;
-        fs::write(path, text)
+        Door::write(path, text)
             .map_err(|error| Failure::from(task::Failure::Io { site: Site::File(path.to_path_buf()), error }))
     }
 

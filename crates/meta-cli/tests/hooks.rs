@@ -5,6 +5,9 @@ use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
+use meta_door::kinds::Kind;
+use meta_door::{Door, MetaStore};
+
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n";
 const MERGE: &str = "gh pr merge 1";
@@ -18,10 +21,10 @@ const COMMIT: &str = "git commit -m change";
 const STATUS: &str = "git status";
 const ALL_REFS: &str = "--all";
 const AMEND: [&str; 6] = ["commit", "-q", "--amend", "--allow-empty", "-m", "rewritten"];
-const FOREIGN_IDENTITY: &str = "[user]\n\tname = someone\n\temail = someone@example.com\n";
-const NOREPLY_IDENTITY: &str = "[user]\n\tname = someone\n\temail = 1+someone@users.noreply.github.com\n";
-const GIT_CONFIG: &str = ".git/config";
-const BARE_CONFIG: &str = "config";
+const SETTING_LEN: usize = 2;
+const FOREIGN_IDENTITY: [[&str; 2]; 2] = [["user.name", "someone"], ["user.email", "someone@example.com"]];
+const NOREPLY_IDENTITY: [[&str; 2]; 2] =
+    [["user.name", "someone"], ["user.email", "1+someone@users.noreply.github.com"]];
 const ELSEWHERE: &str = "ELSEWHERE";
 const FOREIGN_REASON: &str = "someone@example.com is not noreply; git config user.name";
 const UNRESOLVED_REASON: &str = "cannot resolve the commit directory";
@@ -37,7 +40,7 @@ const FEATURE_BRANCH: &str = "feature";
 const REJECTED: &str = "rejected";
 const SESSION_START: &str = "session-start";
 const SESSION_FIELD: &str = r#""session_id":"ABCDEF12-34","#;
-const WATCHERS: &str = ".git/meta-ci";
+const WATCHERS: &str = "meta-ci";
 const NO_TASKS: &str = "Tasks: 0 unfinished";
 const SESSION_ACTOR: &str = "claude-abcdef1234";
 const SESSION_STARTED: &str = "meta-sessions/ABCDEF1234/started";
@@ -65,16 +68,8 @@ impl Git {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
     }
 
-    fn link_origin(dir: &Path, origin: &Path) {
-        let url = origin.display();
-        Self::configure(
-            &dir.join(".git/config"),
-            &format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n"),
-        );
-    }
-
-    fn configure(file: &Path, section: &str) {
-        std::fs::OpenOptions::new().append(true).open(file).unwrap().write_all(section.as_bytes()).unwrap();
+    fn configure(dir: &Path, settings: &[[&str; SETTING_LEN]]) {
+        assert!(settings.iter().all(|[key, value]| Self::run(dir, &["config", key, value]).status.success()));
     }
 
     fn head(dir: &Path, reference: &str) -> Revision {
@@ -94,10 +89,8 @@ impl Repo {
     fn new() -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Skeleton::Bare.lay(origin.path(), "main");
-        Skeleton::Working.lay(clone.path(), "main");
-        Git::link_origin(clone.path(), origin.path());
-        std::fs::write(clone.path().join("meta.toml"), CONFIG).unwrap();
+        Skeleton::laid(origin.path(), clone.path(), "main");
+        Door::write(clone.path().join("meta.toml"), CONFIG).unwrap();
         Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "start"]);
         Self { origin, clone }
     }
@@ -132,8 +125,8 @@ fn pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_whereve
     let repo = Repo::new();
     let home = repo.clone.path();
     let elsewhere = repo.origin.path();
-    Git::configure(&home.join(GIT_CONFIG), NOREPLY_IDENTITY);
-    Git::configure(&elsewhere.join(BARE_CONFIG), FOREIGN_IDENTITY);
+    Git::configure(home, &NOREPLY_IDENTITY);
+    Git::configure(elsewhere, &FOREIGN_IDENTITY);
     let push = repo.hook(PRE, PUSH, home);
     assert!(repo.hook(PRE, MERGE, home).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
     let commits = REFUSED_COMMITS.into_iter().zip([home, elsewhere, home, home]);
@@ -153,7 +146,10 @@ fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
     repo.hook(POST, COMMIT, home);
     assert_eq!(Git::head(repo.origin.path(), FEATURE_BRANCH), Git::head(repo.clone.path(), HEAD));
     Git::run(repo.clone.path(), &AMEND);
-    assert!(repo.hook(POST, COMMIT, home).contains(REJECTED) && !repo.clone.path().join(WATCHERS).exists());
+    assert!(
+        repo.hook(POST, COMMIT, home).contains(REJECTED)
+            && Door::kind(MetaStore::located(home).unwrap().entry(WATCHERS)) == Kind::Missing
+    );
 }
 
 #[test]
@@ -162,8 +158,8 @@ fn session_start_shows_state_and_names_the_session_actor() {
     let home = repo.clone.path();
     let shown = repo.hook(SESSION_START, COMMIT, home);
     assert!(shown.contains(NO_TASKS) && shown.contains(SESSION_ACTOR));
-    assert_eq!(std::fs::read_to_string(repo.env_file()).unwrap(), ENV_LINE);
-    assert!(home.join(SESSION_STARTED).exists());
+    assert_eq!(Door::read(repo.env_file()).unwrap(), ENV_LINE);
+    assert_ne!(Door::kind(home.join(SESSION_STARTED)), Kind::Missing);
 }
 
 impl fmt::Display for Repo {

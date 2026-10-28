@@ -2,6 +2,7 @@ mod thawed;
 
 use std::path::{Path, PathBuf};
 
+use meta_door::{Entry, MetaStore};
 use serde::{Deserialize, Serialize};
 
 pub use thawed::Thawed;
@@ -33,8 +34,15 @@ impl Thaw {
         &self.origin
     }
 
-    pub fn ledger(&self) -> PathBuf {
-        self.ledger.clone()
+    pub fn ledger(&self) -> std::io::Result<Entry> {
+        Self::stored(&self.ledger).unwrap_or_else(|| Ok(Entry::from(&self.ledger)))
+    }
+
+    pub fn stored(ledger: &Path) -> Option<std::io::Result<Entry>> {
+        let ledgers = ledger.parent()?;
+        let common = ledgers.ancestors().find(|dir| dir.join(Self::LEDGERS) == ledgers)?;
+        let store = MetaStore::located(common.parent().unwrap_or(common));
+        Some(store.map(|store| store.entry(ledger.strip_prefix(store.common()).unwrap_or(ledger))))
     }
 
     pub fn files(&self) -> &[Thawed] {

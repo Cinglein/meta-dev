@@ -1,5 +1,4 @@
 mod busy;
-mod cargo_metadata;
 mod checkout;
 mod config_effect;
 mod findings;
@@ -7,7 +6,6 @@ mod gate_child;
 mod gate_lock;
 mod gate_state;
 mod meta_rev;
-mod metadata_package;
 mod outside_config;
 mod passed_steps;
 mod posting;
@@ -23,7 +21,6 @@ pub use outside_config::OutsideConfig;
 pub use posting::Posting;
 pub use unready::Unready;
 
-use cargo_metadata::CargoMetadata;
 use checkout::Checkout;
 use config_effect::ConfigEffect;
 use findings::Findings;
@@ -31,7 +28,6 @@ use gate_child::GateChild;
 use gate_lock::GateLock;
 use gate_state::GateState;
 use meta_rev::MetaRev;
-use metadata_package::MetadataPackage;
 use passed_steps::PassedSteps;
 use recorded_times::RecordedTimes;
 use status_description::StatusDescription;
@@ -46,6 +42,7 @@ use meta_schema::PullRequest;
 
 use task::{Branch, CommandLine, GateEnvName, GateStatus, Policy, Program, Stdout};
 
+use crate::task::cargo_metadata::CargoMetadata;
 use crate::task::ci::head_branch::HeadBranch;
 use crate::task::ci::run_kind::RunKind;
 use crate::task::ci::standing_log::StandingLog;
@@ -191,7 +188,8 @@ impl LocalGate {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use meta_door::Door;
+    use meta_door::kinds::Kind;
     use std::path::PathBuf;
 
     use settings::EmbeddedDefaults;
@@ -213,8 +211,8 @@ mod tests {
     const ALPHA: &str = "pub struct Alpha;\n";
     const BETA: &str = "pub struct Beta;\n";
     const SHELL: &str = "sh";
-    const FAKE_GH: &str = ".git/fake-gh";
-    const RECORDED: &str = ".git/fake-gh.args";
+    const FAKE_GH: &str = "../fake-gh";
+    const RECORDED: &str = "../fake-gh.args";
     const SCRIPT: &str = "printf '%s\\n' \"$@\" > \"$0.args\"\n";
     const TIMED: &str = "fmt 1.0s";
     const POSTED: &str = "-f\nstate=success\n-f\ncontext=local-gate/consumer\n-f\ndescription=meta-dev local on 1.90-x86_64-unknown-linux-gnu: ";
@@ -224,7 +222,7 @@ mod tests {
     const SURFACED: &str = "; surfaces changed\n";
     const TIMED_ALL: &str = ": fmt 1.0s, clippy 1.0s,";
     const PUSHED_AT_HEAD: &str = "main";
-    const SECOND_PUSH: &str = ".git/refs/remotes/origin/second";
+    const SECOND_PUSH: &str = "refs/remotes/origin/second";
     const LISTING: &str = "printf '7\\n'\n";
     const LISTED: &str = "7";
     const HEAD: &str = "HEAD";
@@ -238,7 +236,7 @@ mod tests {
     impl LocalGate {
         fn faked(fixture: &Fixture) -> LocalGate {
             fixture.write(IGNORE, IGNORED).write(SOURCE, ALPHA).branch();
-            fs::write(fixture.path(FAKE_GH), SCRIPT).expect("write fake gh");
+            fixture.write(FAKE_GH, SCRIPT);
             let gh = CommandLine::new(Program::Executable(SHELL.into())).argument(fixture.path(FAKE_GH).display());
             let gate = LocalGate::new(&fixture.path(SCOPE), &Policy::defaults()).expect("gate in policy");
             LocalGate { gh, ..gate }
@@ -256,7 +254,7 @@ mod tests {
         let named = || gate.head_branch(&fixture.revision(HEAD).parse().unwrap());
         let pushed = named().ok() == PUSHED_AT_HEAD.parse().ok();
         assert!(pushed && gate.ready().is_ok() && LocalGate::METADATA.contains(&ALL_FEATURES));
-        fixture.write(SECOND_PUSH, &fixture.revision(HEAD));
+        fixture.updated(SECOND_PUSH);
         let several = LocalGate::refused(named(), Unready::Unnamed);
         fixture.write(FAKE_GH, LISTING);
         let listed = gate.open_pull(&PUSHED_AT_HEAD.parse().unwrap()).unwrap() == LISTED.parse().ok();
@@ -271,18 +269,18 @@ mod tests {
         let fixture = Fixture::new();
         let gate = LocalGate::faked(&fixture);
         let checkout = gate.checkout(&fixture.beside()).unwrap();
-        fs::write(checkout.times().path(), CiStep::every_step_passed()).unwrap();
-        fs::write(checkout.root().join(LOCKFILE), BETA).unwrap();
+        Door::write(checkout.times().path(), CiStep::every_step_passed()).unwrap();
+        Door::write(checkout.root().join(LOCKFILE), BETA).unwrap();
         fixture.write(SOURCE, BETA).branch();
         let surfaces = Findings::new(Changed::new(vec![PathBuf::from(IGNORE)]), TOOLCHAIN.parse().unwrap());
-        let recorded = || fs::read_to_string(fixture.path(RECORDED)).unwrap_or_default();
+        let recorded = || Door::read(fixture.path(RECORDED)).unwrap_or_default();
         gate.concluded(&checkout, Ok(()), &surfaces).unwrap();
         let posted = recorded();
         let described = posted.contains(TIMED_ALL) && posted.ends_with(SURFACED);
         assert!(posted.contains(&format!("/statuses/{}\n{POSTED}", checkout.commit())) && described);
         let failed = gate.concluded(&checkout, Err(task::Failure::NoWorkspace), &surfaces);
         assert!(failed.is_err() && recorded().contains(FAILED));
-        fs::write(checkout.times().path(), TIMED).unwrap();
+        Door::write(checkout.times().path(), TIMED).unwrap();
         let partial = gate.concluded(&checkout, Ok(()), &surfaces);
         assert!(LocalGate::refused(partial, Unready::Incomplete) && recorded().contains(FAILED));
     }
@@ -292,9 +290,9 @@ mod tests {
         let fixture = Fixture::new();
         let gate = LocalGate::faked(&fixture);
         let checkout = gate.checkout(&fixture.beside()).unwrap();
-        fs::write(checkout.root().join(LEFTOVER), BETA).unwrap();
+        Door::write(checkout.root().join(LEFTOVER), BETA).unwrap();
         let findings = Findings::new(Changed::new(Vec::new()), TOOLCHAIN.parse().unwrap());
         let posted = gate.concluded(&checkout, Ok(()), &findings);
-        assert!(LocalGate::refused(posted, Unready::Tampered) && !fixture.path(RECORDED).exists());
+        assert!(LocalGate::refused(posted, Unready::Tampered) && Door::kind(fixture.path(RECORDED)) == Kind::Missing);
     }
 }

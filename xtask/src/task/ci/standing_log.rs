@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use meta_door::Door;
 use meta_log::{GitLog, Snapshot};
 use meta_severity::Scales;
 use meta_state::State;
@@ -16,12 +17,10 @@ pub struct StandingLog;
 impl StandingLog {
     const REMOTE: &str = "origin";
     const DEFAULT_BRANCH: &str = "origin/HEAD";
-    const GIT_ENTRY: &str = ".git";
 
     pub fn git(root: &Path) -> GitLog {
         let Ok(remote) = Self::REMOTE.parse();
-        let repository = root.ancestors().find(|dir| dir.join(Self::GIT_ENTRY).exists()).unwrap_or(root);
-        GitLog::new(repository.to_path_buf(), remote)
+        GitLog::new(Door::repository(root).unwrap_or_else(|| root.to_path_buf()), remote)
     }
 
     pub fn prefetched(root: &Path) -> Result<LogSource, Failure> {

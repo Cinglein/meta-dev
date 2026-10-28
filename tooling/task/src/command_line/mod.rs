@@ -16,11 +16,11 @@ pub use stderr::Stderr;
 pub use stdout::Stdout;
 pub use stream::Stream;
 
+use meta_door::kinds::Handle;
 use std::collections::BTreeMap;
 use std::env;
 use std::ffi::OsString;
 use std::fmt;
-use std::fs::File;
 use std::path::PathBuf;
 use std::process::{Child, Command, Output};
 
@@ -109,7 +109,7 @@ impl CommandLine {
         self.finished(self.command())
     }
 
-    pub fn run_holding(&self, held: File) -> Result<(), Failure> {
+    pub fn run_holding(&self, held: Handle) -> Result<(), Failure> {
         let mut command = self.command();
         command.stdin(held);
         self.finished(command)
@@ -177,7 +177,7 @@ impl fmt::Display for CommandLine {
 #[cfg(test)]
 mod tests {
     use super::{CargoArgument, CommandLine, Program, Stderr, Stdout};
-    use std::fs::File;
+    use meta_door::{Door, Opening};
     use std::path::{Path, PathBuf};
     const GIT: &str = "git";
     const SHOWN: &str = "git fmt --all";
@@ -215,8 +215,8 @@ mod tests {
             .captured::<Stdout>()
             .unwrap();
         assert_eq!(
-            PathBuf::from(shown.trim()).canonicalize().ok(),
-            directory.canonicalize().ok()
+            Door::canonical(shown.trim()).ok(),
+            Door::canonical(&directory).ok()
         );
         assert!(executable(succeeds).run().is_ok() && executable(fails).run().is_err());
         let complained = executable(shell).arguments(TO_STDERR).captured::<Stderr>();
@@ -238,9 +238,15 @@ mod tests {
             .environment(VARIABLE, PathBuf::from(TARGET))
             .captured::<Stdout>();
         assert_eq!(shown.ok().as_deref(), Some(TARGET));
-        let manifest = || File::open(Path::new(env!("CARGO_MANIFEST_DIR")).join(MANIFEST)).unwrap();
+        let manifest = || {
+            Door::opened(
+                Path::new(env!("CARGO_MANIFEST_DIR")).join(MANIFEST),
+                Opening::Read,
+            )
+            .unwrap()
+        };
         let reads = shell().arguments(READS_PACKAGE);
-        let empty = File::open(EMPTY).unwrap();
+        let empty = Door::opened(EMPTY, Opening::Read).unwrap();
         assert!(reads.run_holding(manifest()).is_ok() && reads.run_holding(empty).is_err());
     }
 }

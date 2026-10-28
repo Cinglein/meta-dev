@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use meta_door::{Change, Door, Pair};
+
 use super::Host;
 use crate::request::local::byte_count::ByteCount;
 use crate::request::local::local_clone::vetting::alternates::Alternates;
@@ -18,7 +20,7 @@ const INNER_TEXT: &str = "ab";
 const WALKED: [(&str, EntryKind, u64); 4] =
     [(DIR, EntryKind::Dir, 0), (INNER, EntryKind::File, 2), (FILE, EntryKind::File, 3), (LINK, EntryKind::Symlink, 12)];
 const LENDERS: [(&str, &str); 3] = [
-    ("peer/.git/objects", "../../../x/objects\n"),
+    ("peer/git/objects", "../../../x/objects\n"),
     ("bare/objects", "/abs/objects\n"),
     ("deep/down/repo.git/Objects", "../../../../x/objects\n"),
 ];
@@ -39,23 +41,23 @@ struct Planted(tempfile::TempDir);
 impl Planted {
     fn new() -> Self {
         let planted = Self(tempfile::tempdir().unwrap());
-        std::fs::write(planted.located(FILE), TEXT).unwrap();
-        std::fs::create_dir(planted.located(DIR)).unwrap();
-        std::fs::write(planted.located(INNER), INNER_TEXT).unwrap();
-        std::os::unix::fs::symlink(LINK_TARGET, planted.located(LINK)).unwrap();
-        std::fs::create_dir_all(planted.located(PLAIN)).unwrap();
+        Door::write(planted.located(FILE), TEXT).unwrap();
+        Door::changed(planted.located(DIR), Change::Dir).unwrap();
+        Door::write(planted.located(INNER), INNER_TEXT).unwrap();
+        Door::paired(LINK_TARGET, planted.located(LINK), Pair::Symlink).unwrap();
+        Door::changed(planted.located(PLAIN), Change::DirAll).unwrap();
         LENDERS
             .iter()
             .try_for_each(|(objects, listed)| {
-                std::fs::create_dir_all(planted.located(objects).join(INFO))?;
-                std::fs::write(planted.located(objects).join(ALTERNATES), listed)
+                Door::changed(planted.located(objects).join(INFO), Change::DirAll)?;
+                Door::write(planted.located(objects).join(ALTERNATES), listed)
             })
             .unwrap();
         planted
     }
 
     fn located(&self, name: &str) -> PathBuf {
-        std::fs::canonicalize(self.0.path()).unwrap().join(name)
+        Door::canonical(self.0.path()).unwrap().join(name)
     }
 }
 

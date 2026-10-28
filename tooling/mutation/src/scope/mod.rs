@@ -5,8 +5,9 @@ mod test_packages;
 pub use mutants_run::MutantsRun;
 
 use std::env;
-use std::fs;
 use std::path::Path;
+
+use meta_door::Door;
 
 use affected::TestedCrates;
 use affected::{CrateLoad, Packing};
@@ -113,16 +114,16 @@ impl Scope {
             .argument(GitArgument::MergeBase)
             .argument(base)
             .captured::<Stdout>()?;
-        fs::write(file, diff).map_err(|error| Failure::Io { site: Site::File(file.to_path_buf()), error })
+        Door::write(file, diff).map_err(|error| Failure::Io { site: Site::File(file.to_path_buf()), error })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::Scope;
+    use meta_door::{Change, Door};
     use std::path::Path;
     use std::process::Command;
-    use std::{env, fs, process};
     const SOURCE: &str = "consumer/a.rs";
     const BASE: &str = "origin/main";
     const RELATIVE: &str = "+++ b/a.rs";
@@ -135,17 +136,17 @@ mod tests {
 
     #[test]
     fn the_diff_of_a_workspace_below_the_git_top_level_names_paths_from_its_root() {
-        let repository = env::temp_dir().join(format!("meta-diff-{}", process::id()));
-        fs::create_dir_all(repository.join(SOURCE).parent().unwrap()).unwrap();
-        fs::write(repository.join(SOURCE), BASE).unwrap();
+        let scratch = tempfile::tempdir().unwrap();
+        let repository = scratch.path();
+        Door::changed(repository.join(SOURCE).parent().unwrap(), Change::DirAll).unwrap();
+        Door::write(repository.join(SOURCE), BASE).unwrap();
         assert!(GIT.iter().all(|arguments| {
-            Command::new("git").args(*arguments).current_dir(&repository).status().unwrap().success()
+            Command::new("git").args(*arguments).current_dir(repository).status().unwrap().success()
         }));
-        fs::write(repository.join(SOURCE), SOURCE).unwrap();
+        Door::write(repository.join(SOURCE), SOURCE).unwrap();
         let file = repository.join("mutants.diff");
         let root = repository.join(Path::new(SOURCE).parent().unwrap());
         Scope::write_diff(&root, &BASE.parse().unwrap(), &file).unwrap();
-        assert!(fs::read_to_string(&file).unwrap().contains(RELATIVE));
-        fs::remove_dir_all(&repository).unwrap();
+        assert!(Door::read(&file).unwrap().contains(RELATIVE));
     }
 }

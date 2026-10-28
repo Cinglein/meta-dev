@@ -7,8 +7,9 @@ mod test_runner;
 mod test_runs;
 mod test_timing;
 
+use meta_door::{Door, Scratch};
 use std::cmp::Reverse;
-use std::fs;
+use std::env;
 use std::time::Duration;
 
 use cargo_build::CargoBuild;
@@ -35,6 +36,7 @@ pub struct TestTime {
 }
 
 impl TestTime {
+    const RUNS_FILE: &str = "runs";
     const GIT_SETTINGS: [(&'static str, &'static str); 13] = [
         ("GIT_CONFIG_COUNT", "6"),
         ("GIT_CONFIG_KEY_0", "core.fsync"),
@@ -63,7 +65,12 @@ impl TestTime {
                 Ok(())
             },
             |selection| {
-                let runs = tempfile::NamedTempFile::new().map_err(|error| Failure::Io {
+                let scratch = Scratch::made(env::temp_dir()).map_err(|error| Failure::Io {
+                    site: Site::Workspace,
+                    error,
+                })?;
+                let runs = scratch.path().join(Self::RUNS_FILE);
+                Door::write(&runs, "").map_err(|error| Failure::Io {
                     site: Site::Workspace,
                     error,
                 })?;
@@ -77,7 +84,7 @@ impl TestTime {
                 let cargo = |selection| CargoTest::new(line(), selection, policy);
                 let line = cargo(selection)
                     .through(&RunnerConfig::current()?)
-                    .environment(TestRunner::RUNS, runs.path());
+                    .environment(TestRunner::RUNS, &runs);
                 let ran = Self::GIT_SETTINGS
                     .into_iter()
                     .fold(line, |line, (name, value)| line.environment(name, value))
@@ -86,9 +93,9 @@ impl TestTime {
                 let documented_ran = documented
                     .reaching()
                     .map_or(Ok(()), |documented| cargo(documented).doctests().run());
-                let timings = fs::read_to_string(runs.path())
+                let timings = Door::read(&runs)
                     .map_err(|error| Failure::Io {
-                        site: Site::File(runs.path().to_path_buf()),
+                        site: Site::File(runs.clone()),
                         error,
                     })?
                     .parse::<TestRuns>()?

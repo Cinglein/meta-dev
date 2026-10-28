@@ -1,3 +1,5 @@
+use meta_door::{Change, Door};
+
 use super::seeded_log::{SeededLog, TASK};
 use super::{
     BLOCK, COMMIT, Calls, DEADLINE, FailingHead, Git, LAST, NEXT_COMMIT, PASSED_EVENT, POST, Planted, Repo, SHELL,
@@ -41,12 +43,13 @@ impl Counted {
 
     fn plant(repo: &Repo, script: &str) {
         let wrapper = repo.clone.path().join(Self::WRAPPER);
-        std::fs::write(&wrapper, script).unwrap();
-        std::fs::set_permissions(&wrapper, std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
+        Door::write(&wrapper, script).unwrap();
+        let executable = Door::described(Door::canonical(SHELL).unwrap()).unwrap().permissions();
+        Door::changed(&wrapper, Change::Permissions(executable)).unwrap();
     }
 
     fn calls(repo: &Repo) -> Vec<String> {
-        let text = std::fs::read_to_string(repo.clone.path().join(Self::CALLS)).unwrap_or_default();
+        let text = Door::read(repo.clone.path().join(Self::CALLS)).unwrap_or_default();
         let mut calls: Vec<String> = text.lines().map(str::to_owned).collect();
         calls.sort_unstable();
         calls
@@ -67,21 +70,22 @@ fn on_a_detached_head_a_wait_covers_only_its_head_and_a_typical_stop_lists_the_r
     let moved_on = Unresolved::pushed(&repo);
     assert!(unrecorded.contains(TIMED_OUT_STOP) && unrecorded.contains(TASKLESS));
     assert!(serde_json::from_str::<serde_json::Value>(&unrecorded).is_ok() && !recorded.contains(BLOCK));
-    assert!(moved_on.contains(TASKLESS) && Counted::calls(&repo) == POST_AND_STOP_CALLS);
+    let calls = Counted::calls(&repo);
+    assert!(moved_on.contains(TASKLESS) && calls == POST_AND_STOP_CALLS, "{calls:?}");
 }
 
 #[test]
 fn an_unreadable_remote_settles_the_watch_unchecked_and_the_last_poll_still_ends_before_the_real_deadline() {
     let repo = Repo::limited(LAST, DEADLINE);
     let origin = repo.origin.path().to_str().unwrap().to_owned();
-    std::os::unix::fs::symlink(repo.origin.path(), repo.clone.path().join(NAMELESS)).unwrap();
+    Git::run(repo.clone.path(), &["clone", "-q", "--bare", origin.as_str(), NAMELESS]);
     Git::run(repo.clone.path(), &["remote", "set-url", "origin", NAMELESS]);
     repo.hook(POST, COMMIT);
     let unchecked = repo.settled();
     let stopped = repo.hook(STOP, COMMIT);
     Git::run(repo.clone.path(), &["remote", "set-url", "origin", origin.as_str()]);
     Counted::plant(&repo, Counted::FLAKY);
-    std::fs::write(repo.clone.path().join(Calls::EXPECTED), FIRST_POLL).unwrap();
+    Calls::expect(&repo, FIRST_POLL);
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     FailingHead::copy_from(&repo, repo.clone.path());
     repo.hook(POST, COMMIT);

@@ -1,6 +1,6 @@
 use std::fmt;
-use std::path::Path;
 
+use meta_door::MetaStore;
 use serde::{Deserialize, Serialize};
 
 use super::marked_groups::MarkedGroups;
@@ -21,13 +21,13 @@ impl MonitorState {
         Self { marked, watched }
     }
 
-    pub fn read(git_dir: &Path) -> Self {
-        let text = LocalFile::new(git_dir.join(Self::FILE)).text().unwrap_or_default();
+    pub fn read(store: &MetaStore) -> Self {
+        let text = LocalFile::new(store.entry(Self::FILE)).text().unwrap_or_default();
         serde_json::from_str(&text).unwrap_or_default()
     }
 
-    pub fn write(&self, git_dir: &Path) -> Result<(), CliFailure> {
-        let file = LocalFile::new(git_dir.join(Self::FILE));
+    pub fn write(&self, store: &MetaStore) -> Result<(), CliFailure> {
+        let file = LocalFile::new(store.entry(Self::FILE));
         file.replaced(&serde_json::to_string(self).map_err(|failure| file.failure(failure))?)
     }
 

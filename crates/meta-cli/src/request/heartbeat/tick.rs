@@ -1,9 +1,9 @@
 mod gave_up;
 
-use std::path::Path;
 use std::process::Command;
 
 use chrono::Utc;
+use meta_door::MetaStore;
 use meta_log::LogStore;
 use meta_pull_query::LiveQuery;
 use meta_status::Github;
@@ -26,17 +26,17 @@ pub struct Tick;
 
 impl Tick {
     pub fn answer(
-        git_dir: &Path,
+        store: &MetaStore,
         log: &impl LogStore,
         github: impl FnOnce(&LiveQuery) -> Github,
         pulse: Pulse,
     ) -> Result<Output, CliFailure> {
         let flags = StatusView::current_flags(log, github)?;
-        let before = HeartbeatRecord::read(git_dir).ok().flatten();
+        let before = HeartbeatRecord::read(store).ok().flatten();
         let seen = before.as_ref().map(|record| record.latest().flags().clone()).unwrap_or_default();
         let fresh = Listed::new(flags.since(&seen));
         let judged = flags.awaiting_judgement();
-        HeartbeatRecord::succeeding(before, Snapshot::new(pulse.now(), flags, pulse.gc_hook())).write(git_dir)?;
+        HeartbeatRecord::succeeding(before, Snapshot::new(pulse.now(), flags, pulse.gc_hook())).write(store)?;
         Ok(match judged.raised() {
             Some(_) => Output::Flagged(fresh),
             None => Output::Listed(fresh),
@@ -52,10 +52,10 @@ impl Tick {
 
     pub fn live(project: &Project, clone: &LocalClone) -> Result<Output, CliFailure> {
         let github = |query: &LiveQuery| LiveGithub::for_project(project).read(query);
-        Self::answer(clone.git_dir().as_ref(), &project.log()?, github, Pulse::new(Utc::now(), GcHook::Pending))
+        Self::answer(clone.store(), &project.log()?, github, Pulse::new(Utc::now(), GcHook::Pending))
     }
 
-    pub fn reported(git_dir: &Path, gc: GcHook) -> Result<(), CliFailure> {
-        HeartbeatRecord::read(git_dir)?.map_or(Ok(()), |record| record.reported(gc).write(git_dir))
+    pub fn reported(store: &MetaStore, gc: GcHook) -> Result<(), CliFailure> {
+        HeartbeatRecord::read(store)?.map_or(Ok(()), |record| record.reported(gc).write(store))
     }
 }

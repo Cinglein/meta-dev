@@ -1,3 +1,4 @@
+mod cargo_metadata;
 mod ci;
 mod clippy;
 mod coverage;

@@ -1,6 +1,7 @@
 use std::cell::Cell;
-use std::io::Write as _;
 use std::path::Path;
+
+use meta_door::{Door, Layout, Pair};
 use std::process::{Command, Output};
 use std::sync::{Arc, Mutex};
 
@@ -20,7 +21,11 @@ const OFFLINE: [&str; 4] = ["remote", "set-url", ORIGIN, "/nonexistent/origin.gi
 const OFFLINE_PREFIX: &str = "offline: cannot fetch meta/log from origin: \"fatal: ";
 const SHOWN: &str = "meta/log on origin";
 const REJECTED_PREFIX: &str = "meta/log push rejected";
-const REFUSE_PUSHES: [&str; 2] = ["/usr/bin/false", "hooks/pre-receive"];
+const REFUSE_PUSHES: [&str; 2] = ["/usr/bin/false", "pre-receive"];
+const HOOKS_PATH: [&str; 2] = ["config", "core.hooksPath"];
+const ENTRY: &str = ".git";
+const MAIN: &str = "main";
+const MAINTENANCE: &str = "[maintenance]\n\tauto = false\n";
 const STATUS: [&str; 3] = ["status", "--porcelain", "--branch"];
 const COUNT: [&str; 3] = ["rev-list", "--count", "meta/log"];
 const REWIND: [&str; 3] = ["update-ref", "refs/heads/meta/log", "refs/heads/meta/log~1"];
@@ -39,23 +44,13 @@ impl Git {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
     }
 
-    fn laid(dir: &Path, bare: bool) {
-        let git_dir = if bare { dir.to_path_buf() } else { dir.join(".git") };
-        std::fs::create_dir_all(git_dir.join("objects")).unwrap();
-        std::fs::create_dir_all(git_dir.join("refs")).unwrap();
-        std::fs::write(git_dir.join("HEAD"), "ref: refs/heads/main\n").unwrap();
-        let config = format!("[core]\n\trepositoryformatversion = 0\n\tbare = {bare}\n[maintenance]\n\tauto = false\n");
-        std::fs::write(git_dir.join("config"), config).unwrap();
+    fn laid(dir: &Path) {
+        Door::skeleton(dir, Layout::Bare, MAIN, MAINTENANCE).unwrap();
     }
 
-    fn link_origin(dir: &Path, url: &str) {
+    fn cloned(dir: &Path, url: &str) {
         let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
-        std::fs::OpenOptions::new()
-            .append(true)
-            .open(dir.join(".git/config"))
-            .unwrap()
-            .write_all(remote.as_bytes())
-            .unwrap();
+        Door::skeleton(&dir.join(ENTRY), Layout::Working, MAIN, &[MAINTENANCE, &remote].concat()).unwrap();
     }
 
     fn text(dir: &Path, words: &[&str]) -> String {
@@ -76,15 +71,10 @@ struct Fixture {
 impl Fixture {
     fn new(clones: usize) -> Self {
         let origin = tempfile::tempdir().unwrap();
-        Git::laid(origin.path(), true);
+        Git::laid(origin.path());
         let url = origin.path().to_str().unwrap().to_owned();
-        let clones = (0..clones)
-            .map(|_| tempfile::tempdir().unwrap())
-            .inspect(|dir| {
-                Git::laid(dir.path(), false);
-                Git::link_origin(dir.path(), &url);
-            })
-            .collect();
+        let clones =
+            (0..clones).map(|_| tempfile::tempdir().unwrap()).inspect(|dir| Git::cloned(dir.path(), &url)).collect();
         Self { origin, clones }
     }
 
@@ -145,8 +135,10 @@ fn refusals_write_nothing_and_rejected_or_offline_writes_fail() {
             .unwrap_or_default()
     };
     let [false_program, hook] = REFUSE_PUSHES;
-    std::fs::create_dir_all(fixture.origin.path().join("hooks")).unwrap();
-    std::os::unix::fs::symlink(false_program, fixture.origin.path().join(hook)).unwrap();
+    let hooks = tempfile::tempdir().unwrap();
+    Door::paired(false_program, hooks.path().join(hook), Pair::Symlink).unwrap();
+    let [config, key] = HOOKS_PATH;
+    Git::run(fixture.origin.path(), &[config, key, &hooks.path().display().to_string()]);
     assert!(failure().starts_with(REJECTED_PREFIX));
     Git::run(fixture.clones[FIRST].path(), &OFFLINE);
     assert!(failure().starts_with(OFFLINE_PREFIX));

@@ -1,5 +1,4 @@
-use std::fs::Permissions;
-use std::os::unix::fs::PermissionsExt;
+use meta_door::kinds::{Permissions, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 use super::deletable::Deletable;
@@ -25,7 +24,7 @@ fn a_stranded_quarantine_is_restored_from_its_ledger_and_without_one_nothing_mov
     host.text_is(LEDGER, &serde_json::to_string(&thaw).unwrap());
     let restored = Deletable::unstranded(Path::new(QUARANTINE), Path::new(COMMON), &host);
     let calls = host.calls();
-    assert!(restored.is_ok_and(|origin| origin == Path::new(PATH)) && thaw.ledger() == Path::new(LEDGER));
+    assert!(restored.is_ok_and(|origin| origin == Path::new(PATH)) && thaw.origin() == Path::new(PATH));
     assert!(
         STEPS.iter().zip(calls.iter()).all(|(step, call)| call.ends_with(step)) && calls.len() == STEPS.len(),
         "{calls:?}"

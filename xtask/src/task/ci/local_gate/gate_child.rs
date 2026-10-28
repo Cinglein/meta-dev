@@ -3,8 +3,8 @@ use std::env;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
+use meta_door::Scratch;
 use task::{CommandLine, GateEnvName, Program, Site};
-use tempfile::TempDir;
 
 use crate::task::ci::head_branch::HeadBranch;
 use crate::task::ci::local_gate::{LocalGate, Toolchain};
@@ -13,7 +13,7 @@ use crate::task::failure::Failure;
 
 #[derive(Debug)]
 pub struct GateChild {
-    home: TempDir,
+    home: Scratch,
     cargo_home: PathBuf,
     rustup_home: PathBuf,
     target: PathBuf,
@@ -36,7 +36,7 @@ impl GateChild {
     const BUILD_DIR: &str = "CARGO_BUILD_BUILD_DIR";
 
     pub fn new(parent: &Path, target: PathBuf, times: PathBuf, toolchain: Toolchain) -> Result<GateChild, Failure> {
-        let home = TempDir::new_in(parent)
+        let home = Scratch::made(parent)
             .map_err(|error| task::Failure::Io { site: Site::File(parent.to_path_buf()), error })?;
         let real_home = env::home_dir().unwrap_or_default();
         let real =
@@ -93,10 +93,10 @@ impl GateChild {
 
 #[cfg(test)]
 mod tests {
+    use meta_door::{Change, Door};
     use std::collections::BTreeMap;
     use std::env;
     use std::ffi::OsString;
-    use std::fs;
     use std::path::PathBuf;
 
     use task::{CommandLine, GateEnvName, Program, Stdout};
@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn the_child_gets_an_empty_home_of_its_own_no_config_home_and_only_allowed_names_with_the_callers_values() {
         let fixture = Fixture::new();
-        fs::create_dir_all(fixture.beside()).unwrap();
+        Door::changed(fixture.beside(), Change::DirAll).unwrap();
         let name = GateEnvName::try_from(KNOWN.to_owned()).unwrap();
         let ambient: BTreeMap<String, OsString> =
             CommandLine::ambient().into_iter().chain([(KNOWN.to_owned(), OsString::from(KNOWN_VALUE))]).collect();
@@ -135,7 +135,7 @@ mod tests {
         let passing = child(TOOLCHAIN.parse().unwrap()).seeing(ambient).passing(std::slice::from_ref(&name));
         let (home, passing) = (plain.home.path(), passing.heading(BRANCH.parse().ok()));
         assert_eq!(shown(&plain, SHOWN, KNOWN), format!("{}||{TOOLCHAIN}|{TARGET}", home.display()));
-        let fresh = fs::read_dir(home).is_ok_and(|mut entries| entries.next().is_none());
+        let fresh = Door::listed(home).is_ok_and(|entries| entries.is_empty());
         assert!(fresh && env::home_dir().is_none_or(|real| real != home) && home.starts_with(fixture.beside()));
         let printed =
             [(&passing, KNOWN), (&plain, KNOWN), (&passing, RunKind::GATE_BRANCH), (&plain, RunKind::GATE_BRANCH)]
@@ -146,7 +146,7 @@ mod tests {
     #[test]
     fn after_meta_done_a_child_given_the_open_pull_request_passes_the_linked_task() {
         let fixture = Fixture::new();
-        fs::create_dir_all(fixture.beside()).unwrap();
+        Door::changed(fixture.beside(), Change::DirAll).unwrap();
         let ambient = BTreeMap::from([(NUMBER.0.to_owned(), OsString::from(NUMBER.1))]);
         let child = GateChild::new(&fixture.beside(), TARGET.into(), PathBuf::new(), TOOLCHAIN.parse().unwrap());
         let line = child.unwrap().seeing(ambient).line(Program::Executable(SHELL.into()), fixture.beside());

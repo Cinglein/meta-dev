@@ -1,5 +1,7 @@
 use std::fmt;
 
+use meta_door::Door;
+use meta_door::kinds::Kind;
 use meta_state::{State, TaskStatus};
 
 use crate::request::local::recorded_worktree::RecordedWorktree;
@@ -20,7 +22,7 @@ impl JoinedWorktree {
 impl fmt::Display for JoinedWorktree {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let status = self.status.as_ref().map_or_else(|| "not in the log".to_owned(), ToString::to_string);
-        let missing = if self.worktree.path().exists() { "" } else { " missing" };
+        let missing = if Door::kind(self.worktree.path()) == Kind::Missing { " missing" } else { "" };
         write!(formatter, "{} {status} {}{missing}", self.worktree.task(), self.worktree)
     }
 }

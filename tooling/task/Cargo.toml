@@ -8,6 +8,7 @@ publish.workspace = true
 [dependencies]
 derive_more = { version = "2", features = ["add", "add_assign", "display", "from", "from_str", "into", "sum"] }
 enum-map = { version = "3", features = ["serde"] }
+meta-door = { path = "../../crates/meta-door" }
 meta-schema = { path = "../../crates/meta-schema" }
 meta-severity = { path = "../../crates/meta-severity" }
 meta-state = { path = "../../crates/meta-state" }
@@ -21,6 +22,9 @@ syn = { version = "2", features = ["extra-traits", "full", "parsing", "visit"] }
 sysinfo = "0.39"
 thiserror = "2"
 toml = "0.9"
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [features]
 test-policy = []

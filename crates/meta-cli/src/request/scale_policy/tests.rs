@@ -1,3 +1,4 @@
+use meta_door::{Change, Door};
 use meta_severity::Scales;
 
 use super::ScalePolicy;
@@ -12,13 +13,13 @@ const UNMAPPED: &str = "maps onto no level";
 fn scales_and_known_divisions_are_read_from_policy_and_are_the_defaults_without_one() {
     let dir = tempfile::tempdir().unwrap();
     assert_eq!(ScalePolicy::read(dir.path()).unwrap().scales(), &Scales::default());
-    std::fs::create_dir(dir.path().join("tooling")).unwrap();
-    std::fs::write(dir.path().join(ScalePolicy::FILE), POLICY).unwrap();
+    Door::changed(dir.path().join("tooling"), Change::Dir).unwrap();
+    Door::write(dir.path().join(ScalePolicy::FILE), POLICY).unwrap();
     let nav = NAV.parse().unwrap();
     let policy = ScalePolicy::read(dir.path()).unwrap();
     assert_eq!(policy.scales().owner(&nav), Some(&nav));
     assert!(KNOWN.iter().all(|known| policy.known(&known.parse().unwrap()).is_ok()));
     assert!(policy.known(&UNKNOWN.parse().unwrap()).is_err());
-    std::fs::write(dir.path().join(ScalePolicy::FILE), POLICY.replace("critical", "nope")).unwrap();
+    Door::write(dir.path().join(ScalePolicy::FILE), POLICY.replace("critical", "nope")).unwrap();
     assert!(ScalePolicy::read(dir.path()).unwrap_err().to_string().contains(UNMAPPED));
 }

@@ -1,6 +1,7 @@
 use chrono::TimeDelta;
 use meta_log::MemoryLog;
 
+use super::super::Repository;
 use super::{Beat, SETTINGS, Scene};
 use crate::request::heartbeat::{LatestFlags, Tick};
 use crate::request::output::Output;
@@ -19,19 +20,19 @@ const BEFORE: TimeDelta = TimeDelta::seconds(-5);
 
 #[test]
 fn a_missing_snapshot_is_itself_a_flag() {
-    let git_dir = tempfile::tempdir().unwrap();
-    let never = LatestFlags::answer(git_dir.path(), &Beat::settings(SETTINGS).unwrap(), Beat::after(ZERO)).unwrap();
+    let git_dir = Repository::new();
+    let never = LatestFlags::answer(git_dir.store(), &Beat::settings(SETTINGS).unwrap(), Beat::after(ZERO)).unwrap();
     assert!(matches!(&never, Output::Flagged(_)));
     assert_eq!(never.to_string(), NEVER);
 }
 
 #[test]
 fn flags_show_the_latest_snapshot_with_its_age_until_the_stale_limit_is_passed() {
-    let git_dir = tempfile::tempdir().unwrap();
+    let git_dir = Repository::new();
     let limit = Beat::settings(SETTINGS).unwrap();
-    Tick::answer(git_dir.path(), &MemoryLog::default(), Scene::Orphaned.answering(), Beat::pulse(ZERO)).unwrap();
+    Tick::answer(git_dir.store(), &MemoryLog::default(), Scene::Orphaned.answering(), Beat::pulse(ZERO)).unwrap();
     let [fresh, edge, stale] =
-        [MINUTE, LIMIT, OVER].map(|age| LatestFlags::answer(git_dir.path(), &limit, Beat::after(age)).unwrap());
+        [MINUTE, LIMIT, OVER].map(|age| LatestFlags::answer(git_dir.store(), &limit, Beat::after(age)).unwrap());
     assert!(matches!(&fresh, Output::Listed(_)) && matches!(&edge, Output::Listed(_)));
     assert!(matches!(&stale, Output::Flagged(_)) && fresh.to_string() == FRESH);
     assert!(stale.to_string().contains(STALE));
@@ -39,9 +40,9 @@ fn flags_show_the_latest_snapshot_with_its_age_until_the_stale_limit_is_passed()
 
 #[test]
 fn a_clean_snapshot_reads_none_and_a_future_snapshot_reads_zero_seconds_old() {
-    let git_dir = tempfile::tempdir().unwrap();
+    let git_dir = Repository::new();
     let limit = Beat::settings(SETTINGS).unwrap();
-    Tick::answer(git_dir.path(), &MemoryLog::default(), Scene::Quiet.answering(), Beat::pulse(ZERO)).unwrap();
-    assert_eq!(LatestFlags::answer(git_dir.path(), &limit, Beat::after(SECOND)).unwrap().to_string(), CLEAN);
-    assert_eq!(LatestFlags::answer(git_dir.path(), &limit, Beat::after(BEFORE)).unwrap().to_string(), SKEWED);
+    Tick::answer(git_dir.store(), &MemoryLog::default(), Scene::Quiet.answering(), Beat::pulse(ZERO)).unwrap();
+    assert_eq!(LatestFlags::answer(git_dir.store(), &limit, Beat::after(SECOND)).unwrap().to_string(), CLEAN);
+    assert_eq!(LatestFlags::answer(git_dir.store(), &limit, Beat::after(BEFORE)).unwrap().to_string(), SKEWED);
 }

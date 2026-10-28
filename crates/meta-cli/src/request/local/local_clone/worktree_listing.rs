@@ -10,7 +10,7 @@ impl WorktreeListing {
         self.0
             .lines()
             .filter_map(|line| line.strip_prefix(Self::PREFIX))
-            .map(|path| std::fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path)))
+            .map(|path| meta_door::Door::canonical(path).unwrap_or_else(|_| PathBuf::from(path)))
             .filter(|path| path != checkout)
             .collect()
     }

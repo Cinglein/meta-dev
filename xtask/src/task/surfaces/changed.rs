@@ -1,6 +1,5 @@
+use meta_door::{Door, Opening};
 use std::fmt;
-use std::fs::OpenOptions;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::task::failure::Failure;
@@ -21,9 +20,7 @@ impl Changed {
         print!("{self}");
         summary
             .filter(|_| !self.0.is_empty())
-            .map_or(Ok(()), |summary| {
-                OpenOptions::new().append(true).create(true).open(summary)?.write_all(self.to_string().as_bytes())
-            })
+            .map_or(Ok(()), |summary| Door::opened(summary, Opening::Append)?.written(self))
             .map_err(Failure::Summary)
     }
 }

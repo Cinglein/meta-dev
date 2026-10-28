@@ -25,7 +25,7 @@ impl LaunchdPlist {
         Self {
             program,
             checkout: clone.checkout().to_path_buf(),
-            log: clone.git_dir().as_ref().join(Self::LOG),
+            log: clone.store().common().join(Self::LOG),
             settings: *settings,
             search_path,
         }

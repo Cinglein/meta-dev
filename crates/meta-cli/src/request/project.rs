@@ -7,6 +7,7 @@ use std::str::FromStr;
 use std::sync::OnceLock;
 use std::time::Instant;
 
+use meta_door::{Door, MetaStore};
 use meta_log::{GitLog, RemoteHeads};
 
 use crate::request::checkout::Checkout;
@@ -30,7 +31,6 @@ pub struct Project {
 
 impl Project {
     const CONFIG_FILE: &'static str = "meta.toml";
-    const GIT_ENTRY: &'static str = ".git";
     pub fn log(&self) -> Result<GitLog, CliFailure> {
         self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote.clone()))
     }
@@ -68,7 +68,7 @@ impl Project {
             .iter()
             .zip(befores)
             .filter_map(|(entry, before)| {
-                entry.created_after(start, before, |commit| self.born_after(commit, start, deadline)).cloned()
+                entry.created_after(start, before, |commit| self.born_after(commit, start)).cloned()
             })
             .collect();
         Some(
@@ -141,12 +141,10 @@ impl Project {
         Some(output.lines().filter_map(|line| line.parse().ok()).collect())
     }
 
-    fn born_after(&self, commit: &Commit, start: &StartMoment, deadline: Instant) -> bool {
-        let words = [OsString::from("rev-parse"), OsString::from("--git-path"), commit.loose_object().into_os_string()];
-        let paths: Option<Vec<PathBuf>> = self.git_lines(words, deadline);
-        let path = paths.and_then(|paths| paths.into_iter().next()).map(|path| self.root.join(path));
-        let modified = path.and_then(|path| std::fs::metadata(path).and_then(|meta| meta.modified()).ok());
-        modified.is_some_and(|modified| start.precedes(modified))
+    fn born_after(&self, commit: &Commit, start: &StartMoment) -> bool {
+        let admin = MetaStore::located(&self.root).map(|store| store.admin());
+        let written = admin.and_then(|admin| admin.object_written(&commit.loose_object()));
+        written.is_ok_and(|modified| start.precedes(modified))
     }
 
     pub fn checkout(&self, deadline: Instant) -> &Checkout {
@@ -172,14 +170,9 @@ impl TryFrom<&Path> for Project {
     type Error = CliFailure;
 
     fn try_from(dir: &Path) -> Result<Self, Self::Error> {
-        let root = dir
-            .ancestors()
-            .find(|ancestor| ancestor.join(Self::GIT_ENTRY).exists())
-            .map(Path::to_path_buf)
-            .ok_or_else(|| CliFailure::raised::<Setup>("not inside a git repository"))?;
+        let root = Door::repository(dir).ok_or_else(|| CliFailure::raised::<Setup>("not inside a git repository"))?;
         let path = root.join(Self::CONFIG_FILE);
-        let text = std::fs::read_to_string(&path)
-            .map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
+        let text = Door::read(&path).map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
         let config =
             toml::from_str(&text).map_err(|e| CliFailure::raised::<Setup>(format!("{}: {e}", path.display())))?;
         Ok(Self { root, config, checkout: OnceLock::new(), reflog: OnceLock::new() })

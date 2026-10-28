@@ -1,10 +1,13 @@
 #![allow(clippy::unwrap_used)]
 
+use meta_door::kinds::Permissions;
 use std::fmt;
 use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, ExitStatus, Output, Stdio};
 use std::time::Duration;
+
+use meta_door::{Change, Door, Entry, MetaStore, Opening};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 2\n";
@@ -157,24 +160,16 @@ impl Git {
     }
 
     fn head(dir: &Path) -> String {
-        let git_dir = dir.join(".git");
-        let text = std::fs::read_to_string(git_dir.join("HEAD")).ok().filter(|_| git_dir.is_dir());
-        let read = text.and_then(|text| match text.trim().strip_prefix("ref: ") {
-            Some(name) => std::fs::read_to_string(git_dir.join(name)).ok(),
-            None => Some(text),
-        });
-        read.unwrap_or_else(|| String::from_utf8(Self::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap())
-            .trim()
-            .to_owned()
+        Door::laid_head(dir).unwrap_or_else(|_| {
+            String::from_utf8(Self::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap().trim().to_owned()
+        })
     }
 
     fn pushed(repo: &Repo, branch: &str) {
         let tip = format!("{}\n", Self::head(repo.clone.path()));
-        let refs = [repo.origin.path().join("refs/heads"), repo.clone.path().join(".git/refs/remotes/origin")];
-        refs.iter().map(|refs| refs.join(branch)).for_each(|named| {
-            std::fs::create_dir_all(named.parent().unwrap()).unwrap();
-            std::fs::write(named, &tip).unwrap();
-        });
+        Door::laid_file(repo.origin.path(), &Path::new("refs/heads").join(branch), &tip).unwrap();
+        let tracking = Path::new("refs/remotes/origin").join(branch);
+        Door::laid_file(&repo.clone.path().join(".git"), &tracking, &tip).unwrap();
     }
 }
 
@@ -184,12 +179,8 @@ impl Origin {
     const ALTERNATES: &'static str = "objects/info/alternates";
 
     fn linked(origin: &Path, clone: &Path) {
-        let url = origin.display();
-        let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
-        let config = std::fs::OpenOptions::new().append(true).open(clone.join(".git/config"));
-        config.unwrap().write_all(remote.as_bytes()).unwrap();
-        std::fs::create_dir_all(origin.join(Self::ALTERNATES).parent().unwrap()).unwrap();
-        std::fs::write(origin.join(Self::ALTERNATES), format!("{}\n", clone.join(".git/objects").display())).unwrap();
+        let objects = format!("{}\n", clone.join(".git/objects").display());
+        Door::laid_file(origin, Path::new(Self::ALTERNATES), &objects).unwrap();
     }
 }
 
@@ -200,7 +191,7 @@ struct Stale;
 impl Stale {
     fn plant(repo: &Repo) {
         let head = Git::head(repo.clone.path());
-        std::fs::create_dir_all(repo.sessions.path().join(Planted::STATES).join(head.trim())).unwrap();
+        Door::changed(repo.sessions.path().join(Planted::STATES).join(head.trim()), Change::DirAll).unwrap();
     }
 }
 
@@ -221,19 +212,24 @@ struct Calls;
 
 impl Calls {
     const MAX_LEN: usize = 10;
-    const EXPECTED: &'static str = ".git/meta-ci/expected";
+    const EXPECTED: &'static str = "meta-ci/expected";
     const PLANTED: &'static str = "60000";
     const LEARNED: &'static str = "240000";
 
     fn plant(repo: &Repo) {
-        std::fs::create_dir_all(repo.clone.path().join(Self::EXPECTED).parent().unwrap()).unwrap();
-        std::fs::write(repo.clone.path().join(Self::EXPECTED), Self::PLANTED).unwrap();
+        Self::expect(repo, Self::PLANTED);
+    }
+
+    fn expect(repo: &Repo, millis: &str) {
+        let expected = repo.store().entry(Self::EXPECTED);
+        Door::changed(expected.map(|file| file.with_file_name("")), Change::DirAll).unwrap();
+        Door::write(expected, millis).unwrap();
     }
 
     fn within_budget(repo: &Repo) -> bool {
-        let log = std::fs::read_to_string(repo.clone.path().join("calls")).unwrap_or_default();
+        let log = Door::read(repo.clone.path().join("calls")).unwrap_or_default();
         let polls: std::collections::BTreeSet<&str> = log.lines().collect();
-        let learned = std::fs::read_to_string(repo.clone.path().join(Self::EXPECTED)).unwrap_or_default();
+        let learned = Door::read(repo.store().entry(Self::EXPECTED)).unwrap_or_default();
         (1..=Self::MAX_LEN).contains(&polls.len())
             && polls.len() == log.lines().count()
             && [log.lines().next(), Some(learned.as_str())] == [Some(Self::PLANTED), Some(Self::LEARNED)]
@@ -249,15 +245,15 @@ impl StartFile {
     const NANOS: &'static str = "000000000";
 
     fn second_of(sessions: &Path, session: &str) -> String {
-        let nanos = std::fs::read_to_string(sessions.join(Self::ROOT).join(session).join(Self::NAME)).unwrap();
+        let nanos = Door::read(sessions.join(Self::ROOT).join(session).join(Self::NAME)).unwrap();
         nanos.split_at(nanos.len() - Self::NANOS.len()).0.to_owned()
     }
 
     fn plant(sessions: &Path, session: &str, seconds: &str) {
         let folder = sessions.join(Self::ROOT).join(session);
-        std::fs::create_dir_all(&folder).unwrap();
-        std::fs::write(folder.join(Self::NAME), [seconds, Self::NANOS].concat()).unwrap();
-        std::fs::write(folder.join(Self::WRITES), "").unwrap();
+        Door::changed(&folder, Change::DirAll).unwrap();
+        Door::write(folder.join(Self::NAME), [seconds, Self::NANOS].concat()).unwrap();
+        Door::write(folder.join(Self::WRITES), "").unwrap();
     }
 }
 
@@ -265,7 +261,7 @@ struct FailingHead;
 
 impl FailingHead {
     fn copy_from(repo: &Repo, dir: &Path) {
-        std::fs::write(repo.clone.path().join("bin/head"), format!("{}\n", Git::head(dir))).unwrap();
+        Door::write(repo.clone.path().join("bin/head"), format!("{}\n", Git::head(dir))).unwrap();
     }
 }
 
@@ -274,34 +270,40 @@ struct Planted;
 impl Planted {
     const STATES: &'static str = "meta-ci/states";
     const LOCKS: &'static str = "meta-ci/locks";
-    const PRE_RECEIVE: &'static str = "hooks/pre-receive";
+    const HOOKS: &'static str = "bin/hooks";
+    const PRE_RECEIVE: &'static str = "bin/hooks/pre-receive";
     const REFUSE: &'static str = "#!/bin/sh\nexit 1\n";
     const RUNNING: &'static str = "running";
 
     fn settled(repo: &Repo, ci: &str) {
         let head = Git::head(repo.clone.path());
         let states = repo.sessions.path().join(Self::STATES);
-        std::fs::create_dir_all(&states).unwrap();
-        std::fs::write(states.join(head.trim()), format!("{} {ci}", head.trim())).unwrap();
+        Door::changed(&states, Change::DirAll).unwrap();
+        Door::write(states.join(head.trim()), format!("{} {ci}", head.trim())).unwrap();
     }
 
-    fn refusal(origin: &Path) {
-        std::fs::create_dir_all(origin.join("hooks")).unwrap();
-        let hook = origin.join(Self::PRE_RECEIVE);
-        std::fs::write(&hook, Self::REFUSE).unwrap();
-        std::fs::set_permissions(hook, std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
+    fn refusal(repo: &Repo) {
+        let hooks = repo.clone.path().join(Self::HOOKS);
+        Door::changed(&hooks, Change::DirAll).unwrap();
+        let hook = repo.clone.path().join(Self::PRE_RECEIVE);
+        Door::write(&hook, Self::REFUSE).unwrap();
+        let executable = Door::described(Door::canonical(SHELL).unwrap()).unwrap().permissions();
+        Door::changed(hook, Change::Permissions(executable)).unwrap();
+        let hooks = hooks.display().to_string();
+        assert!(Git::run(repo.origin.path(), &["config", "core.hooksPath", &hooks]).status.success());
     }
 
-    fn locked(dir: &Path) -> std::fs::Permissions {
-        let open = std::fs::metadata(dir).unwrap().permissions();
+    fn locked(dir: impl Into<Entry>) -> Permissions {
+        let dir = dir.into();
+        let open = Door::described(dir.clone()).unwrap().permissions();
         let mut locked = open.clone();
         locked.set_readonly(true);
-        std::fs::set_permissions(dir, locked).unwrap();
+        Door::changed(dir, Change::Permissions(locked)).unwrap();
         open
     }
 
     fn twin(repo: &Repo) -> std::process::Child {
-        let head = std::fs::read_to_string(repo.clone.path().join("bin/head")).unwrap();
+        let head = Door::read(repo.clone.path().join("bin/head")).unwrap();
         repo.command(&["ci-watch", SESSION, head.trim()]).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().unwrap()
     }
 }
@@ -335,6 +337,8 @@ struct Repo {
 }
 
 impl Repo {
+    const EVENTS: &'static str = "meta-ci/ABCDEF1234/events";
+
     fn new(scenario: &'static str) -> Self {
         Self::limited(scenario, PATIENT)
     }
@@ -342,14 +346,14 @@ impl Repo {
     pub fn limited(scenario: &'static str, limits: &str) -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Skeleton::Bare.lay(origin.path(), "main");
-        Skeleton::Working.lay(clone.path(), "feature");
+        Skeleton::laid(origin.path(), clone.path(), "feature");
         Origin::linked(origin.path(), clone.path());
-        std::fs::write(clone.path().join("meta.toml"), format!("{CONFIG}{limits}")).unwrap();
-        std::fs::create_dir(clone.path().join("bin")).unwrap();
-        std::fs::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
-        std::fs::write(clone.path().join("bin/failed.log"), FAILED_LOG).unwrap();
-        std::fs::set_permissions(clone.path().join("bin/gh"), std::fs::metadata(SHELL).unwrap().permissions()).unwrap();
+        Door::write(clone.path().join("meta.toml"), format!("{CONFIG}{limits}")).unwrap();
+        Door::changed(clone.path().join("bin"), Change::Dir).unwrap();
+        Door::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
+        Door::write(clone.path().join("bin/failed.log"), FAILED_LOG).unwrap();
+        let executable = Door::described(Door::canonical(SHELL).unwrap()).unwrap().permissions();
+        Door::changed(clone.path().join("bin/gh"), Change::Permissions(executable)).unwrap();
         Git::run_at(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"], Git::LONG_AGO);
         let sessions = tempfile::tempdir().unwrap();
         StartFile::plant(sessions.path(), SESSION_FILE, "0");
@@ -396,18 +400,22 @@ impl Repo {
     }
 
     pub fn settled_past(&self, seen: &str) -> String {
-        let events = self.clone.path().join(".git/meta-ci/ABCDEF1234/events");
+        let events = self.store().entry(Self::EVENTS);
         let lock = self.sessions.path().join(Planted::LOCKS).join(Git::head(self.clone.path()));
         let pauses = std::iter::successors(Some(Duration::ZERO), |_| Some(SETTLE_POLL)).take(SETTLE_LENGTH);
         pauses
             .map(std::thread::sleep)
-            .map(|()| std::fs::read_to_string(&events).unwrap_or_default())
+            .map(|()| Door::read(events.clone()).unwrap_or_default())
             .find(|text| {
                 let new = text.strip_prefix(seen).unwrap_or_default();
                 COMPLETIONS.iter().any(|completion| new.contains(completion))
-                    && std::fs::File::open(&lock).map_or(true, |watcher| watcher.try_lock().is_ok())
+                    && Door::opened(&lock, Opening::Read).map_or(true, |watcher| watcher.try_lock().is_ok())
             })
             .unwrap_or_default()
+    }
+
+    pub fn store(&self) -> MetaStore {
+        MetaStore::located(self.clone.path()).unwrap()
     }
 }
 

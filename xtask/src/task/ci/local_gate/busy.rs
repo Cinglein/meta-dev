@@ -1,5 +1,5 @@
+use meta_door::Door;
 use std::fmt;
-use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -17,7 +17,7 @@ impl Busy {
 
 impl fmt::Display for Busy {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let holder = fs::read_to_string(&self.lock).unwrap_or_default();
+        let holder = Door::read(&self.lock).unwrap_or_default();
         write!(formatter, "gate lock {} held by {holder}; gave up after {:?}", self.lock.display(), self.waited)
     }
 }

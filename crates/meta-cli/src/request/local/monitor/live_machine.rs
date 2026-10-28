@@ -114,7 +114,7 @@ mod tests {
         let status = child.wait().unwrap();
         let parent =
             table.lines().filter_map(|line| line.parse::<ProcessRow>().ok()).find_map(|row| row.parent_of(pid));
-        let place = std::fs::canonicalize(root.path()).unwrap();
+        let place = meta_door::Door::canonical(root.path()).unwrap();
         assert_eq!(parent, Some(machine.own_pid()));
         assert!(cwds.contains(&*place.to_string_lossy()) && load.is_some());
         assert!(status.signal() == Some(KILLED) && paused >= GRACE);
