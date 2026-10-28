@@ -7,7 +7,7 @@ use task::{Branch, Policy};
 
 use crate::task::ci::standing_log::StandingLog;
 use crate::task::failure::Failure;
-use crate::task::prior_policy::PriorPolicy;
+use crate::task::prior_policy::{PinnedXtask, PriorPolicy};
 use crate::task::revision::Revision;
 
 pub struct Stranding;
@@ -28,8 +28,9 @@ impl Stranding {
     }
 
     pub fn rescaling(root: &Path, policy: &Policy, databases: &Path) -> Result<Option<Scales>, Failure> {
-        let before = PriorPolicy::scales_at(&Revision::merge_base(root, policy.branch(Branch::Base))?, databases)?;
-        Ok(Some(before).filter(|before| before != policy.scales()))
+        let revision = Revision::merge_base(root, policy.branch(Branch::Base))?;
+        let before = PriorPolicy::scales_at(&revision, &PinnedXtask::read_in(root)?, databases)?;
+        Ok(before.filter(|before| before != policy.scales()))
     }
 
     fn judged(before: &Scales, now: &Scales, snapshot: Result<Snapshot, Failure>) -> Result<(), Failure> {

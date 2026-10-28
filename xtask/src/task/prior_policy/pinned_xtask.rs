@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::Path;
 
+use meta_severity::Scale;
 use toml::{Table, Value};
 
 use super::PriorPolicy;
@@ -8,38 +9,68 @@ use crate::task::failure::Failure;
 use crate::task::revision::{Commit, Revision, TrackedPath};
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct PinnedXtask(Commit);
+pub enum PinnedXtask {
+    Absent,
+    Unpinned,
+    Git(Commit),
+}
 
 impl PinnedXtask {
+    const LOCK: &str = "Cargo.lock";
     const PACKAGE: &str = "meta-xtask";
     const GIT: &str = "git+";
     const COMMIT: char = '#';
 
-    pub fn in_lock(text: &str) -> Result<Option<PinnedXtask>, Failure> {
+    pub fn read_at(revision: &Revision) -> Result<PinnedXtask, Failure> {
+        revision.present(Path::new(Self::LOCK))?.as_deref().map_or(Ok(PinnedXtask::Absent), Self::in_lock)
+    }
+
+    pub fn read_in(root: &Path) -> Result<PinnedXtask, Failure> {
+        fs::read_to_string(root.join(Self::LOCK)).ok().as_deref().map_or(Ok(PinnedXtask::Absent), Self::in_lock)
+    }
+
+    pub fn in_lock(text: &str) -> Result<PinnedXtask, Failure> {
         let lock: Table = text.parse().map_err(Failure::PriorLock)?;
         lock.get("package")
             .and_then(Value::as_array)
             .into_iter()
             .flatten()
-            .filter(|package| package.get("name").and_then(Value::as_str) == Some(Self::PACKAGE))
-            .find_map(|package| package.get("source").and_then(Value::as_str))
-            .and_then(|source| source.strip_prefix(Self::GIT))
-            .map(|source| source.rsplit_once(Self::COMMIT).ok_or(Failure::NoPinnedLevels))
-            .map(|pinned| pinned.and_then(|(_, commit)| commit.parse()).map(PinnedXtask))
-            .transpose()
+            .find(|package| package.get("name").and_then(Value::as_str) == Some(Self::PACKAGE))
+            .map_or(Ok(PinnedXtask::Absent), |package| {
+                package
+                    .get("source")
+                    .and_then(Value::as_str)
+                    .and_then(|source| source.strip_prefix(Self::GIT))
+                    .and_then(|source| source.rsplit_once(Self::COMMIT))
+                    .map_or(Ok(PinnedXtask::Unpinned), |(_, commit)| commit.parse().map(PinnedXtask::Git))
+            })
     }
 
-    pub fn levels(&self, databases: &Path) -> Result<String, Failure> {
-        fs::read_dir(databases)
+    pub fn levels(&self, now: &PinnedXtask, databases: &Path) -> Result<Option<Scale>, Failure> {
+        match (self, now) {
+            (PinnedXtask::Absent, _) => Ok(None),
+            (PinnedXtask::Unpinned, PinnedXtask::Unpinned) => Ok(Some(Scale::top_default())),
+            (PinnedXtask::Unpinned, _) => Err(Failure::XtaskUnpinned),
+            (PinnedXtask::Git(then), PinnedXtask::Git(now)) if then == now => Ok(Some(Scale::top_default())),
+            (PinnedXtask::Git(then), _) => Self::shipped_in(then, databases),
+        }
+    }
+
+    fn shipped_in(commit: &Commit, databases: &Path) -> Result<Option<Scale>, Failure> {
+        let seen: Vec<Option<String>> = fs::read_dir(databases)
             .into_iter()
             .flatten()
             .flatten()
-            .find_map(|entry| {
-                Revision::in_database(entry.path(), self.0.clone())
+            .filter_map(|entry| {
+                Revision::in_database(entry.path(), commit.clone())
                     .tracked(TrackedPath::new(Path::new(PriorPolicy::DEFAULT_LEVELS)))
                     .ok()
-                    .flatten()
             })
-            .ok_or(Failure::NoPinnedLevels)
+            .collect();
+        (!seen.is_empty())
+            .then(|| seen.iter().flatten().next())
+            .ok_or(Failure::PinnedCommitMissing)?
+            .map(|text| serde_json::from_str(text).map_err(Failure::PriorLevels))
+            .transpose()
     }
 }
