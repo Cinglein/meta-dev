@@ -1237,3 +1237,4 @@
 {"at":"2026-10-28T23:52:00.368100Z","actor":"claude-kill13","kind":"TaskClaimed","task":"task-92b42baa1363a624"}
 {"at":"2026-10-28T23:52:05.996506Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-e7a7789bdce045cf","text":"Duplicate: mutants wall-time budgets exist (mutants-diff-job, mutants-full-job in the ledger); agent polling is concern-90d13b48."}
 {"at":"2026-10-28T23:52:07.554772Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-a72164b99b861c13","text":"Test timing is noisy: scaled CPU swings 10%; real waits trip wall lines (slowest-test 1 s on meta_log, goldens; live_github unreachable test flakes)."}
+{"at":"2026-10-28T23:52:12.502293Z","actor":"claude-lead","kind":"TaskOpened","task":"task-b8b2f42efc054c53","text":"Pin the Rust toolchain (rust-toolchain.toml at 1.99.x) and cargo-mutants in CI; explicit upgrades only.","division":"performance-and-cost","addresses":["concern-4e30425a6eae4c9e"]}
