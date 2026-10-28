@@ -46,8 +46,7 @@ impl fmt::Display for ShardPlan {
 mod tests {
     use super::{CommandLine, FullRun, Interval, Policy, ShardPlan};
     use settings::EmbeddedDefaults;
-    use std::fs;
-    use std::path::Path;
+    use std::{fs, path::Path};
     use task::Program;
     const TIMEOUT: &str = "timeout-minutes: ";
     const STEP_LIMIT: &str = "        timeout-minutes: 5";

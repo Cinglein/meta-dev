@@ -126,9 +126,7 @@ impl Scope {
 #[cfg(test)]
 mod tests {
     use super::Scope;
-    use std::path::Path;
-    use std::process::Command;
-    use std::{env, fs, process};
+    use std::{env, fs, path::Path, process, process::Command};
     const SOURCE: &str = "consumer/a.rs";
     const BASE: &str = "origin/main";
     const RELATIVE: &str = "+++ b/a.rs";

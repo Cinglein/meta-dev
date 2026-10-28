@@ -214,14 +214,6 @@ mod tests {
     const ERR: &str = "Err";
 
     #[test]
-    fn a_command_line_prints_its_program_and_arguments_in_order() {
-        let line = CommandLine::new(Program::Executable(GIT.into()))
-            .argument(CargoArgument::Fmt)
-            .arguments([CargoArgument::All]);
-        assert_eq!(line.to_string(), SHOWN);
-    }
-
-    #[test]
     fn a_command_runs_in_its_directory_and_its_output_is_captured_and_shown_when_it_fails() {
         let [pwd, succeeds, fails, shell] = PROGRAMS;
         let executable = |name: &str| CommandLine::new(Program::Executable(name.into()));
@@ -246,13 +238,17 @@ mod tests {
     }
 
     #[test]
-    fn a_command_sees_only_the_environment_it_was_given_and_holds_its_input() {
+    fn a_command_prints_its_arguments_sees_only_its_given_environment_and_holds_its_input() {
+        let line = CommandLine::new(Program::Executable(GIT.into()))
+            .argument(CargoArgument::Fmt)
+            .arguments([CargoArgument::All]);
         let shell = || CommandLine::new(Program::Executable(SHELL.into()));
         let shown = shell()
             .arguments(SHOW_TARGET)
             .inheriting_only([INHERITED])
             .environment(VARIABLE, PathBuf::from(TARGET))
             .captured::<Stdout>();
+        assert_eq!(line.to_string(), SHOWN);
         assert_eq!(shown.ok().as_deref(), Some(TARGET));
         let manifest = || File::open(Path::new(env!("CARGO_MANIFEST_DIR")).join(MANIFEST)).unwrap();
         let reads = shell().arguments(READS_PACKAGE);

@@ -61,43 +61,31 @@ mod tests {
         {"name": "state", "manifest_path": "/w/crates/state/Cargo.toml", "dependencies": [{"name": "log", "path": "/w/crates/log"}]},
         {"name": "cli", "manifest_path": "/w/crates/cli/Cargo.toml", "dependencies": [{"name": "state", "path": "/w/crates/state"}]}
     ]}"#;
-    const STATE: &str = "#[cfg(test)] mod tests { #[test] fn t() {} }";
-    const FILES: [(&str, &str, &str); 2] =
-        [("state", "crates/state/src/lib.rs", STATE), ("cli", "crates/cli/src/lib.rs", "pub struct S;")];
+    const STATE: [&str; 3] = ["state", "crates/state/src/lib.rs", "#[cfg(test)] mod tests { #[test] fn t() {} }"];
     const LINE: &str = "gh --test-package log --test-package state";
     const KEPT: &str = include_str!("../../../../.cargo/mutants.toml");
-    const SLOW: &[&str] = &["sh", "-c", "case \"$*\" in *--no-run*) ;; *) exec sleep 1;; esac"];
-    const CASES: [(&[&str], &str, bool); 4] = [
-        (&["false"], KEPT, false),
-        (&["true"], KEPT, true),
-        (&["true"], "all_features = true", false),
-        (SLOW, KEPT, false),
-    ];
-    const TIMEOUT: Millis = Millis::new(300);
+    const SHELL: [&str; 2] = ["sh", "-c"];
+    const SLOW: &str = "case \"$*\" in *--no-run*) ;; *) exec sleep 1;; esac";
+    const CASES: [(&str, &str, bool); 4] =
+        [("false", KEPT, false), ("true", KEPT, true), ("true", "all_features = true", false), (SLOW, KEPT, false)];
     const SHARDS: [&str; 2] = ["log+cli", "log/0/2"];
-    const BASELINES: [&str; 2] =
-        ["gh test --all-features --package cli", "gh test --all-features --package log --package state"];
+    const BASELINES: [&str; 2] = ["--all-features --package cli", "--all-features --package log --package state"];
 
     #[test]
     fn each_run_has_a_baseline_of_its_own_tests_with_the_shards_build_and_timeout_and_a_failing_one_is_refused() {
-        let files = FILES.map(|(name, path, text)| {
-            SourceFile::parse(path, text.to_owned()).unwrap().in_crate(name.parse().unwrap())
-        });
+        let files = [SourceFile::parse(STATE[1], STATE[2].to_owned()).unwrap().in_crate(STATE[0].parse().unwrap())];
         let (graph, tested) = (PackageGraph::from_metadata(METADATA).unwrap(), TestedCrates::collect(&files));
-        let line = TestPackages::around(&"log".parse().unwrap(), &graph, &tested)
-            .applied_to(CommandLine::new(Program::GitHub));
-        let build = |cargo: &[&str], settings| {
-            let cargo = CommandLine::new(Program::Executable(cargo[0].into())).arguments(&cargo[1..]);
-            MutantsBuild::sharing(cargo, settings, TIMEOUT)
+        let shards = SHARDS.map(|shard| shard.parse().unwrap());
+        let line = TestPackages::around(&shards[1], &graph, &tested).applied_to(CommandLine::new(Program::GitHub));
+        let build = |script, settings| {
+            let shell = CommandLine::new(Program::Executable(SHELL[0].into())).arguments([SHELL[1], script]);
+            MutantsBuild::sharing(shell, settings, Millis::new(300))
         };
-        let gated = CASES.iter().all(|(cargo, settings, passes)| {
-            build(cargo, settings).and_then(|build| build.passes(&build.line(CargoArgument::Test))).is_ok() == *passes
+        let gated = CASES.iter().all(|(script, settings, passes)| {
+            build(script, settings).and_then(|build| build.passes(&build.line(CargoArgument::Test))).is_ok() == *passes
         });
-        let shown = |shards: &[Shard]| {
-            let lines = TestPackages::baselines(shards, &graph, &tested, &build(&["gh"], "").unwrap());
-            lines.iter().map(ToString::to_string).collect::<Vec<String>>()
-        };
-        let each = shown(&SHARDS.map(|shard| shard.parse().unwrap())) == BASELINES;
-        assert!(line.to_string() == LINE && gated && each && shown(&[]).is_empty());
+        let shown = |shards: &[Shard]| TestPackages::baselines(shards, &graph, &tested, &build("", "").unwrap());
+        let each = shown(&shards).iter().zip(BASELINES).all(|(line, packages)| line.to_string().ends_with(packages));
+        assert!(line.to_string() == LINE && gated && each && shown(&shards).len() == 2 && shown(&[]).is_empty());
     }
 }
