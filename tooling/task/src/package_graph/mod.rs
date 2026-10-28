@@ -7,7 +7,6 @@ use metadata::Metadata;
 
 use crate::crate_name::CrateName;
 use crate::failure::Failure;
-#[cfg(test)]
 use crate::selection::Selection;
 
 #[derive(Debug)]
@@ -16,6 +15,7 @@ pub struct PackageGraph {
     dependents: BTreeMap<CrateName, BTreeSet<CrateName>>,
     doctested: BTreeSet<CrateName>,
     with_examples: BTreeSet<CrateName>,
+    published: BTreeSet<CrateName>,
 }
 
 impl PackageGraph {
@@ -38,6 +38,11 @@ impl PackageGraph {
         Ok(PackageGraph {
             doctested: metadata.names_where(metadata::Package::doctested),
             with_examples: metadata.names_where(|package| package.example().is_some()),
+            published: metadata.names_where(|package| {
+                package
+                    .publish()
+                    .is_none_or(|registries| !registries.is_empty())
+            }),
             directories: metadata
                 .packages()
                 .iter()
@@ -72,6 +77,11 @@ impl PackageGraph {
 
     pub fn with_examples(&self) -> impl Iterator<Item = &CrateName> {
         self.with_examples.iter()
+    }
+
+    #[must_use]
+    pub fn published_in(&self, selection: &Selection, listed: &[CrateName]) -> Selection {
+        selection.within(self.published.iter().chain(listed))
     }
 
     #[must_use]

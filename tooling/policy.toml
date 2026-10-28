@@ -44,6 +44,14 @@ file = "context/SPEC.md"
 default = "main"
 base = "origin/main"
 
+[supply_chain]
+licenses = ["Apache-2.0", "MIT", "Unicode-3.0"]
+registries = ["https://github.com/rust-lang/crates.io-index"]
+git = []
+ignored_advisories = []
+duplicates = "warn"
+semver = ["meta-xtask"]
+
 [limits]
 parameters = 4
 nesting = 2

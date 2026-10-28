@@ -9,6 +9,7 @@ mod lint;
 mod prior_policy;
 mod ratchet;
 mod revision;
+mod supply;
 mod surfaces;
 mod test;
 mod usage;
@@ -23,6 +24,7 @@ use crate::task::clippy::Clippy;
 use crate::task::coverage::Coverage;
 use crate::task::golden_refresh::GoldenRefresh;
 use crate::task::lint::Lint;
+use crate::task::supply::Supply;
 use crate::task::surfaces::Surfaces;
 use crate::task::test::Test;
 use crate::task::usage::Usage;
@@ -47,6 +49,7 @@ pub enum Task {
     Clippy,
     ConstShape,
     CrateGraph,
+    Deny,
     DistinctSignatures,
     EnumPredicates,
     ExpressionFlow,
@@ -73,6 +76,7 @@ pub enum Task {
     PrimitiveBoundary,
     PrivateFns,
     PublicSurface,
+    Semver,
     SettingsShape,
     Stacked,
     StateGraph,
@@ -131,6 +135,8 @@ impl Task {
             )
             .run(workspace, &selection, &policy),
             Task::Clippy => Ok(Clippy::run(workspace, &selection, &policy)?),
+            Task::Deny => Supply::deny(workspace, &policy),
+            Task::Semver => Supply::semver(workspace, &selection, &policy),
             Task::Goldens => GoldenRefresh::run(workspace, Reach::Offline),
             Task::GoldensOnline => GoldenRefresh::run(workspace, Reach::Online),
             Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),

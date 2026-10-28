@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use built_target::BuiltTarget;
 use dependency::Dependency;
 use serde::Deserialize;
+use serde::de::IgnoredAny;
 
 use crate::crate_name::CrateName;
 
@@ -16,11 +17,17 @@ pub struct Package {
     dependencies: Vec<Dependency>,
     #[serde(default)]
     targets: Vec<BuiltTarget>,
+    #[serde(default)]
+    publish: Option<Vec<IgnoredAny>>,
 }
 
 impl Package {
     pub fn name(&self) -> &CrateName {
         &self.name
+    }
+
+    pub fn publish(&self) -> Option<&[IgnoredAny]> {
+        self.publish.as_deref()
     }
 
     pub fn doctested(&self) -> bool {

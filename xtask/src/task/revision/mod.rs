@@ -33,6 +33,10 @@ impl Revision {
         Ok(Revision { commit: found.parse()?, git })
     }
 
+    pub fn commit(&self) -> &Commit {
+        &self.commit
+    }
+
     pub fn in_database(database: &Path, commit: Commit) -> Revision {
         Revision { git: GitReads::new(database), commit }
     }

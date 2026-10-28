@@ -67,4 +67,8 @@ pub enum Failure {
     Unbuilt(&'static str),
     #[error("git: {0}")]
     Git(Unread),
+    #[error("{failure}\nsupply chain fails closed: fix the finding above, or install {tool} if it is missing")]
+    Supply { tool: &'static str, failure: Box<task::Failure> },
+    #[error("{skipped}: fails closed in CI, the network failed: {failure}")]
+    Unreached { skipped: String, failure: Box<Failure> },
 }
