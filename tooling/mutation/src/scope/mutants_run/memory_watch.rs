@@ -122,18 +122,3 @@ impl<'policy> MemoryWatch<'policy> {
             .collect()
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::{AvailableGib, Failure, MemoryWatch};
-    use settings::EmbeddedDefaults;
-    use std::process::Command;
-    use task::Policy;
-    #[test]
-    fn a_tree_over_its_budget_is_killed_and_the_run_is_refused() {
-        let policy = Policy::defaults();
-        let mut child = Command::new("sleep").arg("30").spawn().unwrap();
-        let outcome = MemoryWatch::over(&child, AvailableGib::from_bytes(0), &policy).guard(&mut child, None);
-        assert!(matches!(outcome, Err(Failure::BudgetEnforced { .. })));
-    }
-}
