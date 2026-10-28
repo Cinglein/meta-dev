@@ -916,3 +916,4 @@
 {"at":"2026-10-28T03:43:16.456144Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-475d2c0b4a17042c","text":"Superseded by task-511e01fba4cfff25 after meta move (#42)."}
 {"at":"2026-10-28T03:43:17.921836Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-bc3f3a49821699b0"}
 {"at":"2026-10-28T03:43:19.470976Z","actor":"claude-lead","kind":"TaskDone","task":"task-bc3f3a49821699b0"}
+{"at":"2026-10-28T03:43:20.960183Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-e7ee5a9a8a795fae","text":"Cut git processes per meta call (meta/log fetch+read ~11); #64 did read 6→3; remainder with task-29475a55. @performance-and-cost"}
