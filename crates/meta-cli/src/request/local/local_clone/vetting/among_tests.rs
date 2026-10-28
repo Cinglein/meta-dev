@@ -17,7 +17,9 @@ const LISTINGS: [&str; 5] = [
 ];
 const VERDICTS: [&str; 5] = ["", OFF_BRANCH, OFF_BRANCH, OFF_BRANCH, SHARED];
 const VERIFY: &str = "rev-parse";
+const REMOTE: &str = "ls-remote";
 const ONE_LISTING_NO_HEAD_READ_ONE_VERIFY_A_VERDICT: [usize; 3] = [1, 0, 2];
+const REMOTE_LISTINGS: [usize; 5] = [1, 0, 0, 0, 0];
 
 struct Sweep<'host>(&'host FakeHost, Context);
 
@@ -39,10 +41,14 @@ impl<'host> Sweep<'host> {
         let calls = self.0.calls();
         [LISTING, ON_BRANCH, VERIFY].map(|word| calls.iter().filter(|call| call.contains(word)).count())
     }
+
+    fn remote_listings(&self) -> usize {
+        self.0.calls().iter().filter(|call| call.contains(REMOTE)).count()
+    }
 }
 
 #[test]
-fn a_sweeps_one_listing_judges_head_and_sharing_without_a_head_read_and_a_failed_listing_keeps_the_worktree() {
+fn a_sweeps_one_worktree_and_remote_listing_judge_head_and_sharing_without_a_head_read_and_a_failed_listing_keeps_the_worktree() {
     let hosts = LISTINGS.map(|listing| {
         let mut host = FakeHost::clean();
         host.answer_is(LIST, listing);
@@ -51,6 +57,7 @@ fn a_sweeps_one_listing_judges_head_and_sharing_without_a_head_read_and_a_failed
     let sweeps = hosts.each_ref().map(Sweep::new);
     assert_eq!(sweeps.each_ref().map(Sweep::twice), VERDICTS.map(|shown| [shown; 2]));
     assert_eq!(sweeps.each_ref().map(Sweep::reads), [ONE_LISTING_NO_HEAD_READ_ONE_VERIFY_A_VERDICT; 5]);
+    assert_eq!(sweeps.each_ref().map(Sweep::remote_listings), REMOTE_LISTINGS);
     let mut unlisted = FakeHost::clean();
     unlisted.fails(LIST);
     assert_eq!(Sweep::new(&unlisted).twice(), [UNLISTED; 2]);
