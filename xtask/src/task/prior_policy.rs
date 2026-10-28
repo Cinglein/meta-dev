@@ -28,7 +28,7 @@ impl PriorPolicy {
     pub const DEFAULT_LEVELS: &str = "crates/meta-severity/src/default_levels.json";
 
     pub fn read_at(revision: &Revision) -> Result<PriorPolicy, Failure> {
-        Self::parsed(revision.file(Path::new(Self::PATH)))
+        Self::parsed(revision.present(Path::new(Self::PATH))?)
     }
 
     pub fn scales_at(revision: &Revision) -> Result<Scales, Failure> {

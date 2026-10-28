@@ -1,3 +1,4 @@
+mod checkout;
 mod ci;
 mod cli_failure;
 mod git_link;

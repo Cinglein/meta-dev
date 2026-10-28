@@ -3,6 +3,7 @@ mod linking;
 mod reply;
 
 use std::fmt;
+use std::panic::resume_unwind;
 use std::str::FromStr;
 
 use meta_listing::Scope;
@@ -87,9 +88,7 @@ impl HookEvent {
                     .map_or(Verdict::Allow, Verdict::Deny),
                 None,
             ),
-            Self::PostToolUse => {
-                Reply::new(self, Verdict::Allow, Self::after_push(project, input)).with_news(Linking::after(input))
-            }
+            Self::PostToolUse => Self::after_tool_use(project, input),
             Self::Stop => Reply::new(
                 self,
                 input
@@ -103,10 +102,19 @@ impl HookEvent {
     }
 
     fn outside_projects(self, input: &HookInput) -> Option<Reply> {
-        let linked = (self == Self::PostToolUse).then(|| Linking::after(input)).flatten();
+        let linked = (self == Self::PostToolUse).then(|| Linking::after(input, None)).flatten();
         let linking = linked.map(|linked| Reply::new(self, Verdict::Allow, Some(linked)));
         let refusal = (self == Self::PreToolUse).then(|| input.refusal()).flatten();
         refusal.map(|refusal| Reply::new(self, Verdict::Deny(Denial::from(refusal)), None)).or(linking)
+    }
+
+    fn after_tool_use(project: &Project, input: &HookInput) -> Reply {
+        let (pushed, linked) = std::thread::scope(|scope| {
+            let linked = scope.spawn(|| Linking::after(input, Some(project)));
+            (Self::after_push(project, input), linked.join())
+        });
+        let linked = linked.unwrap_or_else(|panic| resume_unwind(panic));
+        Reply::new(Self::PostToolUse, Verdict::Allow, pushed).with_news(linked)
     }
 
     fn after_push(project: &Project, input: &HookInput) -> Option<Listed> {

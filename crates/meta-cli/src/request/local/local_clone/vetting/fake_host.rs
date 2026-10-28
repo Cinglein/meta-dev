@@ -1,7 +1,7 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 mod fake_batch;
 mod fake_roots;
@@ -49,7 +49,7 @@ const ANSWERS: [(&str, &str); 12] = [
     ("rev-parse", "c1\n"),
     ("for-each-ref", "c1 refs/heads/task-00000000000000b1\n"),
     ("ls-remote", "c0\tHEAD\nc1\trefs/heads/task-00000000000000b1\nc0\trefs/heads/main\n"),
-    ("list", ""),
+    ("list", "worktree /trees/task-00000000000000b1\nHEAD c1\nbranch refs/heads/task-00000000000000b1\n"),
     ("move", ""),
     ("remove", ""),
     ("lock", ""),
@@ -97,10 +97,10 @@ pub struct FakeHost {
     walk: Vec<Found>,
     neighbours: HashMap<PathBuf, Vec<Alternates>>,
     places: [PathBuf; 3],
-    calls: RefCell<Vec<Vec<OsString>>>,
-    scans: RefCell<Vec<Vec<PathBuf>>>,
+    calls: Mutex<Vec<Vec<OsString>>>,
+    scans: Mutex<Vec<Vec<PathBuf>>>,
     raced: HashMap<&'static str, String>,
-    relocation: RefCell<Option<[PathBuf; 2]>>,
+    relocation: Mutex<Option<[PathBuf; 2]>>,
     pseudo: Vec<&'static str>,
     dangling: Vec<&'static str>,
     open: Vec<PathBuf>,
@@ -119,10 +119,10 @@ impl FakeHost {
                 .collect(),
             neighbours: HashMap::new(),
             places: [ROOT, CHECKOUT, COMMON].map(PathBuf::from),
-            calls: RefCell::new(Vec::new()),
-            scans: RefCell::new(Vec::new()),
+            calls: Mutex::new(Vec::new()),
+            scans: Mutex::new(Vec::new()),
             raced: HashMap::new(),
-            relocation: RefCell::new(None),
+            relocation: Mutex::new(None),
             pseudo: Vec::new(),
             dangling: Vec::new(),
             open: Vec::new(),
@@ -184,12 +184,12 @@ impl FakeHost {
     }
 
     pub fn calls(&self) -> Vec<String> {
-        let calls = self.calls.borrow();
+        let calls = self.calls.lock().unwrap();
         calls.iter().map(|call| call.join(OsStr::new(SPACE)).to_string_lossy().into_owned()).collect()
     }
 
     pub fn scans(&self) -> Vec<Vec<PathBuf>> {
-        self.scans.borrow().clone()
+        self.scans.lock().unwrap().clone()
     }
 
     pub fn holds(&mut self, pseudo: &[&'static str]) {
@@ -213,16 +213,16 @@ impl FakeHost {
         let moved: Vec<PathBuf> =
             arguments.iter().skip_while(|argument| *argument != MOVE).skip(1).map(PathBuf::from).collect();
         let pair = <[PathBuf; 2]>::try_from(moved).ok();
-        let fresh = pair.map(|pair| self.relocation.borrow().is_none().then_some(pair));
-        drop(fresh.map(|next| self.relocation.replace(next)));
+        let fresh = pair.map(|pair| self.relocation.lock().unwrap().is_none().then_some(pair));
+        drop(fresh.map(|next| std::mem::replace(&mut *self.relocation.lock().unwrap(), next)));
     }
 
     fn quarantined(&self) -> bool {
-        self.relocation.borrow().is_some()
+        self.relocation.lock().unwrap().is_some()
     }
 
     fn translated(&self, path: &Path) -> Option<PathBuf> {
-        self.relocation.borrow().as_ref().map_or(Some(path.to_path_buf()), |[from, to]| {
+        self.relocation.lock().unwrap().as_ref().map_or(Some(path.to_path_buf()), |[from, to]| {
             match (path.strip_prefix(from), path.strip_prefix(to)) {
                 (Ok(_), _) => None,
                 (_, Ok(inner)) => Some(from.join(inner)),
@@ -262,7 +262,7 @@ impl Inspection for FakeHost {
 
     fn text(&self, path: &Path) -> Option<String> {
         let text = self.texts.get(&self.translated(path)?).cloned()?;
-        Some(self.relocation.borrow().as_ref().map_or(text.clone(), |[from, to]| {
+        Some(self.relocation.lock().unwrap().as_ref().map_or(text.clone(), |[from, to]| {
             text.replace(from.to_string_lossy().as_ref(), to.to_string_lossy().as_ref())
         }))
     }
@@ -274,7 +274,7 @@ impl Inspection for FakeHost {
         let word = named.or(head);
         let raced = word.and_then(|word| self.raced.get(word)).filter(|_| self.quarantined());
         let raced = raced.map(|race| Ok(race.clone()));
-        self.calls.borrow_mut().push(arguments.clone());
+        self.calls.lock().unwrap().push(arguments.clone());
         self.relocate(&arguments);
         let rooted = FakeRoots::new(&self.pseudo, &self.dangling).verified(&arguments);
         let answer = rooted.or(raced).or_else(|| word.and_then(|word| self.answers.get(word).cloned()));
@@ -297,18 +297,18 @@ impl Inspection for FakeHost {
     }
 
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
-        self.scans.borrow_mut().push(paths.to_vec());
+        self.scans.lock().unwrap().push(paths.to_vec());
         Occupancy::Listed(self.open.clone())
     }
 
     fn frozen(&self, quarantine: &Path, plan: Thaw) -> Result<Thaw, Kept> {
-        self.calls.borrow_mut().push(vec![OsString::from(FROZEN), quarantine.as_os_str().to_os_string()]);
+        self.calls.lock().unwrap().push(vec![OsString::from(FROZEN), quarantine.as_os_str().to_os_string()]);
         Ok(plan.holding(vec![Thawed::new(quarantine.to_path_buf(), &Permissions::from_mode(NO_MODE))]))
     }
 
     fn thawed(&self, thaw: &Thaw) {
         let thawed = thaw.files().iter().map(|thawed| thawed.path().as_os_str().to_os_string());
-        self.calls.borrow_mut().push([OsString::from(THAWED)].into_iter().chain(thawed).collect());
+        self.calls.lock().unwrap().push([OsString::from(THAWED)].into_iter().chain(thawed).collect());
     }
 
     fn stamp(&self) -> Stamp {

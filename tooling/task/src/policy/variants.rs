@@ -16,7 +16,23 @@ const PRICE: &str = "allowance = { share = 100 }\n";
 const WINDOW: &str = "window = \"per_change\"\n";
 const CI: &str = "source = \"ci\"\n";
 
-const REFUSED: [(&str, &str, &str, &str); 31] = [
+const REFUSED: [(&str, &str, &str, &str); 36] = [
+    (
+        "meta", "\nparameters = 4\n", "\n", "[limits]: parameters is not set",
+    ),
+    (
+        "meta", "\nfn_name = 3\n", "\n", "[floors]: fn_name is not set",
+    ),
+    (
+        "meta", "\ntests_per_hundred_files = 40\n", "\n",
+        "[shares]: tests_per_hundred_files is not set",
+    ),
+    (
+        "meta", "\ngranted = 5\n", "\n", "[memory_gib]: granted is not set",
+    ),
+    (
+        "meta", "\nsample_every = 20\n", "\n", "[millis]: sample_every is not set",
+    ),
     (
         "meta",
         END,

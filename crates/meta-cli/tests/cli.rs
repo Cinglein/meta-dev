@@ -2,7 +2,7 @@
 
 use std::io::Write as _;
 use std::path::Path;
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const OWNER: &str = "owner";
@@ -15,11 +15,9 @@ const WRITES: &str = "2";
 const LIST_ISSUES: [&str; 2] = ["list", "issues"];
 const LOCAL_NAME: &str = "localname";
 const OPEN: [&str; 4] = ["open", "--division", "features-and-maintenance", "text"];
-const SEED: [[&str; 5]; 3] = [
-    ["commit", "-q", "--allow-empty", "-m", "seed"],
-    ["push", "-q", "origin", "HEAD:main", "--no-verify"],
-    ["remote", "set-head", "origin", "main", "--"],
-];
+const SEED: &str = "commit refs/heads/main\ncommitter t <t@meta.invalid> 1700000000 +0000\ndata 4\nseed\n\n";
+const TRACKED: &str = "reset refs/remotes/origin/main\nfrom refs/heads/main\n\n";
+const ORIGIN_HEAD: [&str; 3] = ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"];
 const NOREPLY: &str = "1+agent@users.noreply.github.com";
 const CLAIM: &str = "claim";
 const WORKTREE: &str = "--worktree";
@@ -39,6 +37,10 @@ const LOCAL_SETTINGS_RULE: &str = "/meta.local.toml\n";
 const NOT_A_DIRECTORY: &str = "/dev/null";
 const IGNORED: &str = "not gitignored";
 const GIT_CALL: &str = "git -C /";
+const TRACE: &str = "GIT_TRACE2_EVENT";
+const STARTED: &str = "\"event\":\"start\"";
+const LISTING: &str = "\"hierarchy\":\"ls-remote\"";
+const READ_PROCESSES: [&str; 3] = ["ls-remote", "upload-pack", "cat-file"];
 
 #[path = "support/skeleton.rs"]
 mod skeleton;
@@ -76,6 +78,26 @@ impl Git {
     }
 }
 
+struct Seed;
+
+impl Seed {
+    fn imported(repo: &Path, stream: &str) {
+        let mut command = Command::new("git");
+        let piped = command.arg("-C").arg(repo).args(["fast-import", "--quiet"]).stdin(Stdio::piped());
+        let mut child = piped.spawn().unwrap();
+        child.stdin.take().unwrap().write_all(stream.as_bytes()).unwrap();
+        assert!(child.wait().unwrap().success());
+    }
+
+    fn planted(origin: &Path, clone: &Path) {
+        std::thread::scope(|scope| {
+            scope.spawn(|| Self::imported(origin, SEED));
+            Self::imported(clone, &[SEED, TRACKED].concat());
+            assert!(Git::run(clone, &ORIGIN_HEAD).status.success());
+        });
+    }
+}
+
 struct Settings;
 
 impl Settings {
@@ -91,6 +113,18 @@ struct Run(Output);
 struct Complaint(String);
 
 struct Written(String);
+
+struct Traced(Run, String);
+
+impl Traced {
+    fn run(project: &Project, words: &[&str]) -> Self {
+        let trace = tempfile::NamedTempFile::new().unwrap();
+        let mut command = Command::new(META);
+        command.current_dir(project.clone.path()).args(words).env_remove("META_ACTOR").env("USER", LOCAL_NAME);
+        command.env(TRACE, trace.path());
+        Self(Run(command.output().unwrap()), std::fs::read_to_string(trace.path()).unwrap())
+    }
+}
 
 impl Run {
     const ACTOR_INDEX: usize = 2;
@@ -133,7 +167,7 @@ impl Project {
 
     fn seeded(worktrees: &Path) -> Self {
         let project = Self::new();
-        assert!(SEED.iter().all(|words| Git::run(project.clone.path(), words).status.success()));
+        Seed::planted(project.origin.path(), project.clone.path());
         std::fs::create_dir(project.clone.path().join(".git/info")).unwrap();
         std::fs::write(project.clone.path().join(EXCLUDE), LOCAL_SETTINGS_RULE).unwrap();
         Git::appended(&project.clone.path().join(".git/config"), FOREIGN_IDENTITY);
@@ -144,20 +178,16 @@ impl Project {
     fn meta(&self, actor: &str, words: &[&str]) -> Run {
         Run(Command::new(META).current_dir(self.clone.path()).args(words).env("META_ACTOR", actor).output().unwrap())
     }
-
-    fn meta_unset(&self, words: &[&str]) -> Run {
-        let mut command = Command::new(META);
-        command.current_dir(self.clone.path()).args(words).env_remove("META_ACTOR").env("USER", LOCAL_NAME);
-        Run(command.output().unwrap())
-    }
 }
 
 #[test]
-fn writes_go_to_the_remote_as_meta_actor_else_owner_and_offline_writes_are_refused() {
+fn writes_go_to_the_remote_as_meta_actor_else_owner_listing_it_once_and_offline_writes_are_refused() {
     let project = Project::new();
-    let opened = project.meta_unset(&ISSUE);
-    let listed = project.meta(OWNER, &LIST_ISSUES).to_string();
-    assert!(opened.actor().as_deref() == Some(OWNER) && listed.contains(&opened.written().0));
+    let opened = Traced::run(&project, &ISSUE);
+    let listed = Traced::run(&project, &LIST_ISSUES);
+    let started = listed.1.matches(STARTED).count();
+    assert!(opened.0.actor().as_deref() == Some(OWNER) && listed.0.to_string().contains(&opened.0.written().0));
+    assert!(opened.1.matches(LISTING).count() == 1 && (1..=READ_PROCESSES.len()).contains(&started), "{started}");
     assert!(Run(Git::run(project.origin.path(), &COUNT)).to_string().starts_with(WRITES));
     assert_eq!(project.meta(WRITER, &ISSUE).actor().as_deref(), Some(WRITER));
     Git::run(project.clone.path(), &NOWHERE);

@@ -24,14 +24,6 @@ impl Revision {
         Ok(Revision { root: root.to_path_buf(), commit })
     }
 
-    pub fn file(&self, path: &Path) -> Option<String> {
-        Self::git(&self.root)
-            .arguments(["cat-file", "blob"])
-            .argument(self.commit.object(path))
-            .captured::<Stdout>()
-            .ok()
-    }
-
     pub fn present(&self, path: &Path) -> Result<Option<String>, Failure> {
         let listed = Self::git(&self.root)
             .arguments(["ls-tree", "-z", "--name-only"])
@@ -82,6 +74,7 @@ mod tests {
 
     use super::Revision;
     use crate::task::fixture::Fixture;
+    use crate::task::prior_policy::PriorPolicy;
     use crate::task::ratchet::Baseline;
     use crate::task::surfaces::Surfaces;
     use task::{BaselineFile, BranchName, Surface};
@@ -127,5 +120,13 @@ mod tests {
         let read = |revision: &Revision, path: &str| revision.present(Path::new(path)).map(|text| text.is_some()).ok();
         let found = [read(&tip, PARENT_POLICY), read(&tip, ABSENT), read(&lost, PARENT_POLICY)];
         assert_eq!(found, [Some(true), Some(false), None]);
+    }
+
+    #[test]
+    fn a_git_failure_reading_the_prior_policy_fails_closed() {
+        let fixture = Fixture::new();
+        fixture.write(PARENT_POLICY, PARENT_TEXT).branch();
+        let lost = Revision { root: fixture.root().to_path_buf(), commit: LOST.parse().unwrap() };
+        assert!(PriorPolicy::read_at(&lost).is_err());
     }
 }

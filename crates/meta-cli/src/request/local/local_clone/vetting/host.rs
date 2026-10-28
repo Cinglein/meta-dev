@@ -5,12 +5,12 @@ mod freeze_tests;
 #[cfg(test)]
 mod tests;
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::io::{ErrorKind, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
+use std::sync::{Mutex, PoisonError};
 
 use super::alternates::Alternates;
 use super::cause::Cause;
@@ -27,7 +27,7 @@ use walker::Walker;
 
 #[derive(Debug, Default)]
 pub struct Host {
-    lenders: RefCell<HashMap<PathBuf, Vec<Alternates>>>,
+    lenders: Mutex<HashMap<PathBuf, Vec<Alternates>>>,
 }
 
 impl Host {
@@ -86,12 +86,8 @@ impl Inspection for Host {
     }
 
     fn neighbours(&self, root: &Path) -> Vec<Alternates> {
-        let known = self.lenders.borrow().get(root).cloned();
-        known.unwrap_or_else(|| {
-            let lenders = self.lenders(root);
-            self.lenders.borrow_mut().insert(root.to_path_buf(), lenders.clone());
-            lenders
-        })
+        let mut known = self.lenders.lock().unwrap_or_else(PoisonError::into_inner);
+        known.entry(root.to_path_buf()).or_insert_with(|| self.lenders(root)).clone()
     }
 
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
