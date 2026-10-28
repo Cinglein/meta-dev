@@ -252,7 +252,7 @@ pub const SECTIONS: &[Section] = &[
                 ),
                 Check(
                     Enforcer::new(
-                        "tooling/task/src/budgets/ledger/prior_standing/tests.rs",
+                        "tooling/task/src/budgets/ledger.rs",
                         "an_over_standing_measure_blocks_its_division_until_a_change_moves_it_toward_its_line",
                     ),
                     &[],

@@ -1,0 +1,12 @@
+[
+    Listed(
+        Listed(
+            "clean\n",
+        ),
+    ),
+    Flagged(
+        Listed(
+            "raised\n",
+        ),
+    ),
+]

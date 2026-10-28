@@ -1,0 +1,38 @@
+[ci]
+division = "performance-and-cost"
+window = "per_change"
+source = "ci"
+warning = 60
+overspend = "block"
+
+[ci.measure]
+workflow_wall_time = "diff_job"
+
+[ci.allowance]
+duration = 4000
+
+[ci-lints]
+division = "performance-and-cost/lints"
+measure = "slowest_test"
+window = "per_change"
+source = "ci"
+warning = 50
+tolerance = 10
+overspend = "block"
+
+[ci-lints.allowance]
+of = "ci"
+percent = 40
+
+[ci-tests]
+division = "performance-and-cost/tests"
+measure = "test_wall_time"
+window = "per_change"
+source = "ci"
+warning = 60
+overspend = "block"
+
+[ci-tests.allowance]
+of = "ci"
+percent = 60
+ci-tests: Some("2400ms")

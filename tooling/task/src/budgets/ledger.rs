@@ -90,19 +90,12 @@ impl Ledger {
                     standing.exposure(ranked.as_ref(), division),
                     measure.item_filter(),
                 ) {
-                    (Exposure::Within, None) => self.trend(measure),
+                    (Exposure::Within, None) => {
+                        Exposure::trend(self.based.get(measure), self.spent.get(measure))
+                    }
                     (exposure, _) => exposure,
                 }
             }
-        }
-    }
-
-    fn trend(&self, measure: &Measure) -> Exposure {
-        match (self.based.get(measure), self.spent.get(measure)) {
-            (Some(base), Some(head)) if head < base => Exposure::Improves,
-            (Some(base), Some(head)) if head == base => Exposure::Unchanged,
-            (Some(_), Some(_)) => Exposure::Within,
-            (None, _) | (_, None) => Exposure::Unmeasured,
         }
     }
 
@@ -150,9 +143,9 @@ impl Ledger {
 mod tests {
     use std::collections::BTreeSet;
 
+    use meta_golden::Golden;
     use meta_schema::Record;
     use meta_state::State;
-    use settings::EmbeddedDefaults;
 
     use super::{Ledger, Mode};
     use crate::budget::{Interval, Millis};
@@ -162,52 +155,38 @@ mod tests {
     use crate::selection::Selection;
 
     const LOG: &str = include_str!("ledger/standing.jsonl");
-    pub(super) const STANDING: &str = include_str!("ledger/standing.toml");
-    const TESTED: &str = "t-";
-    const CRITICAL: &str = "open_items critical";
-    pub(super) const ADDRESSING: &str = "8";
-    const STANDING_ROWS: [&str; 13] = [
-        "architecture-and-planning-critical architecture-and-planning  open_items critical                  0          0          0 ok",
-        "features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, paid down by the linked task",
-        "performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over, outside the linked task's division",
-        "t-concerns         features-and-maintenance   open_items concerns                  1          3          5 ok",
-        "t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over, outside the linked task's division",
-        "t-cost-tasks       performance-and-cost       open_items tasks                     0          5          9 ok",
-        "t-discussion       features-and-maintenance   open_items in_discussion             1          1          2 ok",
-        "t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over, paid down by the linked task",
-        "t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over",
-        "t-nav-unheld       features-and-maintenance/nav open_items unheld_tasks              3          1          3 warn",
-        "t-open-tasks       features-and-maintenance   open_items tasks                     5          3          6 warn",
-        "t-planning-issues  architecture-and-planning  open_items issues                    1          0          0 over, outside the linked task's division",
-        "t-unheld           features-and-maintenance   open_items unheld_tasks              3          3          5 ok",
+    const STANDING: &str = include_str!("ledger/standing.toml");
+    const BASE: &str = include_str!("ledger/base.toml");
+    const ADDRESSING: &str = "8";
+    const LINKS: [&str; 7] = [
+        "", "7", "task-0000000000000004", ADDRESSING, "9", "10", "11",
     ];
-    const ALL_OVER: &[&str] = &[
-        "t-cost-concerns", "t-nav-concerns", "t-nav-tasks", "t-planning-issues",
-    ];
-    const UNREACHED: [(&str, &[&str]); 7] = [
-        ("", ALL_OVER),
-        ("7", &["t-nav-concerns", "t-nav-tasks"]),
-        ("task-0000000000000004", &["t-cost-concerns"]),
-        (ADDRESSING, &["t-nav-tasks"]),
-        ("9", ALL_OVER),
-        ("10", &["t-nav-concerns", "t-nav-tasks"]),
-        ("11", &["t-nav-concerns", "t-nav-tasks"]),
-    ];
-    const DIFF_REACHED: [(&str, &[&str]); 3] = [
-        ("task-0000000000000004", &["t-cost-concerns"]),
-        ("7", &["t-nav-concerns", "t-nav-tasks"]),
-        (ADDRESSING, &["t-nav-tasks"]),
-    ];
-
     const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
-    const STATEMENT: &str = include_str!("ledger/statement.txt");
     const MILLI: Millis = Millis::new(1);
     const BASELINED_SHARE: usize = 25;
-    const BASELINED_TANGLE: usize = 64;
+    const TANGLED: Option<usize> = Some(64 * 2);
+    const CAPPED: &str = concat!(
+        include_str!("ledger/standing.toml"),
+        "\n[budgets.t-tangle]\ndivision = \"features-and-maintenance\"\nmeasure = \"tangle_items\"\nallowance = { count = 4 }\nwindow = \"standing\"\n",
+    );
+    const OVER_CAP: Option<usize> = Some(6);
+    const ENDS: [(&str, Option<usize>, Option<usize>); 8] = [
+        ("7", Some(6), Some(5)),
+        ("7", Some(5), Some(4)),
+        ("7", Some(5), Some(5)),
+        ("7", Some(5), Some(6)),
+        ("7", None, Some(5)),
+        ("7", Some(5), None),
+        (ADDRESSING, Some(5), Some(6)),
+        ("task-0000000000000004", Some(5), Some(6)),
+    ];
 
     impl Ledger {
-        fn nested() -> Policy {
-            toml::from_str(&format!("{}{NESTED}", Policy::DEFAULTS)).unwrap()
+        fn shown(&self, policy: &Policy) -> String {
+            let statement = self.statement(policy);
+            let [unreached, reached] = [Selection::Crates(BTreeSet::new()), Selection::Workspace]
+                .map(|selection| statement.verdict(&selection));
+            format!("{statement}unreached {unreached}reached {reached}")
         }
 
         fn overspent(policy: &Policy) -> Ledger {
@@ -225,20 +204,17 @@ mod tests {
                 Measure::TestLineShare,
                 Amount::Share(Percent::from(BASELINED_SHARE)),
             );
-            ledger.tangled();
-            ledger
+            ledger.tangled(TANGLED)
         }
 
-        fn tangled(&mut self) {
-            self.spend(
-                Measure::TangleItems,
-                Amount::Count(Most::from(BASELINED_TANGLE * 2)),
+        fn tangled(mut self, tangle: Option<usize>) -> Ledger {
+            self.spent.extend(
+                tangle.map(|tangle| (Measure::TangleItems, Amount::Count(Most::from(tangle)))),
             );
+            self
         }
-    }
 
-    impl Ledger {
-        pub(super) fn standing(link: &str, policy: &Policy) -> Ledger {
+        fn standing(link: &str, policy: &Policy) -> Ledger {
             let records: Vec<Record> = LOG
                 .lines()
                 .map(|line| serde_json::from_str(line).unwrap())
@@ -255,75 +231,57 @@ mod tests {
             )));
             ledger
         }
-
-        pub(super) fn blocking(&self, policy: &Policy, selection: &Selection) -> Vec<String> {
-            self.statement(policy)
-                .verdict(selection)
-                .violations()
-                .iter()
-                .filter_map(|violation| {
-                    violation
-                        .message()
-                        .split_whitespace()
-                        .next()
-                        .filter(|id| id.starts_with(TESTED))
-                        .map(str::to_owned)
-                })
-                .collect()
-        }
-    }
-
-    #[test]
-    fn a_standing_budget_counts_the_open_items_of_its_division_subtree() {
-        let policy: Policy = toml::from_str(&format!("{}{STANDING}", Policy::DEFAULTS)).unwrap();
-        let shown = Ledger::standing(ADDRESSING, &policy)
-            .statement(&policy)
-            .to_string();
-        let table: Vec<&str> = shown
-            .lines()
-            .filter(|line| line.starts_with(TESTED) || line.contains(CRITICAL))
-            .collect();
-        assert_eq!(table, STANDING_ROWS);
-        let standing = [policy.budgets().standing(), Budgets::default().standing()];
-        assert_eq!(standing, [true, false]);
     }
 
     #[test]
     fn an_over_standing_budget_blocks_a_change_linked_inside_its_division_unless_it_pays_down() {
-        let policy: Policy = toml::from_str(&format!("{}{STANDING}", Policy::DEFAULTS)).unwrap();
-        let unreached = Selection::Crates(BTreeSet::new());
-        let blocking = |selection: &Selection, (link, _): (&str, &[&str])| {
-            Ledger::standing(link, &policy).blocking(&policy, selection)
-        };
-        let expected = |(_, ids): (&str, &[&str])| -> Vec<String> {
-            ids.iter().map(|id| (*id).to_owned()).collect()
-        };
-        assert_eq!(
-            UNREACHED.map(|case| blocking(&unreached, case)),
-            UNREACHED.map(expected)
-        );
-        assert_eq!(
-            DIFF_REACHED.map(|case| blocking(&Selection::Workspace, case)),
-            DIFF_REACHED.map(expected)
-        );
-        assert_eq!(
-            Ledger::default().blocking(&policy, &unreached),
-            Vec::<String>::new()
-        );
+        let policy = Policy::with_added(STANDING).unwrap();
+        let shown = LINKS.map(|link| {
+            format!(
+                "link {link:?}\n{}",
+                Ledger::standing(link, &policy).shown(&policy)
+            )
+        });
+        let unlinked = Ledger::default().shown(&policy);
+        Golden::for_test(module_path!(), "standing")
+            .checked(&format!("{}{unlinked}", shown.concat()))
+            .unwrap();
+        assert!(policy.budgets().standing() && !Budgets::default().standing());
+    }
+
+    #[test]
+    fn an_over_standing_measure_blocks_its_division_until_a_change_moves_it_toward_its_line() {
+        let waiting = Policy::with_added(STANDING).unwrap();
+        let mut ledger = Ledger::standing(ADDRESSING, &waiting);
+        ledger.enforce_from(Some(BASE)).unwrap();
+        let enforced = ledger.shown(&waiting);
+        ledger.report_only();
+        let reported = ledger.shown(&waiting);
+        let policy = Policy::with_added(CAPPED).unwrap();
+        let ends = ENDS.map(|(link, base, head)| {
+            let mut ledger = Ledger::standing(link, &policy).tangled(head);
+            ledger.enforce_from(Some(BASE)).unwrap();
+            ledger.measured_at_base(Ledger::default().tangled(base));
+            format!(
+                "link {link:?} base {base:?} head {head:?}\n{}",
+                ledger.shown(&policy)
+            )
+        });
+        let fresh = Ledger::default().tangled(OVER_CAP).shown(&policy);
+        Golden::for_test(module_path!(), "merge_base")
+            .checked(&format!("{enforced}{reported}{}{fresh}", ends.concat()))
+            .unwrap();
     }
 
     #[test]
     fn an_overspend_fails_a_change_within_reach_and_a_nested_part_is_measured() {
-        let policy = Ledger::nested();
+        let policy = Policy::with_added(NESTED).unwrap();
         let ledger = Ledger::overspent(&policy);
-        assert_eq!(ledger.statement(&policy).to_string(), STATEMENT);
-        let unreached = Selection::Crates(BTreeSet::new());
-        let mut linted = Ledger::default();
-        linted.tangled();
-        assert!(
-            ledger.checked(&policy, &Selection::Workspace).is_err()
-                && ledger.checked(&policy, &unreached).is_ok()
-                && linted.checked(&policy, &Selection::Workspace).is_ok()
-        );
+        let linted = Ledger::default().tangled(TANGLED);
+        let shown = format!("{}{}", ledger.shown(&policy), linted.shown(&policy));
+        Golden::for_test(module_path!(), "overspent")
+            .checked(&shown)
+            .unwrap();
+        assert!(ledger.checked(&policy, &Selection::Workspace).is_err());
     }
 }

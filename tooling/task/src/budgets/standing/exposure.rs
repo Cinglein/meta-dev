@@ -1,4 +1,4 @@
-use crate::budgets::budget::State;
+use crate::budgets::budget::{Amount, State};
 use crate::selection::Selection;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -15,6 +15,16 @@ pub enum Exposure {
 }
 
 impl Exposure {
+    #[must_use]
+    pub fn trend(base: Option<&Amount>, head: Option<&Amount>) -> Exposure {
+        match (base, head) {
+            (Some(base), Some(head)) if head < base => Exposure::Improves,
+            (Some(base), Some(head)) if head == base => Exposure::Unchanged,
+            (Some(_), Some(_)) => Exposure::Within,
+            (None, _) | (_, None) => Exposure::Unmeasured,
+        }
+    }
+
     #[must_use]
     pub fn exposed(self, selection: &Selection) -> Option<Exposure> {
         match self {

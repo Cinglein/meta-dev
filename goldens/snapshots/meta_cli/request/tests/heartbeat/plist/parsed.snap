@@ -1,0 +1,24 @@
+[
+    Ok(
+        Heartbeat(
+            Tick,
+        ),
+    ),
+    Ok(
+        Heartbeat(
+            Flags,
+        ),
+    ),
+    Ok(
+        Heartbeat(
+            Plist,
+        ),
+    ),
+    Err(
+        Usage(
+            Message(
+                "unknown heartbeat command `install`",
+            ),
+        ),
+    ),
+]
