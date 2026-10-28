@@ -1212,3 +1212,4 @@
 {"at":"2026-10-28T23:03:41.352887Z","actor":"claude-lead","kind":"TaskOpened","task":"task-e6de1c3c6e3d8679","text":"GitHub service PR 2: fold branch-rule reads into the status GraphQL query (admin token confirmed readable).","division":"performance-and-cost","addresses":["concern-a6375369ebaf3ce6"]}
 {"at":"2026-10-28T23:03:45.274039Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-2afb92b19578703f","text":"Split: #137 now under task-a29f99a3; PR 2 is task-e6de1c3c. Survivors named."}
 {"at":"2026-10-28T23:03:58.766132Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-ba37a350f82c8bf5","text":"meta link records a bare PR number (cross-repo misread) and has no unlink; a stale extra link blocks a PR's paydown exemption."}
+{"at":"2026-10-28T23:08:09.264949Z","actor":"claude-lead","kind":"TaskLinked","task":"task-a29f99a353fb8afd","pr":138}
