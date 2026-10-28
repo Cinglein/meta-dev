@@ -2,7 +2,7 @@
 
 use std::io::Write as _;
 use std::path::Path;
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const OWNER: &str = "owner";
@@ -15,11 +15,10 @@ const WRITES: &str = "2";
 const LIST_ISSUES: [&str; 2] = ["list", "issues"];
 const LOCAL_NAME: &str = "localname";
 const OPEN: [&str; 4] = ["open", "--division", "features-and-maintenance", "text"];
-const SEED: [[&str; 5]; 3] = [
-    ["commit", "-q", "--allow-empty", "-m", "seed"],
-    ["push", "-q", "origin", "HEAD:main", "--no-verify"],
-    ["remote", "set-head", "origin", "main", "--"],
-];
+const SEED: &str = "commit refs/heads/main\ncommitter t <t@meta.invalid> 1700000000 +0000\ndata 4\nseed\n\n";
+const TRACKED: &str = "reset refs/remotes/origin/main\nfrom refs/heads/main\n\n";
+const ORIGIN_HEAD: &str = ".git/refs/remotes/origin/HEAD";
+const ORIGIN_MAIN: &str = "ref: refs/remotes/origin/main\n";
 const NOREPLY: &str = "1+agent@users.noreply.github.com";
 const CLAIM: &str = "claim";
 const WORKTREE: &str = "--worktree";
@@ -77,6 +76,28 @@ impl Git {
 
     fn appended(file: &Path, text: impl std::fmt::Display) {
         write!(std::fs::OpenOptions::new().append(true).open(file).unwrap(), "{text}").unwrap();
+    }
+}
+
+struct Seed;
+
+impl Seed {
+    fn imported(repo: &Path, stream: &str) {
+        let mut command = Command::new("git");
+        let piped = command.arg("-C").arg(repo).args(["fast-import", "--quiet"]).stdin(Stdio::piped());
+        let mut child = piped.spawn().unwrap();
+        child.stdin.take().unwrap().write_all(stream.as_bytes()).unwrap();
+        assert!(child.wait().unwrap().success());
+    }
+
+    fn planted(origin: &Path, clone: &Path) {
+        std::thread::scope(|scope| {
+            scope.spawn(|| Self::imported(origin, SEED));
+            Self::imported(clone, &[SEED, TRACKED].concat());
+        });
+        let origin_head = clone.join(ORIGIN_HEAD);
+        std::fs::create_dir_all(origin_head.parent().unwrap()).unwrap();
+        std::fs::write(origin_head, ORIGIN_MAIN).unwrap();
     }
 }
 
@@ -149,7 +170,7 @@ impl Project {
 
     fn seeded(worktrees: &Path) -> Self {
         let project = Self::new();
-        assert!(SEED.iter().all(|words| Git::run(project.clone.path(), words).status.success()));
+        Seed::planted(project.origin.path(), project.clone.path());
         std::fs::create_dir(project.clone.path().join(".git/info")).unwrap();
         std::fs::write(project.clone.path().join(EXCLUDE), LOCAL_SETTINGS_RULE).unwrap();
         Git::appended(&project.clone.path().join(".git/config"), FOREIGN_IDENTITY);

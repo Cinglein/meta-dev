@@ -93,7 +93,7 @@ mod tests {
     const SECONDS: &str = "10";
     const OWN_GROUP: i32 = 0;
     const PLACES: [&str; 3] = ["/c", "/w", "/h"];
-    const GRACE: Duration = Duration::from_millis(10);
+    const GRACE: Duration = Duration::from_millis(1);
     const KILLED: i32 = 9;
 
     #[test]
