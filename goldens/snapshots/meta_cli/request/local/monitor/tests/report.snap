@@ -23,33 +23,3 @@ processes under this project's roots:
   unsure, no marker, root p, pid 200 orphaned age 64800s cpu 14400s 0.27: bash -c while true; do :; done
   not agent work, no marker, root p, pid 60 orphaned age 1s cpu 0s 0.00: meta monitor tick
 
-cwds 400,500,501,502,503,504,100,101,106,110,120,130,140,200,300,60
--TERM -100
-pause 5s
-cwds 100,102,105
--KILL 100
-ExitCode(unix_exit_status(1))
-monitor 2026-10-27 12:00Z, machine load 3.01 over 15 min (context only)
-obvious:
-  monitor sent -TERM to pid 100 orphaned past its limit, target -100: bash -c while true; do :; done
-  monitor sent -KILL to pid 100 orphaned past its limit, target 100: bash -c while true; do :; done
-  monitor: no agent marker under a root, pid 120 orphaned past its limit, target 120: tail -f log
-  monitor: no agent marker under a root, pid 140 orphaned past its limit, target 140: bash -c source env.sh && make
-  monitor: no agent marker under a root, pid 200 orphaned past its limit, target 200: bash -c while true; do :; done
-watch:
-  pid 504 cargo test: cpu 2400s flat, 1 ticks since 2026-10-27 12:00Z, last 2026-10-27 12:00Z
-processes under this project's roots:
-  not agent work, no marker, root p, pid 500 age 36000s cpu 1s 0.00: -zsh
-  not agent work, no marker, root p, pid 501 age 36000s cpu 7200s 0.05: claude
-  not agent work, no marker, root p, pid 502 age 32400s cpu 1s 0.00: node mcp-server
-  agent, session alive, marker, root p-worktrees, pid 503 age 10s cpu 0s 0.00: zsh -c source snapshot-zsh-1.sh && eval 'cargo t
-  agent, session alive, marker, root p-worktrees, pid 504 age 18000s cpu 2400s 0.99: cargo test
-  agent, marker, root p-worktrees, pid 100 orphaned age 64800s cpu 17460s 0.27: bash -c while true; do :; done
-  agent, marker, root p-worktrees, pid 101 age 1s cpu 0s 0.00: sleep 1
-  agent, marker, root p-worktrees, pid 110 orphaned age 600s cpu 0s 0.00: sleep 600
-  unsure, no marker, no root, pid 120 orphaned age 64800s cpu 1s 0.00: tail -f log
-  unsure, no marker, root p, pid 130 orphaned age 540s cpu 2400s 0.99: cargo run
-  unsure, no marker, root p, pid 140 orphaned age 64800s cpu 1s 0.00: bash -c source env.sh && make
-  unsure, no marker, root p, pid 200 orphaned age 64800s cpu 14400s 0.27: bash -c while true; do :; done
-  not agent work, no marker, root p, pid 60 orphaned age 1s cpu 0s 0.00: meta monitor tick
-

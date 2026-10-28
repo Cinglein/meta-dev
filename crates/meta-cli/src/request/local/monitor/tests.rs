@@ -72,17 +72,23 @@ impl Watch {
     fn shown(host: &FakeMachine, after: &str) -> String {
         format!("{host}{after}\n")
     }
-}
 
-#[test]
-fn the_monitor_signals_nothing_by_default_and_opted_in_stopping_spares_the_owner_shell_claude_and_other_projects() {
-    let shown = ["", STOPPING].map(|overrides| {
+    fn reported(overrides: &str) -> String {
         let git_dir = tempfile::tempdir().unwrap();
         let host = FakeMachine::new(&[SCENE, AFTER], CWDS, UPTIME);
         let report = Watch::patrolled(&host, git_dir.path(), overrides, TimeDelta::zero());
         Watch::shown(&host, &format!("{:?}\n{report}", report.exit_code()))
-    });
-    Golden::for_test(module_path!(), "report").checked(&shown.concat()).unwrap();
+    }
+}
+
+#[test]
+fn by_default_the_monitor_signals_nothing_and_reports_this_projects_processes_in_two_tiers() {
+    Golden::for_test(module_path!(), "report").checked(&Watch::reported("")).unwrap();
+}
+
+#[test]
+fn opted_in_stopping_spares_the_owner_shell_claude_its_children_other_projects_and_a_mixed_group() {
+    Golden::for_test(module_path!(), "stopping").checked(&Watch::reported(STOPPING)).unwrap();
 }
 
 #[test]
