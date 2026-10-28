@@ -22,15 +22,14 @@ impl StackAnswer {
         default: &BranchName,
         waits: &[Duration],
     ) -> Result<StackAnswer, Failure> {
-        let mut answer = ask()?;
-        for wait in waits {
-            if !answer.is_loose(default) {
-                break;
+        waits.iter().try_fold(ask()?, |answer, wait| {
+            if answer.is_loose(default) {
+                thread::sleep(*wait);
+                ask()
+            } else {
+                Ok(answer)
             }
-            thread::sleep(*wait);
-            answer = ask()?;
-        }
-        Ok(answer)
+        })
     }
 
     fn is_loose(&self, default: &BranchName) -> bool {
@@ -84,12 +83,13 @@ mod tests {
     #[test]
     fn a_loose_answer_is_asked_again_once_per_wait_and_a_stacked_one_ends_the_asking() {
         let trunk: BranchName = BASES[0].parse().unwrap();
+        let [_, stacked, loose] = ANSWERS;
         let asked = Cell::<usize>::default();
         let settle = |stacks_on: usize| {
-            asked.set(0);
+            asked.take();
             let ask = || {
                 asked.set(asked.get() + 1);
-                ANSWERS[if asked.get() < stacks_on { 2 } else { 1 }].parse()
+                if asked.get() < stacks_on { loose } else { stacked }.parse()
             };
             let answer = StackAnswer::settled(ask, &trunk, &WAITS).unwrap();
             (asked.get(), answer.verdict(NUMBER, &trunk).is_ok())
