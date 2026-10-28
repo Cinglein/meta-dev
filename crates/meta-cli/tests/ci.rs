@@ -17,8 +17,6 @@ const PATIENT: &str =
 const EXPECTED: &str = ".git/meta-ci/expected";
 const AT_ONCE: &str = "0";
 const STALLED: &str = "expected_millis = 5\ntimeout_millis = 400\ngh_millis = 350\nstop_millis = 40\n";
-const DEADLINE: &str =
-    "expected_millis = 30\nbackoff_millis = 60\nbackoff_cap_millis = 60\ntimeout_millis = 100\ngh_millis = 20\n";
 const SETTLE_POLL: Duration = Duration::from_millis(2);
 const SETTLE_LENGTH: usize = 3500;
 const SESSION: &str = "ABCDEF12-34";

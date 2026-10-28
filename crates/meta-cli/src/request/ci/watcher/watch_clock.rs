@@ -1,7 +1,10 @@
 mod clock_window;
 
+use std::fmt;
+use std::ops::ControlFlow;
 use std::time::{Duration, Instant};
 
+use super::note::Note;
 use crate::request::project::CiSettings;
 pub use clock_window::ClockWindow;
 
@@ -29,7 +32,13 @@ impl WatchClock {
         ClockWindow::new(self.elapsed(), self.deadline.checked_duration_since(Instant::now()))
     }
 
-    pub fn pause(&self, wait: Duration, settings: &CiSettings) -> Option<()> {
-        self.window().pause(wait, settings).map(std::thread::sleep)
+    pub fn poll(
+        &self,
+        refused: Option<impl fmt::Display>,
+        wait: Duration,
+        settings: &CiSettings,
+    ) -> ControlFlow<Option<Note>> {
+        std::thread::sleep(self.window().poll(refused, wait, settings)?);
+        ControlFlow::Continue(())
     }
 }
