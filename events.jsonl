@@ -865,3 +865,4 @@
 {"at":"2026-10-28T00:44:00.345176Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-bf6e566098040231","text":"Stop gate not-HEAD reason should say: one commit per task wait, rerun push to that branch, check the branch out again."}
 {"at":"2026-10-28T00:44:01.836563Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-6093dc893bc6b066","text":"Stop hook network calls can exceed Claude Code's 10 s hook timeout; a killed hook lets the stop pass (fail open)."}
 {"at":"2026-10-28T00:44:03.437258Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-6eb5524d6d5e1b9f","text":"Basho's browser-time budget lives in a second file; add a step wall-time measure and move it back into policy.toml."}
+{"at":"2026-10-28T00:44:04.955178Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-15761e89811112e8","text":"Test-line share ignores integration tests under tests/, so test bloat can move there unmeasured."}
