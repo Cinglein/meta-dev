@@ -22,9 +22,10 @@ const FUTURE_START: &str = "4000000000";
 const SAME: &str = "SAME5";
 const NOW: &str = "NOW6";
 const SAME_AT: &str = "4000000500";
-const SLOW_REMOTE: [&str; 3] = ["config", "remote.origin.uploadpack", "sleep 5; git-upload-pack"];
-const SLOW: std::time::Duration = std::time::Duration::from_secs(3);
-const UNREACHABLE: &str = "remote unreachable";
+const SLOW_REMOTE: [&str; 3] = ["config", "remote.origin.uploadpack", "sleep 0.3; git-upload-pack"];
+const SLOW: std::time::Duration = std::time::Duration::from_millis(500);
+const OUT_OF_TIME: &str = "couldn't check CI in time; run `meta ci-wait`";
+const TIMED_OUT: &str = "timed-out";
 
 struct Reviewer;
 
@@ -50,18 +51,19 @@ impl Reviewer {
 }
 
 #[test]
-fn a_slow_remote_fails_closed_in_time_and_a_commit_in_the_start_second_is_not_the_sessions() {
+fn a_slow_remote_blocks_at_the_stop_deadline_and_a_commit_in_the_start_second_is_not_the_sessions() {
     let repo = Repo::limited(FAILURE, STALLED);
     let clone: &Path = repo.clone.path();
     StartFile::plant(repo.sessions.path(), SAME, SAME_AT);
     Git::run_at(clone, &NEXT_COMMIT, SAME_AT);
     Git::run(clone, &PUSH_WORDS);
+    Planted::settled(&repo, TIMED_OUT);
     Git::run(clone, &SLOW_REMOTE);
     let started = std::time::Instant::now();
     let slow = repo.hook(STOP, COMMIT);
     let took = started.elapsed();
     let same = Session { repo: &repo, cwd: clone, id: SAME }.hook(STOP, COMMIT);
-    assert!(slow.contains(UNREACHABLE) && took < SLOW && !same.contains(BLOCK));
+    assert!(slow.contains(BLOCK) && slow.contains(OUT_OF_TIME) && took < SLOW && !same.contains(BLOCK));
 }
 
 #[test]
