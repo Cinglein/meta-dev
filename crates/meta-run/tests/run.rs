@@ -22,7 +22,7 @@ const KILLED: [&str; 4] = [
     "trap '' TERM; echo $$ >> \"$0\"; for _ in 1 2 3 4 5; do sleep 1 & echo $! >> \"$0\"; wait; done",
     "echo $$ >> \"$0\"; kill -STOP $$",
 ];
-const RETRIED: [Result<(), Option<&str>>; 2] = [Err(Some(KILLED[1])), Err(Some(KILLED[2]))];
+const RETRIED: [Result<(), &str>; 2] = [Err(KILLED[1]), Err(KILLED[2])];
 const NESTED: &str = "set -m; (trap '' TERM; exec sh -c 'echo $$ >> \"$0\"; exec sleep 5' \"$0\") & inner=$!; \
      trap 'kill -TERM -$inner; sleep 0.05; kill -KILL -$inner; exit' TERM; echo $$ >> \"$0\"; wait";
 const RECORDED_LEN: usize = 9;
@@ -104,8 +104,8 @@ fn each_env_policy_drops_only_its_variables_and_a_budget_caps_calls_and_rests_at
     assert!(Run::git(Path::new(SHELL)).ran(Instant::now()).is_err_and(|late| late.to_string().contains(EXPIRED)));
     let started = Instant::now();
     Budget::new(PATIENT).within(started + POLL).rest(PATIENT);
-    let mut calls = KILLED.into_iter();
-    let retry = |overall| Budget::new(PATIENT).within(overall).retried(|| Err::<(), _>(calls.next()));
+    let at = std::cell::Cell::new(0);
+    let retry = |end| Budget::new(PATIENT).within(end).retried(|| Err::<(), _>(KILLED[at.replace(at.get() + 1)]));
     assert_eq!([started + PATIENT, started].map(retry), RETRIED);
     assert!((POLL..PATIENT).contains(&started.elapsed()) && Budget::new(PATIENT).within(started).deadline() == started);
 }
