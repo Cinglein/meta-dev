@@ -179,8 +179,7 @@ mod tests {
     use super::{CargoArgument, CommandLine, Program, Stderr, Stdout};
     use std::fs::File;
     use std::path::{Path, PathBuf};
-    const GIT: &str = "git";
-    const SHOWN: &str = "git fmt --all";
+    const SHOWN: &str = "sh fmt --all";
     const PROGRAMS: [&str; 4] = ["pwd", "true", "false", "sh"];
     const TO_STDERR: [&str; 2] = ["-c", "echo said >&2"];
     const SAID: &str = "said\n";
@@ -196,14 +195,6 @@ mod tests {
         ["-c", "echo out | tr o O; echo err | tr e E >&2; exit 101"];
     const OUT: &str = "Out";
     const ERR: &str = "Err";
-
-    #[test]
-    fn a_command_line_prints_its_program_and_arguments_in_order() {
-        let line = CommandLine::new(Program::Executable(GIT.into()))
-            .argument(CargoArgument::Fmt)
-            .arguments([CargoArgument::All]);
-        assert_eq!(line.to_string(), SHOWN);
-    }
 
     #[test]
     fn a_command_runs_in_its_directory_and_its_output_is_captured_and_shown_when_it_fails() {
@@ -230,13 +221,17 @@ mod tests {
     }
 
     #[test]
-    fn a_command_sees_only_the_environment_it_was_given_and_holds_its_input() {
+    fn a_command_prints_its_arguments_sees_only_its_given_environment_and_holds_its_input() {
         let shell = || CommandLine::new(Program::Executable(SHELL.into()));
+        let line = shell()
+            .argument(CargoArgument::Fmt)
+            .arguments([CargoArgument::All]);
         let shown = shell()
             .arguments(SHOW_TARGET)
             .inheriting_only([INHERITED])
             .environment(VARIABLE, PathBuf::from(TARGET))
             .captured::<Stdout>();
+        assert_eq!(line.to_string(), SHOWN);
         assert_eq!(shown.ok().as_deref(), Some(TARGET));
         let manifest = || File::open(Path::new(env!("CARGO_MANIFEST_DIR")).join(MANIFEST)).unwrap();
         let reads = shell().arguments(READS_PACKAGE);
