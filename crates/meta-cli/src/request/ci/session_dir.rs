@@ -2,7 +2,6 @@ mod expected_run;
 mod watch_state;
 
 use std::fmt;
-use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -44,11 +43,7 @@ impl SessionDir {
 
     pub fn record(&self, line: impl fmt::Display) -> std::io::Result<()> {
         Door::changed(self.own.clone(), Change::DirAll)?;
-        Door::opened(self.named(Self::EVENTS), Opening::Append).and_then(|events| {
-            let mut whole = std::io::BufWriter::new(events);
-            writeln!(whole, "{line}")?;
-            whole.flush()
-        })
+        Door::opened(self.named(Self::EVENTS), Opening::Append)?.written(format_args!("{line}\n"))
     }
 
     pub fn news(&self) -> Option<Listed> {
@@ -56,7 +51,7 @@ impl SessionDir {
         let seen: usize =
             Door::read(self.named(Self::SEEN)).ok().and_then(|text| text.parse().ok()).unwrap_or_default();
         let lines: Vec<&str> = events.lines().collect();
-        write!(Door::opened(self.named(Self::SEEN), Opening::Truncate).ok()?, "{}", lines.len()).ok()?;
+        Door::opened(self.named(Self::SEEN), Opening::Truncate).ok()?.written(lines.len()).ok()?;
         let unseen = lines.get(seen..).filter(|unseen| !unseen.is_empty())?;
         Some(Listed::new(unseen.join("\n")))
     }
@@ -70,7 +65,7 @@ impl SessionDir {
         Door::changed(&folder, Change::DirAll)?;
         let target = folder.join(commit.argument());
         let temp = target.with_extension(Self::PARTIAL);
-        write!(Door::opened(&temp, Opening::Truncate)?, "{}", WatchState::new(commit.clone(), status))?;
+        Door::opened(&temp, Opening::Truncate)?.written(WatchState::new(commit.clone(), status))?;
         Door::paired(temp, target, Pair::Rename)
     }
 
@@ -99,7 +94,7 @@ impl SessionDir {
     }
 
     pub fn learn(&self, expected: Duration) -> std::io::Result<()> {
-        write!(Door::opened(self.expected.clone(), Opening::Truncate)?, "{}", ExpectedRun::from(expected))
+        Door::opened(self.expected.clone(), Opening::Truncate)?.written(ExpectedRun::from(expected))
     }
 
     fn named(&self, name: &str) -> Entry {

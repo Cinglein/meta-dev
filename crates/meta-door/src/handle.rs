@@ -1,3 +1,4 @@
+use std::fmt;
 use std::fs::{File, TryLockError};
 use std::io::{self, Write};
 use std::process::Stdio;
@@ -22,23 +23,36 @@ impl Handle {
         self.0.set_len(0)
     }
 
+    pub fn written(&mut self, text: impl fmt::Display) -> io::Result<()> {
+        self.0.write_all(fmt::format(format_args!("{text}")).as_bytes())
+    }
+
     pub fn cloned(&self) -> io::Result<Handle> {
         self.0.try_clone().map(Handle)
-    }
-}
-
-impl Write for Handle {
-    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        self.0.write(bytes)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.0.flush()
     }
 }
 
 impl From<Handle> for Stdio {
     fn from(handle: Handle) -> Stdio {
         Stdio::from(handle.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Door, Opening};
+
+    const HELD: &str = "held";
+    const STALE: &str = "stale";
+
+    #[test]
+    fn an_emptied_handle_leaves_its_file_empty() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join(HELD);
+        let mut held = Door::opened(&path, Opening::Truncate).unwrap();
+        held.written(STALE).unwrap();
+        let written = Door::read(&path).unwrap();
+        held.emptied().unwrap();
+        assert!(written == STALE && Door::read(&path).unwrap().is_empty());
     }
 }

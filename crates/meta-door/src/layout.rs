@@ -29,6 +29,13 @@ mod tests {
     const BRANCH: &str = "laid";
     const EMPTY: &str = "";
     const SYMBOLIC: [&str; 2] = ["symbolic-ref", "HEAD"];
+    const TIP_REF: &str = "refs/heads/laid";
+    const TIP_LINE: &str = "1111\n";
+    const TIP: &str = "1111";
+    const DETACHED: &str = "2222\n";
+    const OTHER: &str = "2222";
+    const HEAD: &str = "HEAD";
+    const CONFIG: &str = "config";
 
     #[test]
     fn a_skeleton_is_a_repository_git_reads_on_its_branch_and_never_lays_over_a_used_dir() {
@@ -39,5 +46,20 @@ mod tests {
         let config = Door::inspected(&git_dir).is_ok_and(|admin| admin.text(AdminFile::CommonDir).is_err());
         let again = Door::skeleton(&git_dir, Layout::Bare, BRANCH, EMPTY).is_err();
         assert!(String::from_utf8_lossy(&head.stdout).contains(BRANCH) && config && again);
+    }
+
+    #[test]
+    fn a_laid_head_reads_its_branch_tip_or_detached_object_and_only_from_a_laid_repository() {
+        let repository = tempfile::tempdir().unwrap();
+        let git_dir = repository.path().join(ENTRY);
+        Door::skeleton(&git_dir, Layout::Working, BRANCH, EMPTY).unwrap();
+        let unborn = Door::laid_head(repository.path()).is_err();
+        std::fs::write(git_dir.join(TIP_REF), TIP_LINE).unwrap();
+        let tip = Door::laid_head(repository.path()).unwrap();
+        std::fs::write(git_dir.join(HEAD), DETACHED).unwrap();
+        let detached = Door::laid_head(repository.path()).unwrap();
+        std::fs::write(git_dir.join(CONFIG), EMPTY).unwrap();
+        let foreign = Door::laid_head(repository.path()).is_err();
+        assert!(unborn && tip == TIP && detached == OTHER && foreign);
     }
 }

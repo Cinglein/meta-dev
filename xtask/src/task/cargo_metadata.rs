@@ -66,7 +66,7 @@ mod tests {
     const OUTSIDE: &str = "/elsewhere/vendored/Cargo.toml";
     const DEPENDING: &str = r#"{"packages": [
         {"name": "meta-door", "manifest_path": "/w/door/Cargo.toml", "source": null, "dependencies": [],
-         "features": {"default": [], "skeleton": []}},
+         "features": {"default": ["laid"], "laid": [], "skeleton": []}},
         {"name": "a", "manifest_path": "/w/a/Cargo.toml", "source": null, "features": {"fixtures": ["door?/skeleton"]},
          "dependencies": [{"name": "meta-door", "rename": "door", "kind": null, "features": []}]},
         {"name": "b", "manifest_path": "/w/b/Cargo.toml", "source": null, "features": {"fixtures": ["meta-door/skeleton"]},
@@ -75,18 +75,24 @@ mod tests {
         {"name": "c", "manifest_path": "/w/c/Cargo.toml", "source": null,
          "dependencies": [{"name": "meta-door", "rename": null, "kind": "build", "features": ["skeleton"]}]},
         {"name": "d", "manifest_path": "/w/d/Cargo.toml", "source": null,
-         "dependencies": [{"name": "tempfile", "rename": "scratch", "kind": null, "features": [], "target": "cfg(unix)"}]}
+         "dependencies": [{"name": "tempfile", "rename": "scratch", "kind": null, "features": [], "target": "cfg(unix)"}]},
+        {"name": "u", "manifest_path": "/w/u/Cargo.toml", "source": null,
+         "dependencies": [{"name": "tempfile", "rename": null, "kind": null, "features": []}]}
     ]}"#;
-    const REFUSED: [&str; 3] = [
+    const UNTOUCHED: &str = "/w/u/Cargo.toml";
+    const REFUSED: [&str; 5] = [
+        "/w/a/Cargo.toml: meta-door feature laid is test-only; enable it under [dev-dependencies]",
         "/w/a/Cargo.toml: meta-door feature skeleton is test-only; enable it under [dev-dependencies]",
+        "/w/c/Cargo.toml: meta-door feature laid is test-only; enable it under [dev-dependencies]",
         "/w/c/Cargo.toml: meta-door feature skeleton is test-only; enable it under [dev-dependencies]",
         "/w/d/Cargo.toml: tempfile is test-only; use it under [dev-dependencies] or go through the door",
     ];
 
     #[test]
-    fn renamed_target_build_and_forwarded_test_only_uses_are_named_and_dev_dependencies_pass() {
+    fn renamed_target_build_forwarded_and_default_test_only_uses_in_touched_crates_are_named() {
         let metadata: CargoMetadata = DEPENDING.parse().unwrap();
-        let found = metadata.dev_only(&Policy::defaults(), |_| true);
+        let touched = |package: &super::MetadataPackage| package.local_manifest() != Some(Path::new(UNTOUCHED));
+        let found = metadata.dev_only(&Policy::defaults(), touched);
         assert_eq!(found.iter().map(ToString::to_string).collect::<Vec<_>>(), REFUSED);
     }
 

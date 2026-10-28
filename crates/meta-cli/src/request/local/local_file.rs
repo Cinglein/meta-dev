@@ -2,7 +2,7 @@ mod renaming;
 mod staged_name;
 
 use std::fmt;
-use std::io::{ErrorKind, Write as _};
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use meta_door::kinds::Handle;
@@ -32,7 +32,7 @@ impl LocalFile {
     pub fn appended(&self, line: impl fmt::Display) -> Result<(), CliFailure> {
         let torn = self.text()?.chars().last().filter(|last| *last != Self::NEWLINE).map_or("", |_| "\n");
         self.opened(Opening::Append)
-            .and_then(|mut file| writeln!(file, "{torn}{line}").map_err(|failure| self.failure(failure)))
+            .and_then(|mut file| file.written(format_args!("{torn}{line}\n")).map_err(|failure| self.failure(failure)))
     }
 
     pub fn opened(&self, opening: Opening) -> Result<Handle, CliFailure> {

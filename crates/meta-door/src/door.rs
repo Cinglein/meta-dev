@@ -112,6 +112,18 @@ impl Door {
     const UNBORN: &str = "ref: refs/heads/";
     const CONFIG: &str = "config";
     const NEWLINE: &str = "\n";
+    const SYMBOLIC: &str = "ref: ";
+
+    pub fn laid_head(work_tree: &Path) -> io::Result<String> {
+        let git_dir = work_tree.join(Self::ENTRY);
+        let config = fs::read_to_string(git_dir.join(Self::CONFIG))?;
+        config.starts_with(crate::Layout::Working.core()).then_some(()).ok_or(io::ErrorKind::PermissionDenied)?;
+        let head = fs::read_to_string(git_dir.join(Self::HEAD))?;
+        let line = head.lines().next().unwrap_or_default();
+        let named = line.strip_prefix(Self::SYMBOLIC).map(|name| fs::read_to_string(git_dir.join(name)));
+        let object = named.unwrap_or_else(|| Ok(line.to_owned()))?;
+        Ok(object.lines().next().unwrap_or_default().to_owned())
+    }
 
     pub fn skeleton(git_dir: &Path, layout: crate::Layout, branch: &str, config: &str) -> io::Result<()> {
         git_dir

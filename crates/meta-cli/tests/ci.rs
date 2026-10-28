@@ -160,7 +160,9 @@ impl Git {
     }
 
     fn head(dir: &Path) -> String {
-        String::from_utf8(Self::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap().trim().to_owned()
+        Door::laid_head(dir).unwrap_or_else(|_| {
+            String::from_utf8(Self::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap().trim().to_owned()
+        })
     }
 }
 

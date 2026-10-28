@@ -1,5 +1,4 @@
 use std::fmt;
-use std::io::Write as _;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -24,7 +23,7 @@ impl SessionId {
         })?;
         Door::opened(std::env::var_os("CLAUDE_ENV_FILE")?, Opening::Append)
             .ok()?
-            .write_all(format!("export META_ACTOR={actor}\nexport {}={}\n", Self::VARIABLE, self.0).as_bytes())
+            .written(format!("export META_ACTOR={actor}\nexport {}={}\n", Self::VARIABLE, self.0))
             .ok()?;
         Some(actor)
     }

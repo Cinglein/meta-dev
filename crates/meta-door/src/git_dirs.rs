@@ -109,3 +109,30 @@ impl GitDirs {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::ErrorKind;
+    use std::process::Command;
+
+    use super::GitDirs;
+    use crate::Door;
+
+    const INIT: [&str; 2] = ["init", "-q"];
+    const NESTED: &str = "nested";
+    const OBJECTS: &str = "objects";
+
+    #[test]
+    fn git_names_the_common_dir_of_a_subdirectory_and_an_objects_dir_alone_is_no_repository() {
+        let repository = tempfile::tempdir().unwrap();
+        assert!(Command::new("git").current_dir(repository.path()).args(INIT).status().unwrap().success());
+        std::fs::create_dir(repository.path().join(NESTED)).unwrap();
+        let mimic = tempfile::tempdir().unwrap();
+        std::fs::create_dir(mimic.path().join(OBJECTS)).unwrap();
+        let common = GitDirs::common(repository.path()).unwrap();
+        let unknown = GitDirs::common(mimic.path()).is_err();
+        let refused = Door::inspected(mimic.path()).map_err(|failure| failure.kind());
+        assert_eq!(GitDirs::common(&repository.path().join(NESTED)).unwrap(), common);
+        assert!(unknown && refused.err() == Some(ErrorKind::NotFound));
+    }
+}

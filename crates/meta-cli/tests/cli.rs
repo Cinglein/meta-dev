@@ -72,7 +72,7 @@ impl Git {
     }
 
     fn appended(file: impl Into<Entry>, text: impl std::fmt::Display) {
-        write!(Door::opened(file, Opening::Append).unwrap(), "{text}").unwrap();
+        Door::opened(file, Opening::Append).unwrap().written(text).unwrap();
     }
 }
 

@@ -1,6 +1,5 @@
 use meta_door::kinds::Handle;
 use meta_door::{Change, Door, Opening};
-use std::io::Write;
 use std::iter;
 use std::path::{Component, Path, PathBuf};
 use std::process;
@@ -46,7 +45,7 @@ impl GateLock {
         .then_some(())
         .ok_or_else(|| Failure::Busy(Busy::new(path.to_path_buf(), wait)))?;
         file.emptied().map_err(io)?;
-        write!(file, "pid {}", process::id()).map_err(io)?;
+        file.written(format_args!("pid {}", process::id())).map_err(io)?;
         Ok(GateLock { held: file })
     }
 

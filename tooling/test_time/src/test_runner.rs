@@ -2,7 +2,6 @@ mod test_binary;
 
 use meta_door::{Door, Opening};
 use std::env;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use super::test_runs::TestRuns;
@@ -36,8 +35,7 @@ impl TestRunner {
         };
         let mut file = Door::opened(runs, Opening::Append).map_err(io)?;
         ran.iter()
-            .try_for_each(|run| writeln!(file, "{run}"))
-            .and_then(|()| file.flush())
+            .try_for_each(|run| file.written(format_args!("{run}\n")))
             .map_err(io)?;
         ran.into_iter().collect::<TestRuns>().passed().map(|_| ())
     }
