@@ -55,7 +55,7 @@ mod tests {
     use task::Policy;
 
     use super::Stranding;
-    use crate::task::fixture::Fixture;
+    use crate::task::fixture::{Branched, Fixture};
     use crate::task::prior_policy::PriorPolicy;
 
     const PRIOR: &str = "[[scales.features-and-maintenance]]\nname = \"blocker\"\nmeaning = \"x\"\n\n[[scales.features-and-maintenance]]\nname = \"nuisance\"\nmeaning = \"x\"\n";
@@ -103,7 +103,10 @@ mod tests {
     fn scales_changed_since_the_merge_base_policy_or_default_levels_are_judged_and_unchanged_ones_are_not() {
         let fixture = Fixture::new();
         let current = serde_json::to_string(&Scale::top_default()).unwrap();
-        fixture.write(PriorPolicy::PATH, PRIOR).write(PriorPolicy::DEFAULT_LEVELS, &current).branch();
+        fixture
+            .write(PriorPolicy::PATH, PRIOR)
+            .write(PriorPolicy::DEFAULT_LEVELS, &current)
+            .imported(Branched::Tracked);
         let uncapped = Policy::DEFAULTS.split(CAPS).next().unwrap_or_default();
         let same: Policy = toml::from_str(&format!("{uncapped}\n{PRIOR}")).unwrap();
         let before: Scales = serde_json::from_str(OVERRIDDEN).unwrap();
@@ -115,20 +118,27 @@ mod tests {
     impl Stranding {
         pub fn database() -> Fixture {
             let database = Fixture::new();
-            database.write(TOP, "x").committed().write(PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS).committed();
+            database
+                .write(TOP, "x")
+                .imported(Branched::Local)
+                .write(PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS)
+                .imported(Branched::Local);
             database
         }
 
         fn decided(databases: &Path, [then, now]: [&str; 2], policy_file: &str) -> Result<Option<Scales>, ()> {
             let consumer = Fixture::new();
-            consumer.write(LOCK, then).write(policy_file, PRIOR).branch();
+            consumer.write(LOCK, then).write(policy_file, PRIOR).imported(Branched::Tracked);
             consumer.write(LOCK, now);
             Stranding::rescaling(consumer.root(), &Policy::defaults(), databases).map_err(|_| ())
         }
 
         fn referenced(databases: &Path, levels: &str) -> Result<Option<Scales>, ()> {
             let tracked = Fixture::new();
-            tracked.write(PriorPolicy::PATH, PRIOR).write(PriorPolicy::DEFAULT_LEVELS, levels).branch();
+            tracked
+                .write(PriorPolicy::PATH, PRIOR)
+                .write(PriorPolicy::DEFAULT_LEVELS, levels)
+                .imported(Branched::Tracked);
             Stranding::rescaling(tracked.root(), &Policy::defaults(), databases).map_err(|_| ())
         }
     }
