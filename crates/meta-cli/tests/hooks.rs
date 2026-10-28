@@ -60,8 +60,8 @@ const ENV_LINE: &str = "export META_ACTOR=claude-abcdef1234\nexport META_SESSION
 const HANGING_UPLOAD: &str = "[remote \"origin\"]\n\tuploadpack = sh -c 'sleep 5' x\n";
 const META_TOML: &str = "meta.toml";
 const QUICK_GIT: &str = "[ci]\ngit_millis = 20\n";
-const SHORT_GIT: &str = "[ci]\ngit_millis = 100\n";
-const SLOW_RECEIVE: &str = "[remote \"origin\"]\n\treceivepack = sh -c 'sleep 0.15 && exec git receive-pack $1' x\n";
+const SHORT_GIT: &str = "[ci]\ngit_millis = 40\n";
+const SLOW_RECEIVE: &str = "[remote \"origin\"]\n\treceivepack = sh -c 'sleep 0.06 && exec git receive-pack $1' x\n";
 const UNREADABLE: &str = "meta/log unreadable";
 const OPEN: [&str; 4] = ["open", "--division", "features-and-maintenance", "text"];
 const ROOT: &str = "ROOT";
