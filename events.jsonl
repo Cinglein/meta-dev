@@ -1239,3 +1239,4 @@
 {"at":"2026-10-28T23:52:07.554772Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-a72164b99b861c13","text":"Test timing is noisy: scaled CPU swings 10%; real waits trip wall lines (slowest-test 1 s on meta_log, goldens; live_github unreachable test flakes)."}
 {"at":"2026-10-28T23:52:12.502293Z","actor":"claude-lead","kind":"TaskOpened","task":"task-b8b2f42efc054c53","text":"Pin the Rust toolchain (rust-toolchain.toml at 1.99.x) and cargo-mutants in CI; explicit upgrades only.","division":"performance-and-cost","addresses":["concern-4e30425a6eae4c9e"]}
 {"at":"2026-10-28T23:52:16.450516Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-eaa07af657ae70cb","text":"Toolchain and cargo-mutants pins move to task-b8b2f42e; building xtask once in the plan job moves to the mutants cost task (task-b4b07fa7)."}
+{"at":"2026-10-28T23:53:43.981120Z","actor":"claude-pin","kind":"TaskClaimed","task":"task-b8b2f42efc054c53"}
