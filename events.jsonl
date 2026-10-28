@@ -854,3 +854,4 @@
 {"at":"2026-10-28T00:43:42.931551Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-61299b5b6db4103c","text":"Agents stall silently; every claimed task needs a wall-time budget set at claim, flagged and escalated when spent."}
 {"at":"2026-10-28T00:43:44.580672Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-bee0d30d1c1fca28","text":"Policy parse error for a missing enum-map table key names the table, not the key."}
 {"at":"2026-10-28T00:43:46.187403Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-331d5a90708fde77","text":"Agents run harness-flagged commands (rm, script edits) and stall; PreToolUse hook should block known patterns with the safe alternative."}
+{"at":"2026-10-28T00:43:47.705749Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-8a8510e054690eba","text":"Agent pool: agents come from one central pool; nested spawns hit the weekly limit 2026-10-26; spawns go through dispatch."}
