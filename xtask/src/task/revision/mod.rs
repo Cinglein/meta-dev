@@ -58,8 +58,8 @@ impl Revision {
         Ok(listed.and(untracked))
     }
 
-    pub fn emails(root: &Path, base: &BranchName) -> Result<String, Failure> {
-        GitReads::new(root).read(GitArgv::LogEmails, [base])
+    pub fn noreply_off(root: &Path, base: &BranchName) -> Result<(), Failure> {
+        ForeignEmails::refused(&GitReads::new(root).read(GitArgv::LogEmails, [base])?)
     }
 }
 
