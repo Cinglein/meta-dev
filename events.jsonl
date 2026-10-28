@@ -1225,3 +1225,4 @@
 {"at":"2026-10-28T23:24:32.315733Z","actor":"claude-lead","kind":"TaskDone","task":"task-1ff0d8327007a205"}
 {"at":"2026-10-28T23:31:55.094467Z","actor":"claude-trace1","kind":"TaskLinked","task":"task-615c0d4a1ab4aa98","pr":141}
 {"at":"2026-10-28T23:32:03.260091Z","actor":"claude-trace1","kind":"TaskLinked","task":"task-578272bbc23f84ac","pr":141}
+{"at":"2026-10-28T23:37:11.950149Z","actor":"claude-lead","kind":"TaskOpened","task":"task-6002cf3e95e38004","text":"Secrets v1 (stopgap): gitleaks 8.30.1 pinned in pre-push and CI, custom rule for the owner email, author-email check; token stays in gh.","division":"performance-and-cost"}
