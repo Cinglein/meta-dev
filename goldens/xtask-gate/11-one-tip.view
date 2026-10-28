@@ -1,0 +1,8 @@
+Ok(
+    HeadBranch {
+        name: BranchName(
+            "main",
+        ),
+        task: None,
+    },
+)
