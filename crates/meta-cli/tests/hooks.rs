@@ -54,8 +54,10 @@ const UNREADABLE: &str = "meta/log unreadable";
 const OPEN: [&str; 4] = ["open", "--division", "features-and-maintenance", "text"];
 const ROOT: &str = "ROOT";
 const PIDS: &str = "pids";
+const IGNORING_HUP: &str = "trap '' HUP; exec \"$0\" \"$@\"";
+const INTERRUPTED: &str = "SIGINT";
 const HELPERS: &str = r#"[remote "origin"]
-	receivepack = "sh -c 'touch ROOT/hold && echo $$ >> ROOT/pids && sleep 5' x"
+	receivepack = "sh -c 'trap \"\" TERM; touch ROOT/hold && echo $$ >> ROOT/pids && sleep 5' x"
 	uploadpack = "sh -c 'test -e ROOT/hold && echo $$ >> ROOT/pids && sleep 5 || exec git upload-pack \"$1\"' x"
 "#;
 
@@ -143,18 +145,21 @@ impl Repo {
     fn interrupted(&self) -> bool {
         let root = self.clone.path().display().to_string();
         Git::configure(&self.clone.path().join(GIT_CONFIG), &HELPERS.replace(ROOT, &root));
-        let mut meta = Command::new(META);
-        meta.args(OPEN).current_dir(self.clone.path()).env("META_ACTOR", "writer").process_group(0);
-        let mut meta = meta.stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
+        let mut meta = Command::new("sh");
+        meta.args(["-c", IGNORING_HUP, META]).args(OPEN).current_dir(self.clone.path()).env("META_ACTOR", "writer");
+        let mut meta = meta.process_group(0).stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
         let polls = || {
             let until = Instant::now() + PATIENT;
             std::iter::repeat_with(|| std::thread::sleep(POLL)).take_while(move |()| Instant::now() < until)
         };
         let listed = || std::fs::read_to_string(self.clone.path().join(PIDS)).unwrap_or_default();
         let started = polls().find(|()| !listed().is_empty());
-        Command::new("kill").args(["-INT", "--", &format!("-{}", meta.id())]).status().unwrap();
+        let signal = |name: &str, target: String| Command::new("kill").args([name, "--", &target]).status().unwrap();
+        cfg!(target_os = "linux").then(|| signal("-HUP", meta.id().to_string()));
+        signal("-INT", format!("-{}", meta.id()));
         let alive = |pid: &str| Command::new("kill").args(["-0", pid]).status().unwrap().success();
-        meta.wait().is_ok() && started.is_some() && polls().any(|()| !listed().split_whitespace().any(alive))
+        let status = meta.wait().map(|status| status.to_string()).unwrap_or_default();
+        status.contains(INTERRUPTED) && started.is_some() && polls().any(|()| !listed().split_whitespace().any(alive))
     }
 }
 
