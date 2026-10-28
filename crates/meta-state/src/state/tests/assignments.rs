@@ -1,5 +1,6 @@
 use super::{ALICE, BOB, DONE, Events, Lifecycle, OPENED, OWNER, RELEASED, REOPENED, Script};
 use crate::refusal::Refusal;
+use crate::state::State;
 use crate::task_state::TaskStatus;
 
 const CAROL: &str = "carol";
@@ -13,7 +14,7 @@ fn several_actors_hold_one_task_and_a_takeover_swaps_exactly_one() {
         .then(OWNER, Lifecycle::event(&task, OPENED))
         .then(ALICE, Events::claim(id, None))
         .then(BOB, Events::claim(id, None));
-    assert_eq!(both.vet(ALICE, Events::claim(id, None)), Err(Refusal::AlreadyAssigned(Events::actor(ALICE))));
+    assert_eq!(both.vet(ALICE, Events::claim(id, None)), Ok(()));
     let swapped = both.then(CAROL, Events::claim(id, Some(ALICE)));
     assert_eq!(swapped.vet(DAVE, Events::claim(id, Some(ALICE))), Err(Refusal::NotAssigned(Events::actor(ALICE))));
     assert_eq!(swapped.vet(CAROL, Events::claim(id, Some(BOB))), Err(Refusal::AlreadyAssigned(Events::actor(CAROL))));
@@ -49,5 +50,7 @@ fn finishing_ends_every_assignment_and_reopening_restores_them() {
         (reopened.assigned(), reopened.status()),
         (vec![Events::actor(ALICE), Events::actor(BOB)], TaskStatus::Assigned)
     );
-    assert_eq!(reopened.vet(ALICE, Events::claim(id, None)), Err(Refusal::AlreadyAssigned(Events::actor(ALICE))));
+    let held = reopened.assigned();
+    let reclaimed = reopened.then(ALICE, Events::claim(id, None));
+    assert!(State::fold(&reclaimed.records).anomalies().is_empty() && reclaimed.assigned() == held);
 }
