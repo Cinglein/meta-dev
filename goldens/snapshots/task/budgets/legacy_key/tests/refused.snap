@@ -1,0 +1,11 @@
+[
+    Some(
+        "millis.total: also set as a budget; drop the old key",
+    ),
+    Some(
+        "millis.total: not set; declare it as a budget",
+    ),
+    Some(
+        "invalid type: integer `5`, expected a table of policy entries",
+    ),
+]

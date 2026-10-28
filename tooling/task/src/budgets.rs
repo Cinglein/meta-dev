@@ -142,6 +142,8 @@ impl From<Budgets> for BTreeMap<BudgetId, Budget> {
 
 #[cfg(test)]
 mod tests {
+    use meta_golden::Golden;
+
     use super::Budgets;
     use super::budget::State;
 
@@ -170,84 +172,48 @@ source = "ci"
 warning = 50
 tolerance = 10
 "#;
-    const WRITTEN: &str = "[ci]\ndivision = \"performance-and-cost\"\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 60\noverspend = \"block\"\n\n[ci.measure]\nworkflow_wall_time = \"diff_job\"\n\n[ci.allowance]\nduration = 4000\n\n[ci-lints]\ndivision = \"performance-and-cost/lints\"\nmeasure = \"slowest_test\"\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 50\ntolerance = 10\noverspend = \"block\"\n\n[ci-lints.allowance]\nof = \"ci\"\npercent = 40\n\n[ci-tests]\ndivision = \"performance-and-cost/tests\"\nmeasure = \"test_wall_time\"\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 60\noverspend = \"block\"\n\n[ci-tests.allowance]\nof = \"ci\"\npercent = 60\n";
     const WINDOW: &str = "window = ";
     const MEASURED: &str = "measure = \"tangle_items\"\nsource = \"ci\"\nwindow = ";
     const PART: &str = "ci-tests";
     const WHOLE: &str = "ci";
-    const PART_AMOUNT: &str = "2400ms";
     const OVER: Option<State> = Some(State::Over);
     const WARN: Option<State> = Some(State::Warn);
-    const UNITLESS: [&str; 3] = [
+    const STANDING: &str = "\"standing\"";
+    const PER_CHANGE: &str = "\"per_change\"";
+    const REFUSED: [&str; 9] = [
         "[ci]\ndivision = \"performance-and-cost\"\nwindow = \"standing\"\n",
         "[ci]\ndivision = \"performance-and-cost\"\nallowance = {}\nwindow = \"standing\"\n",
         "[ci]\ndivision = \"performance-and-cost\"\nallowance = { count = 1, duration = 2 }\nwindow = \"standing\"\n",
-    ];
-    const STANDING: &str = "\"standing\"";
-    const PER_CHANGE: &str = "\"per_change\"";
-    const REFUSED: [(&str, &str); 6] = [
-        (
-            "[orphan]\ndivision = \"performance-and-cost/tests\"\nallowance = { of = \"ci\", percent = 5 }\nwindow = \"standing\"\n",
-            "budget orphan: part of a budget that is not defined",
-        ),
-        (
-            "[deep]\ndivision = \"performance-and-cost/tests\"\nallowance = { count = 9 }\nwindow = \"standing\"\n",
-            "budget deep: a budget in a nested division is a part of its parent division's budget",
-        ),
-        (
-            "[ci]\ndivision = \"performance-and-cost\"\nallowance = { count = 9 }\nwindow = \"standing\"\n\n[a]\ndivision = \"performance-and-cost/a\"\nallowance = { of = \"ci\", percent = 9223372036854775807 }\nwindow = \"standing\"\n\n[b]\ndivision = \"performance-and-cost/b\"\nallowance = { of = \"ci\", percent = 9223372036854775807 }\nwindow = \"standing\"\n\n[c]\ndivision = \"performance-and-cost/c\"\nallowance = { of = \"ci\", percent = 9223372036854775807 }\nwindow = \"standing\"\n",
-            "budget ci: its parts add up to more than all of it",
-        ),
-        (
-            "[ci]\ndivision = \"performance-and-cost\"\nallowance = { count = 9 }\nwindow = \"standing\"\n\n[outside]\ndivision = \"features-and-maintenance/tests\"\nallowance = { of = \"ci\", percent = 5 }\nwindow = \"standing\"\n",
-            "budget outside: its division is not inside the division of the budget it is part of",
-        ),
-        (
-            "[ci]\ndivision = \"performance-and-cost\"\nallowance = { count = 9 }\nwindow = \"standing\"\n\n[larger]\ndivision = \"performance-and-cost/tests\"\nallowance = { of = \"ci\", percent = 101 }\nwindow = \"standing\"\n",
-            "budget ci: its parts add up to more than all of it",
-        ),
-        (
-            "[ci]\ndivision = \"performance-and-cost\"\nallowance = { count = 50 }\nwindow = \"standing\"\n\n[a]\ndivision = \"performance-and-cost/a\"\nallowance = { of = \"ci\", percent = 51 }\nwindow = \"standing\"\n\n[b]\ndivision = \"performance-and-cost/b\"\nallowance = { of = \"ci\", percent = 50 }\nwindow = \"standing\"\n",
-            "budget ci: its parts add up to more than all of it",
-        ),
+        "[orphan]\ndivision = \"performance-and-cost/tests\"\nallowance = { of = \"ci\", percent = 5 }\nwindow = \"standing\"\n",
+        "[deep]\ndivision = \"performance-and-cost/tests\"\nallowance = { count = 9 }\nwindow = \"standing\"\n",
+        "[ci]\ndivision = \"performance-and-cost\"\nallowance = { count = 9 }\nwindow = \"standing\"\n\n[a]\ndivision = \"performance-and-cost/a\"\nallowance = { of = \"ci\", percent = 9223372036854775807 }\nwindow = \"standing\"\n\n[b]\ndivision = \"performance-and-cost/b\"\nallowance = { of = \"ci\", percent = 9223372036854775807 }\nwindow = \"standing\"\n\n[c]\ndivision = \"performance-and-cost/c\"\nallowance = { of = \"ci\", percent = 9223372036854775807 }\nwindow = \"standing\"\n",
+        "[ci]\ndivision = \"performance-and-cost\"\nallowance = { count = 9 }\nwindow = \"standing\"\n\n[outside]\ndivision = \"features-and-maintenance/tests\"\nallowance = { of = \"ci\", percent = 5 }\nwindow = \"standing\"\n",
+        "[ci]\ndivision = \"performance-and-cost\"\nallowance = { count = 9 }\nwindow = \"standing\"\n\n[larger]\ndivision = \"performance-and-cost/tests\"\nallowance = { of = \"ci\", percent = 101 }\nwindow = \"standing\"\n",
+        "[ci]\ndivision = \"performance-and-cost\"\nallowance = { count = 50 }\nwindow = \"standing\"\n\n[a]\ndivision = \"performance-and-cost/a\"\nallowance = { of = \"ci\", percent = 51 }\nwindow = \"standing\"\n\n[b]\ndivision = \"performance-and-cost/b\"\nallowance = { of = \"ci\", percent = 50 }\nwindow = \"standing\"\n",
     ];
 
     #[test]
     fn a_budget_reads_back_with_its_default_overspend_and_a_part_keeps_its_share() {
         let budgets: Budgets = toml::from_str(TREE).unwrap();
-        assert_eq!(toml::to_string(&budgets).unwrap(), WRITTEN);
         let [part, whole] = [PART, WHOLE].map(|id| budgets.budget(&id.parse().unwrap()).unwrap());
+        let amount = budgets.amount(part).map(|amount| amount.to_string());
+        let shown = format!("{}{PART}: {amount:?}\n", toml::to_string(&budgets).unwrap());
+        Golden::for_test(module_path!(), "written")
+            .checked(&shown)
+            .unwrap();
         assert!(part.blocks(OVER) && whole.blocks(OVER) && !whole.blocks(WARN));
-        assert_eq!(
-            budgets
-                .amount(part)
-                .map(|amount| amount.to_string())
-                .as_deref(),
-            Some(PART_AMOUNT)
-        );
-    }
-
-    impl Budgets {
-        fn measured(tree: &str) -> Result<Budgets, toml::de::Error> {
-            toml::from_str(&tree.replace(STANDING, PER_CHANGE).replace(WINDOW, MEASURED))
-        }
-    }
-
-    #[test]
-    fn a_budget_without_exactly_one_unit_does_not_parse() {
-        assert!(UNITLESS.iter().all(|tree| Budgets::measured(tree).is_err()));
     }
 
     #[test]
     fn a_part_names_a_defined_parent_sits_inside_its_division_and_fits_its_share() {
-        let refusals = REFUSED.map(|(tree, _)| {
-            Budgets::measured(tree)
+        let refusals = REFUSED.map(|tree| {
+            let measured = tree.replace(STANDING, PER_CHANGE).replace(WINDOW, MEASURED);
+            toml::from_str::<Budgets>(&measured)
                 .err()
                 .map(|error| error.message().to_owned())
         });
-        assert_eq!(
-            refusals,
-            REFUSED.map(|(_, refusal)| Some(refusal.to_owned()))
-        );
+        Golden::for_test(module_path!(), "refused")
+            .checked(&format!("{refusals:#?}"))
+            .unwrap();
     }
 }

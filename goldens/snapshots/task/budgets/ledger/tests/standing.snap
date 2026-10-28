@@ -1,0 +1,327 @@
+link ""
+budget             division                   measure                          spend    warning   blocking state
+architecture-and-planning-critical architecture-and-planning  open_items critical                  0          0          0 ok
+architecture-and-planning-major architecture-and-planning  open_items major                     0          2          4 ok
+architecture-and-planning-minor architecture-and-planning  open_items minor                     0          4          8 ok
+architecture-and-planning-unrated architecture-and-planning  open_items unrated                   1          1          2 ok
+features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
+features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
+features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
+features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
+lint-findings      features-and-maintenance   lint_findings                        -                     - -
+mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
+mutants-diff-job   performance-and-cost       workflow_wall_time diff_job          -   216000ms   360000ms -
+mutants-full-job   performance-and-cost       workflow_wall_time full_job          -   288000ms   480000ms -
+performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over
+performance-and-cost-major performance-and-cost       open_items major                     0          2          4 ok
+performance-and-cost-minor performance-and-cost       open_items minor                     0          4          8 ok
+performance-and-cost-unrated performance-and-cost       open_items unrated                   1          1          2 ok
+slowest-test       performance-and-cost       slowest_test                         -      600ms     1000ms -
+t-concerns         features-and-maintenance   open_items concerns                  1          3          5 ok
+t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over
+t-cost-tasks       performance-and-cost       open_items tasks                     0          5          9 ok
+t-discussion       features-and-maintenance   open_items in_discussion             1          1          2 ok
+t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over
+t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+t-nav-unheld       features-and-maintenance/nav open_items unheld_tasks              3          1          3 warn
+t-open-tasks       features-and-maintenance   open_items tasks                     5          3          6 warn
+t-planning-issues  architecture-and-planning  open_items issues                    1          0          0 over
+t-unheld           features-and-maintenance   open_items unheld_tasks              3          3          5 ok
+tangle-items       features-and-maintenance   tangle_items                         -         49         83 -
+test-cpu-time      performance-and-cost       test_cpu_time                        -     2400ms     4000ms -
+test-line-share    features-and-maintenance   test_line_share                      -        10%        18% -
+test-time          performance-and-cost       test_wall_time                       -     4800ms     8000ms -
+unreached budget over its blocking line:
+workspace: features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
+workspace: performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over
+workspace: t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over
+workspace: t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over
+workspace: t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+workspace: t-planning-issues  architecture-and-planning  open_items issues                    1          0          0 over
+reached budget over its blocking line:
+workspace: features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
+workspace: performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over
+workspace: t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over
+workspace: t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over
+workspace: t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+workspace: t-planning-issues  architecture-and-planning  open_items issues                    1          0          0 over
+link "7"
+budget             division                   measure                          spend    warning   blocking state
+architecture-and-planning-critical architecture-and-planning  open_items critical                  0          0          0 ok
+architecture-and-planning-major architecture-and-planning  open_items major                     0          2          4 ok
+architecture-and-planning-minor architecture-and-planning  open_items minor                     0          4          8 ok
+architecture-and-planning-unrated architecture-and-planning  open_items unrated                   1          1          2 ok
+features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
+features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
+features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
+features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
+lint-findings      features-and-maintenance   lint_findings                        -                     - -
+mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
+mutants-diff-job   performance-and-cost       workflow_wall_time diff_job          -   216000ms   360000ms -
+mutants-full-job   performance-and-cost       workflow_wall_time full_job          -   288000ms   480000ms -
+performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over, outside the linked task's division
+performance-and-cost-major performance-and-cost       open_items major                     0          2          4 ok
+performance-and-cost-minor performance-and-cost       open_items minor                     0          4          8 ok
+performance-and-cost-unrated performance-and-cost       open_items unrated                   1          1          2 ok
+slowest-test       performance-and-cost       slowest_test                         -      600ms     1000ms -
+t-concerns         features-and-maintenance   open_items concerns                  1          3          5 ok
+t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over, outside the linked task's division
+t-cost-tasks       performance-and-cost       open_items tasks                     0          5          9 ok
+t-discussion       features-and-maintenance   open_items in_discussion             1          1          2 ok
+t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over
+t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+t-nav-unheld       features-and-maintenance/nav open_items unheld_tasks              3          1          3 warn
+t-open-tasks       features-and-maintenance   open_items tasks                     5          3          6 warn
+t-planning-issues  architecture-and-planning  open_items issues                    1          0          0 over, outside the linked task's division
+t-unheld           features-and-maintenance   open_items unheld_tasks              3          3          5 ok
+tangle-items       features-and-maintenance   tangle_items                         -         49         83 -
+test-cpu-time      performance-and-cost       test_cpu_time                        -     2400ms     4000ms -
+test-line-share    features-and-maintenance   test_line_share                      -        10%        18% -
+test-time          performance-and-cost       test_wall_time                       -     4800ms     8000ms -
+unreached budget over its blocking line:
+workspace: features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
+workspace: t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over
+workspace: t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+reached budget over its blocking line:
+workspace: features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
+workspace: t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over
+workspace: t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+link "task-0000000000000004"
+budget             division                   measure                          spend    warning   blocking state
+architecture-and-planning-critical architecture-and-planning  open_items critical                  0          0          0 ok
+architecture-and-planning-major architecture-and-planning  open_items major                     0          2          4 ok
+architecture-and-planning-minor architecture-and-planning  open_items minor                     0          4          8 ok
+architecture-and-planning-unrated architecture-and-planning  open_items unrated                   1          1          2 ok
+features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, outside the linked task's division
+features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
+features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
+features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
+lint-findings      features-and-maintenance   lint_findings                        -                     - -
+mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
+mutants-diff-job   performance-and-cost       workflow_wall_time diff_job          -   216000ms   360000ms -
+mutants-full-job   performance-and-cost       workflow_wall_time full_job          -   288000ms   480000ms -
+performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over
+performance-and-cost-major performance-and-cost       open_items major                     0          2          4 ok
+performance-and-cost-minor performance-and-cost       open_items minor                     0          4          8 ok
+performance-and-cost-unrated performance-and-cost       open_items unrated                   1          1          2 ok
+slowest-test       performance-and-cost       slowest_test                         -      600ms     1000ms -
+t-concerns         features-and-maintenance   open_items concerns                  1          3          5 ok
+t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over
+t-cost-tasks       performance-and-cost       open_items tasks                     0          5          9 ok
+t-discussion       features-and-maintenance   open_items in_discussion             1          1          2 ok
+t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over, outside the linked task's division
+t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over, outside the linked task's division
+t-nav-unheld       features-and-maintenance/nav open_items unheld_tasks              3          1          3 warn
+t-open-tasks       features-and-maintenance   open_items tasks                     5          3          6 warn
+t-planning-issues  architecture-and-planning  open_items issues                    1          0          0 over, outside the linked task's division
+t-unheld           features-and-maintenance   open_items unheld_tasks              3          3          5 ok
+tangle-items       features-and-maintenance   tangle_items                         -         49         83 -
+test-cpu-time      performance-and-cost       test_cpu_time                        -     2400ms     4000ms -
+test-line-share    features-and-maintenance   test_line_share                      -        10%        18% -
+test-time          performance-and-cost       test_wall_time                       -     4800ms     8000ms -
+unreached budget over its blocking line:
+workspace: performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over
+workspace: t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over
+reached budget over its blocking line:
+workspace: performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over
+workspace: t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over
+link "8"
+budget             division                   measure                          spend    warning   blocking state
+architecture-and-planning-critical architecture-and-planning  open_items critical                  0          0          0 ok
+architecture-and-planning-major architecture-and-planning  open_items major                     0          2          4 ok
+architecture-and-planning-minor architecture-and-planning  open_items minor                     0          4          8 ok
+architecture-and-planning-unrated architecture-and-planning  open_items unrated                   1          1          2 ok
+features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, paid down by the linked task
+features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
+features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
+features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
+lint-findings      features-and-maintenance   lint_findings                        -                     - -
+mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
+mutants-diff-job   performance-and-cost       workflow_wall_time diff_job          -   216000ms   360000ms -
+mutants-full-job   performance-and-cost       workflow_wall_time full_job          -   288000ms   480000ms -
+performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over, outside the linked task's division
+performance-and-cost-major performance-and-cost       open_items major                     0          2          4 ok
+performance-and-cost-minor performance-and-cost       open_items minor                     0          4          8 ok
+performance-and-cost-unrated performance-and-cost       open_items unrated                   1          1          2 ok
+slowest-test       performance-and-cost       slowest_test                         -      600ms     1000ms -
+t-concerns         features-and-maintenance   open_items concerns                  1          3          5 ok
+t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over, outside the linked task's division
+t-cost-tasks       performance-and-cost       open_items tasks                     0          5          9 ok
+t-discussion       features-and-maintenance   open_items in_discussion             1          1          2 ok
+t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over, paid down by the linked task
+t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+t-nav-unheld       features-and-maintenance/nav open_items unheld_tasks              3          1          3 warn
+t-open-tasks       features-and-maintenance   open_items tasks                     5          3          6 warn
+t-planning-issues  architecture-and-planning  open_items issues                    1          0          0 over, outside the linked task's division
+t-unheld           features-and-maintenance   open_items unheld_tasks              3          3          5 ok
+tangle-items       features-and-maintenance   tangle_items                         -         49         83 -
+test-cpu-time      performance-and-cost       test_cpu_time                        -     2400ms     4000ms -
+test-line-share    features-and-maintenance   test_line_share                      -        10%        18% -
+test-time          performance-and-cost       test_wall_time                       -     4800ms     8000ms -
+unreached budget over its blocking line:
+workspace: t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+reached budget over its blocking line:
+workspace: t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+link "9"
+budget             division                   measure                          spend    warning   blocking state
+architecture-and-planning-critical architecture-and-planning  open_items critical                  0          0          0 ok
+architecture-and-planning-major architecture-and-planning  open_items major                     0          2          4 ok
+architecture-and-planning-minor architecture-and-planning  open_items minor                     0          4          8 ok
+architecture-and-planning-unrated architecture-and-planning  open_items unrated                   1          1          2 ok
+features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
+features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
+features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
+features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
+lint-findings      features-and-maintenance   lint_findings                        -                     - -
+mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
+mutants-diff-job   performance-and-cost       workflow_wall_time diff_job          -   216000ms   360000ms -
+mutants-full-job   performance-and-cost       workflow_wall_time full_job          -   288000ms   480000ms -
+performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over
+performance-and-cost-major performance-and-cost       open_items major                     0          2          4 ok
+performance-and-cost-minor performance-and-cost       open_items minor                     0          4          8 ok
+performance-and-cost-unrated performance-and-cost       open_items unrated                   1          1          2 ok
+slowest-test       performance-and-cost       slowest_test                         -      600ms     1000ms -
+t-concerns         features-and-maintenance   open_items concerns                  1          3          5 ok
+t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over
+t-cost-tasks       performance-and-cost       open_items tasks                     0          5          9 ok
+t-discussion       features-and-maintenance   open_items in_discussion             1          1          2 ok
+t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over
+t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+t-nav-unheld       features-and-maintenance/nav open_items unheld_tasks              3          1          3 warn
+t-open-tasks       features-and-maintenance   open_items tasks                     5          3          6 warn
+t-planning-issues  architecture-and-planning  open_items issues                    1          0          0 over
+t-unheld           features-and-maintenance   open_items unheld_tasks              3          3          5 ok
+tangle-items       features-and-maintenance   tangle_items                         -         49         83 -
+test-cpu-time      performance-and-cost       test_cpu_time                        -     2400ms     4000ms -
+test-line-share    features-and-maintenance   test_line_share                      -        10%        18% -
+test-time          performance-and-cost       test_wall_time                       -     4800ms     8000ms -
+unreached budget over its blocking line:
+workspace: features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
+workspace: performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over
+workspace: t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over
+workspace: t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over
+workspace: t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+workspace: t-planning-issues  architecture-and-planning  open_items issues                    1          0          0 over
+reached budget over its blocking line:
+workspace: features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
+workspace: performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over
+workspace: t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over
+workspace: t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over
+workspace: t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+workspace: t-planning-issues  architecture-and-planning  open_items issues                    1          0          0 over
+link "10"
+budget             division                   measure                          spend    warning   blocking state
+architecture-and-planning-critical architecture-and-planning  open_items critical                  0          0          0 ok
+architecture-and-planning-major architecture-and-planning  open_items major                     0          2          4 ok
+architecture-and-planning-minor architecture-and-planning  open_items minor                     0          4          8 ok
+architecture-and-planning-unrated architecture-and-planning  open_items unrated                   1          1          2 ok
+features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
+features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
+features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
+features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
+lint-findings      features-and-maintenance   lint_findings                        -                     - -
+mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
+mutants-diff-job   performance-and-cost       workflow_wall_time diff_job          -   216000ms   360000ms -
+mutants-full-job   performance-and-cost       workflow_wall_time full_job          -   288000ms   480000ms -
+performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over, outside the linked task's division
+performance-and-cost-major performance-and-cost       open_items major                     0          2          4 ok
+performance-and-cost-minor performance-and-cost       open_items minor                     0          4          8 ok
+performance-and-cost-unrated performance-and-cost       open_items unrated                   1          1          2 ok
+slowest-test       performance-and-cost       slowest_test                         -      600ms     1000ms -
+t-concerns         features-and-maintenance   open_items concerns                  1          3          5 ok
+t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over, outside the linked task's division
+t-cost-tasks       performance-and-cost       open_items tasks                     0          5          9 ok
+t-discussion       features-and-maintenance   open_items in_discussion             1          1          2 ok
+t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over
+t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+t-nav-unheld       features-and-maintenance/nav open_items unheld_tasks              3          1          3 warn
+t-open-tasks       features-and-maintenance   open_items tasks                     5          3          6 warn
+t-planning-issues  architecture-and-planning  open_items issues                    1          0          0 over, outside the linked task's division
+t-unheld           features-and-maintenance   open_items unheld_tasks              3          3          5 ok
+tangle-items       features-and-maintenance   tangle_items                         -         49         83 -
+test-cpu-time      performance-and-cost       test_cpu_time                        -     2400ms     4000ms -
+test-line-share    features-and-maintenance   test_line_share                      -        10%        18% -
+test-time          performance-and-cost       test_wall_time                       -     4800ms     8000ms -
+unreached budget over its blocking line:
+workspace: features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
+workspace: t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over
+workspace: t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+reached budget over its blocking line:
+workspace: features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
+workspace: t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over
+workspace: t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+link "11"
+budget             division                   measure                          spend    warning   blocking state
+architecture-and-planning-critical architecture-and-planning  open_items critical                  0          0          0 ok
+architecture-and-planning-major architecture-and-planning  open_items major                     0          2          4 ok
+architecture-and-planning-minor architecture-and-planning  open_items minor                     0          4          8 ok
+architecture-and-planning-unrated architecture-and-planning  open_items unrated                   1          1          2 ok
+features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
+features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
+features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
+features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
+lint-findings      features-and-maintenance   lint_findings                        -                     - -
+mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
+mutants-diff-job   performance-and-cost       workflow_wall_time diff_job          -   216000ms   360000ms -
+mutants-full-job   performance-and-cost       workflow_wall_time full_job          -   288000ms   480000ms -
+performance-and-cost-critical performance-and-cost       open_items critical                  1          0          0 over, outside the linked task's division
+performance-and-cost-major performance-and-cost       open_items major                     0          2          4 ok
+performance-and-cost-minor performance-and-cost       open_items minor                     0          4          8 ok
+performance-and-cost-unrated performance-and-cost       open_items unrated                   1          1          2 ok
+slowest-test       performance-and-cost       slowest_test                         -      600ms     1000ms -
+t-concerns         features-and-maintenance   open_items concerns                  1          3          5 ok
+t-cost-concerns    performance-and-cost       open_items concerns                  1          0          0 over, outside the linked task's division
+t-cost-tasks       performance-and-cost       open_items tasks                     0          5          9 ok
+t-discussion       features-and-maintenance   open_items in_discussion             1          1          2 ok
+t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over
+t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+t-nav-unheld       features-and-maintenance/nav open_items unheld_tasks              3          1          3 warn
+t-open-tasks       features-and-maintenance   open_items tasks                     5          3          6 warn
+t-planning-issues  architecture-and-planning  open_items issues                    1          0          0 over, outside the linked task's division
+t-unheld           features-and-maintenance   open_items unheld_tasks              3          3          5 ok
+tangle-items       features-and-maintenance   tangle_items                         -         49         83 -
+test-cpu-time      performance-and-cost       test_cpu_time                        -     2400ms     4000ms -
+test-line-share    features-and-maintenance   test_line_share                      -        10%        18% -
+test-time          performance-and-cost       test_wall_time                       -     4800ms     8000ms -
+unreached budget over its blocking line:
+workspace: features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
+workspace: t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over
+workspace: t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+reached budget over its blocking line:
+workspace: features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
+workspace: t-nav-concerns     features-and-maintenance/nav open_items concerns                  1          0          0 over
+workspace: t-nav-tasks        features-and-maintenance/nav open_items tasks                     4          0          1 over
+budget             division                   measure                          spend    warning   blocking state
+architecture-and-planning-critical architecture-and-planning  open_items critical                  -          0          0 -
+architecture-and-planning-major architecture-and-planning  open_items major                     -          2          4 -
+architecture-and-planning-minor architecture-and-planning  open_items minor                     -          4          8 -
+architecture-and-planning-unrated architecture-and-planning  open_items unrated                   -          1          2 -
+features-and-maintenance-critical features-and-maintenance   open_items critical                  -          0          0 -
+features-and-maintenance-major features-and-maintenance   open_items major                     -          2          4 -
+features-and-maintenance-minor features-and-maintenance   open_items minor                     -          4          8 -
+features-and-maintenance-unrated features-and-maintenance   open_items unrated                   -          1          2 -
+lint-findings      features-and-maintenance   lint_findings                        -                     - -
+mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
+mutants-diff-job   performance-and-cost       workflow_wall_time diff_job          -   216000ms   360000ms -
+mutants-full-job   performance-and-cost       workflow_wall_time full_job          -   288000ms   480000ms -
+performance-and-cost-critical performance-and-cost       open_items critical                  -          0          0 -
+performance-and-cost-major performance-and-cost       open_items major                     -          2          4 -
+performance-and-cost-minor performance-and-cost       open_items minor                     -          4          8 -
+performance-and-cost-unrated performance-and-cost       open_items unrated                   -          1          2 -
+slowest-test       performance-and-cost       slowest_test                         -      600ms     1000ms -
+t-concerns         features-and-maintenance   open_items concerns                  -          3          5 -
+t-cost-concerns    performance-and-cost       open_items concerns                  -          0          0 -
+t-cost-tasks       performance-and-cost       open_items tasks                     -          5          9 -
+t-discussion       features-and-maintenance   open_items in_discussion             -          1          2 -
+t-nav-concerns     features-and-maintenance/nav open_items concerns                  -          0          0 -
+t-nav-tasks        features-and-maintenance/nav open_items tasks                     -          0          1 -
+t-nav-unheld       features-and-maintenance/nav open_items unheld_tasks              -          1          3 -
+t-open-tasks       features-and-maintenance   open_items tasks                     -          3          6 -
+t-planning-issues  architecture-and-planning  open_items issues                    -          0          0 -
+t-unheld           features-and-maintenance   open_items unheld_tasks              -          3          5 -
+tangle-items       features-and-maintenance   tangle_items                         -         49         83 -
+test-cpu-time      performance-and-cost       test_cpu_time                        -     2400ms     4000ms -
+test-line-share    features-and-maintenance   test_line_share                      -        10%        18% -
+test-time          performance-and-cost       test_wall_time                       -     4800ms     8000ms -
+unreached budget over its blocking line:
+reached budget over its blocking line:
