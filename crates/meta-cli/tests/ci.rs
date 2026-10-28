@@ -195,7 +195,7 @@ impl Started {
 struct Calls;
 
 impl Calls {
-    const MAX: usize = 10;
+    const MAX_LEN: usize = 10;
     const EXPECTED: &'static str = ".git/meta-ci/expected";
     const PLANTED: &'static str = "60000";
     const LEARNED: &'static str = "240000";
@@ -209,7 +209,7 @@ impl Calls {
         let log = std::fs::read_to_string(repo.clone.path().join("calls")).unwrap_or_default();
         let polls: std::collections::BTreeSet<&str> = log.lines().collect();
         let learned = std::fs::read_to_string(repo.clone.path().join(Self::EXPECTED)).unwrap_or_default();
-        (1..=Self::MAX).contains(&polls.len())
+        (1..=Self::MAX_LEN).contains(&polls.len())
             && polls.len() == log.lines().count()
             && [log.lines().next(), Some(learned.as_str())] == [Some(Self::PLANTED), Some(Self::LEARNED)]
     }
