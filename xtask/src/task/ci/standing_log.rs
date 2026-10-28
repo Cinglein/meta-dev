@@ -84,6 +84,8 @@ mod tests {
     const GATE_EMPTY: &str = "local gate fails closed: meta/log has no events";
     const NOTHING: &str = "";
     const POLICY: &str = "tooling/policy.toml";
+    const ORIGIN_HEAD: &str = ".git/refs/remotes/origin/HEAD";
+    const ELSEWHERE: &str = "ref: refs/remotes/origin/elsewhere\n";
     const CAPS: &str = "\n[budgets.features-and-maintenance-critical]";
     const TOP: &str = "features-and-maintenance";
     const MINOR: &str = "minor";
@@ -105,7 +107,7 @@ mod tests {
     fn the_merge_base_policy_decides_whether_standing_budgets_are_enforced() {
         let fixture = Fixture::new();
         fixture.write(POLICY, STANDING).branch();
-        fixture.write(POLICY, NOTHING).committed();
+        fixture.write(POLICY, NOTHING).committed().write(ORIGIN_HEAD, ELSEWHERE);
         let (bare, mut pull, mut push) = (StandingLog::policy(NOTHING), Ledger::default(), Ledger::default());
         let enforced = StandingLog::enforcing(&RunKind::Pull(None, None), fixture.root(), &mut pull);
         let reported = StandingLog::enforcing(&RunKind::Other, fixture.root(), &mut push);
