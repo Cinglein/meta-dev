@@ -33,7 +33,7 @@ impl Reviewer {
     fn clone_of(repo: &Repo) -> tempfile::TempDir {
         let reviewer = tempfile::tempdir().unwrap();
         let origin = repo.origin.path().to_str().unwrap();
-        Git::run(reviewer.path(), &["clone", "-q", "-b", FEATURE, origin, "."]);
+        Git::run(reviewer.path(), &["clone", "-q", "--shared", "-b", FEATURE, origin, "."]);
         std::fs::copy(repo.clone.path().join(CONFIG_FILE), reviewer.path().join(CONFIG_FILE)).unwrap();
         reviewer
     }
