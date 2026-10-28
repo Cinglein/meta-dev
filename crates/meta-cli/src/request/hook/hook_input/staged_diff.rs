@@ -27,8 +27,8 @@ impl StagedDiff {
     }
 
     fn in_file(section: &str) -> Option<Listed> {
-        let (file, hunks) = section.split_once('\n')?;
-        hunks.split(Self::HUNK_START).skip(1).find_map(|hunk| Self::in_hunk(file, hunk))
+        let (file, hunks) = section.split_once(Self::HUNK_START)?;
+        hunks.split(Self::HUNK_START).find_map(|hunk| Self::in_hunk(file, hunk))
     }
 
     fn in_hunk(file: &str, hunk: &str) -> Option<Listed> {
