@@ -34,7 +34,11 @@ impl TestPackages {
     ) -> Vec<CommandLine> {
         let all: TestPackages =
             Self::each_run(shards, graph, tested).into_iter().map(|(_, packages)| packages).collect();
-        vec![all.named(build.line(CargoArgument::Test), CargoArgument::Package)]
+        Some(all)
+            .filter(|all| !all.0.is_empty())
+            .map(|all| all.named(build.line(CargoArgument::Test), CargoArgument::Package))
+            .into_iter()
+            .collect()
     }
 
     pub fn applied_to(&self, line: CommandLine) -> CommandLine {
