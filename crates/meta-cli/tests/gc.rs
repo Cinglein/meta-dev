@@ -213,7 +213,7 @@ impl Scene {
             trees: tempfile::tempdir().unwrap(),
             excludes: tempfile::NamedTempFile::new().unwrap(),
         };
-        Skeleton::laid(scene.origin.path(), scene.clone.path());
+        Skeleton::laid(scene.origin.path(), scene.clone.path(), "main");
         let clone = scene.clone.path();
         Door::write(scene.excludes.path(), EXCLUDED).unwrap();
         let excludes = scene.excludes.path().display().to_string();

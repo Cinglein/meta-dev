@@ -156,7 +156,7 @@ impl Project {
     fn new() -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Skeleton::laid(origin.path(), clone.path());
+        Skeleton::laid(origin.path(), clone.path(), "main");
         Door::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
         Self { origin, clone, excludes: tempfile::NamedTempFile::new().unwrap() }
     }

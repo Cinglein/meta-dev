@@ -23,6 +23,8 @@ const SHOWN: &str = "meta/log on origin";
 const REJECTED_PREFIX: &str = "meta/log push rejected";
 const REFUSE_PUSHES: [&str; 2] = ["/usr/bin/false", "pre-receive"];
 const HOOKS_PATH: [&str; 2] = ["config", "core.hooksPath"];
+const CONFIG: &str = "config";
+const MAINTENANCE: &str = "[maintenance]\n\tauto = false\n";
 const STATUS: [&str; 3] = ["status", "--porcelain", "--branch"];
 const COUNT: [&str; 3] = ["rev-list", "--count", "meta/log"];
 const REWIND: [&str; 3] = ["update-ref", "refs/heads/meta/log", "refs/heads/meta/log~1"];
@@ -48,7 +50,11 @@ impl Git {
     }
 
     fn cloned(dir: &Path, url: &str) {
-        assert!(Self::run(dir, &["clone", "-q", Self::TEMPLATE, url, "."]).status.success());
+        let template = tempfile::tempdir().unwrap();
+        let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
+        Door::write(template.path().join(CONFIG), [MAINTENANCE, &remote].concat()).unwrap();
+        let templated = format!("--template={}", template.path().display());
+        assert!(Self::run(dir, &["init", "-q", &templated, "."]).status.success());
     }
 
     fn text(dir: &Path, words: &[&str]) -> String {

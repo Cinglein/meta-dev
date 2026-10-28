@@ -88,7 +88,7 @@ impl Repo {
     fn new() -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Skeleton::laid(origin.path(), clone.path());
+        Skeleton::laid(origin.path(), clone.path(), "main");
         Door::write(clone.path().join("meta.toml"), CONFIG).unwrap();
         Git::run(clone.path(), &["commit", "-q", "--allow-empty", "-m", "start"]);
         Self { origin, clone }

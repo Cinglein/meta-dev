@@ -10,7 +10,6 @@ use std::time::Duration;
 use meta_door::{Change, Door, Entry, MetaStore, Opening};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
-const FEATURE_HEAD: [&str; 3] = ["symbolic-ref", "HEAD", "refs/heads/feature"];
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 2\n";
 const PATIENT: &str = "appear_millis = 2000\ntimeout_millis = 7000\n";
 const STALLED: &str = "appear_millis = 2000\ntimeout_millis = 7000\nstop_millis = 40\n";
@@ -293,8 +292,7 @@ impl Repo {
     pub fn limited(scenario: &'static str, limits: &str) -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Skeleton::laid(origin.path(), clone.path());
-        Git::run(clone.path(), &FEATURE_HEAD);
+        Skeleton::laid(origin.path(), clone.path(), "feature");
         Door::write(clone.path().join("meta.toml"), format!("{CONFIG}{limits}")).unwrap();
         Door::changed(clone.path().join("bin"), Change::Dir).unwrap();
         Door::write(clone.path().join("bin/gh"), FAKE_GH).unwrap();
