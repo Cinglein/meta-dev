@@ -1,4 +1,5 @@
 mod identity;
+mod pushed_commits;
 mod shell_command;
 mod tool_input;
 
@@ -9,8 +10,10 @@ use serde::Deserialize;
 
 use crate::request::ci::{SessionId, SessionStart};
 use crate::request::output::Listed;
+use crate::request::project::Project;
 
 use identity::Identity;
+use pushed_commits::PushedCommits;
 use shell_command::ShellCommand;
 use tool_input::ToolInput;
 
@@ -44,6 +47,11 @@ impl HookInput {
         let writing = self.session().zip(command.writes());
         let unrecorded = writing.and_then(|(session, ())| SessionStart::for_session(session).record().err());
         unrecorded.or(foreign)
+    }
+
+    pub fn unpushable(&self, project: &Project, subcommand: &str) -> Option<Listed> {
+        self.command()?.runs(subcommand)?;
+        PushedCommits::refusal_in(project.root(), project.config().remote().ok()?)
     }
 
     pub fn publishing(&self) -> Option<PathBuf> {

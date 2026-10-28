@@ -52,6 +52,7 @@ impl fmt::Display for HookEvent {
 
 impl HookEvent {
     const COMMIT: &'static str = "commit";
+    const PUSH: &'static str = "push";
 
     pub fn respond(self) -> Result<Output, CliFailure> {
         let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
@@ -84,6 +85,7 @@ impl HookEvent {
                     .command()
                     .and_then(|command| command.refusal(project.config()))
                     .or_else(|| input.refusal())
+                    .or_else(|| input.unpushable(project, Self::PUSH))
                     .map(Denial::from)
                     .map_or(Verdict::Allow, Verdict::Deny),
                 None,
@@ -118,7 +120,10 @@ impl HookEvent {
     }
 
     fn after_push(project: &Project, input: &HookInput) -> Option<Listed> {
-        let failure = input.command()?.runs(Self::COMMIT).and_then(|()| project.push_failure());
+        let command = input.command()?;
+        let failure = command
+            .runs(Self::COMMIT)
+            .and_then(|()| input.unpushable(project, Self::COMMIT).or_else(|| project.push_failure()));
         failure.or(input.session().and_then(|session| Watcher::watch_all(project, session).err()))
     }
 }
