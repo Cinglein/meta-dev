@@ -1007,3 +1007,4 @@
 {"at":"2026-10-28T14:55:16.060981Z","actor":"claude-lead","kind":"TaskDone","task":"task-2515e8a808484a36"}
 {"at":"2026-10-28T14:57:33.064410Z","actor":"claude-cpucut","kind":"TaskLinked","task":"task-067b28fe28b30740","pr":102}
 {"at":"2026-10-28T14:59:02.601493Z","actor":"claude-lead","kind":"TaskOpened","task":"task-d23688b2bb92f2ce","text":"Cache the replayed meta log state locally, keyed by log tip, so reads skip a full replay; meta log stays in git (owner chose A).","division":"performance-and-cost"}
+{"at":"2026-10-28T15:00:28.471557Z","actor":"claude-lead","kind":"IssueReported","issue":"issue-def2fd90374d56eb","text":"Deferred (owner 2026-10-28): gitoxide for in-process git reads; revisit at gix 1.0 or clear reftable support, with git fallback and differential tests.","division":"performance-and-cost"}
