@@ -1197,3 +1197,4 @@
 {"at":"2026-10-28T22:37:29.763805Z","actor":"claude-slowci","kind":"TaskLinked","task":"task-796fe17ba6190be3","pr":136}
 {"at":"2026-10-28T22:40:16.236908Z","actor":"claude-ghpr1","kind":"TaskLinked","task":"task-2afb92b19578703f","pr":137}
 {"at":"2026-10-28T22:40:34.347610Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-358e46e233ed0796","text":"Agent dogfooding friction: claim --worktree needs a hand-made meta.local.toml identity; ci-wait fails without META_SESSION set.","division":"features-and-maintenance","severity":"minor"}
+{"at":"2026-10-28T22:40:40.218548Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-796fe17ba6190be3"}
