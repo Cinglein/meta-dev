@@ -104,6 +104,8 @@ impl fmt::Display for StatusDescription {
 
 #[cfg(test)]
 mod tests {
+    use meta_golden::Golden;
+
     use super::StatusDescription;
     use crate::task::ci::local_gate::GateState;
 
@@ -117,24 +119,17 @@ mod tests {
     const SURFACED: &str = "; surfaces changed";
     const FAILURE: &str = "; failed ";
     const LONG: &str = "stable-aarch64-apple-darwinstable-aarch64-apple-darwinstable-aarch64-apple-darwinstable-aarch64-apple-darwinstable-aarch64-apple-darwin";
-    const EXPECT_TIMED: &str = "meta-dev be728d0 on stable-aarch64-apple-darwin: fmt 160.5ms, clippy 1.8s, test failed; failed test; surfaces changed; env passed: CHROME";
-    const EXPECT_DROPPED: &str = "meta-dev be728d0 on stable-aarch64-apple-darwin; surfaces changed";
-    const EXPECT_EMPTY: &str = "meta-dev be728d0 on stable-aarch64-apple-darwin: ; failed incomplete; surfaces changed";
-    const EXPECT_PAIR: &str = "meta-dev be728d0 on stable-aarch64-apple-darwinstable-aarch64-apple-darwin...; failed incomplete; surfaces changed; env passed: CHROME, TERM";
-    const EXPECT_WIDE: &str = "meta-dev be728d0 on stable-aarch64-apple-darwinstable-...; failed incomplete; surfaces changed; env passed: A234567890123456789012345678, +2";
     const NAMES: [&str; 4] = ["CHROME", "TERM", "DISPLAY_NAME", "SSH_AUTH_SOCK"];
     const WIDE: [&str; 3] =
         ["A234567890123456789012345678", "B234567890123456789012345678", "C234567890123456789012345678"];
+    const SNAPSHOT: &str = "described";
 
     #[test]
-    fn every_description_fits_and_keeps_the_rev_the_failure_and_the_surfaces() {
+    fn every_description_fits_keeps_the_rev_the_failure_and_the_surfaces_and_shortens_the_toolchain_first() {
         let describe = |toolchain: &str, state, times: &str, names: &[&str]| {
-            StatusDescription::describing(VERSION, toolchain)
-                .after(state, times)
-                .surfacing(SURFACED)
-                .passing(names)
-                .to_string()
+            StatusDescription::describing(VERSION, toolchain).after(state, times).surfacing(SURFACED).passing(names)
         };
+        let named = (0..=NAMES.len()).map(|count| &NAMES[..count]).chain([&WIDE[..]]);
         let cases: Vec<(GateState, String)> = [APPLE, LONG]
             .into_iter()
             .flat_map(|toolchain| [ALL_TIMES, FAILED_TIMES, PARTIAL_TIMES, NOTHING].map(|times| (toolchain, times)))
@@ -142,38 +137,12 @@ mod tests {
                 [GateState::Success, GateState::Failure].map(|state| (toolchain, times, state))
             })
             .flat_map(|(toolchain, times, state)| {
-                (0..=NAMES.len()).map(move |count| (state, describe(toolchain, state, times, &NAMES[..count])))
+                named.clone().map(move |names| (state, describe(toolchain, state, times, names).to_string()))
             })
             .collect();
         assert!(cases.iter().all(|(_, shown)| shown.chars().count() <= StatusDescription::MAX_LENGTH));
         assert!(cases.iter().all(|(_, shown)| shown.starts_with(PREFIX) && shown.contains(SURFACED)));
         assert!(cases.iter().all(|(state, shown)| (*state == GateState::Failure) == shown.contains(FAILURE)));
-    }
-
-    #[test]
-    fn times_go_first_and_a_failure_names_its_step_or_says_incomplete() {
-        let stated = |state, times: &str, names: &[&str]| {
-            StatusDescription::describing(VERSION, APPLE)
-                .after(state, times)
-                .surfacing(SURFACED)
-                .passing(names)
-                .to_string()
-        };
-        assert_eq!(stated(GateState::Failure, FAILED_TIMES, &NAMES[..1]), EXPECT_TIMED);
-        assert_eq!(stated(GateState::Success, ALL_TIMES, &[]), EXPECT_DROPPED);
-        assert_eq!(stated(GateState::Failure, NOTHING, &[]), EXPECT_EMPTY);
-    }
-
-    #[test]
-    fn the_toolchain_shortens_first_then_the_env_list_and_the_markers_stay() {
-        let describe = |names: &[&str]| {
-            StatusDescription::describing(VERSION, LONG)
-                .after(GateState::Failure, PARTIAL_TIMES)
-                .surfacing(SURFACED)
-                .passing(names)
-                .to_string()
-        };
-        assert_eq!(describe(&NAMES[..2]), EXPECT_PAIR);
-        assert_eq!(describe(&WIDE), EXPECT_WIDE);
+        Golden::for_test(module_path!(), SNAPSHOT).debugged(&cases).unwrap();
     }
 }
