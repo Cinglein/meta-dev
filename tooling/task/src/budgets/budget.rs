@@ -91,14 +91,16 @@ impl Budget {
 
     #[must_use]
     pub fn blocks(&self, state: Option<State>) -> bool {
-        state == Some(State::Over) && self.overspend == Overspend::Block
+        state == Some(State::Over)
+            && self.overspend == Overspend::Block
+            && self.measure.enforcer() != Enforcer::Lint
     }
 
     #[must_use]
     pub fn state(&self, lines: Option<&Lines>, spend: Option<&Amount>) -> Option<State> {
-        match self.measure.enforcer() {
-            Enforcer::Lint => spend.map(|_| State::Ok),
-            Enforcer::Checker | Enforcer::MutationJobs => {
+        match self.measure.unit() {
+            Unit::Baseline => spend.map(|_| State::Ok),
+            Unit::Duration | Unit::Share | Unit::Count => {
                 lines.zip(spend).map(|(lines, spend)| lines.state(spend))
             }
         }
