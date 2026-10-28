@@ -1,0 +1,20 @@
+[
+    (
+        FeaturesAndMaintenance,
+        [
+            Crates,
+            Paths,
+        ],
+    ),
+    (
+        PerformanceAndCost,
+        [
+            Tests,
+            Workflows,
+        ],
+    ),
+    (
+        ArchitectureAndPlanning,
+        [],
+    ),
+]

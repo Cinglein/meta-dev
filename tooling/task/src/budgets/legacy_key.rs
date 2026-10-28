@@ -113,34 +113,22 @@ impl LegacyKey {
 
 #[cfg(test)]
 mod tests {
+    use meta_golden::Golden;
     use settings::EmbeddedDefaults;
 
-    use super::super::budget::Measure;
-    use super::LegacyKey;
     use crate::budget::{Interval, Millis};
-    use crate::percent::Percent;
     use crate::policy::Policy;
 
     const MILLIS: &str = "[millis]\n";
     const OLD: &str = "[millis]\ntotal = 8000\n";
     const NEW: &str = "[budgets.test-time]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { duration = 8000 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
-    const BOTH: &str = "millis.total: also set as a budget; drop the old key";
-    const NEITHER: &str = "millis.total: not set; declare it as a budget";
-
     const PRICE: &str = "[budgets.mutant-price]\ndivision = \"performance-and-cost\"\nmeasure = \"mutant_price\"\nallowance = { share = 100 }\ntolerance = 25\nwindow = \"per_change\"\nsource = \"ci\"\n";
     const FLOORS: &str = "[floors]\n";
     const OLD_FLOORS: &str = "[floors]\nprice_tolerance = 25\n";
     const NOT_A_TABLE: &str = "millis = 5\n";
     const SPARE: &str = "[spare]\n";
-    const NOT_A_TABLE_REFUSED: &str = "a table of policy entries";
     const DROPPED: &str = "";
-    const DEPRECATED: [LegacyKey; 2] = [LegacyKey::Total, LegacyKey::PriceTolerance];
     const PRICED: Millis = Millis::new(64);
-    const TOLERANCE: usize = 25;
-    const DERIVED: [Option<(Measure, Option<Percent>)>; 2] = [
-        Some((Measure::TestWallTime, None)),
-        Some((Measure::MutantPrice, Some(Percent::new(TOLERANCE)))),
-    ];
 
     impl Policy {
         fn refusal(text: &str) -> Option<String> {
@@ -153,6 +141,11 @@ mod tests {
             Policy::DEFAULTS.replace(NEW, DROPPED)
         }
 
+        fn old() -> Policy {
+            let unbudgeted = Policy::unbudgeted().replace(PRICE, DROPPED);
+            toml::from_str(&unbudgeted.replace(MILLIS, OLD).replace(FLOORS, OLD_FLOORS)).unwrap()
+        }
+
         fn timed_and_priced(&self) -> [Millis; 2] {
             [self.interval(Interval::Total), self.tolerated(PRICED)]
         }
@@ -160,42 +153,36 @@ mod tests {
 
     #[test]
     fn an_old_key_reads_as_its_budget_did_and_is_noted_as_deprecated() {
-        let text = Policy::unbudgeted()
-            .replace(PRICE, DROPPED)
-            .replace(MILLIS, OLD)
-            .replace(FLOORS, OLD_FLOORS);
-        let old = toml::from_str::<Policy>(&text).unwrap();
+        let old = Policy::old();
         assert_eq!(
             old.timed_and_priced(),
             Policy::defaults().timed_and_priced()
         );
-        assert!(old.deprecated() == DEPRECATED && Policy::defaults().deprecated().is_empty());
-        let derived = DEPRECATED.map(|key| {
-            old.budgets()
-                .budget(&key.budget_id())
-                .map(|budget| (budget.measure().clone(), budget.tolerance()))
-        });
-        assert_eq!(derived, DERIVED);
+        let derived = old
+            .deprecated()
+            .iter()
+            .map(|key| (key, old.budgets().budget(&key.budget_id())));
+        let shown = format!(
+            "{:#?}\n{:?}",
+            derived.collect::<Vec<_>>(),
+            Policy::defaults().deprecated()
+        );
+        Golden::for_test(module_path!(), "derived")
+            .checked(&shown)
+            .unwrap();
     }
 
     #[test]
     fn an_old_key_and_its_budget_together_or_neither_are_refused() {
-        assert_eq!(
-            Policy::refusal(&Policy::DEFAULTS.replace(MILLIS, OLD)).as_deref(),
-            Some(BOTH)
-        );
-        assert_eq!(
-            Policy::refusal(&Policy::unbudgeted()).as_deref(),
-            Some(NEITHER)
-        );
-        let flat = Policy::refusal(&format!(
-            "{NOT_A_TABLE}{}",
-            Policy::DEFAULTS.replace(MILLIS, SPARE)
-        ));
-        assert!(
-            flat.as_ref()
-                .is_some_and(|refusal| refusal.contains(NOT_A_TABLE_REFUSED)),
-            "{flat:?}"
-        );
+        let flat = format!("{NOT_A_TABLE}{}", Policy::DEFAULTS.replace(MILLIS, SPARE));
+        let texts = [
+            Policy::DEFAULTS.replace(MILLIS, OLD),
+            Policy::unbudgeted(),
+            flat,
+        ];
+        let refusals = texts.map(|text| Policy::refusal(&text));
+        Golden::for_test(module_path!(), "refused")
+            .checked(&format!("{refusals:#?}"))
+            .unwrap();
     }
 }

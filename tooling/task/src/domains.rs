@@ -85,6 +85,7 @@ impl From<Domains> for BTreeMap<Division, Domain> {
 
 #[cfg(test)]
 mod tests {
+    use meta_golden::Golden;
     use meta_schema::{Division, TopDivision};
     use settings::EmbeddedDefaults;
     use strum::IntoEnumIterator;
@@ -92,57 +93,23 @@ mod tests {
     use super::{Domains, Extent, ScopeKind};
     use crate::policy::Policy;
 
-    const TOPS: [TopDivision; 3] = [
-        TopDivision::PerformanceAndCost,
-        TopDivision::FeaturesAndMaintenance,
-        TopDivision::ArchitectureAndPlanning,
-    ];
-    const DECLARED: [&[ScopeKind]; 3] = [
-        &[ScopeKind::Tests, ScopeKind::Workflows],
-        &[ScopeKind::Crates, ScopeKind::Paths],
-        &[],
-    ];
     const UNIT: &str = "performance-and-cost/unit";
     const SCALED: &str = "\n[[scales.\"performance-and-cost/unit\"]]\nname = \"a\"\nmeaning = \"x\"\nparent = \"critical\"\n\n[[scales.\"performance-and-cost/unit\"]]\nname = \"b\"\nmeaning = \"x\"\nparent = \"major\"\n\n[[scales.\"performance-and-cost/unit\"]]\nname = \"c\"\nmeaning = \"x\"\nparent = \"minor\"\n";
     const NESTED_DOMAIN: &str = "[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n";
     const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 50\ntolerance = 10\n";
-    const REFUSED: [(&str, &str); 8] = [
-        (
-            "\n[[scales.\"features-and-maintenance/a\"]]\nname = \"b\"\nmeaning = \"x\"\nparent = \"minor\"\n\n[[scales.\"features-and-maintenance/a\"]]\nname = \"c\"\nmeaning = \"x\"\nparent = \"critical\"\n",
-            "scale features-and-maintenance/a: c maps above a more severe level",
-        ),
-        (
-            "\n[budgets.whole]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"ci\"\n\n[budgets.part]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"tangle_items\"\nallowance = { of = \"whole\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n",
-            "budget part: its allowance is not in its measure's unit",
-        ),
-        (
-            "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\nworkflows = [\"*\"]\n",
-            "domain performance-and-cost/unit: not strictly inside its parent's domain",
-        ),
-        (
-            "\n[domains.\"performance-and-cost/unit\"]\ncrates = [\"meta-cli\"]\n",
-            "domain performance-and-cost/unit: not strictly inside its parent's domain",
-        ),
-        (
-            "\n[domains.architecture-and-planning]\npaths = [\"context*\"]\n",
-            "domain architecture-and-planning: planning has no code scopes",
-        ),
-        (
-            "\n[budgets.lines]\ndivision = \"performance-and-cost/lines\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n",
-            "budget lines: its measure needs tests, which its division's domain does not declare",
-        ),
-        (
-            "\n[budgets.time]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { count = 4 }\nwindow = \"per_change\"\nsource = \"ci\"\n",
-            "budget time: its allowance is not in its measure's unit",
-        ),
-        (
-            "\n[budgets.time]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 100\n",
-            "warning line 100: must be below the blocking line at 100",
-        ),
+    const REFUSED: [&str; 8] = [
+        "\n[[scales.\"features-and-maintenance/a\"]]\nname = \"b\"\nmeaning = \"x\"\nparent = \"minor\"\n\n[[scales.\"features-and-maintenance/a\"]]\nname = \"c\"\nmeaning = \"x\"\nparent = \"critical\"\n",
+        "\n[budgets.whole]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"ci\"\n\n[budgets.part]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"tangle_items\"\nallowance = { of = \"whole\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n",
+        "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\nworkflows = [\"*\"]\n",
+        "\n[domains.\"performance-and-cost/unit\"]\ncrates = [\"meta-cli\"]\n",
+        "\n[domains.architecture-and-planning]\npaths = [\"context*\"]\n",
+        "\n[budgets.lines]\ndivision = \"performance-and-cost/lines\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n",
+        "\n[budgets.time]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { count = 4 }\nwindow = \"per_change\"\nsource = \"ci\"\n",
+        "\n[budgets.time]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"ci\"\nwarning = 100\n",
     ];
 
     impl Policy {
-        fn with_added(added: &str) -> Result<Policy, String> {
+        pub(crate) fn with_added(added: &str) -> Result<Policy, String> {
             toml::from_str::<Policy>(&format!("{}{added}", Policy::DEFAULTS))
                 .map_err(|error| error.message().to_owned())
         }
@@ -151,16 +118,19 @@ mod tests {
     #[test]
     fn by_default_ci_owns_tests_and_workflows_code_owns_crates_and_paths_and_planning_nothing() {
         let domains = Domains::default();
-        let declared = TOPS.map(|top| {
-            let domain = domains
-                .domain(&Division::from(top))
-                .cloned()
-                .unwrap_or_default();
-            ScopeKind::iter()
-                .filter(|kind| domain.extent(*kind) == Extent::Whole)
-                .collect::<Vec<ScopeKind>>()
-        });
-        assert_eq!(declared, DECLARED.map(<[ScopeKind]>::to_vec));
+        let declared: Vec<_> = TopDivision::iter()
+            .map(|top| {
+                let domain = domains
+                    .domain(&Division::from(top))
+                    .cloned()
+                    .unwrap_or_default();
+                let whole = ScopeKind::iter().filter(|kind| domain.extent(*kind) == Extent::Whole);
+                (top, whole.collect::<Vec<ScopeKind>>())
+            })
+            .collect();
+        Golden::for_test(module_path!(), "declared")
+            .checked(&format!("{declared:#?}"))
+            .unwrap();
     }
 
     #[test]
@@ -177,10 +147,9 @@ mod tests {
     #[test]
     fn domains_outside_their_parent_planning_code_unmeasurable_budgets_and_unordered_scales_are_refused()
      {
-        let refusals = REFUSED.map(|(added, _)| Policy::with_added(added).err());
-        assert_eq!(
-            refusals,
-            REFUSED.map(|(_, refusal)| Some(refusal.to_owned()))
-        );
+        let refusals = REFUSED.map(|added| Policy::with_added(added).err());
+        Golden::for_test(module_path!(), "refused")
+            .checked(&format!("{refusals:#?}"))
+            .unwrap();
     }
 }

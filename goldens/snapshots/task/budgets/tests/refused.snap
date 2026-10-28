@@ -1,0 +1,29 @@
+[
+    Some(
+        "missing field `allowance`",
+    ),
+    Some(
+        "data did not match any variant of untagged enum Allowance",
+    ),
+    Some(
+        "data did not match any variant of untagged enum Allowance",
+    ),
+    Some(
+        "budget orphan: part of a budget that is not defined",
+    ),
+    Some(
+        "budget deep: a budget in a nested division is a part of its parent division's budget",
+    ),
+    Some(
+        "budget ci: its parts add up to more than all of it",
+    ),
+    Some(
+        "budget outside: its division is not inside the division of the budget it is part of",
+    ),
+    Some(
+        "budget ci: its parts add up to more than all of it",
+    ),
+    Some(
+        "budget ci: its parts add up to more than all of it",
+    ),
+]
