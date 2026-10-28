@@ -187,12 +187,22 @@ impl Git {
     fn added(scene: &Scene) {
         let clone = scene.clone.path();
         let trees = scene.trees();
-        let added: Vec<Output> = ADDED
-            .iter()
-            .map(|task| Self::run(clone, &["worktree", "add", "-q", trees.join(task).to_str().unwrap(), task]))
-            .collect();
-        assert!(added.iter().all(|output| output.status.success()));
-        Self::run(clone, &["worktree", "add", "-q", "--detach", trees.join(STRAY).to_str().unwrap()]);
+        std::thread::scope(|scope| {
+            let stray = scope.spawn(|| {
+                Self::run(clone, &["worktree", "add", "-q", "--detach", trees.join(STRAY).to_str().unwrap()])
+            });
+            let added: Vec<_> = ADDED
+                .iter()
+                .map(|task| {
+                    let trees = &trees;
+                    scope.spawn(move || {
+                        Self::run(clone, &["worktree", "add", "-q", trees.join(task).to_str().unwrap(), task])
+                    })
+                })
+                .collect();
+            assert!(added.into_iter().all(|added| added.join().unwrap().status.success()));
+            assert!(stray.join().unwrap().status.success());
+        });
     }
 }
 
@@ -265,15 +275,22 @@ impl Scene {
 
 #[test]
 fn gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_with_reasons() {
-    let scene = Scene::new();
-    let trees = scene.trees();
-    let _held = File::open(trees.join(BUSY).join(".git")).unwrap();
+    let (planning, scene) = std::thread::scope(|scope| {
+        let planning = scope.spawn(Scene::new);
+        let scene = Scene::new();
+        (planning.join().unwrap(), scene)
+    });
+    let (planned, trees) = (planning.trees(), scene.trees());
+    let _held = [&planned, &trees].map(|trees| File::open(trees.join(BUSY).join(".git")).unwrap());
     let shows = |shown: &str, lines: &[Line]| lines.iter().all(|line| shown.contains(&Shown(line, &trees).to_string()));
     let freed = Freed(&trees).to_string();
-    let ticked = scene.meta(&GC_RUN);
-    assert!(ticked.contains(&Shown(&PLANNED, &trees).to_string()) && trees.join(MERGED).exists(), "{ticked}");
     std::fs::write(scene.clone.path().join(TRAIL), Created(&trees, &RECORDED).to_string()).unwrap();
-    let swept = scene.meta(&GC);
+    let (ticked, swept) = std::thread::scope(|scope| {
+        let ticking = scope.spawn(|| planning.meta(&GC_RUN));
+        let swept = scene.meta(&GC);
+        (ticking.join().unwrap(), swept)
+    });
+    assert!(ticked.contains(&Shown(&PLANNED, &planned).to_string()) && planned.join(MERGED).exists(), "{ticked}");
     let trail = std::fs::read_to_string(scene.clone.path().join(TRAIL)).unwrap();
     let branch = Git::run(scene.clone.path(), &["branch", "--list", MERGED]).stdout;
     assert!(
