@@ -1,0 +1,266 @@
+Ok(
+    [
+        ReflogEntry {
+            commit: Commit(
+                "f2e83b47f04f1aadaaf72b9d15074e933a513dc6",
+            ),
+            parents: [
+                Commit(
+                    "0535038a5657a4872055f5ca2aa4ae04f811e419",
+                ),
+                Commit(
+                    "9271c82b76058cb9022078bf58c641cfc6a5b0d7",
+                ),
+            ],
+            committer: Identity(
+                "t <t@meta.invalid>",
+            ),
+            moved: Stamp {
+                identity: Identity(
+                    "t <t@meta.invalid>",
+                ),
+                moment: UnixSeconds(
+                    1700000000,
+                ),
+            },
+            checkout: Some(
+                Checkout {
+                    head: Some(
+                        Commit(
+                            "f2e83b47f04f1aadaaf72b9d15074e933a513dc6",
+                        ),
+                    ),
+                    branch: Some(
+                        BranchName(
+                            "feature",
+                        ),
+                    ),
+                },
+            ),
+            subject: MoveSubject(
+                "merge side: Merge made by the 'ort' strategy.",
+            ),
+        },
+        ReflogEntry {
+            commit: Commit(
+                "0535038a5657a4872055f5ca2aa4ae04f811e419",
+            ),
+            parents: [
+                Commit(
+                    "35f3121103217e323172c65bc2941330453b4be0",
+                ),
+            ],
+            committer: Identity(
+                "t <t@meta.invalid>",
+            ),
+            moved: Stamp {
+                identity: Identity(
+                    "t <t@meta.invalid>",
+                ),
+                moment: UnixSeconds(
+                    1700000000,
+                ),
+            },
+            checkout: None,
+            subject: MoveSubject(
+                "checkout: moving from side to feature",
+            ),
+        },
+        ReflogEntry {
+            commit: Commit(
+                "9271c82b76058cb9022078bf58c641cfc6a5b0d7",
+            ),
+            parents: [
+                Commit(
+                    "0535038a5657a4872055f5ca2aa4ae04f811e419",
+                ),
+            ],
+            committer: Identity(
+                "t <t@meta.invalid>",
+            ),
+            moved: Stamp {
+                identity: Identity(
+                    "t <t@meta.invalid>",
+                ),
+                moment: UnixSeconds(
+                    1700000000,
+                ),
+            },
+            checkout: None,
+            subject: MoveSubject(
+                "commit: side",
+            ),
+        },
+        ReflogEntry {
+            commit: Commit(
+                "0535038a5657a4872055f5ca2aa4ae04f811e419",
+            ),
+            parents: [
+                Commit(
+                    "35f3121103217e323172c65bc2941330453b4be0",
+                ),
+            ],
+            committer: Identity(
+                "t <t@meta.invalid>",
+            ),
+            moved: Stamp {
+                identity: Identity(
+                    "t <t@meta.invalid>",
+                ),
+                moment: UnixSeconds(
+                    1700000000,
+                ),
+            },
+            checkout: None,
+            subject: MoveSubject(
+                "checkout: moving from feature to side",
+            ),
+        },
+        ReflogEntry {
+            commit: Commit(
+                "0535038a5657a4872055f5ca2aa4ae04f811e419",
+            ),
+            parents: [
+                Commit(
+                    "35f3121103217e323172c65bc2941330453b4be0",
+                ),
+            ],
+            committer: Identity(
+                "t <t@meta.invalid>",
+            ),
+            moved: Stamp {
+                identity: Identity(
+                    "t <t@meta.invalid>",
+                ),
+                moment: UnixSeconds(
+                    1700000000,
+                ),
+            },
+            checkout: None,
+            subject: MoveSubject(
+                "rebase (finish): returning to refs/heads/feature",
+            ),
+        },
+        ReflogEntry {
+            commit: Commit(
+                "0535038a5657a4872055f5ca2aa4ae04f811e419",
+            ),
+            parents: [
+                Commit(
+                    "35f3121103217e323172c65bc2941330453b4be0",
+                ),
+            ],
+            committer: Identity(
+                "t <t@meta.invalid>",
+            ),
+            moved: Stamp {
+                identity: Identity(
+                    "t <t@meta.invalid>",
+                ),
+                moment: UnixSeconds(
+                    1700000000,
+                ),
+            },
+            checkout: None,
+            subject: MoveSubject(
+                "rebase (pick): dated",
+            ),
+        },
+        ReflogEntry {
+            commit: Commit(
+                "35f3121103217e323172c65bc2941330453b4be0",
+            ),
+            parents: [
+                Commit(
+                    "c3d2fcde5f8b6fb687879d74ce45f40c0faafc2d",
+                ),
+            ],
+            committer: Identity(
+                "t <t@meta.invalid>",
+            ),
+            moved: Stamp {
+                identity: Identity(
+                    "t <t@meta.invalid>",
+                ),
+                moment: UnixSeconds(
+                    1700000000,
+                ),
+            },
+            checkout: None,
+            subject: MoveSubject(
+                "rebase (start): checkout HEAD~1",
+            ),
+        },
+        ReflogEntry {
+            commit: Commit(
+                "61492af0ca298e0ad04f94f231edcc3b7717b88b",
+            ),
+            parents: [
+                Commit(
+                    "35f3121103217e323172c65bc2941330453b4be0",
+                ),
+            ],
+            committer: Identity(
+                "t <t@meta.invalid>",
+            ),
+            moved: Stamp {
+                identity: Identity(
+                    "t <t@meta.invalid>",
+                ),
+                moment: UnixSeconds(
+                    1700000000,
+                ),
+            },
+            checkout: None,
+            subject: MoveSubject(
+                "commit: dated",
+            ),
+        },
+        ReflogEntry {
+            commit: Commit(
+                "35f3121103217e323172c65bc2941330453b4be0",
+            ),
+            parents: [
+                Commit(
+                    "c3d2fcde5f8b6fb687879d74ce45f40c0faafc2d",
+                ),
+            ],
+            committer: Identity(
+                "t <t@meta.invalid>",
+            ),
+            moved: Stamp {
+                identity: Identity(
+                    "t <t@meta.invalid>",
+                ),
+                moment: UnixSeconds(
+                    1700000000,
+                ),
+            },
+            checkout: None,
+            subject: MoveSubject(
+                "commit: Fast-forward (abort) (start) (finish)",
+            ),
+        },
+        ReflogEntry {
+            commit: Commit(
+                "c3d2fcde5f8b6fb687879d74ce45f40c0faafc2d",
+            ),
+            parents: [],
+            committer: Identity(
+                "t <t@meta.invalid>",
+            ),
+            moved: Stamp {
+                identity: Identity(
+                    "t <t@meta.invalid>",
+                ),
+                moment: UnixSeconds(
+                    1700000000,
+                ),
+            },
+            checkout: None,
+            subject: MoveSubject(
+                "commit (initial): first",
+            ),
+        },
+    ],
+)

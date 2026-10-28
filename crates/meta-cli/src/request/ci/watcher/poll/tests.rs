@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use super::Poll;
 use crate::request::ci::ci_status::CiStatus;
+use crate::request::ci::watcher::gh::Observation;
 use crate::request::ci::watcher::gh::replies::Replies;
 use crate::request::ci::watcher::note::Note;
 use crate::request::output::Listed;
@@ -26,7 +27,8 @@ const ALL_SHOWN: [bool; 5] = [true; 5];
 
 #[test]
 fn a_run_that_never_appears_is_noted_once_as_absent_and_one_appearing_later_is_noted_as_appeared() {
-    let [none, running] = [Replies::observed(NO_RUN), Replies::reporting(CiStatus::Running)].map(Ok::<_, Listed>);
+    let running = Observation::new(Vec::new(), None, Some(CiStatus::Running), None);
+    let [none, running] = [Replies::observed(NO_RUN), running].map(Ok::<_, Listed>);
     let early = Poll::default().step(&none, None, None);
     let late = early.clone().step(&none, None, OVERDUE);
     let again = late.clone().step(&none, Some(CiStatus::Absent), OVERDUE);
@@ -58,7 +60,7 @@ fn gh_errors_are_noted_once_each_and_keep_a_failed_status_and_a_failed_job_says_
 #[test]
 fn a_watch_concludes_failed_with_its_steps_else_finished_else_absent_else_timed_out() {
     let [failed, passed] = [FAILED, PASSED].map(Replies::observed);
-    let unstarted = Replies::reporting(CiStatus::Unavailable);
+    let unstarted = Observation::new(Vec::new(), None, Some(CiStatus::Unavailable), None);
     let lasts = [Some(&failed), Some(&passed), None, None, Some(&unstarted)];
     let currents = [None, Some(CiStatus::Running), Some(CiStatus::Absent), Some(CiStatus::Running), None];
     let concluded = lasts.iter().zip(currents).map(|(last, current)| Note::concluded(current, *last, LONG));

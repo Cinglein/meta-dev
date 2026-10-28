@@ -30,6 +30,6 @@ fn a_project_serves_its_meta_toml_and_counts_commits_the_remote_does_not_list_as
     std::fs::write(dir.path().join("meta.toml"), format!("remote = \"{REMOTE}\"")).unwrap();
     let project = Project::try_from(dir.path()).unwrap();
     let Ok(commit): Result<Commit, _> = COMMIT.parse();
-    let pushed = project.pushed_among(std::slice::from_ref(&commit), &[], Instant::now() + Duration::from_secs(30));
-    assert_eq!((project.config().remote().unwrap().to_string(), pushed), (REMOTE.to_owned(), vec![commit]));
+    let unpushed = project.unpushed(std::slice::from_ref(&commit), &[], Instant::now() + Duration::from_secs(30));
+    assert_eq!((project.config().remote().unwrap().to_string(), unpushed), (REMOTE.to_owned(), Some(Vec::new())));
 }

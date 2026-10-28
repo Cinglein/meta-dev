@@ -1,0 +1,74 @@
+[[step]]
+run = ["git", "init", "--quiet", "--initial-branch=feature", "."]
+
+[[step]]
+run = ["git", "config", "user.name", "t"]
+
+[[step]]
+run = ["git", "config", "user.email", "t@meta.invalid"]
+
+[[step]]
+run = ["git", "init", "--quiet", "--bare", "--initial-branch=main", ".git/origin.git"]
+
+[[step]]
+run = ["git", "remote", "add", "origin", ".git/origin.git"]
+
+[[step]]
+run = ["git", "config", "remote.origin.fetch", "+refs/heads/main:refs/remotes/origin/main"]
+
+[[step]]
+run = ["git", "commit", "--quiet", "--allow-empty", "-m", "first"]
+
+[[step]]
+run = ["git", "push", "--quiet", "origin", "HEAD:refs/heads/main"]
+
+[[step]]
+run = ["git", "commit", "--quiet", "--allow-empty", "-m", "Fast-forward (abort) (start) (finish)"]
+
+[[step]]
+run = ["git", "commit", "--quiet", "--allow-empty", "--date=@1000000000 +0000", "-m", "dated"]
+
+[[step]]
+run = ["git", "rebase", "--quiet", "--force-rebase", "--committer-date-is-author-date", "HEAD~1"]
+
+[[step]]
+run = ["git", "push", "--quiet", "origin", "HEAD:refs/heads/aside"]
+
+[[step]]
+run = ["git", "checkout", "--quiet", "-b", "side"]
+
+[[step]]
+run = ["git", "commit", "--quiet", "--allow-empty", "-m", "side"]
+
+[[step]]
+run = ["git", "checkout", "--quiet", "feature"]
+
+[[step]]
+run = ["git", "merge", "--quiet", "--no-ff", "side", "-m", "merged"]
+
+[[step]]
+record = "reflog"
+git = { call = "reflog-walk" }
+
+[[step]]
+record = "heads"
+git = { call = "remote-heads", operands = ["origin"] }
+
+[[step]]
+record = "unpushed-by-tracking"
+git = { call = "unpushed", operands = ["f2e83b47f04f1aadaaf72b9d15074e933a513dc6", "9271c82b76058cb9022078bf58c641cfc6a5b0d7", "0535038a5657a4872055f5ca2aa4ae04f811e419", "61492af0ca298e0ad04f94f231edcc3b7717b88b", "35f3121103217e323172c65bc2941330453b4be0", "c3d2fcde5f8b6fb687879d74ce45f40c0faafc2d", "--not", "--remotes=origin"] }
+
+[[step]]
+record = "unpushed-by-heads"
+git = { call = "unpushed", operands = ["f2e83b47f04f1aadaaf72b9d15074e933a513dc6", "9271c82b76058cb9022078bf58c641cfc6a5b0d7", "0535038a5657a4872055f5ca2aa4ae04f811e419", "61492af0ca298e0ad04f94f231edcc3b7717b88b", "35f3121103217e323172c65bc2941330453b4be0", "c3d2fcde5f8b6fb687879d74ce45f40c0faafc2d", "--not", "--remotes=origin", "0535038a5657a4872055f5ca2aa4ae04f811e419", "c3d2fcde5f8b6fb687879d74ce45f40c0faafc2d"] }
+
+[[step]]
+record = "independent"
+git = { call = "independent-tips", operands = ["0535038a5657a4872055f5ca2aa4ae04f811e419", "35f3121103217e323172c65bc2941330453b4be0", "c3d2fcde5f8b6fb687879d74ce45f40c0faafc2d"] }
+
+[[step]]
+run = ["git", "checkout", "--quiet", "--detach"]
+
+[[step]]
+record = "detached-reflog"
+git = { call = "reflog-walk" }

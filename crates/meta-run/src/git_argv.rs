@@ -30,6 +30,12 @@ pub enum GitArgv {
     ResetHard,
     WorktreeRemove,
     BranchDelete,
+    ReflogWalk,
+    RemoteHeads,
+    Unpushed,
+    IndependentTips,
+    GitPath,
+    RemoteUrl,
 }
 
 impl Tool for GitArgv {
@@ -62,6 +68,22 @@ impl Tool for GitArgv {
             Self::ResetHard => &["reset", "--hard", "--quiet"],
             Self::WorktreeRemove => &["worktree", "remove", "--force"],
             Self::BranchDelete => &["branch", "-D"],
+            Self::ReflogWalk => &[
+                "log",
+                "--walk-reflogs",
+                "--date=unix",
+                "--decorate=full",
+                "--decorate-refs=HEAD",
+                "--decorate-refs=refs/heads/",
+                "--format=%H%x1f%P%x1f%cn <%ce>%x1f%gn <%ge> %gd%x1f%D%x1f%gs",
+                "HEAD",
+                "--",
+            ],
+            Self::RemoteHeads => &["ls-remote", "--heads"],
+            Self::Unpushed => &["rev-list", "--ignore-missing"],
+            Self::IndependentTips => &["merge-base", "--independent"],
+            Self::GitPath => &["rev-parse", "--git-path"],
+            Self::RemoteUrl => &["remote", "get-url"],
         }
     }
 }

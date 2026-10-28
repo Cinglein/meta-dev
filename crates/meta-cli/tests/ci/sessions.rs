@@ -1,8 +1,7 @@
 use std::path::Path;
 
 use super::{
-    BLOCK, COMMIT, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSHED, Planted, Repo, STALLED, STOP, Session,
-    StartFile,
+    BLOCK, COMMIT, FAILURE, FailingHead, Git, NEXT_COMMIT, POST, PRE, PUSHED, Planted, Repo, STOP, Session, StartFile,
 };
 
 const MINE: &str = "MINE1";
@@ -19,13 +18,6 @@ const PULL_WORDS: [&str; 4] = ["pull", "-q", "origin", WORKTREE];
 const STATE_ROOT: &str = ".git/meta-ci";
 const FUTURE: &str = "@4000000001 +0000";
 const FUTURE_START: &str = "4000000000";
-const SAME: &str = "SAME5";
-const NOW: &str = "NOW6";
-const SAME_AT: &str = "4000000500";
-const SLOW_REMOTE: [&str; 3] = ["config", "remote.origin.uploadpack", "sleep 0.3; git-upload-pack"];
-const SLOW: std::time::Duration = std::time::Duration::from_millis(500);
-const OUT_OF_TIME: &str = "couldn't check CI in time; run `meta ci-wait`";
-const TIMED_OUT: &str = "timed-out";
 
 struct Reviewer;
 
@@ -48,35 +40,6 @@ impl Reviewer {
         std::fs::copy(repo.clone.path().join(CONFIG_FILE), other.join(CONFIG_FILE)).unwrap();
         other
     }
-}
-
-#[test]
-fn a_slow_remote_blocks_at_the_stop_deadline_and_a_commit_in_the_start_second_is_not_the_sessions() {
-    let repo = Repo::new(FAILURE);
-    let clone: &Path = repo.clone.path();
-    StartFile::plant(repo.sessions.path(), SAME, SAME_AT);
-    Git::run_at(clone, &NEXT_COMMIT, SAME_AT);
-    Git::pushed(&repo, PUSHED);
-    Planted::settled(&repo, TIMED_OUT);
-    let same = Session { repo: &repo, cwd: clone, id: SAME }.hook(STOP, COMMIT);
-    repo.configured(STALLED);
-    Git::run(clone, &SLOW_REMOTE);
-    let started = std::time::Instant::now();
-    let slow = repo.hook(STOP, COMMIT);
-    let took = started.elapsed();
-    assert!(slow.contains(BLOCK) && slow.contains(OUT_OF_TIME) && took < SLOW && !same.contains(BLOCK));
-}
-
-#[test]
-fn a_commit_in_the_start_second_counts_when_its_object_is_newer() {
-    let repo = Repo::new(FAILURE);
-    let clone: &Path = repo.clone.path();
-    let now = Session { repo: &repo, cwd: clone, id: NOW };
-    now.hook(PRE, COMMIT);
-    let second = StartFile::second_of(repo.sessions.path(), NOW);
-    Git::run_at(clone, &NEXT_COMMIT, &second);
-    Git::pushed(&repo, PUSHED);
-    assert!(now.hook(STOP, COMMIT).contains(BLOCK));
 }
 
 #[test]

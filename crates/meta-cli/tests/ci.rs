@@ -4,7 +4,7 @@ use std::fmt;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Output, Stdio};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use meta_golden::{Goldens, Replay};
 
@@ -25,6 +25,9 @@ const FAILURE: Answer =
     Answer { checks: "01-failed-test-time", logs: &["02-failed-test-time-ci-log", "03-failed-test-time-gate-log"] };
 const SUCCESS: Answer = Answer { checks: "04-passed", logs: &[] };
 const NOT_WATCHED: &str = "CI not watched for";
+const SLOW_REMOTE: [&str; 3] = ["config", "remote.origin.uploadpack", "sleep 0.3; git-upload-pack"];
+const SLOW: Duration = Duration::from_millis(500);
+const OUT_OF_TIME: &str = "couldn't check CI in time; run `meta ci-wait`";
 const PUSHED: &str = "feature";
 const NEXT_COMMIT: [&str; 5] = ["commit", "-q", "--allow-empty", "-m", "next"];
 const POST: &str = "post-tool-use";
@@ -53,8 +56,6 @@ const COMPLETIONS: [&str; 6] = [
     ": unchecked after",
 ];
 
-#[path = "ci/merges.rs"]
-mod merges;
 #[path = "ci/pushes.rs"]
 mod pushes;
 #[path = "ci/review.rs"]
@@ -149,15 +150,6 @@ impl Git {
 
 struct Waited(String, ExitStatus);
 
-struct Stale;
-
-impl Stale {
-    fn plant(repo: &Repo) {
-        let head = Git::head(repo.clone.path());
-        std::fs::create_dir_all(repo.sessions.path().join(Planted::STATES).join(head.trim())).unwrap();
-    }
-}
-
 struct StartFile;
 
 impl StartFile {
@@ -165,11 +157,6 @@ impl StartFile {
     const NAME: &'static str = "started";
     const WRITES: &'static str = "writes";
     const NANOS: &'static str = "000000000";
-
-    fn second_of(sessions: &Path, session: &str) -> String {
-        let nanos = std::fs::read_to_string(sessions.join(Self::ROOT).join(session).join(Self::NAME)).unwrap();
-        nanos.split_at(nanos.len() - Self::NANOS.len()).0.to_owned()
-    }
 
     fn plant(sessions: &Path, session: &str, seconds: &str) {
         let folder = sessions.join(Self::ROOT).join(session);
@@ -369,7 +356,12 @@ fn a_passing_push_lets_the_agent_stop_and_a_commit_whose_state_cannot_be_written
     assert!(waited.0.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
     assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
     Git::run(repo.clone.path(), &NEXT_COMMIT);
-    Stale::plant(&repo);
+    std::fs::create_dir_all(repo.sessions.path().join(Planted::STATES).join(Git::head(repo.clone.path()))).unwrap();
     repo.hook(POST, COMMIT);
-    assert!(repo.hook(STOP, COMMIT).contains(NOT_WATCHED));
+    let unwatched = repo.hook(STOP, COMMIT);
+    repo.configured(STALLED);
+    Git::run(repo.clone.path(), &SLOW_REMOTE);
+    let started = Instant::now();
+    let slow = repo.hook(STOP, COMMIT);
+    assert!(unwatched.contains(NOT_WATCHED) && slow.contains(OUT_OF_TIME) && started.elapsed() < SLOW);
 }

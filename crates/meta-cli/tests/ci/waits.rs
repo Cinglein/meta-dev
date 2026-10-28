@@ -32,8 +32,8 @@ impl Unresolved {
 struct Counted;
 
 impl Counted {
-    const GIT: &'static str = "#!/bin/sh\necho \"$3\" >> \"$PWD/git-calls\"\nPATH=\"${PATH#*:}\" exec git \"$@\"\n";
-    const FLAKY: &'static str = "#!/bin/sh\n[ \"$3\" = remote ] && [ ! -e \"$PWD/flaked\" ] && : > \"$PWD/flaked\" && echo \"fatal: simulated git failure\" >&2 && exit 1\nPATH=\"${PATH#*:}\" exec git \"$@\"\n";
+    const GIT: &'static str = "#!/bin/sh\nc=$1; [ \"$1\" = -C ] && c=$3\necho \"$c\" >> \"$PWD/git-calls\"\nPATH=\"${PATH#*:}\" exec git \"$@\"\n";
+    const FLAKY: &'static str = "#!/bin/sh\nc=$1; [ \"$1\" = -C ] && c=$3\n[ \"$c\" = remote ] && [ ! -e \"$PWD/flaked\" ] && : > \"$PWD/flaked\" && echo \"fatal: simulated git failure\" >&2 && exit 1\nPATH=\"${PATH#*:}\" exec git \"$@\"\n";
     const WRAPPER: &'static str = "bin/git";
     const CALLS: &'static str = "git-calls";
 

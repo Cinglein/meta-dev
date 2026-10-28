@@ -23,21 +23,26 @@ pub struct ReflogEntry {
 }
 
 impl ReflogEntry {
-    pub const WALK: [&'static str; 9] = [
-        "log",
-        "--walk-reflogs",
-        "--date=unix",
-        "--decorate=full",
-        "--decorate-refs=HEAD",
-        "--decorate-refs=refs/heads/",
-        "--format=%H%x1f%P%x1f%cn <%ce>%x1f%gn <%ge> %gd%x1f%D%x1f%gs",
-        "HEAD",
-        "--",
-    ];
     const SEPARATOR: char = '\u{1f}';
 
     pub fn checkout(&self) -> Option<&Checkout> {
         self.checkout.as_ref()
+    }
+
+    pub fn created(entries: &[Self], start: &StartMoment, born_after: impl Fn(&Commit) -> bool) -> Vec<Commit> {
+        let befores = entries.iter().skip(1).map(Some).chain([None]);
+        let created: Vec<&Commit> = entries
+            .iter()
+            .zip(befores)
+            .filter_map(|(entry, before)| entry.created_after(start, before, |commit| born_after(commit)))
+            .collect();
+        let first = |at: usize, commit: &Commit| created.iter().position(|other| *other == commit) == Some(at);
+        created
+            .iter()
+            .enumerate()
+            .filter(|(at, commit)| first(*at, commit))
+            .map(|(_, commit)| (*commit).clone())
+            .collect()
     }
 
     pub fn created_after(
@@ -75,3 +80,6 @@ impl FromStr for ReflogEntry {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

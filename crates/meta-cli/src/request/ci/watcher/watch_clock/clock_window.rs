@@ -45,9 +45,7 @@ mod tests {
     #[test]
     fn a_pause_stops_one_gh_limit_before_the_timeout_and_remaining_ends_at_the_timeout() {
         let settings = CiSettings::try_from(&toml::from_str::<Config>(SETTINGS).unwrap()).unwrap();
-        let at = |elapsed, left: Option<u64>| {
-            ClockWindow::new(Duration::from_millis(elapsed), left.map(Duration::from_millis))
-        };
+        let at = |at, left: Option<u64>| ClockWindow::new(Duration::from_millis(at), left.map(Duration::from_millis));
         let paused = PAUSES.map(|(elapsed, left, _)| at(elapsed, left).pause(Duration::MAX, &settings));
         let remaining = REMAINING.map(|(elapsed, left, _)| at(elapsed, left).remaining(&settings));
         assert_eq!(paused, PAUSES.map(|(_, _, pause)| pause.map(Duration::from_millis)));
