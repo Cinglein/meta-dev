@@ -3,6 +3,7 @@ mod content;
 mod fetched;
 mod git;
 mod outcome;
+mod pacing;
 mod remote;
 mod sha;
 mod tip;
@@ -26,6 +27,7 @@ use content::Content;
 use fetched::Fetched;
 use git::Git;
 use outcome::Outcome;
+use pacing::Pacing;
 use remote::Remote;
 use tip::Tip;
 
@@ -34,6 +36,7 @@ pub struct GitLog {
     git: Git,
     remote: Remote,
     known: RefCell<Option<Fetched>>,
+    pacing: Pacing,
 }
 
 impl GitLog {
@@ -42,7 +45,7 @@ impl GitLog {
     #[must_use]
     pub fn new(repo: PathBuf, remote: RemoteName) -> Self {
         let git = Git::new(repo);
-        Self { remote: Remote::new(git.clone(), remote), git, known: RefCell::default() }
+        Self { remote: Remote::new(git.clone(), remote), git, known: RefCell::default(), pacing: Pacing::Jittered }
     }
 
     pub fn fetched_tip(&self) -> Result<Option<Sha>, LogFailure> {
@@ -116,7 +119,7 @@ impl LogStore for GitLog {
         decide: &mut dyn FnMut(&Snapshot) -> Result<Record, Failure>,
     ) -> Result<Record, Failure> {
         Attempt::sequence()
-            .try_for_each(|attempt| Outcome::step(self.attempt(decide), attempt))
+            .try_for_each(|attempt| Outcome::step(self.attempt(decide), attempt, self.pacing))
             .break_value()
             .unwrap_or_else(|| Err(LogFailure::Contended.into()))
     }

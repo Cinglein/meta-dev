@@ -49,7 +49,7 @@ const ANSWERS: [(&str, &str); 12] = [
     ("rev-parse", "c1\n"),
     ("for-each-ref", "c1 refs/heads/task-00000000000000b1\n"),
     ("ls-remote", "c0\tHEAD\nc1\trefs/heads/task-00000000000000b1\nc0\trefs/heads/main\n"),
-    ("list", ""),
+    ("list", "worktree /trees/task-00000000000000b1\nHEAD c1\nbranch refs/heads/task-00000000000000b1\n"),
     ("move", ""),
     ("remove", ""),
     ("lock", ""),
