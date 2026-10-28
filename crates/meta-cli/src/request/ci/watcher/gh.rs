@@ -16,7 +16,7 @@ use crate::request::project::{CiSettings, LogWindow, ProgramName};
 use crate::request::repository::Repository;
 use crate::request::timed_command::TimedCommand;
 use commit_checks::CommitChecks;
-use gh_jobs::GhJobs;
+pub use gh_jobs::GhJobs;
 use gh_suite::GhSuite;
 use meta_gh::GhRun;
 pub use observation::Observation;
@@ -33,7 +33,8 @@ pub struct Gh {
 impl Gh {
     const GRAPHQL: [&'static str; 2] = ["api", "graphql"];
     const FIELD: &'static str = "-f";
-    const QUERY: &'static str = "query=query($owner:String!,$name:String!,$sha:GitObjectID!){repository(owner:$owner,name:$name){object(oid:$sha){...on Commit{checkSuites(first:20,filterBy:{appId:15368}){nodes{status conclusion workflowRun{databaseId} checkRuns(first:100,filterBy:{conclusions:[FAILURE,CANCELLED,TIMED_OUT,STARTUP_FAILURE,ACTION_REQUIRED]}){nodes{databaseId name conclusion steps(first:100){nodes{name conclusion}}}} otherJobs:checkRuns(first:1,filterBy:{conclusions:[SUCCESS,NEUTRAL,SKIPPED,STALE]}){nodes{databaseId name}}}} history(first:8){nodes{checkSuites(first:20,filterBy:{appId:15368}){nodes{status conclusion workflowRun{databaseId} createdAt updatedAt}}}}}}}}";
+    const QUERY: &'static str = "query=query($owner:String!,$name:String!,$sha:GitObjectID!){repository(owner:$owner,name:$name){object(oid:$sha){...on Commit{checkSuites(first:20,filterBy:{appId:15368}){nodes{status conclusion workflowRun{databaseId} checkRuns(first:100,filterBy:{conclusions:[FAILURE,CANCELLED,TIMED_OUT,STARTUP_FAILURE,ACTION_REQUIRED]}){nodes{databaseId name conclusion}} otherJobs:checkRuns(first:1,filterBy:{conclusions:[SUCCESS,NEUTRAL,SKIPPED,STALE]}){nodes{databaseId name}}}} history(first:8){nodes{checkSuites(first:20,filterBy:{appId:15368}){nodes{status conclusion workflowRun{databaseId} createdAt updatedAt}}}}}}}}";
+    const STEPS_QUERY: &'static str = "query=query($owner:String!,$name:String!,$sha:GitObjectID!){repository(owner:$owner,name:$name){object(oid:$sha){...on Commit{checkSuites(first:20,filterBy:{appId:15368}){nodes{status conclusion workflowRun{databaseId} checkRuns(first:100,filterBy:{conclusions:[FAILURE,CANCELLED,TIMED_OUT,STARTUP_FAILURE,ACTION_REQUIRED]}){nodes{databaseId name conclusion steps(first:100){nodes{name conclusion}}}}}}}}}}";
     const OBJECT: [&'static str; 2] = ["--jq", ".data.repository.object"];
     const VIEW_JOB: [&'static str; 3] = ["run", "view", "--job"];
     const LOG_FAILED: &'static str = "--log-failed";
@@ -43,11 +44,18 @@ impl Gh {
         Self { program: settings.program().clone(), root, deadline, limit: settings.gh_limit() }
     }
 
-    pub fn observe(&self, repository: &Repository, commit: &Commit) -> Result<Observation, Listed> {
-        let checks = self.checks(repository, commit)?;
-        let suites: Vec<&GhSuite> = checks.actions();
+    pub fn observe(&self, repository: &Repository, commit: &Commit, known: &mut GhJobs) -> Result<Observation, Listed> {
+        let checks = self.checks(repository, commit, Self::QUERY)?;
+        let detailed = checks
+            .actions()
+            .iter()
+            .any(|suite| suite.jobs().awaiting_steps(known))
+            .then(|| self.checks(repository, commit, Self::STEPS_QUERY))
+            .transpose()?;
+        known.learn(detailed.map_or_else(GhJobs::default, |detailed| detailed.jobs()));
+        let suites: Vec<GhSuite> = checks.actions().iter().map(|suite| suite.stepped(known)).collect();
         let runs: Vec<GhRun> = suites.iter().map(|suite| suite.run().clone()).collect();
-        let jobs: Vec<&GhJobs> = suites.iter().map(|suite| suite.jobs()).collect();
+        let jobs: Vec<&GhJobs> = suites.iter().map(GhSuite::jobs).collect();
         let refused = suites.iter().try_for_each(|suite| suite.run().failed().and(suite.unstarted()).map(|_| ()));
         let status = CiStatus::of_runs(&runs).map(|status| refused.map_or(status, |()| status.unstarted()));
         let reported = refused.map_or(jobs.as_slice(), |()| &[]);
@@ -58,7 +66,7 @@ impl Gh {
 
     pub fn failed_excerpt(&self, repository: &Repository, commits: &[Commit], window: &LogWindow) -> Listed {
         let checks: Vec<Result<CommitChecks, Listed>> =
-            commits.iter().map(|commit| self.checks(repository, commit)).collect();
+            commits.iter().map(|commit| self.checks(repository, commit, Self::QUERY)).collect();
         let jobs: Vec<OsString> = checks.iter().flatten().flat_map(CommitChecks::failed_job_ids).collect();
         let logs: Vec<Result<String, Listed>> = jobs.into_iter().map(|job| self.download(job)).collect();
         let text: String = logs.iter().flatten().map(String::as_str).collect();
@@ -73,8 +81,8 @@ impl Gh {
         self.run(words, self.deadline)
     }
 
-    fn checks(&self, repository: &Repository, commit: &Commit) -> Result<CommitChecks, Listed> {
-        let query = [Self::FIELD, Self::QUERY].map(OsString::from);
+    fn checks(&self, repository: &Repository, commit: &Commit, query: &str) -> Result<CommitChecks, Listed> {
+        let query = [Self::FIELD, query].map(OsString::from);
         let words = Self::GRAPHQL.map(OsString::from).into_iter().chain(repository.variables(commit));
         let words = words.chain(query).chain(Self::OBJECT.map(OsString::from));
         let text = self.run(words, self.deadline.min(Instant::now() + self.limit))?;

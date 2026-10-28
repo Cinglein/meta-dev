@@ -7,6 +7,7 @@ use std::time::Duration;
 use meta_gh::Nodes;
 use serde::Deserialize;
 
+use super::gh_jobs::GhJobs;
 use super::gh_suite::GhSuite;
 use ancestor::Ancestor;
 
@@ -21,6 +22,10 @@ pub struct CommitChecks {
 impl CommitChecks {
     pub fn actions(&self) -> Vec<&GhSuite> {
         self.suites.nodes().iter().filter_map(GhSuite::of_actions).collect()
+    }
+
+    pub fn jobs(&self) -> GhJobs {
+        GhJobs::joined(self.actions().into_iter().map(GhSuite::jobs))
     }
 
     pub fn failed_job_ids(&self) -> Vec<OsString> {

@@ -26,6 +26,10 @@ impl GhSuite {
         &self.jobs
     }
 
+    pub fn stepped(&self, known: &GhJobs) -> Self {
+        Self { jobs: self.jobs.stepped(known), ..self.clone() }
+    }
+
     pub fn unstarted(&self) -> Option<&GhJobs> {
         self.jobs.unstarted().filter(|_| self.others.is_empty())
     }
