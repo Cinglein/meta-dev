@@ -32,12 +32,17 @@ struct Counted;
 impl Counted {
     const GIT: &'static str =
         "#!/bin/sh\necho \"$3\" >> \"$FAKE_GH_DIR/git-calls\"\nPATH=\"${PATH#*:}\" exec git \"$@\"\n";
-    const FLAKY: &'static str = "#!/bin/sh\n[ \"$3\" = remote ] && [ ! -e \"$FAKE_GH_DIR/flaked\" ] && : > \"$FAKE_GH_DIR/flaked\" && echo \"fatal: simulated git failure\" >&2 && exit 1\nPATH=\"${PATH#*:}\" exec git \"$@\"\n";
     const WRAPPER: &'static str = "bin/git";
     const CALLS: &'static str = "git-calls";
 
     fn install(repo: &Repo) {
         Self::plant(repo, Self::GIT);
+    }
+
+    fn flaky(subcommand: &str) -> String {
+        format!(
+            "#!/bin/sh\n[ \"$3\" = {subcommand} ] && [ ! -e \"$FAKE_GH_DIR/flaked\" ] && : > \"$FAKE_GH_DIR/flaked\" && echo \"fatal: simulated git failure\" >&2 && exit 1\nPATH=\"${{PATH#*:}}\" exec git \"$@\"\n"
+        )
     }
 
     fn plant(repo: &Repo, script: &str) {
@@ -61,6 +66,7 @@ fn on_a_detached_head_a_wait_covers_only_its_head_and_a_typical_stop_lists_the_r
     Git::run(repo.clone.path(), &DETACH);
     let unrecorded = Unresolved::pushed(&repo);
     repo.meta(&WAIT_ON_CI);
+    Counted::plant(&repo, &Counted::flaky("cat-file"));
     let recorded = repo.hook(STOP, COMMIT);
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     Counted::install(&repo);
@@ -81,7 +87,7 @@ fn an_unreadable_remote_settles_the_watch_unchecked_and_the_last_poll_still_ends
     let unchecked = repo.settled();
     let stopped = repo.hook(STOP, COMMIT);
     Git::run(repo.clone.path(), &["remote", "set-url", "origin", origin.as_str()]);
-    Counted::plant(&repo, Counted::FLAKY);
+    Counted::plant(&repo, &Counted::flaky("remote"));
     std::fs::write(repo.clone.path().join(Calls::EXPECTED), FIRST_POLL).unwrap();
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     FailingHead::copy_from(&repo, repo.clone.path());
