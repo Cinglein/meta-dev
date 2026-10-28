@@ -9,7 +9,7 @@ use crate::request::ci::ci_status::CiStatus;
 use crate::request::ci::{Commit, SessionDir};
 use crate::request::cli_failure::CliFailure;
 use crate::request::output::Listed;
-use crate::request::project::{BranchName, Project};
+use crate::request::project::{BranchName, CiSettings, Project};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WaitOnCi {
@@ -34,7 +34,8 @@ impl WaitOnCi {
         let commits = seen.pushed();
         let unresolved = |commit: &Commit| dir.status_of(commit).and_then(CiStatus::unresolved);
         commits.iter().find_map(unresolved)?;
-        let read = project.log().and_then(|log| log.read_listed(seen.heads(), deadline).map_err(CliFailure::from));
+        let budget = project.ci_settings().budget(CiSettings::ROUTINE).within(deadline);
+        let read = project.log(budget).and_then(|log| log.read_listed(seen.heads()).map_err(CliFailure::from));
         let state = read.map(|read| State::fold(read.records()));
         let head = seen.checkout().head().and_then(Commit::commit_id);
         let branch = seen.checkout().branch().filter(|branch| project.config().protects(branch).is_none());

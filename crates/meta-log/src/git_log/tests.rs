@@ -3,13 +3,14 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, Output};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use meta_schema::{Event, NewTask, Record};
 
 mod malformed;
 
-use super::GitLog;
 use super::pacing::Pacing;
+use super::{Budget, GitLog};
 use crate::LogStore;
 use crate::log_failure::LogFailure;
 
@@ -28,6 +29,7 @@ const FIRST: usize = 0;
 const SECOND: usize = 1;
 const PAIR: usize = 2;
 const SINGLE: usize = 1;
+const PATIENT: Duration = Duration::from_secs(30);
 
 struct Git;
 
@@ -91,7 +93,7 @@ impl Fixture {
     fn log(&self, clone: usize) -> GitLog {
         GitLog {
             pacing: Pacing::Immediate,
-            ..GitLog::new(self.clones[clone].path().to_owned(), ORIGIN.parse().unwrap())
+            ..GitLog::new(self.clones[clone].path().to_owned(), ORIGIN.parse().unwrap(), Budget::new(PATIENT))
         }
     }
 
