@@ -4,6 +4,7 @@ use meta_schema::{Actor, Block, Blocker, CommitId};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
+use crate::task_state::reopening::Reopening;
 use crate::task_state::task_status::TaskStatus;
 pub use activity::Activity;
 
@@ -76,9 +77,9 @@ impl Progress {
         }
     }
 
-    pub fn reopened(&self) -> Result<Activity, Refusal> {
+    pub fn reopened(&self, reopening: Reopening) -> Result<Activity, Refusal> {
         match self {
-            Self::Done(_, held) => Ok(Activity::assigned(held.clone())),
+            Self::Done(_, held) => Ok(reopening.activity(held)),
             Self::Active(_) => Err(Refusal::NotDone),
         }
     }
