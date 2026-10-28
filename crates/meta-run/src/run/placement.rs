@@ -49,6 +49,10 @@ mod tests {
     const PTY: &str = "script -qec \"$0\" /dev/null 2>/dev/null || script -q /dev/null sh -c \"$0\"";
     const CHILD: &str =
         "--exact run::placement::tests::in_a_terminal_it_shares_the_group_and_closing_refuses --ignored";
+    const HELPER: &str = "sleep 5 & echo $! > \"$0\"; wait";
+    const HELD: &str = "case \"$(ps -o stat= -p \"$(cat \"$0\")\")\" in ''|Z*) ;; *) echo held;; esac";
+    const POLL: Duration = Duration::from_millis(2);
+    const WINDOW: Duration = Duration::from_secs(1);
     const LEADER: &str = "leader";
     const PROMPT: &str = "GIT_TERMINAL_PROMPT";
     const PASSED: &str = "1 passed";
@@ -60,9 +64,16 @@ mod tests {
     fn in_a_terminal_it_shares_the_group_and_closing_refuses() {
         let shell = |script: &str| Run::new(BASH, EnvPolicy::Inherit).args([SCRIPT, script]);
         let leads = shell(LEADS).terminal().stdout(Instant::now() + PATIENT).unwrap_or_default();
+        let helper = tempfile::NamedTempFile::new().unwrap();
+        let expired = shell(HELPER).arg(helper.path()).terminal().ran(Instant::now() + LIMIT);
+        let held = || shell(HELD).arg(helper.path()).stdout(Instant::now() + PATIENT).unwrap_or_default();
+        let until = Instant::now() + WINDOW;
+        let polls = std::iter::repeat_with(|| std::thread::sleep(POLL)).take_while(|()| Instant::now() < until);
+        let ended = matches!(expired, Err(RunFailure::TimedOut(_))) && polls.into_iter().any(|()| held().is_empty());
         Group::all_ended();
         let refused = shell(LEADS).ran(Instant::now() + PATIENT);
         assert!(!leads.is_empty() && !leads.contains(LEADER) && matches!(refused, Err(RunFailure::Interrupted(_))));
+        assert!(ended && !std::fs::read_to_string(helper.path()).unwrap_or_default().is_empty());
     }
 
     #[test]
