@@ -995,3 +995,4 @@
 {"at":"2026-10-28T14:38:49.133482Z","actor":"claude-minorsa","kind":"TaskLinked","task":"task-e010247ab85c3cfa","pr":98}
 {"at":"2026-10-28T14:42:00.851888Z","actor":"claude-minorsb","kind":"TaskLinked","task":"task-14417fa941c6bf5a","pr":97}
 {"at":"2026-10-28T14:42:39.941350Z","actor":"claude-minorsb","kind":"TaskOpened","task":"task-4199bcd73fed4e3e","text":"Basho policy.toml drops deprecated keys; .gitignore lists meta.local.toml; note init/upgrade coverage","division":"features-and-maintenance","addresses":["concern-054e144922a5cf38"]}
+{"at":"2026-10-28T14:42:47.966134Z","actor":"claude-minorsb","kind":"TaskClaimed","task":"task-4199bcd73fed4e3e"}
