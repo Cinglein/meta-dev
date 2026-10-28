@@ -1,4 +1,5 @@
 use std::convert::Infallible;
+use std::ffi::OsStr;
 use std::fmt;
 use std::str::FromStr;
 
@@ -13,6 +14,12 @@ impl FromStr for BranchName {
 
     fn from_str(name: &str) -> Result<BranchName, Infallible> {
         Ok(BranchName(name.to_owned()))
+    }
+}
+
+impl AsRef<OsStr> for BranchName {
+    fn as_ref(&self) -> &OsStr {
+        OsStr::new(&self.0)
     }
 }
 

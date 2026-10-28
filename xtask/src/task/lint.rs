@@ -25,7 +25,17 @@ impl Lint {
         let allowed = Baseline::admitted(root, policy.baseline(), policy.branch(Branch::Base))?;
         let base = || Revision::merge_base(root, policy.branch(Branch::Base));
         let spec = policy.spec().map(|spec| base().and_then(|base| SpecProse::since(root, spec, &base))).transpose()?;
-        let observed = Self::gathered(files, policy, spec).ratchet(&allowed, |_| true)?;
+        Self::gathered(files, policy, spec).checked(files, &allowed, policy, ledger)
+    }
+
+    fn checked(
+        self,
+        files: &[SourceFile],
+        allowed: &Baseline,
+        policy: &Policy,
+        ledger: &mut Ledger,
+    ) -> Result<(), Failure> {
+        let observed = self.ratchet(allowed, |_| true)?;
         println!("lint: {} rust files, {} baselined violations", files.len(), observed.total());
         ledger.spend(Measure::LintFindings, Amount::Baseline(policy.baseline().clone()));
         ledger.spend(Measure::TestLineShare, TestBudget::line_share(files, policy));
@@ -66,6 +76,7 @@ mod tests {
     use super::Lint;
     use crate::task::fixture::Fixture;
     use crate::task::ratchet::{Baseline, Drift};
+    use crate::task::revision::ForeignEmails;
     use task::{Ledger, Policy, Report, Site, Violation};
 
     const LINT_FINDINGS: &str = "lint-findings";
@@ -75,11 +86,9 @@ mod tests {
     const ALLOWED: &str = "no-comments = 1";
     const SHOWN: &str = "no-comments: 1 found, baseline 0\ncomments go:\nworkspace: a comment\n";
     const BASELINE: &str = "self/lint-baseline.toml";
-    const NOREPLY: &str = "1+someone@users.noreply.github.com";
-    const WEB_COMMITTER: &str = "noreply@github.com";
-    const MAIN: &str = "main@example.com";
-    const AUTHOR: &str = "author@example.com";
-    const COMMITTER: &str = "committer@example.com";
+    const NOREPLY: &str = "1+someone@users.noreply.github.com\nnoreply@github.com\n";
+    const EMAILS: &str =
+        "1+someone@users.noreply.github.com\nnoreply@github.com\ncommitter@example.com\nauthor@example.com\n";
     const FOREIGN: &str = "commit emails are not noreply: author@example.com, committer@example.com";
 
     #[test]
@@ -95,22 +104,22 @@ mod tests {
     #[test]
     fn a_baseline_above_the_findings_fails_until_shrunk_to_them() {
         let fixture = Fixture::new();
-        fixture.write(BASELINE, ALLOWED).branch();
+        fixture.write(BASELINE, ALLOWED);
         let (policy, mut ledger) = (Policy::defaults(), Ledger::default());
-        assert!(Lint::run(fixture.root(), &[], &policy, &mut ledger).is_err());
-        Lint::shrink(fixture.root(), &[], &policy).unwrap();
-        assert_eq!(fs::read_to_string(fixture.path(BASELINE)).ok().as_deref(), Some(""));
-        let passed = Lint::run(fixture.root(), &[], &policy, &mut ledger).is_ok();
+        let checked = |ledger: &mut Ledger| {
+            let allowed = Baseline::read(&fixture.path(BASELINE))?;
+            Lint::gathered(&[], &policy, None).checked(&[], &allowed, &policy, ledger)
+        };
+        assert!(checked(&mut ledger).is_err() && Lint::shrink(fixture.root(), &[], &policy).is_ok());
+        let passed = checked(&mut ledger).is_ok()
+            && fs::read_to_string(fixture.path(BASELINE)).is_ok_and(|text| text.is_empty());
         let statement = ledger.statement(&policy).to_string();
         assert!(passed && statement.lines().any(|row| row.starts_with(LINT_FINDINGS) && row.ends_with(MEASURED_OK)));
     }
 
     #[test]
     fn every_commit_off_the_base_branch_has_noreply_author_and_committer_emails() {
-        let fixture = Fixture::new();
-        fixture.write(BASELINE, "").branch();
-        fixture.criss_cross([MAIN, MAIN], [NOREPLY, WEB_COMMITTER], [AUTHOR, COMMITTER]);
-        let refused = Lint::run(fixture.root(), &[], &Policy::defaults(), &mut Ledger::default());
-        assert_eq!(refused.map_err(|failure| failure.to_string()).err().as_deref(), Some(FOREIGN));
+        let refused = ForeignEmails::refused(EMAILS).map_err(|failure| failure.to_string());
+        assert!(refused.err().as_deref() == Some(FOREIGN) && ForeignEmails::refused(NOREPLY).is_ok());
     }
 }

@@ -8,7 +8,11 @@ impl Stderr {
     pub(crate) fn read_from(pipe: Option<impl Read>) -> Self {
         let mut bytes = Vec::new();
         pipe.map(|mut pipe| pipe.read_to_end(&mut bytes).ok());
-        Self(String::from_utf8_lossy(&bytes).trim().to_owned())
+        Self::said(String::from_utf8_lossy(&bytes).trim().to_owned())
+    }
+
+    pub(crate) fn said(text: String) -> Self {
+        Self(text)
     }
 
     #[must_use]

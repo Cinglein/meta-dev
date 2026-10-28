@@ -1,8 +1,11 @@
 use std::io;
+use std::process::ExitStatus;
 
 use thiserror::Error;
 
 use crate::command_line::CommandLine;
+use crate::stderr::Stderr;
+use crate::unread::Unread;
 
 #[derive(Debug, Error)]
 pub enum RunFailure {
@@ -15,5 +18,15 @@ pub enum RunFailure {
     #[error("`{0}` not started: meta is shutting down")]
     Interrupted(CommandLine),
     #[error("{complaint}")]
-    Failed { line: CommandLine, complaint: String },
+    Failed { line: CommandLine, status: ExitStatus, complaint: String },
+}
+
+impl From<RunFailure> for Unread {
+    fn from(failure: RunFailure) -> Self {
+        match failure {
+            RunFailure::Failed { status, complaint, .. } => Self::Failed(status, Stderr::said(complaint)),
+            RunFailure::Unspawned { line, source } => Self::Unspawned(line, source.kind()),
+            RunFailure::TimedOut(line) | RunFailure::Expired(line) | RunFailure::Interrupted(line) => Self::Late(line),
+        }
+    }
 }

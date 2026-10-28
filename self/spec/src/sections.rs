@@ -626,7 +626,7 @@ pub const SECTIONS: &[Section] = &[
                 Check(
                     Enforcer::new(
                         "crates/meta-cli/tests/cli.rs",
-                        "failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_and_a_noreply_worktree_is_listed",
+                        "a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree",
                     ),
                     &[],
                 ),
@@ -760,7 +760,7 @@ pub const SECTIONS: &[Section] = &[
                         ),
                         Enforcer::new(
                             "crates/meta-cli/tests/cli.rs",
-                            "failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_and_a_noreply_worktree_is_listed",
+                            "a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree",
                         ),
                     ],
                 ),
@@ -988,7 +988,7 @@ pub const SECTIONS: &[Section] = &[
                 Check(
                     Enforcer::new(
                         "crates/meta-cli/tests/cli.rs",
-                        "failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_and_a_noreply_worktree_is_listed",
+                        "a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree",
                     ),
                     &[],
                 ),
@@ -1004,7 +1004,7 @@ pub const SECTIONS: &[Section] = &[
                     ),
                     &[Enforcer::new(
                         "crates/meta-cli/tests/cli.rs",
-                        "failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_and_a_noreply_worktree_is_listed",
+                        "a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree",
                     )],
                 ),
             ),

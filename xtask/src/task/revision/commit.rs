@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::fmt;
 use std::path::Path;
 use std::str::FromStr;
@@ -26,6 +27,12 @@ impl FromStr for Commit {
         (!id.is_empty() && id.chars().all(|digit| digit.is_ascii_hexdigit()))
             .then(|| Commit(id.to_owned()))
             .ok_or(Failure::Task(task::Failure::NoMergeBase))
+    }
+}
+
+impl AsRef<OsStr> for Commit {
+    fn as_ref(&self) -> &OsStr {
+        OsStr::new(&self.0)
     }
 }
 
