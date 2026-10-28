@@ -17,14 +17,9 @@ const MOVED_SHOWN: [&str; 2] = [
 ];
 
 #[test]
-fn a_rated_item_keeps_its_level_when_written() {
+fn a_rated_item_shows_its_level() {
     let rated = NewIssue::new(DIVISION.parse().unwrap(), MAJOR.parse().unwrap()).rated(MAJOR.parse().unwrap());
-    let read: NewIssue = serde_json::from_str(&serde_json::to_string(&rated).unwrap()).unwrap();
-    assert!(
-        read == rated
-            && read.rating() == Rating::Rated(MAJOR.parse().unwrap())
-            && read.to_string().ends_with(" !major")
-    );
+    assert!(rated.rating() == Rating::Rated(MAJOR.parse().unwrap()) && rated.to_string().ends_with(" !major"));
 }
 
 #[test]

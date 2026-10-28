@@ -136,7 +136,7 @@ pub const SECTIONS: &[Section] = &[
                 Wording::new("Divisions nest arbitrarily. A child gets a subset of its parent's budget."),
                 Check(
                     Enforcer::new(
-                        "crates/meta-schema/src/division.rs",
+                        "crates/meta-schema/src/parsing_tests.rs",
                         "a_division_id_starts_at_a_top_division_and_nests_by_slashes",
                     ),
                     &[Enforcer::new(

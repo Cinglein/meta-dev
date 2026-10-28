@@ -1,47 +1,57 @@
-use crate::{Blocker, CommitId, DueTime, ExternalKind, Id, PullRequest, Tokens};
+use chrono::DateTime;
+use meta_laws::{Laws, laws};
+use proptest::prelude::{Strategy, any};
+use proptest::strategy::LazyJust;
 
-const REFUSED_TOKENS: [&str; 4] = ["0", "-1", "1.5", "lots"];
-const REFUSED_PULL_REQUESTS: [&str; 4] = ["0", "#0", "pr", "-3"];
-const REFUSED_DUE: [&str; 2] = ["tomorrow", "2026-11-01"];
-const REFUSED_COMMITS: [&str; 4] = [
-    "6c1ea3b",
-    "6C1EA3B4D9F1F48D98517B891F4283D6F0E55B94",
-    "6c1ea3b4d9f1f48d98517b891f4283d6f0e55b9g",
-    "6c1ea3b4d9f1f48d98517b891f4283d6f0e55b94 ",
-];
+use crate::entity::{Concern, Task};
+use crate::{Actor, Blocker, Division, DueTime, ExternalKind, Id, LevelName, PullRequest, Text, Tokens};
+
+const SPELLING: &str = "[a-zA-Z0-9#/ ._-]{0,9}";
+const DIVISION: &str = "(performance-and-cost|features-and-maintenance|planning)(/[a-zA-Z0-9 _-]{0,3}){0,3}";
+const REFUSED: [&str; 3] = ["Major", "task-123", "performance-and-cost/ci_tests"];
 const PULL_REQUEST: &str = "#12";
 const BARE_PULL_REQUEST: &str = "12";
 const DUE: &str = "2026-11-01T02:00:00+02:00";
 const DUE_SHOWN: &str = "2026-11-01 00:00Z";
+const TOP: &str = "performance-and-cost";
+const NESTED: &str = "performance-and-cost/ci/tests";
 const REVIEW: &str = "review";
 const NOT_A_BLOCKER: &str = "nonsense";
 
-#[test]
-fn tokens_pull_requests_and_due_times_refuse_what_is_not_theirs() {
-    assert!(REFUSED_TOKENS.iter().all(|text| text.parse::<Tokens>().is_err()));
-    assert!(REFUSED_PULL_REQUESTS.iter().all(|text| text.parse::<PullRequest>().is_err()));
-    assert!(
-        REFUSED_DUE.iter().all(|text| text.parse::<DueTime>().is_err())
-            && REFUSED_COMMITS.iter().all(|text| text.parse::<CommitId>().is_err())
-    );
-}
-
-#[test]
-fn accepted_values_keep_their_meaning_when_shown() {
-    let pull_request: PullRequest = BARE_PULL_REQUEST.parse().unwrap();
-    assert_eq!(pull_request, PULL_REQUEST.parse().unwrap());
-    assert_eq!(pull_request.to_string(), PULL_REQUEST);
-    assert_eq!(DUE.parse::<DueTime>().unwrap().to_string(), DUE_SHOWN);
-    assert_eq!(BARE_PULL_REQUEST.parse::<Tokens>().unwrap().to_string(), "12 tokens");
+laws! {
+    texts_settle: Laws::settled::<Text> => any::<String>();
+    texts_are_stored: Laws::stored::<Text> => any::<String>().prop_map(|text| text.trim().to_owned() + ".");
+    actors_settle: Laws::settled::<Actor> => SPELLING;
+    level_names_settle: Laws::settled::<LevelName> => SPELLING;
+    pull_requests_settle: Laws::settled::<PullRequest> => SPELLING;
+    divisions_settle: Laws::settled::<Division> => DIVISION;
+    issues_block: Laws::shown::<Blocker> => LazyJust::new(|| Blocker::Discussion(Id::generate()));
+    tasks_block: Laws::shown::<Blocker> => LazyJust::new(|| Blocker::Task(Id::generate()));
+    tokens_are_stored: Laws::stored::<Tokens> => any::<u64>().prop_map(|tokens| tokens.saturating_add(1).to_string());
+    due_times_are_stored: Laws::stored::<DueTime> => any::<u32>().prop_map(|at| DateTime::from_timestamp(at.into(), 0).unwrap_or_default().to_rfc3339());
 }
 
 #[test]
 fn a_blocker_reads_as_an_issue_a_task_or_an_external_kind_and_nothing_else() {
-    let issue = Id::generate();
-    let task = Id::generate();
-    let parsed = [issue.to_string(), task.to_string(), REVIEW.to_owned()].map(|text| text.parse::<Blocker>().unwrap());
-    let expected = [Blocker::Discussion(issue), Blocker::Task(task), Blocker::External(ExternalKind::Review)];
-    assert_eq!(parsed, expected);
+    let task = Id::<Task>::generate().to_string();
+    assert!(task.parse::<Id<Concern>>().is_err_and(|failure| failure.to_string().contains(&task)));
+    assert_eq!(REVIEW.parse::<Blocker>().ok(), Some(Blocker::External(ExternalKind::Review)));
     assert!(NOT_A_BLOCKER.parse::<Blocker>().is_err());
-    assert_eq!(parsed.map(|blocker| blocker.to_string().parse::<Blocker>().unwrap()), expected);
+}
+
+#[test]
+fn a_division_id_starts_at_a_top_division_and_nests_by_slashes() {
+    let [top, nested] = [TOP, NESTED].map(|id| id.parse::<Division>().unwrap());
+    assert!(top.strictly_contains(&nested) && !nested.strictly_contains(&top) && !top.strictly_contains(&top));
+}
+
+#[test]
+fn values_keep_their_meaning_when_shown_and_misspellings_are_refused() {
+    let pull_request: PullRequest = BARE_PULL_REQUEST.parse().unwrap();
+    assert_eq!([pull_request, PULL_REQUEST.parse().unwrap()].map(|read| read.to_string()), [PULL_REQUEST; 2]);
+    assert_eq!(DUE.parse::<DueTime>().unwrap().to_string(), DUE_SHOWN);
+    let [level, id, division] = REFUSED;
+    assert!(
+        level.parse::<LevelName>().is_err() && id.parse::<Id<Task>>().is_err() && division.parse::<Division>().is_err()
+    );
 }

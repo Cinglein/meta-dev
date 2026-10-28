@@ -12,6 +12,8 @@ strum.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+meta-laws.workspace = true
+proptest.workspace = true
 serde_json.workspace = true
 
 [lints]

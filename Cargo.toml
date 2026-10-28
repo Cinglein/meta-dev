@@ -13,6 +13,7 @@ meta-schema = { path = "crates/meta-schema" }
 meta-log = { path = "crates/meta-log" }
 meta-run = { path = "crates/meta-run" }
 meta-golden = { path = "crates/meta-golden" }
+meta-laws = { path = "crates/meta-laws" }
 meta-git-view = { path = "crates/meta-git-view" }
 meta-state = { path = "crates/meta-state" }
 meta-gh = { path = "crates/meta-gh" }
@@ -24,6 +25,7 @@ meta-pull-query = { path = "crates/meta-pull-query" }
 chrono = { version = "0.4.44", default-features = false, features = ["std", "clock", "serde"] }
 serde_json = "1.0.149"
 signal-hook = "0.3.18"
+proptest = { version = "=1.11.0", default-features = false, features = ["std"] }
 serde = { version = "1.0.228", features = ["derive"] }
 toml = { version = "0.8.23", default-features = false, features = ["parse"] }
 proc-macro2 = { version = "1.0.107", features = ["span-locations"] }

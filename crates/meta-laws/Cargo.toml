@@ -1,0 +1,15 @@
+[package]
+name = "meta-laws"
+description = "Laws written once per trait family: values read back as they were shown or stored. A test-only crate; callers bring proptest as a dev-dependency."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+
+[lints]
+workspace = true

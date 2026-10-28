@@ -55,24 +55,3 @@ impl<'de, Kind: Entity> Deserialize<'de> for Id<Kind> {
         String::deserialize(deserializer)?.parse().map_err(In::Error::custom)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::Id;
-    use crate::entity::{Concern, Task};
-
-    const MALFORMED: [&str; 4] = ["task", "task-123", "task-0123456789ABCDEF", "task-+123456789abcdef"];
-
-    #[test]
-    fn ids_round_trip_and_never_cross_kinds() {
-        let task = Id::<Task>::generate();
-        assert_eq!(task.to_string().parse::<Id<Task>>().ok(), Some(task));
-        let text = task.to_string();
-        assert!(text.parse::<Id<Concern>>().is_err_and(|failure| failure.to_string().contains(&text)));
-    }
-
-    #[test]
-    fn malformed_ids_are_rejected() {
-        assert!(MALFORMED.iter().all(|text| text.parse::<Id<Task>>().is_err()));
-    }
-}

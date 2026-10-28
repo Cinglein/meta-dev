@@ -106,7 +106,8 @@ impl LegacyKey {
             | Limit::LiteralsPerTest
             | Limit::LargestInteger
             | Limit::SlowestShown
-            | Limit::ReferenceSpawns => None,
+            | Limit::ReferenceSpawns
+            | Limit::LawCases => None,
         }
     }
 }

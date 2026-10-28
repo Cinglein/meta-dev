@@ -52,6 +52,7 @@ largest_integer = 64
 scc_items = 40
 slowest_shown = 5
 reference_spawns = 1000
+law_cases = 64
 
 [floors]
 fn_name = 3

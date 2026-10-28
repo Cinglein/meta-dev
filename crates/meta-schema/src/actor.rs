@@ -52,17 +52,3 @@ impl<'de> Deserialize<'de> for Actor {
         String::deserialize(deserializer)?.parse().map_err(In::Error::custom)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::Actor;
-
-    const GOOD: [&str; 3] = ["owner", "claude-1a2b", "a.b_c"];
-    const BAD: [&str; 4] = ["", "Owner", "-x", "a/b"];
-
-    #[test]
-    fn actor_names_are_lowercase_slugs() {
-        assert!(GOOD.iter().all(|name| name.parse::<Actor>().is_ok()));
-        assert!(BAD.iter().all(|name| name.parse::<Actor>().is_err()));
-    }
-}

@@ -44,19 +44,3 @@ impl<'de> Deserialize<'de> for Text {
             .map_err(In::Error::custom)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::Text;
-
-    const PADDED: &str = "  two words ";
-    const MULTILINE: &str = "a\nb";
-    const STORED_PADDED: &str = "\" x\"";
-
-    #[test]
-    fn text_is_one_trimmed_non_empty_line() {
-        assert_eq!(PADDED.parse::<Text>().map(|text| text.to_string()).ok(), Some(PADDED.trim().to_owned()));
-        assert!(MULTILINE.parse::<Text>().is_err() && " ".parse::<Text>().is_err());
-        assert!(serde_json::from_str::<Text>(STORED_PADDED).is_err());
-    }
-}

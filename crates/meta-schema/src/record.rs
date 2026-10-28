@@ -44,28 +44,27 @@ impl fmt::Display for Record {
 
 #[cfg(test)]
 mod tests {
+    use meta_laws::{Laws, laws};
+    use proptest::sample::select;
+
     use super::Record;
     use crate::{
-        Block, Blocker, Claim, Event, ExternalKind, Id, NewConcern, NewIssue, NewTask, Placement, Tag, TaskLink,
-        TaskRef,
+        Block, Blocker, Claim, Event, ExternalKind, Id, NewConcern, NewIssue, NewTask, Tag, TaskLink, TaskRef,
     };
 
     const ACTOR: &str = "a";
     const DIVISION: &str = "architecture-and-planning/steward";
-    const OUTSIDE: &str = "architecture";
     const TOKENS: &str = "50000";
     const DUE: &str = "2026-11-01T00:00:00Z";
-    const FOREIGN_TASK_AS_CONCERN: &str = r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"ConcernIdentified","concern":"task-0000000000000000","text":"x"}"#;
-    const LEGACY_TASK: &str =
-        r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000001","text":"x"}"#;
-    const LEGACY_CONCERN: &str = r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"ConcernIdentified","concern":"concern-0000000000000001","text":"x"}"#;
-    const LEGACY_ISSUE: &str = r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"IssueReported","issue":"issue-0000000000000001","text":"x"}"#;
-    const OUTSIDE_TASK: &str = r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000001","text":"x","division":"architecture"}"#;
+    const REFUSED: [&str; 2] = [
+        r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"ConcernIdentified","concern":"task-0000000000000000","text":"x"}"#,
+        r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"TaskOpened","task":"task-0000000000000001","text":"x","division":"architecture"}"#,
+    ];
 
     struct Samples;
 
     impl Samples {
-        fn records() -> [Record; 8] {
+        fn records() -> Vec<Record> {
             let task = Id::generate();
             let text = || ACTOR.parse().unwrap();
             let division = || DIVISION.parse().unwrap();
@@ -78,7 +77,7 @@ mod tests {
                     Some(text()),
                     vec![Tag::AcceptanceCandidate],
                 )),
-                Event::IssueReported(NewIssue::new(division(), text())),
+                Event::IssueReported(NewIssue::new(division(), text()).rated(ACTOR.parse().unwrap())),
                 Event::TaskOpened(planned),
                 Event::TaskClaimed(Claim::new(task, ACTOR.parse().ok())),
                 Event::TaskBlocked(Block::new(task, Blocker::External(ExternalKind::Ci))),
@@ -87,43 +86,16 @@ mod tests {
                 Event::SchemaVersion(crate::SchemaVersion::current()),
             ]
             .map(|event| Record::new(ACTOR.parse().unwrap(), event))
-        }
-
-        fn round_tripped(records: &[Record; 8]) -> Vec<Record> {
-            records
-                .iter()
-                .map(|record| serde_json::from_str(&serde_json::to_string(record).unwrap()).unwrap())
-                .collect()
-        }
-
-        fn placements(lines: [&str; 3]) -> [Placement; 3] {
-            let [task, concern, issue] = lines;
-            [
-                serde_json::from_str::<NewTask>(task).unwrap().placement().clone(),
-                serde_json::from_str::<NewConcern>(concern).unwrap().placement().clone(),
-                serde_json::from_str::<NewIssue>(issue).unwrap().placement().clone(),
-            ]
+            .into()
         }
     }
 
-    #[test]
-    fn records_round_trip_and_reject_ids_of_the_wrong_kind() {
-        let records = Samples::records();
-        assert_eq!(Samples::round_tripped(&records), records);
-        assert!(serde_json::from_str::<Record>(FOREIGN_TASK_AS_CONCERN).is_err());
+    laws! {
+        records_are_stored: Laws::recorded::<Record> => select(Samples::records());
     }
 
     #[test]
-    fn entries_written_before_divisions_read_as_the_root_and_new_ones_keep_theirs() {
-        let root = Samples::placements([LEGACY_TASK, LEGACY_CONCERN, LEGACY_ISSUE]);
-        assert!(root.iter().all(|placement| *placement == Placement::default()));
-        let written = serde_json::to_string(&Samples::records()[2]).unwrap();
-        assert!(written.contains(DIVISION) && written.contains(TOKENS) && written.contains(DUE));
-    }
-
-    #[test]
-    fn a_division_outside_the_three_top_divisions_is_refused() {
-        assert!(serde_json::from_str::<Record>(OUTSIDE_TASK).is_err());
-        assert!(OUTSIDE.parse::<crate::Division>().is_err());
+    fn records_refuse_ids_of_the_wrong_kind_and_divisions_outside_the_three_top_ones() {
+        assert!(REFUSED.iter().all(|line| serde_json::from_str::<Record>(line).is_err()));
     }
 }

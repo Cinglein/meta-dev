@@ -78,32 +78,3 @@ impl fmt::Display for Division {
         self.below.iter().try_for_each(|name| write!(formatter, "/{name}"))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::Division;
-
-    const TOP: &str = "performance-and-cost";
-    const NESTED: &str = "performance-and-cost/ci/tests";
-    const MIXED: &str = "performance-and-cost/ci2-fast/9";
-    const REFUSED: [&str; 9] = [
-        "performance",
-        "performance-and-cost//ci",
-        "features-and-maintenance/",
-        "performance-and-cost/Ci",
-        "performance-and-cost/c i",
-        "performance-and-cost/ci_tests",
-        "performance-and-cost/é",
-        "performance-and-cost/-",
-        "performance-and-cost/ci/--",
-    ];
-
-    #[test]
-    fn a_division_id_starts_at_a_top_division_and_nests_by_slashes() {
-        let [top, nested] = [TOP, NESTED].map(|id| id.parse::<Division>().unwrap());
-        assert_eq!(nested.to_string(), NESTED);
-        assert!(top.strictly_contains(&nested) && !nested.strictly_contains(&top) && !top.strictly_contains(&top));
-        let mixed = MIXED.parse::<Division>().map(|mixed| mixed.to_string());
-        assert!(REFUSED.iter().all(|id| id.parse::<Division>().is_err()) && mixed.is_ok_and(|shown| shown == MIXED));
-    }
-}

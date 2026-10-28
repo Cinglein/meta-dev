@@ -42,6 +42,3 @@ impl fmt::Display for LevelName {
         formatter.write_str(&self.0)
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -21,6 +21,7 @@ pub enum Limit {
     LargestInteger,
     SlowestShown,
     ReferenceSpawns,
+    LawCases,
     SccItems,
 }
 
@@ -28,7 +29,9 @@ impl Limit {
     #[must_use]
     pub const fn division(self) -> TopDivision {
         match self {
-            Limit::SlowestShown | Limit::ReferenceSpawns => TopDivision::PerformanceAndCost,
+            Limit::SlowestShown | Limit::ReferenceSpawns | Limit::LawCases => {
+                TopDivision::PerformanceAndCost
+            }
             Limit::Reexports
             | Limit::EdgesPerVertex
             | Limit::SccItems
@@ -58,7 +61,7 @@ mod tests {
         TopDivision::PerformanceAndCost,
         TopDivision::ArchitectureAndPlanning,
     ];
-    const ENTRIES_PER_DIVISION: [usize; 3] = [17, 22, 0];
+    const ENTRIES_PER_DIVISION: [usize; 3] = [17, 23, 0];
 
     #[test]
     fn every_policy_entry_sits_in_one_division_and_none_enforced_in_code_is_architecture() {
