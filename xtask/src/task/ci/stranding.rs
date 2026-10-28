@@ -45,6 +45,8 @@ impl Stranding {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use meta_log::Snapshot;
     use meta_schema::{Event, NewConcern, Record};
     use meta_severity::{Scale, Scales};
@@ -61,7 +63,12 @@ mod tests {
     const PIN: &str = "[[package]]\nname = \"meta-xtask\"\nsource = \"git+https://example.invalid/meta-dev?tag=v0#";
     const END: &str = "\"\n";
     const TIP: &str = "HEAD";
-    const JUDGED: [Option<bool>; 3] = [Some(true), Some(true), None];
+    const EARLIER: &str = "HEAD~1";
+    const README: &str = "README";
+    const LOST: &str = "0123abc";
+    const MOVED: &str = "4567def";
+    const OTHER: &str = "[[package]]\nname = \"other\"\n";
+    const DECIDED: [Option<bool>; 7] = [Some(true), Some(false), None, Some(true), Some(false), None, Some(false)];
     const UNSOURCED: &str = "[[package]]\nname = \"meta-xtask\"\n";
     const TOP: &str = "features-and-maintenance";
     const MAJOR: &str = "major";
@@ -97,22 +104,58 @@ mod tests {
 
     #[test]
     fn scales_changed_since_the_merge_base_policy_or_default_levels_are_judged_and_unchanged_ones_are_not() {
-        let [fixture, relevelled, shipped, pinned, unpinned] = std::array::from_fn(|_| Fixture::new());
+        let [fixture, relevelled] = std::array::from_fn(|_| Fixture::new());
         let current = serde_json::to_string(&Scale::top_default()).unwrap();
         fixture.write(PriorPolicy::PATH, PRIOR).write(PriorPolicy::DEFAULT_LEVELS, &current).branch();
-        relevelled.write(PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS).branch();
-        shipped.write(PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS).committed();
-        pinned.write(LOCK, &format!("{PIN}{}{END}", shipped.revision(TIP).trim())).branch();
-        unpinned.write(LOCK, UNSOURCED).branch();
-        let databases = shipped.root().parent().unwrap();
+        relevelled.write(PriorPolicy::PATH, PRIOR).write(PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS).branch();
+        let databases = fixture.root();
         let uncapped = Policy::DEFAULTS.split(CAPS).next().unwrap_or_default();
         let same: Policy = toml::from_str(&format!("{uncapped}\n{PRIOR}")).unwrap();
         let before: Scales = serde_json::from_str(OVERRIDDEN).unwrap();
         let read = |fixture: &Fixture, policy: &Policy| Stranding::rescaling(fixture.root(), policy, databases);
         assert_eq!(read(&fixture, &Policy::defaults()).unwrap(), Some(before));
         assert_eq!(read(&fixture, &same).unwrap(), None);
-        let judged = [&relevelled, &pinned, &unpinned]
-            .map(|fixture| read(fixture, &Policy::defaults()).map(|rescaled| rescaled.is_some()).ok());
-        assert_eq!(judged, JUDGED);
+        assert!(read(&relevelled, &Policy::defaults()).unwrap().is_some());
+    }
+
+    impl Stranding {
+        fn database() -> Fixture {
+            let database = Fixture::new();
+            database.write(README, "x").committed();
+            database.write(PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS).committed();
+            database
+        }
+
+        fn pin(commit: &str) -> String {
+            format!("{PIN}{commit}{END}")
+        }
+
+        fn decided(databases: &Path, [then, now]: [&str; 2], policy_file: &str) -> Option<bool> {
+            let consumer = Fixture::new();
+            consumer.write(LOCK, then).write(policy_file, PRIOR).branch();
+            consumer.write(LOCK, now);
+            Stranding::rescaling(consumer.root(), &Policy::defaults(), databases).map(|prior| prior.is_some()).ok()
+        }
+    }
+
+    #[test]
+    fn prior_levels_are_looked_up_only_when_the_pin_moved_and_an_undecidable_case_fails_closed() {
+        let database = Stranding::database();
+        let [early, late] = [EARLIER, TIP].map(|name| database.revision(name).trim().to_owned());
+        let databases = database.root().parent().unwrap();
+        let [found, predates, missing, unmoved] =
+            [&late, &early, &LOST.to_owned(), &LOST.to_owned()].map(|commit| Stranding::pin(commit));
+        let moved = Stranding::pin(MOVED);
+        let decided = |then: &str, now: &str, file| Stranding::decided(databases, [then, now], file);
+        let judged = [
+            decided(&found, &moved, PriorPolicy::PATH),
+            decided(&predates, &moved, PriorPolicy::PATH),
+            decided(&missing, &moved, PriorPolicy::PATH),
+            decided(&unmoved, &unmoved, PriorPolicy::PATH),
+            decided(OTHER, &found, PriorPolicy::PATH),
+            decided(UNSOURCED, &found, PriorPolicy::PATH),
+            decided(&found, &moved, README),
+        ];
+        assert_eq!(judged, DECIDED);
     }
 }
