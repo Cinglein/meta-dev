@@ -9,7 +9,7 @@ use std::time::Duration;
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nprogram = \"gh\"\npoll_millis = 2\n";
 const PATIENT: &str = "appear_millis = 2000\ntimeout_millis = 7000\n";
-const STALLED: &str = "appear_millis = 2000\ntimeout_millis = 7000\nremote_millis = 40\n";
+const STALLED: &str = "appear_millis = 2000\ntimeout_millis = 7000\nstop_millis = 40\n";
 const QUICK: &str = "appear_millis = 20\ntimeout_millis = 80\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 case "$FAKE_GH_SCENARIO" in hang) exec sleep 5 ;; frozen) echo 0 > "$FAKE_GH_DIR/clock"; exec sleep 5 ;; esac

@@ -4,15 +4,18 @@ mod fetched;
 mod git;
 mod outcome;
 mod remote;
+mod remote_heads;
 mod sha;
 mod tip;
 
+pub use remote_heads::RemoteHeads;
 pub use sha::{NotCommitId, Sha};
 
 use std::cell::RefCell;
 use std::fmt;
 use std::path::PathBuf;
 use std::process::Output;
+use std::time::Instant;
 
 use meta_schema::Record;
 
@@ -51,6 +54,10 @@ impl GitLog {
 
     pub fn snapshot_at(&self, tip: &Sha) -> Result<Snapshot, LogFailure> {
         Ok(self.remote.content_at(tip)?.snapshot())
+    }
+
+    pub fn read_listed(&self, heads: &RemoteHeads, deadline: Instant) -> Result<Snapshot, LogFailure> {
+        Ok(self.remote.content_listed(heads, deadline)?.snapshot())
     }
 
     fn commit(&self, tip: Option<&Sha>, content: &Content, record: &Record) -> Result<Sha, LogFailure> {
