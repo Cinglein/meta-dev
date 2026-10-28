@@ -847,3 +847,4 @@
 {"at":"2026-10-28T00:40:02.055922Z","actor":"claude-payb","kind":"TaskClaimed","task":"task-ae6e747e2f49de5a"}
 {"at":"2026-10-28T00:40:03.643820Z","actor":"claude-payb","kind":"TaskClaimed","task":"task-918501f03d013d24"}
 {"at":"2026-10-28T00:40:10.573091Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-ba1fc185572af88d","text":"meta reopen drops the task's assignee, so a reopened task's PR fails the tracked-work check until re-claimed.","division":"features-and-maintenance","severity":"minor"}
+{"at":"2026-10-28T00:43:16.371091Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-d067e07c8d51f895","text":"resolved by #53: spec audit plus CI enforcer-exists check"}
