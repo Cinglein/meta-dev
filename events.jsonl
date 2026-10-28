@@ -1220,3 +1220,4 @@
 {"at":"2026-10-28T23:14:58.268807Z","actor":"claude-flaky","kind":"TaskOpened","task":"task-1ff0d8327007a205","text":"Flaky waits test: prove the deadline with a clock value","division":"performance-and-cost","addresses":["concern-7aca83c914a7509d"]}
 {"at":"2026-10-28T23:15:10.682320Z","actor":"claude-flaky","kind":"TaskClaimed","task":"task-1ff0d8327007a205"}
 {"at":"2026-10-28T23:15:55.706451Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-a72164b99b861c13","text":"Test time measures are noisy: scaled CPU swings about 10%; the slowest-test wall line (1 s) trips on waiting tests (meta_log, goldens: 1.2 s wall, tiny CPU)."}
+{"at":"2026-10-28T23:21:00.175199Z","actor":"claude-flaky","kind":"TaskLinked","task":"task-1ff0d8327007a205","pr":140}
