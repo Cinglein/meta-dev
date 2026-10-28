@@ -1,6 +1,5 @@
 use std::ffi::OsString;
 
-use crate::request::local::local_clone::vetting::cause::Cause;
 use crate::request::local::local_clone::vetting::kept::Kept;
 
 pub struct FakeRoots<'host> {
@@ -17,8 +16,10 @@ impl<'host> FakeRoots<'host> {
     }
 
     pub fn verified(&self, arguments: &[OsString]) -> Option<Result<String, Kept>> {
-        let named = arguments.iter().find(|argument| Self::PAUSE_REFS.iter().any(|name| *argument == *name))?;
-        let found = self.pseudo.iter().chain(self.dangling).find(|name| **name == named);
-        Some(found.map(|_| Self::HELD.to_owned()).ok_or_else(|| Kept::Uninspected(Cause::new(""))))
+        let named: Vec<&OsString> =
+            arguments.iter().filter(|argument| Self::PAUSE_REFS.iter().any(|name| *argument == *name)).collect();
+        named.first()?;
+        let found = named.iter().filter(|named| self.pseudo.iter().chain(self.dangling).any(|name| **named == *name));
+        Some(Ok(found.map(|_| Self::HELD).collect()))
     }
 }
