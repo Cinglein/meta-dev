@@ -873,3 +873,4 @@
 {"at":"2026-10-28T00:44:12.960962Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-87341e3156c2b3af","text":"Test fakes can diverge from real git and hide unsafe changes (#72); fakes need real-git parity tests."}
 {"at":"2026-10-28T00:44:14.503703Z","actor":"claude-lead","kind":"EntryCorrected","entry":"issue-613a295c7ec6a48c","text":"Local cargo xtask ci fails the 4 s test-time budget on a loaded Mac while GitHub passes; local timing is noisy."}
 {"at":"2026-10-28T00:44:16.008207Z","actor":"claude-lead","kind":"EntryCorrected","entry":"issue-ba9e1f2e77e7a869","text":"DISCUSS resolved: meta-xtask exposes Task::main() so consumer main is one line (task-337976109e6b131b)."}
+{"at":"2026-10-28T00:44:17.572885Z","actor":"claude-lead","kind":"EntryCorrected","entry":"issue-98555e731a32d5d4","text":"DISCUSS resolved: meta init/upgrade write every policy key explicitly; no code defaults (task-2fcb95cb7eb36cdf)."}
