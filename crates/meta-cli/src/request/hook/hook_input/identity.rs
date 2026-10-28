@@ -94,6 +94,7 @@ mod tests {
         assert!(refusal(FOREIGN).is_ok_and(|why| why.is_some_and(|why| why.starts_with(NAMED))));
         assert!(refusal(NOREPLY).is_ok_and(|why| why.is_none()));
         let late = Identity::refusal_in(&std::env::temp_dir(), Instant::now()).map(|why| why.to_string());
-        assert!(late.is_some_and(|why| why.starts_with(UNDECIDED)));
+        let named = std::env::temp_dir().display().to_string();
+        assert!(late.is_some_and(|why| why.starts_with(UNDECIDED) && why.contains(&named)));
     }
 }
