@@ -7,8 +7,10 @@ use crate::request::ci::ci_status::CiStatus;
 pub struct Replies;
 
 impl Replies {
+    const SCENARIO: &'static str = "gh-commit-checks";
+
     pub fn recorded(call: GhArgv) -> Vec<Recording> {
-        let recordings = Goldens::workspace().recordings().unwrap();
+        let recordings = Recording::all_in(&Goldens::workspace().dir().join(Self::SCENARIO)).unwrap();
         recordings.into_iter().filter(|recording| recording.argv().calls(call)).collect()
     }
 
