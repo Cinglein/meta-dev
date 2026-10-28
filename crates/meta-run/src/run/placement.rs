@@ -61,7 +61,7 @@ mod tests {
     const PASSED: &str = "1 passed";
     const PATIENT: Duration = Duration::from_secs(5);
     const LIMIT: Duration = Duration::from_millis(60);
-    const MARGIN: Duration = Duration::from_millis(300);
+    const MARGIN: Duration = LIMIT.saturating_mul(5);
 
     #[test]
     #[ignore = "run under a pseudo-terminal by the test below"]
