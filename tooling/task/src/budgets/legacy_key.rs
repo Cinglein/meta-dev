@@ -66,7 +66,8 @@ impl LegacyKey {
             | Interval::DiscoverEvery
             | Interval::PerCrate
             | Interval::TestTimeout
-            | Interval::JobSetup => None,
+            | Interval::JobSetup
+            | Interval::ReferenceCpu => None,
         }
     }
 
@@ -104,7 +105,8 @@ impl LegacyKey {
             | Limit::LinesPerTest
             | Limit::LiteralsPerTest
             | Limit::LargestInteger
-            | Limit::SlowestShown => None,
+            | Limit::SlowestShown
+            | Limit::ReferenceSpawns => None,
         }
     }
 }

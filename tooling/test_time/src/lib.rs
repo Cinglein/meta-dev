@@ -2,6 +2,7 @@ mod cargo_build;
 mod cargo_test;
 mod children_cpu;
 mod no_tests;
+mod reference_cpu;
 mod runner_config;
 mod test_run;
 mod test_runner;
@@ -15,6 +16,7 @@ use std::time::Duration;
 use cargo_build::CargoBuild;
 use cargo_test::CargoTest;
 use no_tests::NoTests;
+use reference_cpu::ReferenceCpu;
 use runner_config::RunnerConfig;
 pub use test_runner::TestRunner;
 use test_runs::TestRuns;
@@ -33,6 +35,7 @@ use task::{Limit, Policy};
 #[derive(Debug)]
 pub struct TestTime {
     timings: Vec<TestTiming>,
+    reference: ReferenceCpu,
 }
 
 impl TestTime {
@@ -75,6 +78,7 @@ impl TestTime {
                     .map_or(Ok(()), |examples| {
                         CargoBuild::examples(line(), examples, policy).run()
                     })?;
+                let reference = ReferenceCpu::measured(policy)?;
                 let cargo = |selection| CargoTest::new(line(), selection, policy);
                 let line = cargo(selection)
                     .through(&RunnerConfig::current()?)
@@ -95,7 +99,9 @@ impl TestTime {
                     .parse::<TestRuns>()?
                     .passed()?;
                 ran.and(documented_ran)?;
-                TestTime { timings }.recorded(policy, ledger).verdict()
+                TestTime { timings, reference }
+                    .recorded(policy, ledger)
+                    .verdict()
             },
         )
     }
@@ -104,9 +110,11 @@ impl TestTime {
         self.timings.sort_by_key(|timing| Reverse(timing.elapsed()));
         let total: Duration = self.timings.iter().map(TestTiming::elapsed).sum();
         let cpu: Duration = self.timings.iter().map(TestTiming::cpu).sum();
+        let scaled = self.reference.scaled(cpu);
         println!(
-            "test time: {} tests in {total:.2?}, cpu {cpu:.2?}, slowest {}:",
+            "test time: {} tests in {total:.2?}, cpu {cpu:.2?}, {} is {scaled:.2?}, slowest {}:",
             self.timings.len(),
+            self.reference,
             policy.limit(Limit::SlowestShown).count()
         );
         self.timings
@@ -123,7 +131,7 @@ impl TestTime {
         );
         ledger.spend(
             Measure::TestCpuTime,
-            Amount::Duration(Millis::rounded_up(cpu)),
+            Amount::Duration(Millis::rounded_up(scaled)),
         );
         ledger.spend(
             Measure::SlowestTest,
@@ -139,7 +147,7 @@ impl TestTime {
 
 #[cfg(test)]
 mod tests {
-    use super::{CargoBuild, CargoTest, RunnerConfig, TestTime, TestTiming};
+    use super::{CargoBuild, CargoTest, ReferenceCpu, RunnerConfig, TestTime, TestTiming};
     use settings::EmbeddedDefaults;
     use std::path::{Path, PathBuf};
     use std::time::Duration;
@@ -160,7 +168,9 @@ mod tests {
     impl TestTime {
         fn over_budget(timings: Vec<TestTiming>, policy: &Policy) -> Report {
             let mut ledger = Ledger::default();
-            let found = TestTime { timings }.recorded(policy, &mut ledger);
+            let nominal = policy.interval(Interval::ReferenceCpu).duration();
+            let reference = ReferenceCpu::new(nominal, nominal);
+            let found = TestTime { timings, reference }.recorded(policy, &mut ledger);
             let verdict = ledger.statement(policy).verdict(&Selection::Workspace);
             Report::new(
                 HEADLINE,
