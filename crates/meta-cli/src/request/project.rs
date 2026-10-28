@@ -152,7 +152,7 @@ impl Project {
     pub fn checkout(&self, deadline: Instant) -> &Checkout {
         self.checkout.get_or_init(|| {
             let decorated = self.reflog(deadline).and_then(|entries| entries.iter().find_map(ReflogEntry::checkout));
-            decorated.cloned().unwrap_or_else(|| Checkout::read(&self.root, deadline))
+            decorated.cloned().unwrap_or_default()
         })
     }
 
