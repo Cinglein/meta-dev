@@ -195,8 +195,7 @@ mod tests {
     use super::{CargoArgument, CommandLine, Program, Stderr, Stdout};
     use std::fs::File;
     use std::path::{Path, PathBuf};
-    const GIT: &str = "git";
-    const SHOWN: &str = "git fmt --all";
+    const SHOWN: &str = "sh fmt --all";
     const PROGRAMS: [&str; 4] = ["pwd", "true", "false", "sh"];
     const TO_STDERR: [&str; 2] = ["-c", "echo said >&2"];
     const SAID: &str = "said\n";
@@ -239,10 +238,10 @@ mod tests {
 
     #[test]
     fn a_command_prints_its_arguments_sees_only_its_given_environment_and_holds_its_input() {
-        let line = CommandLine::new(Program::Executable(GIT.into()))
+        let shell = || CommandLine::new(Program::Executable(SHELL.into()));
+        let line = shell()
             .argument(CargoArgument::Fmt)
             .arguments([CargoArgument::All]);
-        let shell = || CommandLine::new(Program::Executable(SHELL.into()));
         let shown = shell()
             .arguments(SHOW_TARGET)
             .inheriting_only([INHERITED])

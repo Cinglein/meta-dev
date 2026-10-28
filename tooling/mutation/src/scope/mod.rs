@@ -99,14 +99,14 @@ impl Scope {
         let tested = TestedCrates::collect(&workspace.source_files()?);
         TestPackages::each_run(shards, workspace.packages(), &tested)
             .into_iter()
-            .map(|(run, tested_by)| {
-                let directory = output.prepared_for(&run)?;
+            .map(|tested_by| {
+                let directory = output.prepared_for(tested_by.run())?;
                 let prepared = line
                     .clone()
                     .argument(MutantsArgument::Output)
                     .argument(directory.display())
                     .argument(MutantsArgument::TestWorkspaceOff);
-                Ok(MutantsRun::new(tested_by.applied_to(run.applied_to(prepared)), directory))
+                Ok(MutantsRun::new(tested_by.applied_to(prepared), directory))
             })
             .collect()
     }
