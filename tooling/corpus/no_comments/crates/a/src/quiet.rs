@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+#![doc = "five"] //~ no-comments: comment
 pub struct Quiet;
 // one //~ no-comments: comment
 impl Quiet {
