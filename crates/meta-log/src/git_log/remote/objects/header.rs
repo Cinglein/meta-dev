@@ -42,9 +42,10 @@ impl FromStr for Header {
         let size = |size: &str| size.parse().map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error));
         match line.split_whitespace().collect::<Vec<_>>()[..] {
             [_, Self::BLOB, blob] => Ok(Self::Blob { size: size(blob)? }),
-            [sha, Self::TREE, tree] => {
-                Ok(Self::Tree { sha: sha.parse().unwrap_or_else(|never| match never {}), size: size(tree)? })
-            }
+            [sha, Self::TREE, tree] => Ok(Self::Tree {
+                sha: sha.parse().map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?,
+                size: size(tree)?,
+            }),
             _ => Ok(Self::Missing),
         }
     }
