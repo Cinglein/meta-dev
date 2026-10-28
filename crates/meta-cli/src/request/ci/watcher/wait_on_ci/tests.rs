@@ -52,7 +52,7 @@ impl Board {
 }
 
 #[test]
-fn a_wait_covers_only_its_own_head_whatever_the_branch() {
+fn a_wait_covers_only_its_own_head_says_resume_or_reopen_for_a_branch_task_and_retries_an_unreadable_log() {
     let waiting = Board::claimed().waiting_at(OLD);
     let ready = Board::claimed();
     assert_eq!([waiting.judged(OLD, None), waiting.judged(HEAD, None)], [WaitOnCi::Recorded, WaitOnCi::Taskless]);
@@ -61,11 +61,6 @@ fn a_wait_covers_only_its_own_head_whatever_the_branch() {
     let states = [&waiting, &ready].map(|board| Ok(State::fold(&board.records)));
     let blocked = states.map(|state| WaitOnCi::verdict(&state, &timed_out, OLD.parse().ok().as_ref(), None).is_some());
     assert_eq!(blocked, [false, true]);
-}
-
-#[test]
-fn a_branch_task_waiting_elsewhere_says_resume_and_a_done_one_says_reopen() {
-    let waiting = Board::claimed().waiting_at(OLD);
     let done = Board::claimed().then(|task| Event::TaskDone(TaskRef::new(task)));
     let shown =
         [waiting.judged(HEAD, Some(waiting.task)), done.judged(HEAD, Some(done.task))].map(|wait| wait.to_string());
@@ -78,7 +73,10 @@ fn a_branch_task_waiting_elsewhere_says_resume_and_a_done_one_says_reopen() {
     assert!(shown.contains(CHECKOUT_OLD));
     assert!(WORDING.iter().all(|part| shown.contains(part)));
     assert!(unreadable.unwrap_err().to_string().starts_with(UNREADABLE));
-    let mut reads = [Err(CliFailure::raised::<Invalid>(BROKEN)), Ok(state)].into_iter();
-    let read = WaitOnCi::state_within(meta_run::Budget::new(std::time::Duration::ZERO), || reads.next().unwrap());
-    assert!(read.is_ok() && reads.next().is_none());
+    let calls = std::cell::Cell::new(0);
+    let flaky = || (calls.replace(calls.get() + 1) > 0).then(meta_log::Snapshot::default);
+    let read = WaitOnCi::state_read(meta_run::Budget::new(std::time::Duration::ZERO), || {
+        flaky().ok_or_else(|| CliFailure::raised::<Invalid>(BROKEN))
+    });
+    assert!(read.is_ok() && calls.get() == 2);
 }
