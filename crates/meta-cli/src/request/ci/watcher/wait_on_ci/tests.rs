@@ -13,6 +13,11 @@ const RESUME: &str = "`meta resume task-";
 const REOPEN: &str = "`meta reopen task-";
 const BROKEN: &str = "fetch refused";
 const CHECKOUT_OLD: &str = "`git checkout --detach 6c1ea3b4d9f1f48d98517b891f4283d6f0e55b94`";
+const WORDING: [&str; 3] = [
+    "a task waits at one commit only; each other unresolved commit needs its own task",
+    "push a rerun to that commit's branch",
+    "check the branch out again after detaching; a detached HEAD cannot push",
+];
 const UNREADABLE: &str = "meta/log unreadable: ";
 
 struct Board {
@@ -67,6 +72,8 @@ fn a_wait_at_head_leaves_another_unresolved_commit_blocked_and_an_unreadable_log
     let elsewhere = WaitOnCi::in_state(&state, Some(&OLD.parse().unwrap()), Some(&HEAD.parse().unwrap()), None);
     let Ok(old) = OLD.parse::<Commit>();
     let unreadable = WaitOnCi::judging(&Err(CliFailure::raised::<Invalid>(BROKEN)), &old, None, None);
-    assert!(elsewhere.to_string().contains(CHECKOUT_OLD));
+    let shown = elsewhere.to_string();
+    assert!(shown.contains(CHECKOUT_OLD));
+    assert!(WORDING.iter().all(|part| shown.contains(part)));
     assert!(unreadable.unwrap_err().to_string().starts_with(UNREADABLE));
 }

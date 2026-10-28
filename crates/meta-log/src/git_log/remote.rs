@@ -2,11 +2,13 @@ mod objects;
 
 use std::fmt;
 use std::process::Output;
+use std::time::Instant;
 
 use super::attempt::Attempt;
 use super::content::Content;
 use super::fetched::Fetched;
-use super::git::Git;
+use super::git::{Git, GitCommand};
+use super::remote_heads::RemoteHeads;
 use super::sha::Sha;
 use super::tip::Tip;
 use crate::log_failure::LogFailure;
@@ -22,8 +24,7 @@ pub struct Remote {
 
 impl Remote {
     pub const FILE: &'static str = "events.jsonl";
-    const BRANCH: &'static str = "meta/log";
-    const SEPARATOR: char = '\t';
+    pub const BRANCH: &'static str = "meta/log";
 
     pub fn new(git: Git, name: RemoteName) -> Self {
         Self { git, name }
@@ -45,27 +46,37 @@ impl Remote {
         let target = format!("{commit}:refs/heads/{}", Self::BRANCH);
         let expected = base.map(ToString::to_string).unwrap_or_default();
         let lease = format!("--force-with-lease=refs/heads/{}:{expected}", Self::BRANCH);
-        self.git.command(["push", "--quiet"]).arg(lease).arg(self.name.to_string()).arg(target).timed_output()
+        let pushed = self.git.command(["push", "--quiet"]).arg(lease).arg(self.name.to_string()).arg(target);
+        pushed.timed_output(GitCommand::network_deadline())
+    }
+
+    pub fn content_listed(&self, heads: &RemoteHeads, deadline: Instant) -> Result<Content, LogFailure> {
+        let tip = heads.log_tip()?;
+        let missing = || tip.clone().map_or(LogFailure::Contended, LogFailure::Unfetched);
+        let refetched = || self.fetched(deadline)?.ok_or_else(missing).and_then(|()| self.held(tip.as_ref()));
+        self.held(tip.as_ref())?.map_or_else(refetched, |content| Ok(Some(content)))?.ok_or_else(missing)
     }
 
     fn fetch_once(&self) -> Result<Option<Fetched>, LogFailure> {
         let tip = self.listed_tip()?;
         let held = self.held(tip.as_ref())?;
         let missing = || tip.clone().map_or(LogFailure::Contended, LogFailure::Unfetched);
-        let refetched =
-            || self.fetched()?.map_or(Ok(None), |()| self.held(tip.as_ref())?.ok_or_else(missing).map(Some));
+        let refetched = || {
+            let fetched = self.fetched(GitCommand::network_deadline())?;
+            fetched.map_or(Ok(None), |()| self.held(tip.as_ref())?.ok_or_else(missing).map(Some))
+        };
         let content = held.map_or_else(refetched, |content| Ok(Some(content)))?;
         Ok(content.map(|content| Fetched::new(tip, content)))
     }
 
-    fn fetched(&self) -> Result<Option<()>, LogFailure> {
+    fn fetched(&self, deadline: Instant) -> Result<Option<()>, LogFailure> {
         let refspec = format!("+refs/heads/meta/*:refs/remotes/{}/meta/*", self.name);
         let fetched = self
             .git
             .command(["fetch", "--quiet", "--prune", "--no-write-fetch-head", "--no-auto-maintenance"])
             .arg(self.name.to_string())
             .arg(refspec)
-            .timed_output()?;
+            .timed_output(deadline)?;
         Ok(fetched.status.success().then_some(()))
     }
 
@@ -78,12 +89,12 @@ impl Remote {
 
     fn listed_tip(&self) -> Result<Option<Sha>, LogFailure> {
         let branch = format!("refs/heads/{}", Self::BRANCH);
-        let listed = self.git.command(["ls-remote"]).arg(self.name.to_string()).arg(&branch).timed_output()?;
+        let listing = self.git.command(["ls-remote"]).arg(self.name.to_string()).arg(&branch);
+        let listed = listing.timed_output(GitCommand::network_deadline())?;
         let offline = || LogFailure::Offline { remote: self.name.clone(), stderr: Stderr::from(&listed) };
-        let lines = listed.status.success().then(|| String::from_utf8_lossy(&listed.stdout).into_owned());
-        let lines = lines.ok_or_else(offline)?;
-        let tip = lines.lines().filter_map(|line| line.split_once(Self::SEPARATOR)).find(|(_, name)| *name == branch);
-        Ok(tip.map(|(sha, _)| sha.parse()).transpose()?)
+        let lines = listed.status.success().then(|| String::from_utf8_lossy(&listed.stdout));
+        let Ok(heads) = lines.ok_or_else(offline)?.parse::<RemoteHeads>();
+        Ok(heads.log_tip()?)
     }
 }
 

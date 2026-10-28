@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+use super::key_name::KeyName;
 use crate::budgets::{LegacyKey, TreeFailure};
 
 #[derive(Debug, Error)]
@@ -12,4 +13,6 @@ pub enum PolicyFailure {
     Unset(LegacyKey),
     #[error("[{0}]: a key is not set")]
     Missing(&'static str),
+    #[error("[{0}]: {1} is not set")]
+    MissingKey(&'static str, KeyName),
 }
