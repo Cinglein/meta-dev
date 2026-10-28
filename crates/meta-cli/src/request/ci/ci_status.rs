@@ -12,6 +12,7 @@ pub enum CiStatus {
     TimedOut,
     Unavailable,
     Absent,
+    Unchecked,
 }
 
 impl CiStatus {
@@ -34,7 +35,7 @@ impl CiStatus {
     pub fn unstarted(self) -> Self {
         match self {
             Self::Failed => Self::Unavailable,
-            Self::Running | Self::Passed | Self::TimedOut | Self::Unavailable | Self::Absent => self,
+            Self::Running | Self::Passed | Self::TimedOut | Self::Unavailable | Self::Absent | Self::Unchecked => self,
         }
     }
 
@@ -42,7 +43,7 @@ impl CiStatus {
         match self {
             Self::Unavailable => ": jobs never started; push a new commit to retry, then run `meta ci-wait`",
             Self::Absent => ": no run for this commit; no CI for this push",
-            Self::Running | Self::Passed | Self::Failed | Self::TimedOut => "",
+            Self::Running | Self::Passed | Self::Failed | Self::TimedOut | Self::Unchecked => "",
         }
     }
 
@@ -54,7 +55,7 @@ impl CiStatus {
             Self::Failed => Some(Listed::new(
                 "CI failed for your last push: fix it, push, then run `meta ci-wait`; or ask the owner",
             )),
-            Self::Passed | Self::TimedOut | Self::Unavailable | Self::Absent => None,
+            Self::Passed | Self::TimedOut | Self::Unavailable | Self::Absent | Self::Unchecked => None,
         }
     }
 
@@ -69,6 +70,9 @@ impl CiStatus {
             Self::Absent => {
                 Some("no CI run for your last push: push a new commit to start one, then run `meta ci-wait`")
             }
+            Self::Unchecked => Some(
+                "couldn't check CI for your last push: fix the remote URL, push a new commit, then run `meta ci-wait`",
+            ),
             Self::Running | Self::Passed | Self::Failed => None,
         }
     }
@@ -76,7 +80,9 @@ impl CiStatus {
     pub fn finished(self) -> Option<Self> {
         match self {
             Self::Running => None,
-            Self::Passed | Self::Failed | Self::TimedOut | Self::Unavailable | Self::Absent => Some(self),
+            Self::Passed | Self::Failed | Self::TimedOut | Self::Unavailable | Self::Absent | Self::Unchecked => {
+                Some(self)
+            }
         }
     }
 }
