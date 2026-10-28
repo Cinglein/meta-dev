@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::thread;
 use std::time::Duration;
 
 use task::BranchName;
@@ -18,10 +19,22 @@ impl StackAnswer {
 
     pub fn settled(
         mut ask: impl FnMut() -> Result<StackAnswer, Failure>,
-        _default: &BranchName,
-        _waits: &[Duration],
+        default: &BranchName,
+        waits: &[Duration],
     ) -> Result<StackAnswer, Failure> {
-        ask()
+        let mut answer = ask()?;
+        for wait in waits {
+            if !answer.is_loose(default) {
+                break;
+            }
+            thread::sleep(*wait);
+            answer = ask()?;
+        }
+        Ok(answer)
+    }
+
+    fn is_loose(&self, default: &BranchName) -> bool {
+        self.base != *default && self.stack.is_none()
     }
 
     pub fn verdict(&self, number: &str, default: &BranchName) -> Result<String, Failure> {
