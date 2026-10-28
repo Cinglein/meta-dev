@@ -3,7 +3,7 @@
 use std::fmt;
 use std::io::Write as _;
 use std::os::unix::process::CommandExt as _;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Child, Command, Output, Stdio};
 use std::time::Duration;
 
@@ -38,10 +38,9 @@ const HEAD: &str = "HEAD";
 const FEATURE_BRANCH: &str = "feature";
 const REJECTED: &str = "rejected";
 const SESSION_START: &str = "session-start";
-const REFUSED_CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\nstop_millis = 9000\n";
-const BLOCKED: [&str; 2] = ["\"decision\":\"block\"", "stop_millis must be under"];
-const POLLS: usize = 500;
+const PATIENT: Duration = Duration::from_secs(2);
 const POLL: Duration = Duration::from_millis(2);
+const ENV_FILE: &str = ".env";
 const SESSION_FIELD: &str = r#""session_id":"ABCDEF12-34","#;
 const WATCHERS: &str = ".git/meta-ci";
 const NO_TASKS: &str = "Tasks: 0 unfinished";
@@ -120,7 +119,10 @@ impl Repo {
             serde_json::to_string(cwd).unwrap(),
             serde_json::to_string(&command.replace(ELSEWHERE, &self.origin.path().display().to_string())).unwrap()
         );
-        let meta = meta.args(["hook", event]).env_remove("META_ACTOR").env("CLAUDE_ENV_FILE", self.env_file());
+        let meta = meta
+            .args(["hook", event])
+            .env_remove("META_ACTOR")
+            .env("CLAUDE_ENV_FILE", self.clone.path().join(ENV_FILE));
         let piped = meta.env("TMPDIR", self.clone.path()).stdin(Stdio::piped()).stdout(Stdio::piped());
         let mut child = piped.spawn().unwrap();
         child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
@@ -132,16 +134,11 @@ impl Repo {
             format!("[remote \"origin\"]\n\treceivepack = bash -c 'echo $$ > {} && sleep 5' x\n", helper.display());
         Git::configure(&self.clone.path().join(GIT_CONFIG), &hanging);
         let mut meta = self.started(POST, COMMIT, self.clone.path(), Command::new(META).process_group(0));
-        let polls = || (0..POLLS).map(|_| std::thread::sleep(POLL));
-        let pid = || std::fs::read_to_string(helper).unwrap_or_default();
-        let started = polls().any(|()| !pid().is_empty());
+        let polls = || (0..PATIENT.as_millis() / POLL.as_millis()).map(|_| std::thread::sleep(POLL));
+        let pid = polls().find_map(|()| std::fs::read_to_string(helper).ok().filter(|pid| !pid.is_empty()));
         Command::new("kill").args(["-INT", "--", &format!("-{}", meta.id())]).status().unwrap();
-        let alive = || Command::new("kill").args(["-0", pid().trim()]).status().unwrap().success();
-        meta.wait().is_ok() && started && polls().any(|()| !alive())
-    }
-
-    fn env_file(&self) -> PathBuf {
-        self.clone.path().join(".env")
+        let alive = |pid: &str| Command::new("kill").args(["-0", pid.trim()]).status().unwrap().success();
+        meta.wait().is_ok() && pid.is_some_and(|pid| polls().any(|()| !alive(&pid)))
     }
 }
 
@@ -156,12 +153,8 @@ fn pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_whereve
     assert!(repo.hook(PRE, MERGE, home).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
     let commits = REFUSED_COMMITS.into_iter().zip([home, elsewhere, home, home]);
     let shown = commits.map(|((command, reason), cwd)| (repo.hook(PRE, command, cwd), format!("{DENY}{reason}")));
-    assert!(
-        shown.into_iter().all(|(shown, refused)| shown.contains(&refused)) && repo.hook(PRE, ALLOWED, home).is_empty()
-    );
-    std::fs::write(home.join("meta.toml"), REFUSED_CONFIG).unwrap();
-    let [denied, blocked] = [PRE, "stop"].map(|event| repo.hook(event, MERGE, home));
-    assert!(denied.contains(DENY) && BLOCKED.iter().all(|shown| blocked.contains(shown)), "{denied}");
+    assert!(shown.into_iter().all(|(shown, refused)| shown.contains(&refused)));
+    assert_eq!(repo.hook(PRE, ALLOWED, home), "");
 }
 
 #[test]
@@ -186,7 +179,7 @@ fn session_start_shows_state_and_names_the_session_actor() {
     let home = repo.clone.path();
     let shown = repo.hook(SESSION_START, COMMIT, home);
     assert!(shown.contains(NO_TASKS) && shown.contains(SESSION_ACTOR));
-    assert_eq!(std::fs::read_to_string(repo.env_file()).unwrap(), ENV_LINE);
+    assert_eq!(std::fs::read_to_string(home.join(ENV_FILE)).unwrap(), ENV_LINE);
     assert!(home.join(SESSION_STARTED).exists());
 }
 

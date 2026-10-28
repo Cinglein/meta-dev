@@ -6,7 +6,7 @@ use std::str::FromStr;
 use std::time::Instant;
 
 use meta_log::{GitLog, RemoteHeads};
-use meta_run::{KillScope, Run};
+use meta_run::Run;
 
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
 use crate::request::cli_failure::{CliFailure, Setup};
@@ -47,11 +47,10 @@ impl Project {
         &self.ci
     }
 
-    pub fn push_failure(&self) -> Option<Listed> {
-        let deadline = self.ci.git_deadline(Instant::now());
+    pub fn push_failure(&self, deadline: Instant) -> Option<Listed> {
         let remote = self.config.remote().ok()?.to_string();
         let unprotected = self.unprotected_branch(deadline)?;
-        let push = self.git(["push", "--quiet", "-u", &remote, &unprotected.to_string()]).scoped(KillScope::Group);
+        let push = self.git(["push", "--quiet", "-u", &remote, &unprotected.to_string()]);
         match push.ran(deadline) {
             Ok(ran) if ran.success() => None,
             Ok(ran) => Some(Listed::new(format!("push of {unprotected} failed: {}", ran.stderr()))),
@@ -82,7 +81,7 @@ impl Project {
 
     pub fn remote_heads(&self, deadline: Instant) -> Result<RemoteHeads, Listed> {
         let remote = self.config.remote().map_err(|failure| Listed::new(failure.to_string()))?;
-        let listed = self.git(["ls-remote", "--heads", &remote.to_string()]).scoped(KillScope::Group);
+        let listed = self.git(["ls-remote", "--heads", &remote.to_string()]);
         let listed = listed.stdout(deadline).map_err(|failure| {
             Listed::new(format!("remote unreachable: git ls-remote {remote}: {failure}; retry, or ask the owner"))
         })?;
@@ -135,7 +134,7 @@ impl Project {
         words: impl IntoIterator<Item = OsString>,
         deadline: Instant,
     ) -> Option<Vec<Line>> {
-        let output = self.git(words).scoped(KillScope::Group).stdout(deadline).ok()?;
+        let output = self.git(words).stdout(deadline).ok()?;
         Some(output.lines().filter_map(|line| line.parse().ok()).collect())
     }
 

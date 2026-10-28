@@ -89,7 +89,6 @@ impl LocalClone {
             .transpose()?;
         let added = ["worktree", "add", "--quiet", "--no-checkout"].map(OsStr::new);
         checkout
-            .reaching()
             .output(&[&added[..], &[path.as_os_str(), OsStr::new(&branch)]].concat())
             .map_err(|failure| self.rolled_back(None, new_branch, failure))?;
         let name = identity.name().to_string();
@@ -190,7 +189,7 @@ impl LocalClone {
 
     fn base(&self, remote: &RemoteName, branch: &str, held: Option<()>) -> Result<Option<String>, CliFailure> {
         let checkout = Git::new(&self.checkout, &self.settings);
-        checkout.reaching().output(&["fetch", "--quiet", &remote.to_string()].map(OsStr::new))?;
+        checkout.output(&["fetch", "--quiet", &remote.to_string()].map(OsStr::new))?;
         let verified = |name: &str| checkout.holds(&["rev-parse", "--verify", "--quiet", name].map(OsStr::new));
         match verified(&format!("refs/heads/{branch}")) {
             Some(()) => held.map(|()| None).ok_or_else(|| {

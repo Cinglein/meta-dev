@@ -1,25 +1,25 @@
 use std::collections::BTreeMap;
 use std::ffi::OsString;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::{Duration, Instant};
 
-use super::{EnvPolicy, Environment, KillScope, Run, RunFailure};
+use super::{EnvPolicy, Environment, Run, RunFailure};
 
 const SHELL: &str = "bash";
 const SCRIPT: &str = "-c";
 const FED: &str = "cat; echo oops >&2; echo more >&2; exit 3";
 const SHOWN: [&str; 3] = ["fed", "oops\nmore", "oops"];
 const PATIENT: Duration = Duration::from_secs(5);
-const LEADS: &str = "[ \"$(ps -o pgid= -p $$ | tr -d ' ')\" = \"$$\" ] && echo leader; true";
-const LED: [(Option<KillScope>, &str); 2] = [(Some(KillScope::Group), "leader\n"), (None, "")];
+const LEADS: &str = "kill -0 -- -$$ 2>/dev/null && echo leader; true";
 const LIMIT: Duration = Duration::from_millis(50);
 const PROMPT: Duration = Duration::from_secs(1);
-const KILLED: [(&str, KillScope, &str); 3] = [
-    ("set -m; sleep 2 & echo $! > \"$0\"; echo held", KillScope::Group, "elsewhere"),
-    ("sleep 5 & echo $! > \"$0\"; wait", KillScope::Process, "tree"),
-    ("echo $$ > \"$0\"; exec sleep 5", KillScope::Process, "process"),
+const KILLED: [&str; 3] = [
+    "set -m; sleep 2 & echo $! >> \"$0\"; echo held",
+    "sleep 5 & echo $! >> \"$0\"; wait",
+    "echo $$ >> \"$0\"; exec sleep 5",
 ];
-const KILL: [&str; 3] = ["kill", "-0", "-KILL"];
+const PS: [&str; 4] = ["ps", "-o", "stat=", "-p"];
+const KILL: [&str; 2] = ["kill", "-KILL"];
 const POLL: Duration = Duration::from_millis(2);
 const NO_PROMPT: &str = "\"GIT_TERMINAL_PROMPT\": Some(\"0\")";
 const INHERITED: [(&str, &str); 4] = [("GIT_DIR", "d"), ("GIT_SSH_COMMAND", "s"), ("LANG", "C"), ("PATH", "/bin")];
@@ -33,47 +33,38 @@ const DROPPED: [(EnvPolicy, &str); 4] = [
 struct Scripted;
 
 impl Scripted {
-    fn timed_out(script: &str, scope: KillScope, file: &Path) -> bool {
-        let run = Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, script]).arg(file).scoped(scope);
+    fn timed_out(script: &'static str, pids: &Path) -> bool {
+        let run = Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, script]).arg(pids);
         matches!(run.ran(Instant::now() + LIMIT), Err(RunFailure::TimedOut(_)))
     }
 
-    fn signalled(file: &Path, signal: &str) -> bool {
-        let pid = std::fs::read_to_string(file).unwrap();
-        let kill = Run::new(KILL[0], EnvPolicy::Inherit).args([signal, pid.trim()]);
-        kill.ran(Instant::now() + PATIENT).unwrap().success()
-    }
-
-    fn gone(file: &Path) -> bool {
+    fn gone(pids: &Path) -> bool {
+        let listed = std::fs::read_to_string(pids).unwrap().lines().collect::<Vec<_>>().join(",");
+        let live = || Run::new(PS[0], EnvPolicy::Inherit).args(&PS[1..]).arg(&listed).stdout(Instant::now() + PATIENT);
         let polls = (0..PROMPT.as_millis() / POLL.as_millis()).map(|_| std::thread::sleep(POLL));
-        polls.into_iter().any(|()| !Self::signalled(file, KILL[1]))
+        polls.into_iter().any(|()| live().unwrap_or_default().lines().all(|state| state.starts_with('Z')))
     }
 }
 
 #[test]
-fn a_run_feeds_its_input_returns_both_streams_and_leads_its_own_group_only_when_asked() {
+fn a_run_feeds_its_input_returns_both_streams_and_stays_in_the_callers_group() {
     let run = Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, FED]).fed(SHOWN[0].to_owned());
     let ran = run.ran(Instant::now() + PATIENT).unwrap();
     assert!(!ran.success() && ran.stdout().text() == SHOWN[0] && ran.stderr().to_string() == SHOWN[1]);
     assert_eq!(ran.succeeded().unwrap_err().to_string(), SHOWN[2]);
-    let led = LED.map(|(scope, _)| {
-        let run = scope.into_iter().fold(Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, LEADS]), Run::scoped);
-        run.stdout(Instant::now() + PATIENT).unwrap()
-    });
-    assert_eq!(led, LED.map(|(_, shown)| shown.to_owned()));
+    assert_eq!(Run::new(SHELL, EnvPolicy::Inherit).args([SCRIPT, LEADS]).stdout(Instant::now() + PATIENT).unwrap(), "");
 }
 
 #[test]
-fn a_run_ends_at_its_deadline_and_kills_its_scope_even_when_a_grandchild_holds_the_pipes() {
-    let dir = tempfile::tempdir().unwrap();
-    let files = KILLED.map(|(.., name)| dir.path().join(name));
+fn a_run_ends_at_its_deadline_and_kills_its_whole_tree_even_when_a_grandchild_holds_the_pipes() {
+    let [stray, killed] = [(); 2].map(|()| tempfile::NamedTempFile::new().unwrap());
     let started = Instant::now();
-    let run = |((script, scope, _), file): ((&'static str, KillScope, &str), PathBuf)| {
-        std::thread::spawn(move || Scripted::timed_out(script, scope, &file))
-    };
-    let runs: Vec<_> = KILLED.into_iter().zip(files.clone()).map(run).collect();
+    let runs = KILLED.map(|script| (script, if script == KILLED[0] { &stray } else { &killed }.path().to_path_buf()));
+    let runs = runs.map(|(script, pids)| std::thread::spawn(move || Scripted::timed_out(script, &pids)));
     assert!(runs.into_iter().all(|run| run.join().unwrap()) && started.elapsed() < PROMPT);
-    assert!(Scripted::signalled(&files[0], KILL[2]) && files.iter().all(|file| Scripted::gone(file)));
+    let left = std::fs::read_to_string(stray.path()).unwrap();
+    let stopped = Run::new(KILL[0], EnvPolicy::Inherit).args([KILL[1], left.trim()]).ran(Instant::now() + PATIENT);
+    assert!(stopped.is_ok() && Scripted::gone(killed.path()) && Scripted::gone(stray.path()));
 }
 
 #[test]

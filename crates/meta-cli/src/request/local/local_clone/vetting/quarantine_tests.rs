@@ -22,12 +22,14 @@ const REMOVE: &str = "worktree remove";
 const FROZEN: &str = "frozen /trees/.gc-task-00000000000000b1-1x0";
 const THAWED: &str = "thawed /trees/.gc-task-00000000000000b1-1x0";
 const INHERITED: [(&str, &str); 3] = [("GIT_DIR", "d"), ("HOME", "h"), ("GIT_INDEX_FILE", "i")];
-const ISOLATED: [(&str, Option<&str>); 5] = [
+const ISOLATED: [(&str, Option<&str>); 7] = [
     ("GIT_CONFIG_GLOBAL", Some("/dev/null")),
     ("GIT_CONFIG_NOSYSTEM", Some("1")),
     ("GIT_CONFIG_SYSTEM", Some("/dev/null")),
     ("GIT_DIR", None),
     ("GIT_INDEX_FILE", None),
+    ("GIT_SSH_COMMAND", Some("ssh -o BatchMode=yes")),
+    ("GIT_TERMINAL_PROMPT", Some("0")),
 ];
 const STAT_PINS: [&str; 2] = ["core.trustctime=true", "core.checkStat=default"];
 const REFUSALS: [&str; 4] = ["no recorded worktree id", "changed during checks", "in use", "in use"];

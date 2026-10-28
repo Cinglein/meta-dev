@@ -9,7 +9,7 @@ mod tick;
 use std::str::FromStr;
 
 use chrono::Utc;
-use meta_run::{EnvPolicy, KillScope, Run};
+use meta_run::{EnvPolicy, Run};
 
 use crate::request::cli_failure::{CliFailure, Misuse, Setup};
 use crate::request::local::{LocalClone, Monitor};
@@ -91,7 +91,7 @@ impl Heartbeat {
     fn inner(project: &Project, run: &str) -> Result<Run, CliFailure> {
         let program = std::env::current_exe().map_err(CliFailure::raised::<Setup>)?;
         let inner = Run::new(program, EnvPolicy::Inherit).args([Self::HEARTBEAT, run]).dir(project.root());
-        Ok(inner.scoped(KillScope::Group))
+        Ok(inner)
     }
 
     fn plist(clone: &LocalClone, settings: &HeartbeatSettings) -> Result<Output, CliFailure> {

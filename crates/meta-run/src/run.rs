@@ -1,6 +1,9 @@
+mod tree;
+
 use std::ffi::OsStr;
 use std::io::{Read, Write as _};
 use std::ops::ControlFlow;
+use std::os::unix::process::CommandExt as _;
 use std::path::Path;
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::mpsc::{Receiver, channel};
@@ -9,22 +12,24 @@ use std::time::{Duration, Instant};
 use crate::command_line::CommandLine;
 use crate::env_policy::EnvPolicy;
 use crate::environment::Environment;
-use crate::kill_scope::KillScope;
 use crate::ran::Ran;
 use crate::run_failure::RunFailure;
 use crate::stderr::Stderr;
 use crate::stdout::Stdout;
+use tree::Tree;
 
 #[derive(Debug)]
 pub struct Run {
     command: Command,
-    scope: KillScope,
+    ended: fn(&mut Child),
     input: Option<String>,
 }
 
 impl Run {
     const GIT: &'static str = "git";
     const DIRECTORY: &'static str = "-C";
+    const NO_PROMPT: [&'static str; 2] = ["GIT_TERMINAL_PROMPT", "0"];
+    const BATCH_SSH: [&'static str; 2] = ["GIT_SSH_COMMAND", "ssh -o BatchMode=yes"];
     const FIRST_PAUSE: Duration = Duration::from_micros(10);
     const LONGEST_PAUSE: Duration = Duration::from_millis(5);
 
@@ -38,12 +43,15 @@ impl Run {
         let mut command = Command::new(program);
         let kept = env.applied(inherited.clone());
         inherited.dropped(&kept, &mut command);
-        Self { command, scope: KillScope::Process, input: None }
+        Self { command, ended: Tree::ended, input: None }
     }
 
     #[must_use]
     pub fn git(dir: &Path) -> Self {
-        Self::new(Self::GIT, EnvPolicy::NoRepoVars).arg(Self::DIRECTORY).arg(dir)
+        let git = Self::new(Self::GIT, EnvPolicy::NoRepoVars).var(Self::NO_PROMPT[0], Self::NO_PROMPT[1]);
+        let ssh = std::env::var_os(Self::BATCH_SSH[0]).is_none().then_some(Self::BATCH_SSH);
+        let git = ssh.into_iter().fold(git, |git, [name, value]| git.var(name, value));
+        git.arg(Self::DIRECTORY).arg(dir)
     }
 
     #[must_use]
@@ -74,15 +82,10 @@ impl Run {
         Self { input: Some(input), ..self }
     }
 
-    #[must_use]
-    pub fn scoped(self, scope: KillScope) -> Self {
-        Self { scope, ..self }
-    }
-
     pub fn ran(mut self, deadline: Instant) -> Result<Ran, RunFailure> {
         let line = CommandLine::from(&self.command);
         let stdin = self.input.as_ref().map_or_else(Stdio::null, |_| Stdio::piped());
-        let piped = self.scope.led(&mut self.command).stdin(stdin).stdout(Stdio::piped()).stderr(Stdio::piped());
+        let piped = self.command.stdin(stdin).stdout(Stdio::piped()).stderr(Stdio::piped());
         let spawned = piped.spawn().map_err(|source| RunFailure::Unspawned { line: line.clone(), source });
         let mut child = spawned?;
         let fed = child.stdin.take().zip(self.input);
@@ -94,7 +97,7 @@ impl Run {
         let status = streams.as_ref().and_then(|_| Self::exited(&mut child, deadline));
         let ran = status.zip(streams).map(|(status, (stdout, stderr))| Ran::new(line.clone(), status, stdout, stderr));
         ran.ok_or_else(|| {
-            self.scope.ended(&mut child);
+            (self.ended)(&mut child);
             RunFailure::TimedOut(line)
         })
     }
@@ -105,8 +108,13 @@ impl Run {
 
     pub fn detached(mut self) -> Result<(), RunFailure> {
         let line = CommandLine::from(&self.command);
-        let quiet = KillScope::Group.led(&mut self.command).stdin(Stdio::null()).stdout(Stdio::null());
+        let quiet = self.command.process_group(i32::default()).stdin(Stdio::null()).stdout(Stdio::null());
         quiet.stderr(Stdio::null()).spawn().map(drop).map_err(|source| RunFailure::Unspawned { line, source })
+    }
+
+    fn alone(child: &mut Child) {
+        drop(child.kill());
+        drop(child.wait());
     }
 
     fn drained<Pipe: Read + Send + 'static, Text: Send + 'static>(

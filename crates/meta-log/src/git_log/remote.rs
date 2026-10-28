@@ -3,7 +3,7 @@ mod objects;
 use std::fmt;
 use std::time::Instant;
 
-use meta_run::{KillScope, Ran};
+use meta_run::Ran;
 
 use super::attempt::Attempt;
 use super::content::Content;
@@ -47,7 +47,6 @@ impl Remote {
         let expected = base.map(ToString::to_string).unwrap_or_default();
         let lease = format!("--force-with-lease=refs/heads/{}:{expected}", Self::BRANCH);
         let pushed = self.git.command(["push", "--quiet"]).arg(lease).arg(self.name.to_string()).arg(target);
-        let pushed = pushed.scoped(KillScope::Group);
         Git::ran(pushed, Git::network_deadline())
     }
 
@@ -74,7 +73,6 @@ impl Remote {
         let refspec = format!("+refs/heads/meta/*:refs/remotes/{}/meta/*", self.name);
         let fetching =
             self.git.command(["fetch", "--quiet", "--prune", "--no-write-fetch-head", "--no-auto-maintenance"]);
-        let fetching = fetching.scoped(KillScope::Group);
         let fetched = Git::ran(fetching.arg(self.name.to_string()).arg(refspec), deadline)?;
         Ok(fetched.success().then_some(()))
     }
@@ -89,7 +87,7 @@ impl Remote {
 
     fn listed_tip(&self) -> Result<Option<Sha>, LogFailure> {
         let branch = format!("refs/heads/{}", Self::BRANCH);
-        let listing = self.git.command(["ls-remote"]).arg(self.name.to_string()).arg(&branch).scoped(KillScope::Group);
+        let listing = self.git.command(["ls-remote"]).arg(self.name.to_string()).arg(&branch);
         let listed = Git::ran(listing, Git::network_deadline())?;
         let offline = || LogFailure::Offline { remote: self.name.clone(), stderr: listed.stderr().clone() };
         let lines = listed.success().then(|| listed.stdout().text());

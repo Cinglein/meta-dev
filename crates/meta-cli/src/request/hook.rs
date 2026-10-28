@@ -1,10 +1,13 @@
 mod hook_input;
 mod linking;
 mod reply;
+#[cfg(test)]
+mod tests;
 
 use std::fmt;
 use std::panic::resume_unwind;
 use std::str::FromStr;
+use std::time::{Duration, Instant};
 
 use meta_listing::Scope;
 use meta_schema::Actor;
@@ -52,6 +55,23 @@ impl fmt::Display for HookEvent {
 
 impl HookEvent {
     const COMMIT: &'static str = "commit";
+    const SHORT: Duration = Duration::from_secs(10);
+    const SESSION: Duration = Duration::from_secs(30);
+    const LONG: Duration = Duration::from_secs(60);
+    pub const MARGIN: Duration = Duration::from_secs(3);
+
+    pub const fn timeout(self) -> Duration {
+        match self {
+            Self::SessionStart => Self::SESSION,
+            Self::PreToolUse | Self::Stop => Self::SHORT,
+            Self::PostToolUse => Self::LONG,
+        }
+    }
+
+    pub fn git_deadline(self, settings: &CiSettings) -> Instant {
+        let now = Instant::now();
+        settings.git_deadline(now).min(now + self.timeout().saturating_sub(Self::MARGIN))
+    }
 
     pub fn respond(self) -> Result<Output, CliFailure> {
         let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
@@ -95,7 +115,7 @@ impl HookEvent {
                 input
                     .command()
                     .and_then(|command| command.refusal(project.config()))
-                    .or_else(|| input.refusal(project.ci_settings()))
+                    .or_else(|| input.refusal(self.git_deadline(project.ci_settings())))
                     .map(Denial::from)
                     .map_or(Verdict::Allow, Verdict::Deny),
                 None,
@@ -116,7 +136,7 @@ impl HookEvent {
     fn outside_projects(self, input: &HookInput) -> Option<Reply> {
         let linked = (self == Self::PostToolUse).then(|| Linking::after(input)).flatten();
         let linking = linked.map(|linked| Reply::new(self, Verdict::Allow, Some(linked)));
-        let refused = |settings: CiSettings| input.refusal(&settings);
+        let refused = |settings: CiSettings| input.refusal(self.git_deadline(&settings));
         let refusal = (self == Self::PreToolUse).then(|| {
             CiSettings::try_from(&Config::default()).map_or_else(|failure| Some(Listed::new(failure)), refused)
         });
@@ -134,7 +154,10 @@ impl HookEvent {
     }
 
     fn after_push(project: &Project, input: &HookInput) -> Option<Listed> {
-        let failure = input.command()?.runs(Self::COMMIT).and_then(|()| project.push_failure());
+        let failure = input
+            .command()?
+            .runs(Self::COMMIT)
+            .and_then(|()| project.push_failure(Self::PostToolUse.git_deadline(project.ci_settings())));
         failure.or(input.session().and_then(|session| Watcher::watch_all(project, session).err()))
     }
 }

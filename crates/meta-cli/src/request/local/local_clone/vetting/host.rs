@@ -1,8 +1,6 @@
 mod walker;
 
 #[cfg(test)]
-mod deadline_tests;
-#[cfg(test)]
 mod freeze_tests;
 #[cfg(test)]
 mod tests;

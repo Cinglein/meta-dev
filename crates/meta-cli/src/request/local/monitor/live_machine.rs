@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::time::{Duration, Instant};
 
-use meta_run::{EnvPolicy, KillScope, Ran, Run, RunFailure};
+use meta_run::{EnvPolicy, Ran, Run, RunFailure};
 
 use super::machine::Machine;
 use super::pid_list::PidList;
@@ -32,8 +32,7 @@ impl<'settings> LiveMachine<'settings> {
     }
 
     fn probe(program: &str) -> Run {
-        let probe = Run::new(program, EnvPolicy::Only(&Self::SEARCH_PATH)).var(Self::LOCALE, Self::PLAIN);
-        probe.scoped(KillScope::Group)
+        Run::new(program, EnvPolicy::Only(&Self::SEARCH_PATH)).var(Self::LOCALE, Self::PLAIN)
     }
 
     fn timed(self, run: Run) -> Result<Ran, RunFailure> {

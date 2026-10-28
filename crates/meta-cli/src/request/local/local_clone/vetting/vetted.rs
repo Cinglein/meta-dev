@@ -126,7 +126,7 @@ impl Vetted {
 
     fn pushed(link: &Link, branch: &str, context: &Context, host: &impl Inspection) -> Result<RefList, Kept> {
         let local = link.refs(host, branch)?;
-        let listed = link.git(host, Scope::Remote, &[OsStr::new(Self::REMOTE), context.remote().as_ref()]);
+        let listed = link.git(host, Scope::Common, &[OsStr::new(Self::REMOTE), context.remote().as_ref()]);
         let remote: RefList = listed.map_err(|kept| kept.recast(Kept::Unreachable))?.parse()?;
         local.matched(&remote)?;
         let beyond = Self::BEYOND.map(OsStr::new).into_iter().chain(local.objects()).chain([OsStr::new(Self::NOT)]);

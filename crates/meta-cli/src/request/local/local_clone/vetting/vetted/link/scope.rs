@@ -2,5 +2,4 @@
 pub enum Scope {
     Worktree,
     Common,
-    Remote,
 }

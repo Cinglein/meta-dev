@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use meta_pull_query::{LiveData, LiveQuery, LiveReply, Pulls, Rulebook, WorkflowName};
 use meta_pulls::{BaseBranch, RequiredChecks};
-use meta_run::{EnvPolicy, KillScope, Run};
+use meta_run::{EnvPolicy, Run};
 use meta_schema::PullRequest;
 use meta_status::{Github, GithubFailure};
 
@@ -77,7 +77,7 @@ impl LiveGithub {
     }
 
     fn run<'words>(&self, words: impl Iterator<Item = &'words OsStr>) -> Run {
-        Run::new(&self.program, EnvPolicy::Inherit).args(words).dir(&self.root).scoped(KillScope::Group)
+        Run::new(&self.program, EnvPolicy::Inherit).args(words).dir(&self.root)
     }
 }
 
