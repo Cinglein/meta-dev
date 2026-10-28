@@ -37,10 +37,14 @@ impl<'policy> MemoryWatch<'policy> {
 
     pub fn guard(mut self, child: &mut Child) -> Result<ExitStatus, Failure> {
         let io = |error| Failure::Io { site: Site::File("cargo-mutants".into()), error };
-        let polled = iter::from_fn(|| Some(child.try_wait().map_err(io))).find_map(|waited| match waited {
+        let every = self.policy.interval(Interval::SampleEvery).duration();
+        let polled = iter::from_fn(|| {
+            self.sample();
+            Some(child.try_wait().map_err(io))
+        })
+        .find_map(|waited| match waited {
             Ok(None) => {
-                self.sample();
-                thread::sleep(self.policy.interval(Interval::SampleEvery).duration());
+                thread::sleep(every);
                 None
             }
             Ok(Some(status)) => Some(Ok(status)),

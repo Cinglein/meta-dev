@@ -420,6 +420,7 @@ fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
     let [absent, late, broken, mixed, hung, frozen] = repos.each_ref().map(Repo::settled);
     let [none, appeared, _, _, hanging, _] = &repos;
     let waited = none.session_command(CI_WAIT);
+    let [appeared, hanging_stop] = [appeared, hanging].map(|repo| repo.hook(STOP, COMMIT));
     assert!(
         absent.contains(ABSENT)
             && absent.split_once(NO_RUN_YET).is_some_and(|(_, after)| !after.contains(NO_RUN_YET))
@@ -429,7 +430,7 @@ fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
     );
     assert!(
         [&late, &hung, &frozen].iter().all(|settled| settled.contains(TIMED_OUT))
-            && [appeared, hanging].iter().all(|repo| repo.hook(STOP, COMMIT).contains(TIMED_OUT_STOP))
+            && [&appeared, &hanging_stop].iter().all(|stop| stop.contains(TIMED_OUT_STOP))
             && late.contains(NO_RUN_YET)
             && late.contains(RUN_APPEARED)
     );
@@ -439,8 +440,6 @@ fn absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them() {
             && broken.contains(FAILED_EVENT)
             && mixed.contains(FOURTH_POLL)
             && [broken, frozen].iter().all(|settled| settled.lines().all(|line| line.contains(INJECTED)))
-            && ![hung, hanging.hook(STOP, COMMIT), hanging.session_command(CI_WAIT).0]
-                .iter()
-                .any(|real| real.contains(INJECTED))
+            && ![hung, hanging_stop, hanging.session_command(CI_WAIT).0].iter().any(|real| real.contains(INJECTED))
     );
 }
