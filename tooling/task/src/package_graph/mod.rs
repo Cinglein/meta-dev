@@ -14,7 +14,6 @@ use crate::selection::Selection;
 pub struct PackageGraph {
     directories: BTreeMap<CrateName, PathBuf>,
     dependents: BTreeMap<CrateName, BTreeSet<CrateName>>,
-    doctested: BTreeSet<CrateName>,
     with_examples: BTreeSet<CrateName>,
 }
 
@@ -36,7 +35,6 @@ impl PackageGraph {
             },
         );
         Ok(PackageGraph {
-            doctested: metadata.names_where(metadata::Package::doctested),
             with_examples: metadata.names_where(|package| package.example().is_some()),
             directories: metadata
                 .packages()
@@ -63,11 +61,6 @@ impl PackageGraph {
     #[must_use]
     pub fn names(&self) -> BTreeSet<CrateName> {
         self.dependents.keys().cloned().collect()
-    }
-
-    #[must_use]
-    pub fn doctested(&self) -> &BTreeSet<CrateName> {
-        &self.doctested
     }
 
     pub fn with_examples(&self) -> impl Iterator<Item = &CrateName> {
@@ -139,8 +132,7 @@ mod tests {
         let board = BOARD.parse().ok();
         let inside = graph.containing(Path::new(INSIDE)) == board.as_ref();
         let examples = Selection::Workspace.within(graph.with_examples());
-        let targets = examples == Selection::Crates(graph.doctested().clone());
-        assert!(inside && graph.containing(Path::new(OUTSIDE)).is_none() && targets);
+        assert!(inside && graph.containing(Path::new(OUTSIDE)).is_none());
         assert_eq!(examples.to_string(), BOARD);
     }
 }

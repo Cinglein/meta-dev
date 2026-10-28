@@ -23,13 +23,6 @@ impl Package {
         &self.name
     }
 
-    pub fn doctested(&self) -> bool {
-        self.targets
-            .iter()
-            .find_map(BuiltTarget::doctested)
-            .is_some()
-    }
-
     pub fn example(&self) -> Option<&BuiltTarget> {
         self.targets
             .iter()

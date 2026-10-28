@@ -25,8 +25,4 @@ impl CargoTest {
             .argument(CargoArgument::Config)
             .argument(runner)
     }
-
-    pub(super) fn doctests(self) -> CommandLine {
-        self.line.argument(CargoArgument::Doc)
-    }
 }
