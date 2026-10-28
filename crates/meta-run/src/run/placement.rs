@@ -38,7 +38,7 @@ mod tests {
     use crate::run::Run;
     use std::time::{Duration, Instant};
 
-    const SHELL: &str = "sh";
+    const SHELL: &str = "bash";
     const SCRIPT: &str = "-c";
     const LEADS: &str = "kill -0 -- -$$ 2>/dev/null && echo leader; true";
     const PTY: &str = "script -qec \"$0\" /dev/null 2>/dev/null || script -q /dev/null sh -c \"$0\"";
