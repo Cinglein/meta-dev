@@ -1,6 +1,7 @@
 mod cargo_build;
 mod cargo_test;
 mod children_cpu;
+mod clock;
 mod no_tests;
 mod reference_cpu;
 mod runner_config;
@@ -15,6 +16,7 @@ use std::time::Duration;
 
 use cargo_build::CargoBuild;
 use cargo_test::CargoTest;
+use clock::Clock;
 use no_tests::NoTests;
 use reference_cpu::ReferenceCpu;
 use runner_config::RunnerConfig;
@@ -107,9 +109,9 @@ impl TestTime {
     }
 
     fn recorded(mut self, policy: &Policy, ledger: &mut Ledger) -> Report {
-        self.timings.sort_by_key(|timing| Reverse(timing.elapsed()));
-        let total: Duration = self.timings.iter().map(TestTiming::elapsed).sum();
-        let cpu: Duration = self.timings.iter().map(TestTiming::cpu).sum();
+        self.timings
+            .sort_by_key(|timing| Reverse(timing.spent(Clock::Wall)));
+        let [total, cpu] = [Clock::Wall, Clock::Cpu].map(|clock| self.spent(clock));
         let scaled = self.reference.scaled(cpu);
         println!(
             "test time: {} tests in {total:.2?}, cpu {cpu:.2?}, {} is {scaled:.2?}, slowest {}:",
@@ -124,7 +126,7 @@ impl TestTime {
         let slowest = self
             .timings
             .first()
-            .map_or(Duration::ZERO, TestTiming::elapsed);
+            .map_or(Duration::ZERO, |timing| timing.spent(Clock::Wall));
         ledger.spend(
             Measure::TestWallTime,
             Amount::Duration(Millis::rounded_up(total)),
@@ -142,6 +144,10 @@ impl TestTime {
             .is_empty()
             .then(|| Violation::new(Site::Workspace, NoTests));
         Report::new("no tests timed", none.into_iter().collect())
+    }
+
+    fn spent(&self, clock: Clock) -> Duration {
+        self.timings.iter().map(|timing| timing.spent(clock)).sum()
     }
 }
 

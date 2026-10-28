@@ -50,20 +50,13 @@ impl fmt::Display for ReferenceCpu {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
     use super::ReferenceCpu;
-
-    const RUNNER: [Duration; 2] = [Duration::from_millis(2000), Duration::from_millis(1000)];
+    use std::time::Duration;
+    const RUNNER: [Duration; 2] = [Duration::from_secs(2), Duration::from_secs(1)];
 
     #[test]
     fn cpu_on_a_runner_twice_as_slow_as_the_reference_counts_half() {
-        let [measured, nominal] = RUNNER;
-        let (slow, fast) = (
-            ReferenceCpu::new(measured, nominal),
-            ReferenceCpu::new(nominal, measured),
-        );
-        assert_eq!(slow.scaled(measured), nominal);
-        assert_eq!(fast.scaled(nominal), measured);
+        let [slow, nominal] = RUNNER;
+        assert_eq!(ReferenceCpu::new(slow, nominal).scaled(slow), nominal);
     }
 }

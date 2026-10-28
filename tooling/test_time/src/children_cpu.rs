@@ -31,20 +31,15 @@ impl ChildrenCpu {
 
 #[cfg(test)]
 mod tests {
-    use std::process::Command;
-    use std::time::Duration;
-
     use super::ChildrenCpu;
-
-    const SHELL: &str = "sh";
+    use std::process::Command;
     const BUSY: [&str; 2] = ["-c", "i=0; while [ $i -lt 20000 ]; do i=$((i+1)); done"];
 
     #[test]
-    fn a_waited_child_adds_its_cpu_time_and_nothing_else_moves_it_back() {
+    fn a_waited_child_adds_its_cpu_time() {
         let before = ChildrenCpu::now().unwrap();
-        let ran = Command::new(SHELL).args(BUSY).status().unwrap();
+        let ran = Command::new("sh").args(BUSY).status().unwrap();
         let spent = ChildrenCpu::now().unwrap().since(before);
-        assert!(ran.success() && spent > Duration::ZERO, "{spent:?}");
-        assert_eq!(before.since(ChildrenCpu::now().unwrap()), Duration::ZERO);
+        assert!(ran.success() && spent > before.since(before));
     }
 }

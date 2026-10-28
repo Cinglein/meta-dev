@@ -63,7 +63,8 @@ impl TestBinary {
     }
 
     fn timed(&self, line: &CommandLine, test: impl fmt::Display) -> TestRun {
-        let (started, before) = (Instant::now(), ChildrenCpu::now());
+        let before = ChildrenCpu::now();
+        let started = Instant::now();
         let ran = line.captured::<Stdout>();
         let elapsed = started.elapsed();
         let spent = before.and_then(|before| ChildrenCpu::now().map(|after| after.since(before)));

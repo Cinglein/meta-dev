@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::Duration;
 
+use super::clock::Clock;
 use super::test_runs::TestRuns;
 use super::test_timing::TestTiming;
 use task::Failure;
@@ -28,11 +29,14 @@ impl TestRun {
         }
     }
 
-    fn timed([wall, cpu, test, binary]: [&str; 4]) -> Option<TestTiming> {
+    fn timed(fields: &[&str]) -> Option<TestTiming> {
         let spent = |nanos: &str| nanos.parse().ok().map(Duration::from_nanos);
-        spent(wall)
-            .zip(spent(cpu))
-            .map(|(wall, cpu)| TestTiming::new(Path::new(binary), test, wall, cpu))
+        match *fields {
+            [wall, cpu, test, binary] => spent(wall)
+                .zip(spent(cpu))
+                .map(|(wall, cpu)| TestTiming::new(Path::new(binary), test, wall, cpu)),
+            _ => None,
+        }
     }
 
     fn written(
@@ -44,8 +48,8 @@ impl TestRun {
         write!(
             formatter,
             "{outcome}{separator}{}{separator}{}{separator}{}{separator}{}",
-            timing.elapsed().as_nanos(),
-            timing.cpu().as_nanos(),
+            timing.spent(Clock::Wall).as_nanos(),
+            timing.spent(Clock::Cpu).as_nanos(),
             timing.test(),
             timing.binary().display()
         )
@@ -77,12 +81,8 @@ impl FromStr for TestRun {
         let fields: Vec<&str> = line.split(Self::SEPARATOR).collect();
         let run = match fields.as_slice() {
             [Self::UNLISTED, binary] => Some(TestRun::Unlisted(PathBuf::from(binary))),
-            [Self::PASSED, wall, cpu, test, binary] => {
-                Self::timed([wall, cpu, test, binary]).map(TestRun::Passed)
-            }
-            [Self::FAILED, wall, cpu, test, binary] => {
-                Self::timed([wall, cpu, test, binary]).map(TestRun::Failed)
-            }
+            [Self::PASSED, timed @ ..] => Self::timed(timed).map(TestRun::Passed),
+            [Self::FAILED, timed @ ..] => Self::timed(timed).map(TestRun::Failed),
             _ => None,
         };
         run.ok_or_else(|| Failure::Command(format!("{line} is not a recorded test run")))

@@ -2,6 +2,8 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use super::clock::Clock;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct TestTiming {
     binary: PathBuf,
@@ -25,12 +27,11 @@ impl TestTiming {
         }
     }
 
-    pub(super) const fn elapsed(&self) -> Duration {
-        self.elapsed
-    }
-
-    pub(super) const fn cpu(&self) -> Duration {
-        self.cpu
+    pub(super) const fn spent(&self, clock: Clock) -> Duration {
+        match clock {
+            Clock::Wall => self.elapsed,
+            Clock::Cpu => self.cpu,
+        }
     }
 
     pub(super) fn binary(&self) -> &Path {
