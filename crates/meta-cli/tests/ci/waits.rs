@@ -1,33 +1,28 @@
-use super::{BLOCK, CI_WAIT, COMMIT, DEADLINE, EXPECTED, Git, NEXT_COMMIT, PASSED_EVENT, POST, Repo, STOP, SUCCESS};
+use super::{BLOCK, CI_WAIT, COMMIT, EXPECTED, Git, NEXT_COMMIT, PASSED_EVENT, POST, Planted, Repo, STOP, SUCCESS};
 const NAMELESS: &str = "origin.git";
-const FIRST_POLL: &str = "30";
+const UNHURRIED: &str = "expected_millis = 0\n";
 const UNCHECKED_EVENT: &str = ": unchecked after";
 const UNCHECKED_STOP: &str = "couldn't check CI for your last push";
 const TASKLESS: &str = "then run `meta wait <task> --on ci` here";
 const LEARNED: &str = "422000";
 
 #[test]
-fn an_unreadable_remote_settles_the_watch_unchecked_and_the_last_poll_still_ends_before_the_real_deadline() {
-    let repo = Repo::limited(SUCCESS, DEADLINE);
-    let origin = repo.origin.to_str().unwrap().to_owned();
+fn an_unreadable_remote_settles_the_hook_spawned_watch_unchecked_and_a_fixed_remote_passes_and_learns_the_run() {
+    let repo = Repo::limited(SUCCESS, UNHURRIED);
     std::os::unix::fs::symlink(&repo.origin, repo.clone.path().join(NAMELESS)).unwrap();
     Git::run(repo.clone.path(), &["remote", "set-url", "origin", NAMELESS]);
     repo.hook(POST, COMMIT);
     let unchecked = repo.settled();
     let stopped = repo.hook(STOP, COMMIT);
-    let unchecked_wait = repo.session_command(CI_WAIT).1;
-    Git::run(repo.clone.path(), &["remote", "set-url", "origin", origin.as_str()]);
-    std::fs::write(repo.clone.path().join(EXPECTED), FIRST_POLL).unwrap();
+    let waited = repo.session_command(CI_WAIT).1;
+    Git::run(repo.clone.path(), &["remote", "set-url", "origin", repo.origin.to_str().unwrap()]);
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     repo.answered();
-    repo.hook(POST, COMMIT);
+    Planted::twin(&repo).wait().unwrap();
     let retried = repo.settled_past(&unchecked);
     let shown = [unchecked.as_str(), stopped.as_str()].concat();
-    assert!(
-        [UNCHECKED_EVENT, BLOCK, UNCHECKED_STOP, TASKLESS].iter().all(|told| shown.contains(told))
-            && !unchecked_wait.success()
-    );
+    assert!([UNCHECKED_EVENT, BLOCK, UNCHECKED_STOP, TASKLESS].iter().all(|told| shown.contains(told)));
     let learned = std::fs::read_to_string(repo.clone.path().join(EXPECTED)).unwrap();
-    assert!(retried.matches(UNCHECKED_EVENT).count() == 1 && learned == LEARNED, "{learned}");
+    assert!(retried.matches(UNCHECKED_EVENT).count() == 1 && learned == LEARNED && !waited.success(), "{learned}");
     assert!(retried.strip_prefix(unchecked.as_str()).is_some_and(|new| new.contains(PASSED_EVENT)), "{retried}");
 }
