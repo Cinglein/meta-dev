@@ -28,6 +28,8 @@ const SCENARIOS: [&str; 4] = [
     "[[step]]\nrecord = \"checks\"\ngh = { call = \"commit-checks\" }\n",
 ];
 const NO_BIN: &str = "";
+const ABSENT: &str = "absent";
+const STALE: [&str; 2] = ["injected-ident/99-gone.argv", "[]"];
 const MATCHED: [bool; 2] = [true, false];
 const UNBUILT: [&str; 2] =
     ["unbuilt.toml", "[[step]]\nrun = [\"git\", \"rev-parse\", \"--verify\", \"--quiet\", \"none\"]\n"];
@@ -39,6 +41,8 @@ fn a_scenario_records_what_real_git_reports_as_checked_in_and_a_failed_setup_fai
     let copy =
         |scenario| std::fs::copy(Goldens::workspace().dir().join(copied(scenario)), root.path().join(copied(scenario)));
     [SCENARIO, OUTSIDE].map(copy).into_iter().collect::<Result<Vec<_>, _>>().unwrap();
+    let [stale, stale_argv] = STALE;
+    Golden::new(&root.path().join(stale)).written(stale_argv).unwrap();
     Goldens::new(root.path()).refreshed(Path::new(NO_BIN), Reach::Offline).unwrap();
     let recorded = Goldens::new(root.path()).recordings().unwrap();
     let goldens = [Goldens::workspace(), Goldens::new(&root.path().join(NO_BIN).join(SCENARIO_FILE))];
@@ -97,6 +101,14 @@ fn the_replayer_answers_each_call_with_the_next_recording_and_refuses_once_they_
             && [&author, &noreply, &inside].iter().all(|answer| answer.status.success())
             && [&exhausted, &no_branch, &other_program].iter().all(|answer| answer.status.code() == Some(1))
     );
-    let complained = [&exhausted, &other_program].map(|answer| String::from_utf8_lossy(&answer.stderr).into_owned());
-    assert!(complained[0].contains(ran_out) && complained[1].contains(unanswered), "{complained:?}");
+    let mut untrailed = Command::new(env!("CARGO_BIN_EXE_meta-replay"));
+    let untrailed = untrailed.arg0(git).args(ASKED).env(Replay::TRAIL, root.path().join(ABSENT));
+    let untrailed = untrailed.env(Replay::RECORDINGS, Goldens::workspace().dir().join(SCENARIO)).output().unwrap();
+    let complained =
+        [&exhausted, &other_program, &untrailed].map(|answer| String::from_utf8_lossy(&answer.stderr).into_owned());
+    let [ran_out_shown, unanswered_shown, untrailed_shown] = &complained;
+    assert!(
+        ran_out_shown.contains(ran_out) && unanswered_shown.contains(unanswered) && untrailed_shown.contains(ABSENT),
+        "{complained:?}"
+    );
 }

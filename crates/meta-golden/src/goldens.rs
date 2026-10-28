@@ -45,7 +45,7 @@ impl Goldens {
     fn rewritten(path: &Path, scenario: &Scenario, bin: &Path) -> Result<(), GoldenFailure> {
         let dir = path.with_extension("");
         let recordings = scenario.recorded(&dir, bin)?;
-        drop(std::fs::remove_dir_all(&dir));
+        Recording::cleared(&dir);
         recordings.iter().try_for_each(Recording::written)
     }
 
