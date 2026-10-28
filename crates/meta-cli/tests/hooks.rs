@@ -60,6 +60,8 @@ const ENV_LINE: &str = "export META_ACTOR=claude-abcdef1234\nexport META_SESSION
 const HANGING_UPLOAD: &str = "[remote \"origin\"]\n\tuploadpack = sh -c 'sleep 5' x\n";
 const META_TOML: &str = "meta.toml";
 const QUICK_GIT: &str = "[ci]\ngit_millis = 20\n";
+const SHORT_GIT: &str = "[ci]\ngit_millis = 250\n";
+const SLOW_RECEIVE: &str = "[remote \"origin\"]\n\treceivepack = sh -c 'sleep 0.3 && exec git receive-pack $1' x\n";
 const UNREADABLE: &str = "meta/log unreadable";
 const OPEN: [&str; 4] = ["open", "--division", "features-and-maintenance", "text"];
 const ROOT: &str = "ROOT";
@@ -212,6 +214,13 @@ fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
     Git::run(repo.clone.path(), &AMEND);
     assert!(repo.hook(POST, COMMIT, home).contains(REJECTED) && !repo.clone.path().join(WATCHERS).exists());
     assert!(repo.interrupted(), "an interrupted write left a git helper running");
+    let slow = Repo::new();
+    let slow_home = slow.clone.path();
+    Git::run(slow_home, &NEW_FEATURE);
+    Git::configure(&slow_home.join(GIT_CONFIG), SLOW_RECEIVE);
+    Git::configure(&slow_home.join(META_TOML), SHORT_GIT);
+    slow.hook(POST, COMMIT, slow_home);
+    assert_eq!(Git::head(slow.origin.path(), FEATURE_BRANCH), Git::head(slow_home, HEAD));
 }
 
 #[test]

@@ -1,6 +1,8 @@
 use std::fmt;
 use std::time::Instant;
 
+use meta_log::Snapshot;
+use meta_run::Budget;
 use meta_schema::{CommitId, ExternalKind, Id, Task};
 use meta_state::{State, TaskStatus};
 
@@ -34,11 +36,15 @@ impl WaitOnCi {
     ) -> Option<Listed> {
         statuses.iter().find_map(|watched| watched.status().and_then(CiStatus::unresolved))?;
         let budget = project.ci_settings().budget(CiSettings::ROUTINE).within(deadline);
-        let read = project.log(budget).and_then(|log| log.read_listed(seen.heads()).map_err(CliFailure::from));
-        let state = read.map(|read| State::fold(read.records()));
+        let read = || project.log(budget).and_then(|log| log.read_listed(seen.heads()).map_err(CliFailure::from));
+        let state = Self::state_read(budget, read);
         let head = seen.checkout().head().and_then(Commit::commit_id);
         let branch = seen.checkout().branch().filter(|branch| project.config().protects(branch).is_none());
         Self::verdict(&state, statuses, head.as_ref(), branch.and_then(BranchName::task))
+    }
+
+    pub fn state_read(budget: Budget, read: impl FnMut() -> Result<Snapshot, CliFailure>) -> Result<State, CliFailure> {
+        budget.retried(read).map(|read| State::fold(read.records()))
     }
 
     pub fn verdict(
