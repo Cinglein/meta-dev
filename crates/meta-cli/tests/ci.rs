@@ -76,22 +76,28 @@ impl Answer {
     const RECORDED: &'static str = "gh-commit-checks";
     const SHA: &'static str = "sha=";
     const SHA_LEN: usize = 40;
-    const REPOSITORY: [(&'static str, &'static str); 3] =
-        [("owner=Cinglein", "owner=o"), ("name=meta-dev", "name=r"), (",\"--repo\",\"Cinglein/meta-dev\"", "")];
+    const REPOSITORY: [(&'static str, &'static str); 4] = [
+        ("[\"gh\",", "[\"gh-replay\","),
+        ("owner=Cinglein", "owner=o"),
+        ("name=meta-dev", "name=r"),
+        (",\"--repo\",\"Cinglein/meta-dev\"", ""),
+    ];
+    const COPIES: [&'static str; 3] = ["a", "b", "c"];
     const FILES: [&'static str; 3] = ["out", "err", "status"];
 
     fn given(self, replies: &Path, head: &str) {
         std::fs::create_dir_all(replies).unwrap();
-        [self.checks].iter().chain(self.logs).for_each(|name| Self::copied(replies, name, head));
+        let names = [self.checks].into_iter().chain(self.logs.iter().copied());
+        names.for_each(|name| Self::COPIES.iter().for_each(|copy| Self::copied(replies, name, head, copy)));
     }
 
-    fn copied(replies: &Path, name: &str, head: &str) {
+    fn copied(replies: &Path, name: &str, head: &str, copy: &str) {
         let recorded = Goldens::workspace().dir().join(Self::RECORDED).join(name);
         let argv = std::fs::read_to_string(recorded.with_extension("argv")).unwrap();
         let sha = argv.find(Self::SHA).map(|at| at + Self::SHA.len());
         let argv = sha.map_or(argv.clone(), |at| argv.replace(&argv[at..at + Self::SHA_LEN], head));
         let argv = Self::REPOSITORY.iter().fold(argv, |argv, (recorded, local)| argv.replace(recorded, local));
-        let stem = replies.join(format!("{head}-{name}"));
+        let stem = replies.join(format!("{head}-{name}-{copy}"));
         std::fs::write(stem.with_extension("argv"), argv).unwrap();
         let copied = Self::FILES
             .iter()
@@ -264,6 +270,7 @@ impl Repo {
         Git::run(sessions.path(), &["clone", "-q", Self::ORIGIN, clone.path().to_str().unwrap()]);
         Git::run_at(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"], Git::LONG_AGO);
         StartFile::plant(sessions.path(), SESSION_FILE, "0");
+        std::fs::create_dir(sessions.path().join(Self::TRAIL)).unwrap();
         let repo = Self { origin, clone, sessions, answer };
         repo.configured(limits);
         FailingHead::copy_from(&repo, repo.clone.path());
