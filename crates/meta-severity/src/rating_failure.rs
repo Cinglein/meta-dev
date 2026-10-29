@@ -15,8 +15,6 @@ pub enum RatingFailure {
     RaisedWithoutScenario(Reading),
     #[error("raising from {0} needs evidence: a scenario, a measurement, or a failed remedy")]
     RaisedWithoutEvidence(Reading),
-    #[error("{0} is not a division; declare it in [domains] or [scales] of tooling/policy.toml")]
-    NoSuchDivision(Division),
     #[error("{0} has no level in [act] of tooling/policy.toml")]
     Unacted(Division),
     #[error("{0} needs a line above the next lower level's line")]

@@ -13,6 +13,8 @@ pub enum PolicyFailure {
     Tree(#[from] TreeFailure),
     #[error("[act]: {0}")]
     Act(#[from] RatingFailure),
+    #[error("embedded tooling/policy.toml: {0}")]
+    Fallback(toml::de::Error),
     #[error("{0}: also set as a budget; drop the old key")]
     Twice(LegacyKey),
     #[error("{0}: not set; declare it as a budget, for example copy this default into tooling/policy.toml:\n{default}", default = DefaultBudget::from(*.0))]

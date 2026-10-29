@@ -1,4 +1,5 @@
 mod entries;
+mod fallback_keys;
 mod liveness;
 
 use std::collections::BTreeMap;
@@ -22,6 +23,7 @@ use crate::gate_env_name::GateEnvName;
 use crate::gate_status::GateStatus;
 use crate::percent::Percent;
 use entries::Entries;
+use fallback_keys::FallbackKeys;
 pub use liveness::Liveness;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -151,16 +153,24 @@ impl PolicyFile {
     }
 
     pub fn resolved(self) -> Result<Policy, PolicyFailure> {
+        self.resolved_over(Policy::DEFAULTS)
+    }
+
+    pub fn resolved_over(self, fallback: &str) -> Result<Policy, PolicyFailure> {
         let budgets = self.budgeted()?;
         let deprecated = LegacyKey::iter()
             .filter(|key| self.legacy(*key).is_some())
             .collect();
         budgets.measurable(&self.domains)?;
         budgets.leveled(&self.scales)?;
-        let promote_after = self
-            .promote_after
-            .unwrap_or_else(|| Policy::defaults().promote_after());
-        let act = self.act.unwrap_or_else(|| Policy::defaults().act);
+        let promote_after = self.promote_after.map_or_else(
+            || FallbackKeys::read(fallback).and_then(FallbackKeys::promote_after),
+            Ok,
+        )?;
+        let act = self.act.map_or_else(
+            || FallbackKeys::read(fallback).and_then(FallbackKeys::act),
+            Ok,
+        )?;
         act.leveled(&self.scales, |division| {
             self.domains.domain(division).is_some()
         })?;

@@ -24,7 +24,7 @@ impl ActionLevels {
 
     pub fn leveled(&self, scales: &Scales, domained: impl Fn(&Division) -> bool) -> Result<(), RatingFailure> {
         let unknown = self.0.keys().find(|at| !scales.declares(at) && !domained(at));
-        unknown.map_or(Ok(()), |at| Err(RatingFailure::NoSuchDivision(at.clone())))?;
+        unknown.map_or(Ok(()), |at| Err(RatingFailure::Undeclared(at.clone())))?;
         let unacted = TopDivision::iter().map(Division::from).find(|top| !self.0.contains_key(top));
         unacted.map_or(Ok(()), |top| Err(RatingFailure::Unacted(top)))?;
         let unknown =

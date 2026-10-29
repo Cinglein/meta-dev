@@ -1,4 +1,6 @@
 use settings::EmbeddedDefaults;
+
+use super::policy_file::PolicyFile;
 use strum::IntoEnumIterator;
 
 use super::{Limit, Policy, Share};
@@ -16,7 +18,7 @@ const PRICE: &str = "allowance = { share = 100 }\n";
 const WINDOW: &str = "window = \"per_change\"\n";
 const CI: &str = "source = \"ci\"\n";
 
-const REFUSED: [(&str, &str, &str, &str); 37] = [
+const REFUSED: [(&str, &str, &str, &str); 38] = [
     (
         "meta", "\nparameters = 4\n", "\n", "[limits]: parameters is not set",
     ),
@@ -197,7 +199,13 @@ const REFUSED: [(&str, &str, &str, &str); 37] = [
         "meta",
         "performance-and-cost = \"major\"",
         "performance-and-cost = \"major\"\n\"performance-and-cost/x\" = \"major\"",
-        "[act]: performance-and-cost/x is not a division; declare it in [domains] or [scales] of tooling/policy.toml",
+        "[act]: performance-and-cost/x is not a division in tooling/policy.toml",
+    ),
+    (
+        "unset",
+        "[act]\nfeatures-and-maintenance = \"major\"\nperformance-and-cost = \"major\"\narchitecture-and-planning = \"major\"\n",
+        END,
+        "[act]: a key is not set",
     ),
 ];
 
@@ -234,7 +242,14 @@ impl Policy {
         } else {
             text.replacen(found, put, 1)
         };
-        toml::from_str::<Policy>(&text)
+        let fallback = if base == "unset" {
+            text.as_str()
+        } else {
+            Policy::DEFAULTS
+        };
+        toml::from_str::<PolicyFile>(&text)?
+            .resolved_over(fallback)
+            .map_err(serde::de::Error::custom)
     }
 
     fn disagreements(&self) -> Vec<String> {
