@@ -7,6 +7,7 @@ use meta_git::{
 
 const FILE: &str = "events.jsonl";
 const BRANCH: &str = "refs/heads/meta/log";
+const LOCK: &str = "refs/heads/meta/log.lock";
 const WHOLE: &str = "0123456789abcdef0123456789abcdef01234567";
 const UNHEX: &str = "g123456789abcdef0123456789abcdef01234567";
 const REFTABLE: &str = "[core]\n\trepositoryformatversion = 1\n\tbare = true\n[extensions]\n\trefstorage = reftable\n";
@@ -37,7 +38,7 @@ fn commits_written_in_process_read_back_through_their_ref_and_first_parents() {
 }
 
 #[test]
-fn a_ref_move_decided_on_a_stale_target_is_refused_and_leaves_the_ref() {
+fn a_ref_move_decided_on_a_stale_target_or_meeting_a_lock_is_refused_and_leaves_the_ref() {
     let directory = tempfile::tempdir().unwrap();
     let repository = Repository::created(directory.path(), Layout::Bare).unwrap();
     let first = Commits::written(&repository, None, FILE);
@@ -47,7 +48,9 @@ fn a_ref_move_decided_on_a_stale_target_is_refused_and_leaves_the_ref() {
     let moved = |from: Option<ObjectId>, to: ObjectId| repository.write(&RefMove::new(branch.clone(), from, to));
     moved(None, first).unwrap();
     moved(Some(first), second).unwrap();
-    let refused = [moved(Some(first), third), moved(None, third)];
+    let stale = [moved(Some(first), third), moved(None, third)];
+    std::fs::write(directory.path().join(LOCK), FILE).unwrap();
+    let refused: Vec<_> = stale.into_iter().chain([moved(Some(second), third), moved(Some(second), first)]).collect();
     assert!(refused.iter().all(|move_| matches!(move_, Err(GitFailure::RefMoved(name)) if *name == branch)));
     assert_eq!(repository.read(&RefTarget::from(branch.clone())).unwrap(), Some(second));
 }

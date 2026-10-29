@@ -8,6 +8,7 @@ use meta_schema::{Event, NewTask, Record};
 
 mod fast_forward;
 mod malformed;
+mod staged;
 
 use super::pacing::Pacing;
 use super::{Budget, GitLog, RemoteHeads};
