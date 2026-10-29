@@ -59,7 +59,9 @@ impl<'seed> TargetSeed<'seed> {
         match entry.file_type()? {
             kind if kind.is_dir() => {
                 fs::create_dir_all(into)?;
-                fs::read_dir(entry.path())?.flatten().try_for_each(|inner| Self::copied(&inner, &into.join(inner.file_name())))
+                fs::read_dir(entry.path())?
+                    .flatten()
+                    .try_for_each(|inner| Self::copied(&inner, &into.join(inner.file_name())))
             }
             kind if kind.is_file() => fs::copy(entry.path(), into).map(drop),
             _ => Ok(()),
