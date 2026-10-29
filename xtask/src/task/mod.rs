@@ -41,6 +41,7 @@ use mutant_costs::MutantCosts;
 use mutation::{Mutants, Scope, ShardPlan, TriggerEvent};
 use stacked::Stacked;
 use test_time::{GitCount, TestRunner, TestTime};
+use waterfall::Waterfall;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "kebab-case")]
@@ -92,6 +93,7 @@ pub enum Task {
     ThinMain,
     TypeShape,
     VecOutParams,
+    Waterfall,
 }
 
 impl Task {
@@ -104,6 +106,9 @@ impl Task {
         match self {
             Task::TestRunner => Ok(TestRunner::run(flags)?),
             Task::Init => Ok(BuildDirectory::read(Workspace::locate()?.root())?.initialized()?),
+            Task::Waterfall => {
+                Waterfall::shown(flags.map(PathBuf::from))?.map(|shown| print!("{shown}")).ok_or_else(Self::usage)
+            }
             task => task.run_in_workspace(&Workspace::locate()?, flags),
         }
     }
