@@ -3,6 +3,7 @@ use meta_log::RemoteHeads;
 use meta_run::GitArgv;
 
 use super::SessionCommits;
+use crate::request::checkout::Checkout;
 use crate::request::ci::watcher::reach::Reach;
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
 
@@ -63,7 +64,7 @@ fn every_commit_made_after_the_start_counts_once_whatever_its_subject_or_dates_a
 fn commits_the_remote_holds_on_any_branch_count_as_pushed_and_only_independent_tips_are_watched() {
     let created = Recorded::commits(&CREATED);
     let heads: RemoteHeads = Recorded::outs(GitArgv::RemoteHeads).concat().parse().unwrap();
-    let checkout = Recorded::walk().into_iter().find_map(|entry| entry.checkout().cloned()).unwrap();
+    let checkout = Checkout::new(created.first().cloned(), None);
     let judged = Recorded::listed(GitArgv::Unpushed).into_iter();
     let judged: Vec<SessionCommits> =
         judged.map(|unpushed| SessionCommits::new(&created, Some(unpushed), checkout.clone(), heads.clone())).collect();

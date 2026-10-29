@@ -16,7 +16,7 @@ pub struct Linking;
 impl Linking {
     pub fn after(input: &HookInput, budget: Budget) -> Option<Listed> {
         let project = Project::try_from(input.publishing()?.as_path()).ok()?;
-        let branch = project.unprotected_branch(budget.deadline())?;
+        let branch = project.unprotected_branch()?;
         let task = branch.task()?;
         let pulls = LiveGithub::for_project(&project).within(budget.deadline()).pulls_from(&branch);
         pulls.first()?;
