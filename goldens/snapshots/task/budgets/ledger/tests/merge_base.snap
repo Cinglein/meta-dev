@@ -6,7 +6,7 @@ architecture-and-planning-unrated architecture-and-planning  open_items unrated 
 build-clean        performance-and-cost       build_wall_time clean                -    59280ms    98800ms -
 build-core-edit    performance-and-cost       build_wall_time touched crates/meta-schema/src/lib.rs          -    24727ms    41212ms -
 build-leaf-edit    performance-and-cost       build_wall_time touched crates/meta-cli/src/lib.rs          -     5627ms     9379ms -
-build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/status.rs          -      238ms      397ms -
+build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/it/status.rs          -      238ms      397ms -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, not in the merge-base policy; enforced from the next change
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -52,7 +52,7 @@ architecture-and-planning-unrated architecture-and-planning  open_items unrated 
 build-clean        performance-and-cost       build_wall_time clean                -    59280ms    98800ms -
 build-core-edit    performance-and-cost       build_wall_time touched crates/meta-schema/src/lib.rs          -    24727ms    41212ms -
 build-leaf-edit    performance-and-cost       build_wall_time touched crates/meta-cli/src/lib.rs          -     5627ms     9379ms -
-build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/status.rs          -      238ms      397ms -
+build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/it/status.rs          -      238ms      397ms -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, not in the merge-base policy; enforced from the next change
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -95,7 +95,7 @@ architecture-and-planning-unrated architecture-and-planning  open_items unrated 
 build-clean        performance-and-cost       build_wall_time clean                -    59280ms    98800ms -
 build-core-edit    performance-and-cost       build_wall_time touched crates/meta-schema/src/lib.rs          -    24727ms    41212ms -
 build-leaf-edit    performance-and-cost       build_wall_time touched crates/meta-cli/src/lib.rs          -     5627ms     9379ms -
-build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/status.rs          -      238ms      397ms -
+build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/it/status.rs          -      238ms      397ms -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, not in the merge-base policy; enforced from the next change
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -142,7 +142,7 @@ architecture-and-planning-unrated architecture-and-planning  open_items unrated 
 build-clean        performance-and-cost       build_wall_time clean                -    59280ms    98800ms -
 build-core-edit    performance-and-cost       build_wall_time touched crates/meta-schema/src/lib.rs          -    24727ms    41212ms -
 build-leaf-edit    performance-and-cost       build_wall_time touched crates/meta-cli/src/lib.rs          -     5627ms     9379ms -
-build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/status.rs          -      238ms      397ms -
+build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/it/status.rs          -      238ms      397ms -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, not in the merge-base policy; enforced from the next change
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -189,7 +189,7 @@ architecture-and-planning-unrated architecture-and-planning  open_items unrated 
 build-clean        performance-and-cost       build_wall_time clean                -    59280ms    98800ms -
 build-core-edit    performance-and-cost       build_wall_time touched crates/meta-schema/src/lib.rs          -    24727ms    41212ms -
 build-leaf-edit    performance-and-cost       build_wall_time touched crates/meta-cli/src/lib.rs          -     5627ms     9379ms -
-build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/status.rs          -      238ms      397ms -
+build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/it/status.rs          -      238ms      397ms -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, not in the merge-base policy; enforced from the next change
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -237,7 +237,7 @@ architecture-and-planning-unrated architecture-and-planning  open_items unrated 
 build-clean        performance-and-cost       build_wall_time clean                -    59280ms    98800ms -
 build-core-edit    performance-and-cost       build_wall_time touched crates/meta-schema/src/lib.rs          -    24727ms    41212ms -
 build-leaf-edit    performance-and-cost       build_wall_time touched crates/meta-cli/src/lib.rs          -     5627ms     9379ms -
-build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/status.rs          -      238ms      397ms -
+build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/it/status.rs          -      238ms      397ms -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, not in the merge-base policy; enforced from the next change
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -286,7 +286,7 @@ architecture-and-planning-unrated architecture-and-planning  open_items unrated 
 build-clean        performance-and-cost       build_wall_time clean                -    59280ms    98800ms -
 build-core-edit    performance-and-cost       build_wall_time touched crates/meta-schema/src/lib.rs          -    24727ms    41212ms -
 build-leaf-edit    performance-and-cost       build_wall_time touched crates/meta-cli/src/lib.rs          -     5627ms     9379ms -
-build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/status.rs          -      238ms      397ms -
+build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/it/status.rs          -      238ms      397ms -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, not in the merge-base policy; enforced from the next change
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -335,7 +335,7 @@ architecture-and-planning-unrated architecture-and-planning  open_items unrated 
 build-clean        performance-and-cost       build_wall_time clean                -    59280ms    98800ms -
 build-core-edit    performance-and-cost       build_wall_time touched crates/meta-schema/src/lib.rs          -    24727ms    41212ms -
 build-leaf-edit    performance-and-cost       build_wall_time touched crates/meta-cli/src/lib.rs          -     5627ms     9379ms -
-build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/status.rs          -      238ms      397ms -
+build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/it/status.rs          -      238ms      397ms -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, not in the merge-base policy; enforced from the next change
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -384,7 +384,7 @@ architecture-and-planning-unrated architecture-and-planning  open_items unrated 
 build-clean        performance-and-cost       build_wall_time clean                -    59280ms    98800ms -
 build-core-edit    performance-and-cost       build_wall_time touched crates/meta-schema/src/lib.rs          -    24727ms    41212ms -
 build-leaf-edit    performance-and-cost       build_wall_time touched crates/meta-cli/src/lib.rs          -     5627ms     9379ms -
-build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/status.rs          -      238ms      397ms -
+build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/it/status.rs          -      238ms      397ms -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, not in the merge-base policy; enforced from the next change
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -431,7 +431,7 @@ architecture-and-planning-unrated architecture-and-planning  open_items unrated 
 build-clean        performance-and-cost       build_wall_time clean                -    59280ms    98800ms -
 build-core-edit    performance-and-cost       build_wall_time touched crates/meta-schema/src/lib.rs          -    24727ms    41212ms -
 build-leaf-edit    performance-and-cost       build_wall_time touched crates/meta-cli/src/lib.rs          -     5627ms     9379ms -
-build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/status.rs          -      238ms      397ms -
+build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/it/status.rs          -      238ms      397ms -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, not in the merge-base policy; enforced from the next change
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -473,7 +473,7 @@ architecture-and-planning-unrated architecture-and-planning  open_items unrated 
 build-clean        performance-and-cost       build_wall_time clean                -    59280ms    98800ms -
 build-core-edit    performance-and-cost       build_wall_time touched crates/meta-schema/src/lib.rs          -    24727ms    41212ms -
 build-leaf-edit    performance-and-cost       build_wall_time touched crates/meta-cli/src/lib.rs          -     5627ms     9379ms -
-build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/status.rs          -      238ms      397ms -
+build-test-edit    performance-and-cost       build_wall_time touched crates/meta-cli/tests/it/status.rs          -      238ms      397ms -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  -          0          0 -
 features-and-maintenance-major features-and-maintenance   open_items major                     -          2          4 -
 features-and-maintenance-minor features-and-maintenance   open_items minor                     -          4          8 -

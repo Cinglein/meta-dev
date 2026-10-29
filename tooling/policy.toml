@@ -179,7 +179,7 @@ overspend = "report"
 
 [budgets.build-test-edit]
 division = "performance-and-cost"
-measure = { build_wall_time = { touched = "crates/meta-cli/tests/status.rs" } }
+measure = { build_wall_time = { touched = "crates/meta-cli/tests/it/status.rs" } }
 allowance = { duration = 397 }
 window = "per_change"
 source = "ci"

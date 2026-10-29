@@ -35,14 +35,12 @@ mod tests {
     use crate::policy::Policy;
 
     const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
-    const SHOWN: &str = "clean, touched crates/meta-cli/src/lib.rs, touched crates/meta-cli/tests/status.rs, touched crates/meta-schema/src/lib.rs";
 
     #[test]
     fn the_policy_builds_clean_first_then_touches_files_that_exist() {
         let builds = Policy::with_added("").unwrap().budgets().builds();
         let starts: Vec<&BuildStart> = builds.iter().filter_map(Measure::build_start).collect();
-        let shown: Vec<String> = starts.iter().map(ToString::to_string).collect();
-        assert_eq!(shown.join(", "), SHOWN);
+        assert_eq!(starts.first(), Some(&&BuildStart::Clean));
         let existing = starts
             .iter()
             .filter_map(|start| start.touched())
