@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
     env: &tests-on-tmpfs
       TMPDIR: /dev/shm
     steps:
@@ -29,7 +30,7 @@ jobs:
             examples/consumer -> target.noindex
       - uses: taiki-e/install-action@v2
         with:
-          tool: cargo-deny@0.20.2,cargo-semver-checks@0.51.0
+          tool: cargo-deny@0.20.2,cargo-semver-checks@0.51.0,cargo-mutants@27.1.0
       - run: cargo xtask ci ${{ github.event_name == 'pull_request' && '--affected' || '' }}
         env:
           PULL_REQUEST: ${{ github.event.pull_request.number }}
@@ -37,6 +38,13 @@ jobs:
         working-directory: examples/consumer
         env:
           PULL_REQUEST: ${{ github.event.pull_request.number }}
+      - run: cargo xtask stacked
+        working-directory: examples/consumer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+      - run: cargo xtask mutants
+        working-directory: examples/consumer
 
   git-count:
     runs-on: ubuntu-latest
@@ -94,7 +102,6 @@ jobs:
           retention-days: 30
 
   stacked:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -109,7 +116,6 @@ jobs:
           PULL_REQUEST: ${{ github.event.pull_request.number }}
 
   mutants-plan:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 6
     outputs:

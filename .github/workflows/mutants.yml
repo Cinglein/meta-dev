@@ -33,6 +33,8 @@ jobs:
         run: |
           shards=$(cargo xtask mutants-plan)
           echo "shards=$shards" >> "$GITHUB_OUTPUT"
+      - run: cargo xtask mutants-full
+        working-directory: examples/consumer
 
   full:
     needs: plan
