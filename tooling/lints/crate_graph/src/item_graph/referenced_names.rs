@@ -1,3 +1,5 @@
+mod effect_paths;
+
 use std::collections::BTreeMap;
 
 use quote::ToTokens;
@@ -6,10 +8,12 @@ use syn::{Attribute, Item, Type};
 use task::Name;
 use task::Walk;
 
+use crate::item_graph::item_uses::ItemUses;
 use crate::item_graph::scope::Scope;
+use effect_paths::EffectPaths;
 
 #[derive(Debug, Default)]
-pub struct ReferencedNames(BTreeMap<Name, Vec<Name>>);
+pub struct ReferencedNames(BTreeMap<Name, ItemUses>);
 
 impl ReferencedNames {
     pub fn of_items(items: &[Item], scope: &Scope) -> ReferencedNames {
@@ -20,7 +24,7 @@ impl ReferencedNames {
             })
     }
 
-    pub fn into_map(self) -> BTreeMap<Name, Vec<Name>> {
+    pub fn into_map(self) -> BTreeMap<Name, ItemUses> {
         self.0
     }
 
@@ -43,12 +47,16 @@ impl ReferencedNames {
         };
         owner
             .into_iter()
-            .map(|owner| (owner, scope.referenced(item.to_token_stream())))
+            .map(|owner| {
+                let names = scope.referenced(item.to_token_stream());
+                let effects = EffectPaths::in_item(scope, item);
+                (owner, ItemUses::new(names, effects))
+            })
             .chain(Self::of_items(nested, scope).0)
             .filter(|_| Walk::outside_tests(attributes) == Walk::Entered)
-            .fold(&mut self.0, |names, (owner, found)| {
-                names.entry(owner).or_default().extend(found);
-                names
+            .fold(&mut self.0, |uses, (owner, found)| {
+                uses.entry(owner).or_default().absorb(found);
+                uses
             });
         self
     }

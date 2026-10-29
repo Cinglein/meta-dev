@@ -32,6 +32,9 @@ pub enum Measure {
     GitStarters,
     #[strum(to_string = "open_items {0}")]
     OpenItems(ItemFilter),
+    EffectShare,
+    EffectDispersion,
+    RepeatedShapes,
 }
 
 impl Measure {
@@ -42,9 +45,11 @@ impl Measure {
             | Measure::TestCpuTime
             | Measure::SlowestTest
             | Measure::WorkflowWallTime(_) => Unit::Duration,
-            Measure::MutantPrice | Measure::TestLineShare => Unit::Share,
+            Measure::MutantPrice | Measure::TestLineShare | Measure::EffectShare => Unit::Share,
             Measure::TangleItems
             | Measure::OpenItems(_)
+            | Measure::EffectDispersion
+            | Measure::RepeatedShapes
             | Measure::GitProcesses
             | Measure::GitStarters => Unit::Count,
             Measure::LintFindings => Unit::Baseline,
@@ -59,8 +64,12 @@ impl Measure {
             | Measure::SlowestTest
             | Measure::GitProcesses => Some(ScopeKind::Tests),
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Some(ScopeKind::Workflows),
-            Measure::TangleItems => Some(ScopeKind::Crates),
-            Measure::LintFindings | Measure::TestLineShare => Some(ScopeKind::Paths),
+            Measure::TangleItems | Measure::EffectShare | Measure::EffectDispersion => {
+                Some(ScopeKind::Crates)
+            }
+            Measure::LintFindings | Measure::TestLineShare | Measure::RepeatedShapes => {
+                Some(ScopeKind::Paths)
+            }
             Measure::OpenItems(_) | Measure::GitStarters => None,
         }
     }
@@ -75,7 +84,12 @@ impl Measure {
             | Measure::GitStarters
             | Measure::OpenItems(_) => Enforcer::Checker,
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Enforcer::MutationJobs,
-            Measure::LintFindings | Measure::TestLineShare | Measure::TangleItems => Enforcer::Lint,
+            Measure::LintFindings
+            | Measure::TestLineShare
+            | Measure::TangleItems
+            | Measure::EffectShare
+            | Measure::EffectDispersion
+            | Measure::RepeatedShapes => Enforcer::Lint,
         }
     }
 
@@ -92,6 +106,9 @@ impl Measure {
             | Measure::LintFindings
             | Measure::TestLineShare
             | Measure::TangleItems
+            | Measure::EffectShare
+            | Measure::EffectDispersion
+            | Measure::RepeatedShapes
             | Measure::GitStarters => None,
         }
     }
@@ -102,6 +119,9 @@ impl Measure {
             Measure::OpenItems(_) => Some(Window::Standing),
             Measure::TestLineShare
             | Measure::TangleItems
+            | Measure::EffectShare
+            | Measure::EffectDispersion
+            | Measure::RepeatedShapes
             | Measure::GitProcesses
             | Measure::GitStarters => None,
             Measure::TestWallTime
