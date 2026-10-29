@@ -1,0 +1,9 @@
+waterfall: 4 units, wall 5.50s, compile 8.50s (frontend 2.25s, codegen 3.25s, rest 3.00s)
+critical path: 3 units, 7.50s (frontend 1.50s, codegen 3.00s, rest 3.00s)
+  sys build-script (run) at 0.00s took 2.00s (frontend 0.00s, codegen 0.00s)
+  sys at 2.00s took 3.00s (frontend 1.00s, codegen 2.00s)
+  app bin "app" at 3.00s took 2.50s (frontend 0.50s, codegen 1.00s)
+per crate:
+  sys 5.00s (frontend 1.00s, codegen 2.00s, rest 2.00s)
+  app 2.50s (frontend 0.50s, codegen 1.00s, rest 1.00s)
+  leaf 1.00s (frontend 0.75s, codegen 0.25s, rest 0.00s)

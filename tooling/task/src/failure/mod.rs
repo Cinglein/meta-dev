@@ -41,6 +41,11 @@ pub enum Failure {
     Metadata(#[from] serde_json::Error),
     #[error("mutant list is not the shape expected: {0}")]
     MutantList(serde_json::Error),
+    #[error("{site}: cargo timing report is not the shape expected: {error}")]
+    TimingReport {
+        site: Site,
+        error: serde_json::Error,
+    },
     #[error("refused: {0}")]
     Refused(String),
     #[error(
