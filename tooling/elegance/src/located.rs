@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use crate::components::Components;
-use crate::method_name::MethodName;
+use crate::method_key::MethodKey;
 use crate::places::Places;
 use crate::reduction::Reduction;
 use crate::signature::Signature;
@@ -29,7 +29,7 @@ impl Located for TraitKey {
 
 impl Located for Signature {}
 
-impl Located for MethodName {}
+impl Located for MethodKey {}
 
 impl Located for Components {}
 

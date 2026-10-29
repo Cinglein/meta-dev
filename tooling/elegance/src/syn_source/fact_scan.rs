@@ -227,7 +227,8 @@ impl<'ast> Visit<'ast> for FactScan<'_> {
     fn visit_item_impl(&mut self, item: &'ast ItemImpl) {
         let fact = self.owner.as_ref().and_then(|owner| self.fact(owner, item));
         let target = fact.as_ref().and_then(|fact| fact.kind().target());
-        self.structure.used(target.into_iter().flat_map(|target| UsageScan::methods(target, item)));
+        let implemented = fact.as_ref().and_then(|fact| fact.kind().implemented());
+        self.structure.used(target.into_iter().flat_map(|target| UsageScan::methods(target, implemented, item)));
         self.impls.extend(fact);
     }
 }

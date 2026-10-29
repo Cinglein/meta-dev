@@ -1,6 +1,6 @@
-types 944, traits declared 25, impls 1467
+types 947, traits declared 25, impls 1472
 catalog: 24 measures, report-only
-  B1 unnamed concepts [trait graph, to zero]: 54
+  B1 unnamed concepts [trait graph, to zero]: 55
   B2 reducible traits [trait graph, to zero]: 2
   B3 signatures declared in more than one trait [trait graph, to zero]: 1
   B4 leverage: usable methods / written bodies [trait graph, higher]: median 1.00
@@ -12,7 +12,7 @@ catalog: 24 measures, report-only
   B10 typestate share of transitions [transition graph, higher]: not implemented
   B11 transition graph simplicity [transition graph, lower]: not implemented
   B12 unnamed field concepts [types, to zero]: 24
-  B13 types with LCOM4 above 1 [types, to zero]: 36
+  B13 types with LCOM4 above 1 [types, to zero]: 42
   B14 behavioural inherent methods [types, lower]: not implemented
   B15 bodies identical up to types [code, to zero]: not implemented
   B16 same-job paths per external effect [effects, lower]: measured by lint git_starters (partial)
@@ -25,9 +25,9 @@ catalog: 24 measures, report-only
   B23 repeated meta starts per command and scene [tests, lower]: not implemented
   B24 test lines per caught mutant [tests, lower]: not implemented
 B1 missing abstractions: maximal (types, signatures) concepts with at least 2 of each
-  concepts 110: named by one trait 35, by a composition only 21, unnamed 54
-  missing, one trait must name it: 75
-  missing, a composition may name it: 54
+  concepts 111: named by one trait 35, by a composition only 21, unnamed 55
+  missing, one trait must name it: 76
+  missing, a composition may name it: 55
   largest, unnamed:
   1. 18 = 2 types x 9 attributes
     types: meta-state::Activity, meta-state::Progress
@@ -100,8 +100,8 @@ B3 signatures declared in more than one local trait
     words(&self, &RemoteName) -> Vec<OsString>: meta-git::RemoteChange, meta-git::RemoteQuery
 B4 leverage: distinct method names usable on a type / method bodies written for it
   usable = inherent names + the methods of each trait the type has; a local trait contributes its declared methods, a foreign trait the names seen in impls
-  n 858: min 0.66, q1 1.00, median 1.00, q3 1.00, max 53.00
-  types with no bodies: 86
+  n 862: min 0.66, q1 1.00, median 1.00, q3 1.00, max 53.00
+  types with no bodies: 85
   lowest:
     meta-cli::Cause 0.66 (2 usable / 3 written)
     meta-cli::Unmarked 0.66 (2 usable / 3 written)
@@ -124,7 +124,7 @@ B9 hidden state
     task::Ledger.mode: Mode (local enum): enforce_from, report_only
     task::Ledger.prior: Option<PriorStanding> (Option): enforce_from
     task::Ledger.standing: Option<Standing> (Option): count
-    test_budget::TestModule.scope: Scope (local enum): visit_item_fn
+    test_budget::TestModule.scope: Scope (local enum): Visit::visit_item_fn
 B12 field concepts: maximal (types, named fields) concepts with at least 2 of each
   a field is its name and its written type; a type that nests the set names it, so its fields are not shared
   concepts 24
@@ -160,22 +160,22 @@ B12 field concepts: maximal (types, named fields) concepts with at least 2 of ea
     types: meta-cli::Parsed, meta-schema::NewConcern
     share: severity: Option<LevelName>; source: Option<Text>; tags: Vec<Tag>
 B13 types whose method-field graph splits
-  rule: LCOM4 per type, over its self methods that are not accessors (an accessor touches exactly one field and nothing else): nodes are those methods (all impl blocks) and the fields; edges join a method to each field it reads or writes and to each self method it calls; a bare use of self joins every field
-  limits: a method that touches no field and calls no self method is its own component; trait default bodies and fields reached through helpers are not seen
-  found 36
-    named_numbers::Numbers: 6 components [visit_expr, visit_macro] [visit_expr_const] [visit_impl_item_const] [visit_item_const] [visit_item_impl, visit_item_mod] [visit_trait_item_const]
-    elegance::Declarations: 3 components [declare, visit_file, visit_item_enum, visit_item_mod, visit_item_struct, visit_item_trait, visit_item_union, within] [visit_item_fn] [visit_item_impl]
-    elegance::Normalizer: 3 components [abstracted, visit_path_mut, visit_path_segment_mut] [visit_path_arguments_mut] [visit_receiver_mut, visit_type_mut, visit_type_reference_mut]
-    expression_flow::Flows: 3 components [report, visit_block, visit_body, visit_expr_assign, visit_expr_binary, visit_expr_break, visit_expr_continue, visit_expr_for_loop, visit_expr_if, visit_expr_loop, visit_expr_return, visit_expr_while, visit_impl_item_fn, visit_item_fn, visit_item_mod, visit_trait_item_fn] [visit_impl_item_const] [visit_item_const]
-    meta-cli::Fixture: 3 components [added, worktrees] [commit_on, committed, committed_at, quietly_tracking, relogged, stepped, written] [log, publish]
-    meta-cli::Host: 3 components [canonical] [entry, frozen, lenders, neighbours, text, thawed, walked] [stamp]
-    meta-cli::LiveMachine: 3 components [cwds, signal, table, timed, uptime] [own_pid] [pause]
-    meta-state::Waiting: 3 components [discussion] [external] [task]
-    primitive_boundary::NumberSites: 3 components [newtype, sighting, visit_field, visit_impl_item_const, visit_item_const, visit_item_enum, visit_item_impl, visit_item_mod, visit_item_struct, visit_item_type, visit_signature, visit_trait_item_const, visit_type_path] [visit_block] [visit_const_param]
-    elegance::FactScan: 2 components [argument_parameter, blanket_parameter, bounds, fact, kind, path_parameter, shape, trait_keys, visit_file, visit_item_enum, visit_item_impl, visit_item_mod, visit_item_struct, visit_item_trait, within, wrapped] [visit_item_fn]
+  rule: LCOM4 per type with fields, over its self methods keyed by trait and name; nodes are those methods and the fields; edges join a method to each field it reads or writes, to each self method it calls, and to the field of each accessor it calls; an accessor (body is self.f, &self.f or self.f = value) is not a node; a bare use of self joins every field; a method that touches nothing is left out
+  limits: syntactic: fields reached through helpers or locals and trait default bodies are not seen; a call is resolved by name to every method of the type with that name
+  found 42
+    meta-cli::MonitorSettings: 7 components [cause, near] [mark_fresh, paced] [probe_deadline] [promotes] [shows] [start_slack] [stops]
+    meta-cli::CiSettings: 4 components [budget] [gh_limit, remaining] [remote_deadline] [run_overdue]
+    task::Package: 4 components [directory] [doctested, example] [local_dependencies] [publish]
+    task::PackageGraph: 4 components [containing] [dependents_closure, names] [published_in] [with_examples]
+    meta-cli::FakeMachine: 3 components [Display::fmt, meta-cli::Machine::cwds, meta-cli::Machine::pause, meta-cli::Machine::signal] [meta-cli::Machine::table] [meta-cli::Machine::uptime]
+    corpus_check::AnnotatedLine: 2 components [expectations] [Display::fmt]
+    corpus_check::AnnotatedSource: 2 components [expectations, Display::fmt] [source_file]
+    elegance::Normalizer: 2 components [abstracted, VisitMut::visit_path_arguments_mut, VisitMut::visit_path_mut] [VisitMut::visit_receiver_mut, VisitMut::visit_type_reference_mut]
+    elegance::Places: 2 components [of_trait, trait_at] [of_type, type_at]
+    elegance::Resolution: 2 components [called] [fields]
 trait-graph shape
   graph edges: supertrait 3, blanket 0; depth 1
-  blanket share: 0 of 686 trait impls = 0.00
+  blanket share: 0 of 687 trait impls = 0.00
   single-implementor traits: 11
     elegance::FactSource -> elegance::SynSource
     meta-cli::ClaimHands -> meta-cli::ClaimRun
@@ -188,7 +188,7 @@ trait-graph shape
     meta-schema::EventVisitor -> meta-state::Applying
     task::Stream -> task::Stdout
     task::Tool -> task::CargoTool
-  traits implemented directly, per implementing type: n 508: min 1, q1 1, median 1, q3 1, max 5
+  traits implemented directly, per implementing type: n 509: min 1, q1 1, median 1, q3 1, max 5
   types with at least N = 2 traits (q3, at least 2) and no edge among them: 115
     corpus_check::AnnotatedLine: Display, FromStr
     corpus_check::AnnotatedSource: Display, FromStr
@@ -199,11 +199,11 @@ trait-graph shape
     elegance::Finding: Display, elegance::Located
     elegance::HiddenField: Display, elegance::Located
     elegance::Listed: Display, elegance::Located
-    elegance::MethodName: Display, elegance::Located
+    elegance::MethodKey: Display, elegance::Located
 smell inventory scoring, informational: a finding flags an entry when a type or trait it names is declared in a file the entry lists
-  B1 unnamed concepts [trait graph, to zero]: recall 6 of 9 tagged naming-completeness [about-task-accessors, activity-progress-delegation, lint-report-family, local-journals, repeats-three-times, stored-file-family]; other entries flagged 15 [concern-issue-state, deadline-limit-types, dup-primitive-newtypes, id-generators-random, listed-reads-log, monitor-state-reset, new-concern-issue-task, option-unit-as-bool, record-new-clock, recorded-worktree-late-id, ref-line-strings, test-module-skip-per-lint, text-newtypes, type-name-reuse, use-tree-walkers]; noise 28 of 54 findings
+  B1 unnamed concepts [trait graph, to zero]: recall 6 of 9 tagged naming-completeness [about-task-accessors, activity-progress-delegation, lint-report-family, local-journals, repeats-three-times, stored-file-family]; other entries flagged 16 [concern-issue-state, deadline-limit-types, dup-primitive-newtypes, id-generators-random, listed-reads-log, monitor-state-reset, new-concern-issue-task, option-unit-as-bool, record-new-clock, recorded-worktree-late-id, ref-line-strings, signature-renderers, test-module-skip-per-lint, text-newtypes, type-name-reuse, use-tree-walkers]; noise 28 of 55 findings
   B2 reducible traits [trait graph, to zero]: recall 0 of 0 tagged reducible-traits []; other entries flagged 1 [meta-git-four-call-traits]; noise 0 of 2 findings
   B3 signatures declared in more than one trait [trait graph, to zero]: recall 0 of 2 tagged orthogonality []; other entries flagged 0 []; noise 1 of 1 findings
   B9 hidden state fields [transition graph, to zero]: recall 2 of 4 tagged hidden-state [ledger-mode, step-times-failed]; other entries flagged 0 []; noise 4 of 8 findings
   B12 unnamed field concepts [types, to zero]: recall 1 of 1 tagged field-concepts [new-concern-issue-task]; other entries flagged 7 [lint-report-family, option-unit-as-bool, record-new-clock, repeats-three-times, test-module-skip-per-lint, two-policy-toml-readers, use-tree-walkers]; noise 12 of 24 findings
-  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 4 tagged lcom4 [inspection-reads-and-writes]; other entries flagged 10 [fake-machine, fixture-repos, git-argv-vocabulary-scattered, gitdir-link-parsers, kill-and-lsof-twice, monitor-kill-by-pid, new-concern-issue-task, oncelock-caches-with-args, test-module-skip-per-lint, two-undo-mechanisms]; noise 27 of 36 findings
+  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 4 tagged lcom4 [inspection-reads-and-writes]; other entries flagged 16 [fake-machine, fixture-repos, git-argv-vocabulary-scattered, git-start-paths, gitdir-link-parsers, id-generators-random, kill-and-lsof-twice, local-journals, new-concern-issue-task, oncelock-caches-with-args, quarantine-stamp-string, ref-line-strings, session-seen-counter, stored-file-family, two-undo-mechanisms, type-name-reuse]; noise 30 of 42 findings

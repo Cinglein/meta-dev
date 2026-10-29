@@ -1,4 +1,5 @@
-use syn::{Block, Expr, Stmt};
+use syn::Block;
+use task::FieldAccess;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Body {
@@ -8,11 +9,8 @@ pub enum Body {
 
 impl Body {
     pub fn classify(block: &Block) -> Body {
-        match block.stmts.as_slice() {
-            [Stmt::Expr(Expr::Field(field), None)] if matches!(&*field.base, Expr::Path(base) if base.path.is_ident("self")) => {
-                Body::FieldProjection
-            }
-            _ => Body::Other,
-        }
+        FieldAccess::classify(block)
+            .and_then(FieldAccess::projection)
+            .map_or(Body::Other, |_| Body::FieldProjection)
     }
 }

@@ -26,6 +26,7 @@ mod leverage;
 mod leverage_report;
 mod listed;
 mod located;
+mod method_key;
 mod method_name;
 mod method_use;
 mod naming;
@@ -33,6 +34,7 @@ mod places;
 mod receiver_kind;
 mod reducible_traits;
 mod reduction;
+mod resolution;
 mod scoring;
 mod shape_report;
 mod shared_signatures;
@@ -68,7 +70,7 @@ use implementations::Implementations;
 use leverage::Leverage;
 use leverage_report::LeverageReport;
 use listed::Listed;
-use method_name::MethodName;
+use method_key::MethodKey;
 use places::Places;
 use reducible_traits::ReducibleTraits;
 use reduction::Reduction;
@@ -93,7 +95,7 @@ pub struct Measures {
     reducible: Findings<TraitKey, Reduction<TraitKey>>,
     shared: Findings<Signature, Listed<TraitKey>>,
     leverage: LeverageReport,
-    hidden: Findings<HiddenField, Listed<MethodName>>,
+    hidden: Findings<HiddenField, Listed<MethodKey>>,
     fields: ConceptReport<TypeKey, Field>,
     split: Findings<TypeKey, Components>,
     graph: TraitGraph,

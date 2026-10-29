@@ -3,12 +3,12 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use crate::listed::Listed;
-use crate::method_name::MethodName;
+use crate::method_key::MethodKey;
 use crate::tally::Tally;
 use crate::usage_node::UsageNode;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Components(Vec<Listed<MethodName>>);
+pub struct Components(Vec<Listed<MethodKey>>);
 
 impl Components {
     #[must_use]
@@ -19,10 +19,8 @@ impl Components {
             let joined = touching.into_iter().flatten().chain(next).collect();
             apart.into_iter().chain(std::iter::once(joined)).collect()
         });
-        let mut methods: Vec<Listed<MethodName>> = merged
-            .into_iter()
-            .map(|component| Listed::new(component.into_iter().filter_map(UsageNode::method)))
-            .collect();
+        let mut methods: Vec<Listed<MethodKey>> =
+            merged.into_iter().map(|component| Listed::new(component.into_iter().filter_map(UsageNode::own))).collect();
         methods.sort();
         Components(methods)
     }

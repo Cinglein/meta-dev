@@ -1,4 +1,4 @@
-use syn::Receiver;
+use syn::{Receiver, Type};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ReceiverKind {
@@ -10,10 +10,10 @@ pub enum ReceiverKind {
 impl ReceiverKind {
     #[must_use]
     pub fn taken_by(receiver: &Receiver) -> ReceiverKind {
-        match (&receiver.reference, &receiver.mutability) {
-            (Some(_), Some(_)) => ReceiverKind::Exclusive,
-            (Some(_), None) => ReceiverKind::Shared,
-            (None, _) => ReceiverKind::Owned,
+        match &*receiver.ty {
+            Type::Reference(reference) if reference.mutability.is_some() => ReceiverKind::Exclusive,
+            Type::Reference(_) => ReceiverKind::Shared,
+            _ => ReceiverKind::Owned,
         }
     }
 }

@@ -5,7 +5,7 @@ use crate::findings::Findings;
 use crate::hidden_field::HiddenField;
 use crate::layout::Layout;
 use crate::listed::Listed;
-use crate::method_name::MethodName;
+use crate::method_key::MethodKey;
 use crate::method_use::MethodUse;
 use crate::receiver_kind::ReceiverKind;
 use crate::structure::Structure;
@@ -19,7 +19,7 @@ impl HiddenState {
     pub const LIMITS: &'static str = "syntactic: misses writes through aliases (let f = &mut self.f), mem::replace or swap, helper fns, other types' methods, type aliases of bool or Option, and enums from other crates";
 
     #[must_use]
-    pub fn measured(facts: &Facts) -> Findings<HiddenField, Listed<MethodName>> {
+    pub fn measured(facts: &Facts) -> Findings<HiddenField, Listed<MethodKey>> {
         let structure = facts.structure();
         Findings::new(facts.types().iter().flat_map(|owner| {
             let fields = structure.layout(owner).into_iter().flat_map(Layout::fields);
@@ -32,9 +32,9 @@ impl HiddenState {
         structure: &Structure,
         owner: &TypeKey,
         field: &Field,
-    ) -> Option<Finding<HiddenField, Listed<MethodName>>> {
+    ) -> Option<Finding<HiddenField, Listed<MethodKey>>> {
         let writers = Listed::new(
-            structure.methods_of(owner).filter(|method| Self::hides(method, field)).map(MethodUse::name).cloned(),
+            structure.methods_of(owner).filter(|method| Self::hides(method, field)).map(MethodUse::key).cloned(),
         );
         Some(writers)
             .filter(|writers| !writers.is_empty())

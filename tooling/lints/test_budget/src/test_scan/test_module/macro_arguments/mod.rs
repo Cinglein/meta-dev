@@ -1,23 +1,21 @@
 mod proptest_closure;
 
-use syn::punctuated::Punctuated;
+use syn::Macro;
 use syn::visit::Visit;
-use syn::{Expr, Macro, Token};
+use task::MacroExpressions;
 
 use proptest_closure::ProptestClosure;
 
 pub(super) enum MacroArguments {
-    Expressions(Punctuated<Expr, Token![,]>),
+    Expressions(MacroExpressions),
     Closure(ProptestClosure),
     Opaque,
 }
 
 impl MacroArguments {
     pub(super) fn parse(invocation: &Macro) -> MacroArguments {
-        invocation
-            .parse_body_with(Punctuated::<Expr, Token![,]>::parse_terminated)
+        MacroExpressions::parsed(invocation)
             .map(MacroArguments::Expressions)
-            .ok()
             .or_else(|| {
                 ProptestClosure::parse(invocation.tokens.clone()).map(MacroArguments::Closure)
             })
@@ -26,9 +24,7 @@ impl MacroArguments {
 
     pub(super) fn visit_with<'ast, V: Visit<'ast>>(&'ast self, visitor: &mut V) {
         match self {
-            MacroArguments::Expressions(arguments) => arguments
-                .iter()
-                .for_each(|argument| visitor.visit_expr(argument)),
+            MacroArguments::Expressions(arguments) => arguments.visit_with(visitor),
             MacroArguments::Closure(closure) => closure.visit_with(visitor),
             MacroArguments::Opaque => {}
         }

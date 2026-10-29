@@ -1,15 +1,17 @@
-use syn::punctuated::Punctuated;
 use syn::visit::Visit;
 use syn::{
     BinOp, Block, Expr, ExprAssign, ExprBinary, ExprField, ExprMethodCall, ExprPath, ImplItem, ImplItemFn, Item,
-    ItemImpl, Macro, Token,
+    ItemImpl, Macro,
 };
+use task::{FieldAccess, MacroExpressions};
 
 use crate::field_name::FieldName;
 use crate::field_write::FieldWrite;
+use crate::method_key::MethodKey;
 use crate::method_name::MethodName;
 use crate::method_use::MethodUse;
 use crate::receiver_kind::ReceiverKind;
+use crate::trait_key::TraitKey;
 use crate::type_key::TypeKey;
 use crate::usage::Usage;
 use crate::usage_node::UsageNode;
@@ -32,26 +34,23 @@ impl UsageScan {
     }
 
     #[must_use]
-    pub fn methods(owner: &TypeKey, item: &ItemImpl) -> Vec<MethodUse> {
+    pub fn methods(owner: &TypeKey, implemented: Option<&TraitKey>, item: &ItemImpl) -> Vec<MethodUse> {
         item.items
             .iter()
             .filter_map(|member| match member {
-                ImplItem::Fn(function) => Self::method(owner, function),
+                ImplItem::Fn(function) => Self::method(owner, implemented, function),
                 _ => None,
             })
             .collect()
     }
 
     #[must_use]
-    pub fn method(owner: &TypeKey, function: &ImplItemFn) -> Option<MethodUse> {
+    pub fn method(owner: &TypeKey, implemented: Option<&TraitKey>, function: &ImplItemFn) -> Option<MethodUse> {
         let receiver = function.sig.receiver().map(ReceiverKind::taken_by);
+        let key = MethodKey::new(implemented.cloned(), MethodName::new(&function.sig.ident));
+        let accessed = FieldAccess::classify(&function.block).map(FieldAccess::member).map(FieldName::new);
         receiver.map(|receiver| {
-            MethodUse::new(
-                owner.clone(),
-                MethodName::new(&function.sig.ident),
-                receiver,
-                Self::scanned(&function.block),
-            )
+            MethodUse::new(owner.clone(), key, receiver, Self::scanned(&function.block)).accessing(accessed)
         })
     }
 
@@ -88,7 +87,7 @@ impl<'ast> Visit<'ast> for UsageScan {
 
     fn visit_expr_method_call(&mut self, call: &'ast ExprMethodCall) {
         if Self::is_self(&call.receiver) {
-            self.usage.touch(Some(UsageNode::Method(MethodName::new(&call.method))));
+            self.usage.touch(Some(UsageNode::Call(MethodName::new(&call.method))));
             call.args.iter().for_each(|argument| self.visit_expr(argument));
         } else {
             self.written(
@@ -126,8 +125,7 @@ impl<'ast> Visit<'ast> for UsageScan {
         self.usage.touch(path.path.is_ident(Self::SELF).then_some(UsageNode::Whole));
     }
 
-    fn visit_macro(&mut self, mac: &'ast Macro) {
-        let arguments = mac.parse_body_with(Punctuated::<Expr, Token![,]>::parse_terminated).unwrap_or_default();
-        arguments.iter().for_each(|argument| self.visit_expr(argument));
+    fn visit_macro(&mut self, invocation: &'ast Macro) {
+        MacroExpressions::visit_parsed(invocation, self);
     }
 }
