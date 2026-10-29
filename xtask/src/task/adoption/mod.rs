@@ -214,6 +214,9 @@ updates:
         Golden::for_test(module_path!(), "gaps").checked(&gaps.map(|gaps| gaps.to_string()).join("\n")).unwrap();
     }
 
+    const LIMIT_DIRECTORY: &str = ".";
+    const LIMIT_PROGRAM: &str = "true";
+    const LIMIT_TOOL: &str = "dependabot-updates";
     const LIMIT_OFF: &str =
         "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 0\n";
     const LIMIT_NON_ZERO: &str =
@@ -225,9 +228,9 @@ updates:
     #[test]
     fn dependabot_version_update_pull_requests_must_be_off_so_a_missing_or_non_zero_limit_is_a_gap() {
         let gaps = |dependabot: &str| {
-            let Ok(directory) = ".".parse::<WorkingDirectory>();
+            let Ok(directory) = LIMIT_DIRECTORY.parse::<WorkingDirectory>();
             let Ok(dependabot) = dependabot.parse();
-            let line = || CommandLine::new(Program::Executable("true".into()));
+            let line = || CommandLine::new(Program::Executable(LIMIT_PROGRAM.into()));
             let adoption = Adoption {
                 cargo: line(),
                 gh: line(),
@@ -238,9 +241,9 @@ updates:
             };
             adoption.gaps(&Policy::defaults()).to_string()
         };
-        assert!(!gaps(LIMIT_OFF).contains("dependabot-updates"));
+        assert!(!gaps(LIMIT_OFF).contains(LIMIT_TOOL));
         for text in [LIMIT_NON_ZERO, LIMIT_MISSING, LIMIT_ONE_LEFT_ON] {
-            assert!(gaps(text).contains(LIMIT_MESSAGE), "{text}");
+            assert!(gaps(text).contains(LIMIT_MESSAGE));
         }
     }
 

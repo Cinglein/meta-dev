@@ -31,7 +31,6 @@ impl DependabotConfig {
         Ok(config)
     }
 
-    /// Fails closed: an entry without `open-pull-requests-limit: 0` uses Dependabot's default and opens version PRs.
     pub fn proposes(&self) -> bool {
         self.0.items(Self::UPDATES).iter().any(|update| update.scalar_of(Self::LIMIT).trim() != Self::NONE)
     }
