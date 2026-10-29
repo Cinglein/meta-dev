@@ -1556,3 +1556,4 @@
 {"at":"2026-10-29T16:57:15.139480Z","actor":"claude-fcore","kind":"TaskClaimed","task":"task-213dbf51281b7c23"}
 {"at":"2026-10-29T17:01:26.021043Z","actor":"claude-fcore","kind":"TaskLinked","task":"task-213dbf51281b7c23","pr":201}
 {"at":"2026-10-29T17:22:50.811112Z","actor":"claude-bugs2","kind":"TaskDone","task":"task-e2a46f54b4e5f54d"}
+{"at":"2026-10-29T18:25:42.177018Z","actor":"claude-lead","kind":"TaskOpened","task":"task-3aabd954fa7a8766","text":"Deferred (owner 2026-10-29): CI evidence that hooks, heartbeat and monitor ran. Do it only once simple and cheap: no extra meta/log writes or pushes (after the GitHub service batches log I/O); else stay deferred.","division":"architecture-and-planning"}
