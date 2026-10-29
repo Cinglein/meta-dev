@@ -11,6 +11,7 @@ use super::super::start_time::StartTime;
 use super::super::target::Target;
 
 const ME: &str = "60";
+const FIRST_START: &str = "t0";
 
 #[derive(Debug)]
 pub struct FakeMachine<'scene> {
@@ -19,15 +20,24 @@ pub struct FakeMachine<'scene> {
     uptime: &'scene str,
     acts: RefCell<Vec<String>>,
     start: &'scene str,
+    start_after_term: &'scene str,
 }
 
 impl<'scene> FakeMachine<'scene> {
     pub fn new(tables: &[&'scene str], cwds: &'scene str, uptime: &'scene str) -> Self {
-        Self { tables: RefCell::new(tables.to_vec()), cwds, uptime, acts: RefCell::default(), start: "t0" }
+        let acts = RefCell::default();
+        Self {
+            tables: RefCell::new(tables.to_vec()),
+            cwds,
+            uptime,
+            acts,
+            start: FIRST_START,
+            start_after_term: FIRST_START,
+        }
     }
 
-    pub fn started_at(self, start: &'scene str) -> Self {
-        Self { start, ..self }
+    pub fn started_at(self, start: &'scene str, start_after_term: &'scene str) -> Self {
+        Self { start, start_after_term, ..self }
     }
 }
 
@@ -47,7 +57,12 @@ impl Machine for FakeMachine<'_> {
     }
 
     fn started(&self, _pid: Pid) -> Option<StartTime> {
-        self.start.parse().ok()
+        let start = if self.acts.borrow().iter().any(|act| act.starts_with("-TERM")) {
+            self.start_after_term
+        } else {
+            self.start
+        };
+        start.parse().ok()
     }
 
     fn signal(&self, signal: Signal, targets: &BTreeSet<Target>) {

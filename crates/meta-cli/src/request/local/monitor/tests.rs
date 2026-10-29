@@ -62,11 +62,20 @@ const GIT: &str = ".git";
 #[test]
 fn a_recorded_identity_is_refused_once_the_start_time_differs() {
     let pid = Pid::from(100);
-    let recorded = Identity::observe(&FakeMachine::new(&[], "", "").started_at("t0"), pid).unwrap();
-    let confirmed = |start| recorded.confirmed(&FakeMachine::new(&[], "", "").started_at(start));
+    let recorded = Identity::observe(&FakeMachine::new(&[], "", ""), pid).unwrap();
+    let confirmed = |start| recorded.confirmed(&FakeMachine::new(&[], "", "").started_at(start, start));
     assert_eq!(confirmed("t0"), Ok(()));
     assert_eq!(confirmed("t1"), Err(Reused::new(pid)));
     assert_eq!(confirmed(""), Err(Reused::new(pid)));
+}
+
+#[test]
+fn a_survivor_whose_start_time_changed_during_the_grace_is_reported_and_never_killed() {
+    let git_dir = tempfile::tempdir().unwrap();
+    let host = FakeMachine::new(&[SCENE, AFTER], CWDS, UPTIME).started_at("t0", "t1");
+    let report = Watch::patrolled(&host, git_dir.path(), STOPPING, TimeDelta::zero()).to_string();
+    let acts = host.to_string();
+    assert!(report.contains("not signalled") && acts.contains("-TERM") && !acts.contains("-KILL"));
 }
 
 struct Watch;
