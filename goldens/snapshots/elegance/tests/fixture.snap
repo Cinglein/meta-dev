@@ -78,7 +78,7 @@ B4 leverage: distinct method names usable on a type / method bodies written for 
   lowest:
     fixture::Gate 1.00 (9 usable / 9 written)
     fixture::Latch 1.00 (7 usable / 7 written)
-    fixture::Dial 1.00 (5 usable / 5 written)
+    fixture::Dial 1.00 (6 usable / 6 written)
     fixture::Axe 1.00 (4 usable / 4 written)
     fixture::Bow 1.00 (4 usable / 4 written)
     fixture::Cup 1.00 (4 usable / 4 written)

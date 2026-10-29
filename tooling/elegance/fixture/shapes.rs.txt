@@ -511,6 +511,9 @@ impl Dial {
     pub fn mark(self: &mut Self) {
         self.dirty = !self.dirty;
     }
+    pub fn peeked(&self) {
+        self.dirty = false;
+    }
 }
 
 impl Phase {

@@ -2,9 +2,8 @@ use syn::{Receiver, Type};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ReceiverKind {
-    Shared,
     Exclusive,
-    Owned,
+    Other,
 }
 
 impl ReceiverKind {
@@ -12,8 +11,7 @@ impl ReceiverKind {
     pub fn taken_by(receiver: &Receiver) -> ReceiverKind {
         match &*receiver.ty {
             Type::Reference(reference) if reference.mutability.is_some() => ReceiverKind::Exclusive,
-            Type::Reference(_) => ReceiverKind::Shared,
-            _ => ReceiverKind::Owned,
+            _ => ReceiverKind::Other,
         }
     }
 }
