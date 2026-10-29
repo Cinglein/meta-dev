@@ -81,14 +81,12 @@ impl fmt::Display for Division {
 
 #[cfg(test)]
 mod tests {
-    use meta_laws::Laws;
+    use meta_laws::{Laws, Reading};
 
     use super::{Division, DivisionFailure};
 
-    const ACCEPTED: [(&str, &str); 2] = [
-        ("performance-and-cost/ci/tests", "performance-and-cost/ci/tests"),
-        ("performance-and-cost/ci2-fast/9", "performance-and-cost/ci2-fast/9"),
-    ];
+    const ACCEPTED: [Reading; 2] =
+        [Reading::verbatim("performance-and-cost/ci/tests"), Reading::verbatim("performance-and-cost/ci2-fast/9")];
     const REFUSED: [&str; 9] = [
         "performance",
         "performance-and-cost//ci",
@@ -104,6 +102,6 @@ mod tests {
     #[test]
     fn a_division_is_a_top_division_then_slash_separated_lowercase_names() {
         let misread = Laws::misread::<Division>(&ACCEPTED, &REFUSED, |id| DivisionFailure::Unplaced(id.into()));
-        assert_eq!(misread, [""; 0]);
+        assert_eq!(misread, Laws::NONE_MISREAD);
     }
 }

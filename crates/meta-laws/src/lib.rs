@@ -1,8 +1,10 @@
 #[cfg(test)]
 mod dev_only;
 mod laws;
+mod reading;
 
 pub use laws::Laws;
+pub use reading::Reading;
 
 #[macro_export]
 macro_rules! laws {

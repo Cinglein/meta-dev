@@ -13,14 +13,18 @@ impl Manifests {
         toml::from_str(&fs::read_to_string(path).unwrap()).unwrap()
     }
 
+    fn matching(root: &Path, pattern: &str) -> Vec<PathBuf> {
+        pattern.strip_suffix("/*").map_or_else(
+            || vec![root.join(pattern)],
+            |parent| fs::read_dir(root.join(parent)).unwrap().map(|entry| entry.unwrap().path()).collect(),
+        )
+    }
+
     fn members() -> Vec<PathBuf> {
         let root = Path::new(ROOT);
         let workspace = Self::read(&root.join(MANIFEST));
         let patterns = workspace["workspace"]["members"].as_array().unwrap().clone();
-        let folders = patterns.into_iter().flat_map(|pattern| match pattern.as_str().unwrap().strip_suffix("/*") {
-            Some(parent) => fs::read_dir(root.join(parent)).unwrap().map(|entry| entry.unwrap().path()).collect(),
-            None => vec![root.join(pattern.as_str().unwrap())],
-        });
+        let folders = patterns.iter().flat_map(|pattern| Self::matching(root, pattern.as_str().unwrap()));
         folders.map(|folder| folder.join(MANIFEST)).filter(|manifest| manifest.is_file()).collect()
     }
 

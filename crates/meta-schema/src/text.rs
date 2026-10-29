@@ -47,11 +47,11 @@ impl<'de> Deserialize<'de> for Text {
 
 #[cfg(test)]
 mod tests {
-    use meta_laws::Laws;
+    use meta_laws::{Laws, Reading};
 
     use super::{Text, TextFailure};
 
-    const PADDED: [(&str, &str); 1] = [("  two words ", "two words")];
+    const PADDED: [Reading; 1] = [Reading::new("  two words ", "two words")];
     const EMPTY: [&str; 2] = ["", " "];
     const MULTILINE: [&str; 1] = ["a\nb"];
     const STORED_PADDED: &str = "\" x\"";
@@ -60,7 +60,7 @@ mod tests {
     fn text_is_one_trimmed_non_empty_line_and_stored_text_is_already_trimmed() {
         let empty = Laws::misread::<Text>(&PADDED, &EMPTY, |_| TextFailure::Empty);
         let multiline = Laws::misread::<Text>(&[], &MULTILINE, |_| TextFailure::ControlCharacter);
-        assert_eq!([empty, multiline].concat(), [""; 0]);
+        assert_eq!([empty, multiline].concat(), Laws::NONE_MISREAD);
         let stored = serde_json::from_str::<Text>(STORED_PADDED).map_err(|failure| failure.to_string());
         assert!(stored.is_err_and(|failure| failure.contains(&TextFailure::Untrimmed.to_string())));
     }

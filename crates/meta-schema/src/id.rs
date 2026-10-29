@@ -58,12 +58,12 @@ impl<'de, Kind: Entity> Deserialize<'de> for Id<Kind> {
 
 #[cfg(test)]
 mod tests {
-    use meta_laws::Laws;
+    use meta_laws::{Laws, Reading};
 
     use super::{Id, IdFailure};
     use crate::entity::{Entity, Task};
 
-    const ACCEPTED: [(&str, &str); 1] = [("task-00000000000000a1", "task-00000000000000a1")];
+    const ACCEPTED: [Reading; 1] = [Reading::verbatim("task-00000000000000a1")];
     const WRONG_KIND: [&str; 2] = ["task", "concern-0000000000000001"];
     const MALFORMED: [&str; 4] =
         ["task-123", "task-0123456789ABCDEF", "task-+123456789abcdef", "task-000000000000000g"];
@@ -75,6 +75,6 @@ mod tests {
             Laws::misread::<Id<Task>>(&ACCEPTED, &WRONG_KIND, wrong),
             Laws::misread::<Id<Task>>(&[], &MALFORMED, |_| IdFailure::Malformed),
         ];
-        assert_eq!(misread.concat(), [""; 0]);
+        assert_eq!(misread.concat(), Laws::NONE_MISREAD);
     }
 }

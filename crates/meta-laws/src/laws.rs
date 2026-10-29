@@ -7,6 +7,8 @@ use std::str::FromStr;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
+use crate::reading::Reading;
+
 #[derive(Debug)]
 pub struct Laws;
 
@@ -23,9 +25,11 @@ impl Laws {
         u32::try_from(cases).ok().and_then(NonZeroU32::new)
     }
 
+    pub const NONE_MISREAD: [&str; 0] = [];
+
     #[must_use]
     pub fn misread<'table, Kind>(
-        accepted: &[(&'table str, &str)],
+        accepted: &[Reading<'table>],
         refused: &[&'table str],
         refusal: impl Fn(&str) -> Kind::Err,
     ) -> Vec<&'table str>
@@ -33,11 +37,9 @@ impl Laws {
         Kind: FromStr + Display,
         Kind::Err: PartialEq,
     {
-        let accepted = accepted
-            .iter()
-            .filter(|(text, shown)| text.parse::<Kind>().map(|read| read.to_string()).ok().as_deref() != Some(*shown));
+        let accepted = accepted.iter().filter(|reading| reading.misread::<Kind>()).map(|reading| reading.text());
         let refused = refused.iter().filter(|text| text.parse::<Kind>().err() != Some(refusal(text)));
-        accepted.map(|(text, _)| *text).chain(refused.copied()).collect()
+        accepted.chain(refused.copied()).collect()
     }
 
     #[must_use]
@@ -68,9 +70,10 @@ mod tests {
     use std::path::Path;
 
     use super::Laws;
+    use crate::Reading;
 
     const UNEQUAL: &str = "NaN";
-    const ACCEPTED: [(&str, &str); 2] = [("7", "7"), ("x", "x")];
+    const ACCEPTED: [Reading; 2] = [Reading::new("07", "7"), Reading::verbatim("x")];
     const REFUSED: [&str; 3] = ["", "x", "8"];
     const MISREAD: [&str; 3] = ["x", "x", "8"];
 
