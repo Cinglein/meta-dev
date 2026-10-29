@@ -1616,3 +1616,4 @@
 {"at":"2026-10-29T20:26:51.328306Z","actor":"claude-lead","kind":"EntryCorrected","entry":"issue-a00a1debe260b3a5","text":"macOS: our meta-process-table darwin scan returns errno 2 (No such file or directory); 2 process-table tests and meta-cli gc_frees_ended_pushed_worktrees_… fail on plain origin/main on macOS (3 agents, separate branches). Linux CI never compiles the darwin path (concern-b5d30ec3). Our bug."}
 {"at":"2026-10-29T20:27:34.334621Z","actor":"claude-gitbudget","kind":"TaskDone","task":"task-b68ef3acd718b9fd"}
 {"at":"2026-10-29T20:30:49.699183Z","actor":"claude-brief","kind":"TaskClaimed","task":"task-3daf511164e0a20e"}
+{"at":"2026-10-29T20:35:38.507586Z","actor":"claude-brief","kind":"TaskLinked","task":"task-3daf511164e0a20e","pr":220}
