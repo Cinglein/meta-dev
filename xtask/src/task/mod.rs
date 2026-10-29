@@ -38,7 +38,7 @@ use meta_golden::Reach;
 use mutant_costs::MutantCosts;
 use mutation::{Mutants, Scope, ShardPlan, TriggerEvent};
 use stacked::Stacked;
-use test_time::{TestRunner, TestTime};
+use test_time::{GitCount, TestRunner, TestTime};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "kebab-case")]
@@ -54,6 +54,7 @@ pub enum Task {
     EnumPredicates,
     ExpressionFlow,
     FnShape,
+    GitCount,
     Goldens,
     GoldensOnline,
     Graph,
@@ -138,6 +139,8 @@ impl Task {
             Task::Clippy => Ok(Clippy::run(workspace, &selection, &policy)?),
             Task::Deny => Supply::deny(workspace, &policy),
             Task::Semver => Supply::semver(workspace, &selection, &policy),
+            Task::GitCount => Ok(GitCount::run(workspace, &selection, &policy, &mut ledger)
+                .and_then(|()| ledger.checked(&policy, &selection))?),
             Task::Goldens => GoldenRefresh::run(workspace, Reach::Offline),
             Task::GoldensOnline => GoldenRefresh::run(workspace, Reach::Online),
             Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),

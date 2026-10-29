@@ -36,6 +36,21 @@ jobs:
         env:
           PULL_REQUEST: ${{ github.event.pull_request.number }}
 
+  git-count:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - run: git remote set-head origin --auto
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo xtask git-count
+        env:
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+
   goldens:
     runs-on: ubuntu-latest
     permissions:
@@ -139,7 +154,7 @@ jobs:
         shell: bash
 
   ci-gate:
-    needs: [ci, goldens, stacked, mutants-plan, mutants, mutant-costs]
+    needs: [ci, git-count, goldens, stacked, mutants-plan, mutants, mutant-costs]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:

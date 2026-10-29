@@ -2,6 +2,8 @@ mod cargo_build;
 mod cargo_test;
 mod children_cpu;
 mod clock;
+mod execution;
+mod git_count;
 mod no_tests;
 mod reference_cpu;
 mod runner_config;
@@ -17,7 +19,8 @@ use std::time::Duration;
 use cargo_build::CargoBuild;
 use cargo_test::CargoTest;
 use clock::Clock;
-use git_trace::GitProcesses;
+use execution::Execution;
+pub use git_count::GitCount;
 use no_tests::NoTests;
 use reference_cpu::ReferenceCpu;
 use runner_config::RunnerConfig;
@@ -39,7 +42,6 @@ use task::{Limit, Policy};
 pub struct TestTime {
     timings: Vec<TestTiming>,
     reference: ReferenceCpu,
-    git: GitProcesses,
 }
 
 impl TestTime {
@@ -71,52 +73,62 @@ impl TestTime {
                 Ok(())
             },
             |selection| {
-                let unmade = |error| Failure::Io {
-                    site: Site::Workspace,
-                    error,
-                };
-                let runs = tempfile::NamedTempFile::new().map_err(unmade)?;
-                let traces = tempfile::tempdir().map_err(unmade)?;
-                let line = || workspace.line(Program::Cargo);
-                selection
-                    .within(workspace.packages().with_examples())
-                    .reaching()
-                    .map_or(Ok(()), |examples| {
-                        CargoBuild::examples(line(), examples, policy).run()
-                    })?;
+                Self::examples(workspace, selection, policy)?;
                 let reference = ReferenceCpu::measured(policy)?;
-                let cargo = |selection| CargoTest::new(line(), selection, policy);
-                let line = cargo(selection)
-                    .through(&RunnerConfig::current()?)
-                    .environment(TestRunner::RUNS, runs.path())
-                    .environment(GitProcesses::TARGET, traces.path());
-                let ran = Self::GIT_SETTINGS
-                    .into_iter()
-                    .chain(GitProcesses::LEAN)
-                    .fold(line, |line, (name, value)| line.environment(name, value))
-                    .run();
-                let documented = selection.within(workspace.packages().doctested());
-                let documented_ran = documented
-                    .reaching()
-                    .map_or(Ok(()), |documented| cargo(documented).doctests().run());
-                let timings = fs::read_to_string(runs.path())
-                    .map_err(|error| Failure::Io {
-                        site: Site::File(runs.path().to_path_buf()),
-                        error,
-                    })?
-                    .parse::<TestRuns>()?
-                    .passed()?;
-                ran.and(documented_ran)?;
-                let git = GitProcesses::traced(traces.path())?;
-                TestTime {
-                    timings,
-                    reference,
-                    git,
-                }
-                .recorded(policy, ledger)
-                .verdict()
+                let timings = Self::timings(workspace, selection, policy, &Execution::Timed)?;
+                TestTime { timings, reference }
+                    .recorded(policy, ledger)
+                    .verdict()
             },
         )
+    }
+
+    pub(crate) fn examples(
+        workspace: &Workspace,
+        selection: &Selection,
+        policy: &Policy,
+    ) -> Result<(), Failure> {
+        selection
+            .within(workspace.packages().with_examples())
+            .reaching()
+            .map_or(Ok(()), |examples| {
+                CargoBuild::examples(workspace.line(Program::Cargo), examples, policy).run()
+            })
+    }
+
+    pub(crate) fn timings(
+        workspace: &Workspace,
+        selection: &Selection,
+        policy: &Policy,
+        execution: &Execution,
+    ) -> Result<Vec<TestTiming>, Failure> {
+        let runs = tempfile::NamedTempFile::new().map_err(|error| Failure::Io {
+            site: Site::Workspace,
+            error,
+        })?;
+        let cargo = |selection| CargoTest::new(workspace.line(Program::Cargo), selection, policy);
+        let line = cargo(selection)
+            .through(&RunnerConfig::current()?)
+            .environment(TestRunner::RUNS, runs.path());
+        let ran = Self::GIT_SETTINGS
+            .into_iter()
+            .fold(execution.traced(line), |line, (name, value)| {
+                line.environment(name, value)
+            })
+            .run();
+        let documented = selection.within(workspace.packages().doctested());
+        let documented_ran = execution
+            .doctested(documented.reaching())
+            .map_or(Ok(()), |documented| cargo(documented).doctests().run());
+        let timings = fs::read_to_string(runs.path())
+            .map_err(|error| Failure::Io {
+                site: Site::File(runs.path().to_path_buf()),
+                error,
+            })?
+            .parse::<TestRuns>()?
+            .passed()?;
+        ran.and(documented_ran)?;
+        Ok(timings)
     }
 
     fn recorded(mut self, policy: &Policy, ledger: &mut Ledger) -> Report {
@@ -133,8 +145,6 @@ impl TestTime {
             .iter()
             .take(policy.limit(Limit::SlowestShown).count())
             .for_each(|timing| println!("  {timing}"));
-        println!("{}", self.git);
-        ledger.spend(Measure::GitProcesses, self.git.amount());
         let slowest = self
             .timings
             .first()
@@ -165,9 +175,7 @@ impl TestTime {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        CargoBuild, CargoTest, GitProcesses, ReferenceCpu, RunnerConfig, TestTime, TestTiming,
-    };
+    use super::{CargoBuild, CargoTest, ReferenceCpu, RunnerConfig, TestTime, TestTiming};
     use settings::EmbeddedDefaults;
     use std::path::{Path, PathBuf};
     use std::time::Duration;
@@ -191,13 +199,7 @@ mod tests {
         fn over_budget(timings: Vec<TestTiming>, policy: &Policy) -> Report {
             let mut ledger = Ledger::default();
             let reference = ReferenceCpu::new(Duration::from_secs_f64(FAST_RUNNER_SECS));
-            let git = GitProcesses::default();
-            let found = TestTime {
-                timings,
-                reference,
-                git,
-            }
-            .recorded(policy, &mut ledger);
+            let found = TestTime { timings, reference }.recorded(policy, &mut ledger);
             let verdict = ledger.statement(policy).verdict(&Selection::Workspace);
             Report::new(
                 HEADLINE,
