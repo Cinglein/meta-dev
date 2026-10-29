@@ -23,8 +23,10 @@ impl ProgramNames {
     }
 
     fn literal_naming(&mut self, literal: Literal) {
-        let text = syn::parse2::<LitStr>(TokenStream::from(TokenTree::Literal(literal)));
-        text.iter().for_each(|text| self.visit_lit_str(text));
+        let text = syn::parse2::<LitStr>(TokenStream::from(TokenTree::Literal(literal))).ok();
+        let named = text.filter(|text| text.value() == Self::PROGRAM);
+        self.0
+            .extend(named.map(|text| LineNumber::from(text.span())));
     }
 }
 
