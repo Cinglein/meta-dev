@@ -1,9 +1,0 @@
-/private/tmp/claude-501/-Users-jamesnovig-scraps/800f3fae-9070-4428-8bf1-c7b62215cee6/scratchpad/runner6/meta-dev/target/debug/deps/signal_hook_registry-eea6b6bd27e7f0f4.d: /Users/jamesnovig/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/lib.rs /Users/jamesnovig/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/half_lock.rs /Users/jamesnovig/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/vec_map.rs
-
-/private/tmp/claude-501/-Users-jamesnovig-scraps/800f3fae-9070-4428-8bf1-c7b62215cee6/scratchpad/runner6/meta-dev/target/debug/deps/libsignal_hook_registry-eea6b6bd27e7f0f4.rlib: /Users/jamesnovig/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/lib.rs /Users/jamesnovig/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/half_lock.rs /Users/jamesnovig/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/vec_map.rs
-
-/private/tmp/claude-501/-Users-jamesnovig-scraps/800f3fae-9070-4428-8bf1-c7b62215cee6/scratchpad/runner6/meta-dev/target/debug/deps/libsignal_hook_registry-eea6b6bd27e7f0f4.rmeta: /Users/jamesnovig/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/lib.rs /Users/jamesnovig/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/half_lock.rs /Users/jamesnovig/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/vec_map.rs
-
-/Users/jamesnovig/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/lib.rs:
-/Users/jamesnovig/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/half_lock.rs:
-/Users/jamesnovig/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/vec_map.rs:
