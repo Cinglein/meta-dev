@@ -1514,3 +1514,4 @@
 {"at":"2026-10-29T14:17:04.204819Z","actor":"claude-lead","kind":"TaskOpened","task":"task-c0964954df244860","text":"Mutation planner: an unpriced crate gets the max default price and dozens of tiny shards (elegance 82, meta-trace 62); price new crates from a quick measurement or a cheap default refreshed after.","division":"performance-and-cost"}
 {"at":"2026-10-29T14:18:17.724402Z","actor":"claude-adopt","kind":"TaskClaimed","task":"task-5d684fe488424975"}
 {"at":"2026-10-29T14:35:46.054823Z","actor":"claude-adopt","kind":"TaskLinked","task":"task-5d684fe488424975","pr":189}
+{"at":"2026-10-29T14:39:33.318606Z","actor":"claude-adopt","kind":"TaskOpened","task":"task-20d165683da2964e","text":"gitleaks secret scan runs in cargo xtask ci and fails closed when missing","division":"features-and-maintenance"}
