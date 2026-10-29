@@ -22,4 +22,5 @@ pub trait Inspection {
     fn stamp(&self) -> Stamp;
     fn frozen(&self, quarantine: &Path, plan: Thaw) -> Result<Thaw, Kept>;
     fn thawed(&self, thaw: &Thaw);
+    fn cleared(&self, remains: &Path) -> Result<(), Kept>;
 }

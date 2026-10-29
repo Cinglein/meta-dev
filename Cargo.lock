@@ -586,7 +586,6 @@ dependencies = [
  "git2",
  "meta-gh",
  "meta-git",
- "meta-git-view",
  "meta-golden",
  "meta-listing",
  "meta-log",
@@ -598,6 +597,7 @@ dependencies = [
  "meta-severity",
  "meta-state",
  "meta-status",
+ "meta-trace",
  "serde",
  "serde_json",
  "strum",
@@ -627,15 +627,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meta-git-view"
-version = "0.1.0"
-dependencies = [
- "meta-golden",
- "meta-run",
- "meta-schema",
-]
-
-[[package]]
 name = "meta-golden"
 version = "0.1.0"
 dependencies = [
@@ -661,7 +652,6 @@ dependencies = [
 name = "meta-log"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "meta-git",
  "meta-run",
  "meta-schema",
@@ -685,6 +675,7 @@ dependencies = [
 name = "meta-pull-query"
 version = "0.1.0"
 dependencies = [
+ "meta-gh",
  "meta-pulls",
  "meta-schema",
  "serde",
@@ -703,6 +694,7 @@ dependencies = [
 name = "meta-run"
 version = "0.1.0"
 dependencies = [
+ "meta-trace",
  "signal-hook",
  "strum",
  "tempfile",
@@ -767,8 +759,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "meta-trace"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "strum",
+ "tempfile",
+ "tracing",
+]
+
+[[package]]
 name = "meta-xtask"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "affected",
  "build_time",
@@ -1506,6 +1509,25 @@ name = "toml_writer"
 version = "1.1.3+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06bdbd8cfc056b8d2e2e85f29b56a3bdbecb527cef81eb39e3e7b98af4652770"
+
+[[package]]
+name = "tracing"
+version = "0.1.44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63e71662fa4b2a2c3a26f570f037eb95bb1f85397f3cd8076caed2f026a6d100"
+dependencies = [
+ "pin-project-lite",
+ "tracing-core",
+]
+
+[[package]]
+name = "tracing-core"
+version = "0.1.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db97caf9d906fbde555dd62fa95ddba9eecfd14cb388e4f491a66d74cd5fb79a"
+dependencies = [
+ "once_cell",
+]
 
 [[package]]
 name = "type_shape"

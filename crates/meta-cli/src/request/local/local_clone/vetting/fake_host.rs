@@ -88,6 +88,7 @@ const STAMP: &str = "1x0";
 const FROZEN: &str = "frozen";
 const NO_MODE: u32 = 0o0;
 const THAWED: &str = "thawed";
+const CLEARED: &str = "cleared";
 
 #[derive(Debug)]
 pub struct FakeHost {
@@ -320,6 +321,11 @@ impl Inspection for FakeHost {
     fn thawed(&self, thaw: &Thaw) {
         let thawed = thaw.files().iter().map(|thawed| thawed.path().as_os_str().to_os_string());
         self.calls.lock().unwrap().push([OsString::from(THAWED)].into_iter().chain(thawed).collect());
+    }
+
+    fn cleared(&self, remains: &Path) -> Result<(), Kept> {
+        self.calls.lock().unwrap().push(vec![OsString::from(CLEARED), remains.as_os_str().to_os_string()]);
+        Ok(())
     }
 
     fn stamp(&self) -> Stamp {

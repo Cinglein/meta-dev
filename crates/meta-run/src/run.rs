@@ -1,8 +1,10 @@
 mod group;
 mod interrupts;
 mod placement;
+#[cfg(test)]
+mod tests;
 
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::io::{Read, Write as _};
 use std::ops::ControlFlow;
 use std::os::unix::process::CommandExt as _;
@@ -10,6 +12,8 @@ use std::path::Path;
 use std::process::{Child, Command, ExitCode, ExitStatus, Stdio};
 use std::sync::mpsc::{Receiver, channel};
 use std::time::{Duration, Instant};
+
+use meta_trace::{SpanKind, Stitch};
 
 use crate::Reported;
 use crate::command_line::CommandLine;
@@ -110,10 +114,13 @@ impl Run {
     }
 
     pub fn ran(self, deadline: Instant) -> Result<Ran, RunFailure> {
+        let kind = SpanKind::spawning(&self.command);
+        let _span = kind.entered();
+        let run = kind.stitch().into_iter().fold(self, |run, stitch| run.var(Stitch::VARIABLE, OsString::from(stitch)));
         let watch = Interrupts::watched();
-        let line = CommandLine::from(&self.command);
+        let line = CommandLine::from(&run.command);
         let ran =
-            Group::accepting().ok_or(RunFailure::Interrupted(line)).and_then(|()| self.placement.ran(self, deadline));
+            Group::accepting().ok_or(RunFailure::Interrupted(line)).and_then(|()| run.placement.ran(run, deadline));
         watch.honored();
         ran
     }
