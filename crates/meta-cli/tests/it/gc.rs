@@ -53,6 +53,8 @@ case "$1 $2" in
 esac
 "#;
 const EXCLUDED: &str = "/meta.local.toml\n/bin\ntarget/\n";
+const LOCKED: &str = "target/tmp/locked";
+const QUARANTINE: &str = ".gc-";
 const CARGO_TAG: &str =
     "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n";
 const GC: [&str; 1] = ["gc"];
@@ -195,6 +197,11 @@ impl Scene {
         std::fs::create_dir_all(trees.join(MERGED).join("target/debug")).unwrap();
         std::fs::write(trees.join(MERGED).join("target/debug/.cargo-lock"), "").unwrap();
         std::fs::write(trees.join(MERGED).join("target/CACHEDIR.TAG"), CARGO_TAG).unwrap();
+        std::fs::create_dir_all(trees.join(MERGED).join(LOCKED)).unwrap();
+        std::fs::write(trees.join(MERGED).join(LOCKED).join(".cargo-lock"), "").unwrap();
+        let mut read_only = std::fs::metadata(trees.join(MERGED).join(LOCKED)).unwrap().permissions();
+        read_only.set_readonly(true);
+        std::fs::set_permissions(trees.join(MERGED).join(LOCKED), read_only).unwrap();
         let dirty = Fixture::opened(&trees.join(DIRTY));
         dirty.committed("precious");
         dirty.rewound();
@@ -206,6 +213,12 @@ impl Scene {
 
     fn trees(&self) -> PathBuf {
         std::fs::canonicalize(self.trees.path()).unwrap()
+    }
+
+    pub fn quarantined(&self) -> Vec<String> {
+        let entries = std::fs::read_dir(self.trees()).unwrap();
+        let names = entries.map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned());
+        names.filter(|name| name.starts_with(QUARANTINE)).collect()
     }
 
     fn meta(&self, words: &[&str]) -> String {
@@ -232,7 +245,11 @@ fn gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_wit
     let trail = std::fs::read_to_string(scene.clone.path().join(TRAIL)).unwrap();
     let clone = Fixture::opened(scene.clone.path());
     assert!(
-        shows(&swept, &SWEPT) && swept.contains(&freed) && !trees.join(MERGED).exists() && !clone.has_branch(MERGED),
+        shows(&swept, &SWEPT)
+            && swept.contains(&freed)
+            && !trees.join(MERGED).exists()
+            && !clone.has_branch(MERGED)
+            && scene.quarantined().is_empty(),
         "{swept}"
     );
     assert!(

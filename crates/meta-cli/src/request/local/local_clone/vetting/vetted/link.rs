@@ -114,6 +114,10 @@ impl Link {
         &self.path
     }
 
+    pub fn registered(&self, host: &impl Inspection) -> bool {
+        host.entry(&self.git_dir.join(Self::BACK)) != EntryKind::Missing
+    }
+
     pub fn relocated(&self, path: &Path) -> Self {
         Self { path: path.to_path_buf(), ..self.clone() }
     }

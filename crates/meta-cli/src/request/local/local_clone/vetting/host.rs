@@ -7,7 +7,9 @@ mod freeze_tests;
 mod tests;
 
 use std::collections::HashMap;
+use std::fs::Permissions;
 use std::io::ErrorKind;
+use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 
@@ -22,7 +24,7 @@ use super::git_call::GitCall;
 use super::inspection::Inspection;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
-use super::thaw::{Thaw, Thawed};
+use super::thaw::{Mode, Thaw, Thawed};
 use super::uninspected::Uninspected;
 use crate::request::local::LocalFile;
 use crate::request::local::local_clone::quarantine::Stamp;
@@ -139,6 +141,17 @@ impl Inspection for Host {
     fn thawed(&self, thaw: &Thaw) {
         thaw.files().iter().for_each(|thawed| drop(std::fs::set_permissions(thawed.path(), thawed.permissions())));
         drop(std::fs::remove_file(thaw.ledger()));
+    }
+
+    fn cleared(&self, remains: &Path) -> Result<(), Kept> {
+        let found = self.walked(remains).into_iter().filter(|found| found.kind() == EntryKind::Dir);
+        let dirs = [remains.to_path_buf()].into_iter().chain(found.map(|found| remains.join(found.path())));
+        let opened = dirs.map(|dir| {
+            let writable = Mode::new(dir.symlink_metadata()?.permissions().mode()).owner_writable();
+            std::fs::set_permissions(&dir, Permissions::from_mode(writable.bits()))
+        });
+        let cleared = opened.collect::<std::io::Result<()>>().and_then(|()| std::fs::remove_dir_all(remains));
+        cleared.map_err(|failure| Kept::Unremoved(Cause::new(failure)))
     }
 
     fn stamp(&self) -> Stamp {

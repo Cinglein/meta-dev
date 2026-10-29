@@ -3,7 +3,7 @@
         "millis.total: also set as a budget; drop the old key",
     ),
     Some(
-        "millis.total: not set; declare it as a budget",
+        "millis.total: not set; declare it as a budget, for example copy this default into tooling/policy.toml:\n[budgets.test-time]\ndivision = \"performance-and-cost\"\nmeasure = \"test_wall_time\"\nallowance = { duration = 8000 }\nwindow = \"per_change\"\nsource = \"ci\"",
     ),
     Some(
         "invalid type: integer `5`, expected a table of policy entries",

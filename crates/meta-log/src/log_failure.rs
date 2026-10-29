@@ -1,4 +1,5 @@
-use std::time::Instant;
+use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 use meta_git::{GitFailure, RemoteName};
 use meta_run::Stderr;
@@ -25,6 +26,8 @@ pub enum LogFailure {
     Contended,
     #[error("meta/log fetch ran past its git_millis deadline; gave up")]
     Expired,
+    #[error("meta/log kept moving; gave up; {} is {}s old; delete it if no meta process is running", .lock.display(), .age.as_secs())]
+    StaleLock { lock: PathBuf, age: Duration },
     #[error("{0}")]
     NotCommit(#[from] NotCommitId),
     #[error("{0}")]
