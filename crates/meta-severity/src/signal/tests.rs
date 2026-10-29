@@ -4,10 +4,10 @@ use meta_schema::{Division, ItemKind, LevelName, Placement, TopDivision};
 
 use crate::{ActionLevels, Evidence, Level, PromoteAfter, Scale, Scales, Signal, Subject, Thresholds};
 
+const LINES: [(&str, usize); 3] = [("minor", 2), ("critical", 10), ("major", 5)];
+const AT_LINES: [Option<&str>; 3] = [None, Some("major"), Some("minor")];
 type Observed = (Option<&'static str>, Evidence);
 
-const LINES: [(usize, &str); 3] = [(2, "minor"), (10, "critical"), (5, "major")];
-const AT_LINES: [Option<&str>; 3] = [None, Some("major"), Some("minor")];
 const HISTORIES: [(&[Observed], &str); 7] = [
     (
         &[(Some("minor"), Evidence::Measured), (Some("critical"), Evidence::Absent)],
@@ -25,52 +25,53 @@ const HISTORIES: [(&[Observed], &str); 7] = [
 ];
 const REACHED: [bool; 3] = [false, false, true];
 
-impl Subject for (Placement, ItemKind) {
+impl Subject for Placement {
     fn placement(&self) -> Placement {
-        self.0.clone()
+        self.clone()
     }
 
     fn kind(&self) -> ItemKind {
-        self.1
+        ItemKind::Issue
     }
 }
 
-fn named(name: &str) -> LevelName {
-    name.parse().unwrap()
+impl Scales {
+    fn costs() -> Division {
+        Division::from(TopDivision::PerformanceAndCost)
+    }
+
+    fn top(&self) -> &Scale {
+        self.scale(&Scales::costs()).unwrap()
+    }
 }
 
-fn observed(division: &Division, (level, evidence): &Observed) -> Signal<(Placement, ItemKind), ()> {
-    Signal::new((Placement::new(division.clone()), ItemKind::Issue), level.map(named), evidence.clone(), ())
-}
-
-fn top(scales: &Scales) -> (Division, &Scale) {
-    let division = Division::from(TopDivision::PerformanceAndCost);
-    let scale = scales.scale(&division).unwrap();
-    (division, scale)
+impl Signal<Placement, ()> {
+    fn observed(level: Option<&str>, evidence: &Evidence) -> Signal<Placement, ()> {
+        let level = level.map(|name| name.parse().unwrap());
+        Signal::new(Placement::new(Scales::costs()), level, evidence.clone(), ())
+    }
 }
 
 #[test]
 fn a_rating_never_falls_as_the_measure_grows_and_a_measure_at_a_line_stays_below_it() {
     let scales = Scales::default();
-    let (_, scale) = top(&scales);
-    let thresholds = Thresholds::on(scale, LINES.map(|(line, name)| (line, named(name))).to_vec()).unwrap();
-    let rank = |measure: usize| thresholds.rate(&measure).and_then(|level| scale.index_of(level));
-    let ranks: Vec<usize> = (0..=LINES[1].0 + 1).map(|measure| rank(measure).unwrap_or(scale.levels().len())).collect();
+    let scale = scales.top();
+    let lines: BTreeMap<LevelName, usize> = LINES.map(|(name, line)| (name.parse().unwrap(), line)).into();
+    let thresholds = Thresholds::from(lines);
+    let rated = |measure: usize| thresholds.rate(scale, &measure).unwrap().map(String::from);
+    let rank = |measure: usize| rated(measure).and_then(|level| scale.index_of(&level.parse().unwrap()));
+    let ranks: Vec<usize> = (0..=LINES[1].1 + 1).map(|measure| rank(measure).unwrap_or(scale.levels().len())).collect();
     assert!(ranks.is_sorted_by(|before, after| after <= before));
-    assert_eq!(
-        LINES.map(|(line, _)| thresholds.rate(&line).map(ToString::to_string)),
-        AT_LINES.map(|at| at.map(String::from))
-    );
+    assert_eq!(LINES.map(|(_, line)| rated(line)), AT_LINES.map(|at| at.map(String::from)));
 }
 
 #[test]
 fn a_raise_needs_evidence_a_lowering_is_free_and_a_run_or_a_failed_remedy_promotes() {
     let scales = Scales::default();
-    let (division, scale) = top(&scales);
     let after: PromoteAfter = serde_json::from_str("3").unwrap();
     let promoted = HISTORIES.map(|(history, _)| {
-        let signals: Vec<_> = history.iter().map(|seen| observed(&division, seen)).collect();
-        let level = after.promote(scale, &signals).map(|level| level.map(String::from).unwrap_or_default());
+        let signals: Vec<_> = history.iter().map(|(level, evidence)| Signal::observed(*level, evidence)).collect();
+        let level = after.promote(scales.top(), &signals).map(|level| level.map(String::from).unwrap_or_default());
         level.unwrap_or_else(|failure| failure.to_string())
     });
     assert_eq!(promoted, HISTORIES.map(|(_, expected)| expected.to_owned()));
@@ -79,16 +80,19 @@ fn a_raise_needs_evidence_a_lowering_is_free_and_a_run_or_a_failed_remedy_promot
 #[test]
 fn missing_data_reaches_every_action_level_and_a_measured_level_only_its_own_and_above() {
     let scales = Scales::default();
-    let (division, scale) = top(&scales);
     let acting = |line: &Level| -> ActionLevels {
-        serde_json::from_value(serde_json::to_value(BTreeMap::from([(division.clone(), line.name())])).unwrap())
-            .unwrap()
+        serde_json::from_value(serde_json::to_value(BTreeMap::from([(Scales::costs(), line.name())])).unwrap()).unwrap()
     };
-    let minor = observed(&division, &(Some("minor"), Evidence::Measured));
+    let minor = Signal::observed(Some("minor"), &Evidence::Measured);
     let reached = |level: Option<&LevelName>| {
-        scale.levels().iter().map(|line| acting(line).acts(&scales, &division, level)).collect::<Vec<bool>>()
+        let lines = scales.top().levels().iter();
+        lines.map(|line| acting(line).acts(&scales, &Scales::costs(), level)).collect::<Vec<bool>>()
     };
     assert!(reached(None).iter().all(|acts| *acts));
     assert_eq!(reached(minor.level()), REACHED);
-    assert_eq!(minor.triage(), (Placement::new(division.clone()), ItemKind::Issue, Some(&named("minor"))));
+    let triage = minor.triage();
+    assert_eq!(
+        (triage.placement().division(), triage.kind(), triage.level()),
+        (Some(&Scales::costs()), ItemKind::Issue, minor.level())
+    );
 }

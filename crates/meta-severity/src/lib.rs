@@ -17,6 +17,7 @@ mod stranded;
 mod strands;
 mod subject;
 mod thresholds;
+mod triage;
 
 pub use action_levels::ActionLevels;
 pub use carrying::Carrying;
@@ -35,3 +36,4 @@ pub use stranded::Stranded;
 pub use strands::Strands;
 pub use subject::Subject;
 pub use thresholds::Thresholds;
+pub use triage::Triage;

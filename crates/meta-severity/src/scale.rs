@@ -73,7 +73,7 @@ impl Scale {
         let rank = |level: &LevelName| self.index_of(level).ok_or_else(|| RatingFailure::UnknownLevel(level.clone()));
         let ranks = from.zip(to).map(|(from, to)| Ok::<_, RatingFailure>((from, rank(from)?, rank(to)?)));
         match ranks.transpose()? {
-            Some((from, old, new)) if new < old && !evidence.supports_raise() => {
+            Some((from, old, new)) if new < old && *evidence == Evidence::Absent => {
                 Err(RatingFailure::RaisedWithoutEvidence(from.clone()))
             }
             _ => Ok(()),

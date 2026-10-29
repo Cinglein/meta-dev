@@ -7,10 +7,3 @@ pub enum Evidence {
     FailedRemedy,
     Scenario(Scenario),
 }
-
-impl Evidence {
-    #[must_use]
-    pub fn supports_raise(&self) -> bool {
-        !matches!(self, Self::Absent)
-    }
-}

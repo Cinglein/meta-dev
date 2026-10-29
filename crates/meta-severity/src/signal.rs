@@ -1,7 +1,8 @@
-use meta_schema::{ItemKind, LevelName, Placement};
+use meta_schema::LevelName;
 
 use crate::evidence::Evidence;
 use crate::subject::Subject;
+use crate::triage::Triage;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Signal<About, Since> {
@@ -40,8 +41,8 @@ impl<About, Since> Signal<About, Since> {
 
 impl<About: Subject, Since> Signal<About, Since> {
     #[must_use]
-    pub fn triage(&self) -> (Placement, ItemKind, Option<&LevelName>) {
-        (self.subject.placement(), self.subject.kind(), self.level())
+    pub fn triage(&self) -> Triage {
+        Triage::new(self.subject.placement(), self.subject.kind(), self.level.clone())
     }
 }
 
