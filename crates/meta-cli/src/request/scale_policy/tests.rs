@@ -1,9 +1,9 @@
 use chrono::{DateTime, TimeDelta, Utc};
 use meta_schema::{Block, Blocker, DueTime, ExternalKind};
-use meta_severity::Scales;
 
 use super::ScalePolicy;
 
+const MISSING: &str = "tooling/policy.toml";
 const TOOLING: &str = "tooling";
 const ASKED: &str = "[liveness]\nreply_within = 60000\n";
 const NOW: &str = "2026-10-29T12:00:00Z";
@@ -17,9 +17,10 @@ const UNKNOWN: &str = "features-and-maintenance/nowhere";
 const UNMAPPED: &str = "maps onto no level";
 
 #[test]
-fn scales_and_known_divisions_are_read_from_policy_and_are_the_defaults_without_one() {
+fn scales_and_known_divisions_are_read_from_policy_and_a_missing_one_is_refused() {
     let dir = tempfile::tempdir().unwrap();
-    assert_eq!(ScalePolicy::read(dir.path()).unwrap().scales(), &Scales::default());
+    let missing = ScalePolicy::read(dir.path()).unwrap_err().to_string();
+    assert!(missing.contains(MISSING) && missing.contains("copy meta-dev's tooling/policy.toml"));
     std::fs::create_dir(dir.path().join("tooling")).unwrap();
     std::fs::write(dir.path().join(ScalePolicy::FILE), POLICY).unwrap();
     let nav = NAV.parse().unwrap();

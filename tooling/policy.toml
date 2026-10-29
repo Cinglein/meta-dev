@@ -234,6 +234,7 @@ meta-schema = 7300
 meta-severity = 11200
 meta-state = 7700
 meta-status = 3800
+meta-trace = 6400
 meta-xtask = 1600
 module_nesting = 2100
 mutant_costs = 2100
