@@ -1336,3 +1336,4 @@
 {"at":"2026-10-29T03:51:24.129497Z","actor":"claude-fixture","kind":"TaskClaimed","task":"task-285e45b014d47746"}
 {"at":"2026-10-29T03:52:59.355695Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-f0294fa2ab4cf158"}
 {"at":"2026-10-29T03:53:01.017653Z","actor":"claude-lead","kind":"TaskDone","task":"task-f0294fa2ab4cf158"}
+{"at":"2026-10-29T03:58:55.692890Z","actor":"claude-fixture","kind":"TaskLinked","task":"task-285e45b014d47746","pr":157}
