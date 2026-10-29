@@ -48,3 +48,9 @@ unwrap_used = "deny"
 expect_used = "deny"
 panic = "deny"
 indexing_slicing = "deny"
+
+[profile.dev.package.libgit2-sys]
+opt-level = 3
+
+[profile.dev.package.libz-sys]
+opt-level = 3
