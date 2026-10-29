@@ -4,6 +4,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use super::marked_groups::MarkedGroups;
+use super::state_corrupt::StateCorrupt;
 use super::watch_item::WatchItem;
 use crate::request::cli_failure::CliFailure;
 use crate::request::local::LocalFile;
@@ -22,8 +23,12 @@ impl MonitorState {
     }
 
     pub fn read(git_dir: &Path) -> Result<Self, CliFailure> {
-        let text = LocalFile::new(git_dir.join(Self::FILE)).text().unwrap_or_default();
-        Ok(serde_json::from_str(&text).unwrap_or_default())
+        let file = LocalFile::new(git_dir.join(Self::FILE));
+        let text = file.text()?;
+        if text.trim().is_empty() {
+            return Ok(Self::default());
+        }
+        serde_json::from_str(&text).map_err(|cause| file.failure(StateCorrupt(cause)))
     }
 
     pub fn write(&self, git_dir: &Path) -> Result<(), CliFailure> {

@@ -1,4 +1,7 @@
+mod policy_missing;
+
 use std::collections::BTreeMap;
+use std::io::ErrorKind;
 use std::path::Path;
 
 use meta_schema::Division;
@@ -7,6 +10,8 @@ use serde::Deserialize;
 use serde::de::IgnoredAny;
 
 use crate::request::cli_failure::{CliFailure, Setup};
+use crate::request::local::LocalFile;
+use policy_missing::PolicyMissing;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct ScalePolicy {
@@ -20,10 +25,12 @@ impl ScalePolicy {
     const FILE: &'static str = "tooling/policy.toml";
 
     pub fn read(root: &Path) -> Result<ScalePolicy, CliFailure> {
-        std::fs::read_to_string(root.join(Self::FILE)).map_or_else(
-            |_| Ok(ScalePolicy::default()),
-            |text| toml::from_str(&text).map_err(CliFailure::raised::<Setup>),
-        )
+        let file = LocalFile::new(root.join(Self::FILE));
+        let text = std::fs::read_to_string(root.join(Self::FILE)).map_err(|failure| match failure.kind() {
+            ErrorKind::NotFound => file.failure(PolicyMissing),
+            _ => file.failure(failure),
+        })?;
+        toml::from_str(&text).map_err(CliFailure::raised::<Setup>)
     }
 
     pub fn scales(&self) -> &Scales {
