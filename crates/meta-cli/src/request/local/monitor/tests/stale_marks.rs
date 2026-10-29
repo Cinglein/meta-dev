@@ -36,7 +36,7 @@ fn a_mark_is_dropped_when_its_leader_changed_it_went_unseen_left_the_project_or_
         let git_dir = tempfile::tempdir().unwrap();
         let state = LocalFile::new(git_dir.path().join(STATE));
         state.replaced(before).unwrap();
-        let host = FakeMachine::new(&[table], cwds, UPTIME);
+        let host = FakeMachine::new(&[table], cwds, UPTIME).started_at("800", "");
         Watch::patrolled(&host, git_dir.path(), overrides, TimeDelta::zero());
         Watch::shown(&host, &state.text().unwrap())
     });
