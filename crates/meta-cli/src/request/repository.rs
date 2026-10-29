@@ -1,6 +1,8 @@
 use std::ffi::OsString;
 use std::str::FromStr;
 
+use meta_run::Run;
+
 use crate::request::ci::Commit;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -10,6 +12,12 @@ impl Repository {
     const SUFFIX: &'static str = ".git";
     const SEPARATORS: [char; 2] = ['/', ':'];
     const FIELD: &'static str = "-f";
+    const VARIABLE: &'static str = "GH_REPO";
+
+    #[must_use]
+    pub fn named(&self, run: Run) -> Run {
+        run.var(Self::VARIABLE, &self.0)
+    }
 
     pub fn variables(&self, commit: &Commit) -> impl Iterator<Item = OsString> {
         let (owner, name) = self.0.split_once('/').unwrap_or_default();

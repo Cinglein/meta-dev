@@ -150,12 +150,11 @@ impl Watcher {
     fn poll(&self, project: &Project, remote: &Remote, wait: Duration) -> Option<Result<Observation, Listed>> {
         let resolved = remote.resolved(project).map_err(RemoteFailure::retry);
         let refused = resolved.as_ref().err().and_then(|retry| retry.as_ref().err());
-        let stopped = refused.map(|reason| Note::unchecked(self.clock.elapsed(), reason));
-        stopped.map_or(Some(()), |note| {
-            self.note(&note);
+        let stopped = self.clock.poll(refused, wait, &self.settings).break_value();
+        stopped.map_or(Some(()), |unchecked| {
+            unchecked.map(|note| self.note(&note));
             None
         })?;
-        self.clock.pause(wait, &self.settings)?;
         let repository = resolved.map_err(|retry| retry.unwrap_or_else(std::convert::identity));
         let observed = repository.and_then(|repository| self.gh.observe(repository, &self.commit));
         let learned = observed.as_ref().ok().and_then(Observation::expected);

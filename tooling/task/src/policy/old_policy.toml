@@ -38,6 +38,14 @@ surfaces = [
 default = "main"
 base = "origin/main"
 
+[supply_chain]
+licenses = ["MIT"]
+registries = ["https://github.com/rust-lang/crates.io-index"]
+git = []
+ignored_advisories = []
+duplicates = "warn"
+semver = []
+
 [limits]
 parameters = 4
 nesting = 2
@@ -83,7 +91,6 @@ test_timeout = 30000
 full_job = 700000
 diff_job = 200000
 job_setup = 90000
-reference_cpu = 1080
 
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]

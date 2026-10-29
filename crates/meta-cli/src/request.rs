@@ -221,14 +221,14 @@ impl Request {
     }
 
     fn session() -> Result<SessionId, CliFailure> {
-        std::env::var(SessionId::VARIABLE)
-            .map_err(|_| {
-                CliFailure::raised::<Setup>(format!(
-                    "{} is not set; run inside a Claude session with the plugin",
-                    SessionId::VARIABLE
-                ))
-            })
-            .and_then(|session| session.parse().map_err(CliFailure::raised::<Invalid>))
+        let directory = std::env::current_dir().map_err(CliFailure::raised::<Setup>)?;
+        SessionId::chosen(std::env::var(SessionId::VARIABLE).ok(), &directory).ok_or_else(|| {
+            CliFailure::raised::<Setup>(format!(
+                "{} is not set and this directory is not a claimed task worktree; run `meta claim <task> --worktree` and work in its path, or set {}",
+                SessionId::VARIABLE,
+                SessionId::VARIABLE
+            ))
+        })
     }
 
     fn actor() -> Result<Actor, CliFailure> {

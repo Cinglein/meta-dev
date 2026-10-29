@@ -15,6 +15,7 @@ const RELATIVE: &str = "worktree_root = \"trees\"";
 const NESTED: &str = "/work/clone/trees";
 const NOWHERE: &str = "/nonexistent/clone";
 const NOT_A_DIRECTORY: &str = "/dev/null";
+const NOREPLY: &str = "1+a@users.noreply.github.com";
 const REFUSED: [&str; 2] = ["[identity]\nname = \"a\"\nemail = \"a@example.com\"", "root = \"trees\""];
 const ACTOR: &str = "agent";
 const DIVISION: &str = "features-and-maintenance";
@@ -56,7 +57,10 @@ fn settings_default_to_a_sibling_root_resolve_relative_roots_and_refuse_foreign_
     let relative: LocalSettings = RELATIVE.parse().unwrap();
     let roots = [absent.worktree_root(checkout), relative.worktree_root(checkout)];
     assert_eq!(roots, [PathBuf::from(SIBLING), PathBuf::from(NESTED)]);
-    assert!(absent.identity().is_err() && LocalTrail::read(Path::new(NOWHERE)).unwrap().current().is_empty());
+    let given = [(None, None), (Some(ACTOR), None), (Some(ACTOR), Some("a@example.com")), (Some(""), Some(NOREPLY))];
+    let kept = LocalTrail::read(Path::new(NOWHERE)).unwrap().current();
+    assert!(given.iter().all(|(name, email)| absent.identity(*name, *email).is_err()) && kept.is_empty());
+    assert!(absent.identity(Some(ACTOR), Some(NOREPLY)).is_ok());
     let unreadable = LocalSettings::read(Path::new(NOT_A_DIRECTORY)).unwrap_err().to_string();
     assert!(REFUSED.iter().all(|text| text.parse::<LocalSettings>().is_err()) && unreadable.contains(NOT_A_DIRECTORY));
 }

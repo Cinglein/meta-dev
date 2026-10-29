@@ -1,0 +1,7 @@
+# The one place the Rust version is named. CI installs exactly this (each job
+# runs `rustup toolchain install`, which reads this file). Upgrading Rust is an
+# explicit PR that changes `channel`.
+[toolchain]
+channel = "1.99.0"
+profile = "minimal"
+components = ["clippy", "rustfmt"]

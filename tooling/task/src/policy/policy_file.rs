@@ -10,6 +10,7 @@ use strum::IntoEnumIterator;
 use super::bit_boundary::BitBoundary;
 use super::least::Least;
 use super::policy_failure::PolicyFailure;
+use super::supply_chain::SupplyChain;
 use super::{BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface};
 use crate::branches::{Branch, BranchName};
 use crate::budget::{AvailableGib, Interval, MemoryShare, Millis, MutantMillis, MutationCadence};
@@ -51,6 +52,7 @@ pub struct PolicyFile {
     budgets: BudgetDrafts,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     spec: Option<SpecSettings>,
+    supply_chain: SupplyChain,
 }
 
 impl PolicyFile {
@@ -79,6 +81,7 @@ impl PolicyFile {
             scales: policy.scales.clone(),
             budgets: BudgetDrafts::from(policy.budgets.clone()),
             spec: policy.spec.clone(),
+            supply_chain: policy.supply_chain.clone(),
         }
     }
 
@@ -212,6 +215,7 @@ impl PolicyFile {
             budgets,
             deprecated,
             spec: self.spec,
+            supply_chain: self.supply_chain,
         })
     }
 
