@@ -57,6 +57,7 @@ fn every_commit_made_after_the_start_counts_once_whatever_its_subject_or_dates_a
     let merged_elsewhere = Recorded::created(&merged_elsewhere, BEFORE, &[]);
     let expected = [&CREATED[..], &CREATED[..0], &CREATED[1..2], &CREATED[1..]].map(Recorded::commits);
     assert_eq!([before, after, same_second, merged_elsewhere], expected);
+    assert_eq!(SAME_SECOND.parse::<StartMoment>().map(|start| start.to_string()), Ok(SAME_SECOND.to_owned()));
 }
 
 #[test]
