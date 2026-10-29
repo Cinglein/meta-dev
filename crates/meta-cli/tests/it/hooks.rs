@@ -72,13 +72,8 @@ const HELPERS: &str = r#"[remote "origin"]
 	uploadpack = "sh -c 'test -e ROOT/hold && echo $$ >> ROOT/pids && sleep 5 || exec git upload-pack \"$1\"' x"
 "#;
 
-#[allow(dead_code)]
-#[path = "support/fixture.rs"]
-mod fixture;
-#[path = "support/meta_command.rs"]
-mod meta_command;
-use fixture::{Fixture, WorkStep};
-use meta_command::MetaCommand;
+use crate::fixture::{Fixture, WorkStep};
+use crate::meta_command::MetaCommand;
 
 struct Config;
 

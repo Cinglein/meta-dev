@@ -1,6 +1,6 @@
 use meta_git::{FileCommit, Files, Identity, RefMove, Repository, Writes};
 
-use super::{BRANCH, FIRST, Fixture};
+use super::{BRANCH, FIRST, Fixture, Port};
 use crate::LogStore;
 use crate::log_failure::LogFailure;
 
@@ -14,7 +14,8 @@ impl Fixture {
         let files: Files = files.iter().map(|file| ((*file).to_owned(), Some(String::new()))).collect();
         let author = Identity::new(EXTRA.to_owned(), EXTRA.to_owned());
         let commit = origin.write(&FileCommit::new(None, files, author, EXTRA.to_owned())).unwrap();
-        origin.write(&RefMove::new(BRANCH.parse().unwrap(), commit)).unwrap();
+        let latest = Port::target(self.origin.path(), BRANCH);
+        origin.write(&RefMove::new(BRANCH.parse().unwrap(), latest, commit)).unwrap();
         self.log(FIRST).read().err()
     }
 }

@@ -39,6 +39,8 @@ pub enum CargoArgument {
     Build,
     #[strum(serialize = "--examples")]
     Examples,
+    #[strum(serialize = "--timings")]
+    Timings,
     #[strum(serialize = "--profile")]
     Profile,
     #[strum(serialize = "--config")]

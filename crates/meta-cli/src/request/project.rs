@@ -6,7 +6,7 @@ use std::str::FromStr;
 use std::sync::OnceLock;
 use std::time::Instant;
 
-use meta_git::{Head, Reads as _, RemoteUrl};
+use meta_git::{Head, Reads as _};
 use meta_log::{GitLog, RemoteHeads};
 use meta_run::{Budget, GitArgv, Port, Run};
 
@@ -105,13 +105,13 @@ impl Project {
 
     pub fn repository(&self) -> Result<Repository, RemoteFailure> {
         let remote = self.config.remote().map_err(|failure| RemoteFailure::NotGithub(Listed::new(failure)))?;
-        let url = meta_git::Repository::open(&self.root)
-            .and_then(|repository| repository.read(&RemoteUrl::from(remote.clone())));
-        let url = url.map_err(|failure| {
+        let read = meta_git::Repository::open(&self.root)
+            .and_then(|repository| repository.read(&meta_git::RemoteUrl::from(remote.clone())));
+        let url = read.map(Option::unwrap_or_default).map_err(|failure| {
             RemoteFailure::GitFailed(Listed::new(format!("git failed reading the remote URL: {failure}")))
         })?;
-        let named = format!("remote URL `{url}` names no GitHub owner and repository");
-        url.parse().map_err(|()| RemoteFailure::NotGithub(Listed::new(named)))
+        let named = format!("remote URL `{}` names no GitHub owner and repository", url.trim());
+        url.lines().next().unwrap_or_default().parse().map_err(|()| RemoteFailure::NotGithub(Listed::new(named)))
     }
 
     fn loaded(root: PathBuf) -> Result<Self, CliFailure> {
