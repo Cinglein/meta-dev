@@ -13,6 +13,7 @@ use chrono::{DateTime, TimeDelta, Utc};
 use super::command_summary::CommandSummary;
 use super::core_share::CoreShare;
 use super::culprit::Culprit;
+use super::start_time::StartTime;
 use super::target::Target;
 use super::unreadable::Unreadable;
 use super::watch_item::WatchItem;
@@ -27,6 +28,7 @@ pub struct ProcessRow {
     pid: Pid,
     parent: Pid,
     group: GroupId,
+    start_time: StartTime,
     age: Duration,
     cpu_time: Duration,
     cpu: CoreShare,
@@ -35,7 +37,11 @@ pub struct ProcessRow {
 }
 
 impl ProcessRow {
-    const HEADER_LEN: usize = 6;
+    const HEADER_LEN: usize = 11;
+
+    pub fn start_time(&self) -> &StartTime {
+        &self.start_time
+    }
 
     pub fn placed(self, cwd: Option<PathBuf>) -> Self {
         Self { cwd, ..self }
@@ -120,12 +126,13 @@ impl FromStr for ProcessRow {
     fn from_str(line: &str) -> Result<Self, Self::Err> {
         let words: Vec<&str> = line.split_whitespace().collect();
         let (header, command) = words.split_at_checked(Self::HEADER_LEN).ok_or(Unreadable)?;
-        let [pid, parent, group, age, cpu_time, cpu] =
+        let [pid, parent, group, weekday, month, day, clock, year, age, cpu_time, cpu] =
             <[&str; Self::HEADER_LEN]>::try_from(header).map_err(|_| Unreadable)?;
         Ok(Self {
             pid: pid.parse()?,
             parent: parent.parse()?,
             group: group.parse()?,
+            start_time: [weekday, month, day, clock, year].join(" ").parse()?,
             age: age.parse::<ClockTime>()?.duration(),
             cpu_time: cpu_time.parse::<ClockTime>()?.duration(),
             cpu: cpu.parse::<CoreShare>().map_err(|_| Unreadable)?.hundredth(),

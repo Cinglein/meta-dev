@@ -12,6 +12,13 @@ pub enum Target {
 }
 
 impl Target {
+    pub fn leader(self) -> Option<Pid> {
+        match self {
+            Self::Group(group) => Some(group.leader()),
+            Self::Process(_) => None,
+        }
+    }
+
     pub fn appended(self, run: Run) -> Run {
         run.arg(self.to_string())
     }
