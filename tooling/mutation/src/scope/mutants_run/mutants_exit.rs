@@ -18,9 +18,9 @@ mod tests {
     use std::os::unix::process::ExitStatusExt;
     use std::process::ExitStatus;
     const SHIFT: u32 = 8;
-    const CODES: [(i32, bool); 3] = [(0, true), (3, true), (2, false)];
+    const CODES: [(i32, bool); 3] = [(0, true), (3, false), (2, false)];
     #[test]
-    fn a_clean_or_timed_out_run_is_accepted_and_a_run_with_misses_is_not() {
+    fn only_a_clean_run_is_accepted_and_a_run_with_misses_or_timeouts_is_not() {
         let accepted = |code: i32| MutantsExit::accepts(ExitStatus::from_raw(code << SHIFT));
         assert!(CODES.iter().all(|(code, verdict)| accepted(*code) == *verdict));
     }
