@@ -22,7 +22,8 @@ const LIST: [&str; 1] = ["list"];
 const TRACE_LAST: [&str; 2] = ["trace", "last"];
 const STITCHED: [&str; 2] = ["command hook ", ", 2 processes,"];
 const TRACED: [&str; VAR_LEN] = ["META_TRACE", "on"];
-const UNKEPT_LEN: usize = 2;
+const UNKEPT_LEN: usize = 3;
+const UNKNOWN: [&str; 1] = ["nope"];
 const TRACES: &str = ".git/meta-local/traces";
 const MALFORMED: [&str; 2] = ["meta.local.toml", "[trace]\nfiles = \"x\"\n"];
 const FAKE_GH: &str = r#"#!/bin/sh
@@ -71,15 +72,16 @@ impl Project {
         child.wait_with_output().unwrap()
     }
 
-    fn listed_unkept(&self) -> [Output; UNKEPT_LEN] {
+    fn unkept(&self) -> [Output; UNKEPT_LEN] {
+        let untraced = self.meta(&UNKNOWN, "", UNTRACED);
         let kept_in = self.clone.path().join(TRACES);
         let writable = std::fs::metadata(&kept_in).unwrap().permissions();
         let mut read_only = writable.clone();
         read_only.set_readonly(true);
         std::fs::set_permissions(&kept_in, read_only).unwrap();
-        let unwritable = self.meta(&LIST, "", TRACED);
+        let unwritable = self.meta(&UNKNOWN, "", TRACED);
         std::fs::write(self.clone.path().join(MALFORMED[0]), MALFORMED[1]).unwrap();
-        let ran = [unwritable, self.meta(&LIST, "", TRACED)];
+        let ran = [untraced, unwritable, self.meta(&UNKNOWN, "", TRACED)];
         std::fs::set_permissions(&kept_in, writable).unwrap();
         ran
     }
@@ -102,8 +104,9 @@ fn opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_
     let flags = project.meta(&STATUS_FLAGS, "", STITCH);
     assert!(linked.contains(&format!("TaskLinked {TASK} #7")) && !flags.status.success());
     assert_eq!(String::from_utf8(flags.stdout).unwrap(), ORPHAN);
-    let baseline = project.meta(&LIST, "", UNTRACED);
+    project.meta(&LIST, "", UNTRACED);
     let traced = String::from_utf8(project.meta(&TRACE_LAST, "", UNTRACED).stdout).unwrap();
+    let [untraced, unkept @ ..] = project.unkept();
     assert!(traced.starts_with(STITCHED[0]) && traced.contains(STITCHED[1]), "{traced}");
-    assert!(!baseline.stdout.is_empty() && project.listed_unkept() == [baseline.clone(), baseline]);
+    assert!(unkept.iter().all(|ran| *ran == untraced) && !untraced.status.success(), "{unkept:?}");
 }
