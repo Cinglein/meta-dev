@@ -522,6 +522,23 @@ impl Dial {
     }
 }
 
+pub struct Hinge2 {
+    pin: Pin,
+    leaf: Leaf,
+}
+
+impl Hinge2 {
+    pub fn pinned(&self) -> Pin {
+        Pin::from(self.pin)
+    }
+    pub fn leafed(&self) -> Leaf {
+        Leaf::from(self.leaf)
+    }
+    pub fn copied(&self) -> Hinge2 {
+        Hinge2::cloned(self)
+    }
+}
+
 pub struct Beacon;
 
 impl Beacon {

@@ -1,4 +1,4 @@
-types 41, traits declared 16, impls 75
+types 42, traits declared 16, impls 76
 catalog: 24 measures, report-only
   B1 unnamed concepts [trait graph, to zero]: 23
   B2 reducible traits [trait graph, to zero]: 2
@@ -73,7 +73,7 @@ B3 signatures declared in more than one local trait
     open(&self) -> Door: fixture::Lock, fixture::Swing
 B4 leverage: distinct method names usable on a type / method bodies written for it
   usable = inherent names + the methods of each trait the type has; a local trait contributes its declared methods, a foreign trait the names seen in impls
-  n 29: min 1.00, q1 1.00, median 1.00, q3 1.33, max 2.50
+  n 30: min 1.00, q1 1.00, median 1.00, q3 1.33, max 2.50
   types with no bodies: 12
   lowest:
     fixture::Gate 1.00 (9 usable / 9 written)
@@ -85,7 +85,7 @@ B4 leverage: distinct method names usable on a type / method bodies written for 
     fixture::Den 1.00 (4 usable / 4 written)
     fixture::Elm 1.00 (4 usable / 4 written)
     fixture::Phase 1.00 (4 usable / 4 written)
-    fixture::Lonely 1.00 (3 usable / 3 written)
+    fixture::Hinge2 1.00 (3 usable / 3 written)
 B9 hidden state
   rule: a bool or local-enum field assigned (= or op=), or an Option field assigned or filled (insert, replace, take, get_or_insert, get_or_insert_with), inside a &mut self method of the same type
   limits: syntactic: misses writes through aliases (let f = &mut self.f), mem::replace or swap, helper fns, other types' methods, type aliases of bool or Option, and enums from other crates
