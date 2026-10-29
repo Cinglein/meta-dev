@@ -1,3 +1,4 @@
+mod target_seed;
 mod worktree_identity;
 
 use std::path::PathBuf;
@@ -16,6 +17,7 @@ use crate::request::local::recorded_worktree::RecordedWorktree;
 use crate::request::local::trail_entry::TrailEntry;
 use crate::request::local::worktree_id::WorktreeId;
 use crate::request::project::BranchName;
+use target_seed::TargetSeed;
 use worktree_identity::WorktreeIdentity;
 
 pub struct ClaimRun<'claim, Write: Fn() -> Result<String, CliFailure>> {
@@ -84,6 +86,13 @@ impl<Write: Fn() -> Result<String, CliFailure>> ClaimHands for ClaimRun<'_, Writ
             .record()
             .map_err(CliFailure::raised::<Setup>)?;
         LocalTrail::append(self.clone.git_dir.as_ref(), &TrailEntry::Created(recorded))
+    }
+
+    fn seeded(&self) {
+        match self.created() {
+            Ok(worktree) => TargetSeed::new(&self.clone.checkout, &worktree).sown(),
+            Err(cause) => eprintln!("meta: warning: target seed failed: {cause}"),
+        }
     }
 
     fn written(&self) -> Result<String, CliFailure> {
