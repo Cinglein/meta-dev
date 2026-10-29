@@ -1330,3 +1330,4 @@
 {"at":"2026-10-29T03:30:27.786158Z","actor":"claude-lead","kind":"TaskOpened","task":"task-2e88c3de93bd5828","text":"Revert #141 to restore main green (raw test CPU over 4.0 s); re-land tracing with its test cost fitted.","division":"performance-and-cost","addresses":["concern-7783e762961401a0"]}
 {"at":"2026-10-29T03:30:41.869751Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-2e88c3de93bd5828"}
 {"at":"2026-10-29T03:30:43.676033Z","actor":"claude-lead","kind":"TaskLinked","task":"task-2e88c3de93bd5828","pr":156}
+{"at":"2026-10-29T03:38:20.349035Z","actor":"claude-lead","kind":"TaskDone","task":"task-2e88c3de93bd5828"}
