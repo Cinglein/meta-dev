@@ -1,8 +1,7 @@
 #![allow(clippy::unwrap_used)]
 
 use std::fmt;
-use std::fs::{File, Permissions};
-use std::os::unix::fs::PermissionsExt as _;
+use std::fs::File;
 use std::path::{Path, PathBuf};
 
 #[allow(dead_code)]
@@ -60,7 +59,6 @@ esac
 "#;
 const EXCLUDED: &str = "/meta.local.toml\n/bin\ntarget/\n";
 const LOCKED: &str = "target/tmp/locked";
-const READ_ONLY: u32 = 0o555;
 const QUARANTINE: &str = ".gc-";
 const CARGO_TAG: &str =
     "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n";
@@ -194,7 +192,9 @@ impl Scene {
         std::fs::write(trees.join(MERGED).join("target/CACHEDIR.TAG"), CARGO_TAG).unwrap();
         std::fs::create_dir_all(trees.join(MERGED).join(LOCKED)).unwrap();
         std::fs::write(trees.join(MERGED).join(LOCKED).join(".cargo-lock"), "").unwrap();
-        std::fs::set_permissions(trees.join(MERGED).join(LOCKED), Permissions::from_mode(READ_ONLY)).unwrap();
+        let mut read_only = std::fs::metadata(trees.join(MERGED).join(LOCKED)).unwrap().permissions();
+        read_only.set_readonly(true);
+        std::fs::set_permissions(trees.join(MERGED).join(LOCKED), read_only).unwrap();
         let dirty = Fixture::opened(&trees.join(DIRTY));
         dirty.committed("precious");
         dirty.rewound();
@@ -208,7 +208,7 @@ impl Scene {
         std::fs::canonicalize(self.trees.path()).unwrap()
     }
 
-    fn quarantined(&self) -> Vec<String> {
+    pub fn quarantined(&self) -> Vec<String> {
         let entries = std::fs::read_dir(self.trees()).unwrap();
         let names = entries.map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned());
         names.filter(|name| name.starts_with(QUARANTINE)).collect()
