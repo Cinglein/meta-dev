@@ -110,6 +110,9 @@ mod tests {
     const OWN: &str = "session";
     const SHA: &str = "f2e83b47f04f1aadaaf72b9d15074e933a513dc6";
     const TOOK: Duration = Duration::from_millis(64);
+    const EARLIER: [&str; 2] = ["CI a: passed", "CI b: failed"];
+    const LATER: &str = "CI c: absent";
+    const NEWLINE: &str = "\n";
 
     #[test]
     fn a_watched_commit_reads_as_running_and_a_learned_run_length_is_expected_next_time() {
@@ -120,5 +123,23 @@ mod tests {
         dir.watch(&commit).and_then(|()| dir.learn(TOOK)).unwrap();
         assert_eq!(before, (None, None));
         assert_eq!((dir.status_of(&commit), dir.expected()), (Some(CiStatus::Running), Some(TOOK)));
+    }
+
+    #[test]
+    fn news_shows_each_recorded_line_once_one_watcher_holds_a_commit_and_a_locked_dir_is_unwritable() {
+        let root = tempfile::tempdir().unwrap();
+        let dir = SessionDir { own: root.path().join(OWN), shared: root.path().to_path_buf() };
+        let Ok(commit) = SHA.parse::<Commit>();
+        let news = || dir.news().map(|news| news.to_string());
+        EARLIER.iter().try_for_each(|line| dir.record(line)).unwrap();
+        let [first, again] = [news(), news()];
+        dir.record(LATER).unwrap();
+        assert_eq!([first, again, news()], [Some(EARLIER.join(NEWLINE)), None, Some(LATER.to_owned())]);
+        let held = dir.claim(&commit);
+        assert!(held.is_some() && dir.claim(&commit).is_none() && dir.writable().is_ok());
+        let mut locked = std::fs::metadata(&dir.own).unwrap().permissions();
+        locked.set_readonly(true);
+        std::fs::set_permissions(&dir.own, locked).unwrap();
+        assert!(dir.writable().is_err());
     }
 }

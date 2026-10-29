@@ -30,7 +30,6 @@ const POST: &str = "post-tool-use";
 const COMMIT: &str = "git commit -m change";
 const PRE: &str = "pre-tool-use";
 const STOP: &str = "stop";
-const BLOCK: &str = "\"decision\":\"block\"";
 const BLOCK_REASON: &str = "\"reason\":\"meta-development: CI failed for your last push";
 const STEP_LISTED: &str = ": ci / Run cargo xtask ci , ci-gate / Run echo '{; run `meta ci-log`";
 const LOGGED: &str = "== ci / Run cargo xtask ci  ==\n";
@@ -40,6 +39,12 @@ const CI_WAIT: &str = "ci-wait";
 const CI_LOG: &str = "ci-log";
 const EVENT_PREFIX: &str = "CI ";
 const WAIT_FAILED: &str = "CI failed\n";
+const EXPECTED: &str = ".git/meta-ci/expected";
+const LEARNED: &str = "432000";
+const NAMELESS: &str = "origin.git";
+const UNCHECKED_EVENT: &str = ": unchecked after";
+const UNCHECKED_STOP: &str = "couldn't check CI for your last push";
+const TASKLESS: &str = "then run `meta wait <task> --on ci` here";
 const COMPLETIONS: [&str; 6] = [
     ": passed after",
     ": failed after",
@@ -51,8 +56,6 @@ const COMPLETIONS: [&str; 6] = [
 
 #[path = "ci/pushes.rs"]
 mod pushes;
-#[path = "ci/review.rs"]
-mod review;
 
 #[derive(Clone, Copy)]
 struct Answer {
@@ -195,7 +198,7 @@ impl Repo {
         Waited(text, output.status)
     }
 
-    fn settled(&self) -> String {
+    fn settled(&self, seen: &str) -> String {
         let events = self.clone.path().join(".git/meta-ci/ABCDEF1234/events");
         let lock = self.sessions.path().join(Planted::LOCKS).join(self.git().to_string());
         let pauses = std::iter::successors(Some(Duration::ZERO), |_| Some(SETTLE_POLL)).take(SETTLE_LENGTH);
@@ -203,7 +206,8 @@ impl Repo {
             .map(std::thread::sleep)
             .map(|()| std::fs::read_to_string(&events).unwrap_or_default())
             .find(|text| {
-                COMPLETIONS.iter().any(|completion| text.contains(completion))
+                let new = text.strip_prefix(seen).unwrap_or_default();
+                COMPLETIONS.iter().any(|completion| new.contains(completion))
                     && std::fs::File::open(&lock).map_or(true, |watcher| watcher.try_lock().is_ok())
             })
             .unwrap_or_default()
@@ -217,15 +221,24 @@ impl fmt::Display for Repo {
 }
 
 #[test]
-fn a_push_hook_watches_ci_and_wait_stop_and_log_each_report_the_failure() {
+fn a_push_hook_watches_ci_wait_stop_and_log_report_a_failure_and_an_unreadable_remote_leaves_the_next_unchecked() {
     let repo = Repo::new(FAILURE);
     repo.hook(POST, COMMIT);
-    let watched = repo.settled();
+    let watched = repo.settled("");
     let waited = repo.meta(&[CI_WAIT]);
     let stop = repo.hook(STOP, COMMIT);
     let log = repo.meta(&[CI_LOG]).0;
-    assert!(watched.lines().all(|line| line.starts_with(EVENT_PREFIX)), "{watched}");
+    let learned = std::fs::read_to_string(repo.clone.path().join(EXPECTED)).unwrap_or_default();
+    std::os::unix::fs::symlink(&repo.origin, repo.clone.path().join(NAMELESS)).unwrap();
+    repo.git().pointed(Path::new(NAMELESS));
+    repo.git().committed(NEXT_COMMIT);
+    repo.hook(POST, COMMIT);
+    let unchecked = repo.settled(&watched);
+    let stopped = repo.hook(STOP, COMMIT);
+    assert!(watched.lines().all(|line| line.starts_with(EVENT_PREFIX)) && learned == LEARNED, "{watched}{learned}");
     assert!(watched.contains(STEP_LISTED) && !waited.1.success() && stop.contains(BLOCK_REASON), "{watched}");
     assert!(waited.0.contains(STEP_LISTED) && waited.0.ends_with(WAIT_FAILED), "{}", waited.0);
     assert!(log.contains(LOGGED) && log.contains(BLOCKING) && !log.contains(COMPILING), "{log}");
+    let told = [UNCHECKED_STOP, TASKLESS].iter().all(|told| stopped.contains(told));
+    assert!(unchecked.contains(UNCHECKED_EVENT) && told, "{unchecked}{stopped}");
 }
