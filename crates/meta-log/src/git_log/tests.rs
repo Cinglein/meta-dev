@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use meta_schema::{Event, NewTask, Record};
 
+mod fast_forward;
 mod malformed;
 
 use super::pacing::Pacing;
