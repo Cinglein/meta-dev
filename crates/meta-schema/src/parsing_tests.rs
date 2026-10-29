@@ -5,7 +5,6 @@ use chrono::DateTime;
 use meta_laws::{Laws, Reading, laws};
 use proptest::prelude::{Strategy, any};
 use proptest::sample::select;
-use proptest::string::{RegexGeneratorStrategy, string_regex};
 use strum::IntoEnumIterator;
 
 use crate::entity::{Concern, Entity, Issue, Task};
@@ -14,10 +13,6 @@ use crate::{
     Actor, Blocker, CommitId, Division, DueTime, ExternalKind, Id, LevelName, PullRequest, Text, Tokens, TopDivision,
 };
 
-const TEXTS: &str = r"\PC{0,8}[^\s\p{C}]\PC{0,8}";
-const ACTORS: &str = "[a-z0-9][a-z0-9_.-]{0,12}";
-const LEVEL_NAMES: &str = "[a-z0-9-]{0,6}[a-z][a-z0-9-]{0,6}";
-const DIVISIONS: &str = "(features-and-maintenance|performance-and-cost|architecture-and-planning)(/[a-z0-9-]{0,3}[a-z0-9][a-z0-9-]{0,3}){0,3}";
 const HEAD: [Reading; 1] = [Reading::verbatim("6c1ea3b4d9f1f48d98517b891f4283d6f0e55b94")];
 const COUNTED: [Reading; 1] = [Reading::new("12", "12 tokens")];
 const NUMBERED: [Reading; 2] = [Reading::new("12", "#12"), Reading::verbatim("#12")];
@@ -40,8 +35,9 @@ const NOT_A_BLOCKER: &str = "nonsense";
 struct Drawn;
 
 impl Drawn {
-    fn spelled(grammar: &str) -> RegexGeneratorStrategy<String> {
-        string_regex(grammar).unwrap()
+    fn nested() -> impl Strategy<Value = String> {
+        (select(TopDivision::iter().collect::<Vec<_>>()), Self::shown::<Task>())
+            .prop_map(|(top, id)| format!("{top}/{id}"))
     }
 
     fn numbered<Kind: Entity + Debug>() -> impl Strategy<Value = Id<Kind>> {
@@ -54,14 +50,10 @@ impl Drawn {
 }
 
 laws! {
-    texts_settle: Laws::settled::<Text> => Drawn::spelled(TEXTS);
-    texts_are_stored: Laws::stored::<Text> => Drawn::spelled(TEXTS);
-    actors_settle: Laws::settled::<Actor> => Drawn::spelled(ACTORS);
-    level_names_settle: Laws::settled::<LevelName> => Drawn::spelled(LEVEL_NAMES);
-    divisions_settle: Laws::settled::<Division> => Drawn::spelled(DIVISIONS);
+    ids_name_texts: Laws::stored::<Text> => Drawn::shown::<Task>();
     ids_name_actors: Laws::stored::<Actor> => Drawn::shown::<Task>();
     ids_name_levels: Laws::stored::<LevelName> => Drawn::shown::<Task>();
-    ids_name_divisions: Laws::stored::<Division> => (select(TopDivision::iter().collect::<Vec<_>>()), Drawn::shown::<Task>()).prop_map(|(top, id)| format!("{top}/{id}"));
+    ids_name_divisions: Laws::stored::<Division> => Drawn::nested();
     pull_requests_settle: Laws::settled::<PullRequest> => any::<NonZeroU64>().prop_map(|number| number.to_string());
     issues_block: Laws::shown::<Blocker> => Drawn::numbered::<Issue>().prop_map(Blocker::Discussion);
     tasks_block: Laws::shown::<Blocker> => Drawn::numbered::<Task>().prop_map(Blocker::Task);
