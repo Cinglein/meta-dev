@@ -1327,3 +1327,4 @@
 {"at":"2026-10-29T03:19:44.692670Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-5cda04657fbc8ba5"}
 {"at":"2026-10-29T03:19:46.224445Z","actor":"claude-lead","kind":"TaskDone","task":"task-5cda04657fbc8ba5"}
 {"at":"2026-10-29T03:30:23.688739Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-7783e762961401a0","text":"Main red: raw test CPU 4.09 s after #141 (always-on tracing) merged; its own CI passed on a faster runner. Revert, then re-land with test CPU fitted.","division":"performance-and-cost","severity":"critical"}
+{"at":"2026-10-29T03:30:27.786158Z","actor":"claude-lead","kind":"TaskOpened","task":"task-2e88c3de93bd5828","text":"Revert #141 to restore main green (raw test CPU over 4.0 s); re-land tracing with its test cost fitted.","division":"performance-and-cost","addresses":["concern-7783e762961401a0"]}
