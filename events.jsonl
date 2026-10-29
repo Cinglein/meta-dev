@@ -1266,3 +1266,4 @@
 {"at":"2026-10-29T00:39:14.144419Z","actor":"claude-lead","kind":"TaskDone","task":"task-cf3c579f6b332fce"}
 {"at":"2026-10-29T00:39:18.377499Z","actor":"claude-lead","kind":"TaskOpened","task":"task-bafed2692f095d5c","text":"Cut raw test CPU fast: main at ~3.99 s raw against a 4.0 s line (2.4 s warn). Profile per-test CPU, remove spawn-heavy and redundant work, target 3.0 s or below.","division":"performance-and-cost","addresses":["concern-7c8ca24df2ec76b0"]}
 {"at":"2026-10-29T00:40:21.929029Z","actor":"claude-cpucut","kind":"TaskClaimed","task":"task-bafed2692f095d5c"}
+{"at":"2026-10-29T00:43:10.542528Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-ae914e46858fa3fe","text":"Agent liveness: hooks stamp last tool call; monitor flags silence and wall-time overrun; asks carry reply deadlines; stop per policy."}
