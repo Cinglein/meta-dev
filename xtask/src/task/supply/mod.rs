@@ -39,7 +39,6 @@ impl Supply {
                 .map(|()| &Self::OFFLINE_CHECKS[..])?,
         };
         deny()
-            .argument(SupplyArgument::Offline)
             .argument(SupplyArgument::Check)
             .argument(SupplyArgument::HideGraph)
             .arguments(checks)

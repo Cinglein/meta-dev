@@ -19,9 +19,23 @@ impl Runner {
         match self {
             Runner::Ci => Err(Failure::Unreached { skipped: skipped.to_owned(), failure: Box::new(failure) }),
             Runner::Local => {
-                eprintln!("{skipped}: not checked, the network failed (blocks in CI): {failure}");
+                eprintln!("{skipped}: unchecked locally, blocks in CI: {failure}");
                 Ok(())
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Runner;
+    use crate::task::failure::Failure;
+
+    const SKIPPED: &str = "skipped";
+
+    #[test]
+    fn an_unreached_check_blocks_in_ci_and_is_only_reported_locally() {
+        let passed = |runner: Runner| runner.unreached(Failure::from(task::Failure::NoWorkspace), SKIPPED).is_ok();
+        assert_eq!([Runner::Ci, Runner::Local].map(passed), [false, true]);
     }
 }

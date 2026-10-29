@@ -33,9 +33,14 @@ mod tests {
     use settings::EmbeddedDefaults;
     use task::Policy;
 
+    use super::DenyConfig;
+
+    const PATH: &str = "target/meta/deny.toml";
+
     #[test]
     fn the_policy_writes_a_deny_config_that_denies_unknown_sources_and_unlisted_licences() {
         let config = Policy::defaults().supply_chain().to_string();
         Golden::for_test(module_path!(), "deny").checked(&config).unwrap();
+        assert_eq!(DenyConfig(PATH.into()).to_string(), PATH);
     }
 }

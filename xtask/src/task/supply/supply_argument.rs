@@ -7,8 +7,6 @@ pub enum SupplyArgument {
     Deny,
     #[strum(serialize = "--config")]
     Config,
-    #[strum(serialize = "--offline")]
-    Offline,
     #[strum(serialize = "fetch")]
     Fetch,
     #[strum(serialize = "db")]
