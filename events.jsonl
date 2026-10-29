@@ -1573,3 +1573,4 @@
 {"at":"2026-10-29T18:43:26.742037Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-433270d306e071b9","text":"Perf observability 2: CI uploads one trace per run, spans per step and test, attributing time to spawns and calls."}
 {"at":"2026-10-29T18:43:28.705680Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-da24fa81e42f65d8","text":"Perf observability 3: spawn and latency budgets (spawns per command, network calls per hook, hook latency) as ordinary CI budgets."}
 {"at":"2026-10-29T19:10:18.098351Z","actor":"claude-fmpay","kind":"TaskDone","task":"task-6fd44d9595d6d855"}
+{"at":"2026-10-29T19:10:19.787551Z","actor":"claude-fmpay","kind":"TaskDone","task":"task-ad95ca1ffd2d23c6"}
