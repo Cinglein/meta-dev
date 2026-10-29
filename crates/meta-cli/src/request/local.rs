@@ -7,6 +7,7 @@ mod monitor;
 mod reason;
 mod recorded_worktree;
 mod sweep;
+mod trace_record;
 mod trail_entry;
 mod worktree_id;
 mod worktrees;
@@ -15,6 +16,7 @@ pub use local_clone::LocalClone;
 pub use local_file::LocalFile;
 pub use monitor::Monitor;
 pub use sweep::Sweep;
+pub use trace_record::TraceRecord;
 
 #[cfg(test)]
 mod tests;
