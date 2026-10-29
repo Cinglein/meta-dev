@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use chrono::{DateTime, TimeDelta, Utc};
 use meta_schema::{Actor, Claim, Event, NewTask, Record, TaskRef};
 use meta_state::State;
@@ -37,7 +35,6 @@ const SILENCES: [&str; 2] = [
     r#"{"task":"task-00000000000000c0","worktree":"/w/a","hush":"Unstamped"}"#,
     r#"{"task":"task-00000000000000c1","worktree":"/w/a","hush":"Unstamped"}"#,
 ];
-const INSIDE: &str = "/w/a/b";
 
 struct Scene {
     root: TempDir,
@@ -88,8 +85,8 @@ fn active_worktrees_quiet_past_the_limit_running_long_or_unstamped_are_heard_and
 }
 
 #[test]
-fn only_a_quiet_silence_holds_processes_and_repeats_only_one_of_the_same_task() {
+fn a_silence_repeats_only_one_of_the_same_task_and_a_quiet_spell_at_the_limit_is_not_silent() {
     let [first, other] = SILENCES.map(|text| serde_json::from_str::<Silence>(text).unwrap());
-    assert_eq!((first.same(&first), first.same(&other), first.holds(Path::new(INSIDE))), (Some(()), None, None));
+    assert_eq!((first.same(&first), first.same(&other)), (Some(()), None));
     assert_eq!(Hush::timed(CallPhase::Finished, LATER.to_std().unwrap(), LATER.to_std().unwrap()), None);
 }

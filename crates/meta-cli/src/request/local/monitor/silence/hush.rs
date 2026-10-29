@@ -23,10 +23,6 @@ impl Hush {
         })
     }
 
-    pub fn stops(&self) -> Option<()> {
-        matches!(self, Self::Quiet { .. }).then_some(())
-    }
-
     pub fn label(&self) -> &'static str {
         match self {
             Self::Quiet { .. } => "silent",

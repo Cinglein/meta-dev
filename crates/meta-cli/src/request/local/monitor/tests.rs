@@ -56,7 +56,6 @@ p100\nn/p-worktrees/t\np101\nn/p-worktrees/t\np105\nn/p-worktrees/t\np106\nn/oth
 p130\nn/p\np140\nn/p\np200\nn/p\np201\nn/p\np300\nn/other\np102\nn/other\np60\nn/p\n";
 const UPTIME: &str = "12:00  up 26 days, 19:01, 1 user, load averages: 1.00 2.00 3.01\n";
 const STOPPING: &str = "stop = [\"orphaned\", \"cpu-time\", \"wall-time\"]\nspared = []";
-const SILENCING: &str = "stop = [\"orphaned\", \"cpu-time\", \"wall-time\", \"silent\"]\nspared = []";
 const SILENT: &str = r#"{"task":"task-00000000000000c0","worktree":"/p-worktrees/t",
 "hush":{"Quiet":{"quiet":{"secs":4000,"nanos":0},"limit":{"secs":1800,"nanos":0}}}}"#;
 const UNHEARD: &str = "liveness unread: tooling/policy.toml: unreadable";
@@ -155,7 +154,7 @@ fn by_default_the_monitor_signals_nothing_and_reports_this_projects_processes_in
 
 #[test]
 fn opted_in_stopping_spares_the_owner_shell_claude_its_children_other_projects_and_a_mixed_group() {
-    Golden::for_test(module_path!(), "stopping").checked(&Watch::reported(SILENCING)).unwrap();
+    Golden::for_test(module_path!(), "stopping").checked(&Watch::reported(STOPPING)).unwrap();
 }
 
 #[test]

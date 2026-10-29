@@ -83,7 +83,7 @@ impl<'patrol, Host: Machine> Patrol<'patrol, Host> {
         let rows: Vec<ProcessRow> = self.host.table()?.lines().filter_map(|line| line.parse().ok()).collect();
         let cwds: CwdListing =
             self.host.cwds(&PidList::new(rows.iter().map(ProcessRow::pid).collect()))?.parse().ok()?;
-        Some(rows.into_iter().map(|row| cwds.placed(row).hushed(self.silences)).collect())
+        Some(rows.into_iter().map(|row| cwds.placed(row)).collect())
     }
 
     fn watched(&self, judged: &JudgedRows, before: &MonitorState, now: DateTime<Utc>) -> Vec<WatchItem> {

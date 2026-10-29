@@ -1,7 +1,7 @@
 mod hush;
 
 use std::fmt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use meta_schema::{Block, Id, Task};
@@ -20,7 +20,6 @@ use hush::Hush;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Silence {
     task: Id<Task>,
-    worktree: PathBuf,
     hush: Hush,
 }
 
@@ -58,12 +57,7 @@ impl Silence {
             Ok(None) => Some(Hush::Unstamped),
             Ok(Some(stamp)) => Hush::timed(stamp.call(), stamp.quiet(now), liveness.limit(stamp.call())?),
         }?;
-        let worktree = std::fs::canonicalize(tree.path()).unwrap_or_else(|_| tree.path().to_path_buf());
-        Some(Self { task: tree.task(), worktree, hush })
-    }
-
-    pub fn holds(&self, cwd: &Path) -> Option<()> {
-        self.hush.stops().filter(|()| cwd.starts_with(&self.worktree))
+        Some(Self { task: tree.task(), hush })
     }
 
     pub fn same(&self, other: &Self) -> Option<()> {
