@@ -1,0 +1,131 @@
+pub struct Circle;
+pub struct Square;
+pub struct Celsius;
+pub struct Kelvin;
+pub struct Label;
+pub struct Badge;
+pub struct Lonely;
+
+pub trait Shape {
+    fn area(&self) -> Area;
+    fn perimeter(&self) -> Length;
+    fn summary(&self) -> Text {
+        Text
+    }
+}
+
+pub trait Scaled: Shape {
+    fn scale(&self, factor: Factor) -> Self;
+}
+
+pub trait Describe {
+    fn describe(&self) -> Text;
+}
+
+pub trait Reading {
+    fn value(&self) -> Degrees;
+}
+
+pub trait Unit {
+    fn symbol(&self) -> Symbol;
+}
+
+pub trait Solo {
+    fn solo(&self) -> Text;
+}
+
+impl Shape for Circle {
+    fn area(&self) -> Area {
+        Area
+    }
+    fn perimeter(&self) -> Length {
+        Length
+    }
+}
+
+impl Shape for Square {
+    fn area(&self) -> Area {
+        Area
+    }
+    fn perimeter(&self) -> units::Length {
+        Length
+    }
+}
+
+impl Scaled for Circle {
+    fn scale(&self, factor: Factor) -> Circle {
+        Circle
+    }
+}
+
+impl<T: Scaled> Describe for T {
+    fn describe(&self) -> Text {
+        Text
+    }
+}
+
+impl Reading for Celsius {
+    fn value(&self) -> Degrees {
+        Degrees
+    }
+}
+
+impl Reading for Kelvin {
+    fn value(&self) -> Degrees {
+        Degrees
+    }
+}
+
+impl Unit for Celsius {
+    fn symbol(&self) -> Symbol {
+        Symbol
+    }
+}
+
+impl Unit for Kelvin {
+    fn symbol(&self) -> Symbol {
+        Symbol
+    }
+}
+
+impl Solo for Lonely {
+    fn solo(&self) -> Text {
+        Text
+    }
+}
+
+impl Label {
+    pub fn width<'a>(&'a self) -> Width {
+        Width
+    }
+    pub fn height(&self) -> Height {
+        Height
+    }
+}
+
+impl Badge {
+    pub fn width(&self) -> Width {
+        Width
+    }
+    pub fn height(&self) -> Height {
+        Height
+    }
+}
+
+impl Lonely {
+    pub fn new() -> Lonely {
+        Lonely
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    impl super::Badge {
+        pub fn area(&self) -> Area {
+            Area
+        }
+        pub fn perimeter(&self) -> Length {
+            Length
+        }
+    }
+}
