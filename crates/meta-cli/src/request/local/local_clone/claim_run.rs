@@ -134,12 +134,19 @@ mod tests {
     const SHOWN: &str = "base: no such commit";
     const AGENT: Option<&str> = Some("a");
     const NOREPLY: Option<&str> = Some("1+a@users.noreply.github.com");
+    const NAME: &str = "clone";
+    const STALE: &str = "worktrees/stale";
+    const STALE_FILES: [[&str; 2]; 3] =
+        [["gitdir", "/nonexistent/stale/.git\n"], ["commondir", "../..\n"], ["HEAD", "ref: refs/heads/main\n"]];
 
     struct Scene;
 
     impl Scene {
         fn clone(checkout: &Path) -> LocalClone {
             Repository::created(checkout, Layout::Working).unwrap();
+            let stale = checkout.join(GIT_DIR).join(STALE);
+            std::fs::create_dir_all(&stale).unwrap();
+            STALE_FILES.iter().for_each(|[file, text]| std::fs::write(stale.join(file), text).unwrap());
             let settings = CiSettings::try_from(&Config::default()).unwrap();
             LocalClone::new(checkout.to_path_buf(), checkout.join(GIT_DIR), settings)
         }
@@ -157,6 +164,7 @@ mod tests {
         let untrailed = run.untrailed().is_ok() && LocalTrail::read(&git_dir).unwrap().current().is_empty();
         let base: BranchName = BASE.parse().unwrap();
         let shown = run.branched(&base).unwrap_err().to_string();
-        assert!(run.pruned().is_ok() && untrailed && shown.contains(SHOWN), "{shown}");
+        assert!(run.pruned().is_ok() && !git_dir.join(STALE).exists() && untrailed && run.name() == NAME);
+        assert!(shown.contains(SHOWN), "{shown}");
     }
 }
