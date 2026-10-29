@@ -39,6 +39,8 @@ const REASONS: [(&str, &str); 3] = [
 ];
 const WORKFLOWS: [&str; 2] = ["ci", "mutants"];
 const DEADLINE: Duration = Duration::from_secs(5);
+const SOURCE_SUFFIX: &str = ".source";
+const COPY: &str = "cp";
 
 struct Fake {
     dir: tempfile::TempDir,
@@ -48,9 +50,10 @@ struct Fake {
 impl Fake {
     fn new(scenario: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
-        let script = dir.path().join(scenario);
-        std::fs::write(&script, FAKE_GH.replace("$FAKE", scenario)).unwrap();
-        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let [source, script] = [SOURCE_SUFFIX, ""].map(|suffix| dir.path().join(format!("{scenario}{suffix}")));
+        std::fs::write(&source, FAKE_GH.replace("$FAKE", scenario)).unwrap();
+        std::fs::set_permissions(&source, std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(std::process::Command::new(COPY).arg(&source).arg(&script).status().unwrap().success());
         let config: Config = toml::from_str(&format!("[ci]\nprogram = {:?}", script.display().to_string())).unwrap();
         let program = CiSettings::try_from(&config).unwrap().program().clone();
         let workflows = WORKFLOWS.map(|name| name.parse().unwrap()).to_vec();
