@@ -1301,3 +1301,4 @@
 {"at":"2026-10-29T01:34:13.592668Z","actor":"claude-gitport","kind":"TaskClaimed","task":"task-f0294fa2ab4cf158"}
 {"at":"2026-10-29T01:34:15.471162Z","actor":"claude-talg","kind":"TaskClaimed","task":"task-c1d5bf2723c59b48"}
 {"at":"2026-10-29T01:37:13.785116Z","actor":"claude-gitport","kind":"TaskLinked","task":"task-f0294fa2ab4cf158","pr":152}
+{"at":"2026-10-29T01:47:47.238383Z","actor":"claude-gitport","kind":"TaskOpened","task":"task-5cda04657fbc8ba5","text":"meta-git port on git2; meta-log moves onto it (in-process reads and commits, one cached listing, fast-forward push)","division":"performance-and-cost","addresses":["concern-7c8ca24df2ec76b0"]}
