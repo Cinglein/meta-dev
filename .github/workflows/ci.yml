@@ -47,8 +47,7 @@ jobs:
         with:
           workspaces: . -> target.noindex
       - run: cargo test --package meta-cli --all-features --test scenarios --no-run
-      - run: cargo test --package meta-cli --all-features --test scenarios
-        timeout-minutes: 1
+      - run: timeout 10 cargo test --package meta-cli --all-features --test scenarios
 
   git-count:
     runs-on: ubuntu-latest
