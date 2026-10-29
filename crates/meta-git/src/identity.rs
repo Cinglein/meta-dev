@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::git_failure::GitFailure;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -7,6 +9,17 @@ pub struct Identity {
 }
 
 impl Identity {
+    const SECTIONS: [&'static str; 3] = ["user", "author", "committer"];
+
+    pub(crate) fn pinned(&self, file: &Path) -> Result<(), GitFailure> {
+        let mut config = git2::Config::open(file)?;
+        Self::SECTIONS.iter().try_for_each(|section| {
+            config.set_str(&format!("{section}.name"), &self.name)?;
+            config.set_str(&format!("{section}.email"), &self.email)
+        })?;
+        Ok(())
+    }
+
     #[must_use]
     pub fn new(name: String, email: String) -> Identity {
         Identity { name, email }

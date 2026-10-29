@@ -12,6 +12,7 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use chrono::Utc;
+use meta_git::{Fetch, Ignored, Reads as _, Remote, Repository, Revision, Sends as _, Setting};
 use meta_log::LogStore;
 use meta_run::GitArgv;
 use meta_schema::{Actor, Claim, Event, Id, Record, Task};
@@ -65,14 +66,14 @@ impl LocalClone {
 
     pub fn claimed(&self, project: &Project, claim: Claim, actor: Actor) -> Result<Output, CliFailure> {
         let settings = self.settings()?;
-        let git = Git::from(self);
-        let configured = |key: &str| git.output(GitArgv::ConfigValue, &[OsStr::new(key)]).ok();
+        let checkout = self.repository()?;
+        let configured = |key: &str| checkout.read(&Setting::from(key.to_owned())).ok().flatten();
         let identity = settings.identity(configured("user.name").as_deref(), configured("user.email").as_deref())?;
         let log = project.log(project.ci_settings().budget(CiSettings::ROUTINE))?;
         let task = claim.task();
         let record = Record::new(actor, Event::TaskClaimed(claim));
         let holding = Holding::vetted(&State::fold(log.read()?.records()), &record, task)?;
-        let refs = self.refs(project, task)?;
+        let refs = self.refs(&checkout, project, task)?;
         let worktree =
             RecordedWorktree::new(settings.worktree_root(&self.checkout).join(OsStr::new(refs.branch())), task);
         let taken = Some(worktree.path()).filter(|path| path.exists());
@@ -81,7 +82,7 @@ impl LocalClone {
             let writing = Writing::new(&log, record.actor().clone(), record.event().clone());
             writing.entered().map(|written| written.to_string())
         };
-        let run = ClaimRun::new(self, worktree.clone(), &identity, written);
+        let run = ClaimRun::new(self, &checkout, worktree.clone(), &identity, written);
         let shown = run.ran(&plan)?;
         Ok(Output::Listed(Listed::new(format!("{shown}{}\n", run.created()?.display()))))
     }
@@ -137,16 +138,26 @@ impl LocalClone {
 
     fn settings(&self) -> Result<LocalSettings, CliFailure> {
         let present = Some(()).filter(|()| self.checkout.join(LocalSettings::FILE).exists());
-        let ignored = || Git::from(self).holds(GitArgv::CheckIgnore, &[OsStr::new(LocalSettings::FILE)]);
+        let ignored = || {
+            let ignored = self.repository().ok()?.read(&Ignored::from(PathBuf::from(LocalSettings::FILE))).ok();
+            ignored.filter(|ignored| *ignored).map(drop)
+        };
         LocalSettings::admitted(present, ignored)?;
         LocalSettings::read(&self.checkout)
     }
 
-    fn refs(&self, project: &Project, task: Id<Task>) -> Result<BranchRefs, CliFailure> {
+    fn repository(&self) -> Result<Repository, CliFailure> {
+        Repository::open(&self.checkout).map_err(CliFailure::raised::<Setup>)
+    }
+
+    fn refs(&self, checkout: &Repository, project: &Project, task: Id<Task>) -> Result<BranchRefs, CliFailure> {
         let remote = project.config().remote()?.clone();
-        let checkout = Git::from(self);
-        checkout.output(GitArgv::Fetch, &[remote.as_ref()])?;
-        let verified = |name: &OsStr| checkout.holds(GitArgv::VerifyRef, &[name]);
+        let origin = Remote::new(self.checkout.clone(), remote.clone(), self.settings.budget(CiSettings::CLAIM));
+        let fetched = origin.send(&Fetch::from(format!("+refs/heads/*:refs/remotes/{remote}/*")));
+        let fetched = fetched.map_err(CliFailure::raised::<Setup>)?;
+        fetched.map_err(|stderr| CliFailure::raised::<Setup>(format!("fetch {remote}: {stderr}")))?;
+        let verified =
+            |name: &OsStr| checkout.read(&Revision::from(name.to_string_lossy().into_owned())).ok().flatten().map(drop);
         Ok(BranchRefs::gathered(remote, BranchName::from(&task), verified))
     }
 }

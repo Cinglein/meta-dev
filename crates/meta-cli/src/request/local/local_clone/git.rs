@@ -28,10 +28,6 @@ impl<'dir> Git<'dir> {
             CliFailure::raised::<Setup>(format!("{self} {}: {unread}", line.join(" ")))
         })
     }
-
-    pub fn holds(&self, call: GitArgv, operands: &[&OsStr]) -> Option<()> {
-        self.output(call, operands).ok().map(drop)
-    }
 }
 
 impl<'dir> From<&'dir LocalClone> for Git<'dir> {

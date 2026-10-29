@@ -21,13 +21,16 @@ mod writes;
 
 pub use asks::Asks;
 pub use change::Change;
-pub use changes::{FastForward, Fetch, FileCommit, RefMove};
+pub use changes::{
+    BranchCreate, BranchDelete, ConfigFlag, FastForward, Fetch, FileCommit, RefMove, WorktreeAdd, WorktreePrune,
+    WorktreeRemove,
+};
 pub use files::Files;
 pub use git_failure::GitFailure;
 pub use identity::Identity;
 pub use layout::Layout;
 pub use object_id::ObjectId;
-pub use queries::{FilesAt, FirstParents, Heads, RefTarget};
+pub use queries::{FilesAt, FirstParents, Heads, Ignored, RefTarget, Revision, Setting};
 pub use query::Query;
 pub use reads::Reads;
 pub use ref_name::RefName;
