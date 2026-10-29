@@ -1347,3 +1347,4 @@
 {"at":"2026-10-29T04:17:04.387870Z","actor":"claude-fixture","kind":"TaskLinked","task":"task-4b66c5ccb5ca6026","pr":159}
 {"at":"2026-10-29T04:19:27.015628Z","actor":"claude-fixture","kind":"TaskOpened","task":"task-660de125dbb1b8a7","text":"cli, status and hooks tests build their repos through the git2 fixture; skeleton.rs and the seeded_log git spawn go","division":"performance-and-cost","addresses":["concern-7c8ca24df2ec76b0"]}
 {"at":"2026-10-29T04:19:34.678694Z","actor":"claude-fixture","kind":"TaskClaimed","task":"task-660de125dbb1b8a7"}
+{"at":"2026-10-29T04:26:25.866536Z","actor":"claude-fixture","kind":"TaskLinked","task":"task-660de125dbb1b8a7","pr":160}
