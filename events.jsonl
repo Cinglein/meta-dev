@@ -1428,3 +1428,4 @@
 {"at":"2026-10-29T10:15:49.382672Z","actor":"claude-lead","kind":"TaskReopened","task":"task-b1ac7e634ea12732"}
 {"at":"2026-10-29T10:22:28.791670Z","actor":"claude-buildtime","kind":"TaskLinked","task":"task-8f28750069421696","pr":174}
 {"at":"2026-10-29T10:28:05.610089Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-29f938efd3ea97fd","text":"meta-git RefMove forces ref updates with no old-value check (ref_move.rs:24, force=true): a move decided on a stale ref silently overwrites.","division":"performance-and-cost","severity":"major"}
+{"at":"2026-10-29T10:29:55.042490Z","actor":"claude-lead","kind":"TaskOpened","task":"task-aaabd0206db8a650","text":"Explicit, clean transition graph: declared transitions, lint hidden state (mode flags, late options), raw simplicity measures (cyclomatic, hubs, treewidth bound).","division":"architecture-and-planning"}
