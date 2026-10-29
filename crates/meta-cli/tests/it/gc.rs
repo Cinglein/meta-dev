@@ -4,16 +4,9 @@ use std::fmt;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
-#[allow(dead_code)]
-#[path = "support/fixture.rs"]
-mod fixture;
-#[path = "support/meta_command.rs"]
-mod meta_command;
-#[path = "support/recorded_gh.rs"]
-mod recorded_gh;
-use fixture::{Fixture, Moment};
-use meta_command::MetaCommand;
-use recorded_gh::RecordedGh;
+use crate::fixture::{Fixture, Moment};
+use crate::meta_command::MetaCommand;
+use crate::recorded_gh::RecordedGh;
 
 const MERGED: &str = "task-00000000000000a1";
 const OPEN: &str = "task-00000000000000a2";

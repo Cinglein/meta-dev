@@ -577,7 +577,7 @@ pub const SECTIONS: &[Section] = &[
                 Wording::new("If the record is lost, gc deletes nothing and reports leftovers."),
                 Check(
                     Enforcer::new(
-                        "crates/meta-cli/tests/gc.rs",
+                        "crates/meta-cli/tests/it/gc.rs",
                         "gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_with_reasons",
                     ),
                     &[Enforcer::new(
@@ -639,7 +639,7 @@ pub const SECTIONS: &[Section] = &[
                 Wording::new("`meta claim` names the task's branch."),
                 Check(
                     Enforcer::new(
-                        "crates/meta-cli/tests/cli.rs",
+                        "crates/meta-cli/tests/it/cli.rs",
                         "a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree",
                     ),
                     &[],
@@ -653,7 +653,7 @@ pub const SECTIONS: &[Section] = &[
                 ),
                 Check(
                     Enforcer::new(
-                        "crates/meta-cli/tests/status.rs",
+                        "crates/meta-cli/tests/it/status.rs",
                         "opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_the_rest",
                     ),
                     &[],
@@ -765,7 +765,7 @@ pub const SECTIONS: &[Section] = &[
                     ),
                     &[
                         Enforcer::new(
-                            "crates/meta-cli/tests/gc.rs",
+                            "crates/meta-cli/tests/it/gc.rs",
                             "gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_with_reasons",
                         ),
                         Enforcer::new(
@@ -773,7 +773,7 @@ pub const SECTIONS: &[Section] = &[
                             "only_open_files_under_the_worktree_block_it_and_a_failed_scan_blocks_every_worktree",
                         ),
                         Enforcer::new(
-                            "crates/meta-cli/tests/cli.rs",
+                            "crates/meta-cli/tests/it/cli.rs",
                             "a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree",
                         ),
                     ],
@@ -1001,7 +1001,7 @@ pub const SECTIONS: &[Section] = &[
                 ),
                 Check(
                     Enforcer::new(
-                        "crates/meta-cli/tests/cli.rs",
+                        "crates/meta-cli/tests/it/cli.rs",
                         "a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree",
                     ),
                     &[],
@@ -1017,7 +1017,7 @@ pub const SECTIONS: &[Section] = &[
                         "settings_default_to_a_sibling_root_resolve_relative_roots_and_refuse_foreign_emails",
                     ),
                     &[Enforcer::new(
-                        "crates/meta-cli/tests/cli.rs",
+                        "crates/meta-cli/tests/it/cli.rs",
                         "a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree",
                     )],
                 ),
