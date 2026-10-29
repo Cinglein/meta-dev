@@ -1264,3 +1264,4 @@
 {"at":"2026-10-29T00:34:32.084782Z","actor":"claude-cpufix","kind":"TaskLinked","task":"task-cf3c579f6b332fce","pr":148}
 {"at":"2026-10-29T00:39:11.930035Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-cf3c579f6b332fce"}
 {"at":"2026-10-29T00:39:14.144419Z","actor":"claude-lead","kind":"TaskDone","task":"task-cf3c579f6b332fce"}
+{"at":"2026-10-29T00:39:18.377499Z","actor":"claude-lead","kind":"TaskOpened","task":"task-bafed2692f095d5c","text":"Cut raw test CPU fast: main at ~3.99 s raw against a 4.0 s line (2.4 s warn). Profile per-test CPU, remove spawn-heavy and redundant work, target 3.0 s or below.","division":"performance-and-cost","addresses":["concern-7c8ca24df2ec76b0"]}
