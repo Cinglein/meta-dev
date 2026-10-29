@@ -10,7 +10,8 @@ impl Promoted {
         Promoted(reading)
     }
 
-    pub(crate) fn reading(&self) -> &Reading {
+    #[must_use]
+    pub fn reading(&self) -> &Reading {
         &self.0
     }
 }

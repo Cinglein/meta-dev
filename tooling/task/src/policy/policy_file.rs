@@ -1,11 +1,12 @@
 mod entries;
-mod owner_defaults;
+mod liveness;
 
 use std::collections::BTreeMap;
 
 use enum_map::EnumMap;
 use meta_severity::{ActionLevels, PromoteAfter, Scales};
 use serde::{Deserialize, Serialize};
+use settings::EmbeddedDefaults;
 use strum::IntoEnumIterator;
 
 use super::bit_boundary::BitBoundary;
@@ -21,7 +22,7 @@ use crate::gate_env_name::GateEnvName;
 use crate::gate_status::GateStatus;
 use crate::percent::Percent;
 use entries::Entries;
-use owner_defaults::OwnerDefaults;
+pub use liveness::Liveness;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -58,6 +59,8 @@ pub struct PolicyFile {
     budgets: BudgetDrafts,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     spec: Option<SpecSettings>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    liveness: Option<Liveness>,
     supply_chain: SupplyChain,
 }
 
@@ -89,6 +92,7 @@ impl PolicyFile {
             scales: policy.scales.clone(),
             budgets: BudgetDrafts::from(policy.budgets.clone()),
             spec: policy.spec.clone(),
+            liveness: policy.liveness,
             supply_chain: policy.supply_chain.clone(),
         }
     }
@@ -153,10 +157,10 @@ impl PolicyFile {
             .collect();
         budgets.measurable(&self.domains)?;
         budgets.leveled(&self.scales)?;
-        let defaults =
-            OwnerDefaults::embedded().ok_or(PolicyFailure::Missing(Self::OWNER_DEFAULTS))?;
-        let promote_after = self.promote_after.unwrap_or(defaults.promote_after());
-        let act = self.act.unwrap_or_else(|| defaults.act());
+        let promote_after = self
+            .promote_after
+            .unwrap_or_else(|| Policy::defaults().promote_after());
+        let act = self.act.unwrap_or_else(|| Policy::defaults().act);
         act.leveled(&self.scales, |division| {
             self.domains.domain(division).is_some()
         })?;
@@ -232,12 +236,12 @@ impl PolicyFile {
             budgets,
             deprecated,
             spec: self.spec,
+            liveness: self.liveness,
             supply_chain: self.supply_chain,
         })
     }
 
     const BASELINE: &str = "baseline";
-    const OWNER_DEFAULTS: &str = "act";
     const PRICE: &str = "budgets.mutant-price";
     const LIMITS: &str = "limits";
     const FLOORS: &str = "floors";

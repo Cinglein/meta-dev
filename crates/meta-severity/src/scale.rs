@@ -54,14 +54,16 @@ impl Scale {
         scenario: Option<Scenario>,
     ) -> Result<Change, RatingFailure> {
         let to = Reading::from(Rating::Rated(level.clone()));
-        let rise = self.moved(&Reading::from(current.clone()), &to, &Evidence::from(scenario.clone()))?;
+        let rise = self
+            .moved(&Reading::from(current.clone()), &to, &Evidence::from(scenario.clone()))
+            .map_err(RatingFailure::asking_scenario)?;
         match (current.level().cloned(), rise, scenario) {
             (None, ..) => Ok(Change::First { level }),
             (Some(_), Ordering::Equal, _) => Err(RatingFailure::Unchanged(level)),
             (Some(from), Ordering::Greater, _) => Ok(Change::Lowered { from, level }),
             (Some(from), Ordering::Less, scenario) => scenario
                 .map(|scenario| Change::Raised { from: from.clone(), level, scenario })
-                .ok_or_else(|| RatingFailure::RaisedWithoutEvidence(Reading::from(Rating::Rated(from)))),
+                .ok_or_else(|| RatingFailure::RaisedWithoutScenario(Reading::from(Rating::Rated(from)))),
         }
     }
 

@@ -6,20 +6,10 @@ const CHANGES: [(Option<&str>, &str, Option<&str>, &str); 7] = [
     (None, "minor", None, "minor"),
     (Some("major"), "major", None, "the item is already major"),
     (Some("major"), "minor", None, "minor (lowered from major)"),
-    (
-        Some("minor"),
-        "critical",
-        None,
-        "raising from minor needs --scenario <reproduction or failure scenario>, a measurement, or a failed remedy",
-    ),
+    (Some("minor"), "critical", None, "raising from minor needs --scenario <reproduction or failure scenario>"),
     (Some("minor"), "critical", Some("crash on start"), "critical (raised from minor: crash on start)"),
     (None, "bogus", None, "bogus is not a level of the division's scale"),
-    (
-        Some("gone"),
-        "minor",
-        None,
-        "raising from gone needs --scenario <reproduction or failure scenario>, a measurement, or a failed remedy",
-    ),
+    (Some("gone"), "minor", None, "raising from gone needs --scenario <reproduction or failure scenario>"),
 ];
 
 #[test]

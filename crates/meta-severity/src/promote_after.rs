@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
+use std::iter;
 use std::num::NonZeroUsize;
 
-use meta_schema::Rating;
 use serde::{Deserialize, Serialize};
 
 use crate::evidence::Evidence;
@@ -16,26 +16,26 @@ use crate::signal::Signal;
 pub struct PromoteAfter(NonZeroUsize);
 
 impl PromoteAfter {
-    pub fn promote<About: PartialEq, Since>(
+    pub(crate) fn promote<About: PartialEq, Since>(
         self,
         scale: &Scale,
-        history: &[Signal<About, Since>],
+        latest: &Signal<About, Since>,
+        earlier: &[Signal<About, Since>],
     ) -> Result<Promoted, RatingFailure> {
-        history.last().map_or(Ok(Promoted::new(Reading::from(Rating::Unrated))), |latest| {
-            let known: Vec<&Reading> = history
-                .iter()
-                .filter(|signal| signal.identity() == latest.identity())
-                .filter_map(|signal| signal.reading().known())
-                .collect();
-            let earlier = known.iter().rev().nth(1);
-            let rise = earlier
-                .map_or(Ok(Ordering::Equal), |earlier| scale.moved(earlier, latest.reading(), latest.evidence()))?;
-            let run = known.iter().rev().take_while(|reading| **reading == latest.reading()).count();
-            let stepped = (run >= self.0.get()
-                || matches!((latest.evidence(), rise), (Evidence::FailedRemedy, Ordering::Equal | Ordering::Greater)))
-            .then(|| scale.worse(latest.reading()))
-            .flatten();
-            Ok(Promoted::new(stepped.unwrap_or_else(|| latest.reading().clone())))
-        })
+        let known: Vec<&Reading> = earlier
+            .iter()
+            .filter(|signal| signal.identity() == latest.identity())
+            .chain(iter::once(latest))
+            .filter_map(|signal| signal.reading().known())
+            .collect();
+        let before = known.iter().rev().nth(1);
+        let rise =
+            before.map_or(Ok(Ordering::Equal), |before| scale.moved(before, latest.reading(), latest.evidence()))?;
+        let run = known.iter().rev().take_while(|reading| **reading == latest.reading()).count();
+        let stepped = (run >= self.0.get()
+            || matches!((latest.evidence(), rise), (Evidence::FailedRemedy, Ordering::Equal | Ordering::Greater)))
+        .then(|| scale.worse(latest.reading()))
+        .flatten();
+        Ok(Promoted::new(stepped.unwrap_or_else(|| latest.reading().clone())))
     }
 }

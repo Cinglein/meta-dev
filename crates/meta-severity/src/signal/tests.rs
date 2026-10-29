@@ -10,8 +10,7 @@ const LINES: [(&str, usize); 3] = [("minor", 2), ("critical", 10), ("major", 5)]
 const AT_LINES: [&str; 3] = ["clear", "major", "minor"];
 const ODD: [&str; 3] =
     ["unrated", "bogus is not a level of the division's scale", "major needs a line above the next lower level's line"];
-const RAISE: &str =
-    "raising from minor needs --scenario <reproduction or failure scenario>, a measurement, or a failed remedy";
+const RAISE: &str = "raising from minor needs evidence: a scenario, a measurement, or a failed remedy";
 const HISTORIES: [(&[Observed], &str); 17] = [
     (&[("a", "clear", "measured"), ("a", "clear", "measured"), ("a", "clear", "measured")], "clear"),
     (&[("a", "clear", "measured"), ("a", "clear", "failed")], "clear"),
@@ -21,7 +20,7 @@ const HISTORIES: [(&[Observed], &str); 17] = [
     (&[("a", "minor", "measured"), ("b", "critical", "measured"), ("a", "critical", "absent")], RAISE),
     (
         &[("a", "clear", "measured"), ("a", "minor", "absent")],
-        "raising from clear needs --scenario <reproduction or failure scenario>, a measurement, or a failed remedy",
+        "raising from clear needs evidence: a scenario, a measurement, or a failed remedy",
     ),
     (&[("a", "minor", "measured"), ("a", "critical", "measured")], "critical"),
     (&[("a", "minor", "measured"), ("a", "critical", "scenario")], "critical"),
@@ -111,8 +110,9 @@ fn a_raise_needs_evidence_over_gaps_and_other_subjects_and_a_run_or_a_failed_rem
     let promoted = HISTORIES.map(|(history, _)| {
         let signals: Vec<_> =
             history.iter().map(|(subject, reading, evidence)| Signal::observed(subject, reading, evidence)).collect();
-        let level = after.promote(scales.top(), &signals);
-        level.map_or_else(|failure| failure.to_string(), |level| level.to_string())
+        let (latest, earlier) = signals.split_last().unwrap();
+        let triage = latest.triage(after, scales.top(), earlier);
+        triage.map_or_else(|failure| failure.to_string(), |triage| triage.promoted().to_string())
     });
     assert_eq!(promoted, HISTORIES.map(|(_, expected)| expected.to_owned()));
     assert!(serde_json::from_str::<PromoteAfter>("0").is_err());
@@ -133,10 +133,10 @@ fn missing_data_reaches_every_action_level_clear_reaches_none_and_a_nested_divis
     let nested: Division = NESTED_DIVISION.parse().unwrap();
     let overridden = acting(&OVERRIDES);
     assert_eq!(readings.map(|reading| overridden.acts(&scales, &nested, &reading)), NESTED);
-    let promoted = Promoted::new(Reading::named(TRIAGED.1));
-    let triage = Signal::observed(TRIAGED.0, TRIAGED.1, TRIAGED.2).triage(promoted.clone());
+    let after: PromoteAfter = serde_json::from_str("3").unwrap();
+    let triage = Signal::observed(TRIAGED.0, TRIAGED.1, TRIAGED.2).triage(after, scales.top(), &[]).unwrap();
     assert_eq!(
-        (triage.placement().division(), triage.kind(), triage.promoted()),
-        (Some(&Scales::costs()), ItemKind::Issue, &promoted)
+        (triage.placement().division(), triage.kind(), triage.promoted().reading()),
+        (Some(&Scales::costs()), ItemKind::Issue, &Reading::named(TRIAGED.1))
     );
 }

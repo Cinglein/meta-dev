@@ -1,6 +1,8 @@
 use crate::evidence::Evidence;
-use crate::promoted::Promoted;
+use crate::promote_after::PromoteAfter;
+use crate::rating_failure::RatingFailure;
 use crate::reading::Reading;
+use crate::scale::Scale;
 use crate::subject::Subject;
 use crate::triage::Triage;
 
@@ -39,10 +41,15 @@ impl<About, Since> Signal<About, Since> {
     }
 }
 
-impl<About: Subject, Since> Signal<About, Since> {
-    #[must_use]
-    pub fn triage(&self, promoted: Promoted) -> Triage {
-        Triage::new(self.subject.placement(), self.subject.kind(), promoted)
+impl<About: Subject + PartialEq, Since> Signal<About, Since> {
+    pub fn triage(
+        &self,
+        after: PromoteAfter,
+        scale: &Scale,
+        earlier: &[Signal<About, Since>],
+    ) -> Result<Triage, RatingFailure> {
+        let promoted = after.promote(scale, self, earlier)?;
+        Ok(Triage::new(self.subject.placement(), self.subject.kind(), promoted))
     }
 }
 

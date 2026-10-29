@@ -11,7 +11,9 @@ pub enum RatingFailure {
     UnknownLevel(LevelName),
     #[error("the item is already {0}")]
     Unchanged(LevelName),
-    #[error("raising from {0} needs --scenario <reproduction or failure scenario>, a measurement, or a failed remedy")]
+    #[error("raising from {0} needs --scenario <reproduction or failure scenario>")]
+    RaisedWithoutScenario(Reading),
+    #[error("raising from {0} needs evidence: a scenario, a measurement, or a failed remedy")]
     RaisedWithoutEvidence(Reading),
     #[error("{0} is not a division; declare it in [domains] or [scales] of tooling/policy.toml")]
     NoSuchDivision(Division),
@@ -25,4 +27,14 @@ pub enum RatingFailure {
     Remapped(LevelName, Division),
     #[error("{0} is not a division in tooling/policy.toml")]
     Undeclared(Division),
+}
+
+impl RatingFailure {
+    #[must_use]
+    pub fn asking_scenario(self) -> RatingFailure {
+        match self {
+            Self::RaisedWithoutEvidence(from) => Self::RaisedWithoutScenario(from),
+            other => other,
+        }
+    }
 }

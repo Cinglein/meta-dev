@@ -43,7 +43,6 @@ use meta_severity::{ActionLevels, PromoteAfter, Scales};
 use policy_failure::PolicyFailure;
 use policy_file::PolicyFile;
 use serde::{Deserialize, Serialize, Serializer};
-#[cfg(any(test, feature = "test-policy"))]
 use settings::EmbeddedDefaults;
 use supply_chain::SupplyChain;
 use vague::Vague;
@@ -85,10 +84,10 @@ pub struct Policy {
     budgets: Budgets,
     deprecated: Vec<LegacyKey>,
     spec: Option<SpecSettings>,
+    liveness: Option<policy_file::Liveness>,
     supply_chain: SupplyChain,
 }
 
-#[cfg(any(test, feature = "test-policy"))]
 impl EmbeddedDefaults for Policy {
     const DEFAULTS: &str = include_str!("../../../policy.toml");
 }

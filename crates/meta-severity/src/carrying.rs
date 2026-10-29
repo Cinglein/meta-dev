@@ -45,12 +45,12 @@ impl<'policy> Carrying<'policy> {
     fn changed(&self, from: LevelName, level: LevelName, scenario: Option<Scenario>) -> Result<Carry, RatingFailure> {
         let was = Reading::from(Rating::Rated(from.clone()));
         let rise = self.severity(&from, &level).map_or(Ordering::Less, Ordering::reverse);
-        match (Evidence::from(scenario.clone()).admits(&was, rise)?, scenario) {
+        match (Evidence::from(scenario.clone()).admits(&was, rise).map_err(RatingFailure::asking_scenario)?, scenario) {
             (Ordering::Equal, _) => Ok(Carry::Kept { from, level }),
             (Ordering::Greater, _) => Ok(Carry::Changed { change: Change::Lowered { from, level } }),
             (Ordering::Less, scenario) => scenario
                 .map(|scenario| Carry::Changed { change: Change::Raised { from, level, scenario } })
-                .ok_or(RatingFailure::RaisedWithoutEvidence(was)),
+                .ok_or(RatingFailure::RaisedWithoutScenario(was)),
         }
     }
 

@@ -101,6 +101,11 @@ features-and-maintenance = "major"
 performance-and-cost = "major"
 architecture-and-planning = "major"
 
+[liveness]
+silent_after = 1800000
+long_call_after = 3600000
+reply_within = 3600000
+
 [domains.features-and-maintenance]
 crates = ["*"]
 paths = ["*"]
@@ -126,10 +131,9 @@ source = "ci"
 [budgets.git-processes]
 division = "performance-and-cost"
 measure = "git_processes"
-allowance = { count = 856 }
+allowance = { count = 652 }
 window = "per_change"
 source = "ci"
-overspend = "report"
 
 [budgets.git-starters]
 division = "performance-and-cost"
