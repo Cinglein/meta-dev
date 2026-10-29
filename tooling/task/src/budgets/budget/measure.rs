@@ -1,3 +1,4 @@
+mod build_start;
 mod enforcer;
 mod item_filter;
 mod item_kind;
@@ -9,6 +10,7 @@ use strum::Display;
 
 use super::window::Window;
 use crate::domains::ScopeKind;
+pub use build_start::BuildStart;
 pub use enforcer::Enforcer;
 pub use item_filter::ItemFilter;
 pub use item_kind::ItemKind;
@@ -25,6 +27,8 @@ pub enum Measure {
     GitProcesses,
     #[strum(to_string = "workflow_wall_time {0}")]
     WorkflowWallTime(MutationJob),
+    #[strum(to_string = "build_wall_time {0}")]
+    BuildWallTime(BuildStart),
     MutantPrice,
     LintFindings,
     TestLineShare,
@@ -44,7 +48,8 @@ impl Measure {
             Measure::TestWallTime
             | Measure::TestCpuTime
             | Measure::SlowestTest
-            | Measure::WorkflowWallTime(_) => Unit::Duration,
+            | Measure::WorkflowWallTime(_)
+            | Measure::BuildWallTime(_) => Unit::Duration,
             Measure::MutantPrice | Measure::TestLineShare | Measure::EffectShare => Unit::Share,
             Measure::TangleItems
             | Measure::OpenItems(_)
@@ -63,7 +68,9 @@ impl Measure {
             | Measure::TestCpuTime
             | Measure::SlowestTest
             | Measure::GitProcesses => Some(ScopeKind::Tests),
-            Measure::WorkflowWallTime(_) | Measure::MutantPrice => Some(ScopeKind::Workflows),
+            Measure::WorkflowWallTime(_) | Measure::BuildWallTime(_) | Measure::MutantPrice => {
+                Some(ScopeKind::Workflows)
+            }
             Measure::TangleItems | Measure::EffectShare | Measure::EffectDispersion => {
                 Some(ScopeKind::Crates)
             }
@@ -82,6 +89,7 @@ impl Measure {
             | Measure::SlowestTest
             | Measure::GitProcesses
             | Measure::GitStarters
+            | Measure::BuildWallTime(_)
             | Measure::OpenItems(_) => Enforcer::Checker,
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Enforcer::MutationJobs,
             Measure::LintFindings
@@ -102,6 +110,7 @@ impl Measure {
             | Measure::SlowestTest
             | Measure::GitProcesses
             | Measure::WorkflowWallTime(_)
+            | Measure::BuildWallTime(_)
             | Measure::MutantPrice
             | Measure::LintFindings
             | Measure::TestLineShare
@@ -110,6 +119,27 @@ impl Measure {
             | Measure::EffectDispersion
             | Measure::RepeatedShapes
             | Measure::GitStarters => None,
+        }
+    }
+
+    #[must_use]
+    pub const fn build_start(&self) -> Option<&BuildStart> {
+        match self {
+            Measure::BuildWallTime(start) => Some(start),
+            Measure::TestWallTime
+            | Measure::TestCpuTime
+            | Measure::SlowestTest
+            | Measure::GitProcesses
+            | Measure::WorkflowWallTime(_)
+            | Measure::MutantPrice
+            | Measure::LintFindings
+            | Measure::TestLineShare
+            | Measure::TangleItems
+            | Measure::GitStarters
+            | Measure::OpenItems(_)
+            | Measure::EffectShare
+            | Measure::EffectDispersion
+            | Measure::RepeatedShapes => None,
         }
     }
 
@@ -128,6 +158,7 @@ impl Measure {
             | Measure::TestCpuTime
             | Measure::SlowestTest
             | Measure::WorkflowWallTime(_)
+            | Measure::BuildWallTime(_)
             | Measure::MutantPrice
             | Measure::LintFindings => Some(Window::PerChange),
         }

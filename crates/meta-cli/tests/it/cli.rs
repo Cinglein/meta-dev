@@ -35,16 +35,9 @@ const STARTED: &str = "\"event\":\"start\"";
 const LISTING: &str = "\"hierarchy\":\"ls-remote\"";
 const READ_PROCESSES: [&str; 3] = ["ls-remote", "upload-pack", "cat-file"];
 
-#[allow(dead_code)]
-#[path = "support/fixture.rs"]
-mod fixture;
-#[path = "support/meta_command.rs"]
-mod meta_command;
-#[path = "support/seeded_log.rs"]
-mod seeded_log;
-use fixture::{Fixture, Moment};
-use meta_command::MetaCommand;
-use seeded_log::{SeededLog, TASK};
+use crate::fixture::{Fixture, Moment};
+use crate::meta_command::MetaCommand;
+use crate::seeded_log::{SeededLog, TASK};
 
 struct Seed;
 

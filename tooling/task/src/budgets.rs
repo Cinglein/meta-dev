@@ -7,6 +7,7 @@ mod standing;
 mod tree_failure;
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::iter;
 
 use meta_severity::Scales;
 use serde::{Deserialize, Serialize};
@@ -15,6 +16,7 @@ use super::domains::Domains;
 use super::percent::Percent;
 use super::policy::Most;
 use budget::Budget;
+use budget::BuildStart;
 pub use budget::{Amount, Measure};
 pub use budget_drafts::BudgetDrafts;
 use budget_id::BudgetId;
@@ -59,6 +61,22 @@ impl Budgets {
     #[must_use]
     pub fn standing(&self) -> bool {
         self.0.values().any(|budget| budget.standing_in().is_some())
+    }
+
+    #[must_use]
+    pub fn builds(&self) -> Vec<Measure> {
+        let mut builds: Vec<Measure> = iter::once(Measure::BuildWallTime(BuildStart::Clean))
+            .chain(
+                self.0
+                    .values()
+                    .map(Budget::measure)
+                    .filter(|measure| measure.build_start().is_some())
+                    .cloned(),
+            )
+            .collect();
+        builds.sort();
+        builds.dedup();
+        builds
     }
 
     fn split(&self, parent: &BudgetId) -> Result<(), TreeFailure> {
