@@ -1,6 +1,6 @@
 [package]
 name = "meta-xtask"
-version = "0.4.0"
+version = "0.6.0"
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
@@ -9,6 +9,7 @@ publish.workspace = true
 affected = { path = "../tooling/affected" }
 corpus_check = { path = "../tooling/corpus_check" }
 crate_graph = { path = "../tooling/lints/crate_graph" }
+elegance = { path = "../tooling/elegance" }
 git_starters = { path = "../tooling/lints/git_starters" }
 meta-golden = { path = "../crates/meta-golden" }
 meta-log = { path = "../crates/meta-log" }
@@ -30,6 +31,7 @@ task = { path = "../tooling/task" }
 test_time = { path = "../tooling/test_time" }
 toml = "0.9"
 toml_edit = "0.22"
+waterfall = { path = "../tooling/waterfall" }
 
 [lints]
 workspace = true

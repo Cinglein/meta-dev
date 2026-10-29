@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use strum::{EnumString, IntoStaticStr, VariantNames};
 use task::{Branch, Ledger, Policy, Program, Selection, Workspace};
 
-use crate::task::build_directory::{BuildDirectory, Misplaced};
+use crate::task::build_directory::{BuildDirectory, Misplaced, TrackedBuildFiles};
 use crate::task::clippy::Clippy;
 use crate::task::coverage::Coverage;
 use crate::task::golden_refresh::GoldenRefresh;
@@ -35,12 +35,15 @@ pub use ci::CiStep;
 use ci::{Ci, LocalGate};
 use corpus_check::LintName;
 use crate_graph::CrateGraph;
+use elegance::{EleganceSettings, Measures, SynSource};
 use failure::Failure;
 use meta_golden::Reach;
 use mutant_costs::MutantCosts;
 use mutation::{Mutants, Scope, ShardPlan, TriggerEvent};
+use settings::EmbeddedDefaults;
 use stacked::Stacked;
 use test_time::{GitCount, TestRunner, TestTime};
+use waterfall::Waterfall;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "kebab-case")]
@@ -53,6 +56,7 @@ pub enum Task {
     CrateGraph,
     Deny,
     DistinctSignatures,
+    Elegance,
     EnumPredicates,
     ExpressionFlow,
     FnShape,
@@ -92,6 +96,7 @@ pub enum Task {
     ThinMain,
     TypeShape,
     VecOutParams,
+    Waterfall,
 }
 
 impl Task {
@@ -104,6 +109,9 @@ impl Task {
         match self {
             Task::TestRunner => Ok(TestRunner::run(flags)?),
             Task::Init => Ok(BuildDirectory::read(Workspace::locate()?.root())?.initialized()?),
+            Task::Waterfall => {
+                Waterfall::shown(flags.map(PathBuf::from))?.map(|shown| print!("{shown}")).ok_or_else(Self::usage)
+            }
             task => task.run_in_workspace(&Workspace::locate()?, flags),
         }
     }
@@ -145,6 +153,9 @@ impl Task {
             Task::Goldens => GoldenRefresh::run(workspace, Reach::Offline),
             Task::GoldensOnline => GoldenRefresh::run(workspace, Reach::Online),
             Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
+            Task::Elegance => Ok(workspace.source_files().map(|files| {
+                print!("{}", Measures::measured(&SynSource::new(&files), &EleganceSettings::defaults()));
+            })?),
             Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy, &mut ledger)
                 .and_then(|()| Ok(ledger.checked(&policy, &selection)?)),
             Task::MutantCosts => Ok(MutantCosts::measure(

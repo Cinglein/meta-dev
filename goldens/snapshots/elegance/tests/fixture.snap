@@ -1,0 +1,74 @@
+types 33, traits declared 11, impls 57
+missing abstractions: maximal (types, signatures) concepts with at least 2 of each
+  concepts 25: named by one trait 2, by a composition only 1, unnamed 22
+  missing, one trait must name it: 23
+  missing, a composition may name it: 22
+  largest, unnamed:
+  1. 6 = 3 types x 2 signatures
+    types: fixture::Axe, fixture::Bow, fixture::Cup
+    share: up(&self, &mut Formatter) -> Result<Self, Error>; west(&self, &mut Formatter) -> Result<Self, Error>
+  2. 6 = 3 types x 2 signatures
+    types: fixture::Axe, fixture::Bow, fixture::Den
+    share: east(&self, &mut Formatter) -> Result<Self, Error>; up(&self, &mut Formatter) -> Result<Self, Error>
+  3. 6 = 3 types x 2 signatures
+    types: fixture::Axe, fixture::Bow, fixture::Elm
+    share: east(&self, &mut Formatter) -> Result<Self, Error>; west(&self, &mut Formatter) -> Result<Self, Error>
+  4. 6 = 3 types x 2 signatures
+    types: fixture::Axe, fixture::Cup, fixture::Den
+    share: south(&self, &mut Formatter) -> Result<Self, Error>; up(&self, &mut Formatter) -> Result<Self, Error>
+  5. 6 = 3 types x 2 signatures
+    types: fixture::Axe, fixture::Cup, fixture::Elm
+    share: south(&self, &mut Formatter) -> Result<Self, Error>; west(&self, &mut Formatter) -> Result<Self, Error>
+  6. 6 = 3 types x 2 signatures
+    types: fixture::Axe, fixture::Den, fixture::Elm
+    share: east(&self, &mut Formatter) -> Result<Self, Error>; south(&self, &mut Formatter) -> Result<Self, Error>
+  7. 6 = 3 types x 2 signatures
+    types: fixture::Badge, fixture::Label, remote::Gadget
+    share: height(&self) -> Height; width(&self) -> Width
+  8. 6 = 3 types x 2 signatures
+    types: fixture::Bow, fixture::Cup, fixture::Den
+    share: north(&self, &mut Formatter) -> Result<Self, Error>; up(&self, &mut Formatter) -> Result<Self, Error>
+  9. 6 = 3 types x 2 signatures
+    types: fixture::Bow, fixture::Cup, fixture::Elm
+    share: north(&self, &mut Formatter) -> Result<Self, Error>; west(&self, &mut Formatter) -> Result<Self, Error>
+  10. 6 = 3 types x 2 signatures
+    types: fixture::Bow, fixture::Den, fixture::Elm
+    share: east(&self, &mut Formatter) -> Result<Self, Error>; north(&self, &mut Formatter) -> Result<Self, Error>
+  largest, named only by a composition of shared traits:
+  1. 4 = 2 types x 2 signatures
+    types: fixture::Celsius, fixture::Kelvin
+    share: symbol(&self) -> Symbol; value(&self) -> Degrees
+leverage: distinct method names usable on a type / method bodies written for it
+  usable = inherent names + the methods of each trait the type has; a local trait contributes its declared methods, a foreign trait the names seen in impls
+  n 21: min 1.00, q1 1.00, median 1.00, q3 1.50, max 2.50
+  types with no bodies: 12
+  lowest:
+    fixture::Axe 1.00 (4 usable / 4 written)
+    fixture::Bow 1.00 (4 usable / 4 written)
+    fixture::Cup 1.00 (4 usable / 4 written)
+    fixture::Den 1.00 (4 usable / 4 written)
+    fixture::Elm 1.00 (4 usable / 4 written)
+    fixture::Lonely 1.00 (3 usable / 3 written)
+    fixture::Badge 1.00 (2 usable / 2 written)
+    fixture::Phase 1.00 (2 usable / 2 written)
+    remote::Gadget 1.00 (2 usable / 2 written)
+    fixture::Ember 1.00 (1 usable / 1 written)
+trait-graph shape
+  graph edges: supertrait 1, blanket 4; depth 2
+  blanket share: 8 of 45 trait impls = 0.17
+  single-implementor traits: 3
+    fixture::Gauge -> fixture::Meter
+    fixture::Scaled -> fixture::Circle
+    fixture::Solo -> fixture::Lonely
+  traits implemented directly, per implementing type: n 23: min 1, q1 1, median 2, q3 2, max 2
+  types with at least N = 2 traits (q3, at least 2) and no edge among them: 13
+    fixture::Celsius: fixture::Reading, fixture::Unit
+    fixture::Kelvin: fixture::Reading, fixture::Unit
+    fixture::U01: fixture::Reading, fixture::Unit
+    fixture::U02: fixture::Reading, fixture::Unit
+    fixture::U03: fixture::Reading, fixture::Unit
+    fixture::U04: fixture::Reading, fixture::Unit
+    fixture::U05: fixture::Reading, fixture::Unit
+    fixture::U06: fixture::Reading, fixture::Unit
+    fixture::U07: fixture::Reading, fixture::Unit
+    fixture::U08: fixture::Reading, fixture::Unit

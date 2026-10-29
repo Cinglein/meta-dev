@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*", "self/spec", "tooling/affected", "tooling/corpus_check", "tooling/git_trace","tooling/lints/*", "tooling/mutant_costs", "tooling/mutation", "tooling/settings", "tooling/stacked", "tooling/task", "tooling/test_time", "xtask"]
+members = ["crates/*", "self/spec", "tooling/affected", "tooling/corpus_check", "tooling/elegance", "tooling/git_trace", "tooling/lints/*", "tooling/mutant_costs", "tooling/mutation", "tooling/settings", "tooling/stacked", "tooling/task", "tooling/test_time", "tooling/waterfall", "xtask"]
 
 [workspace.package]
 version = "0.1.0"
