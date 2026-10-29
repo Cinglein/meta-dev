@@ -7,6 +7,7 @@ use super::git_call::GitCall;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
 use super::thaw::Thaw;
+use super::uninspected::Uninspected;
 use crate::request::local::local_clone::quarantine::Stamp;
 
 pub trait Inspection {
@@ -17,6 +18,7 @@ pub trait Inspection {
     fn walked(&self, path: &Path) -> Vec<Found>;
     fn neighbours(&self, root: &Path) -> Vec<Alternates>;
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy;
+    fn uninspected(&self) -> Uninspected;
     fn stamp(&self) -> Stamp;
     fn frozen(&self, quarantine: &Path, plan: Thaw) -> Result<Thaw, Kept>;
     fn thawed(&self, thaw: &Thaw);

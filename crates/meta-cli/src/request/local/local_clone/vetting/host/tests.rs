@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use super::Host;
+use super::process_table::{Held, Scan};
 use crate::request::local::byte_count::ByteCount;
 use crate::request::local::local_clone::vetting::alternates::Alternates;
 use crate::request::local::local_clone::vetting::entry_kind::EntryKind;
@@ -33,6 +34,8 @@ const KINDS: [(&str, EntryKind); 5] = [
     (LINK_TARGET, EntryKind::Unreadable),
 ];
 const UNLISTED: &str = "cannot inspect: ";
+const UNINSPECTED_PER_SCAN: [usize; 3] = [1, 2, 1];
+const MOST_UNINSPECTED: &str = "2 processes could not be inspected\n";
 
 struct Planted(tempfile::TempDir);
 
@@ -88,4 +91,13 @@ fn neighbours_are_sibling_alternates_and_a_failed_scan_keeps_everything() {
     assert!(neighbours.len() == expected.len() && expected.iter().all(|lender| neighbours.contains(lender)));
     let scanned = Host::default().occupancy(&[planted.located(MISSING)]).vacant(&planted.located(FILE));
     assert!(scanned.is_err_and(|kept| kept.to_string().starts_with(UNLISTED)));
+}
+
+#[test]
+fn the_host_reports_the_most_processes_any_scan_could_not_inspect() {
+    let host = Host::default();
+    let tables = UNINSPECTED_PER_SCAN.map(|count| std::iter::repeat_with(|| Scan::Uninspected).take(count).collect());
+    let occupied = tables.map(|held: Held| host.noted(held, &[]));
+    assert!(occupied.iter().all(|occupancy| occupancy.vacant(Path::new("/")).is_ok()), "{occupied:?}");
+    assert_eq!(host.uninspected().to_string(), MOST_UNINSPECTED);
 }
