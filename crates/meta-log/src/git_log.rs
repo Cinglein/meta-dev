@@ -126,7 +126,7 @@ impl LogStore for GitLog {
         Attempt::sequence()
             .try_for_each(|attempt| Outcome::step(self.attempt(decide), attempt, self.pacing, &self.budget))
             .break_value()
-            .unwrap_or_else(|| Err(LogFailure::Contended.into()))
+            .unwrap_or_else(|| Err(StagedRef::exhausted(&self.repository).into()))
     }
 }
 

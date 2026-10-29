@@ -19,6 +19,7 @@ pub struct Deletable(Vetted);
 impl Deletable {
     const UNLOCK: [&'static str; 2] = ["worktree", "unlock"];
     const MOVE: [&'static str; 2] = ["worktree", "move"];
+    const REMAINS: &'static str = "remains left at";
 
     pub fn confirmed(first: Vetted, again: Result<Vetted, Kept>) -> Result<Self, Kept> {
         (again? == first).then_some(Self(first)).ok_or(Kept::Changed)
@@ -64,15 +65,28 @@ impl Deletable {
             .rechecked(held, host)
             .and_then(|()| host.occupancy(std::slice::from_ref(&quarantine)).vacant(&quarantine))
             .and_then(|()| host.git(&held.step(Step::Unlock)))
-            .and_then(|_| host.git(&held.step(Step::Remove)))
-            .map(drop);
+            .and_then(|_| {
+                host.git(&held.step(Step::Remove)).map(drop).or_else(|kept| Self::finished(held, kept, host))
+            });
         host.thawed(&thaw);
         removed
     }
 
+    fn finished(held: &Link, kept: Kept, host: &impl Inspection) -> Result<(), Kept> {
+        (!held.registered(host)).then_some(()).ok_or(kept)?;
+        let remains = held.path();
+        let cleared = host.occupancy(&[remains.to_path_buf()]).vacant(remains).and_then(|()| host.cleared(remains));
+        cleared.map_err(|left| {
+            Kept::Unremoved(Cause::new(format_args!("{} {}: {left}", Self::REMAINS, remains.display())))
+        })
+    }
+
     fn restored(link: &Link, held: &Link, kept: Kept, host: &impl Inspection) -> Kept {
-        let _unlocked = host.git(&held.step(Step::Unlock));
         let kept = kept.recast(Kept::Unremoved);
-        host.git(&held.moving(link.path())).map_or_else(|failure| failure.recast(Kept::Unremoved), |_| kept)
+        let moved = held.registered(host).then(|| {
+            let _unlocked = host.git(&held.step(Step::Unlock));
+            host.git(&held.moving(link.path())).map_or_else(|failure| failure.recast(Kept::Unremoved), |_| kept.clone())
+        });
+        moved.unwrap_or(kept)
     }
 }
