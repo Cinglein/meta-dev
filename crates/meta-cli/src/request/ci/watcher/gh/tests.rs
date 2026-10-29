@@ -8,8 +8,12 @@ use crate::request::project::{CiSettings, Config};
 
 const FAILED: &str = "sha=e6554a9caf9e41b1c37dc15dd1e6896c276cb81d";
 const DOWN: &str = "HTTP 502: Bad Gateway";
-const SHOWN: [&str; 3] =
-    ["== ci / Run cargo xtask ci  ==\n##[error]", "== ci-gate / Run echo", "\ngh failed: HTTP 502"];
+const SHOWN: [&str; 4] = [
+    "== ci / Run cargo xtask ci  ==\n",
+    "budget over its blocking line:",
+    "== ci-gate / Run echo",
+    "\ngh failed: HTTP 502",
+];
 const LIMITED: &str = "[ci]\ngh_millis = 400\n";
 const WITHIN: Duration = Duration::from_secs(30);
 
