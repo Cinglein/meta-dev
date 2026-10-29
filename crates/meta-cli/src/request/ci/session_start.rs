@@ -41,3 +41,27 @@ impl std::fmt::Display for SessionStart {
         write!(formatter, "{}", self.0.display())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::SessionStart;
+
+    const SESSION: &str = "ABCDEF1234";
+    const BLOCKER: &str = "file";
+
+    #[test]
+    fn a_start_reads_back_only_after_a_write_keeps_its_first_moment_and_an_unwritable_one_names_its_path() {
+        let root = tempfile::tempdir().unwrap();
+        let start = SessionStart(root.path().join(SESSION));
+        let unread = start.read();
+        let before = std::time::SystemTime::now();
+        start.record().unwrap();
+        let first = start.read();
+        start.record().unwrap();
+        let read = first.zip(start.read()).filter(|(first, again)| first == again && !first.precedes(before));
+        std::fs::write(root.path().join(BLOCKER), "").unwrap();
+        let blocked = SessionStart(root.path().join(BLOCKER).join(SESSION));
+        let refused = blocked.record().map_err(|refusal| refusal.to_string()).err().unwrap_or_default();
+        assert!(unread.is_none() && read.is_some() && refused.contains(&blocked.to_string()), "{refused}");
+    }
+}
