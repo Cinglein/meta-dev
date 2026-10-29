@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 use meta_golden::{Goldens, Replay};
 
+#[allow(dead_code)]
 #[path = "support/fixture.rs"]
 mod fixture;
 #[path = "support/meta_command.rs"]

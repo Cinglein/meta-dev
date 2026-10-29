@@ -20,6 +20,11 @@ impl Fixture {
     const QUIET: [&'static str; 2] = ["maintenance.auto", "receive.autogc"];
     const NO_REFLOG: &'static str = "core.logAllRefUpdates";
     const EVERY_HEAD: [&'static str; 0] = [];
+    const LINKED: &'static str = "worktrees";
+    const LINK: &'static str = ".git";
+    const WIP: &'static str = "WIP";
+    const ORIG_HEAD: &'static str = "ORIG_HEAD";
+    const SEED: &'static str = "seed";
 
     pub fn bare(dir: &Path, head: &str) -> Fixture {
         Self::laid(dir, head, true)
@@ -70,18 +75,65 @@ impl Fixture {
     }
 
     pub fn committed_at(&self, message: &str, at: &Moment) -> String {
-        let signature = git2::Signature::new(Self::NAME, Self::EMAIL, &git2::Time::new(at.0, 0)).unwrap();
         let parent = self.0.head().and_then(|head| head.peel_to_commit()).ok();
         let tree = parent
             .as_ref()
             .map_or_else(|| self.0.find_tree(self.0.treebuilder(None).unwrap().write().unwrap()), git2::Commit::tree);
-        let made =
-            self.0.commit(Some(Self::HEAD), &signature, &signature, message, &tree.unwrap(), &Vec::from_iter(&parent));
+        self.commit_on(Self::HEAD, &tree.unwrap(), message, at).to_string()
+    }
+
+    pub fn written(&self, reference: &str, name: &str, text: &str, at: &Moment) -> git2::Oid {
+        let parent = self.0.find_reference(reference).and_then(|tip| tip.peel_to_tree()).ok();
+        let mut tree = self.0.treebuilder(parent.as_ref()).unwrap();
+        tree.insert(name, self.0.blob(text.as_bytes()).unwrap(), git2::FileMode::Blob.into()).unwrap();
+        self.commit_on(reference, &self.0.find_tree(tree.write().unwrap()).unwrap(), Self::SEED, at)
+    }
+
+    fn commit_on(&self, reference: &str, tree: &git2::Tree<'_>, message: &str, at: &Moment) -> git2::Oid {
+        let signature = git2::Signature::new(Self::NAME, Self::EMAIL, &git2::Time::new(at.0, 0)).unwrap();
+        let parent = self.0.find_reference(reference).and_then(|tip| tip.peel_to_commit()).ok();
+        let made = self.0.commit(Some(reference), &signature, &signature, message, tree, &Vec::from_iter(&parent));
         let made = made.unwrap();
-        let branch = self.0.head().unwrap().name().unwrap().to_owned();
-        self.relogged(Self::HEAD, made, &signature);
-        self.relogged(&branch, made, &signature);
-        made.to_string()
+        let resolved = self.0.find_reference(reference).unwrap().resolve().unwrap().name().unwrap().to_owned();
+        self.relogged(reference, made, &signature);
+        self.relogged(&resolved, made, &signature);
+        made
+    }
+
+    pub fn branched(&self, prefix: &str, names: &[&str], to: git2::Oid) {
+        let moved = |name: &&str| self.0.reference(&[prefix, name].concat(), to, true, Self::HEAD).map(drop);
+        names.iter().try_for_each(moved).unwrap();
+    }
+
+    pub fn worktrees(&self, root: &Path, branches: &[&str], detached: &str) {
+        let added = branches.iter().try_for_each(|branch| self.added(&root.join(branch), Some(branch)));
+        added.and_then(|()| self.added(&root.join(detached), None)).unwrap();
+    }
+
+    fn added(&self, path: &Path, branch: Option<&str>) -> Result<(), git2::Error> {
+        let name = path.file_name().unwrap().to_str().unwrap();
+        let reference = branch.map(|branch| self.0.find_branch(branch, git2::BranchType::Local)).transpose()?;
+        let reference = reference.map(git2::Branch::into_reference);
+        self.0.worktree(name, path, Some(git2::WorktreeAddOptions::new().reference(reference.as_ref())))?;
+        let admin = std::fs::canonicalize(self.0.path().join(Self::LINKED).join(name)).unwrap();
+        std::fs::write(path.join(Self::LINK), format!("gitdir: {}\n", admin.display())).unwrap();
+        let detached = || {
+            let tree = Fixture::opened(path);
+            tree.0.set_head_detached(tree.0.head()?.target().unwrap())?;
+            self.0.find_branch(name, git2::BranchType::Local)?.delete()
+        };
+        branch.map_or_else(detached, |_| Ok(()))
+    }
+
+    pub fn rewound(&self) {
+        let head = self.0.head().unwrap().peel_to_commit().unwrap();
+        self.0.reference(Self::WIP, head.id(), true, Self::HEAD).unwrap();
+        self.0.reset(head.parent(0).unwrap().as_object(), git2::ResetType::Hard, None).unwrap();
+        self.0.find_reference(Self::ORIG_HEAD).into_iter().try_for_each(|mut orig| orig.delete()).unwrap();
+    }
+
+    pub fn has_branch(&self, name: &str) -> bool {
+        self.0.find_branch(name, git2::BranchType::Local).is_ok()
     }
 
     fn relogged(&self, name: &str, made: git2::Oid, signature: &git2::Signature<'_>) {
