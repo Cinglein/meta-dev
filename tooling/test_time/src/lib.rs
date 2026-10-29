@@ -253,7 +253,9 @@ mod tests {
             .and_then(TestRuns::passed)
             .map(|timings| TestTime::overruns(&timings, &policy));
         assert!(found.is_ok_and(|set| set.to_string() == OVERRUN_GOLDEN));
-        assert!(timing.overrun(limit).is_none() && timing.overrun(limit - TICK).is_some());
+        assert!(
+            timing.overrun(limit).is_none() && timing.overrun(limit.saturating_sub(TICK)).is_some()
+        );
     }
 
     #[test]
