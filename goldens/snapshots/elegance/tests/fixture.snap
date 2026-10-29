@@ -1,4 +1,4 @@
-types 40, traits declared 16, impls 74
+types 41, traits declared 16, impls 75
 catalog: 24 measures, report-only
   B1 unnamed concepts [trait graph, to zero]: 23
   B2 reducible traits [trait graph, to zero]: 2
@@ -12,7 +12,7 @@ catalog: 24 measures, report-only
   B10 typestate share of transitions [transition graph, higher]: not implemented
   B11 transition graph simplicity [transition graph, lower]: not implemented
   B12 unnamed field concepts [types, to zero]: 3
-  B13 types with LCOM4 above 1 [types, to zero]: 2
+  B13 types with LCOM4 above 1 [types, to zero]: 3
   B14 behavioural inherent methods [types, lower]: not implemented
   B15 bodies identical up to types [code, to zero]: not implemented
   B16 same-job paths per external effect [effects, lower]: measured by lint git_starters (partial)
@@ -73,12 +73,12 @@ B3 signatures declared in more than one local trait
     open(&self) -> Door: fixture::Lock, fixture::Swing
 B4 leverage: distinct method names usable on a type / method bodies written for it
   usable = inherent names + the methods of each trait the type has; a local trait contributes its declared methods, a foreign trait the names seen in impls
-  n 28: min 1.00, q1 1.00, median 1.00, q3 1.33, max 2.50
+  n 29: min 1.00, q1 1.00, median 1.00, q3 1.33, max 2.50
   types with no bodies: 12
   lowest:
     fixture::Gate 1.00 (9 usable / 9 written)
+    fixture::Dial 1.00 (8 usable / 8 written)
     fixture::Latch 1.00 (7 usable / 7 written)
-    fixture::Dial 1.00 (6 usable / 6 written)
     fixture::Axe 1.00 (4 usable / 4 written)
     fixture::Bow 1.00 (4 usable / 4 written)
     fixture::Cup 1.00 (4 usable / 4 written)
@@ -112,7 +112,8 @@ B12 field concepts: maximal (types, named fields) concepts with at least 2 of ea
 B13 types whose method-field graph splits
   rule: LCOM4 per type with fields, over its self methods keyed by trait and name; nodes are those methods and the fields; edges join a method to each field it reads or writes, to each self method it calls, and to the field of each accessor it calls; an accessor (body is self.f, &self.f or self.f = value) is not a node; a bare use of self joins every field; a method that touches nothing is left out
   limits: syntactic: fields reached through helpers or locals and trait default bodies are not seen; a call is resolved by name to every method of the type with that name
-  found 2
+  found 3
+    fixture::Dial: 2 components [nudge] [raise, report]
     fixture::Duo: 2 components [Debug::fmt] [Display::fmt]
     fixture::Gate: 2 components [fit, ready, sealed] [label]
 trait-graph shape
@@ -141,4 +142,4 @@ smell inventory scoring, informational: a finding flags an entry when a type or 
   B3 signatures declared in more than one trait [trait graph, to zero]: recall 0 of 0 tagged orthogonality []; other entries flagged 1 [split-duo]; noise 0 of 1 findings
   B9 hidden state fields [transition graph, to zero]: recall 0 of 0 tagged hidden-state []; other entries flagged 1 [split-duo]; noise 0 of 6 findings
   B12 unnamed field concepts [types, to zero]: recall 0 of 0 tagged field-concepts []; other entries flagged 1 [split-duo]; noise 0 of 3 findings
-  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 2 tagged lcom4 [split-duo]; other entries flagged 0 []; noise 0 of 2 findings
+  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 2 tagged lcom4 [split-duo]; other entries flagged 0 []; noise 0 of 3 findings

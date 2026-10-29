@@ -514,6 +514,23 @@ impl Dial {
     pub fn peeked(&self) {
         self.dirty = false;
     }
+    pub fn nudge(&self) -> Level {
+        self.helper()
+    }
+    pub fn spin(&self) {
+        self.spin()
+    }
+}
+
+pub struct Beacon;
+
+impl Beacon {
+    pub fn on(&self) -> On {
+        self.flash()
+    }
+    pub fn off(&self) -> Off {
+        self.dim()
+    }
 }
 
 impl Phase {
