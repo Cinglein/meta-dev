@@ -32,10 +32,12 @@ mod tests {
     use crate::task::failure::Failure;
 
     const SKIPPED: &str = "skipped";
+    const PASSED: [(Runner, bool); 2] = [(Runner::Ci, false), (Runner::Local, true)];
 
     #[test]
     fn an_unreached_check_blocks_in_ci_and_is_only_reported_locally() {
-        let passed = |runner: Runner| runner.unreached(Failure::from(task::Failure::NoWorkspace), SKIPPED).is_ok();
-        assert_eq!([Runner::Ci, Runner::Local].map(passed), [false, true]);
+        let passed =
+            |(runner, _): (Runner, bool)| runner.unreached(Failure::from(task::Failure::NoWorkspace), SKIPPED).is_ok();
+        assert_eq!(PASSED.map(passed), PASSED.map(|(_, passed)| passed));
     }
 }
