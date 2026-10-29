@@ -1,27 +1,44 @@
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::io::Write as _;
 use std::process::{Output, Stdio};
 
 use crate::fixture::Fixture;
 use crate::meta_command::MetaCommand;
+use crate::recorded_gh::RecordedGh;
 use crate::seeded_log::{SeededLog, TASK};
 
 const OWNER: &str = "owner";
 const CLAIMED: &str = "TaskClaimed";
 const STATUS_FLAGS: [&str; 2] = ["status", "--flags"];
 const ORPHAN: &str = "orphan #8: open, no task\n";
-const FAKE_GH: &str = r#"#!/bin/sh
-case "$1 $2" in
-"pr list") echo 7 ;;
-"api graphql") echo '{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[{"number":7,"state":"OPEN","baseRefName":"main","statusCheckRollup":null},{"number":8,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}]}},"linked":{"pr7":{"number":7,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}},"trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}}}' ;;
-"api repos/{owner}/{repo}/rules/branches/main"|"api repos/{owner}/{repo}/branches/main") echo '[]' ;;
-esac
+const LINKED: [&str; 1] = ["7"];
+const OPEN: &str = r#"{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[{"number":7,"state":"OPEN","baseRefName":"main","statusCheckRollup":null},{"number":8,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}]}},"linked":{"pr7":{"number":7,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}},"trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}}}
 "#;
+const HEADED: [&str; 8] = [
+    "pr",
+    "list",
+    "--head",
+    TASK,
+    "--json",
+    "number,isCrossRepository",
+    "--jq",
+    ".[] | select(.isCrossRepository | not) | .number",
+];
+const RULES: [&str; 4] = [
+    "api",
+    "repos/{owner}/{repo}/rules/branches/main",
+    "--jq",
+    "[.[] | select(.type == \"required_status_checks\") | .parameters.required_status_checks[].context]",
+];
+const CLASSIC: [&str; 4] =
+    ["api", "repos/{owner}/{repo}/branches/main", "--jq", "[.protection.required_status_checks.checks[]?.context]"];
+const NONE_REQUIRED: &str = "[]\n";
 
 struct Project {
     origin: tempfile::TempDir,
     clone: tempfile::TempDir,
+    gh: RecordedGh,
 }
 
 impl Project {
@@ -30,22 +47,21 @@ impl Project {
         let clone = tempfile::tempdir().unwrap();
         Fixture::bare(origin.path(), "main");
         Fixture::working(clone.path(), origin.path(), TASK);
-        std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
-        let bin = clone.path().join("bin");
-        std::fs::create_dir(&bin).unwrap();
-        std::fs::write(bin.join("gh"), FAKE_GH).unwrap();
-        std::fs::set_permissions(bin.join("gh"), std::fs::metadata("/bin/sh").unwrap().permissions()).unwrap();
-        Self { origin, clone }
-    }
-
-    fn path(&self) -> String {
-        format!("{}:{}", self.clone.path().join("bin").display(), std::env::var("PATH").unwrap_or_default())
+        let program = RecordedGh::program();
+        std::fs::write(clone.path().join("meta.toml"), format!("remote = \"origin\"\n[ci]\nprogram = {program:?}\n"))
+            .unwrap();
+        let gh = RecordedGh::new();
+        gh.answered("01-headed", HEADED, "7\n")
+            .graphql("02-open", &LINKED, OPEN)
+            .answered("03-rules", RULES, NONE_REQUIRED)
+            .answered("04-classic", CLASSIC, NONE_REQUIRED);
+        Self { origin, clone, gh }
     }
 
     fn meta(&self, words: &[&str], stdin: &str) -> Output {
         let mut command = MetaCommand::tagged(words);
-        command.current_dir(self.clone.path()).env("META_ACTOR", OWNER).env("PATH", self.path());
-        let mut child = command.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
+        command.current_dir(self.clone.path()).env("META_ACTOR", OWNER);
+        let mut child = self.gh.replaying(&mut command).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
         child.stdin.take().unwrap().write_all(stdin.as_bytes()).unwrap();
         child.wait_with_output().unwrap()
     }
@@ -66,6 +82,6 @@ fn opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_
     let input = serde_json::json!({ "cwd": elsewhere.path(), "tool_input": { "command": shell } }).to_string();
     let linked = String::from_utf8(project.meta(&["hook", "post-tool-use"], &input).stdout).unwrap();
     let flags = project.meta(&STATUS_FLAGS, "");
-    assert!(linked.contains(&format!("TaskLinked {TASK} #7")) && !flags.status.success());
+    assert!(linked.contains(&format!("TaskLinked {TASK} #7")) && !flags.status.success(), "{linked}");
     assert_eq!(String::from_utf8(flags.stdout).unwrap(), ORPHAN);
 }

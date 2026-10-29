@@ -7,5 +7,6 @@ mod fixture;
 mod gc;
 mod hooks;
 mod meta_command;
+mod recorded_gh;
 mod seeded_log;
 mod status;

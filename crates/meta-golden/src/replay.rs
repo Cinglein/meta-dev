@@ -18,10 +18,11 @@ pub struct Replay {
 impl Replay {
     pub const RECORDINGS: &'static str = "META_REPLAY";
     pub const TRAIL: &'static str = "META_REPLAY_TRAIL";
+    const HERE: &'static str = ".";
 
     #[must_use]
     pub fn answered(asked: &[String]) -> ExitCode {
-        let place = |name| std::env::var_os(name).map(PathBuf::from).unwrap_or_default();
+        let place = |name| std::env::var_os(name).map_or_else(|| PathBuf::from(Self::HERE), PathBuf::from);
         let replay = Self { recordings: place(Self::RECORDINGS), trail: place(Self::TRAIL) };
         let places = Places::new(&std::env::current_dir().unwrap_or_default(), Path::new(""));
         let asked = Argv::from(asked.iter().map(|word| places.hidden(word)).collect::<Vec<_>>());
