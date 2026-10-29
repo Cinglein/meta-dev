@@ -1472,3 +1472,4 @@
 {"at":"2026-10-29T11:41:01.220603Z","actor":"claude-mutto","kind":"TaskClaimed","task":"task-1e5a19f41489ab08"}
 {"at":"2026-10-29T11:41:24.077364Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-b5d30ec3d5872b02","text":"Platform-only code has no mutation coverage: CI runs mutants on Linux only, so #172 excludes 40 darwin/unsupported mutants in .cargo/mutants.toml; needs a macOS mutants shard or a platform-neutral core.","division":"features-and-maintenance","severity":"minor"}
 {"at":"2026-10-29T11:41:28.989806Z","actor":"claude-mutto","kind":"TaskLinked","task":"task-1e5a19f41489ab08","pr":181}
+{"at":"2026-10-29T11:43:05.042949Z","actor":"claude-bugs3","kind":"TaskLinked","task":"task-128362e7c1033465","pr":182}
