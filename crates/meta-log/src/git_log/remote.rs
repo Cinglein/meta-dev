@@ -30,7 +30,8 @@ impl Remote {
     pub fn fetch(&self, listing: Listing) -> Result<Fetched, LogFailure> {
         (listing == Listing::Fresh).then(|| self.talk.forget_heads());
         let budget = self.talk.budget();
-        Attempt::within(budget.deadline(), budget, || self.fetch_once()).unwrap_or(Err(LogFailure::Contended))
+        let deadline = budget.deadline();
+        Attempt::within(deadline, budget, || self.fetch_once()).unwrap_or_else(|| Err(LogFailure::gave_up(deadline)))
     }
 
     pub fn fetch_tip(&self) -> Result<Tip, LogFailure> {

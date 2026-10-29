@@ -58,7 +58,7 @@ const CARGO_TAG: &str =
 const GC: [&str; 1] = ["gc"];
 const GC_RUN: [&str; 2] = ["heartbeat", "gc-run"];
 const PLANNED: Line = Line("would free ", MERGED, ": ");
-const CONFIG: &str = "remote = \"origin\"\n";
+const CONFIG: &str = "remote = \"origin\"\n[ci]\ngit_millis = 3000\n";
 const IN_PROGRESS: &str = ": am, rebase or cherry-pick in progress; pr #5 merged\n";
 const SWEPT: [Line; 10] = [
     Line("kept ", PAUSED, IN_PROGRESS),

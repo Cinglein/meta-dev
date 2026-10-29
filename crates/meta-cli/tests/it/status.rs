@@ -30,7 +30,7 @@ impl Project {
         let clone = tempfile::tempdir().unwrap();
         Fixture::bare(origin.path(), "main");
         Fixture::working(clone.path(), origin.path(), TASK);
-        std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
+        std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n[ci]\ngit_millis = 3000\n").unwrap();
         let bin = clone.path().join("bin");
         std::fs::create_dir(&bin).unwrap();
         std::fs::write(bin.join("gh"), FAKE_GH).unwrap();

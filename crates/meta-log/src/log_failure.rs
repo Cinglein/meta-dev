@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use meta_git::{GitFailure, RemoteName};
 use meta_run::Stderr;
 use thiserror::Error;
@@ -21,8 +23,31 @@ pub enum LogFailure {
     Rejected(Stderr),
     #[error("meta/log kept moving; gave up")]
     Contended,
+    #[error("meta/log fetch ran past its git_millis deadline; gave up")]
+    Expired,
     #[error("{0}")]
     NotCommit(#[from] NotCommitId),
     #[error("{0}")]
     Encode(#[from] serde_json::Error),
+}
+
+impl LogFailure {
+    #[must_use]
+    pub fn gave_up(deadline: Instant) -> LogFailure {
+        if Instant::now() < deadline { LogFailure::Contended } else { LogFailure::Expired }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LogFailure;
+    use std::time::{Duration, Instant};
+    const AHEAD: Duration = Duration::from_secs(60);
+
+    #[test]
+    fn giving_up_before_the_deadline_is_contention_and_after_it_is_expiry() {
+        let now = Instant::now();
+        let given = [now + AHEAD, now].map(|deadline| matches!(LogFailure::gave_up(deadline), LogFailure::Expired));
+        assert_eq!(given, [false, true]);
+    }
 }

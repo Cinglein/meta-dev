@@ -108,7 +108,7 @@ impl Project {
         let clone = tempfile::tempdir().unwrap();
         Fixture::bare(origin.path(), "main");
         Fixture::working(clone.path(), origin.path(), "main");
-        std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
+        std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n[ci]\ngit_millis = 3000\n").unwrap();
         Self { origin, clone }
     }
 

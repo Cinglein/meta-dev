@@ -27,11 +27,13 @@ impl Attempt {
 
 impl Attempt {
     pub fn within<Found, Failure>(
-        _deadline: Instant,
+        deadline: Instant,
         budget: &Budget,
         mut found: impl FnMut() -> Result<Option<Found>, Failure>,
     ) -> Option<Result<Found, Failure>> {
-        Self::sequence().find_map(|attempt| attempt.settled(found(), budget))
+        let bounded = budget.within(deadline);
+        let attempts = Self::sequence().take_while(|_| Instant::now() < deadline);
+        attempts.into_iter().find_map(|attempt| attempt.settled(found(), &bounded))
     }
 
     fn settled<Found, Failure>(
@@ -50,8 +52,8 @@ mod tests {
     use super::Attempt;
     use meta_run::Budget;
     use std::time::{Duration, Instant};
-    const PATIENCE: Duration = Duration::from_millis(200);
-    const SLACK: Duration = Duration::from_millis(100);
+    const PATIENCE: Duration = Duration::from_millis(64);
+    const SLACK: Duration = Duration::from_millis(64);
 
     #[test]
     fn a_retry_that_never_settles_gives_up_by_its_deadline() {
