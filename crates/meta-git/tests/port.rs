@@ -7,6 +7,8 @@ use meta_git::{
 
 const FILE: &str = "events.jsonl";
 const BRANCH: &str = "refs/heads/meta/log";
+const WHOLE: &str = "0123456789abcdef0123456789abcdef01234567";
+const UNHEX: &str = "g123456789abcdef0123456789abcdef01234567";
 const REFTABLE: &str = "[core]\n\trepositoryformatversion = 1\n\tbare = true\n[extensions]\n\trefstorage = reftable\n";
 
 struct Commits;
@@ -31,6 +33,13 @@ fn commits_written_in_process_read_back_through_their_ref_and_first_parents() {
     let files = repository.read(&FilesAt::from(tip)).unwrap().unwrap();
     assert_eq!(files.only(FILE), Some(BRANCH));
     assert_eq!(repository.read(&FirstParents::from(tip)).unwrap(), vec![second, first]);
+    assert_eq!(format!("{repository:?}"), format!("Repository({:?})", directory.path()));
+}
+
+#[test]
+fn only_forty_hex_digits_name_an_object() {
+    let named = |text: &str| text.parse::<ObjectId>().is_ok();
+    assert!(named(WHOLE) && !named(&WHOLE[1..]) && !named(UNHEX));
 }
 
 #[test]

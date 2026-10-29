@@ -17,18 +17,16 @@ pub struct Repository {
 
 impl Repository {
     const REF_STORAGE: &'static str = "extensions.refstorage";
-    const REFTABLE: &'static str = "reftable";
 
     pub fn open(path: &Path) -> Result<Repository, GitFailure> {
-        let reftable = || GitFailure::Reftable(path.to_path_buf());
         let opened = git2::Repository::open(path).map_err(|error| {
-            if error.message().contains(Self::REF_STORAGE) { reftable() } else { GitFailure::from(error) }
+            if error.message().contains(Self::REF_STORAGE) {
+                GitFailure::Reftable(path.to_path_buf())
+            } else {
+                GitFailure::from(error)
+            }
         })?;
-        let storage = opened.config()?.get_string(Self::REF_STORAGE).ok();
-        match storage.as_deref() {
-            Some(Self::REFTABLE) => Err(reftable()),
-            _ => Ok(Repository { path: path.to_path_buf(), opened: Arc::new(Mutex::new(opened)) }),
-        }
+        Ok(Repository { path: path.to_path_buf(), opened: Arc::new(Mutex::new(opened)) })
     }
 
     pub fn created(path: &Path, layout: Layout) -> Result<Repository, GitFailure> {
