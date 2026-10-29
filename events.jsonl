@@ -1626,3 +1626,4 @@
 {"at":"2026-10-29T21:20:18.204403Z","actor":"claude-mqueue","kind":"TaskOpened","task":"task-cccccfaa15ad6c4d","text":"meta queue: record a live CLEAN, green PR reply into goldens/queue/linked.json and golden its Green to Merge step (PR #221 covers it only through #187, which is UNSTABLE)","division":"architecture-and-planning"}
 {"at":"2026-10-29T21:30:23.203935Z","actor":"claude-lead","kind":"TaskOpened","task":"task-cc7b5ef79b0bb628","text":"Fix the macOS darwin process-table scan (errno 2) and the gc test that fail on plain main on macOS; add a macOS CI job running the darwin crates' tests and a mutants shard for darwin-only code","division":"features-and-maintenance","addresses":["issue-a00a1debe260b3a5","concern-b5d30ec3d5872b02"]}
 {"at":"2026-10-29T21:31:23.167939Z","actor":"claude-qa","kind":"TaskDone","task":"task-cce9360d23a2663e"}
+{"at":"2026-10-29T21:31:55.678Z","actor":"claude-macos","kind":"TaskClaimed","task":"task-cc7b5ef79b0bb628"}
