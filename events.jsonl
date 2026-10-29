@@ -1468,3 +1468,4 @@
 {"at":"2026-10-29T11:40:29.805261Z","actor":"claude-bugs3","kind":"TaskOpened","task":"task-f3655d764b4c0108","text":"Fail closed on missing policy and corrupt monitor state","division":"features-and-maintenance","addresses":["concern-c835984c46618f1e"]}
 {"at":"2026-10-29T11:40:33.825600Z","actor":"claude-bugs3","kind":"TaskClaimed","task":"task-128362e7c1033465"}
 {"at":"2026-10-29T11:40:35.700750Z","actor":"claude-bugs3","kind":"TaskClaimed","task":"task-f3655d764b4c0108"}
+{"at":"2026-10-29T11:40:56.715087Z","actor":"claude-mutto","kind":"TaskOpened","task":"task-1e5a19f41489ab08","text":"Mutants timeouts fail closed: exit 3 is red, timed-out mutants listed","division":"performance-and-cost","addresses":["concern-0065caa902310390"]}
