@@ -1,16 +1,18 @@
-use meta_schema::{ItemKind, LevelName, Placement};
+use meta_schema::{ItemKind, Placement};
+
+use crate::reading::Reading;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Triage {
     placement: Placement,
     kind: ItemKind,
-    level: Option<LevelName>,
+    reading: Reading,
 }
 
 impl Triage {
     #[must_use]
-    pub fn new(placement: Placement, kind: ItemKind, level: Option<LevelName>) -> Triage {
-        Triage { placement, kind, level }
+    pub fn new(placement: Placement, kind: ItemKind, reading: Reading) -> Triage {
+        Triage { placement, kind, reading }
     }
 
     #[must_use]
@@ -24,7 +26,7 @@ impl Triage {
     }
 
     #[must_use]
-    pub fn level(&self) -> Option<&LevelName> {
-        self.level.as_ref()
+    pub fn reading(&self) -> &Reading {
+        &self.reading
     }
 }

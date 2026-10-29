@@ -1,10 +1,13 @@
+use std::cmp::Ordering;
 use std::num::NonZeroUsize;
 
-use meta_schema::LevelName;
+use meta_schema::Rating;
 use serde::{Deserialize, Serialize};
 
 use crate::evidence::Evidence;
+use crate::promoted::Promoted;
 use crate::rating_failure::RatingFailure;
+use crate::reading::Reading;
 use crate::scale::Scale;
 use crate::signal::Signal;
 
@@ -13,26 +16,34 @@ use crate::signal::Signal;
 pub struct PromoteAfter(NonZeroUsize);
 
 impl PromoteAfter {
+    const OWNER_SET_RUN_LENGTH: usize = 3;
+
     pub fn promote<About: PartialEq, Since>(
         self,
         scale: &Scale,
         history: &[Signal<About, Since>],
-    ) -> Result<Option<LevelName>, RatingFailure> {
-        history.last().map_or(Ok(None), |latest| {
-            let same: Vec<&Signal<About, Since>> =
-                history.iter().filter(|signal| signal.identity() == latest.identity()).collect();
-            let earlier = same.iter().rev().nth(1).and_then(|signal| signal.level());
-            scale.moved(earlier, latest.level(), latest.evidence())?;
-            Ok(latest.level().map(|level| self.escalated(scale, &same, level)))
+    ) -> Result<Promoted, RatingFailure> {
+        history.last().map_or(Ok(Promoted::new(Reading::from(Rating::Unrated))), |latest| {
+            let known: Vec<&Reading> = history
+                .iter()
+                .filter(|signal| signal.identity() == latest.identity())
+                .filter_map(|signal| signal.reading().known())
+                .collect();
+            let earlier = known.iter().rev().nth(1);
+            let rise = earlier
+                .map_or(Ok(Ordering::Equal), |earlier| scale.moved(earlier, latest.reading(), latest.evidence()))?;
+            let run = known.iter().rev().take_while(|reading| **reading == latest.reading()).count();
+            let stepped = (run >= self.0.get()
+                || matches!((latest.evidence(), rise), (Evidence::FailedRemedy, Ordering::Equal | Ordering::Greater)))
+            .then(|| scale.worse(latest.reading()))
+            .flatten();
+            Ok(Promoted::new(stepped.unwrap_or_else(|| latest.reading().clone())))
         })
     }
+}
 
-    fn escalated<About, Since>(self, scale: &Scale, same: &[&Signal<About, Since>], level: &LevelName) -> LevelName {
-        let run = same.iter().rev().take_while(|signal| signal.level() == Some(level)).count();
-        let promoted = (run >= self.0.get()
-            || same.last().is_some_and(|signal| *signal.evidence() == Evidence::FailedRemedy))
-        .then(|| scale.worse(level))
-        .flatten();
-        promoted.unwrap_or(level).clone()
+impl Default for PromoteAfter {
+    fn default() -> PromoteAfter {
+        PromoteAfter(NonZeroUsize::new(Self::OWNER_SET_RUN_LENGTH).unwrap_or(NonZeroUsize::MIN))
     }
 }

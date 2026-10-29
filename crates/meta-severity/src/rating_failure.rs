@@ -1,6 +1,8 @@
 use meta_schema::{Division, LevelName};
 use thiserror::Error;
 
+use crate::reading::Reading;
+
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum RatingFailure {
     #[error("an item at the root has no scale; place it in a division first")]
@@ -10,11 +12,11 @@ pub enum RatingFailure {
     #[error("the item is already {0}")]
     Unchanged(LevelName),
     #[error("raising from {0} needs --scenario <reproduction or failure scenario>")]
-    RaisedWithoutScenario(LevelName),
-    #[error("raising from {0} needs evidence: a measure, a failed remedy, or a scenario")]
-    RaisedWithoutEvidence(LevelName),
+    RaisedWithoutEvidence(Reading),
     #[error("{0} has no level in [act] of tooling/policy.toml")]
     Unacted(Division),
+    #[error("{0} needs a line above the next lower level's line")]
+    Disordered(LevelName),
     #[error("{0} is not on the scale of {1}; move it with --severity <level>")]
     Unplaced(LevelName, Division),
     #[error("{0} means another level on {1}; move it with --severity <level>")]

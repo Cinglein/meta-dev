@@ -4,7 +4,6 @@ mod item_filter;
 mod mutation_job;
 mod unit;
 
-pub use meta_schema::ItemKind;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 

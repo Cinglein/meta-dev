@@ -1,21 +1,20 @@
-use meta_schema::LevelName;
-
 use crate::evidence::Evidence;
+use crate::reading::Reading;
 use crate::subject::Subject;
 use crate::triage::Triage;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Signal<About, Since> {
     subject: About,
-    level: Option<LevelName>,
+    reading: Reading,
     evidence: Evidence,
     since: Since,
 }
 
 impl<About, Since> Signal<About, Since> {
     #[must_use]
-    pub fn new(subject: About, level: Option<LevelName>, evidence: Evidence, since: Since) -> Signal<About, Since> {
-        Signal { subject, level, evidence, since }
+    pub fn new(subject: About, reading: Reading, evidence: Evidence, since: Since) -> Signal<About, Since> {
+        Signal { subject, reading, evidence, since }
     }
 
     #[must_use]
@@ -24,8 +23,8 @@ impl<About, Since> Signal<About, Since> {
     }
 
     #[must_use]
-    pub fn level(&self) -> Option<&LevelName> {
-        self.level.as_ref()
+    pub fn reading(&self) -> &Reading {
+        &self.reading
     }
 
     #[must_use]
@@ -42,7 +41,7 @@ impl<About, Since> Signal<About, Since> {
 impl<About: Subject, Since> Signal<About, Since> {
     #[must_use]
     pub fn triage(&self) -> Triage {
-        Triage::new(self.subject.placement(), self.subject.kind(), self.level.clone())
+        Triage::new(self.subject.placement(), self.subject.kind(), self.reading.clone())
     }
 }
 

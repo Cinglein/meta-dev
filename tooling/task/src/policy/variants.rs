@@ -16,7 +16,7 @@ const PRICE: &str = "allowance = { share = 100 }\n";
 const WINDOW: &str = "window = \"per_change\"\n";
 const CI: &str = "source = \"ci\"\n";
 
-const REFUSED: [(&str, &str, &str, &str); 36] = [
+const REFUSED: [(&str, &str, &str, &str); 37] = [
     (
         "meta", "\nparameters = 4\n", "\n", "[limits]: parameters is not set",
     ),
@@ -184,11 +184,20 @@ const REFUSED: [(&str, &str, &str, &str); 36] = [
         "critcal is not a level of its division's scale",
     ),
     (
-        "meta", "performance-and-cost = \"major\"\n", END,
-        "performance-and-cost has no level in [act]",
+        "meta",
+        "performance-and-cost = \"major\"\n",
+        END,
+        "[act]: performance-and-cost has no level in [act] of tooling/policy.toml",
     ),
     (
-        "meta", "cost = \"major\"", "cost = \"majr\"", "majr is not a level",
+        "meta", "cost = \"major\"", "cost = \"majr\"",
+        "[act]: majr is not a level of the division's scale",
+    ),
+    (
+        "meta",
+        "cost = \"major\"",
+        "cost = \"major\"\n\"performance-and-cost/x\" = \"major\"",
+        "[act]: performance-and-cost/x is not a division in tooling/policy.toml",
     ),
 ];
 

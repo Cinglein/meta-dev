@@ -1,33 +1,47 @@
 use std::collections::BTreeMap;
 
-use meta_schema::{Division, ItemKind, LevelName, Placement, TopDivision};
+use meta_schema::{Division, ItemKind, LevelName, Placement, Rating, Scenario, Text, TopDivision};
 
-use crate::{ActionLevels, Evidence, Level, PromoteAfter, Scale, Scales, Signal, Subject, Thresholds};
+use crate::{ActionLevels, Evidence, PromoteAfter, Promoted, Reading, Scale, Scales, Signal, Subject, Thresholds};
+
+type Observed = (&'static str, &'static str, &'static str);
 
 const LINES: [(&str, usize); 3] = [("minor", 2), ("critical", 10), ("major", 5)];
-const AT_LINES: [Option<&str>; 3] = [None, Some("major"), Some("minor")];
-type Observed = (Option<&'static str>, Evidence);
-
-const HISTORIES: [(&[Observed], &str); 7] = [
+const AT_LINES: [&str; 3] = ["clear", "major", "minor"];
+const ODD: [&str; 3] =
+    ["unrated", "bogus is not a level of the division's scale", "major needs a line above the next lower level's line"];
+const RAISE: &str = "raising from minor needs --scenario <reproduction or failure scenario>";
+const HISTORIES: [(&[Observed], &str); 14] = [
+    (&[("a", "minor", "measured"), ("a", "critical", "absent")], RAISE),
+    (&[("a", "minor", "measured"), ("a", "-", "absent"), ("a", "critical", "absent")], RAISE),
+    (&[("a", "minor", "measured"), ("b", "critical", "measured"), ("a", "critical", "absent")], RAISE),
     (
-        &[(Some("minor"), Evidence::Measured), (Some("critical"), Evidence::Absent)],
-        "raising from minor needs evidence: a measure, a failed remedy, or a scenario",
+        &[("a", "clear", "measured"), ("a", "minor", "absent")],
+        "raising from clear needs --scenario <reproduction or failure scenario>",
     ),
-    (&[(Some("minor"), Evidence::Measured), (Some("critical"), Evidence::Measured)], "critical"),
-    (&[(Some("critical"), Evidence::Measured), (Some("minor"), Evidence::Absent)], "minor"),
-    (&[(Some("minor"), Evidence::Measured), (Some("minor"), Evidence::Measured)], "minor"),
-    (
-        &[(Some("minor"), Evidence::Absent), (Some("minor"), Evidence::Absent), (Some("minor"), Evidence::Absent)],
-        "major",
-    ),
-    (&[(Some("major"), Evidence::Measured), (Some("major"), Evidence::FailedRemedy)], "critical"),
-    (&[(Some("critical"), Evidence::Measured), (None, Evidence::Absent)], ""),
+    (&[("a", "minor", "measured"), ("a", "critical", "measured")], "critical"),
+    (&[("a", "minor", "measured"), ("a", "critical", "scenario")], "critical"),
+    (&[("a", "critical", "measured"), ("a", "minor", "absent")], "minor"),
+    (&[("a", "minor", "absent"), ("a", "-", "absent"), ("a", "minor", "absent"), ("a", "minor", "absent")], "major"),
+    (&[("a", "minor", "absent"), ("b", "minor", "absent"), ("a", "minor", "absent")], "minor"),
+    (&[("a", "critical", "measured"), ("a", "-", "absent")], "unrated"),
+    (&[("a", "major", "measured"), ("a", "major", "failed")], "critical"),
+    (&[("a", "minor", "measured"), ("a", "major", "failed")], "major"),
+    (&[("a", "minor", "absent"), ("a", "minor", "absent"), ("a", "minor", "failed")], "major"),
+    (&[("a", "critical", "absent"), ("a", "critical", "absent"), ("a", "critical", "absent")], "critical"),
 ];
-const REACHED: [bool; 3] = [false, false, true];
+const MOST: usize = 11;
+const BOGUS: [(&str, usize); 1] = [("bogus", 1)];
+const FLAT: [(&str, usize); 2] = [("major", 1), ("minor", 1)];
+const READINGS: [&str; 3] = ["-", "clear", "minor"];
+const REACHED: [[bool; 3]; 3] = [[true, true, true], [false, false, false], [false, false, true]];
+const NESTED_DIVISION: &str = "performance-and-cost/x";
+const NESTED: [bool; 3] = [true, false, false];
+const TRIAGED: Observed = ("a", "minor", "measured");
 
-impl Subject for Placement {
+impl Subject for &str {
     fn placement(&self) -> Placement {
-        self.clone()
+        Placement::new(Scales::costs())
     }
 
     fn kind(&self) -> ItemKind {
@@ -45,54 +59,74 @@ impl Scales {
     }
 }
 
-impl Signal<Placement, ()> {
-    fn observed(level: Option<&str>, evidence: &Evidence) -> Signal<Placement, ()> {
-        let level = level.map(|name| name.parse().unwrap());
-        Signal::new(Placement::new(Scales::costs()), level, evidence.clone(), ())
+impl Reading {
+    fn named(name: &str) -> Reading {
+        match name {
+            "-" => Reading::from(Rating::Unrated),
+            "clear" => Reading::Clear,
+            level => Reading::from(Rating::Rated(level.parse().unwrap())),
+        }
+    }
+}
+
+impl Signal<&'static str, ()> {
+    fn observed(subject: &'static str, reading: &str, evidence: &str) -> Signal<&'static str, ()> {
+        let evidence = match evidence {
+            "measured" => Evidence::Measured,
+            "failed" => Evidence::FailedRemedy,
+            "scenario" => Evidence::Scenario(Scenario::from(evidence.parse::<Text>().unwrap())),
+            _ => Evidence::Absent,
+        };
+        Signal::new(subject, Reading::named(reading), evidence, ())
     }
 }
 
 #[test]
-fn a_rating_never_falls_as_the_measure_grows_and_a_measure_at_a_line_stays_below_it() {
+fn a_rating_never_falls_as_the_measure_grows_a_measure_at_a_line_stays_below_it_and_bad_lines_are_refused() {
     let scales = Scales::default();
     let scale = scales.top();
-    let lines: BTreeMap<LevelName, usize> = LINES.map(|(name, line)| (name.parse().unwrap(), line)).into();
-    let thresholds = Thresholds::from(lines);
-    let rated = |measure: usize| thresholds.rate(scale, &measure).unwrap().map(String::from);
-    let rank = |measure: usize| rated(measure).and_then(|level| scale.index_of(&level.parse().unwrap()));
-    let ranks: Vec<usize> = (0..=LINES[1].1 + 1).map(|measure| rank(measure).unwrap_or(scale.levels().len())).collect();
+    let lined = |lines: &[(&str, usize)]| {
+        Thresholds::from(
+            lines.iter().map(|(name, line)| (name.parse::<LevelName>().unwrap(), *line)).collect::<BTreeMap<_, _>>(),
+        )
+    };
+    let thresholds = lined(&LINES);
+    let rated = |measure: usize| thresholds.rate(scale, Some(&measure)).unwrap();
+    let ranks: Vec<_> = (0..=MOST).map(|measure| rated(measure).index_on(scale).unwrap()).collect();
     assert!(ranks.is_sorted_by(|before, after| after <= before));
-    assert_eq!(LINES.map(|(_, line)| rated(line)), AT_LINES.map(|at| at.map(String::from)));
+    assert_eq!(LINES.map(|(_, line)| rated(line).to_string()), AT_LINES);
+    let bad = [&LINES[..], &BOGUS, &FLAT].map(|lines| lined(lines).rate(scale, None));
+    assert_eq!(bad.map(|rated| rated.map_or_else(|failure| failure.to_string(), |reading| reading.to_string())), ODD);
 }
 
 #[test]
-fn a_raise_needs_evidence_a_lowering_is_free_and_a_run_or_a_failed_remedy_promotes() {
+fn a_raise_needs_evidence_over_gaps_and_other_subjects_and_a_run_or_a_failed_remedy_promotes_one_step() {
     let scales = Scales::default();
-    let after: PromoteAfter = serde_json::from_str("3").unwrap();
     let promoted = HISTORIES.map(|(history, _)| {
-        let signals: Vec<_> = history.iter().map(|(level, evidence)| Signal::observed(*level, evidence)).collect();
-        let level = after.promote(scales.top(), &signals).map(|level| level.map(String::from).unwrap_or_default());
-        level.unwrap_or_else(|failure| failure.to_string())
+        let signals: Vec<_> =
+            history.iter().map(|(subject, reading, evidence)| Signal::observed(subject, reading, evidence)).collect();
+        let level = PromoteAfter::default().promote(scales.top(), &signals);
+        level.map_or_else(|failure| failure.to_string(), |level| level.to_string())
     });
     assert_eq!(promoted, HISTORIES.map(|(_, expected)| expected.to_owned()));
+    assert!(serde_json::from_str::<PromoteAfter>("0").is_err());
 }
 
 #[test]
-fn missing_data_reaches_every_action_level_and_a_measured_level_only_its_own_and_above() {
+fn missing_data_reaches_every_action_level_clear_reaches_none_and_a_nested_division_acts_at_its_top() {
     let scales = Scales::default();
-    let acting = |line: &Level| -> ActionLevels {
-        serde_json::from_value(serde_json::to_value(BTreeMap::from([(Scales::costs(), line.name())])).unwrap()).unwrap()
+    let readings = READINGS.map(|name| Promoted::new(Reading::named(name)));
+    let acting = |line: &LevelName| -> ActionLevels {
+        serde_json::from_value(serde_json::to_value(BTreeMap::from([(Scales::costs(), line)])).unwrap()).unwrap()
     };
-    let minor = Signal::observed(Some("minor"), &Evidence::Measured);
-    let reached = |level: Option<&LevelName>| {
-        let lines = scales.top().levels().iter();
-        lines.map(|line| acting(line).acts(&scales, &Scales::costs(), level)).collect::<Vec<bool>>()
-    };
-    assert!(reached(None).iter().all(|acts| *acts));
-    assert_eq!(reached(minor.level()), REACHED);
-    let triage = minor.triage();
+    let lines: Vec<ActionLevels> = scales.top().levels().iter().map(|line| acting(line.name())).collect();
+    let reached = readings.iter().map(|reading| lines.iter().map(|at| at.acts(&scales, &Scales::costs(), reading)));
+    assert_eq!(reached.map(Iterator::collect::<Vec<bool>>).collect::<Vec<_>>(), REACHED);
+    let nested: Division = NESTED_DIVISION.parse().unwrap();
+    assert_eq!(readings.map(|reading| ActionLevels::default().acts(&scales, &nested, &reading)), NESTED);
+    let triage = Signal::observed(TRIAGED.0, TRIAGED.1, TRIAGED.2).triage();
     assert_eq!(
-        (triage.placement().division(), triage.kind(), triage.level()),
-        (Some(&Scales::costs()), ItemKind::Issue, minor.level())
+        (triage.placement().division(), triage.kind(), triage.reading()),
+        (Some(&Scales::costs()), ItemKind::Issue, &Reading::named(TRIAGED.1))
     );
 }

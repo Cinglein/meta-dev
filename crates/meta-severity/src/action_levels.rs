@@ -4,6 +4,7 @@ use meta_schema::{Division, LevelName, TopDivision};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
+use crate::promoted::Promoted;
 use crate::rating_failure::RatingFailure;
 use crate::scales::Scales;
 
@@ -12,20 +13,33 @@ use crate::scales::Scales;
 pub struct ActionLevels(BTreeMap<Division, LevelName>);
 
 impl ActionLevels {
+    const OWNER_SET: &str = "major";
+
     #[must_use]
-    pub fn acts(&self, scales: &Scales, division: &Division, level: Option<&LevelName>) -> bool {
+    pub fn acts(&self, scales: &Scales, division: &Division, promoted: &Promoted) -> bool {
         let line = division.lineage().into_iter().rev().find_map(|at| self.0.get(&at).map(|line| (at, line)));
         line.is_none_or(|(at, line)| {
-            let rolled = level.and_then(|level| scales.rolled_up(division, level, &at));
-            scales.scale(&at).is_none_or(|scale| scale.reaches(rolled.as_ref(), line))
+            let rolled = promoted.reading().rolled_up(scales, division, &at);
+            scales.scale(&at).is_none_or(|scale| scale.reaches(&rolled, line))
         })
     }
 
     pub fn leveled(&self, scales: &Scales) -> Result<(), RatingFailure> {
+        let undeclared = self.0.keys().find(|at| !scales.declares(at));
+        undeclared.map_or(Ok(()), |at| Err(RatingFailure::Undeclared(at.clone())))?;
         let unacted = TopDivision::iter().map(Division::from).find(|top| !self.0.contains_key(top));
         unacted.map_or(Ok(()), |top| Err(RatingFailure::Unacted(top)))?;
         let unknown =
             self.0.iter().find(|(at, line)| scales.scale(at).and_then(|scale| scale.index_of(line)).is_none());
         unknown.map_or(Ok(()), |(_, line)| Err(RatingFailure::UnknownLevel(line.clone())))
+    }
+}
+
+impl Default for ActionLevels {
+    fn default() -> ActionLevels {
+        let line = Self::OWNER_SET.parse::<LevelName>().ok();
+        ActionLevels(
+            TopDivision::iter().filter_map(|top| line.clone().map(|line| (Division::from(top), line))).collect(),
+        )
     }
 }

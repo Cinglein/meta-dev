@@ -37,6 +37,7 @@ pub struct PolicyFile {
     gate_wait: Option<Millis>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     gate_env: Vec<GateEnvName>,
+    #[serde(default)]
     promote_after: PromoteAfter,
     limits: Entries<Limit, Most>,
     floors: Entries<Floor, Least>,
@@ -45,6 +46,7 @@ pub struct PolicyFile {
     millis: Entries<Interval, Millis>,
     mutant_millis: MutantMillis,
     mutation: MutationCadence,
+    #[serde(default)]
     act: ActionLevels,
     #[serde(default)]
     domains: Domains,

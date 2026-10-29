@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::evidence::Evidence;
 use crate::level::Level;
 use crate::rating_failure::RatingFailure;
+use crate::reading::Reading;
 use crate::scale_failure::ScaleFailure;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -13,7 +14,7 @@ use crate::scale_failure::ScaleFailure;
 pub struct Scale(Vec<Level>);
 
 impl Scale {
-    const PAIR_LEN: usize = 2;
+    pub(crate) const PAIR_LEN: usize = 2;
     const DEFAULT_LEVELS: &str = include_str!("default_levels.json");
 
     #[must_use]
@@ -52,44 +53,41 @@ impl Scale {
         level: LevelName,
         scenario: Option<Scenario>,
     ) -> Result<Change, RatingFailure> {
-        let rank = |name: &LevelName| self.0.iter().position(|known| known.name() == name);
-        let new = rank(&level).ok_or_else(|| RatingFailure::UnknownLevel(level.clone()))?;
-        match current.level().map(|from| (from.clone(), rank(from).map(|old| new.cmp(&old)))) {
-            None => Ok(Change::First { level }),
-            Some((_, Some(Ordering::Equal))) => Err(RatingFailure::Unchanged(level)),
-            Some((from, Some(Ordering::Greater))) => Ok(Change::Lowered { from, level }),
-            Some((from, Some(Ordering::Less) | None)) => scenario
+        let to = Reading::from(Rating::Rated(level.clone()));
+        let rise = self.moved(&Reading::from(current.clone()), &to, &Evidence::from(scenario.clone()))?;
+        match (current.level().cloned(), rise, scenario) {
+            (None, ..) => Ok(Change::First { level }),
+            (Some(_), Ordering::Equal, _) => Err(RatingFailure::Unchanged(level)),
+            (Some(from), Ordering::Greater, _) => Ok(Change::Lowered { from, level }),
+            (Some(from), Ordering::Less, scenario) => scenario
                 .map(|scenario| Change::Raised { from: from.clone(), level, scenario })
-                .ok_or(RatingFailure::RaisedWithoutScenario(from)),
+                .ok_or_else(|| RatingFailure::RaisedWithoutEvidence(Reading::from(Rating::Rated(from)))),
         }
     }
 
-    pub fn moved(
-        &self,
-        from: Option<&LevelName>,
-        to: Option<&LevelName>,
-        evidence: &Evidence,
-    ) -> Result<(), RatingFailure> {
-        let rank = |level: &LevelName| self.index_of(level).ok_or_else(|| RatingFailure::UnknownLevel(level.clone()));
-        let ranks = from.zip(to).map(|(from, to)| Ok::<_, RatingFailure>((from, rank(from)?, rank(to)?)));
-        match ranks.transpose()? {
-            Some((from, old, new)) if new < old && *evidence == Evidence::Absent => {
-                Err(RatingFailure::RaisedWithoutEvidence(from.clone()))
-            }
-            _ => Ok(()),
-        }
+    pub fn moved(&self, from: &Reading, to: &Reading, evidence: &Evidence) -> Result<Ordering, RatingFailure> {
+        let new = to.index_on(self)?;
+        let rise = match from.index_on(self) {
+            Err(_) => new.map_or(Ordering::Equal, |_| Ordering::Less),
+            Ok(old) => new.zip(old).map_or(Ordering::Equal, |(new, old)| new.cmp(&old)),
+        };
+        evidence.admits(from, rise)
     }
 
     #[must_use]
-    pub fn worse(&self, level: &LevelName) -> Option<&LevelName> {
-        let above = self.index_of(level)?.checked_sub(1)?;
-        self.0.get(above).map(Level::name)
+    pub fn worse(&self, reading: &Reading) -> Option<Reading> {
+        let above = reading.index_on(self).ok().flatten()?.checked_sub(1)?;
+        self.0.get(above).map(|level| Reading::from(Rating::Rated(level.name().clone())))
     }
 
     #[must_use]
-    pub fn reaches(&self, level: Option<&LevelName>, line: &LevelName) -> bool {
-        let ranks = level.and_then(|level| self.index_of(level)).zip(self.index_of(line));
-        ranks.is_none_or(|(found, line)| found <= line)
+    pub fn reaches(&self, reading: &Reading, line: &LevelName) -> bool {
+        let found = reading.index_on(self).ok().flatten();
+        found.zip(self.index_of(line)).is_none_or(|(found, line)| found <= line)
+    }
+
+    pub fn known_index(&self, level: &LevelName) -> Result<usize, RatingFailure> {
+        self.index_of(level).ok_or_else(|| RatingFailure::UnknownLevel(level.clone()))
     }
 
     fn parent_index(&self, level: &Level) -> Option<usize> {
