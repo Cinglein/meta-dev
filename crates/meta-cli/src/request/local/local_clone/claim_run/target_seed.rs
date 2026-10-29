@@ -1,8 +1,8 @@
 use std::fs::{self, DirEntry, File};
 use std::io;
 use std::path::Path;
+use std::process::Command;
 
-use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::local_clone::cargo_tag::CargoTag;
 
 #[derive(Clone, Copy, Debug)]
@@ -13,23 +13,56 @@ pub struct TargetSeed<'seed> {
 
 impl<'seed> TargetSeed<'seed> {
     const LOCK: &'static str = ".cargo-lock";
+    #[cfg(target_os = "macos")]
+    const CLONE: [&'static str; 1] = ["-c"];
+    #[cfg(not(target_os = "macos"))]
+    const CLONE: [&'static str; 1] = ["--reflink=always"];
 
     pub fn new(clone: &'seed Path, worktree: &'seed Path) -> Self {
         Self { clone, worktree }
     }
 
-    pub fn sown(self) -> Result<(), CliFailure> {
-        let targets = fs::read_dir(self.clone).map_err(CliFailure::raised::<Setup>)?;
+    pub fn sown(self) {
+        match self.attempted() {
+            Ok(()) => {}
+            Err(cause) if cause.kind() == io::ErrorKind::Unsupported => {
+                eprintln!("meta: warning: target seed skipped, no copy-on-write clone here: {cause}");
+            }
+            Err(cause) => eprintln!("meta: warning: target seed failed, cargo will rebuild: {cause}"),
+        }
+    }
+
+    fn attempted(self) -> io::Result<()> {
+        let targets = fs::read_dir(self.clone)?;
         targets
             .flatten()
             .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()) && CargoTag::tags(&entry.path()))
             .try_for_each(|target| self.target(&target))
-            .map_err(CliFailure::raised::<Setup>)
     }
 
     fn target(self, target: &DirEntry) -> io::Result<()> {
         let into = self.worktree.join(target.file_name());
+        if into.exists() {
+            return Ok(());
+        }
         fs::create_dir_all(&into)?;
+        Self::cloneable(&target.path(), &into).and_then(|()| Self::profiles(target, &into)).inspect_err(|_| {
+            drop(fs::remove_dir_all(&into));
+        })
+    }
+
+    fn cloneable(from: &Path, into: &Path) -> io::Result<()> {
+        let probe = Command::new("cp").args(Self::CLONE).arg(from.join(CargoTag::FILE)).arg(into).output();
+        match probe {
+            Ok(done) if done.status.success() => Ok(()),
+            Ok(done) => {
+                Err(io::Error::new(io::ErrorKind::Unsupported, String::from_utf8_lossy(&done.stderr).trim().to_owned()))
+            }
+            Err(cause) => Err(io::Error::new(io::ErrorKind::Unsupported, cause)),
+        }
+    }
+
+    fn profiles(target: &DirEntry, into: &Path) -> io::Result<()> {
         fs::read_dir(target.path())?.flatten().try_for_each(|entry| {
             let held = entry.file_type()?.is_dir().then(|| Self::locked(&entry.path()));
             match held {

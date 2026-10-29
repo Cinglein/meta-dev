@@ -196,7 +196,7 @@ fn a_target_seed_that_cannot_copy_warns_on_one_line_and_leaves_no_target_but_the
     let target = project.clone.path().join(TARGET);
     let _building = Seed::built(&target);
     let unreadable = target.join(PROFILES[0]).join(ARTIFACT[0]);
-    std::fs::set_permissions(&unreadable, std::fs::Permissions::from_mode(0)).unwrap();
+    std::fs::set_permissions(&unreadable, std::fs::Permissions::from_mode(0o0)).unwrap();
     let run = project.meta(OWNER, &[CLAIM, TASK, WORKTREE]);
     let warned = run.complaint().0.lines().filter(|line| line.starts_with(SEED_WARNING)).count();
     let claimed = run.to_string();

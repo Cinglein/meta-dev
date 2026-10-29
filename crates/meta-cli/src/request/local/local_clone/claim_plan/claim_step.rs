@@ -32,7 +32,10 @@ impl ClaimStep {
             Self::Branched(base) => quiet(hands.branched(base)),
             Self::Added => quiet(hands.added()),
             Self::Settled => quiet(hands.settled()),
-            Self::Seeded => quiet(hands.seeded()),
+            Self::Seeded => {
+                hands.seeded();
+                Ok(String::new())
+            }
             Self::Written => hands.written(),
         }
     }

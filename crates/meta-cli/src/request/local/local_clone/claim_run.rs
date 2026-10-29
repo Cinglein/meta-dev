@@ -88,8 +88,11 @@ impl<Write: Fn() -> Result<String, CliFailure>> ClaimHands for ClaimRun<'_, Writ
         LocalTrail::append(self.clone.git_dir.as_ref(), &TrailEntry::Created(recorded))
     }
 
-    fn seeded(&self) -> Result<(), CliFailure> {
-        TargetSeed::new(&self.clone.checkout, &self.created()?).sown()
+    fn seeded(&self) {
+        match self.created() {
+            Ok(worktree) => TargetSeed::new(&self.clone.checkout, &worktree).sown(),
+            Err(cause) => eprintln!("meta: warning: target seed failed: {cause}"),
+        }
     }
 
     fn written(&self) -> Result<String, CliFailure> {
