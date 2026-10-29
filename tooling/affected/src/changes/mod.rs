@@ -3,11 +3,10 @@ mod included_files;
 use std::path::PathBuf;
 
 use crate::reach::Reach;
-use crate::trusted::Trusted;
 use included_files::IncludedFiles;
 use task::Failure;
 use task::Workspace;
-use task::{BranchName, CommandLine, GitArgument, Program, Stdout};
+use task::{BranchName, CommandLine, GitArgument, Program, Stdout, Trusted};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Changes {
@@ -24,19 +23,19 @@ impl Changes {
     ) -> Result<Vec<Vec<Reach>>, Failure> {
         match self {
             Changes::Everything => Ok(vec![vec![Reach::Everything]]),
-            Changes::SinceMain => Self::reached(workspace, Self::since_main(workspace, base)?)
+            Changes::SinceMain => Self::reached(workspace, &Self::since_main(workspace, base)?)
                 .map(|reaches| vec![reaches]),
             Changes::Between(trusted, head) => trusted
                 .commits()
                 .iter()
-                .map(|commit| Self::reached(workspace, Self::between(workspace, commit, head)?))
+                .map(|commit| Self::reached(workspace, &Self::between(workspace, commit, head)?))
                 .collect(),
         }
     }
 
     fn since_main(workspace: &Workspace, base: &BranchName) -> Result<Vec<PathBuf>, Failure> {
         Self::paths(
-            workspace
+            &workspace
                 .line(Program::Git)
                 .argument(GitArgument::Diff)
                 .argument(GitArgument::NameOnly)
@@ -52,7 +51,7 @@ impl Changes {
         head: &BranchName,
     ) -> Result<Vec<PathBuf>, Failure> {
         Self::paths(
-            workspace
+            &workspace
                 .line(Program::Git)
                 .argument(GitArgument::Diff)
                 .argument(GitArgument::NameOnly)
@@ -62,7 +61,7 @@ impl Changes {
         )
     }
 
-    fn paths(line: CommandLine) -> Result<Vec<PathBuf>, Failure> {
+    fn paths(line: &CommandLine) -> Result<Vec<PathBuf>, Failure> {
         Ok(line
             .captured::<Stdout>()
             .map_err(|_| Failure::NoMergeBase)?
@@ -71,7 +70,7 @@ impl Changes {
             .collect())
     }
 
-    fn reached(workspace: &Workspace, changed: Vec<PathBuf>) -> Result<Vec<Reach>, Failure> {
+    fn reached(workspace: &Workspace, changed: &[PathBuf]) -> Result<Vec<Reach>, Failure> {
         let packages = workspace.packages();
         let included = if changed
             .iter()

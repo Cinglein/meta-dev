@@ -3,10 +3,10 @@ mod crate_load;
 mod packing;
 mod reach;
 mod tested_crates;
+#[cfg(test)]
 mod trusted;
 
 pub use changes::Changes;
-pub use trusted::Trusted;
 pub use crate_load::CrateLoad;
 pub use packing::Packing;
 pub use tested_crates::TestedCrates;
@@ -24,13 +24,22 @@ pub struct Affected;
 impl Affected {
     pub fn selection(
         workspace: &Workspace,
-        changes: Changes,
+        changes: &Changes,
         base: &BranchName,
     ) -> Result<Selection, Failure> {
-        Ok(Trusted::tested(
+        Ok(Self::tested(
             workspace.packages(),
             &changes.reaches(workspace, base)?,
         ))
+    }
+
+    fn tested(graph: &PackageGraph, trusted: &[Vec<Reach>]) -> Selection {
+        trusted
+            .iter()
+            .map(|reaches| Self::reached(graph, reaches))
+            .fold(Selection::Workspace, |tested, demanded| {
+                tested.meet(&demanded)
+            })
     }
 
     fn reached(graph: &PackageGraph, reaches: &[Reach]) -> Selection {
