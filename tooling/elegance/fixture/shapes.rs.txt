@@ -1,0 +1,383 @@
+pub struct Circle;
+pub struct Square;
+pub struct Celsius;
+pub struct Kelvin;
+pub struct Label;
+pub struct Badge;
+pub struct Lonely;
+
+pub enum Phase {
+    Solid,
+}
+
+pub union Bits {
+    raw: u32,
+}
+
+pub trait Shape {
+    fn area(&self) -> Area;
+    fn perimeter(&self) -> Length;
+    fn summary(&self) -> Text {
+        Text
+    }
+}
+
+pub trait Scaled: Shape {
+    fn scale(&self, factor: Factor) -> Self;
+}
+
+pub trait Describe<U> {
+    fn describe(&self) -> Text;
+}
+
+pub trait Reading {
+    fn value(&self) -> Degrees;
+}
+
+pub trait Unit {
+    fn symbol(&self) -> Symbol;
+}
+
+pub trait Solo<W> {
+    fn solo(&self) -> Text;
+}
+
+impl Shape for Circle {
+    fn area(&self) -> Area {
+        Area
+    }
+    fn perimeter(&self) -> Length {
+        Length
+    }
+}
+
+impl Shape for Square {
+    fn area(&self) -> Area {
+        Area
+    }
+    fn perimeter(&self) -> units::Length {
+        Length
+    }
+}
+
+impl Scaled for Circle {
+    fn scale(&self, factor: Factor) -> Circle {
+        Circle
+    }
+}
+
+impl<T: ?Sized, U: Unit> Describe<U> for T
+where
+    T: Scaled,
+    Square: Unit,
+{
+    fn describe(&self) -> Text {
+        Text
+    }
+}
+
+impl Reading for Celsius {
+    fn value(&self) -> Degrees {
+        Degrees
+    }
+}
+
+impl Reading for Kelvin {
+    fn value(&self) -> Degrees {
+        Degrees
+    }
+}
+
+impl Unit for Celsius {
+    fn symbol(&self) -> Symbol {
+        Symbol
+    }
+}
+
+impl Unit for Kelvin {
+    fn symbol(&self) -> Symbol {
+        Symbol
+    }
+}
+
+impl Unit for &Label {
+    fn symbol(&self) -> Symbol {
+        Symbol
+    }
+}
+
+impl<W: Unit> Solo<W> for Lonely {
+    fn solo(&self) -> Text {
+        Text
+    }
+}
+
+impl Label {
+    pub fn width<'a>(&'a self) -> Width {
+        Width
+    }
+    pub fn height(&self) -> Height {
+        Height
+    }
+}
+
+impl Badge {
+    pub fn width(&self) -> Width {
+        Width
+    }
+    pub fn height(&self) -> Height {
+        Height
+    }
+}
+
+impl Lonely {
+    pub fn new() -> Lonely {
+        Lonely
+    }
+    pub fn rendered<'a>(
+        &self,
+        formatter: &mut fmt::Formatter<'_>,
+        name: &'a Cow<'a, str>,
+    ) -> Result<Lonely, fmt::Error> {
+        Ok(Lonely)
+    }
+}
+
+impl Phase {
+    pub fn new() -> Phase {
+        Phase::Solid
+    }
+    pub fn rendered(&self, formatter: &mut Formatter, name: &Cow<str>) -> Result<Self, Error> {
+        Ok(Phase::Solid)
+    }
+}
+
+impl Gadget {
+    pub fn height(&self) -> Height {
+        Height
+    }
+}
+
+pub struct Dock;
+pub struct Port;
+
+pub trait Pair {
+    fn left(&self) -> Left;
+    fn right(&self) -> Right;
+    fn both(&self) -> Both {
+        Both
+    }
+    fn first(&self) -> Left {
+        self.left()
+    }
+    fn last(&self) -> Right {
+        self.right()
+    }
+}
+
+impl Pair for Dock {
+    fn left(&self) -> Left {
+        Left
+    }
+    fn right(&self) -> Right {
+        Right
+    }
+}
+
+impl Pair for Port {
+    fn left(&self) -> Left {
+        Left
+    }
+    fn right(&self) -> Right {
+        Right
+    }
+}
+
+pub trait Tag {
+    fn tag(&self) -> Text;
+}
+
+impl<T: Unit> Tag for &T {
+    fn tag(&self) -> Text {
+        Text
+    }
+}
+
+impl<T: Unit> Tag for &mut T {
+    fn tag(&self) -> Text {
+        Text
+    }
+}
+
+impl<T: Unit> Tag for Box<T> {
+    fn tag(&self) -> Text {
+        Text
+    }
+}
+
+impl<T: Unit> Tag for Option<T> {
+    fn tag(&self) -> Text {
+        Text
+    }
+}
+
+impl<T: Unit> Tag for (&T) {
+    fn tag(&self) -> Text {
+        Text
+    }
+}
+
+pub struct Holder<T>(T);
+
+impl<T: Unit> Tag for Holder<T> {
+    fn tag(&self) -> Text {
+        Text
+    }
+}
+
+pub trait Ping {}
+pub trait Pong {}
+
+impl<T: Pong> Ping for T {}
+impl<T: Ping> Pong for T {}
+
+pub struct Host;
+
+impl Host {
+    pub fn open(&self) -> Door {
+        struct Hidden;
+        impl Hidden {
+            pub fn latch(&self) -> Latch {
+                Latch
+            }
+            pub fn knob(&self) -> Knob {
+                Knob
+            }
+        }
+        Door
+    }
+}
+
+pub struct Axe;
+pub struct Bow;
+pub struct Cup;
+pub struct Den;
+pub struct Elm;
+
+impl Axe {
+    pub fn south(&self, out: &mut Formatter) -> Result<Axe, Error> { Ok(Axe) }
+    pub fn east(&self, out: &mut Formatter) -> Result<Axe, Error> { Ok(Axe) }
+    pub fn west(&self, out: &mut Formatter) -> Result<Axe, Error> { Ok(Axe) }
+    pub fn up(&self, out: &mut Formatter) -> Result<Axe, Error> { Ok(Axe) }
+}
+
+impl Bow {
+    pub fn north(&self, out: &mut Formatter) -> Result<Bow, Error> { Ok(Bow) }
+    pub fn east(&self, out: &mut Formatter) -> Result<Bow, Error> { Ok(Bow) }
+    pub fn west(&self, out: &mut Formatter) -> Result<Bow, Error> { Ok(Bow) }
+    pub fn up(&self, out: &mut Formatter) -> Result<Bow, Error> { Ok(Bow) }
+}
+
+impl Cup {
+    pub fn north(&self, out: &mut Formatter) -> Result<Cup, Error> { Ok(Cup) }
+    pub fn south(&self, out: &mut Formatter) -> Result<Cup, Error> { Ok(Cup) }
+    pub fn west(&self, out: &mut Formatter) -> Result<Cup, Error> { Ok(Cup) }
+    pub fn up(&self, out: &mut Formatter) -> Result<Cup, Error> { Ok(Cup) }
+}
+
+impl Den {
+    pub fn north(&self, out: &mut Formatter) -> Result<Den, Error> { Ok(Den) }
+    pub fn south(&self, out: &mut Formatter) -> Result<Den, Error> { Ok(Den) }
+    pub fn east(&self, out: &mut Formatter) -> Result<Den, Error> { Ok(Den) }
+    pub fn up(&self, out: &mut Formatter) -> Result<Den, Error> { Ok(Den) }
+}
+
+impl Elm {
+    pub fn north(&self, out: &mut Formatter) -> Result<Elm, Error> { Ok(Elm) }
+    pub fn south(&self, out: &mut Formatter) -> Result<Elm, Error> { Ok(Elm) }
+    pub fn east(&self, out: &mut Formatter) -> Result<Elm, Error> { Ok(Elm) }
+    pub fn west(&self, out: &mut Formatter) -> Result<Elm, Error> { Ok(Elm) }
+}
+
+pub struct U01;
+pub struct U02;
+pub struct U03;
+pub struct U04;
+pub struct U05;
+pub struct U06;
+pub struct U07;
+pub struct U08;
+pub struct U09;
+pub struct U10;
+pub struct U11;
+
+impl Reading for U01 {}
+impl Unit for U01 {}
+impl Reading for U02 {}
+impl Unit for U02 {}
+impl Reading for U03 {}
+impl Unit for U03 {}
+impl Reading for U04 {}
+impl Unit for U04 {}
+impl Reading for U05 {}
+impl Unit for U05 {}
+impl Reading for U06 {}
+impl Unit for U06 {}
+impl Reading for U07 {}
+impl Unit for U07 {}
+impl Reading for U08 {}
+impl Unit for U08 {}
+impl Reading for U09 {}
+impl Unit for U09 {}
+impl Reading for U10 {}
+impl Unit for U10 {}
+impl Reading for U11 {}
+impl Unit for U11 {}
+
+pub struct Ember;
+pub struct Flint;
+
+impl FromStr for Ember {
+    type Err = EmberError;
+    fn from_str(text: &str) -> Result<Ember, EmberError> {
+        Ok(Ember)
+    }
+}
+
+impl FromStr for Flint {
+    type Err = FlintError;
+    fn from_str(text: &str) -> Result<Flint, FlintError> {
+        Ok(Flint)
+    }
+}
+
+pub mod gauges {
+    pub struct Meter;
+
+    pub trait Gauge {
+        fn read(&self) -> Degrees;
+        fn label(&self) -> Text {
+            Text
+        }
+    }
+
+    impl Gauge for Meter {
+        fn read(&self) -> Degrees {
+            Degrees
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    pub struct Probe;
+
+    impl super::Badge {
+        pub fn area(&self) -> Area {
+            Area
+        }
+        pub fn perimeter(&self) -> Length {
+            Length
+        }
+    }
+}
