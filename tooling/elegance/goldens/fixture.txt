@@ -1,34 +1,41 @@
-types 7, traits declared 6, impls 12
+types 11, traits declared 7, impls 17
 missing abstractions: maximal (types, signatures) concepts with at least 2 of each
-  concepts 3: named by one trait 1, by a composition only 1, unnamed 1
-  missing, one trait must name it: 2
-  missing, a composition may name it: 1
+  concepts 4: named by one trait 1, by a composition only 1, unnamed 2
+  missing, one trait must name it: 3
+  missing, a composition may name it: 2
   largest, unnamed:
-  1. 4 = 2 types x 2 signatures
-    types: fixture::Badge, fixture::Label
+  1. 6 = 3 types x 2 signatures
+    types: fixture::Badge, fixture::Label, remote::Gadget
     share: height(&self) -> Height; width(&self) -> Width
+  2. 4 = 2 types x 2 signatures
+    types: fixture::Lonely, fixture::Phase
+    share: new() -> Self; rendered(&self, &mut Formatter, &Cow<str>) -> Result<Self, Error>
   largest, named only by a composition of shared traits:
   1. 4 = 2 types x 2 signatures
     types: fixture::Celsius, fixture::Kelvin
     share: symbol(&self) -> Symbol; value(&self) -> Degrees
 leverage: methods usable on a type / method bodies written for it
-  n 7: min 1.00, q1 1.00, median 1.00, q3 1.50, max 1.66
-  types with no bodies: 0
+  n 10: min 1.00, q1 1.00, median 1.00, q3 1.50, max 2.00
+  types with no bodies: 1
   lowest:
+    fixture::Label 1.00 (3 usable / 3 written)
+    fixture::Lonely 1.00 (3 usable / 3 written)
     fixture::Badge 1.00 (2 usable / 2 written)
     fixture::Celsius 1.00 (2 usable / 2 written)
     fixture::Kelvin 1.00 (2 usable / 2 written)
-    fixture::Label 1.00 (2 usable / 2 written)
-    fixture::Lonely 1.00 (2 usable / 2 written)
+    fixture::Phase 1.00 (2 usable / 2 written)
+    remote::Gadget 1.00 (2 usable / 2 written)
     fixture::Square 1.50 (3 usable / 2 written)
     fixture::Circle 1.66 (5 usable / 3 written)
+    fixture::Meter 2.00 (2 usable / 1 written)
 trait-graph shape
   graph edges: supertrait 1, blanket 1; depth 2
-  blanket share: 1 of 9 trait impls = 0.11
-  single-implementor traits: 2
+  blanket share: 1 of 11 trait impls = 0.09
+  single-implementor traits: 3
+    fixture::Gauge -> fixture::Meter
     fixture::Scaled -> fixture::Circle
     fixture::Solo -> fixture::Lonely
-  traits implemented directly, per implementing type: n 5: min 1, q1 1, median 2, q3 2, max 2
+  traits implemented directly, per implementing type: n 7: min 1, q1 1, median 1, q3 2, max 2
   types with at least N = 2 traits (q3, at least 2) and no edge among them: 2
     fixture::Celsius: fixture::Reading, fixture::Unit
     fixture::Kelvin: fixture::Reading, fixture::Unit

@@ -85,14 +85,20 @@ mod tests {
     use super::{Measures, SynSource};
     use task::SourceFile;
 
-    const FIXTURE: &str = include_str!("../fixture/shapes.rs.txt");
+    const CRATES: [[&str; 3]; 2] = [
+        ["fixture", "fixture/src/lib.rs", include_str!("../fixture/shapes.rs.txt")],
+        ["remote", "remote/src/lib.rs", include_str!("../fixture/remote.rs.txt")],
+    ];
     const GOLDEN: &str = include_str!("../goldens/fixture.txt");
 
     #[test]
     fn the_fixture_measures_match_the_hand_worked_golden() {
-        let fixture =
-            SourceFile::parse("fixture/src/lib.rs", FIXTURE.to_owned()).unwrap().in_crate("fixture".parse().unwrap());
-        let files = [fixture];
+        let files: Vec<SourceFile> = CRATES
+            .iter()
+            .map(|[owner, path, text]| {
+                SourceFile::parse(*path, (*text).to_owned()).unwrap().in_crate(owner.parse().unwrap())
+            })
+            .collect();
         assert_eq!(Measures::measured(&SynSource::new(&files)).to_string(), GOLDEN);
     }
 }

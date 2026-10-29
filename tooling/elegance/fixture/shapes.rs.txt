@@ -6,6 +6,14 @@ pub struct Label;
 pub struct Badge;
 pub struct Lonely;
 
+pub enum Phase {
+    Solid,
+}
+
+pub union Bits {
+    raw: u32,
+}
+
 pub trait Shape {
     fn area(&self) -> Area;
     fn perimeter(&self) -> Length;
@@ -58,7 +66,11 @@ impl Scaled for Circle {
     }
 }
 
-impl<T: Scaled> Describe for T {
+impl<T: ?Sized> Describe for T
+where
+    T: Scaled,
+    Square: Unit,
+{
     fn describe(&self) -> Text {
         Text
     }
@@ -83,6 +95,12 @@ impl Unit for Celsius {
 }
 
 impl Unit for Kelvin {
+    fn symbol(&self) -> Symbol {
+        Symbol
+    }
+}
+
+impl Unit for &Label {
     fn symbol(&self) -> Symbol {
         Symbol
     }
@@ -116,10 +134,51 @@ impl Lonely {
     pub fn new() -> Lonely {
         Lonely
     }
+    pub fn rendered<'a>(
+        &self,
+        formatter: &mut fmt::Formatter<'_>,
+        name: &'a Cow<'a, str>,
+    ) -> Result<Lonely, fmt::Error> {
+        Ok(Lonely)
+    }
+}
+
+impl Phase {
+    pub fn new() -> Phase {
+        Phase::Solid
+    }
+    pub fn rendered(&self, formatter: &mut Formatter, name: &Cow<str>) -> Result<Self, Error> {
+        Ok(Phase::Solid)
+    }
+}
+
+impl Gadget {
+    pub fn height(&self) -> Height {
+        Height
+    }
+}
+
+pub mod gauges {
+    pub struct Meter;
+
+    pub trait Gauge {
+        fn read(&self) -> Degrees;
+        fn label(&self) -> Text {
+            Text
+        }
+    }
+
+    impl Gauge for Meter {
+        fn read(&self) -> Degrees {
+            Degrees
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    pub struct Probe;
+
     impl super::Badge {
         pub fn area(&self) -> Area {
             Area

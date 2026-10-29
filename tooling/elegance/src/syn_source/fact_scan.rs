@@ -43,8 +43,6 @@ impl<'declared> FactScan<'declared> {
         match ty {
             Type::Path(path) => path.path.segments.last().map(|segment| &segment.ident),
             Type::Reference(reference) => Self::named(&reference.elem),
-            Type::Paren(paren) => Self::named(&paren.elem),
-            Type::Group(group) => Self::named(&group.elem),
             _ => None,
         }
     }
@@ -52,9 +50,7 @@ impl<'declared> FactScan<'declared> {
     #[must_use]
     pub fn blanket_parameter(item: &ItemImpl) -> Option<&Ident> {
         match &*item.self_ty {
-            Type::Path(path) if path.qself.is_none() => {
-                path.path.get_ident().filter(|ident| Self::generic(item, ident))
-            }
+            Type::Path(path) => path.path.get_ident().filter(|ident| Self::generic(item, ident)),
             _ => None,
         }
     }
