@@ -68,6 +68,22 @@ jobs:
       - name: goldens match a fresh recording (run `cargo xtask goldens` and commit the diff)
         run: git add --intent-to-add goldens && git diff --exit-code -- goldens
 
+  build-time:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - run: rustup toolchain install
+      - run: cargo xtask build-time | tee -a "$GITHUB_STEP_SUMMARY"
+        shell: bash
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-timings
+          path: target.noindex/build-time/cargo-timings
+          retention-days: 30
+
   stacked:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -160,7 +176,7 @@ jobs:
         shell: bash
 
   ci-gate:
-    needs: [ci, git-count, goldens, stacked, mutants-plan, mutants, mutant-costs]
+    needs: [ci, git-count, goldens, build-time, stacked, mutants-plan, mutants, mutant-costs]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
