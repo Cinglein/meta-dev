@@ -21,7 +21,7 @@ pub struct ScalePolicy {
 impl ScalePolicy {
     const FILE: &'static str = "tooling/policy.toml";
     const MISSING: &'static str =
-        "missing; scales are not defaulted; restore it (git restore tooling/policy.toml) or create it";
+        "missing; scales are not defaulted; copy meta-dev's tooling/policy.toml to it (meta init will do this later)";
 
     pub fn read(root: &Path) -> Result<ScalePolicy, CliFailure> {
         let file = LocalFile::new(root.join(Self::FILE));

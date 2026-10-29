@@ -1,5 +1,5 @@
-use super::fault::Fault;
-use super::monitor_state::MonitorState;
+use super::super::fault::Fault;
+use super::MonitorState;
 
 #[derive(Debug)]
 pub struct Restored {
