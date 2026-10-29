@@ -20,6 +20,10 @@ impl Activity {
         Self { assignments: Vec::new(), waiting: None, ended: None }
     }
 
+    pub fn assigned(assignments: Vec<Stamp>) -> Self {
+        Self { assignments, ..Self::unassigned() }
+    }
+
     pub fn waited_at(&self) -> Option<&CommitId> {
         self.waiting.as_ref().and_then(Block::head)
     }
@@ -42,10 +46,11 @@ impl Activity {
     pub fn claimed(&self, by: Stamp, previous: Option<&Actor>) -> Result<Self, Refusal> {
         let kept = previous.map_or_else(|| Ok(self.assignments.clone()), |named| self.without(named))?;
         let actor = by.actor().clone();
-        Self::holds(&kept, &actor).then_some(()).map_or_else(
-            || Ok(Self { assignments: [kept, vec![by]].concat(), ..self.clone() }),
-            |()| Err(Refusal::AlreadyAssigned(actor)),
-        )
+        match (Self::holds(&kept, &actor), previous) {
+            (false, _) => Ok(Self { assignments: [kept, vec![by]].concat(), ..self.clone() }),
+            (true, None) => Ok(self.clone()),
+            (true, Some(_)) => Err(Refusal::AlreadyAssigned(actor)),
+        }
     }
 
     pub fn released(&self, by: &Stamp) -> Result<Self, Refusal> {

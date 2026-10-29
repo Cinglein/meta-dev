@@ -36,12 +36,6 @@ impl Config {
         &self.required_workflows
     }
 
-    pub fn ci_settings(&self) -> CiSettings {
-        let mut merged: toml::Table = toml::from_str(CiSettings::DEFAULTS).unwrap_or_default();
-        merged.extend(self.ci.clone());
-        toml::Value::Table(merged).try_into().unwrap_or_default()
-    }
-
     pub fn push_fix(&self, branch: &BranchName) -> &'static str {
         self.log_branches.iter().find(|log| *log == branch).map_or("open a PR", |_| "only `meta` writes it")
     }

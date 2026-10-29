@@ -8,7 +8,7 @@ use serde::Deserialize;
 
 use super::local_file::LocalFile;
 use crate::request::cli_failure::{CliFailure, Setup};
-use identity::Identity;
+pub use identity::Identity;
 pub use monitor_settings::{AgentRoot, Cause, MonitorSettings, SparedName, TickCount};
 
 #[derive(Debug, Default, Deserialize)]
@@ -32,6 +32,15 @@ impl LocalSettings {
         file.text()?.parse().map_err(|failure: toml::de::Error| file.failure(failure))
     }
 
+    pub fn admitted(present: Option<()>, ignored: impl FnOnce() -> Option<()>) -> Result<(), CliFailure> {
+        present.map_or(Some(()), |()| ignored()).ok_or_else(|| {
+            CliFailure::raised::<Setup>(format!(
+                "{file} is not gitignored; add /{file} to .gitignore",
+                file = Self::FILE
+            ))
+        })
+    }
+
     pub fn worktree_root(&self, checkout: &Path) -> PathBuf {
         self.worktree_root.as_ref().map_or_else(
             || {
@@ -50,13 +59,9 @@ impl LocalSettings {
             .map_err(|failure| CliFailure::raised::<Setup>(format!("{} [monitor]: {failure}", Self::FILE)))
     }
 
-    pub fn identity(&self) -> Result<&Identity, CliFailure> {
-        self.identity.as_ref().ok_or_else(|| {
-            CliFailure::raised::<Setup>(format!(
-                "{}: --worktree needs [identity] name and email (a GitHub noreply address)",
-                Self::FILE
-            ))
-        })
+    pub fn identity(&self, name: Option<&str>, email: Option<&str>) -> Result<Identity, CliFailure> {
+        let chosen = self.identity.clone().map_or_else(|| Identity::from_git(name, email), Ok);
+        chosen.map_err(|refused| CliFailure::raised::<Setup>(format!("--worktree: {refused}")))
     }
 }
 

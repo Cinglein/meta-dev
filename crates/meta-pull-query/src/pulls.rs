@@ -8,6 +8,7 @@ use meta_schema::PullRequest;
 use serde::Deserialize;
 
 use crate::live_data::LiveData;
+use crate::live_query::LiveQuery;
 use crate::pull_alias::PullAlias;
 use crate::rulebook::Rulebook;
 use crate::trunk_run::TrunkRun;
@@ -33,7 +34,8 @@ impl Pulls {
             .values()
             .flatten()
             .chain(self.open.pull_requests().nodes())
-            .map(|pull| pull.base().clone())
+            .filter_map(LivePull::open_base)
+            .cloned()
             .collect();
         bases.sort_by_key(ToString::to_string);
         bases.dedup();
@@ -54,6 +56,16 @@ impl Pulls {
     pub fn trunk_run(&self, workflow: WorkflowName) -> TrunkRun {
         let verdict = self.trunk.as_ref().map_or(TrunkVerdict::Unknown, |trunk| trunk.verdict(&workflow));
         TrunkRun::new(workflow, verdict)
+    }
+
+    #[must_use]
+    pub fn following(&self) -> Option<LiveQuery> {
+        self.open.pull_requests().page_info().following().map(LiveQuery::after)
+    }
+
+    #[must_use]
+    pub fn continued(self, next: Self) -> Self {
+        Self { open: self.open.continued(next.open), ..self }
     }
 
     #[must_use]

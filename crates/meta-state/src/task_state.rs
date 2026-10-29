@@ -1,4 +1,5 @@
 mod progress;
+mod reopening;
 mod stalling;
 mod task_status;
 
@@ -9,6 +10,7 @@ use meta_schema::{Entry, Id, NewTask, PullRequest, Target, Task, Text};
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
 pub use progress::Progress;
+pub use reopening::Reopening;
 pub use stalling::Stalling;
 pub use task_status::TaskStatus;
 

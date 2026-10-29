@@ -52,11 +52,6 @@ impl NewIssue {
     }
 
     #[must_use]
-    pub fn text(&self) -> &Text {
-        &self.text
-    }
-
-    #[must_use]
     pub fn corrected(&self, text: Text) -> Self {
         Self { text, ..self.clone() }
     }

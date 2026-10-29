@@ -1,15 +1,19 @@
+mod objects;
+
 use std::fmt;
-use std::process::Output;
+
+use meta_run::Ran;
 
 use super::attempt::Attempt;
 use super::content::Content;
 use super::fetched::Fetched;
 use super::git::Git;
+use super::remote_heads::RemoteHeads;
 use super::sha::Sha;
 use super::tip::Tip;
 use crate::log_failure::LogFailure;
 use crate::remote_name::RemoteName;
-use crate::stderr::Stderr;
+use objects::Objects;
 
 #[derive(Clone, Debug)]
 pub struct Remote {
@@ -19,67 +23,76 @@ pub struct Remote {
 
 impl Remote {
     pub const FILE: &'static str = "events.jsonl";
-    const BRANCH: &'static str = "meta/log";
+    pub const BRANCH: &'static str = "meta/log";
 
     pub fn new(git: Git, name: RemoteName) -> Self {
         Self { git, name }
     }
 
     pub fn fetch(&self) -> Result<Fetched, LogFailure> {
-        let tip = self.fetch_tip()?.sha();
-        self.blob_at(tip.as_ref()).map(|content| Fetched::new(tip, content))
+        let settled = |attempt: Attempt| attempt.settled(self.fetch_once(), self.git.budget());
+        Attempt::sequence().find_map(settled).unwrap_or(Err(LogFailure::Contended))
     }
 
     pub fn fetch_tip(&self) -> Result<Tip, LogFailure> {
-        Attempt::sequence().find_map(|attempt| attempt.settled(self.fetch_once())).unwrap_or(Err(LogFailure::Contended))
+        self.fetch().map(|fetched| Tip::new(fetched.tip().cloned()))
     }
 
     pub fn content_at(&self, tip: &Sha) -> Result<Content, LogFailure> {
-        self.blob_at(Some(tip))
+        self.held(Some(tip))?.ok_or_else(|| LogFailure::Unfetched(tip.clone()))
     }
 
-    pub fn push(&self, commit: &Sha) -> Result<Output, LogFailure> {
+    pub fn push(&self, commit: &Sha, base: Option<&Sha>) -> Result<Ran, LogFailure> {
         let target = format!("{commit}:refs/heads/{}", Self::BRANCH);
-        self.git.command(["push", "--quiet"]).arg(self.name.to_string()).arg(target).timed_output()
+        let expected = base.map(ToString::to_string).unwrap_or_default();
+        let lease = format!("--force-with-lease=refs/heads/{}:{expected}", Self::BRANCH);
+        let pushed = self.git.command(["push", "--quiet"]).arg(lease).arg(self.name.to_string()).arg(target);
+        self.git.ran(pushed)
     }
 
-    fn fetch_once(&self) -> Result<Option<Tip>, LogFailure> {
+    pub fn content_listed(&self, heads: &RemoteHeads) -> Result<Content, LogFailure> {
+        let tip = heads.log_tip()?;
+        let missing = || tip.clone().map_or(LogFailure::Contended, LogFailure::Unfetched);
+        let refetched = || self.fetched()?.ok_or_else(missing).and_then(|()| self.held(tip.as_ref()));
+        self.held(tip.as_ref())?.map_or_else(refetched, |content| Ok(Some(content)))?.ok_or_else(missing)
+    }
+
+    fn fetch_once(&self) -> Result<Option<Fetched>, LogFailure> {
+        let tip = self.listed_tip()?;
+        let held = self.held(tip.as_ref())?;
+        let missing = || tip.clone().map_or(LogFailure::Contended, LogFailure::Unfetched);
+        let refetched = || {
+            let fetched = self.fetched()?;
+            fetched.map_or(Ok(None), |()| self.held(tip.as_ref())?.ok_or_else(missing).map(Some))
+        };
+        let content = held.map_or_else(refetched, |content| Ok(Some(content)))?;
+        Ok(content.map(|content| Fetched::new(tip, content)))
+    }
+
+    fn fetched(&self) -> Result<Option<()>, LogFailure> {
         let refspec = format!("+refs/heads/meta/*:refs/remotes/{}/meta/*", self.name);
-        let fetched = self
-            .git
-            .command(["fetch", "--quiet", "--prune", "--no-write-fetch-head", "--no-auto-maintenance"])
-            .arg(self.name.to_string())
-            .arg(refspec)
-            .timed_output()?;
-        if fetched.status.success() {
-            Ok(Some(Tip::new(self.tracking_tip())))
-        } else {
-            self.after_failed_fetch(&fetched)
-        }
+        let fetching =
+            self.git.command(["fetch", "--quiet", "--prune", "--no-write-fetch-head", "--no-auto-maintenance"]);
+        let fetched = self.git.ran(fetching.arg(self.name.to_string()).arg(refspec))?;
+        Ok(fetched.success().then_some(()))
     }
 
-    fn after_failed_fetch(&self, fetched: &Output) -> Result<Option<Tip>, LogFailure> {
-        let probe = self.git.command(["ls-remote"]).arg(self.name.to_string()).timed_output()?;
-        probe
-            .status
-            .success()
-            .then_some(None)
-            .ok_or_else(|| LogFailure::Offline { remote: self.name.clone(), stderr: Stderr::from(fetched) })
-    }
-
-    fn tracking_tip(&self) -> Option<Sha> {
-        let tracking = format!("refs/remotes/{}/{}^{{commit}}", self.name, Self::BRANCH);
-        self.git.command(["rev-parse", "--verify", "--quiet"]).arg(tracking).sha().ok()
-    }
-
-    fn blob_at(&self, tip: Option<&Sha>) -> Result<Content, LogFailure> {
-        tip.map_or(Ok(Content::default()), |commit| {
-            let files = self.git.command(["ls-tree", "--name-only", "-z"]).arg(commit.to_string()).content()?;
-            (files == Content::from(format!("{}\0", Self::FILE)))
-                .then_some(())
-                .ok_or_else(|| LogFailure::Malformed(self.name.clone()))?;
-            self.git.command(["cat-file", "blob"]).arg(format!("{commit}:{}", Self::FILE)).content()
+    fn held(&self, tip: Option<&Sha>) -> Result<Option<Content>, LogFailure> {
+        tip.map_or(Ok(Some(Content::default())), |tip| {
+            let asked = self.git.command(["cat-file", "--batch-command"]).fed(Objects::request(tip).to_string());
+            let answered = Content::try_from(self.git.ran(asked)?)?;
+            answered.as_ref().parse::<Objects>()?.content(&self.name)
         })
+    }
+
+    fn listed_tip(&self) -> Result<Option<Sha>, LogFailure> {
+        let branch = format!("refs/heads/{}", Self::BRANCH);
+        let listing = self.git.command(["ls-remote"]).arg(self.name.to_string()).arg(&branch);
+        let listed = self.git.ran(listing)?;
+        let offline = || LogFailure::Offline { remote: self.name.clone(), stderr: listed.stderr().clone() };
+        let lines = listed.success().then(|| listed.stdout().text());
+        let Ok(heads) = lines.ok_or_else(offline)?.parse::<RemoteHeads>();
+        Ok(heads.log_tip()?)
     }
 }
 

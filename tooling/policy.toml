@@ -44,6 +44,14 @@ file = "context/SPEC.md"
 default = "main"
 base = "origin/main"
 
+[supply_chain]
+licenses = ["Apache-2.0", "MIT", "Unicode-3.0"]
+registries = ["https://github.com/rust-lang/crates.io-index"]
+git = []
+ignored_advisories = []
+duplicates = "warn"
+semver = ["meta-xtask"]
+
 [limits]
 parameters = 4
 nesting = 2
@@ -56,6 +64,7 @@ lines_per_test = 20
 literals_per_test = 4
 largest_integer = 64
 slowest_shown = 5
+reference_spawns = 1000
 types_per_method_shape = 2
 
 [floors]
@@ -94,13 +103,17 @@ paths = ["*"]
 tests = ["*"]
 workflows = ["*"]
 
-[domains."features-and-maintenance/context"]
-paths = ["CLAUDE.md", "context/*"]
+[budgets.test-cpu-time]
+division = "performance-and-cost"
+measure = "test_cpu_time"
+allowance = { duration = 4000 }
+window = "per_change"
+source = "ci"
 
 [budgets.test-time]
 division = "performance-and-cost"
 measure = "test_wall_time"
-allowance = { duration = 4000 }
+allowance = { duration = 8000 }
 window = "per_change"
 source = "ci"
 
@@ -255,18 +268,6 @@ measure = { open_items = { severity = "unrated" } }
 allowance = { count = 2 }
 window = "standing"
 
-[budgets.prose-words]
-division = "features-and-maintenance"
-measure = "words"
-allowance = { count = 5000 }
-window = "standing"
-
-[budgets.context-words]
-division = "features-and-maintenance/context"
-measure = "words"
-allowance = { of = "prose-words", count = 4000 }
-window = "standing"
-
 [budgets.effect-share]
 division = "features-and-maintenance"
 measure = "effect_share"
@@ -279,10 +280,4 @@ division = "features-and-maintenance"
 measure = "effect_dispersion"
 allowance = { count = 2 }
 warning = 50
-window = "standing"
-
-[budgets.verbose-items]
-division = "features-and-maintenance"
-measure = { open_items = { verbose = 25 } }
-allowance = { count = 35 }
 window = "standing"

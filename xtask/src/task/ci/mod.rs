@@ -21,12 +21,14 @@ use std::time::Instant;
 use strum::IntoEnumIterator;
 
 use crate::task::failure::Failure;
+use crate::task::prior_policy::PriorPolicy;
 use crate::task::surfaces::Surfaces;
 pub use ci_step::CiStep;
 use run_kind::RunKind;
 use standing_log::StandingLog;
 use step_times::StepTimes;
 use stranding::Stranding;
+use task::Branch;
 use task::CommandLine;
 use task::Ledger;
 use task::Policy;
@@ -53,8 +55,8 @@ impl Ci {
                 let started = Instant::now();
                 let mut times = StepTimes::default();
                 let mut ledger = Ledger::default();
-                let log = StandingLog::git(workspace.root());
-                let read = || self.log.snapshot(&log);
+                let read = || self.log.snapshot(&StandingLog::git(workspace.root()));
+                let prior = || PriorPolicy::text_at_merge_base(workspace.root(), policy.branch(Branch::Base));
                 let run = RunKind::from_ambient(&CommandLine::ambient());
                 let tracked = TrackedWork::refuse_untracked(&run, read);
                 let stepped = tracked
@@ -65,7 +67,7 @@ impl Ci {
                     .try_for_each(|step| times.record(step, step.timed(workspace, selection, policy, &mut ledger)));
                 let outcome = tracked
                     .and(stepped)
-                    .and_then(|()| StandingLog::enforcing(&run, workspace.root(), &mut ledger))
+                    .and_then(|()| StandingLog::enforcing(&run, &mut ledger, prior))
                     .and_then(|()| StandingLog::counted(read, policy, &mut ledger, &run.link()))
                     .and_then(|()| Ok(ledger.checked(policy, selection)?))
                     .and_then(|()| Stranding::refuse_stranded(workspace.root(), policy, read));

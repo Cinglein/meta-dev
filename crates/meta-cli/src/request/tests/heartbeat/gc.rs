@@ -1,12 +1,12 @@
-use std::process::Command;
 use std::time::{Duration, Instant};
 
 use chrono::TimeDelta;
+use meta_golden::Golden;
 use meta_log::MemoryLog;
+use meta_run::{EnvPolicy, Run};
 
 use super::{Beat, Scene};
 use crate::request::heartbeat::{GcHook, LatestFlags, Tick};
-use crate::request::local::Sweep;
 use crate::request::project::GcMode;
 
 const FREE: &str = "[heartbeat]\ngc = \"free\"";
@@ -21,20 +21,12 @@ const SHELL: &str = "sh";
 const SCRIPTS: [&str; 4] = ["echo freed x", "echo freed x", "echo broken >&2; exit 1", "sleep 2"];
 const LIMIT: Duration = Duration::from_secs(5);
 const GC_DEFAULT_FLOOR: Duration = Duration::from_secs(100);
-const LIMITS: [Duration; 4] = [LIMIT, LIMIT, LIMIT, Duration::from_millis(10)];
-const REPORTS: [&str; 4] = [
-    r#"{"Planned":"freed x\n"}"#,
-    r#"{"Freed":"freed x\n"}"#,
-    r#"{"Failed":"broken"}"#,
-    r#"{"Unfinished":"timed out"}"#,
-];
+const LIMITS: [Duration; 4] = [LIMIT, LIMIT, LIMIT, Duration::from_millis(5)];
 
 #[test]
 fn an_unknown_gc_switch_still_reads_so_the_tick_runs_and_only_dry_run_or_free_sweep() {
-    let read = [FREE, DRY_RUN, UNKNOWN].map(|text| Beat::settings(text).is_ok());
-    let sweeps = ["", DRY_RUN, FREE, UNKNOWN].map(|text| Beat::settings(text).unwrap().gc_mode().sweep());
-    assert_eq!(read, [true, true, true]);
-    assert_eq!(sweeps, [Some(Sweep::Planned), Some(Sweep::Planned), Some(Sweep::Done), None]);
+    let sweeps = ["", DRY_RUN, FREE, UNKNOWN].map(|text| Beat::settings(text).map(|read| read.gc_mode().sweep()));
+    Golden::for_test(module_path!(), "sweeps").debugged(&sweeps).unwrap();
     let deadline = Beat::settings("").unwrap().gc_limit().deadline();
     assert!(deadline > Instant::now() + GC_DEFAULT_FLOOR);
 }
@@ -43,12 +35,11 @@ fn an_unknown_gc_switch_still_reads_so_the_tick_runs_and_only_dry_run_or_free_sw
 fn gc_runs_in_its_own_child_under_its_own_deadline_and_a_timeout_never_reads_as_freed() {
     let modes = [GcMode::DryRun, GcMode::Free, GcMode::Free, GcMode::Free];
     let hooks = SCRIPTS.iter().zip(modes).zip(LIMITS).map(|((script, mode), limit)| {
-        let mut command = Command::new(SHELL);
-        command.args(["-c", script]);
-        serde_json::to_string(&GcHook::supervised(command, Instant::now() + limit, mode)).unwrap()
+        let run = Run::new(SHELL, EnvPolicy::Inherit).args(["-c", script]);
+        serde_json::to_string(&GcHook::supervised(run, Instant::now() + limit, mode)).unwrap()
     });
-    assert_eq!(hooks.collect::<Vec<_>>(), REPORTS);
-    let disabled = GcHook::supervised(Command::new(SHELL), Instant::now() + LIMIT, GcMode::Disabled);
+    Golden::for_test(module_path!(), "hooks").debugged(&hooks.collect::<Vec<_>>()).unwrap();
+    let disabled = GcHook::supervised(Run::new(SHELL, EnvPolicy::Inherit), Instant::now() + LIMIT, GcMode::Disabled);
     assert_eq!(disabled, GcHook::Disabled);
 }
 

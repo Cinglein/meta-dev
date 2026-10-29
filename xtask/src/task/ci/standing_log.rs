@@ -1,4 +1,7 @@
 use std::path::Path;
+use std::time::Duration;
+
+use meta_run::Budget;
 
 use meta_log::{GitLog, Snapshot};
 use meta_severity::Scales;
@@ -8,24 +11,22 @@ use task::{ChangeLink, Ledger, Policy, Standing};
 use crate::task::ci::log_source::LogSource;
 use crate::task::ci::run_kind::RunKind;
 use crate::task::failure::Failure;
-use crate::task::prior_policy::PriorPolicy;
-use crate::task::revision::Revision;
 
 pub struct StandingLog;
 
 impl StandingLog {
     const REMOTE: &str = "origin";
-    const DEFAULT_BRANCH: &str = "origin/HEAD";
     const GIT_ENTRY: &str = ".git";
+    const GIT_LIMIT: Duration = Duration::from_secs(30);
 
     pub fn git(root: &Path) -> GitLog {
         let Ok(remote) = Self::REMOTE.parse();
         let repository = root.ancestors().find(|dir| dir.join(Self::GIT_ENTRY).exists()).unwrap_or(root);
-        GitLog::new(repository.to_path_buf(), remote)
+        GitLog::new(repository.to_path_buf(), remote, Budget::new(Self::GIT_LIMIT))
     }
 
     pub fn prefetched(root: &Path) -> Result<LogSource, Failure> {
-        Self::git(root).fetched_tip().map_err(Failure::GateFetch)?.map(LogSource::Prefetched).ok_or(Failure::NoLog)
+        Self::git(root).fetched_tip().map_err(Failure::GateFetch)?.map(LogSource::Prefetched).ok_or(Failure::GateNoLog)
     }
 
     pub fn state(snapshot: Result<Snapshot, Failure>) -> Result<State, Failure> {
@@ -46,22 +47,19 @@ impl StandingLog {
         Ok(())
     }
 
-    pub fn enforcing(run: &RunKind, root: &Path, ledger: &mut Ledger) -> Result<(), Failure> {
+    pub fn enforcing(
+        run: &RunKind,
+        ledger: &mut Ledger,
+        prior: impl FnOnce() -> Result<Option<String>, Failure>,
+    ) -> Result<(), Failure> {
         run.by_kind(
             ledger,
-            |ledger| Self::enforced_from(root, ledger),
+            |ledger| ledger.enforce_from(prior()?.as_deref()).map_err(Failure::PriorPolicy),
             |ledger| {
                 ledger.report_only();
                 Ok(())
             },
         )
-    }
-
-    pub fn enforced_from(root: &Path, ledger: &mut Ledger) -> Result<(), Failure> {
-        let Ok(default_branch) = Self::DEFAULT_BRANCH.parse();
-        let base = Revision::merge_base(root, &default_branch)?;
-        let text = base.present(Path::new(PriorPolicy::PATH))?;
-        ledger.enforce_from(text.as_deref()).map_err(Failure::PriorPolicy)
     }
 
     fn standing(snapshot: Result<Snapshot, Failure>, scales: &Scales, link: &ChangeLink) -> Result<Standing, Failure> {
@@ -81,8 +79,8 @@ mod tests {
 
     const CLOSED: &str = "standing budgets fail closed: meta/log";
     const GATE_CLOSED: &str = "local gate fails closed";
+    const GATE_EMPTY: &str = "local gate fails closed: meta/log has no events";
     const NOTHING: &str = "";
-    const POLICY: &str = "tooling/policy.toml";
     const CAPS: &str = "\n[budgets.features-and-maintenance-critical]";
     const TOP: &str = "features-and-maintenance";
     const MINOR: &str = "minor";
@@ -102,12 +100,10 @@ mod tests {
 
     #[test]
     fn the_merge_base_policy_decides_whether_standing_budgets_are_enforced() {
-        let fixture = Fixture::new();
-        fixture.write(POLICY, STANDING).branch();
-        fixture.write(POLICY, NOTHING).committed();
         let (bare, mut pull, mut push) = (StandingLog::policy(NOTHING), Ledger::default(), Ledger::default());
-        let enforced = StandingLog::enforcing(&RunKind::Pull(None, None), fixture.root(), &mut pull);
-        let reported = StandingLog::enforcing(&RunKind::Other, fixture.root(), &mut push);
+        let prior = || Ok(Some(STANDING.to_owned()));
+        let enforced = StandingLog::enforcing(&RunKind::Pull(None, None), &mut pull, prior);
+        let reported = StandingLog::enforcing(&RunKind::Other, &mut push, || Err(Failure::NoLog));
         assert!(enforced.is_ok() && pull.reads_standing(&bare) && !pull.reports_only());
         assert!(reported.is_ok() && push.reports_only());
     }
@@ -129,6 +125,8 @@ mod tests {
         let [writer, reader] = [Fixture::new(), Fixture::new()];
         writer.shared_origin(reader.write(UNREACHABLE, TOP));
         let append = || StandingLog::git(writer.root()).append::<LogFailure>(&mut |_| Ok(Stranding::rated(TOP, MINOR)));
+        let empty = StandingLog::prefetched(reader.root()).map(drop);
+        assert!(StandingLog::closed(&[empty], GATE_EMPTY));
         append().unwrap();
         let fetched = StandingLog::prefetched(reader.root()).unwrap();
         let log = StandingLog::git(reader.root());

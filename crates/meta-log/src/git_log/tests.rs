@@ -3,12 +3,14 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, Output};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use meta_schema::{Event, NewTask, Record};
 
 mod malformed;
 
-use super::GitLog;
+use super::pacing::Pacing;
+use super::{Budget, GitLog, RemoteHeads};
 use crate::LogStore;
 use crate::log_failure::LogFailure;
 
@@ -22,10 +24,13 @@ const REJECTED_PREFIX: &str = "meta/log push rejected";
 const REFUSE_PUSHES: [&str; 2] = ["/usr/bin/false", "hooks/pre-receive"];
 const STATUS: [&str; 3] = ["status", "--porcelain", "--branch"];
 const COUNT: [&str; 3] = ["rev-list", "--count", "meta/log"];
+const REWIND: [&str; 3] = ["update-ref", "refs/heads/meta/log", "refs/heads/meta/log~1"];
+const LIST_REMOTE: [&str; 2] = ["ls-remote", ORIGIN];
 const FIRST: usize = 0;
 const SECOND: usize = 1;
 const PAIR: usize = 2;
 const SINGLE: usize = 1;
+const PATIENT: Duration = Duration::from_secs(30);
 
 struct Git;
 
@@ -87,7 +92,10 @@ impl Fixture {
     }
 
     fn log(&self, clone: usize) -> GitLog {
-        GitLog::new(self.clones[clone].path().to_owned(), ORIGIN.parse().unwrap())
+        GitLog {
+            pacing: Pacing::Immediate,
+            ..GitLog::new(self.clones[clone].path().to_owned(), ORIGIN.parse().unwrap(), Budget::new(PATIENT))
+        }
     }
 
     fn record() -> Record {
@@ -145,4 +153,19 @@ fn refusals_write_nothing_and_rejected_or_offline_writes_fail() {
     assert!(failure().starts_with(REJECTED_PREFIX));
     Git::run(fixture.clones[FIRST].path(), &OFFLINE);
     assert!(failure().starts_with(OFFLINE_PREFIX));
+}
+
+#[test]
+fn a_write_after_the_remote_rewound_retries_on_the_fresh_tip_and_brings_nothing_back() {
+    let fixture = Fixture::new(SINGLE);
+    let log = fixture.log(FIRST);
+    let appended = || log.append::<LogFailure>(&mut |_| Ok(Fixture::record())).unwrap();
+    let kept = appended();
+    appended();
+    Git::run(fixture.origin.path(), &REWIND);
+    let written = appended();
+    let heads: RemoteHeads = Git::text(fixture.clones[FIRST].path(), &LIST_REMOTE).parse().unwrap();
+    let [read, listed] =
+        [fixture.log(FIRST).read(), log.read_listed(&heads)].map(|read| read.unwrap().records().to_vec());
+    assert_eq!((read, listed), (vec![kept.clone(), written.clone()], vec![kept, written]));
 }

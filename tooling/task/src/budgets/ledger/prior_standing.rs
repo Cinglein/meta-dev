@@ -5,14 +5,11 @@ use serde::de::Error;
 use serde::{Deserialize, Deserializer};
 
 use super::super::{BudgetDrafts, Budgets};
-use crate::domains::Domains;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct PriorStanding {
     #[serde(default, deserialize_with = "PriorStanding::standing_only")]
     budgets: Budgets,
-    #[serde(default)]
-    domains: Domains,
 }
 
 impl PriorStanding {
@@ -28,11 +25,6 @@ impl PriorStanding {
     pub fn budgets(&self) -> &Budgets {
         &self.budgets
     }
-
-    #[must_use]
-    pub fn domains(&self) -> &Domains {
-        &self.domains
-    }
 }
 
 impl FromStr for PriorStanding {
@@ -42,6 +34,3 @@ impl FromStr for PriorStanding {
         toml::from_str(text)
     }
 }
-
-#[cfg(test)]
-mod tests;

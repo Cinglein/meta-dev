@@ -19,7 +19,7 @@ use allowance::Allowance;
 pub use allowance::Amount;
 pub use lines::Lines;
 use measure::{Enforcer, Unit};
-pub use measure::{ItemFilter, ItemKind, Measure, MutationJob, Tally};
+pub use measure::{ItemFilter, ItemKind, Measure, MutationJob};
 use meta_schema::{Division, TopDivision};
 use meta_severity::{Scales, SeverityFilter};
 use overspend::Overspend;
@@ -91,14 +91,16 @@ impl Budget {
 
     #[must_use]
     pub fn blocks(&self, state: Option<State>) -> bool {
-        state == Some(State::Over) && self.overspend == Overspend::Block
+        state == Some(State::Over)
+            && self.overspend == Overspend::Block
+            && self.measure.enforcer() != Enforcer::Lint
     }
 
     #[must_use]
     pub fn state(&self, lines: Option<&Lines>, spend: Option<&Amount>) -> Option<State> {
-        match self.measure.enforcer() {
-            Enforcer::Lint => spend.map(|_| State::Ok),
-            Enforcer::Checker | Enforcer::MutationJobs => {
+        match self.measure.unit() {
+            Unit::Baseline => spend.map(|_| State::Ok),
+            Unit::Duration | Unit::Share | Unit::Count => {
                 lines.zip(spend).map(|(lines, spend)| lines.state(spend))
             }
         }
@@ -133,7 +135,6 @@ impl Budget {
                 .map(|domain| domain.extent(needed))
             {
                 Some(Extent::Whole) => Ok(()),
-                Some(Extent::Partial) if self.measure.tally() == Tally::DomainFiles => Ok(()),
                 Some(Extent::Partial) => Err(TreeFailure::PartlyMeasurable(id.clone(), needed)),
                 Some(Extent::Undeclared) | None => {
                     Err(TreeFailure::Unmeasurable(id.clone(), needed))

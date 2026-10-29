@@ -16,7 +16,23 @@ const PRICE: &str = "allowance = { share = 100 }\n";
 const WINDOW: &str = "window = \"per_change\"\n";
 const CI: &str = "source = \"ci\"\n";
 
-const REFUSED: [(&str, &str, &str, &str); 31] = [
+const REFUSED: [(&str, &str, &str, &str); 34] = [
+    (
+        "meta", "\nparameters = 4\n", "\n", "[limits]: parameters is not set",
+    ),
+    (
+        "meta", "\nfn_name = 3\n", "\n", "[floors]: fn_name is not set",
+    ),
+    (
+        "meta", "\ntests_per_hundred_files = 40\n", "\n",
+        "[shares]: tests_per_hundred_files is not set",
+    ),
+    (
+        "meta", "\ngranted = 5\n", "\n", "[memory_gib]: granted is not set",
+    ),
+    (
+        "meta", "\nsample_every = 20\n", "\n", "[millis]: sample_every is not set",
+    ),
     (
         "meta",
         END,
@@ -36,25 +52,13 @@ const REFUSED: [(&str, &str, &str, &str); 31] = [
         "budget a: its measure is not the measure of the budget it is part of",
     ),
     (
-        "meta", WINDOW, "window = \"standing\"\n", "take a standing window",
+        "meta", WINDOW, "window = \"standing\"\n", "open items take a standing window",
     ),
     (
         "meta",
         END,
         "\n[budgets.issues]\ndivision = \"features-and-maintenance\"\nmeasure = { open_items = { kind = \"task\" } }\nallowance = { count = 2 }\nwindow = \"per_change\"\n",
-        "take a standing window",
-    ),
-    (
-        "meta",
-        END,
-        "\n[budgets.lines]\ndivision = \"features-and-maintenance\"\nmeasure = \"words\"\nallowance = { count = 2 }\nwindow = \"per_change\"\n",
-        "take a standing window",
-    ),
-    (
-        "meta",
-        END,
-        "\n[domains.\"features-and-maintenance/x\"]\ncrates = [\"*\"]\n\n[budgets.x-words]\ndivision = \"features-and-maintenance/x\"\nmeasure = \"words\"\nallowance = { of = \"prose-words\", count = 1 }\nwindow = \"standing\"\n",
-        "x-words: its measure needs paths",
+        "open items take a standing window",
     ),
     (
         "meta",

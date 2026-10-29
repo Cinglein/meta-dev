@@ -83,7 +83,7 @@ pub const SECTIONS: &[Section] = &[
                 RuleId::new("budget-enforce-standing-base"),
                 ArchitectureAndPlanning,
                 Wording::new(
-                    "Standing budgets are enforced from the merge-base policy; the PR's own policy only has to parse and validate. A cap that the PR adds or tightens takes effect from the next PR. A cap that the PR loosens or drops still binds the PR itself, because the merge-base cap applies. The budget table marks a new cap as enforced from the next change. The merge base is the one with origin's default branch (origin/HEAD), never a branch that the PR names; a base policy that git cannot read fails the run, while a base without the file means no standing budgets. A standing cap reaches a PR only through its linked task's division, never through its diff. A PR whose task addresses an open item in the cap's division at the cap's level or more severe is paid down for that cap. A run that is not a pull request (a push to main) reports standing budgets in the table, marks the over-cap rows, and never fails: the debt rule blocks PRs, it does not turn main red.",
+                    "Standing budgets are enforced from the merge-base policy; the PR's own policy only has to parse and validate. A cap that the PR adds or tightens takes effect from the next PR. A cap that the PR loosens or drops still binds the PR itself, because the merge-base cap applies. The budget table marks a new cap as enforced from the next change. The merge base is the one with the policy base branch ([branches] base), never a branch that the PR names; a base policy that git cannot read fails the run, while a base without the file means no standing budgets. A standing cap reaches a PR only through its linked task's division, never through its diff. A PR whose task addresses an open item in the cap's division at the cap's level or more severe is paid down for that cap. A run that is not a pull request (a push to main) reports standing budgets in the table, marks the over-cap rows, and never fails: the debt rule blocks PRs, it does not turn main red.",
                 ),
                 Tracked,
             ),
@@ -626,7 +626,7 @@ pub const SECTIONS: &[Section] = &[
                 Check(
                     Enforcer::new(
                         "crates/meta-cli/tests/cli.rs",
-                        "failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_and_a_noreply_worktree_is_listed",
+                        "a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree",
                     ),
                     &[],
                 ),
@@ -760,7 +760,7 @@ pub const SECTIONS: &[Section] = &[
                         ),
                         Enforcer::new(
                             "crates/meta-cli/tests/cli.rs",
-                            "failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_and_a_noreply_worktree_is_listed",
+                            "a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree",
                         ),
                     ],
                 ),
@@ -988,7 +988,7 @@ pub const SECTIONS: &[Section] = &[
                 Check(
                     Enforcer::new(
                         "crates/meta-cli/tests/cli.rs",
-                        "failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_and_a_noreply_worktree_is_listed",
+                        "a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree",
                     ),
                     &[],
                 ),
@@ -1004,7 +1004,7 @@ pub const SECTIONS: &[Section] = &[
                     ),
                     &[Enforcer::new(
                         "crates/meta-cli/tests/cli.rs",
-                        "failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_and_a_noreply_worktree_is_listed",
+                        "a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree",
                     )],
                 ),
             ),

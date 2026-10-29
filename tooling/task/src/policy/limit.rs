@@ -1,10 +1,12 @@
 use enum_map::Enum;
 use serde::{Deserialize, Serialize};
+use strum::IntoStaticStr;
 
 use meta_schema::TopDivision;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Enum, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Enum, IntoStaticStr, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 #[repr(u8)]
 pub enum Limit {
     Parameters,
@@ -18,6 +20,7 @@ pub enum Limit {
     LiteralsPerTest,
     LargestInteger,
     SlowestShown,
+    ReferenceSpawns,
     SccItems,
     TypesPerMethodShape,
 }
@@ -26,7 +29,7 @@ impl Limit {
     #[must_use]
     pub const fn division(self) -> TopDivision {
         match self {
-            Limit::SlowestShown => TopDivision::PerformanceAndCost,
+            Limit::SlowestShown | Limit::ReferenceSpawns => TopDivision::PerformanceAndCost,
             Limit::Reexports
             | Limit::EdgesPerVertex
             | Limit::SccItems
@@ -57,7 +60,7 @@ mod tests {
         TopDivision::PerformanceAndCost,
         TopDivision::ArchitectureAndPlanning,
     ];
-    const ENTRIES_PER_DIVISION: [usize; 3] = [18, 20, 0];
+    const ENTRIES_PER_DIVISION: [usize; 3] = [18, 21, 0];
 
     #[test]
     fn every_policy_entry_sits_in_one_division_and_none_enforced_in_code_is_architecture() {

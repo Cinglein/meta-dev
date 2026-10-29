@@ -10,13 +10,14 @@ use std::fs::{self, File};
 
 use sysinfo::{ProcessesToUpdate, System};
 
+use scope::MutantsBuild;
 use task::AvailableGib;
 use task::FailedRuns;
 use task::Failure;
 use task::Site;
 use task::Workspace;
-use task::{CargoArgument, CommandLine, MutantsArgument, Program};
-use task::{Interval, MemoryShare, Policy};
+use task::{CommandLine, MutantsArgument};
+use task::{MemoryShare, Policy};
 
 #[derive(Debug)]
 pub struct Mutants;
@@ -29,17 +30,12 @@ impl Mutants {
         let _lock = Self::exclusive_lock(workspace)?;
         Self::refuse_if_another_run_exists()?;
         let budget = Self::refuse_if_memory_is_short(policy)?;
-        let line = workspace
-            .line(Program::Cargo)
-            .argument(CargoArgument::Mutants)
-            .argument(MutantsArgument::JobserverTasks)
-            .argument(policy.compiler_tasks())
-            .argument(MutantsArgument::Timeout)
-            .argument(policy.interval(Interval::TestTimeout).whole_seconds());
-        let runs = scope.applied(line, workspace, policy)?;
+        let build = MutantsBuild::checked(workspace, policy)?;
+        let line = build.mutating().argument(MutantsArgument::JobserverTasks).argument(policy.compiler_tasks());
+        let runs = scope.applied(line, &build, workspace, policy)?;
         let failed: Vec<CommandLine> = runs
             .iter()
-            .map(|run| run.accepted(budget, policy))
+            .map(|run| run.accepted(&build, budget, policy))
             .collect::<Result<Vec<bool>, Failure>>()?
             .into_iter()
             .zip(&runs)

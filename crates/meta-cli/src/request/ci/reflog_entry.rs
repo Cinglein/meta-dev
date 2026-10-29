@@ -7,6 +7,7 @@ use std::str::FromStr;
 use super::commit::Commit;
 use super::start_moment::StartMoment;
 use super::unix_seconds::UnixSeconds;
+use crate::request::checkout::Checkout;
 use identity::Identity;
 use move_subject::{CommitAction, MoveSubject};
 use stamp::Stamp;
@@ -17,12 +18,32 @@ pub struct ReflogEntry {
     parents: Vec<Commit>,
     committer: Identity,
     moved: Stamp,
+    checkout: Option<Checkout>,
     subject: MoveSubject,
 }
 
 impl ReflogEntry {
-    pub const FORMAT: &'static str = "--format=%H%x1f%P%x1f%cn <%ce>%x1f%gn <%ge> %gd%x1f%gs";
     const SEPARATOR: char = '\u{1f}';
+
+    pub fn checkout(&self) -> Option<&Checkout> {
+        self.checkout.as_ref()
+    }
+
+    pub fn created(entries: &[Self], start: &StartMoment, born_after: impl Fn(&Commit) -> bool) -> Vec<Commit> {
+        let befores = entries.iter().skip(1).map(Some).chain([None]);
+        let created: Vec<&Commit> = entries
+            .iter()
+            .zip(befores)
+            .filter_map(|(entry, before)| entry.created_after(start, before, |commit| born_after(commit)))
+            .collect();
+        let first = |at: usize, commit: &Commit| created.iter().position(|other| *other == commit) == Some(at);
+        created
+            .iter()
+            .enumerate()
+            .filter(|(at, commit)| first(*at, commit))
+            .map(|(_, commit)| (*commit).clone())
+            .collect()
+    }
 
     pub fn created_after(
         &self,
@@ -44,13 +65,17 @@ impl FromStr for ReflogEntry {
     fn from_str(line: &str) -> Result<Self, ()> {
         let fields: Vec<&str> = line.split(Self::SEPARATOR).collect();
         match fields.as_slice() {
-            [sha, parents, committer, moved, subject] => Ok(Self {
-                commit: sha.parse().map_err(drop)?,
-                parents: parents.split_whitespace().filter_map(|parent| parent.parse().ok()).collect(),
-                committer: committer.parse().map_err(drop)?,
-                moved: moved.parse().map_err(drop)?,
-                subject: subject.parse().map_err(drop)?,
-            }),
+            [sha, parents, committer, moved, decorated, subject] => {
+                let commit: Commit = sha.parse().map_err(drop)?;
+                Ok(Self {
+                    checkout: Checkout::decorated(&commit, decorated),
+                    commit,
+                    parents: parents.split_whitespace().filter_map(|parent| parent.parse().ok()).collect(),
+                    committer: committer.parse().map_err(drop)?,
+                    moved: moved.parse().map_err(drop)?,
+                    subject: subject.parse().map_err(drop)?,
+                })
+            }
             _ => Err(()),
         }
     }

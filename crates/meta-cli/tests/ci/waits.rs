@@ -1,33 +1,28 @@
-use super::seeded_log::{SeededLog, TASK};
-use super::{BLOCK, COMMIT, Git, NEXT_COMMIT, Planted, Repo, STOP, SUCCESS, TIMED_OUT_STOP};
-
-const TIMED_OUT: &str = "timed-out";
-const DETACH: [&str; 3] = ["checkout", "-q", "--detach"];
-const PUSH_HEAD: [&str; 4] = ["push", "-q", "origin", "HEAD:refs/heads/pushed"];
-const WAIT_ON_CI: [&str; 4] = ["wait", TASK, "--on", "ci"];
+use super::{BLOCK, CI_WAIT, COMMIT, EXPECTED, Git, NEXT_COMMIT, PASSED_EVENT, POST, Planted, Repo, STOP, SUCCESS};
+const NAMELESS: &str = "origin.git";
+const UNHURRIED: &str = "expected_millis = 0\n";
+const UNCHECKED_EVENT: &str = ": unchecked after";
+const UNCHECKED_STOP: &str = "couldn't check CI for your last push";
 const TASKLESS: &str = "then run `meta wait <task> --on ci` here";
-
-struct Unresolved;
-
-impl Unresolved {
-    fn pushed(repo: &Repo) -> String {
-        Git::run(repo.clone.path(), &PUSH_HEAD);
-        Planted::settled(repo, TIMED_OUT);
-        repo.hook(STOP, COMMIT)
-    }
-}
+const LEARNED: &str = "422000";
 
 #[test]
-fn on_a_detached_head_a_wait_covers_only_the_head_it_was_recorded_at() {
-    let repo = Repo::new(SUCCESS);
-    SeededLog::CLAIMED.plant(repo.origin.path());
-    Git::run(repo.clone.path(), &DETACH);
-    let unrecorded = Unresolved::pushed(&repo);
-    repo.meta(&WAIT_ON_CI);
-    let recorded = repo.hook(STOP, COMMIT);
+fn an_unreadable_remote_settles_the_hook_spawned_watch_unchecked_and_a_fixed_remote_passes_and_learns_the_run() {
+    let repo = Repo::limited(SUCCESS, UNHURRIED);
+    std::os::unix::fs::symlink(&repo.origin, repo.clone.path().join(NAMELESS)).unwrap();
+    Git::run(repo.clone.path(), &["remote", "set-url", "origin", NAMELESS]);
+    repo.hook(POST, COMMIT);
+    let unchecked = repo.settled();
+    let stopped = repo.hook(STOP, COMMIT);
+    let waited = repo.session_command(CI_WAIT).1;
+    Git::run(repo.clone.path(), &["remote", "set-url", "origin", repo.origin.to_str().unwrap()]);
     Git::run(repo.clone.path(), &NEXT_COMMIT);
-    let moved_on = Unresolved::pushed(&repo);
-    assert!(unrecorded.contains(TIMED_OUT_STOP) && unrecorded.contains(TASKLESS));
-    assert!(serde_json::from_str::<serde_json::Value>(&unrecorded).is_ok() && !recorded.contains(BLOCK));
-    assert!(moved_on.contains(TASKLESS));
+    repo.answered();
+    Planted::twin(&repo).wait().unwrap();
+    let retried = repo.settled_past(&unchecked);
+    let shown = [unchecked.as_str(), stopped.as_str()].concat();
+    assert!([UNCHECKED_EVENT, BLOCK, UNCHECKED_STOP, TASKLESS].iter().all(|told| shown.contains(told)));
+    let learned = std::fs::read_to_string(repo.clone.path().join(EXPECTED)).unwrap();
+    assert!(retried.matches(UNCHECKED_EVENT).count() == 1 && learned == LEARNED && !waited.success(), "{learned}");
+    assert!(retried.strip_prefix(unchecked.as_str()).is_some_and(|new| new.contains(PASSED_EVENT)), "{retried}");
 }

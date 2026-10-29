@@ -1,6 +1,9 @@
 use std::io;
+use std::path::PathBuf;
 
+use meta_golden::GoldenFailure;
 use meta_log::LogFailure;
+use meta_run::Unread;
 use meta_severity::{Demotions, ScaleFailure, Strands};
 use thiserror::Error;
 
@@ -30,6 +33,10 @@ pub enum Failure {
     Configured(OutsideConfig),
     #[error("cargo metadata: {0}")]
     Metadata(#[from] serde_json::Error),
+    #[error("merge-base [spec] in tooling/policy.toml: {0}")]
+    PriorSpec(toml::de::Error),
+    #[error("merge-base spec file {} is unreadable", .0.display())]
+    PriorSpecFile(PathBuf),
     #[error("{0}")]
     Identity(ForeignEmails),
     #[error("{0}")]
@@ -46,10 +53,22 @@ pub enum Failure {
     StandingLog(LogFailure),
     #[error("standing budgets fail closed: meta/log has no events on the remote")]
     NoLog,
+    #[error("local gate fails closed: meta/log has no events on the remote")]
+    GateNoLog,
     #[error("local gate fails closed: cannot fetch meta/log before the isolated run: {0}")]
     GateFetch(LogFailure),
     #[error("local gate fails closed: this run needs meta/log but the gate did not fetch it")]
     Unfetched,
     #[error("untracked work fails closed: {0}")]
     Untracked(Untracked),
+    #[error("goldens: {0}")]
+    Golden(#[from] GoldenFailure),
+    #[error("goldens: cargo built no `{0}` binary")]
+    Unbuilt(&'static str),
+    #[error("git: {0}")]
+    Git(Unread),
+    #[error("{failure}\nsupply chain fails closed: fix the finding above, or install {tool} if it is missing")]
+    Supply { tool: &'static str, failure: Box<task::Failure> },
+    #[error("{skipped}: fails closed in CI: {failure}")]
+    Unreached { skipped: String, failure: Box<Failure> },
 }

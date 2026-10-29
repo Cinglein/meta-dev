@@ -1,4 +1,5 @@
-use std::path::Path;
+use std::env;
+use std::path::{Path, PathBuf};
 
 use meta_log::Snapshot;
 use meta_severity::{Scales, Strands};
@@ -6,7 +7,7 @@ use task::{Branch, Policy};
 
 use crate::task::ci::standing_log::StandingLog;
 use crate::task::failure::Failure;
-use crate::task::prior_policy::PriorPolicy;
+use crate::task::prior_policy::{PinnedXtask, PriorPolicy};
 use crate::task::revision::Revision;
 
 pub struct Stranding;
@@ -17,11 +18,18 @@ impl Stranding {
         policy: &Policy,
         read: impl FnOnce() -> Result<Snapshot, Failure>,
     ) -> Result<(), Failure> {
-        Self::rescaling(root, policy)?.map_or(Ok(()), |before| Self::judged(&before, policy.scales(), read()))
+        let databases = env::var_os("CARGO_HOME")
+            .map(PathBuf::from)
+            .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".cargo")))
+            .unwrap_or_default()
+            .join("git/db");
+        Self::rescaling(root, policy, &databases)?
+            .map_or(Ok(()), |before| Self::judged(&before, policy.scales(), read()))
     }
 
-    pub fn rescaling(root: &Path, policy: &Policy) -> Result<Option<Scales>, Failure> {
-        let before = PriorPolicy::scales_at(&Revision::merge_base(root, policy.branch(Branch::Base))?)?;
+    pub fn rescaling(root: &Path, policy: &Policy, databases: &Path) -> Result<Option<Scales>, Failure> {
+        let revision = Revision::merge_base(root, policy.branch(Branch::Base))?;
+        let before = PriorPolicy::scales_at(&revision, &PinnedXtask::read_in(root), databases)?;
         Ok(Some(before).filter(|before| before != policy.scales()))
     }
 
@@ -45,14 +53,18 @@ mod tests {
     use task::Policy;
 
     use super::Stranding;
-    use crate::task::fixture::Fixture;
+    use crate::task::fixture::{Branched, Fixture};
     use crate::task::prior_policy::PriorPolicy;
 
     const PRIOR: &str = "[[scales.features-and-maintenance]]\nname = \"blocker\"\nmeaning = \"x\"\n\n[[scales.features-and-maintenance]]\nname = \"nuisance\"\nmeaning = \"x\"\n";
     const OLD_LEVELS: &str = r#"[{"name": "blocker", "meaning": "x"}, {"name": "nuisance", "meaning": "x"}]"#;
+    const LOCK: &str = "Cargo.lock";
+    const PIN: &str = "[[package]]\nname = \"meta-xtask\"\nsource = \"git+https://example.invalid/meta-dev?tag=v0#";
+    const END: &str = "\"\n";
+    const TIP: &str = "HEAD";
+    const MOVED: &str = "4567def";
     const TOP: &str = "features-and-maintenance";
     const MAJOR: &str = "major";
-    const CAPS: &str = "\n[budgets.features-and-maintenance-critical]";
     const CLOSED: &str = "fail closed";
     const NAV: &str = "features-and-maintenance/nav";
     const CRITICAL: &str = "critical";
@@ -83,15 +95,15 @@ mod tests {
     }
 
     #[test]
-    fn scales_changed_since_the_merge_base_policy_or_default_levels_are_judged_and_unchanged_ones_are_not() {
-        let [fixture, relevelled] = [Fixture::new(), Fixture::new()];
-        fixture.write(PriorPolicy::PATH, PRIOR).branch();
-        relevelled.write(PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS).branch();
-        let uncapped = Policy::DEFAULTS.split(CAPS).next().unwrap_or_default();
-        let same: Policy = toml::from_str(&format!("{uncapped}\n{PRIOR}")).unwrap();
-        let before: Scales = serde_json::from_str(OVERRIDDEN).unwrap();
-        assert_eq!(Stranding::rescaling(fixture.root(), &Policy::defaults()).unwrap(), Some(before));
-        assert_eq!(Stranding::rescaling(fixture.root(), &same).unwrap(), None);
-        assert!(Stranding::rescaling(relevelled.root(), &Policy::defaults()).unwrap().is_some());
+    fn levels_shipped_with_an_xtask_pin_that_moved_are_read_from_a_real_cargo_git_db() {
+        let (database, consumer) = (Fixture::new(), Fixture::new());
+        database.write(PriorPolicy::DEFAULT_LEVELS, OLD_LEVELS).imported(Branched::Local);
+        let [moved, pinned] = [MOVED, database.revision(TIP).trim()].map(|commit| format!("{PIN}{commit}{END}"));
+        consumer.write(LOCK, &pinned).write(PriorPolicy::PATH, PRIOR).imported(Branched::Tracked);
+        let databases = database.root().parent().unwrap_or(database.root());
+        let [old, now] = [moved, pinned].map(|lock| {
+            Stranding::rescaling(consumer.write(LOCK, &lock).root(), &Policy::defaults(), databases).ok().flatten()
+        });
+        assert!(old.is_some() && old != now && now == serde_json::from_str(OVERRIDDEN).ok());
     }
 }

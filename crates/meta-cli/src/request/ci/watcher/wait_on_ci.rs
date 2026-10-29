@@ -1,14 +1,18 @@
 use std::fmt;
+use std::time::Instant;
 
-use meta_log::LogStore as _;
+use meta_log::Snapshot;
+use meta_run::Budget;
 use meta_schema::{CommitId, ExternalKind, Id, Task};
 use meta_state::{State, TaskStatus};
 
+use super::session_commits::SessionCommits;
+use super::stop_view::Watched;
+use crate::request::ci::Commit;
 use crate::request::ci::ci_status::CiStatus;
-use crate::request::ci::{Commit, SessionDir};
 use crate::request::cli_failure::CliFailure;
 use crate::request::output::Listed;
-use crate::request::project::Project;
+use crate::request::project::{BranchName, CiSettings, Project};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WaitOnCi {
@@ -24,16 +28,34 @@ impl WaitOnCi {
     const ON_CI: TaskStatus = TaskStatus::WaitingOnExternal(ExternalKind::Ci);
     const READY: [TaskStatus; 2] = [TaskStatus::Open, TaskStatus::Assigned];
 
-    pub fn stop_reason(project: &Project, dir: &SessionDir, commits: &[Commit]) -> Option<Listed> {
-        let unresolved = |commit: &Commit| dir.status_of(commit).and_then(CiStatus::unresolved);
-        commits.iter().find_map(unresolved)?;
-        let state =
-            project.log().and_then(|log| log.read().map_err(CliFailure::from)).map(|read| State::fold(read.records()));
-        let head = project.head().and_then(|head| head.commit_id());
-        let task = project.unprotected_branch().and_then(|branch| branch.task());
-        commits.iter().find_map(|commit| {
-            let what = unresolved(commit)?;
-            Self::judging(&state, commit, head.as_ref(), task).map_or_else(Some, |wait| wait.reason(what))
+    pub fn stop_reason(
+        project: &Project,
+        statuses: &[Watched],
+        seen: &SessionCommits,
+        deadline: Instant,
+    ) -> Option<Listed> {
+        statuses.iter().find_map(|watched| watched.status().and_then(CiStatus::unresolved))?;
+        let budget = project.ci_settings().budget(CiSettings::ROUTINE).within(deadline);
+        let read = || project.log(budget).and_then(|log| log.read_listed(seen.heads()).map_err(CliFailure::from));
+        let state = Self::state_read(budget, read);
+        let head = seen.checkout().head().and_then(Commit::commit_id);
+        let branch = seen.checkout().branch().filter(|branch| project.config().protects(branch).is_none());
+        Self::verdict(&state, statuses, head.as_ref(), branch.and_then(BranchName::task))
+    }
+
+    pub fn state_read(budget: Budget, read: impl FnMut() -> Result<Snapshot, CliFailure>) -> Result<State, CliFailure> {
+        budget.retried(read).map(|read| State::fold(read.records()))
+    }
+
+    pub fn verdict(
+        state: &Result<State, CliFailure>,
+        statuses: &[Watched],
+        head: Option<&CommitId>,
+        task: Option<Id<Task>>,
+    ) -> Option<Listed> {
+        statuses.iter().find_map(|watched| {
+            let what = watched.status().and_then(CiStatus::unresolved)?;
+            Self::judging(state, watched.commit(), head, task).map_or_else(Some, |wait| wait.reason(what))
         })
     }
 
@@ -88,7 +110,7 @@ impl fmt::Display for WaitOnCi {
             Self::Recorded => Ok(()),
             Self::NotHead(commit) => write!(
                 formatter,
-                " ({commit}, not HEAD); or run `git checkout --detach {commit}`, then `meta wait <task> --on ci` there"
+                " ({commit}, not HEAD); a task waits at one commit only; each other unresolved commit needs its own task; or run `git checkout --detach {commit}`, then `meta wait <task> --on ci` there; push a rerun to that commit's branch; check the branch out again after detaching; a detached HEAD cannot push"
             ),
             Self::Unrecorded(task) => write!(
                 formatter,

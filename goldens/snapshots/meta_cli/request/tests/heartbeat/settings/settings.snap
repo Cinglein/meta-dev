@@ -1,0 +1,70 @@
+[
+    Ok(
+        HeartbeatSettings {
+            interval: Seconds(
+                300,
+            ),
+            tick: TickLimit(
+                60s,
+            ),
+            stale: StaleLimit(
+                900s,
+            ),
+            skew: SkewLimit(
+                60s,
+            ),
+            gc: DryRun,
+            gc_limit: GcLimit(
+                120s,
+            ),
+        },
+    ),
+    Ok(
+        HeartbeatSettings {
+            interval: Seconds(
+                300,
+            ),
+            tick: TickLimit(
+                60s,
+            ),
+            stale: StaleLimit(
+                900s,
+            ),
+            skew: SkewLimit(
+                60s,
+            ),
+            gc: DryRun,
+            gc_limit: GcLimit(
+                120s,
+            ),
+        },
+    ),
+    Err(
+        Setup(
+            Message(
+                "meta.toml [heartbeat]: tick_seconds < interval_seconds < stale_seconds is required\n",
+            ),
+        ),
+    ),
+    Err(
+        Setup(
+            Message(
+                "meta.toml [heartbeat]: tick_seconds < interval_seconds < stale_seconds is required\n",
+            ),
+        ),
+    ),
+    Err(
+        Setup(
+            Message(
+                "meta.toml [heartbeat]: invalid value: integer `0`, expected a nonzero u64\nin `tick_seconds`\n",
+            ),
+        ),
+    ),
+    Err(
+        Setup(
+            Message(
+                "meta.toml [heartbeat]: unknown field `interval`, expected one of `interval_seconds`, `tick_seconds`, `stale_seconds`, `skew_seconds`, `gc`, `gc_seconds`\n",
+            ),
+        ),
+    ),
+]

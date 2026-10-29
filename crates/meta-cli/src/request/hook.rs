@@ -1,17 +1,22 @@
 mod hook_input;
 mod linking;
 mod reply;
+#[cfg(test)]
+mod tests;
 
 use std::fmt;
+use std::panic::resume_unwind;
 use std::str::FromStr;
+use std::time::{Duration, Instant};
 
 use meta_listing::Scope;
+use meta_run::Budget;
 use meta_schema::Actor;
 
 use crate::request::ci::{SessionDir, Watcher};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
 use crate::request::output::{Listed, Output};
-use crate::request::project::Project;
+use crate::request::project::{CiSettings, Config, Project};
 use hook_input::HookInput;
 use linking::Linking;
 use reply::{Blocking, Denial, Reply, Verdict};
@@ -51,25 +56,55 @@ impl fmt::Display for HookEvent {
 
 impl HookEvent {
     const COMMIT: &'static str = "commit";
+    const PUSH: &'static str = "push";
+    const SHORT: Duration = Duration::from_secs(10);
+    const SESSION: Duration = Duration::from_secs(30);
+    const LONG: Duration = Duration::from_secs(60);
+    pub const MARGIN: Duration = Duration::from_secs(3);
+
+    pub const fn timeout(self) -> Duration {
+        match self {
+            Self::SessionStart => Self::SESSION,
+            Self::PreToolUse | Self::Stop => Self::SHORT,
+            Self::PostToolUse => Self::LONG,
+        }
+    }
+
+    pub fn budget(self, settings: &CiSettings) -> Budget {
+        settings.budget(CiSettings::ROUTINE).within(Instant::now() + self.timeout().saturating_sub(Self::MARGIN))
+    }
 
     pub fn respond(self) -> Result<Output, CliFailure> {
         let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
         let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
-        let reply = Project::try_from(input.cwd().as_path()).ok().map(|project| {
-            let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
-            self.reply(&project, &input).with_news(session.and_then(|dir| dir.news()))
-        });
+        let reply = match Project::found(input.cwd().as_path()) {
+            Ok(Some(project)) => {
+                let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
+                let budget = self.budget(project.ci_settings());
+                Some(self.reply(&project, &input, budget).with_news(session.and_then(|dir| dir.news())))
+            }
+            Ok(None) => self.outside_projects(&input),
+            Err(failure) => Some(self.refused(Listed::new(failure))),
+        };
         let opened = (self == Self::SessionStart).then(|| input.open_session()).and_then(Result::err);
-        let reply = reply.or_else(|| self.outside_projects(&input)).map(|reply| reply.with_news(opened));
+        let reply = reply.map(|reply| reply.with_news(opened));
         Ok(Output::Listed(Listed::new(reply.map(|reply| reply.to_string()).unwrap_or_default())))
     }
 
-    fn reply(self, project: &Project, input: &HookInput) -> Reply {
+    pub fn refused(self, reason: Listed) -> Reply {
+        match self {
+            Self::PreToolUse => Reply::new(self, Verdict::Deny(Denial::from(reason)), None),
+            Self::Stop => Reply::new(self, Verdict::Block(Blocking::from(reason)), None),
+            Self::SessionStart | Self::PostToolUse => Reply::new(self, Verdict::Allow, Some(reason)),
+        }
+    }
+
+    fn reply(self, project: &Project, input: &HookInput, budget: Budget) -> Reply {
         match self {
             Self::SessionStart => {
                 let actor = input.announced_actor().unwrap_or_else(Actor::owner);
                 let state = project
-                    .log()
+                    .log(budget)
                     .and_then(|log| Listed::from_log(&log, None, Scope::Open))
                     .map_or_else(|failure| format!("meta/log unreadable: {failure}\n"), |listed| listed.to_string());
                 let shown = format!(
@@ -82,14 +117,13 @@ impl HookEvent {
                 input
                     .command()
                     .and_then(|command| command.refusal(project.config()))
-                    .or_else(|| input.refusal())
+                    .or_else(|| input.refusal(budget.deadline()))
+                    .or_else(|| input.unpushable(project, Self::PUSH, budget.deadline()))
                     .map(Denial::from)
                     .map_or(Verdict::Allow, Verdict::Deny),
                 None,
             ),
-            Self::PostToolUse => {
-                Reply::new(self, Verdict::Allow, Self::after_push(project, input)).with_news(Linking::after(input))
-            }
+            Self::PostToolUse => Self::after_tool_use(project, input, budget),
             Self::Stop => Reply::new(
                 self,
                 input
@@ -103,14 +137,31 @@ impl HookEvent {
     }
 
     fn outside_projects(self, input: &HookInput) -> Option<Reply> {
-        let linked = (self == Self::PostToolUse).then(|| Linking::after(input)).flatten();
+        let budget = CiSettings::try_from(&Config::default()).map(|settings| self.budget(&settings));
+        let linked = budget.as_ref().ok().filter(|_| self == Self::PostToolUse);
+        let linked = linked.and_then(|budget| Linking::after(input, *budget));
         let linking = linked.map(|linked| Reply::new(self, Verdict::Allow, Some(linked)));
-        let refusal = (self == Self::PreToolUse).then(|| input.refusal()).flatten();
+        let refusal = (self == Self::PreToolUse).then(|| {
+            budget.map_or_else(|failure| Some(Listed::new(failure)), |budget| input.refusal(budget.deadline()))
+        });
+        let refusal = refusal.flatten();
         refusal.map(|refusal| Reply::new(self, Verdict::Deny(Denial::from(refusal)), None)).or(linking)
     }
 
-    fn after_push(project: &Project, input: &HookInput) -> Option<Listed> {
-        let failure = input.command()?.runs(Self::COMMIT).and_then(|()| project.push_failure());
-        failure.or(input.session().and_then(|session| Watcher::watch_all(project, session).err()))
+    fn after_tool_use(project: &Project, input: &HookInput, budget: Budget) -> Reply {
+        let (pushed, linked) = std::thread::scope(|scope| {
+            let linked = scope.spawn(|| Linking::after(input, budget));
+            (Self::after_push(project, input, budget), linked.join())
+        });
+        let linked = linked.unwrap_or_else(|panic| resume_unwind(panic));
+        Reply::new(Self::PostToolUse, Verdict::Allow, pushed).with_news(linked)
+    }
+
+    fn after_push(project: &Project, input: &HookInput, budget: Budget) -> Option<Listed> {
+        let command = input.command()?;
+        let failure = command.runs(Self::COMMIT).and_then(|()| {
+            input.unpushable(project, Self::COMMIT, budget.deadline()).or_else(|| project.push_failure(budget))
+        });
+        failure.or(input.session().and_then(|session| Watcher::watch_all(project, session, budget).err()))
     }
 }

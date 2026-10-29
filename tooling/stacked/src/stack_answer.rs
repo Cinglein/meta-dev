@@ -1,4 +1,6 @@
 use std::str::FromStr;
+use std::thread;
+use std::time::Duration;
 
 use task::BranchName;
 use task::Failure;
@@ -13,6 +15,25 @@ impl StackAnswer {
 
     pub fn on_default_branch(base: BranchName, default: &BranchName) -> Option<StackAnswer> {
         (base == *default).then_some(StackAnswer { base, stack: None })
+    }
+
+    pub fn settled(
+        mut ask: impl FnMut() -> Result<StackAnswer, Failure>,
+        default: &BranchName,
+        waits: &[Duration],
+    ) -> Result<StackAnswer, Failure> {
+        waits.iter().try_fold(ask()?, |answer, wait| {
+            if answer.is_loose(default) {
+                thread::sleep(*wait);
+                ask()
+            } else {
+                Ok(answer)
+            }
+        })
+    }
+
+    fn is_loose(&self, default: &BranchName) -> bool {
+        self.base != *default && self.stack.is_none()
     }
 
     pub fn verdict(&self, number: &str, default: &BranchName) -> Result<String, Failure> {
@@ -38,9 +59,15 @@ impl FromStr for StackAnswer {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
+    use std::time::Duration;
+
     use super::StackAnswer;
     use task::BranchName;
     const ANSWERS: [&str; 3] = ["trunk none", "feature 12", "feature none"];
+    const WAITS: [Duration; 2] = [Duration::from_millis(1); 2];
+    const STACKS_ON_ASK: [usize; 3] = [1, 3, 9];
+    const OUTCOMES: [(usize, bool); 3] = [(1, true), (3, true), (3, false)];
     const BASES: [&str; 2] = ["trunk", "feature"];
     const NUMBER: &str = "7";
 
@@ -51,6 +78,23 @@ mod tests {
         let [on_default, stacked, loose] = ANSWERS.map(verdict);
         let fine = on_default.is_ok() && stacked.unwrap().contains("stack #12") && loose.is_err();
         assert!(fine && "garbage".parse::<StackAnswer>().is_err());
+    }
+
+    #[test]
+    fn a_loose_answer_is_asked_again_once_per_wait_and_a_stacked_one_ends_the_asking() {
+        let trunk: BranchName = BASES[0].parse().unwrap();
+        let [_, stacked, loose] = ANSWERS;
+        let asked = Cell::<usize>::default();
+        let settle = |stacks_on: usize| {
+            asked.take();
+            let ask = || {
+                asked.set(asked.get() + 1);
+                if asked.get() < stacks_on { loose } else { stacked }.parse()
+            };
+            let answer = StackAnswer::settled(ask, &trunk, &WAITS).unwrap();
+            (asked.get(), answer.verdict(NUMBER, &trunk).is_ok())
+        };
+        assert_eq!(STACKS_ON_ASK.map(settle), OUTCOMES);
     }
 
     #[test]

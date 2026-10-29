@@ -7,6 +7,7 @@ use serde::Deserialize;
 
 use crate::conclusion::Conclusion;
 use crate::database_id::DatabaseId;
+use crate::nodes::Nodes;
 use crate::outcome::Outcome;
 use gh_step::GhStep;
 use job_name::JobName;
@@ -19,7 +20,7 @@ pub struct GhJob {
     #[serde(default)]
     conclusion: Option<Conclusion>,
     #[serde(default)]
-    steps: Vec<GhStep>,
+    steps: Nodes<GhStep>,
 }
 
 impl GhJob {
@@ -29,7 +30,7 @@ impl GhJob {
 
     #[must_use]
     pub fn unstarted(&self) -> Option<()> {
-        (self.conclusion == Some(Conclusion::Failure) && self.steps.is_empty()).then_some(())
+        (self.conclusion == Some(Conclusion::Failure) && self.steps.nodes().is_empty()).then_some(())
     }
 
     #[must_use]
@@ -39,7 +40,7 @@ impl GhJob {
 
     pub fn failed_steps(&self) -> Vec<String> {
         let steps: Vec<String> =
-            self.steps.iter().filter_map(GhStep::failure).map(|step| format!("{self} / {step}")).collect();
+            self.steps.nodes().iter().filter_map(GhStep::failure).map(|step| format!("{self} / {step}")).collect();
         self.failure().map_or_else(Vec::new, |_| if steps.is_empty() { vec![self.to_string()] } else { steps })
     }
 }

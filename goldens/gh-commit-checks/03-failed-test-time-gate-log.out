@@ -1,0 +1,27 @@
+ci-gate	Run echo '{	﻿2026-10-28T17:02:24.1401874Z ##[group]Run echo '{
+ci-gate	Run echo '{	2026-10-28T17:02:24.1402657Z ^[[36;1mecho '{^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1403505Z ^[[36;1m  "ci": {^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1404106Z ^[[36;1m    "result": "failure",^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1405310Z ^[[36;1m    "outputs": {}^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1405981Z ^[[36;1m  },^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1406580Z ^[[36;1m  "stacked": {^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1407294Z ^[[36;1m    "result": "skipped",^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1407932Z ^[[36;1m    "outputs": {}^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1408547Z ^[[36;1m  },^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1409121Z ^[[36;1m  "mutants-plan": {^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1409785Z ^[[36;1m    "result": "skipped",^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1410503Z ^[[36;1m    "outputs": {}^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1411089Z ^[[36;1m  },^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1411605Z ^[[36;1m  "mutants": {^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1412362Z ^[[36;1m    "result": "skipped",^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1412989Z ^[[36;1m    "outputs": {}^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1413648Z ^[[36;1m  },^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1414194Z ^[[36;1m  "mutant-costs": {^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1415145Z ^[[36;1m    "result": "success",^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1415808Z ^[[36;1m    "outputs": {}^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1416418Z ^[[36;1m  }^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1417141Z ^[[36;1m}' | grep -qE '"result": "(failure|cancelled)"' && exit 1^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.1417996Z ^[[36;1mecho "every job passed or was not needed"^[[0m
+ci-gate	Run echo '{	2026-10-28T17:02:24.2296506Z shell: /usr/bin/bash -e {0}
+ci-gate	Run echo '{	2026-10-28T17:02:24.2297704Z ##[endgroup]
+ci-gate	Run echo '{	2026-10-28T17:02:24.2608877Z ##[error]Process completed with exit code 1.

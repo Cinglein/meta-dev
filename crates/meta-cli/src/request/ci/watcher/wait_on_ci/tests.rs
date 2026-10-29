@@ -3,6 +3,8 @@ use meta_state::State;
 
 use super::WaitOnCi;
 use crate::request::ci::Commit;
+use crate::request::ci::ci_status::CiStatus;
+use crate::request::ci::watcher::stop_view::Watched;
 use crate::request::cli_failure::{CliFailure, Invalid};
 
 const ACTOR: &str = "agent";
@@ -13,6 +15,11 @@ const RESUME: &str = "`meta resume task-";
 const REOPEN: &str = "`meta reopen task-";
 const BROKEN: &str = "fetch refused";
 const CHECKOUT_OLD: &str = "`git checkout --detach 6c1ea3b4d9f1f48d98517b891f4283d6f0e55b94`";
+const WORDING: [&str; 3] = [
+    "a task waits at one commit only; each other unresolved commit needs its own task",
+    "push a rerun to that commit's branch",
+    "check the branch out again after detaching; a detached HEAD cannot push",
+];
 const UNREADABLE: &str = "meta/log unreadable: ";
 
 struct Board {
@@ -45,28 +52,31 @@ impl Board {
 }
 
 #[test]
-fn a_wait_covers_only_its_own_head_whatever_the_branch() {
+fn a_wait_covers_only_its_own_head_says_resume_or_reopen_for_a_branch_task_and_retries_an_unreadable_log() {
     let waiting = Board::claimed().waiting_at(OLD);
     let ready = Board::claimed();
     assert_eq!([waiting.judged(OLD, None), waiting.judged(HEAD, None)], [WaitOnCi::Recorded, WaitOnCi::Taskless]);
     assert_eq!(ready.judged(HEAD, Some(ready.task)), WaitOnCi::Unrecorded(ready.task));
-}
-
-#[test]
-fn a_branch_task_waiting_elsewhere_says_resume_and_a_done_one_says_reopen() {
-    let waiting = Board::claimed().waiting_at(OLD);
+    let timed_out = [Watched::new(OLD.parse().unwrap(), Some(CiStatus::TimedOut))];
+    let states = [&waiting, &ready].map(|board| Ok(State::fold(&board.records)));
+    let blocked = states.map(|state| WaitOnCi::verdict(&state, &timed_out, OLD.parse().ok().as_ref(), None).is_some());
+    assert_eq!(blocked, [false, true]);
     let done = Board::claimed().then(|task| Event::TaskDone(TaskRef::new(task)));
     let shown =
         [waiting.judged(HEAD, Some(waiting.task)), done.judged(HEAD, Some(done.task))].map(|wait| wait.to_string());
     assert!(shown[0].contains(RESUME) && shown[1].contains(REOPEN));
-}
-
-#[test]
-fn a_wait_at_head_leaves_another_unresolved_commit_blocked_and_an_unreadable_log_says_so() {
     let state = State::fold(&Board::claimed().waiting_at(HEAD).records);
     let elsewhere = WaitOnCi::in_state(&state, Some(&OLD.parse().unwrap()), Some(&HEAD.parse().unwrap()), None);
     let Ok(old) = OLD.parse::<Commit>();
     let unreadable = WaitOnCi::judging(&Err(CliFailure::raised::<Invalid>(BROKEN)), &old, None, None);
-    assert!(elsewhere.to_string().contains(CHECKOUT_OLD));
+    let shown = elsewhere.to_string();
+    assert!(shown.contains(CHECKOUT_OLD));
+    assert!(WORDING.iter().all(|part| shown.contains(part)));
     assert!(unreadable.unwrap_err().to_string().starts_with(UNREADABLE));
+    let calls = std::cell::Cell::new(0);
+    let flaky = || (calls.replace(calls.get() + 1) > 0).then(meta_log::Snapshot::default);
+    let read = WaitOnCi::state_read(meta_run::Budget::new(std::time::Duration::ZERO), || {
+        flaky().ok_or_else(|| CliFailure::raised::<Invalid>(BROKEN))
+    });
+    assert!(read.is_ok() && calls.get() == 2);
 }

@@ -38,6 +38,14 @@ surfaces = [
 default = "main"
 base = "origin/main"
 
+[supply_chain]
+licenses = ["MIT"]
+registries = ["https://github.com/rust-lang/crates.io-index"]
+git = []
+ignored_advisories = []
+duplicates = "warn"
+semver = []
+
 [limits]
 parameters = 4
 nesting = 2
@@ -51,6 +59,7 @@ literals_per_test = 4
 largest_integer = 64
 scc_items = 40
 slowest_shown = 5
+reference_spawns = 1000
 types_per_method_shape = 2
 
 [floors]

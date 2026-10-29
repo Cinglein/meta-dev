@@ -2,7 +2,6 @@ mod enforcer;
 mod item_filter;
 mod item_kind;
 mod mutation_job;
-mod tally;
 mod unit;
 
 use serde::{Deserialize, Serialize};
@@ -14,7 +13,6 @@ pub use enforcer::Enforcer;
 pub use item_filter::ItemFilter;
 pub use item_kind::ItemKind;
 pub use mutation_job::MutationJob;
-pub use tally::Tally;
 pub use unit::Unit;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Display, Serialize, Deserialize)]
@@ -22,6 +20,7 @@ pub use unit::Unit;
 #[strum(serialize_all = "snake_case")]
 pub enum Measure {
     TestWallTime,
+    TestCpuTime,
     SlowestTest,
     #[strum(to_string = "workflow_wall_time {0}")]
     WorkflowWallTime(MutationJob),
@@ -31,7 +30,6 @@ pub enum Measure {
     TangleItems,
     #[strum(to_string = "open_items {0}")]
     OpenItems(ItemFilter),
-    Words,
     EffectShare,
     EffectDispersion,
 }
@@ -40,14 +38,14 @@ impl Measure {
     #[must_use]
     pub const fn unit(&self) -> Unit {
         match self {
-            Measure::TestWallTime | Measure::SlowestTest | Measure::WorkflowWallTime(_) => {
-                Unit::Duration
-            }
+            Measure::TestWallTime
+            | Measure::TestCpuTime
+            | Measure::SlowestTest
+            | Measure::WorkflowWallTime(_) => Unit::Duration,
             Measure::MutantPrice | Measure::TestLineShare | Measure::EffectShare => Unit::Share,
-            Measure::TangleItems
-            | Measure::OpenItems(_)
-            | Measure::Words
-            | Measure::EffectDispersion => Unit::Count,
+            Measure::TangleItems | Measure::OpenItems(_) | Measure::EffectDispersion => {
+                Unit::Count
+            }
             Measure::LintFindings => Unit::Baseline,
         }
     }
@@ -55,14 +53,14 @@ impl Measure {
     #[must_use]
     pub const fn scope(&self) -> Option<ScopeKind> {
         match self {
-            Measure::TestWallTime | Measure::SlowestTest => Some(ScopeKind::Tests),
+            Measure::TestWallTime | Measure::TestCpuTime | Measure::SlowestTest => {
+                Some(ScopeKind::Tests)
+            }
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Some(ScopeKind::Workflows),
             Measure::TangleItems | Measure::EffectShare | Measure::EffectDispersion => {
                 Some(ScopeKind::Crates)
             }
-            Measure::LintFindings | Measure::TestLineShare | Measure::Words => {
-                Some(ScopeKind::Paths)
-            }
+            Measure::LintFindings | Measure::TestLineShare => Some(ScopeKind::Paths),
             Measure::OpenItems(_) => None,
         }
     }
@@ -71,9 +69,9 @@ impl Measure {
     pub const fn enforcer(&self) -> Enforcer {
         match self {
             Measure::TestWallTime
+            | Measure::TestCpuTime
             | Measure::SlowestTest
             | Measure::OpenItems(_)
-            | Measure::Words
             | Measure::EffectShare
             | Measure::EffectDispersion => Enforcer::Checker,
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Enforcer::MutationJobs,
@@ -86,43 +84,26 @@ impl Measure {
         match self {
             Measure::OpenItems(filter) => Some(filter),
             Measure::TestWallTime
+            | Measure::TestCpuTime
             | Measure::SlowestTest
             | Measure::WorkflowWallTime(_)
             | Measure::MutantPrice
             | Measure::LintFindings
             | Measure::TestLineShare
             | Measure::TangleItems
-            | Measure::Words
             | Measure::EffectShare
             | Measure::EffectDispersion => None,
         }
     }
 
     #[must_use]
-    pub const fn tally(&self) -> Tally {
-        match self {
-            Measure::Words => Tally::DomainFiles,
-            Measure::TestWallTime
-            | Measure::SlowestTest
-            | Measure::WorkflowWallTime(_)
-            | Measure::MutantPrice
-            | Measure::LintFindings
-            | Measure::TestLineShare
-            | Measure::TangleItems
-            | Measure::OpenItems(_)
-            | Measure::EffectShare
-            | Measure::EffectDispersion => Tally::WholeScope,
-        }
-    }
-
-    #[must_use]
     pub const fn window(&self) -> Window {
         match self {
-            Measure::OpenItems(_)
-            | Measure::Words
-            | Measure::EffectShare
-            | Measure::EffectDispersion => Window::Standing,
+            Measure::OpenItems(_) | Measure::EffectShare | Measure::EffectDispersion => {
+                Window::Standing
+            }
             Measure::TestWallTime
+            | Measure::TestCpuTime
             | Measure::SlowestTest
             | Measure::WorkflowWallTime(_)
             | Measure::MutantPrice

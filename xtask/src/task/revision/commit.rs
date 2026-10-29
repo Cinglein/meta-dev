@@ -1,7 +1,9 @@
+use std::ffi::OsStr;
 use std::fmt;
 use std::path::Path;
 use std::str::FromStr;
 
+use super::TrackedPath;
 use crate::task::failure::Failure;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -10,6 +12,10 @@ pub struct Commit(String);
 impl Commit {
     pub fn object(&self, path: &Path) -> String {
         format!("{}:./{}", self.0, path.display())
+    }
+
+    pub fn tracked(&self, path: TrackedPath) -> String {
+        format!("{}:{}", self.0, path.path().display())
     }
 }
 
@@ -21,6 +27,12 @@ impl FromStr for Commit {
         (!id.is_empty() && id.chars().all(|digit| digit.is_ascii_hexdigit()))
             .then(|| Commit(id.to_owned()))
             .ok_or(Failure::Task(task::Failure::NoMergeBase))
+    }
+}
+
+impl AsRef<OsStr> for Commit {
+    fn as_ref(&self) -> &OsStr {
+        OsStr::new(&self.0)
     }
 }
 

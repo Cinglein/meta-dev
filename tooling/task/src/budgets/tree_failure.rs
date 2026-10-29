@@ -21,7 +21,7 @@ pub enum TreeFailure {
     #[error("budget {0}: its measure needs {1}, which its division's domain does not declare")]
     Unmeasurable(BudgetId, ScopeKind),
     #[error(
-        "budget {0}: its division's domain covers only part of {1}; only file sums measure part of a scope"
+        "budget {0}: its division's domain covers only part of {1}; partial domains are not measured yet"
     )]
     PartlyMeasurable(BudgetId, ScopeKind),
     #[error("budget {0}: another top-level budget has its measure")]
@@ -32,9 +32,7 @@ pub enum TreeFailure {
     Overflow(BudgetId),
     #[error("budget {0}: a baseline budget has no parts")]
     BaselinePart(BudgetId),
-    #[error(
-        "budget {0}: open items, words and effects take a standing window; every other measure, per change"
-    )]
+    #[error("budget {0}: open items and effects take a standing window; every other measure, per change")]
     OtherWindow(BudgetId),
     #[error("budget {0}: its measure is not the measure of the budget it is part of")]
     OtherMeasure(BudgetId),

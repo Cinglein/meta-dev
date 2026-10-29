@@ -1,6 +1,7 @@
 mod baseline_file;
 mod bit_boundary;
 mod floor;
+mod key_name;
 mod least;
 mod limit;
 mod most;
@@ -8,6 +9,7 @@ mod policy_failure;
 mod policy_file;
 mod share;
 mod spec_settings;
+mod supply_chain;
 mod surface;
 mod vague;
 #[cfg(test)]
@@ -43,6 +45,7 @@ use policy_file::PolicyFile;
 use serde::{Deserialize, Serialize, Serializer};
 #[cfg(any(test, feature = "test-policy"))]
 use settings::EmbeddedDefaults;
+use supply_chain::SupplyChain;
 use vague::Vague;
 use vocabulary::Vocabulary;
 
@@ -80,6 +83,7 @@ pub struct Policy {
     budgets: Budgets,
     deprecated: Vec<LegacyKey>,
     spec: Option<SpecSettings>,
+    supply_chain: SupplyChain,
 }
 
 #[cfg(any(test, feature = "test-policy"))]
@@ -211,6 +215,11 @@ impl Policy {
     }
 
     #[must_use]
+    pub fn supply_chain(&self) -> &SupplyChain {
+        &self.supply_chain
+    }
+
+    #[must_use]
     pub fn surfaces(&self) -> &[Surface] {
         &self.surfaces
     }
@@ -257,6 +266,7 @@ mod tests {
     const CHECK: &str = "check";
     const LONG_ENOUGH: &str = "report";
     const TEST_TIME: &str = "extra-time";
+    const EXTRA: &str = "performance-and-cost/extra";
     const BUDGET: &str = "\n[domains.\"performance-and-cost/extra\"]\ntests = [\"*\"]\n\n[budgets.extra-time]\ndivision = \"performance-and-cost/extra\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
 
     #[test]
@@ -293,5 +303,6 @@ mod tests {
                 .budget(&TEST_TIME.parse().unwrap())
                 .is_some()
         );
+        assert!(budgeted.domains().domain(&EXTRA.parse().unwrap()).is_some());
     }
 }

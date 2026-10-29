@@ -1,0 +1,7 @@
+Ok(
+    Ident(
+        Email(
+            "someone@example.com",
+        ),
+    ),
+)

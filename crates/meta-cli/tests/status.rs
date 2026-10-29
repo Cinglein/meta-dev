@@ -12,13 +12,14 @@ use skeleton::Skeleton;
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
 const OWNER: &str = "owner";
+const CLAIMED: &str = "TaskClaimed";
 const STATUS_FLAGS: [&str; 2] = ["status", "--flags"];
 const ORPHAN: &str = "orphan #8: open, no task\n";
 const FAKE_GH: &str = r#"#!/bin/sh
 case "$1 $2" in
 "pr list") echo 7 ;;
 "api graphql") echo '{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[{"number":7,"state":"OPEN","baseRefName":"main","statusCheckRollup":null},{"number":8,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}]}},"linked":{"pr7":{"number":7,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}},"trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}}}' ;;
-"api repos/{owner}/{repo}/rules/branches/main") echo '[]' ;;
+"api repos/{owner}/{repo}/rules/branches/main"|"api repos/{owner}/{repo}/branches/main") echo '[]' ;;
 esac
 "#;
 
@@ -69,7 +70,7 @@ impl std::fmt::Display for Project {
 #[test]
 fn opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_the_rest() {
     let project = Project::new();
-    SeededLog::CLAIMED.plant(project.origin.path());
+    SeededLog::through(CLAIMED).plant(project.origin.path());
     let elsewhere = tempfile::tempdir().unwrap();
     let shell = format!("cd {project} && gh pr create --fill");
     let input = serde_json::json!({ "cwd": elsewhere.path(), "tool_input": { "command": shell } }).to_string();

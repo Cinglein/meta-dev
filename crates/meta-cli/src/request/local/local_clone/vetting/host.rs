@@ -5,12 +5,13 @@ mod freeze_tests;
 #[cfg(test)]
 mod tests;
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::io::{ErrorKind, Write as _};
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::sync::{Mutex, PoisonError};
+
+use meta_run::{EnvPolicy, Environment, Run};
 
 use super::alternates::Alternates;
 use super::cause::Cause;
@@ -23,22 +24,22 @@ use super::occupancy::Occupancy;
 use super::thaw::{Thaw, Thawed};
 use crate::request::local::LocalFile;
 use crate::request::local::local_clone::quarantine::Stamp;
+use crate::request::project::CiSettings;
 use walker::Walker;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Host {
-    lenders: RefCell<HashMap<PathBuf, Vec<Alternates>>>,
+    lenders: Mutex<HashMap<PathBuf, Vec<Alternates>>>,
+    settings: CiSettings,
 }
 
 impl Host {
+    const LSOF: &'static str = "lsof";
     const LISTING: [&'static str; 3] = ["-w", "-F", "n"];
     const RECURSIVE: &'static str = "+D";
 
-    fn ran(mut command: Command, input: Option<&str>) -> std::io::Result<Output> {
-        let piped = input.map_or_else(Stdio::null, |_| Stdio::piped());
-        let mut child = command.stdin(piped).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
-        input.zip(child.stdin.take()).map(|(input, mut pipe)| pipe.write_all(input.as_bytes())).transpose()?;
-        child.wait_with_output()
+    pub fn new(settings: CiSettings) -> Self {
+        Self { lenders: Mutex::default(), settings }
     }
 
     fn lenders(&self, root: &Path) -> Vec<Alternates> {
@@ -48,6 +49,13 @@ impl Host {
             self.text(&file).map(|listed| Alternates::new(objects, &listed))
         });
         listed.collect()
+    }
+}
+
+#[cfg(test)]
+impl Default for Host {
+    fn default() -> Self {
+        Self::new(CiSettings::try_from(&crate::request::project::Config::default()).unwrap())
     }
 }
 
@@ -71,14 +79,10 @@ impl Inspection for Host {
     }
 
     fn git(&self, call: &GitCall) -> Result<String, Kept> {
-        let command = call.command(std::env::vars_os().map(|(name, _)| name));
-        let ran = Self::ran(command, call.input());
+        let ran = call.run(Environment::current()).ran(self.settings.budget(CiSettings::ROUTINE).deadline());
         let ran = ran.map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
-        let shown = |stream: &[u8]| String::from_utf8_lossy(stream).into_owned();
-        ran.status
-            .success()
-            .then(|| shown(&ran.stdout))
-            .ok_or_else(|| Kept::Uninspected(Cause::new(shown(&ran.stderr))))
+        let output = ran.stdout().text().into_owned();
+        ran.success().then_some(output).ok_or_else(|| Kept::Uninspected(Cause::new(ran.stderr())))
     }
 
     fn walked(&self, path: &Path) -> Vec<Found> {
@@ -86,22 +90,19 @@ impl Inspection for Host {
     }
 
     fn neighbours(&self, root: &Path) -> Vec<Alternates> {
-        let known = self.lenders.borrow().get(root).cloned();
-        known.unwrap_or_else(|| {
-            let lenders = self.lenders(root);
-            self.lenders.borrow_mut().insert(root.to_path_buf(), lenders.clone());
-            lenders
-        })
+        let mut known = self.lenders.lock().unwrap_or_else(PoisonError::into_inner);
+        known.entry(root.to_path_buf()).or_insert_with(|| self.lenders(root)).clone()
     }
 
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
         let scanned = paths.iter().flat_map(|path| [OsStr::new(Self::RECURSIVE), path.as_os_str()]);
-        match Command::new("lsof").args(Self::LISTING).args(scanned).output() {
-            Ok(listed) if listed.stderr.is_empty() => {
-                let Ok(occupancy) = String::from_utf8_lossy(&listed.stdout).parse();
+        let listing = Run::new(Self::LSOF, EnvPolicy::Inherit).args(Self::LISTING).args(scanned);
+        match listing.ran(self.settings.budget(CiSettings::ROUTINE).deadline()) {
+            Ok(listed) if listed.stderr().first_line().is_none() => {
+                let Ok(occupancy) = listed.stdout().text().parse();
                 occupancy
             }
-            Ok(listed) => Occupancy::Unlisted(Cause::new(String::from_utf8_lossy(&listed.stderr))),
+            Ok(listed) => Occupancy::Unlisted(Cause::new(listed.stderr())),
             Err(failure) => Occupancy::Unlisted(Cause::new(failure)),
         }
     }

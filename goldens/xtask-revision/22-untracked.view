@@ -1,0 +1,9 @@
+Ok(
+    Ok(
+        GitPaths(
+            [
+                "tooling/new.toml",
+            ],
+        ),
+    ),
+)

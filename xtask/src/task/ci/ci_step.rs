@@ -5,6 +5,7 @@ use strum::{Display, EnumIter, EnumString};
 use crate::task::clippy::Clippy;
 use crate::task::failure::Failure;
 use crate::task::lint::Lint;
+use crate::task::supply::Supply;
 use task::Ledger;
 use task::Policy;
 use task::Selection;
@@ -21,6 +22,7 @@ pub enum CiStep {
     Test,
     Lint,
     Spec,
+    Supply,
 }
 
 impl CiStep {
@@ -57,6 +59,9 @@ impl CiStep {
                     .run()
                     .map_err(Failure::from)
             }),
+            CiStep::Supply => {
+                Supply::deny(workspace, policy).and_then(|()| Supply::semver(workspace, selection, policy))
+            }
         };
         let elapsed = started.elapsed();
         println!("ci: {self} {elapsed:.1?}");
@@ -72,7 +77,7 @@ mod tests {
     use crate::task::Task;
     use test_time::TestRunner;
 
-    const STEPS: [&str; 5] = ["fmt", "clippy", "test", "lint", "spec"];
+    const STEPS: [&str; 6] = ["fmt", "clippy", "test", "lint", "spec", "supply"];
 
     #[test]
     fn the_suite_runs_once_in_the_one_step_that_also_times_it_through_the_runner_task() {

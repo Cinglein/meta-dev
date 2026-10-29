@@ -1,9 +1,8 @@
-use meta_schema::{Division, NewTask, Placement, Target, Text};
+use meta_schema::{Division, NewTask, Placement, Target};
 use meta_severity::Scales;
 use meta_state::RatedItem;
 
 use crate::budgets::budget::ItemFilter;
-use crate::budgets::word_count::WordCount;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OpenItem {
@@ -11,7 +10,6 @@ pub struct OpenItem {
     placement: Placement,
     marks: Vec<ItemFilter>,
     rated: Option<RatedItem>,
-    words: WordCount,
 }
 
 impl OpenItem {
@@ -27,15 +25,6 @@ impl OpenItem {
             placement,
             marks,
             rated,
-            words: WordCount::default(),
-        }
-    }
-
-    #[must_use]
-    pub fn worded(self, text: &Text) -> OpenItem {
-        OpenItem {
-            words: WordCount::from(text),
-            ..self
         }
     }
 
@@ -43,7 +32,7 @@ impl OpenItem {
     pub fn counts_in(&self, filter: &ItemFilter, division: &Division, scales: &Scales) -> bool {
         filter.severity().map_or_else(
             || {
-                filter.picked(&self.marks, self.words.most()).is_some()
+                self.marks.contains(filter)
                     && self.placement.division().is_some_and(|placed| {
                         division == placed || division.strictly_contains(placed)
                     })

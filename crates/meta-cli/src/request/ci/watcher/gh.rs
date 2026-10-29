@@ -1,89 +1,90 @@
+mod commit_checks;
 mod gh_jobs;
+mod gh_suite;
 mod observation;
 mod raw_log;
 
 use std::ffi::OsString;
-use std::path::PathBuf;
-use std::process::Command;
-use std::time::Instant;
+use std::path::Path;
+use std::time::{Duration, Instant};
 
-use crate::request::ci::ci_status::CiStatus;
 use crate::request::ci::commit::Commit;
 use crate::request::output::Listed;
-use crate::request::project::ProgramName;
-use crate::request::timed_command::TimedCommand;
-use gh_jobs::GhJobs;
-use meta_gh::GhRun;
+use crate::request::project::{CiSettings, LogWindow};
+use crate::request::repository::Repository;
+use commit_checks::CommitChecks;
+use meta_run::{GhArgv, Port};
 pub use observation::Observation;
 pub use raw_log::RawLog;
 
 #[derive(Clone, Debug)]
 pub struct Gh {
-    program: ProgramName,
-    root: PathBuf,
+    port: Port<GhArgv>,
     deadline: Instant,
+    limit: Duration,
 }
 
 impl Gh {
-    const RUN: &'static str = "run";
-    const LIST: &'static str = "list";
-    const VIEW: &'static str = "view";
-    const COMMIT: &'static str = "--commit";
-    const JSON: &'static str = "--json";
-    const RUN_FIELDS: &'static str = "databaseId,status,conclusion";
-    const JOB_FIELDS: &'static str = "jobs";
-    const JOB: &'static str = "--job";
-    const LOG_FAILED: &'static str = "--log-failed";
+    const FAILED: &'static str = "gh failed: ";
 
-    pub fn new(program: ProgramName, root: PathBuf, deadline: Instant) -> Self {
-        Self { program, root, deadline }
+    pub fn new(settings: &CiSettings, root: &Path, deadline: Instant) -> Self {
+        Self { port: Port::named(settings.program(), root), deadline, limit: settings.gh_limit() }
     }
 
-    pub fn observe(&self, commit: &Commit) -> Result<Observation, Listed> {
-        let runs = self.runs(commit)?;
-        let jobs = runs.iter().map(|run| self.jobs(run)).collect::<Result<Vec<GhJobs>, Listed>>()?;
-        let refused = runs.iter().zip(&jobs).try_for_each(|(run, jobs)| run.failed().and(jobs.unstarted()).map(|_| ()));
-        let status = CiStatus::of_runs(&runs).map(|status| refused.map_or(status, |()| status.unstarted()));
-        let reported = refused.map_or(jobs.as_slice(), |()| &[]);
-        let failed_job = reported.iter().find_map(GhJobs::first_failure);
-        Ok(Observation::new(reported.iter().flat_map(GhJobs::failed_steps).collect(), failed_job, status))
+    pub fn observe(&self, repository: &Repository, commit: &Commit) -> Result<Observation, Listed> {
+        self.checks(repository, commit).map(|checks| Observation::from(&checks))
     }
 
-    pub fn failed_logs(&self, commits: &[Commit]) -> RawLog {
-        let logs: Vec<String> = commits
-            .iter()
-            .flat_map(|commit| self.runs(commit).unwrap_or_default())
-            .filter_map(|run| self.jobs(&run).ok())
-            .flat_map(|jobs| jobs.failed_job_ids())
-            .filter_map(|job| {
-                let words = [Self::RUN, Self::VIEW, Self::JOB].map(OsString::from).into_iter().chain([job]);
-                self.text(words.chain([OsString::from(Self::LOG_FAILED)])).ok()
-            })
-            .collect();
-        let Ok(raw) = logs.concat().parse();
-        raw
+    pub fn failed_excerpt(&self, repository: &Repository, commits: &[Commit], window: &LogWindow) -> Listed {
+        let checks: Vec<Result<CommitChecks, Listed>> =
+            commits.iter().map(|commit| self.checks(repository, commit)).collect();
+        let jobs: Vec<OsString> = checks.iter().flatten().flat_map(CommitChecks::failed_job_ids).collect();
+        let logs: Vec<Result<String, Listed>> = jobs.into_iter().map(|job| self.download(job)).collect();
+        Self::excerpt(&checks, &logs, window)
     }
 
-    fn runs(&self, commit: &Commit) -> Result<Vec<GhRun>, Listed> {
-        let list = [Self::RUN, Self::LIST, Self::COMMIT].map(OsString::from).into_iter().chain([commit.argument()]);
-        self.json(list.chain([Self::JSON, Self::RUN_FIELDS].map(OsString::from)))
+    pub fn excerpt(
+        checks: &[Result<CommitChecks, Listed>],
+        logs: &[Result<String, Listed>],
+        window: &LogWindow,
+    ) -> Listed {
+        let text: String = logs.iter().flatten().map(String::as_str).collect();
+        let troubles = checks.iter().filter_map(|found| found.as_ref().err());
+        let troubles = troubles.chain(logs.iter().filter_map(|log| log.as_ref().err()));
+        let Ok(raw): Result<RawLog, _> = text.parse();
+        troubles.fold(raw.excerpt(window), |shown, trouble| shown.then("\n").then(trouble))
     }
 
-    fn jobs(&self, run: &GhRun) -> Result<GhJobs, Listed> {
-        let view = [Self::RUN, Self::VIEW].map(OsString::from).into_iter().chain([run.database_id().argument()]);
-        self.json(view.chain([Self::JSON, Self::JOB_FIELDS].map(OsString::from)))
+    pub fn checks_in(reply: &str) -> Result<CommitChecks, Listed> {
+        let found: Option<CommitChecks> = serde_json::from_str(reply).map_err(Self::failed)?;
+        Ok(found.unwrap_or_default())
     }
 
-    fn text(&self, words: impl Iterator<Item = OsString>) -> Result<String, Listed> {
-        let mut command = Command::new(&self.program);
-        command.args(words).current_dir(&self.root);
-        TimedCommand::new(command, self.deadline).stdout()
+    pub fn deadline_of(&self, call: GhArgv, now: Instant) -> Instant {
+        match call {
+            GhArgv::CommitChecks => self.deadline.min(now + self.limit),
+            GhArgv::FailedLog => self.deadline,
+        }
     }
 
-    fn json<Parsed: serde::de::DeserializeOwned>(
-        &self,
-        words: impl Iterator<Item = OsString>,
-    ) -> Result<Parsed, Listed> {
-        self.text(words).and_then(|text| serde_json::from_str(&text).map_err(Listed::new))
+    pub fn failed(trouble: impl std::fmt::Display) -> Listed {
+        Listed::new(Self::FAILED).then(trouble)
+    }
+
+    fn download(&self, job: OsString) -> Result<String, Listed> {
+        let deadline = self.deadline_of(GhArgv::FailedLog, Instant::now());
+        let log = self.port.reported(GhArgv::FailedLog, [job], deadline).map_err(Self::failed)?;
+        Ok(log.text().into_owned())
+    }
+
+    fn checks(&self, repository: &Repository, commit: &Commit) -> Result<CommitChecks, Listed> {
+        let deadline = self.deadline_of(GhArgv::CommitChecks, Instant::now());
+        let text = self.port.reported(GhArgv::CommitChecks, repository.variables(commit), deadline);
+        Self::checks_in(&text.map_err(Self::failed)?.text())
     }
 }
+
+#[cfg(test)]
+pub mod replies;
+#[cfg(test)]
+mod tests;

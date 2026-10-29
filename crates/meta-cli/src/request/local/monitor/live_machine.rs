@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
-use std::process::Command;
 use std::time::{Duration, Instant};
+
+use meta_run::{EnvPolicy, Ran, Run, RunFailure};
 
 use super::machine::Machine;
 use super::pid_list::PidList;
@@ -8,7 +9,6 @@ use super::process_row::Pid;
 use super::signal::Signal;
 use super::target::Target;
 use crate::request::local::local_settings::MonitorSettings;
-use crate::request::timed_command::TimedCommand;
 
 #[derive(Clone, Copy, Debug)]
 pub struct LiveMachine<'settings> {
@@ -25,42 +25,38 @@ impl<'settings> LiveMachine<'settings> {
     const END_OF_OPTIONS: &'static str = "--";
     const LOCALE: &'static str = "LC_ALL";
     const PLAIN: &'static str = "C";
+    const SEARCH_PATH: [&'static str; 1] = ["PATH"];
 
     pub fn new(settings: &'settings MonitorSettings) -> Self {
         Self { settings }
     }
 
-    fn timed(self, mut command: Command) -> TimedCommand {
-        command.env(Self::LOCALE, Self::PLAIN);
-        TimedCommand::new(command, self.settings.probe_deadline(Instant::now()))
+    fn probe(program: &str) -> Run {
+        Run::new(program, EnvPolicy::Only(&Self::SEARCH_PATH)).var(Self::LOCALE, Self::PLAIN)
+    }
+
+    fn timed(self, run: Run) -> Result<Ran, RunFailure> {
+        run.ran(self.settings.probe_deadline(Instant::now()))
     }
 }
 
 impl Machine for LiveMachine<'_> {
     fn table(&self) -> Option<String> {
-        let mut listing = Command::new(Self::PS);
-        listing.args(Self::LISTING);
-        self.timed(listing).stdout().ok()
+        self.timed(Self::probe(Self::PS).args(Self::LISTING)).and_then(Ran::succeeded).ok()
     }
 
     fn cwds(&self, pids: &PidList) -> Option<String> {
-        let mut listing = Command::new(Self::LSOF);
-        pids.appended(listing.args(Self::CWD));
-        Some(self.timed(listing).finished().ok()?.output().to_owned())
+        let listing = pids.appended(Self::probe(Self::LSOF).args(Self::CWD));
+        Some(self.timed(listing).ok()?.stdout().text().into_owned())
     }
 
     fn uptime(&self) -> Option<String> {
-        self.timed(Command::new(Self::UPTIME)).stdout().ok()
+        self.timed(Self::probe(Self::UPTIME)).and_then(Ran::succeeded).ok()
     }
 
     fn signal(&self, signal: Signal, targets: &BTreeSet<Target>) {
-        let mut kill = Command::new(Self::KILL);
-        kill.args([signal.flag(), Self::END_OF_OPTIONS]);
-        let kill = targets.iter().fold(kill, |mut kill, target| {
-            target.appended(&mut kill);
-            kill
-        });
-        self.timed(kill).finished().ok();
+        let kill = Self::probe(Self::KILL).args([signal.flag(), Self::END_OF_OPTIONS]);
+        drop(self.timed(targets.iter().fold(kill, |kill, target| target.appended(kill))));
     }
 
     fn pause(&self, grace: Duration) {
@@ -93,7 +89,7 @@ mod tests {
     const SECONDS: &str = "10";
     const OWN_GROUP: i32 = 0;
     const PLACES: [&str; 3] = ["/c", "/w", "/h"];
-    const GRACE: Duration = Duration::from_millis(10);
+    const GRACE: Duration = Duration::from_millis(1);
     const KILLED: i32 = 9;
 
     #[test]

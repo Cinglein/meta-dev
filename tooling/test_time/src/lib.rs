@@ -1,6 +1,9 @@
 mod cargo_build;
 mod cargo_test;
+mod children_cpu;
+mod clock;
 mod no_tests;
+mod reference_cpu;
 mod runner_config;
 mod test_run;
 mod test_runner;
@@ -13,7 +16,9 @@ use std::time::Duration;
 
 use cargo_build::CargoBuild;
 use cargo_test::CargoTest;
+use clock::Clock;
 use no_tests::NoTests;
+use reference_cpu::ReferenceCpu;
 use runner_config::RunnerConfig;
 pub use test_runner::TestRunner;
 use test_runs::TestRuns;
@@ -32,6 +37,7 @@ use task::{Limit, Policy};
 #[derive(Debug)]
 pub struct TestTime {
     timings: Vec<TestTiming>,
+    reference: ReferenceCpu,
 }
 
 impl TestTime {
@@ -74,6 +80,7 @@ impl TestTime {
                     .map_or(Ok(()), |examples| {
                         CargoBuild::examples(line(), examples, policy).run()
                     })?;
+                let reference = ReferenceCpu::measured(policy)?;
                 let cargo = |selection| CargoTest::new(line(), selection, policy);
                 let line = cargo(selection)
                     .through(&RunnerConfig::current()?)
@@ -94,17 +101,21 @@ impl TestTime {
                     .parse::<TestRuns>()?
                     .passed()?;
                 ran.and(documented_ran)?;
-                TestTime { timings }.recorded(policy, ledger).verdict()
+                TestTime { timings, reference }
+                    .recorded(policy, ledger)
+                    .verdict()
             },
         )
     }
 
     fn recorded(mut self, policy: &Policy, ledger: &mut Ledger) -> Report {
-        self.timings.sort_by_key(|timing| Reverse(timing.elapsed()));
-        let total: Duration = self.timings.iter().map(TestTiming::elapsed).sum();
+        self.timings
+            .sort_by_key(|timing| Reverse(timing.spent(Clock::Wall)));
+        let [total, cpu] = [Clock::Wall, Clock::Cpu].map(|clock| self.spent(clock));
         println!(
-            "test time: {} tests in {total:.2?}, slowest {}:",
+            "test time: {} tests in {total:.2?}, cpu {cpu:.2?} ({}), slowest {}:",
             self.timings.len(),
+            self.reference,
             policy.limit(Limit::SlowestShown).count()
         );
         self.timings
@@ -114,10 +125,14 @@ impl TestTime {
         let slowest = self
             .timings
             .first()
-            .map_or(Duration::ZERO, TestTiming::elapsed);
+            .map_or(Duration::ZERO, |timing| timing.spent(Clock::Wall));
         ledger.spend(
             Measure::TestWallTime,
             Amount::Duration(Millis::rounded_up(total)),
+        );
+        ledger.spend(
+            Measure::TestCpuTime,
+            Amount::Duration(Millis::rounded_up(cpu)),
         );
         ledger.spend(
             Measure::SlowestTest,
@@ -129,11 +144,15 @@ impl TestTime {
             .then(|| Violation::new(Site::Workspace, NoTests));
         Report::new("no tests timed", none.into_iter().collect())
     }
+
+    fn spent(&self, clock: Clock) -> Duration {
+        self.timings.iter().map(|timing| timing.spent(clock)).sum()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{CargoBuild, CargoTest, RunnerConfig, TestTime, TestTiming};
+    use super::{CargoBuild, CargoTest, ReferenceCpu, RunnerConfig, TestTime, TestTiming};
     use settings::EmbeddedDefaults;
     use std::path::{Path, PathBuf};
     use std::time::Duration;
@@ -146,15 +165,18 @@ mod tests {
     const THROUGH: &str = "--no-fail-fast --tests --config target.'cfg(all())'.runner = [\"target/debug/x\\\"task\", \"test-runner\"]";
     const NAMES: [&str; 4] = ["target/debug/deps/bin-1a2b3c", "exact", "slow", "bulk"];
     const TICK: Duration = Duration::from_millis(1);
+    const FAST_RUNNER_SECS: f64 = 0.762;
+    const RAW_CPU_SECS: f64 = 2.85;
     const WHOLE_IN_UNITS: usize = 4;
-    const REPORTED: [&str; 2] = ["slowest-test", "test-time"];
+    const REPORTED: [&str; 3] = ["slowest-test", "test-cpu-time", "test-time"];
     const NOTHING_TIMED: [&str; 1] = ["no tests were found to time"];
     const HEADLINE: &str = "timed";
 
     impl TestTime {
         fn over_budget(timings: Vec<TestTiming>, policy: &Policy) -> Report {
             let mut ledger = Ledger::default();
-            let found = TestTime { timings }.recorded(policy, &mut ledger);
+            let reference = ReferenceCpu::new(Duration::from_secs_f64(FAST_RUNNER_SECS));
+            let found = TestTime { timings, reference }.recorded(policy, &mut ledger);
             let verdict = ledger.statement(policy).verdict(&Selection::Workspace);
             Report::new(
                 HEADLINE,
@@ -168,17 +190,18 @@ mod tests {
         let policy = Policy::defaults();
         let limit = policy.interval(Interval::PerTest).duration();
         let [binary, exact, slow, bulk] = NAMES;
-        let timing = |name: &str, elapsed| TestTiming::new(Path::new(binary), name, elapsed);
+        let raw = Duration::from_secs_f64(RAW_CPU_SECS);
+        let fast = vec![TestTiming::new(Path::new(binary), slow, TICK, raw)];
+        let timing =
+            |name: &str, elapsed| TestTiming::new(Path::new(binary), name, elapsed, elapsed);
         let exact = (0..WHOLE_IN_UNITS).map(|_| timing(exact, limit)).collect();
         let total = policy.interval(Interval::Total).duration();
         let over = TestTime::over_budget(
             vec![timing(slow, limit + TICK), timing(bulk, total)],
             &policy,
         );
-        assert!(
-            TestTime::over_budget(exact, &policy).is_clean() && over.lists_exactly(&REPORTED),
-            "{over}"
-        );
+        let ok = |run| TestTime::over_budget(run, &policy).is_clean();
+        assert!(ok(exact) && ok(fast) && over.lists_exactly(&REPORTED));
         assert!(TestTime::over_budget(Vec::new(), &policy).lists_exactly(&NOTHING_TIMED));
     }
 

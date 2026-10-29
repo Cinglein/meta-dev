@@ -1,9 +1,11 @@
 use chrono::TimeDelta;
+use meta_golden::Golden;
 
 use super::{BROKEN, FakeMachine, GIT, Monitor, NOW, STATE, UPTIME, Watch};
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::local_settings::LocalSettings;
 use crate::request::local::{LocalClone, LocalFile};
+use crate::request::project::{CiSettings, Config};
 
 const UNREADABLE: &str = "[monitor]\ngrace_seconds = 31\n";
 const ORPHANS: &str = "stop = [\"orphaned\"]\norphan_seconds = 60";
@@ -13,11 +15,7 @@ const REUSED: &str = "  701     1   700      02:00   0:01.00   0.0 node dev-serv
 const REUSED_CWDS: &str = "p701\nn/p\np801\nn/p-worktrees/t\n";
 const LEADERLESS: &str = r#"{"marked":{"700":{"started":"2026-10-27T09:00:00Z","seen":"2026-10-27T11:55:00Z"},
 "800":{"started":"2026-10-27T09:00:00Z","seen":"2026-10-27T11:55:00Z"}},"watched":[]}"#;
-const UNMARKED: &str =
-    r#"{"marked":{"800":{"started":"2026-10-27T09:00:00Z","seen":"2026-10-27T12:00:00Z"}},"watched":[]}"#;
-const LOOKED: &str = "cwds 701,801\n-TERM -800\npause 5s\n";
 const TRAIL: &str = "meta-local/monitor.jsonl";
-const TRAIL_LEN: usize = 1;
 
 const WALL: &str = "stop = [\"wall-time\"]";
 const TABLE: &str = "  700   650   700   10:00:00   0:01.00   0.0 -zsh
@@ -30,41 +28,30 @@ const BEFORE: &str = r#"{"marked":{"700":{"started":"2026-10-27T11:50:00Z","seen
 "710":{"started":"2026-10-27T03:00:00Z","seen":"2026-10-27T11:40:00Z"},
 "720":{"started":"2026-10-27T03:00:00Z","seen":"2026-10-27T11:55:00Z"},
 "730":{"started":"2026-10-27T03:00:00Z","seen":"2026-10-27T11:55:00Z"}},"watched":[]}"#;
-const AFTER: &str =
-    r#"{"marked":{"720":{"started":"2026-10-27T03:00:00Z","seen":"2026-10-27T12:00:00Z"}},"watched":[]}"#;
-const ACTS: &str = "cwds 700,710,720,730\n-TERM -720\npause 5s\n";
+const SCENES: [[&str; 4]; 2] = [[BEFORE, TABLE, CWDS, WALL], [LEADERLESS, REUSED, REUSED_CWDS, ORPHANS]];
 
 #[test]
-fn a_remembered_mark_is_dropped_when_its_leader_changed_it_went_unseen_or_left_the_project() {
-    let git_dir = tempfile::tempdir().unwrap();
-    let state = LocalFile::new(git_dir.path().join(STATE));
-    state.replaced(BEFORE).unwrap();
-    let host = FakeMachine::new(&[TABLE], CWDS, UPTIME);
-    Watch::patrolled(&host, git_dir.path(), WALL, TimeDelta::zero());
-    assert_eq!(host.to_string(), ACTS);
-    assert_eq!(state.text().unwrap(), AFTER);
+fn a_mark_is_dropped_when_its_leader_changed_it_went_unseen_left_the_project_or_its_group_id_was_reused() {
+    let shown = SCENES.map(|[before, table, cwds, overrides]| {
+        let git_dir = tempfile::tempdir().unwrap();
+        let state = LocalFile::new(git_dir.path().join(STATE));
+        state.replaced(before).unwrap();
+        let host = FakeMachine::new(&[table], cwds, UPTIME);
+        Watch::patrolled(&host, git_dir.path(), overrides, TimeDelta::zero());
+        Watch::shown(&host, &state.text().unwrap())
+    });
+    Golden::for_test(module_path!(), "marks").checked(&shown.concat()).unwrap();
 }
 
 #[test]
 fn a_failure_is_noted_once_even_when_the_local_settings_are_unreadable() {
     let checkout = tempfile::tempdir().unwrap();
     LocalFile::new(checkout.path().join(LocalSettings::FILE)).replaced(UNREADABLE).unwrap();
-    let clone = LocalClone::new(checkout.path().to_path_buf(), checkout.path().join(GIT));
+    let settings = CiSettings::try_from(&Config::default()).unwrap();
+    let clone = LocalClone::new(checkout.path().to_path_buf(), checkout.path().join(GIT), settings);
     let failure = CliFailure::raised::<Setup>(BROKEN);
     Monitor::noted(&clone, &failure, NOW.parse().unwrap());
     Monitor::noted(&clone, &failure, NOW.parse().unwrap());
     let trail = LocalFile::new(clone.git_dir().as_ref().join(TRAIL)).text().unwrap();
-    assert_eq!(trail.lines().count(), TRAIL_LEN);
-    assert!(trail.contains(BROKEN));
-}
-
-#[test]
-fn a_leaderless_mark_is_dropped_when_the_group_id_now_holds_a_process_started_after_it_was_last_seen() {
-    let git_dir = tempfile::tempdir().unwrap();
-    let state = LocalFile::new(git_dir.path().join(STATE));
-    state.replaced(LEADERLESS).unwrap();
-    let host = FakeMachine::new(&[REUSED], REUSED_CWDS, UPTIME);
-    Watch::patrolled(&host, git_dir.path(), ORPHANS, TimeDelta::zero());
-    assert_eq!(host.to_string(), LOOKED);
-    assert_eq!(state.text().unwrap(), UNMARKED);
+    Golden::for_test(module_path!(), "noted").checked(&trail).unwrap();
 }

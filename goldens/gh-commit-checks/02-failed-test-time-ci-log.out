@@ -1,0 +1,480 @@
+ci	Run cargo xtask ci 	﻿2026-10-28T16:59:18.8482943Z ##[group]Run cargo xtask ci 
+ci	Run cargo xtask ci 	2026-10-28T16:59:18.8483498Z ^[[36;1mcargo xtask ci ^[[0m
+ci	Run cargo xtask ci 	2026-10-28T16:59:18.8538257Z shell: /usr/bin/bash -e {0}
+ci	Run cargo xtask ci 	2026-10-28T16:59:18.8538489Z env:
+ci	Run cargo xtask ci 	2026-10-28T16:59:18.8538677Z   CARGO_HOME: /home/runner/.cargo
+ci	Run cargo xtask ci 	2026-10-28T16:59:18.8538918Z   CARGO_INCREMENTAL: 0
+ci	Run cargo xtask ci 	2026-10-28T16:59:18.8539115Z   CARGO_TERM_COLOR: always
+ci	Run cargo xtask ci 	2026-10-28T16:59:18.8539320Z   CACHE_ON_FAILURE: false
+ci	Run cargo xtask ci 	2026-10-28T16:59:18.8539516Z   PULL_REQUEST: 
+ci	Run cargo xtask ci 	2026-10-28T16:59:18.8539701Z ##[endgroup]
+ci	Run cargo xtask ci 	2026-10-28T16:59:28.4366254Z ci: checking the whole workspace
+ci	Run cargo xtask ci 	2026-10-28T16:59:28.8826987Z ci: fmt 445.9ms
+ci	Run cargo xtask ci 	2026-10-28T16:59:29.0353009Z ^[[1m^[[92m    Checking^[[0m meta-schema v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-schema)
+ci	Run cargo xtask ci 	2026-10-28T16:59:29.0378696Z ^[[1m^[[92m    Checking^[[0m settings v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/settings)
+ci	Run cargo xtask ci 	2026-10-28T16:59:29.0577068Z ^[[1m^[[92m    Checking^[[0m meta-run v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-run)
+ci	Run cargo xtask ci 	2026-10-28T16:59:29.1508170Z ^[[1m^[[92m    Checking^[[0m meta-gh v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-gh)
+ci	Run cargo xtask ci 	2026-10-28T16:59:29.4438914Z ^[[1m^[[92m    Checking^[[0m meta-state v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-state)
+ci	Run cargo xtask ci 	2026-10-28T16:59:29.5840774Z ^[[1m^[[92m    Checking^[[0m meta-severity v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-severity)
+ci	Run cargo xtask ci 	2026-10-28T16:59:29.7159173Z ^[[1m^[[92m    Checking^[[0m task v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/task)
+ci	Run cargo xtask ci 	2026-10-28T16:59:29.8754680Z ^[[1m^[[92m    Checking^[[0m meta-log v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-log)
+ci	Run cargo xtask ci 	2026-10-28T16:59:29.9864823Z ^[[1m^[[92m    Checking^[[0m meta-pulls v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-pulls)
+ci	Run cargo xtask ci 	2026-10-28T16:59:30.1099560Z ^[[1m^[[92m    Checking^[[0m meta-pull-query v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-pull-query)
+ci	Run cargo xtask ci 	2026-10-28T16:59:30.2463076Z ^[[1m^[[92m    Checking^[[0m meta-status v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-status)
+ci	Run cargo xtask ci 	2026-10-28T16:59:30.3882198Z ^[[1m^[[92m    Checking^[[0m meta-listing v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-listing)
+ci	Run cargo xtask ci 	2026-10-28T16:59:30.4221227Z ^[[1m^[[92m    Checking^[[0m meta-cli v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-cli)
+ci	Run cargo xtask ci 	2026-10-28T16:59:30.5446319Z ^[[1m^[[92m    Checking^[[0m named_numbers v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/named_numbers)
+ci	Run cargo xtask ci 	2026-10-28T16:59:30.5850940Z ^[[1m^[[92m    Checking^[[0m no_numbers_in_binaries v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/no_numbers_in_binaries)
+ci	Run cargo xtask ci 	2026-10-28T16:59:30.6169707Z ^[[1m^[[92m    Checking^[[0m thin_main v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/thin_main)
+ci	Run cargo xtask ci 	2026-10-28T16:59:30.6494571Z ^[[1m^[[92m    Checking^[[0m fn_shape v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/fn_shape)
+ci	Run cargo xtask ci 	2026-10-28T16:59:30.6963048Z ^[[1m^[[92m    Checking^[[0m distinct_signatures v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/distinct_signatures)
+ci	Run cargo xtask ci 	2026-10-28T16:59:30.7386120Z ^[[1m^[[92m    Checking^[[0m no_forwarders v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/no_forwarders)
+ci	Run cargo xtask ci 	2026-10-28T16:59:30.7960102Z ^[[1m^[[92m    Checking^[[0m manual_iteration v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/manual_iteration)
+ci	Run cargo xtask ci 	2026-10-28T16:59:30.8334896Z ^[[1m^[[92m    Checking^[[0m expression_flow v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/expression_flow)
+ci	Run cargo xtask ci 	2026-10-28T16:59:30.8811987Z ^[[1m^[[92m    Checking^[[0m crate_graph v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/crate_graph)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.0200883Z ^[[1m^[[92m    Checking^[[0m literal_names v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/literal_names)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.0552021Z ^[[1m^[[92m    Checking^[[0m enum_predicates v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/enum_predicates)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.1023606Z ^[[1m^[[92m    Checking^[[0m no_free_fns v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/no_free_fns)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.1379921Z ^[[1m^[[92m    Checking^[[0m no_parameter_bags v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/no_parameter_bags)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.1861568Z ^[[1m^[[92m    Checking^[[0m state_graph v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/state_graph)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.2774109Z ^[[1m^[[92m    Checking^[[0m private_fns v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/private_fns)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.3146911Z ^[[1m^[[92m    Checking^[[0m type_shape v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/type_shape)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.3544993Z ^[[1m^[[92m    Checking^[[0m primitive_boundary v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/primitive_boundary)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.4149094Z ^[[1m^[[92m    Checking^[[0m module_nesting v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/module_nesting)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.4770169Z ^[[1m^[[92m    Checking^[[0m public_surface v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/public_surface)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.5247071Z ^[[1m^[[92m    Checking^[[0m vec_out_params v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/vec_out_params)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.5606187Z ^[[1m^[[92m    Checking^[[0m affected v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/affected)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.6428183Z ^[[1m^[[92m    Checking^[[0m settings_shape v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/settings_shape)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.6937238Z ^[[1m^[[92m    Checking^[[0m named_lifetimes v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/named_lifetimes)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.7276827Z ^[[1m^[[92m    Checking^[[0m test_budget v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/test_budget)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.8076565Z ^[[1m^[[92m    Checking^[[0m no_comments v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/no_comments)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.8406998Z ^[[1m^[[92m    Checking^[[0m const_shape v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/const_shape)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.8776625Z ^[[1m^[[92m    Checking^[[0m corpus_check v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/corpus_check)
+ci	Run cargo xtask ci 	2026-10-28T16:59:31.9207921Z ^[[1m^[[92m    Checking^[[0m mutation v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/mutation)
+ci	Run cargo xtask ci 	2026-10-28T16:59:32.0022398Z ^[[1m^[[92m    Checking^[[0m mutant_costs v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/mutant_costs)
+ci	Run cargo xtask ci 	2026-10-28T16:59:32.0222008Z ^[[1m^[[92m    Checking^[[0m test_time v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/test_time)
+ci	Run cargo xtask ci 	2026-10-28T16:59:32.0968904Z ^[[1m^[[92m    Checking^[[0m stacked v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/stacked)
+ci	Run cargo xtask ci 	2026-10-28T16:59:32.1464831Z ^[[1m^[[92m    Checking^[[0m meta-xtask v0.1.0 (/home/runner/work/meta-dev/meta-dev/xtask)
+ci	Run cargo xtask ci 	2026-10-28T16:59:32.5312845Z ^[[1m^[[92m    Checking^[[0m meta-spec v0.1.0 (/home/runner/work/meta-dev/meta-dev/self/spec)
+ci	Run cargo xtask ci 	2026-10-28T16:59:35.9361508Z ^[[1m^[[92m    Finished^[[0m `dev` profile [unoptimized + debuginfo] target(s) in 7.03s
+ci	Run cargo xtask ci 	2026-10-28T16:59:35.9766359Z ci: clippy 7.1s
+ci	Run cargo xtask ci 	2026-10-28T16:59:36.0574483Z ^[[1m^[[92m   Compiling^[[0m settings v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/settings)
+ci	Run cargo xtask ci 	2026-10-28T16:59:36.0595266Z ^[[1m^[[92m   Compiling^[[0m meta-pulls v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-pulls)
+ci	Run cargo xtask ci 	2026-10-28T16:59:36.0804804Z ^[[1m^[[92m   Compiling^[[0m task v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/task)
+ci	Run cargo xtask ci 	2026-10-28T16:59:36.2389397Z ^[[1m^[[92m   Compiling^[[0m meta-pull-query v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-pull-query)
+ci	Run cargo xtask ci 	2026-10-28T16:59:36.5689376Z ^[[1m^[[92m   Compiling^[[0m meta-status v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-status)
+ci	Run cargo xtask ci 	2026-10-28T16:59:37.1533700Z ^[[1m^[[92m   Compiling^[[0m meta-listing v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-listing)
+ci	Run cargo xtask ci 	2026-10-28T16:59:37.2142287Z ^[[1m^[[92m   Compiling^[[0m meta-gh v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-gh)
+ci	Run cargo xtask ci 	2026-10-28T16:59:37.3536882Z ^[[1m^[[92m   Compiling^[[0m named_numbers v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/named_numbers)
+ci	Run cargo xtask ci 	2026-10-28T16:59:37.5130546Z ^[[1m^[[92m   Compiling^[[0m no_numbers_in_binaries v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/no_numbers_in_binaries)
+ci	Run cargo xtask ci 	2026-10-28T16:59:37.6229749Z ^[[1m^[[92m   Compiling^[[0m affected v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/affected)
+ci	Run cargo xtask ci 	2026-10-28T16:59:38.1161104Z ^[[1m^[[92m   Compiling^[[0m thin_main v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/thin_main)
+ci	Run cargo xtask ci 	2026-10-28T16:59:38.1858463Z ^[[1m^[[92m   Compiling^[[0m fn_shape v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/fn_shape)
+ci	Run cargo xtask ci 	2026-10-28T16:59:38.3803909Z ^[[1m^[[92m   Compiling^[[0m distinct_signatures v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/distinct_signatures)
+ci	Run cargo xtask ci 	2026-10-28T16:59:38.6460168Z ^[[1m^[[92m   Compiling^[[0m no_forwarders v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/no_forwarders)
+ci	Run cargo xtask ci 	2026-10-28T16:59:39.0301825Z ^[[1m^[[92m   Compiling^[[0m manual_iteration v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/manual_iteration)
+ci	Run cargo xtask ci 	2026-10-28T16:59:39.1864040Z ^[[1m^[[92m   Compiling^[[0m expression_flow v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/expression_flow)
+ci	Run cargo xtask ci 	2026-10-28T16:59:39.4434615Z ^[[1m^[[92m   Compiling^[[0m crate_graph v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/crate_graph)
+ci	Run cargo xtask ci 	2026-10-28T16:59:39.9166674Z ^[[1m^[[92m   Compiling^[[0m literal_names v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/literal_names)
+ci	Run cargo xtask ci 	2026-10-28T16:59:40.0591790Z ^[[1m^[[92m   Compiling^[[0m enum_predicates v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/enum_predicates)
+ci	Run cargo xtask ci 	2026-10-28T16:59:40.3084116Z ^[[1m^[[92m   Compiling^[[0m no_free_fns v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/no_free_fns)
+ci	Run cargo xtask ci 	2026-10-28T16:59:40.3947938Z ^[[1m^[[92m   Compiling^[[0m no_parameter_bags v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/no_parameter_bags)
+ci	Run cargo xtask ci 	2026-10-28T16:59:40.6967393Z ^[[1m^[[92m   Compiling^[[0m state_graph v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/state_graph)
+ci	Run cargo xtask ci 	2026-10-28T16:59:40.8367162Z ^[[1m^[[92m   Compiling^[[0m private_fns v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/private_fns)
+ci	Run cargo xtask ci 	2026-10-28T16:59:41.0237488Z ^[[1m^[[92m   Compiling^[[0m type_shape v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/type_shape)
+ci	Run cargo xtask ci 	2026-10-28T16:59:41.2176844Z ^[[1m^[[92m   Compiling^[[0m primitive_boundary v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/primitive_boundary)
+ci	Run cargo xtask ci 	2026-10-28T16:59:41.5584467Z ^[[1m^[[92m   Compiling^[[0m const_shape v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/const_shape)
+ci	Run cargo xtask ci 	2026-10-28T16:59:41.6264183Z ^[[1m^[[92m   Compiling^[[0m module_nesting v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/module_nesting)
+ci	Run cargo xtask ci 	2026-10-28T16:59:41.6837126Z ^[[1m^[[92m   Compiling^[[0m public_surface v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/public_surface)
+ci	Run cargo xtask ci 	2026-10-28T16:59:41.9671819Z ^[[1m^[[92m   Compiling^[[0m vec_out_params v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/vec_out_params)
+ci	Run cargo xtask ci 	2026-10-28T16:59:42.0058469Z ^[[1m^[[92m   Compiling^[[0m settings_shape v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/settings_shape)
+ci	Run cargo xtask ci 	2026-10-28T16:59:42.0924391Z ^[[1m^[[92m   Compiling^[[0m named_lifetimes v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/named_lifetimes)
+ci	Run cargo xtask ci 	2026-10-28T16:59:42.2213815Z ^[[1m^[[92m   Compiling^[[0m test_budget v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/test_budget)
+ci	Run cargo xtask ci 	2026-10-28T16:59:42.3483696Z ^[[1m^[[92m   Compiling^[[0m no_comments v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/lints/no_comments)
+ci	Run cargo xtask ci 	2026-10-28T16:59:42.4288982Z ^[[1m^[[92m   Compiling^[[0m meta-cli v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-cli)
+ci	Run cargo xtask ci 	2026-10-28T16:59:42.5852937Z ^[[1m^[[92m   Compiling^[[0m corpus_check v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/corpus_check)
+ci	Run cargo xtask ci 	2026-10-28T16:59:42.6429746Z ^[[1m^[[92m   Compiling^[[0m mutation v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/mutation)
+ci	Run cargo xtask ci 	2026-10-28T16:59:42.9385128Z ^[[1m^[[92m   Compiling^[[0m mutant_costs v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/mutant_costs)
+ci	Run cargo xtask ci 	2026-10-28T16:59:43.2737022Z ^[[1m^[[92m   Compiling^[[0m test_time v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/test_time)
+ci	Run cargo xtask ci 	2026-10-28T16:59:43.5918598Z ^[[1m^[[92m   Compiling^[[0m stacked v0.1.0 (/home/runner/work/meta-dev/meta-dev/tooling/stacked)
+ci	Run cargo xtask ci 	2026-10-28T16:59:43.6721121Z ^[[1m^[[92m   Compiling^[[0m meta-xtask v0.1.0 (/home/runner/work/meta-dev/meta-dev/xtask)
+ci	Run cargo xtask ci 	2026-10-28T16:59:45.3393738Z ^[[1m^[[92m   Compiling^[[0m meta-spec v0.1.0 (/home/runner/work/meta-dev/meta-dev/self/spec)
+ci	Run cargo xtask ci 	2026-10-28T17:00:00.8268939Z ^[[1m^[[92m   Compiling^[[0m meta-run v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-run)
+ci	Run cargo xtask ci 	2026-10-28T17:00:01.1419472Z ^[[1m^[[92m   Compiling^[[0m meta-log v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-log)
+ci	Run cargo xtask ci 	2026-10-28T17:00:02.1627546Z ^[[1m^[[92m   Compiling^[[0m meta-state v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-state)
+ci	Run cargo xtask ci 	2026-10-28T17:00:02.4575462Z ^[[1m^[[92m   Compiling^[[0m meta-severity v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-severity)
+ci	Run cargo xtask ci 	2026-10-28T17:00:03.3486302Z ^[[1m^[[92m   Compiling^[[0m meta-schema v0.1.0 (/home/runner/work/meta-dev/meta-dev/crates/meta-schema)
+ci	Run cargo xtask ci 	2026-10-28T17:00:04.3616027Z ^[[1m^[[92m    Finished^[[0m `test` profile [unoptimized + debuginfo] target(s) in 28.38s
+ci	Run cargo xtask ci 	2026-10-28T17:00:04.3835307Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/affected-318408ea81330234)
+ci	Run cargo xtask ci 	2026-10-28T17:00:04.4003524Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/const_shape-6a0d01147303cc49)
+ci	Run cargo xtask ci 	2026-10-28T17:00:04.4026436Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/corpus_check-b0dc24106ef86d30)
+ci	Run cargo xtask ci 	2026-10-28T17:00:04.4910934Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/crate_graph-3440fccfa5e8898a)
+ci	Run cargo xtask ci 	2026-10-28T17:00:04.4966350Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/distinct_signatures-c18afbddf8df9c06)
+ci	Run cargo xtask ci 	2026-10-28T17:00:04.4989905Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/enum_predicates-d7381adfcdff977a)
+ci	Run cargo xtask ci 	2026-10-28T17:00:04.5012556Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/expression_flow-946f167fa8ae649e)
+ci	Run cargo xtask ci 	2026-10-28T17:00:04.5034285Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/fn_shape-25f858ec3636beef)
+ci	Run cargo xtask ci 	2026-10-28T17:00:04.5056894Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/literal_names-d0d3150d6fcd0a84)
+ci	Run cargo xtask ci 	2026-10-28T17:00:04.5078688Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/manual_iteration-8b243fbf6113868b)
+ci	Run cargo xtask ci 	2026-10-28T17:00:04.5100448Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/meta_cli-a351cd578b3578af)
+ci	Run cargo xtask ci 	2026-10-28T17:00:05.3589619Z ^[[1m^[[92m     Running^[[0m unittests src/main.rs (target/debug/deps/meta-8adbaf6fabd549fd)
+ci	Run cargo xtask ci 	2026-10-28T17:00:05.3612193Z ^[[1m^[[92m     Running^[[0m tests/ci.rs (target/debug/deps/ci-b25f0489f6521ce6)
+ci	Run cargo xtask ci 	2026-10-28T17:00:06.4326476Z ^[[1m^[[92m     Running^[[0m tests/cli.rs (target/debug/deps/cli-2eed72cd93548cbe)
+ci	Run cargo xtask ci 	2026-10-28T17:00:06.7049846Z ^[[1m^[[92m     Running^[[0m tests/gc.rs (target/debug/deps/gc-26adf05f1e6f889e)
+ci	Run cargo xtask ci 	2026-10-28T17:00:07.0313615Z ^[[1m^[[92m     Running^[[0m tests/hooks.rs (target/debug/deps/hooks-de0d930bbbbd17fb)
+ci	Run cargo xtask ci 	2026-10-28T17:00:07.2221445Z ^[[1m^[[92m     Running^[[0m tests/status.rs (target/debug/deps/status-7ec3bb48ff082a32)
+ci	Run cargo xtask ci 	2026-10-28T17:00:07.2948586Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/meta_gh-26494a2f9ed25ee5)
+ci	Run cargo xtask ci 	2026-10-28T17:00:07.2983886Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/meta_listing-97299e61cea6f855)
+ci	Run cargo xtask ci 	2026-10-28T17:00:07.3020939Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/meta_log-37a0b929e6ccab73)
+ci	Run cargo xtask ci 	2026-10-28T17:00:07.5526175Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/meta_pull_query-d74d7afc3ee6a391)
+ci	Run cargo xtask ci 	2026-10-28T17:00:07.5611226Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/meta_pulls-ef17ac31d168ea4b)
+ci	Run cargo xtask ci 	2026-10-28T17:00:07.5635163Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/meta_run-6cb6b91a5f1c57f5)
+ci	Run cargo xtask ci 	2026-10-28T17:00:07.6663408Z ^[[1m^[[92m     Running^[[0m tests/run.rs (target/debug/deps/run-26ae86e5b7b5d0ee)
+ci	Run cargo xtask ci 	2026-10-28T17:00:07.8109622Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/meta_schema-b5a7082a96d60caf)
+ci	Run cargo xtask ci 	2026-10-28T17:00:07.8331260Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/meta_severity-97c5f47ec988b13e)
+ci	Run cargo xtask ci 	2026-10-28T17:00:07.8454939Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/meta_spec-e94d0a321a256bb1)
+ci	Run cargo xtask ci 	2026-10-28T17:00:07.8617012Z ^[[1m^[[92m     Running^[[0m unittests src/main.rs (target/debug/deps/meta_spec-75fae497b3ca4700)
+ci	Run cargo xtask ci 	2026-10-28T17:00:07.8641615Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/meta_state-f79c4978998753fc)
+ci	Run cargo xtask ci 	2026-10-28T17:00:07.8928311Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/meta_status-c819cf05252f3668)
+ci	Run cargo xtask ci 	2026-10-28T17:00:07.9100235Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/meta_xtask-ec61231eb1e583b4)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.6186184Z ^[[1m^[[92m     Running^[[0m unittests src/main.rs (target/debug/deps/meta_xtask-abaf9afa64a51a06)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.6211132Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/module_nesting-d479c21ac81255e8)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.6237229Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/mutant_costs-4a35494c5bb0a2fc)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.6432457Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/mutation-b7e5a3269385e523)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.6997407Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/named_lifetimes-84d9aeb334997af2)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.7022096Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/named_numbers-6408c6938d8f2fb8)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.7045214Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/no_comments-2667f44874170167)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.7068237Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/no_forwarders-4bc50e037cd47ebd)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.7091167Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/no_free_fns-f8aa47d0c994729d)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.7113851Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/no_numbers_in_binaries-baa64000d45838ab)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.7137096Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/no_parameter_bags-e264ec152224b77a)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.7160402Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/primitive_boundary-8d2233c362b0b5db)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.7183032Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/private_fns-ce398791a80db503)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.7206190Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/public_surface-d38065ff087949a0)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.7228655Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/settings-625ba0ffe997a323)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.7263509Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/settings_shape-f3973ba67d09b717)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.7287504Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/stacked-9fd08524c4efb0ba)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.7403046Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/state_graph-b3afc539780e9c54)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.7444789Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/task-30b213d6525b74a7)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.9466924Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/test_budget-67679ad017105017)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.9490547Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/test_time-ecfbea807cbf5737)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.9656310Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/thin_main-62c106c9815f6aad)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.9679835Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/type_shape-dcde948e794798ee)
+ci	Run cargo xtask ci 	2026-10-28T17:00:08.9701981Z ^[[1m^[[92m     Running^[[0m unittests src/lib.rs (target/debug/deps/vec_out_params-3f64bc02047af996)
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.0290740Z ^[[1m^[[92m    Finished^[[0m `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.0321621Z ^[[1m^[[92m   Doc-tests^[[0m affected
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.0566595Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.0567170Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.0567374Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.0568126Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.0568572Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.0579997Z ^[[1m^[[92m   Doc-tests^[[0m const_shape
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.0768498Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.0769073Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.0769290Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.0769615Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.0770023Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.0781701Z ^[[1m^[[92m   Doc-tests^[[0m corpus_check
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1025988Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1026312Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1026517Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1026838Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1027263Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1039863Z ^[[1m^[[92m   Doc-tests^[[0m crate_graph
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1319958Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1320562Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1320784Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1321126Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1321814Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1332692Z ^[[1m^[[92m   Doc-tests^[[0m distinct_signatures
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1527150Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1527719Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1527896Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1528135Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1528442Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1541469Z ^[[1m^[[92m   Doc-tests^[[0m enum_predicates
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1729807Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1730362Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1730532Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1730764Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1731054Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1741867Z ^[[1m^[[92m   Doc-tests^[[0m expression_flow
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1939736Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1940321Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1940539Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1940886Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1941240Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.1952072Z ^[[1m^[[92m   Doc-tests^[[0m fn_shape
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2158630Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2159174Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2159349Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2159582Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2159872Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2171107Z ^[[1m^[[92m   Doc-tests^[[0m literal_names
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2354647Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2355224Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2355457Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2355782Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2356085Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2367353Z ^[[1m^[[92m   Doc-tests^[[0m manual_iteration
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2553600Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2554138Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2554296Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2554541Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2554864Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.2566037Z ^[[1m^[[92m   Doc-tests^[[0m meta_cli
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5084750Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5085347Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5085566Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5098613Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5098915Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5099467Z ^[[1m^[[92m   Doc-tests^[[0m meta_gh
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5411490Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5412017Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5412253Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5412580Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5412877Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5427068Z ^[[1m^[[92m   Doc-tests^[[0m meta_listing
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5602836Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5603564Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5603784Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5604097Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5604402Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5615417Z ^[[1m^[[92m   Doc-tests^[[0m meta_log
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5901427Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5901951Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5902177Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5902525Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5902969Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.5914010Z ^[[1m^[[92m   Doc-tests^[[0m meta_pull_query
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6288611Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6289216Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6289446Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6289794Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6290243Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6301364Z ^[[1m^[[92m   Doc-tests^[[0m meta_pulls
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6658213Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6658809Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6659021Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6659300Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6659596Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6673079Z ^[[1m^[[92m   Doc-tests^[[0m meta_run
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6910935Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6911982Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6912196Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6912546Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6913027Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.6922813Z ^[[1m^[[92m   Doc-tests^[[0m meta_schema
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.7887915Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.7888401Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.7888568Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.7888821Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.7889115Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.7901841Z ^[[1m^[[92m   Doc-tests^[[0m meta_severity
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8234483Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8235083Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8235319Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8235673Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8236054Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8247245Z ^[[1m^[[92m   Doc-tests^[[0m meta_spec
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8513933Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8514509Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8514787Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8515127Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8515528Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8526908Z ^[[1m^[[92m   Doc-tests^[[0m meta_state
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8810587Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8811201Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8811411Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8811738Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8812135Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.8823456Z ^[[1m^[[92m   Doc-tests^[[0m meta_status
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.9123553Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.9124112Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.9124336Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.9124670Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.9125073Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.9136496Z ^[[1m^[[92m   Doc-tests^[[0m meta_xtask
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.9857107Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.9857688Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.9857899Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.9858269Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.9858694Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:09.9871569Z ^[[1m^[[92m   Doc-tests^[[0m module_nesting
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0070926Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0071529Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0071743Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0072073Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0072479Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0085779Z ^[[1m^[[92m   Doc-tests^[[0m mutant_costs
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0357313Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0358033Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0358241Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0358489Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0358796Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0370619Z ^[[1m^[[92m   Doc-tests^[[0m mutation
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0611897Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0612716Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0612916Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0613386Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0614241Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0625820Z ^[[1m^[[92m   Doc-tests^[[0m named_lifetimes
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0806729Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0807484Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0807692Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0808024Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0808447Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.0819420Z ^[[1m^[[92m   Doc-tests^[[0m named_numbers
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1008960Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1009545Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1009763Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1010079Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1010496Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1022281Z ^[[1m^[[92m   Doc-tests^[[0m no_comments
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1198327Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1198870Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1199036Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1199273Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1199927Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1212936Z ^[[1m^[[92m   Doc-tests^[[0m no_forwarders
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1425826Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1426349Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1426524Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1426760Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1427052Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1438360Z ^[[1m^[[92m   Doc-tests^[[0m no_free_fns
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1620922Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1621559Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1633471Z ^[[1m^[[92m   Doc-tests^[[0m no_numbers_in_binaries
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1633776Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1634075Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1634463Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1816762Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1817307Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1817477Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1817713Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1818039Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.1829409Z ^[[1m^[[92m   Doc-tests^[[0m no_parameter_bags
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2034711Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2035473Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2035654Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2035893Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2036181Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2047434Z ^[[1m^[[92m   Doc-tests^[[0m primitive_boundary
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2265381Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2266253Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2266489Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2266819Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2267262Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2280102Z ^[[1m^[[92m   Doc-tests^[[0m private_fns
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2469487Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2470310Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2470532Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2470857Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2471262Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2482364Z ^[[1m^[[92m   Doc-tests^[[0m public_surface
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2680677Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2681497Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2681733Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2682046Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2682327Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2693341Z ^[[1m^[[92m   Doc-tests^[[0m settings
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2829065Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2829538Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2829714Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2829964Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2830248Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.2839935Z ^[[1m^[[92m   Doc-tests^[[0m settings_shape
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3043415Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3043960Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3044131Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3044382Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3044666Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3056081Z ^[[1m^[[92m   Doc-tests^[[0m stacked
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3261619Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3262123Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3262297Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3262536Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3262816Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3274459Z ^[[1m^[[92m   Doc-tests^[[0m state_graph
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3533367Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3533845Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3534035Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3534280Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3534560Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.3546864Z ^[[1m^[[92m   Doc-tests^[[0m task
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5299615Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5300174Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5300345Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5300581Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5300857Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5316691Z ^[[1m^[[92m   Doc-tests^[[0m test_budget
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5593953Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5594432Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5594981Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5595226Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5595508Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5609810Z ^[[1m^[[92m   Doc-tests^[[0m test_time
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5858512Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5859259Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5859495Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5859805Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5860111Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.5873405Z ^[[1m^[[92m   Doc-tests^[[0m thin_main
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6050541Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6050856Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6051047Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6051372Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6051767Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6063384Z ^[[1m^[[92m   Doc-tests^[[0m type_shape
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6249647Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6250237Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6250482Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6250837Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6251265Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6262202Z ^[[1m^[[92m   Doc-tests^[[0m vec_out_params
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6444840Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6445412Z running 0 tests
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6445621Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6445944Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6446364Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6501071Z test time: 353 tests in 4.44s, slowest 5:
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6507891Z   meta_cli request::ci::watcher::gh::tests::a_log_download_may_outlast_the_call_limit_and_a_failed_one_says_so took 523.4ms
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6508829Z   gc gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_with_reasons took 323.6ms
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6509749Z   cli failed_worktrees_leave_no_claim_and_a_held_task_gets_its_lost_worktree_back_and_a_noreply_worktree_is_listed took 189.2ms
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6510565Z   ci absent_and_timed_out_runs_block_stop_and_gh_errors_fail_them took 172.9ms
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6511437Z   ci waits::an_unreadable_remote_settles_the_watch_unchecked_and_the_last_poll_still_ends_before_the_real_deadline took 145.0ms
+ci	Run cargo xtask ci 	2026-10-28T17:00:10.6512100Z ci: test 34.7s
+ci	Run cargo xtask ci 	2026-10-28T17:00:14.0708030Z state graph: 0 vertices, 0 edges
+ci	Run cargo xtask ci 	2026-10-28T17:00:14.2481421Z test budget: 191 tests in 860 files, 8581 of 47895 lines
+ci	Run cargo xtask ci 	2026-10-28T17:00:14.2985527Z lint: 860 rust files, 0 baselined violations
+ci	Run cargo xtask ci 	2026-10-28T17:00:14.9035593Z ci: lint 4.3s
+ci	Run cargo xtask ci 	2026-10-28T17:00:14.9509049Z ^[[1m^[[92m   Compiling^[[0m meta-spec v0.1.0 (/home/runner/work/meta-dev/meta-dev/self/spec)
+ci	Run cargo xtask ci 	2026-10-28T17:00:15.4415511Z ^[[1m^[[92m    Finished^[[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.53s
+ci	Run cargo xtask ci 	2026-10-28T17:00:15.4486082Z ^[[1m^[[92m     Running^[[0m `target/debug/meta-spec check`
+ci	Run cargo xtask ci 	2026-10-28T17:00:15.4560270Z ci: spec 552.6ms
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3952118Z budget             division                   measure                          spend    warning   blocking state
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3953567Z architecture-and-planning-critical architecture-and-planning  open_items critical                  0          0          0 ok
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3954568Z architecture-and-planning-major architecture-and-planning  open_items major                     1          2          4 ok
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3955213Z architecture-and-planning-minor architecture-and-planning  open_items minor                     2          4          8 ok
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3955851Z architecture-and-planning-unrated architecture-and-planning  open_items unrated                   1          1          2 ok
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3956525Z features-and-maintenance-critical features-and-maintenance   open_items critical                  0          0          0 ok
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3957158Z features-and-maintenance-major features-and-maintenance   open_items major                     3          2          4 warn
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3957870Z features-and-maintenance-minor features-and-maintenance   open_items minor                    12          4          8 over, reported only; this run is not a pull request
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3958775Z features-and-maintenance-unrated features-and-maintenance   open_items unrated                   1          1          2 ok
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3959368Z lint-findings      features-and-maintenance   lint_findings                        -                     - ok
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3959921Z mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3960448Z mutants-diff-job   performance-and-cost       workflow_wall_time diff_job          -   216000ms   360000ms -
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3960959Z mutants-full-job   performance-and-cost       workflow_wall_time full_job          -   288000ms   480000ms -
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3961518Z performance-and-cost-critical performance-and-cost       open_items critical                  0          0          0 ok
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3962096Z performance-and-cost-major performance-and-cost       open_items major                     1          2          4 ok
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3962668Z performance-and-cost-minor performance-and-cost       open_items minor                     6          4          8 warn
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3963447Z performance-and-cost-unrated performance-and-cost       open_items unrated                   0          1          2 ok
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3963993Z slowest-test       performance-and-cost       slowest_test                     524ms      600ms     1000ms ok
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3964504Z tangle-items       features-and-maintenance   tangle_items                        40         49         83 ok
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3965013Z test-line-share    features-and-maintenance   test_line_share                    18%        10%        18% warn
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3965504Z test-time          performance-and-cost       test_wall_time                  4445ms     2400ms     4000ms over
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.3965854Z ci: total 49.0s
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.4235178Z budget over its blocking line:
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.4235752Z workspace: test-time          performance-and-cost       test_wall_time                  4445ms     2400ms     4000ms over
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.4236076Z 
+ci	Run cargo xtask ci 	2026-10-28T17:00:17.4341102Z ##[error]Process completed with exit code 1.
