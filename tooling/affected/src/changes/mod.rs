@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use crate::reach::Reach;
 use included_files::IncludedFiles;
 use task::Failure;
+use task::PackageGraph;
+use task::SourceFile;
 use task::Workspace;
 use task::{BranchName, CommandLine, GitArgument, Program, Stdout, Trusted};
 
@@ -21,64 +23,59 @@ impl Changes {
         workspace: &Workspace,
         base: &BranchName,
     ) -> Result<Vec<Vec<Reach>>, Failure> {
+        let reached = |line: CommandLine| {
+            let output = line
+                .captured::<Stdout>()
+                .map_err(|_| Failure::NoMergeBase)?;
+            Self::reached(workspace.packages(), &Self::listed(&output), || {
+                workspace.source_files()
+            })
+        };
         match self {
             Changes::Everything => Ok(vec![vec![Reach::Everything]]),
-            Changes::SinceMain => Self::reached(workspace, &Self::since_main(workspace, base)?)
-                .map(|reaches| vec![reaches]),
+            Changes::SinceMain => reached(Self::since_main(workspace, base)).map(|set| vec![set]),
             Changes::Between(trusted, head) => trusted
                 .commits()
                 .iter()
-                .map(|commit| Self::reached(workspace, &Self::between(workspace, commit, head)?))
+                .map(|commit| reached(Self::between(workspace, commit, head)))
                 .collect(),
         }
     }
 
-    fn since_main(workspace: &Workspace, base: &BranchName) -> Result<Vec<PathBuf>, Failure> {
-        Self::paths(
-            &workspace
-                .line(Program::Git)
-                .argument(GitArgument::Diff)
-                .argument(GitArgument::NameOnly)
-                .argument(GitArgument::Relative)
-                .argument(GitArgument::MergeBase)
-                .argument(base),
-        )
+    fn since_main(workspace: &Workspace, base: &BranchName) -> CommandLine {
+        Self::diff(workspace)
+            .argument(GitArgument::MergeBase)
+            .argument(base)
     }
 
-    fn between(
-        workspace: &Workspace,
-        trusted: &BranchName,
-        head: &BranchName,
-    ) -> Result<Vec<PathBuf>, Failure> {
-        Self::paths(
-            &workspace
-                .line(Program::Git)
-                .argument(GitArgument::Diff)
-                .argument(GitArgument::NameOnly)
-                .argument(GitArgument::Relative)
-                .argument(trusted)
-                .argument(head),
-        )
+    fn between(workspace: &Workspace, trusted: &BranchName, head: &BranchName) -> CommandLine {
+        Self::diff(workspace).argument(trusted).argument(head)
     }
 
-    fn paths(line: &CommandLine) -> Result<Vec<PathBuf>, Failure> {
-        Ok(line
-            .captured::<Stdout>()
-            .map_err(|_| Failure::NoMergeBase)?
-            .lines()
-            .map(PathBuf::from)
-            .collect())
+    fn diff(workspace: &Workspace) -> CommandLine {
+        workspace
+            .line(Program::Git)
+            .argument(GitArgument::Diff)
+            .argument(GitArgument::NameOnly)
+            .argument(GitArgument::Relative)
     }
 
-    fn reached(workspace: &Workspace, changed: &[PathBuf]) -> Result<Vec<Reach>, Failure> {
-        let packages = workspace.packages();
+    pub(crate) fn listed(output: &str) -> Vec<PathBuf> {
+        output.lines().map(PathBuf::from).collect()
+    }
+
+    pub(crate) fn reached(
+        packages: &PackageGraph,
+        changed: &[PathBuf],
+        files: impl FnOnce() -> Result<Vec<SourceFile>, Failure>,
+    ) -> Result<Vec<Reach>, Failure> {
         let included = if changed
             .iter()
             .all(|path| Reach::reached_by(path, packages).is_some())
         {
             IncludedFiles::default()
         } else {
-            IncludedFiles::collect(&workspace.source_files()?)
+            IncludedFiles::collect(&files()?)
         };
         Ok(changed
             .iter()

@@ -14,3 +14,15 @@ impl Trusted {
         &self.0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{BranchName, Trusted};
+    const COMMIT: &str = "abc123";
+
+    #[test]
+    fn a_trusted_list_hands_back_the_commits_it_was_given() {
+        let commit: BranchName = COMMIT.parse().unwrap();
+        assert_eq!(Trusted::new(vec![commit.clone()]).commits(), [commit]);
+    }
+}

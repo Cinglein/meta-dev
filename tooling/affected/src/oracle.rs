@@ -1,11 +1,11 @@
 #[cfg(test)]
 pub mod tests {
     use std::collections::BTreeSet;
-    use std::path::Path;
 
     use crate::Affected;
+    use crate::changes::Changes;
     use crate::reach::Reach;
-    use task::{CrateName, PackageGraph, Selection};
+    use task::{CrateName, PackageGraph, Selection, SourceFile};
 
     pub struct Oracle {
         edges: usize,
@@ -14,11 +14,20 @@ pub mod tests {
     impl Oracle {
         const PACKAGES: usize = 3;
         const EDGES: [(usize, usize); 3] = [(0, 1), (0, 2), (1, 2)];
-        const PATHS: [&str; 6] = [
-            "crates/p0/a.rs", "crates/p1/a.rs", "crates/p2/a.rs", "Cargo.lock",
-            "tooling/unknown.toml", "README.md",
+        const PATHS: [&str; 13] = [
+            "crates/p0/src/lib.rs", "crates/p1/src/deep/er/mod.rs", "crates/p2/Cargo.toml",
+            "crates/p0/README.md", "crates/p00/a.rs", "crates/p1.rs", "README.md", "Cargo.lock",
+            ".github/workflows/ci.yml", ".githubx/ci.yml", ".claude/settings.json",
+            "shared/data.txt", "tooling/unknown.toml",
         ];
-        const ALWAYS_IN: [usize; 2] = [3, 4];
+        const INCLUDER: (usize, &str, &str) = (
+            1,
+            "crates/p1/src/lib.rs",
+            "pub const D: &str = include_str!(\"../../../shared/data.txt\");",
+        );
+        const SHARED: &str = "shared/data.txt";
+        const IGNORED: [&str; 2] = [".claude/", ".gitignore"];
+        const TRIPLES_OVER: usize = 14;
 
         pub fn every() -> impl Iterator<Item = Oracle> {
             (0..1usize << Self::EDGES.len()).map(|edges| Oracle { edges })
@@ -26,27 +35,44 @@ pub mod tests {
 
         pub fn agrees(&self) -> bool {
             let graph = PackageGraph::from_metadata(&self.metadata()).unwrap();
-            let agrees = |trusted: &[BTreeSet<usize>]| {
-                let reaches: Vec<Vec<Reach>> = trusted
-                    .iter()
-                    .map(|diff| Self::reaches(&graph, diff))
-                    .collect();
-                Affected::tested(&graph, &reaches).within(&graph.names()) == self.reused(trusted)
+            let diffs = Self::diffs();
+            let (owner, file, text) = Self::INCLUDER;
+            let source = || {
+                let name = format!("p{owner}").parse().unwrap();
+                Ok(vec![
+                    SourceFile::parse(file, text.to_owned())
+                        .unwrap()
+                        .in_crate(name),
+                ])
             };
-            let diffs = 0..1usize << Self::PATHS.len();
-            let pairs = diffs
-                .clone()
-                .flat_map(|a| diffs.clone().map(move |b| [Self::diff(a), Self::diff(b)]));
-            agrees(&[]) && pairs.into_iter().all(|pair| agrees(&pair))
-        }
-
-        pub fn reaches(graph: &PackageGraph, diff: &BTreeSet<usize>) -> Vec<Reach> {
-            diff.iter()
-                .map(|path| {
-                    Reach::reached_by(Path::new(Self::PATHS[*path]), graph)
-                        .unwrap_or(Reach::Everything)
+            let reaches: Vec<Vec<Reach>> = diffs
+                .iter()
+                .map(|diff| {
+                    Changes::reached(&graph, &Changes::listed(&diff.join("\n")), source).unwrap()
                 })
-                .collect()
+                .collect();
+            let agrees = |picked: &[usize]| {
+                let sets: Vec<Vec<Reach>> = picked.iter().map(|i| reaches[*i].clone()).collect();
+                let trusted: Vec<&Vec<&str>> = picked.iter().map(|i| &diffs[*i]).collect();
+                Affected::tested(&graph, &sets).within(&graph.names()) == self.expected(&trusted)
+            };
+            let all = 0..diffs.len();
+            let pairs = all
+                .clone()
+                .flat_map(|a| all.clone().map(move |b| vec![a, b]));
+            let small: Vec<usize> = (0..Self::TRIPLES_OVER).collect();
+            let small = &small;
+            let triples = small.iter().flat_map(|a| {
+                small
+                    .iter()
+                    .flat_map(move |b| small.iter().map(move |c| vec![*a, *b, *c]))
+            });
+            let singles = all.clone().map(|a| vec![a]);
+            std::iter::once(vec![])
+                .chain(singles)
+                .chain(pairs)
+                .chain(triples)
+                .all(|picked| agrees(&picked))
         }
 
         pub fn metadata(&self) -> String {
@@ -72,30 +98,49 @@ pub mod tests {
             )
         }
 
-        fn diff(mask: usize) -> BTreeSet<usize> {
-            (0..Self::PATHS.len())
-                .filter(|path| mask >> path & 1 == 1)
+        pub fn diffs() -> Vec<Vec<&'static str>> {
+            let singles = Self::PATHS.iter().map(|path| vec![*path]);
+            let pairs = Self::PATHS.iter().enumerate().flat_map(|(at, first)| {
+                Self::PATHS[at + 1..]
+                    .iter()
+                    .map(move |second| vec![*first, *second])
+            });
+            std::iter::once(vec![])
+                .chain(singles)
+                .chain(pairs)
                 .collect()
         }
 
-        fn reused(&self, trusted: &[BTreeSet<usize>]) -> Selection {
+        fn expected(&self, trusted: &[&Vec<&str>]) -> Selection {
             Selection::Crates(
                 (0..Self::PACKAGES)
-                    .filter(|c| {
-                        trusted
-                            .iter()
-                            .all(|diff| !self.inputs(*c).is_disjoint(diff))
-                    })
+                    .filter(|c| trusted.iter().all(|diff| self.touched(*c, diff)))
                     .map(|c| format!("p{c}").parse::<CrateName>().unwrap())
-                    .collect(),
+                    .collect::<BTreeSet<CrateName>>(),
             )
         }
 
-        fn inputs(&self, c: usize) -> BTreeSet<usize> {
-            (0..Self::PACKAGES)
-                .filter(|package| self.depends(c, *package))
-                .chain(Self::ALWAYS_IN)
-                .collect()
+        fn touched(&self, c: usize, diff: &[&str]) -> bool {
+            diff.iter().any(|path| self.hits(c, path))
+        }
+
+        fn hits(&self, c: usize, path: &str) -> bool {
+            let (owner, _, _) = Self::INCLUDER;
+            if path.rsplit('.').next() == Some("md")
+                || Self::IGNORED
+                    .iter()
+                    .any(|ignored| path.starts_with(ignored))
+            {
+                false
+            } else if let Some(package) =
+                (0..Self::PACKAGES).find(|k| path.starts_with(&format!("crates/p{k}/")))
+            {
+                self.depends(c, package)
+            } else if path == Self::SHARED {
+                self.depends(c, owner)
+            } else {
+                true
+            }
         }
 
         fn depends(&self, from: usize, to: usize) -> bool {
