@@ -1480,3 +1480,4 @@
 {"at":"2026-10-29T11:45:58.423212Z","actor":"owner","kind":"EntryRetired","entry":"task-fbb266cd1cdbb2ce","text":"superseded: #150 closed; scenario move and git port replace hand-built repos"}
 {"at":"2026-10-29T11:46:00.069550Z","actor":"claude-supply","kind":"TaskReleased","task":"task-d478c45138efbbd2"}
 {"at":"2026-10-29T11:47:15.738077Z","actor":"claude-iowait","kind":"TaskOpened","task":"task-6beed807cceeb66a","text":"Slow CI tests: remove disk writeback stalls","division":"performance-and-cost","addresses":["issue-e43ff04178f9fb64"]}
+{"at":"2026-10-29T11:47:24.647727Z","actor":"claude-iowait","kind":"TaskClaimed","task":"task-6beed807cceeb66a"}
