@@ -41,6 +41,11 @@ pub enum Failure {
     Metadata(#[from] serde_json::Error),
     #[error("mutant list is not the shape expected: {0}")]
     MutantList(serde_json::Error),
+    #[error("{site}: cargo timing report is not the shape expected: {error}")]
+    TimingReport {
+        site: Site,
+        error: serde_json::Error,
+    },
     #[error("refused: {0}")]
     Refused(String),
     #[error(
@@ -49,6 +54,8 @@ pub enum Failure {
     Underpriced(String),
     #[error("refused: another mutants run holds {}", .0.display())]
     LockHeld(PathBuf),
+    #[error("refused: {} holds an earlier build; remove it for a clean build", .0.display())]
+    EarlierBuild(PathBuf),
     #[error("refused: {0} is already running")]
     AlreadyRunning(&'static str),
     #[error("refused: {available} free, {granted} granted")]

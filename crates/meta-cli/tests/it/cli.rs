@@ -46,16 +46,9 @@ const LOCK: &str = ".cargo-lock";
 const LINK: &str = "linked";
 const ARTIFACT: [&str; 2] = ["deps/libx.rlib", "compiled"];
 
-#[allow(dead_code)]
-#[path = "support/fixture.rs"]
-mod fixture;
-#[path = "support/meta_command.rs"]
-mod meta_command;
-#[path = "support/seeded_log.rs"]
-mod seeded_log;
-use fixture::{Fixture, Moment};
-use meta_command::MetaCommand;
-use seeded_log::{SeededLog, TASK};
+use crate::fixture::{Fixture, Moment};
+use crate::meta_command::MetaCommand;
+use crate::seeded_log::{SeededLog, TASK};
 
 struct Seed;
 
