@@ -1,5 +1,5 @@
 use std::hash::BuildHasher;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use meta_run::Budget;
 
@@ -26,7 +26,15 @@ impl Attempt {
 }
 
 impl Attempt {
-    pub fn settled<Found, Failure>(
+    pub fn within<Found, Failure>(
+        _deadline: Instant,
+        budget: &Budget,
+        mut found: impl FnMut() -> Result<Option<Found>, Failure>,
+    ) -> Option<Result<Found, Failure>> {
+        Self::sequence().find_map(|attempt| attempt.settled(found(), budget))
+    }
+
+    fn settled<Found, Failure>(
         self,
         found: Result<Option<Found>, Failure>,
         budget: &Budget,
@@ -40,6 +48,17 @@ impl Attempt {
 #[cfg(test)]
 mod tests {
     use super::Attempt;
+    use meta_run::Budget;
+    use std::time::{Duration, Instant};
+    const PATIENCE: Duration = Duration::from_millis(200);
+    const SLACK: Duration = Duration::from_millis(100);
+
+    #[test]
+    fn a_retry_that_never_settles_gives_up_by_its_deadline() {
+        let started = Instant::now();
+        let gave_up = Attempt::within(started + PATIENCE, &Budget::new(PATIENCE), || Ok::<Option<()>, ()>(None));
+        assert!(gave_up.is_none() && started.elapsed() < PATIENCE + SLACK);
+    }
 
     #[test]
     fn pauses_are_jittered_within_the_window() {
