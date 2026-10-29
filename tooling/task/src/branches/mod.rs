@@ -1,6 +1,8 @@
 mod branch_name;
+mod trusted;
 
 pub use branch_name::BranchName;
+pub use trusted::Trusted;
 
 use enum_map::Enum;
 use serde::{Deserialize, Serialize};
