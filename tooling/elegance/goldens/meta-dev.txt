@@ -1,4 +1,4 @@
-types 874, traits declared 16, impls 1347
+types 874, traits declared 16, impls 1346
 missing abstractions: maximal (types, signatures) concepts with at least 2 of each
   concepts 103: named by one trait 31, by a composition only 20, unnamed 52
   missing, one trait must name it: 72
@@ -82,7 +82,7 @@ leverage: distinct method names usable on a type / method bodies written for it
     meta-cli::Commit 0.85 (6 usable / 7 written)
 trait-graph shape
   graph edges: supertrait 3, blanket 0; depth 1
-  blanket share: 0 of 626 trait impls = 0.00
+  blanket share: 0 of 625 trait impls = 0.00
   single-implementor traits: 6
     elegance::FactSource -> elegance::SynSource
     meta-cli::ClaimHands -> meta-cli::ClaimRun
@@ -90,7 +90,7 @@ trait-graph shape
     meta-schema::EventVisitor -> meta-state::Applying
     task::Stream -> task::Stdout
     task::Tool -> task::CargoTool
-  traits implemented directly, per implementing type: n 471: min 1, q1 1, median 1, q3 1, max 5
+  traits implemented directly, per implementing type: n 470: min 1, q1 1, median 1, q3 1, max 5
   types with at least N = 2 traits (q3, at least 2) and no edge among them: 95
     corpus_check::AnnotatedLine: Display, FromStr
     corpus_check::AnnotatedSource: Display, FromStr

@@ -221,6 +221,20 @@ impl<T: Unit> Tag for Option<T> {
     }
 }
 
+impl<T: Unit> Tag for (&T) {
+    fn tag(&self) -> Text {
+        Text
+    }
+}
+
+pub struct Holder<T>(T);
+
+impl<T: Unit> Tag for Holder<T> {
+    fn tag(&self) -> Text {
+        Text
+    }
+}
+
 pub trait Ping {}
 pub trait Pong {}
 
@@ -251,38 +265,38 @@ pub struct Den;
 pub struct Elm;
 
 impl Axe {
-    pub fn south(&self) -> Bearing { Bearing }
-    pub fn east(&self) -> Bearing { Bearing }
-    pub fn west(&self) -> Bearing { Bearing }
-    pub fn up(&self) -> Bearing { Bearing }
+    pub fn south(&self, out: &mut Formatter) -> Result<Axe, Error> { Ok(Axe) }
+    pub fn east(&self, out: &mut Formatter) -> Result<Axe, Error> { Ok(Axe) }
+    pub fn west(&self, out: &mut Formatter) -> Result<Axe, Error> { Ok(Axe) }
+    pub fn up(&self, out: &mut Formatter) -> Result<Axe, Error> { Ok(Axe) }
 }
 
 impl Bow {
-    pub fn north(&self) -> Bearing { Bearing }
-    pub fn east(&self) -> Bearing { Bearing }
-    pub fn west(&self) -> Bearing { Bearing }
-    pub fn up(&self) -> Bearing { Bearing }
+    pub fn north(&self, out: &mut Formatter) -> Result<Bow, Error> { Ok(Bow) }
+    pub fn east(&self, out: &mut Formatter) -> Result<Bow, Error> { Ok(Bow) }
+    pub fn west(&self, out: &mut Formatter) -> Result<Bow, Error> { Ok(Bow) }
+    pub fn up(&self, out: &mut Formatter) -> Result<Bow, Error> { Ok(Bow) }
 }
 
 impl Cup {
-    pub fn north(&self) -> Bearing { Bearing }
-    pub fn south(&self) -> Bearing { Bearing }
-    pub fn west(&self) -> Bearing { Bearing }
-    pub fn up(&self) -> Bearing { Bearing }
+    pub fn north(&self, out: &mut Formatter) -> Result<Cup, Error> { Ok(Cup) }
+    pub fn south(&self, out: &mut Formatter) -> Result<Cup, Error> { Ok(Cup) }
+    pub fn west(&self, out: &mut Formatter) -> Result<Cup, Error> { Ok(Cup) }
+    pub fn up(&self, out: &mut Formatter) -> Result<Cup, Error> { Ok(Cup) }
 }
 
 impl Den {
-    pub fn north(&self) -> Bearing { Bearing }
-    pub fn south(&self) -> Bearing { Bearing }
-    pub fn east(&self) -> Bearing { Bearing }
-    pub fn up(&self) -> Bearing { Bearing }
+    pub fn north(&self, out: &mut Formatter) -> Result<Den, Error> { Ok(Den) }
+    pub fn south(&self, out: &mut Formatter) -> Result<Den, Error> { Ok(Den) }
+    pub fn east(&self, out: &mut Formatter) -> Result<Den, Error> { Ok(Den) }
+    pub fn up(&self, out: &mut Formatter) -> Result<Den, Error> { Ok(Den) }
 }
 
 impl Elm {
-    pub fn north(&self) -> Bearing { Bearing }
-    pub fn south(&self) -> Bearing { Bearing }
-    pub fn east(&self) -> Bearing { Bearing }
-    pub fn west(&self) -> Bearing { Bearing }
+    pub fn north(&self, out: &mut Formatter) -> Result<Elm, Error> { Ok(Elm) }
+    pub fn south(&self, out: &mut Formatter) -> Result<Elm, Error> { Ok(Elm) }
+    pub fn east(&self, out: &mut Formatter) -> Result<Elm, Error> { Ok(Elm) }
+    pub fn west(&self, out: &mut Formatter) -> Result<Elm, Error> { Ok(Elm) }
 }
 
 pub struct U01;

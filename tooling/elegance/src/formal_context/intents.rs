@@ -38,3 +38,27 @@ impl Intents {
         self.found
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use super::Intents;
+    use crate::elegance_settings::EleganceSettings;
+    use crate::signature::Signature;
+
+    const ONE_INTENT: &str = "max_intents = 1";
+    const INTENTS: [[&str; 2]; 2] = [["fn a()", "fn b()"], ["fn c()", "fn d()"]];
+
+    #[test]
+    fn the_cap_stops_the_enumeration_when_the_next_intent_would_exceed_it() {
+        let settings: EleganceSettings = toml::from_str(ONE_INTENT).unwrap();
+        let signature = |text: &&str| Signature::abstracted(&syn::parse_str::<syn::Signature>(text).unwrap(), None);
+        let [first, second] = INTENTS.map(|texts| texts.iter().map(signature).collect::<BTreeSet<Signature>>());
+        let cap = settings.max_intents();
+        let after_first = Intents::default().met(&first, cap);
+        let after_second = after_first.clone().met(&second, cap);
+        assert_eq!((after_first.stopped(), after_second.stopped()), (None, Some(cap)));
+        assert_eq!(after_second.into_found(), after_first.into_found());
+    }
+}

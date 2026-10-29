@@ -53,7 +53,6 @@ impl<'declared> FactScan<'declared> {
             Type::Path(path) => self.path_parameter(item, path),
             Type::Reference(reference) => self.blanket_parameter(item, &reference.elem),
             Type::Paren(parenthesized) => self.blanket_parameter(item, &parenthesized.elem),
-            Type::Group(grouped) => self.blanket_parameter(item, &grouped.elem),
             _ => None,
         }
     }
@@ -75,7 +74,11 @@ impl<'declared> FactScan<'declared> {
             .and_then(|angled| angled.args.iter().find_map(|argument| self.argument_parameter(item, argument)))
     }
 
-    fn argument_parameter<'item>(&self, item: &'item ItemImpl, argument: &'item GenericArgument) -> Option<&'item Ident> {
+    fn argument_parameter<'item>(
+        &self,
+        item: &'item ItemImpl,
+        argument: &'item GenericArgument,
+    ) -> Option<&'item Ident> {
         match argument {
             GenericArgument::Type(inner) => self.blanket_parameter(item, inner),
             _ => None,

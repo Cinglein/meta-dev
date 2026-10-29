@@ -30,12 +30,7 @@ impl FormalContext {
     }
 
     #[must_use]
-    pub fn concepts(
-        &self,
-        catalog: &TraitCatalog,
-        implementations: &Implementations,
-        cap: IntentCap,
-    ) -> ConceptReport {
+    pub fn concepts(&self, catalog: &TraitCatalog, implementations: &Implementations, cap: IntentCap) -> ConceptReport {
         let intents = self
             .0
             .values()

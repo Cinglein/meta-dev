@@ -25,7 +25,8 @@ impl Concept {
         catalog: &TraitCatalog,
         implementations: &Implementations,
     ) -> Concept {
-        let covered = |methods: BTreeSet<&MethodName>| intent.iter().all(|signature| methods.contains(signature.name()));
+        let covered =
+            |methods: BTreeSet<&MethodName>| intent.iter().all(|signature| methods.contains(signature.name()));
         let shared = implementations.shared_by(&extent);
         let single = shared.iter().find(|key| covered(catalog.methods(key))).map(|key| Naming::Trait((*key).clone()));
         let composed: BTreeSet<&MethodName> = shared.iter().flat_map(|key| catalog.methods(key)).collect();
@@ -92,8 +93,9 @@ mod tests {
         let extent: BTreeSet<TypeKey> =
             EXTENT.iter().map(|name| TypeKey::foreign(&syn::parse_str(name).unwrap())).collect();
         let signature = |text: &&str| Signature::abstracted(&syn::parse_str::<syn::Signature>(text).unwrap(), None);
-        let [first, second] = INTENTS
-            .map(|texts| Concept::named(extent.clone(), texts.iter().map(signature).collect(), &catalog, &implementations));
+        let [first, second] = INTENTS.map(|texts| {
+            Concept::named(extent.clone(), texts.iter().map(signature).collect(), &catalog, &implementations)
+        });
         assert_eq!(first.larger_first(&second), Ordering::Less);
         assert_eq!(second.larger_first(&first), Ordering::Greater);
     }

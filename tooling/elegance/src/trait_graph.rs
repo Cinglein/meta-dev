@@ -57,8 +57,7 @@ impl TraitGraph {
             depths
         } else {
             let below: BTreeSet<&TraitKey> = path.iter().copied().chain(std::iter::once(key)).collect();
-            let bases: Vec<&TraitKey> =
-                self.rests_on(key).into_iter().filter(|base| !below.contains(base)).collect();
+            let bases: Vec<&TraitKey> = self.rests_on(key).into_iter().filter(|base| !below.contains(base)).collect();
             let depths = bases.iter().fold(depths, |depths, base| self.settled(base, &below, depths));
             let deepest =
                 bases.iter().filter_map(|base| depths.settled_depth(base)).map(|depth| Tally::ONE + depth).max();
