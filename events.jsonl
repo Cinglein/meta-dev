@@ -1478,3 +1478,4 @@
 {"at":"2026-10-29T11:45:55.172751Z","actor":"claude-talg","kind":"TaskDone","task":"task-c1d5bf2723c59b48"}
 {"at":"2026-10-29T11:45:56.742673Z","actor":"owner","kind":"EntryRetired","entry":"task-bafed2692f095d5c","text":"superseded: #149 closed; library-first tests and the git port cut CPU instead"}
 {"at":"2026-10-29T11:45:58.423212Z","actor":"owner","kind":"EntryRetired","entry":"task-fbb266cd1cdbb2ce","text":"superseded: #150 closed; scenario move and git port replace hand-built repos"}
+{"at":"2026-10-29T11:46:00.069550Z","actor":"claude-supply","kind":"TaskReleased","task":"task-d478c45138efbbd2"}
