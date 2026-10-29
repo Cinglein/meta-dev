@@ -66,13 +66,9 @@ impl LocalSettings {
             .map_err(|failure| CliFailure::raised::<Setup>(format!("{} [monitor]: {failure}", Self::FILE)))
     }
 
-    pub fn identity(&self) -> Result<&Identity, CliFailure> {
-        self.identity.as_ref().ok_or_else(|| {
-            CliFailure::raised::<Setup>(format!(
-                "{}: --worktree needs [identity] name and email (a GitHub noreply address)",
-                Self::FILE
-            ))
-        })
+    pub fn identity(&self, name: Option<&str>, email: Option<&str>) -> Result<Identity, CliFailure> {
+        let chosen = self.identity.clone().map_or_else(|| Identity::from_git(name, email), Ok);
+        chosen.map_err(|refused| CliFailure::raised::<Setup>(format!("--worktree: {refused}")))
     }
 }
 
