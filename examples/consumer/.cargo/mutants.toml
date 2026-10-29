@@ -1,0 +1,1 @@
+exclude_globs = ["xtask/src/main.rs"]

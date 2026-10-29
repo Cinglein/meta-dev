@@ -8,7 +8,7 @@ use crate::github_failure::GithubFailure;
 
 const DUE: &str = "due 2026-10-01 00:00Z";
 const TRUNK_GREEN: &str = r#""trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}"#;
-const TRUNK_RED: &str = r#""trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"FAILURE","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":"CANCELLED","workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}"#;
+const TRUNK_RED: &str = r#""trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"FAILURE","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":null,"workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}"#;
 const PULLS: &str = r#""open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[]}},"linked":{
 "pr1":{"number":1,"state":"MERGED","baseRefName":"main","statusCheckRollup":null},
 "pr2":{"number":2,"state":"OPEN","baseRefName":"main","statusCheckRollup":null},
