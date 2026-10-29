@@ -29,6 +29,7 @@ no_parameter_bags = { path = "../lints/no_parameter_bags" }
 primitive_boundary = { path = "../lints/primitive_boundary" }
 private_fns = { path = "../lints/private_fns" }
 public_surface = { path = "../lints/public_surface" }
+repeated_methods = { path = "../lints/repeated_methods" }
 settings_shape = { path = "../lints/settings_shape" }
 state_graph = { path = "../lints/state_graph" }
 test_budget = { path = "../lints/test_budget" }

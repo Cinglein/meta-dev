@@ -30,6 +30,9 @@ pub enum Measure {
     TangleItems,
     #[strum(to_string = "open_items {0}")]
     OpenItems(ItemFilter),
+    EffectShare,
+    EffectDispersion,
+    RepeatedShapes,
 }
 
 impl Measure {
@@ -40,8 +43,11 @@ impl Measure {
             | Measure::TestCpuTime
             | Measure::SlowestTest
             | Measure::WorkflowWallTime(_) => Unit::Duration,
-            Measure::MutantPrice | Measure::TestLineShare => Unit::Share,
-            Measure::TangleItems | Measure::OpenItems(_) => Unit::Count,
+            Measure::MutantPrice | Measure::TestLineShare | Measure::EffectShare => Unit::Share,
+            Measure::TangleItems
+            | Measure::OpenItems(_)
+            | Measure::EffectDispersion
+            | Measure::RepeatedShapes => Unit::Count,
             Measure::LintFindings => Unit::Baseline,
         }
     }
@@ -53,8 +59,12 @@ impl Measure {
                 Some(ScopeKind::Tests)
             }
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Some(ScopeKind::Workflows),
-            Measure::TangleItems => Some(ScopeKind::Crates),
-            Measure::LintFindings | Measure::TestLineShare => Some(ScopeKind::Paths),
+            Measure::TangleItems | Measure::EffectShare | Measure::EffectDispersion => {
+                Some(ScopeKind::Crates)
+            }
+            Measure::LintFindings | Measure::TestLineShare | Measure::RepeatedShapes => {
+                Some(ScopeKind::Paths)
+            }
             Measure::OpenItems(_) => None,
         }
     }
@@ -67,7 +77,12 @@ impl Measure {
             | Measure::SlowestTest
             | Measure::OpenItems(_) => Enforcer::Checker,
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Enforcer::MutationJobs,
-            Measure::LintFindings | Measure::TestLineShare | Measure::TangleItems => Enforcer::Lint,
+            Measure::LintFindings
+            | Measure::TestLineShare
+            | Measure::TangleItems
+            | Measure::EffectShare
+            | Measure::EffectDispersion
+            | Measure::RepeatedShapes => Enforcer::Lint,
         }
     }
 
@@ -82,7 +97,10 @@ impl Measure {
             | Measure::MutantPrice
             | Measure::LintFindings
             | Measure::TestLineShare
-            | Measure::TangleItems => None,
+            | Measure::TangleItems
+            | Measure::EffectShare
+            | Measure::EffectDispersion
+            | Measure::RepeatedShapes => None,
         }
     }
 
@@ -90,7 +108,11 @@ impl Measure {
     pub const fn window(&self) -> Option<Window> {
         match self {
             Measure::OpenItems(_) => Some(Window::Standing),
-            Measure::TestLineShare | Measure::TangleItems => None,
+            Measure::TestLineShare
+            | Measure::TangleItems
+            | Measure::EffectShare
+            | Measure::EffectDispersion
+            | Measure::RepeatedShapes => None,
             Measure::TestWallTime
             | Measure::TestCpuTime
             | Measure::SlowestTest

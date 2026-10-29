@@ -65,6 +65,7 @@ literals_per_test = 4
 largest_integer = 64
 slowest_shown = 5
 reference_spawns = 1000
+types_per_method_shape = 2
 
 [floors]
 fn_name = 3

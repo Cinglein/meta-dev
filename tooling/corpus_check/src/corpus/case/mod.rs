@@ -8,6 +8,7 @@ use annotated_source::AnnotatedSource;
 use super::corpus_error::CorpusError;
 use super::expectation::Expectation;
 use crate::lint_name::LintName;
+use crate_graph::{CrateGraph, GraphReport};
 use task::CrateName;
 use task::Name;
 use task::Policy;
@@ -18,6 +19,7 @@ use task::Workspace;
 pub struct Case {
     name: Name,
     files: Vec<SourceFile>,
+    graphs: GraphReport,
     expected: Vec<Expectation>,
 }
 
@@ -28,11 +30,13 @@ impl Case {
         let empty = Case {
             name: Name::from(&*directory.file_name().unwrap_or_default().to_string_lossy()),
             files: Vec::new(),
+            graphs: GraphReport::default(),
             expected: Vec::new(),
         };
         let mut files = Workspace::rust_files_under(directory)?;
         files.sort();
-        files.iter().try_fold(empty, |case, file| case.reading(directory, file))
+        let read = files.iter().try_fold(empty, |case, file| case.reading(directory, file))?;
+        Ok(Case { graphs: CrateGraph::graphs(&read.files), ..read })
     }
 
     pub fn expectations(&self) -> &[Expectation] {
@@ -40,7 +44,7 @@ impl Case {
     }
 
     pub fn findings(&self, lint: LintName, policy: &Policy) -> Vec<Expectation> {
-        lint.report(&self.files, policy)
+        lint.report(&self.files, &self.graphs, policy)
             .violations()
             .iter()
             .map(|violation| Expectation::found(&self.name, lint, violation))

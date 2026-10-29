@@ -34,7 +34,7 @@ impl Project {
     const CONFIG_FILE: &'static str = "meta.toml";
     const GIT_ENTRY: &'static str = ".git";
     pub fn log(&self, budget: Budget) -> Result<GitLog, CliFailure> {
-        self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote.clone(), budget))
+        self.config.remote().and_then(|remote| Ok(GitLog::new(self.root.clone(), remote.clone(), budget)?))
     }
 
     pub fn root(&self) -> &Path {

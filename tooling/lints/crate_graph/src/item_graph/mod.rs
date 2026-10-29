@@ -1,3 +1,4 @@
+mod item_uses;
 mod node_index;
 mod referenced_names;
 mod scope;
@@ -6,8 +7,10 @@ pub use node_index::NodeIndex;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::effect::Effect;
 use crate::item_count::ItemCount;
 
+use item_uses::ItemUses;
 use referenced_names::ReferencedNames;
 use scope::Scope;
 use task::Name;
@@ -17,26 +20,31 @@ use task::SourceFile;
 pub struct ItemGraph {
     names: Vec<Name>,
     links: Vec<BTreeSet<NodeIndex>>,
+    effects: Vec<BTreeSet<Effect>>,
 }
 
 impl ItemGraph {
     const EDGE_LENGTH: usize = 2;
 
     pub fn of_files(files: &[&SourceFile]) -> ItemGraph {
-        let references: BTreeMap<Name, Vec<Name>> = files
+        let references: BTreeMap<Name, ItemUses> = files
             .iter()
             .flat_map(|file| {
                 ReferencedNames::of_items(&file.syntax().items, &Scope::of_file(file.syntax()))
                     .into_map()
             })
-            .fold(BTreeMap::new(), |mut all, (owner, names)| {
-                all.entry(owner).or_insert_with(Vec::new).extend(names);
+            .fold(BTreeMap::new(), |mut all, (owner, uses)| {
+                all.entry(owner).or_default().absorb(uses);
                 all
             });
         Self::of_references(&references)
     }
 
-    pub fn of_references(references: &BTreeMap<Name, Vec<Name>>) -> ItemGraph {
+    pub fn effects(&self) -> &[BTreeSet<Effect>] {
+        &self.effects
+    }
+
+    pub fn of_references(references: &BTreeMap<Name, ItemUses>) -> ItemGraph {
         let index_of: BTreeMap<&Name, NodeIndex> = references
             .keys()
             .enumerate()
@@ -44,8 +52,8 @@ impl ItemGraph {
             .collect();
         let links = references
             .iter()
-            .map(|(owner, names)| {
-                names
+            .map(|(owner, uses)| {
+                uses.names()
                     .iter()
                     .filter(|name| *name != owner)
                     .filter_map(|name| index_of.get(name).copied())
@@ -55,6 +63,10 @@ impl ItemGraph {
         ItemGraph {
             names: references.keys().cloned().collect(),
             links,
+            effects: references
+                .values()
+                .map(|uses| uses.effects().clone())
+                .collect(),
         }
     }
 
