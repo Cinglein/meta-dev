@@ -1,28 +1,25 @@
-mod hot_path;
-
 use std::collections::BTreeSet;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
-use hot_path::HotPath;
 use serde::{Deserialize, Serialize};
+
+use crate::policy::Surface;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct QueueSettings {
-    hot: Vec<HotPath>,
+    hot: Vec<Surface>,
     members: NonZeroUsize,
 }
 
 impl QueueSettings {
     #[must_use]
-    pub fn hot_among<'paths>(
-        &self,
-        paths: impl IntoIterator<Item = &'paths PathBuf>,
-    ) -> BTreeSet<PathBuf> {
-        paths
-            .into_iter()
-            .flat_map(|path| self.hot.iter().filter_map(|hot| hot.meeting(path)))
+    pub fn hot_among(&self, paths: &BTreeSet<PathBuf>) -> BTreeSet<Surface> {
+        self.hot
+            .iter()
+            .filter(|hot| paths.iter().any(|path| hot.covers(path)))
+            .cloned()
             .collect()
     }
 

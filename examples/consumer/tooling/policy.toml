@@ -95,7 +95,7 @@ job_setup = 90000
 full_run = ["every_main_push", "weekly", "on_demand"]
 
 [queue]
-hot = ["Cargo.lock"]
+hot = []
 members = 4
 
 [budgets.test-cpu-time]

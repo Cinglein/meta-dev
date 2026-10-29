@@ -96,7 +96,7 @@ job_setup = 90000
 full_run = ["every_main_push", "weekly", "on_demand"]
 
 [queue]
-hot = ["Cargo.lock", "tooling/policy.toml", "self/lint-baseline.toml", "goldens/snapshots/**", "lib.rs"]
+hot = ["goldens/snapshots"]
 members = 4
 
 [domains.features-and-maintenance]

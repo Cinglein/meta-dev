@@ -10,6 +10,7 @@ pub use packing::Packing;
 pub use tested_crates::TestedCrates;
 
 use reach::Reach;
+use std::path::PathBuf;
 use task::BranchName;
 use task::Failure;
 use task::Footprint;
@@ -33,19 +34,18 @@ impl Affected {
         ))
     }
 
+    #[must_use]
     pub fn footprint(
-        workspace: &Workspace,
-        changes: Changes,
-        base: &BranchName,
+        packages: &PackageGraph,
+        reaches: &[Reach],
+        paths: Vec<PathBuf>,
         policy: &Policy,
-    ) -> Result<Footprint, Failure> {
-        let paths = changes.paths(workspace, base)?;
-        let reaches = changes.reaching(workspace, &paths)?;
-        Ok(Footprint::new(
-            Self::reached(workspace.packages(), &reaches),
+    ) -> Footprint {
+        Footprint::new(
+            Self::reached(packages, reaches),
             paths.into_iter().collect(),
             policy,
-        ))
+        )
     }
 
     fn reached(graph: &PackageGraph, reaches: &[Reach]) -> Selection {
@@ -61,9 +61,11 @@ impl Affected {
 
 #[cfg(test)]
 mod tests {
-    use super::{Affected, Reach, Selection};
+    use super::{Affected, Footprint, Reach, Selection};
+    use settings::EmbeddedDefaults;
     use std::collections::BTreeSet;
-    use task::PackageGraph;
+    use std::path::PathBuf;
+    use task::{PackageGraph, Policy};
     const METADATA: &str = r#"{"workspace_root": "/w", "packages": [
         {"name": "board", "manifest_path": "/w/crates/board/Cargo.toml", "dependencies": []},
         {"name": "eval", "manifest_path": "/w/crates/eval/Cargo.toml", "dependencies": [{"name": "board", "path": "/w/crates/board"}]},
@@ -73,6 +75,22 @@ mod tests {
     const EVAL: &str = "eval";
     const NOTHING: Reach = Reach::Nothing;
     const EVERYTHING: Reach = Reach::Everything;
+
+    #[test]
+    fn a_footprint_holds_the_dependents_closure_and_the_paths_and_the_workspace_for_everything() {
+        let graph = PackageGraph::from_metadata(METADATA).unwrap();
+        let (policy, path) = (Policy::defaults(), PathBuf::from("crates/board/a.rs"));
+        let made =
+            |reach: Reach| Affected::footprint(&graph, &[reach], vec![path.clone()], &policy);
+        let want =
+            |reach: Selection| Footprint::new(reach, BTreeSet::from([path.clone()]), &policy);
+        let both = BTreeSet::from([BOARD.parse().unwrap(), EVAL.parse().unwrap()]);
+        assert_eq!(
+            made(Reach::Package(BOARD.parse().unwrap())),
+            want(Selection::Crates(both))
+        );
+        assert_eq!(made(EVERYTHING), want(Selection::Workspace));
+    }
 
     #[test]
     fn a_change_reaches_its_dependents_nothing_reaches_no_crate_and_everything_the_workspace() {
