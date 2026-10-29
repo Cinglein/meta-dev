@@ -1,3 +1,4 @@
+mod build_directory;
 mod ci;
 mod clippy;
 mod coverage;
@@ -19,6 +20,7 @@ use std::path::PathBuf;
 use strum::{EnumString, IntoStaticStr, VariantNames};
 use task::{Branch, Ledger, Policy, Program, Selection, Workspace};
 
+use crate::task::build_directory::{BuildDirectory, Misplaced};
 use crate::task::clippy::Clippy;
 use crate::task::coverage::Coverage;
 use crate::task::golden_refresh::GoldenRefresh;
@@ -54,6 +56,7 @@ pub enum Task {
     Goldens,
     GoldensOnline,
     Graph,
+    Init,
     Lint,
     LiteralNames,
     ManualIteration,
@@ -95,6 +98,7 @@ impl Task {
     pub fn run(self, flags: impl Iterator<Item = String>) -> Result<(), Failure> {
         match self {
             Task::TestRunner => Ok(TestRunner::run(flags)?),
+            Task::Init => Ok(BuildDirectory::read(Workspace::locate()?.root())?.initialized()?),
             task => task.run_in_workspace(&Workspace::locate()?, flags),
         }
     }

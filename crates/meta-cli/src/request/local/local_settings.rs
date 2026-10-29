@@ -24,7 +24,8 @@ pub struct LocalSettings {
 
 impl LocalSettings {
     pub const FILE: &'static str = "meta.local.toml";
-    const SIBLING_SUFFIX: &'static str = "-worktrees";
+    const SIBLING_SUFFIX: &'static str = "-worktrees.noindex";
+    const LEGACY_SUFFIX: &'static str = "-worktrees";
     const HOME: &'static str = "HOME";
 
     pub fn read(checkout: &Path) -> Result<Self, CliFailure> {
@@ -42,20 +43,26 @@ impl LocalSettings {
     }
 
     pub fn worktree_root(&self, checkout: &Path) -> PathBuf {
-        self.worktree_root.as_ref().map_or_else(
-            || {
-                let name = checkout.file_name().unwrap_or_default().to_string_lossy();
-                checkout.with_file_name(format!("{name}{}", Self::SIBLING_SUFFIX))
-            },
-            |root| checkout.join(root),
-        )
+        self.worktree_root
+            .as_ref()
+            .map_or_else(|| Self::sibling(checkout, Self::SIBLING_SUFFIX), |root| checkout.join(root))
+    }
+
+    pub fn worktree_roots(&self, checkout: &Path) -> Vec<PathBuf> {
+        let legacy = self.worktree_root.is_none().then(|| Self::sibling(checkout, Self::LEGACY_SUFFIX));
+        [self.worktree_root(checkout)].into_iter().chain(legacy).collect()
+    }
+
+    fn sibling(checkout: &Path, suffix: &str) -> PathBuf {
+        let name = checkout.file_name().unwrap_or_default().to_string_lossy();
+        checkout.with_file_name(format!("{name}{suffix}"))
     }
 
     pub fn monitor(&self, checkout: &Path) -> Result<MonitorSettings, CliFailure> {
         let home = std::env::var_os(Self::HOME)
             .map(PathBuf::from)
             .ok_or_else(|| CliFailure::raised::<Setup>("monitor: $HOME is unset"))?;
-        MonitorSettings::merged(self.monitor.clone(), checkout, &self.worktree_root(checkout), &home)
+        MonitorSettings::merged(self.monitor.clone(), checkout, &self.worktree_roots(checkout), &home)
             .map_err(|failure| CliFailure::raised::<Setup>(format!("{} [monitor]: {failure}", Self::FILE)))
     }
 

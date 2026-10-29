@@ -6,7 +6,7 @@ meta-development `main` after PR #4.
 ## How to run it on another workspace
 
 PR #4 made the workspace and the policy come from the current directory. For this check: build
-here with `cargo build -p meta-xtask`, then run `<this checkout>/target/debug/meta-xtask <task>`
+here with `cargo build -p meta-xtask`, then run `<this checkout>/target.noindex/debug/meta-xtask <task>`
 from the chess clone. Results were rechecked on `main` after PR #4: identical. A real adopter uses
 the git dependency described in README.md instead.
 

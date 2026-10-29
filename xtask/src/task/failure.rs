@@ -7,6 +7,7 @@ use meta_run::Unread;
 use meta_severity::{Demotions, ScaleFailure, Strands};
 use thiserror::Error;
 
+use crate::task::Misplaced;
 use crate::task::ci::{Busy, OutsideConfig, Unready, Untracked};
 use crate::task::ratchet::{Raised, Ratchet};
 use crate::task::revision::ForeignEmails;
@@ -67,4 +68,6 @@ pub enum Failure {
     Unbuilt(&'static str),
     #[error("git: {0}")]
     Git(Unread),
+    #[error("{0}")]
+    BuildDirectory(#[from] Misplaced),
 }

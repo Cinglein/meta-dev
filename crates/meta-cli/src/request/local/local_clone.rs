@@ -93,7 +93,7 @@ impl LocalClone {
     }
 
     pub fn collected(&self, project: &Project, sweep: Sweep) -> Result<Output, CliFailure> {
-        let root = self.settings()?.worktree_root(&self.checkout);
+        let roots = self.settings()?.worktree_roots(&self.checkout);
         let _held = GcLock::taken(self.git_dir.as_ref())?;
         let trail = LocalTrail::read(self.git_dir.as_ref())?;
         trail.torn().iter().for_each(|torn| eprintln!("meta: warning: {torn}"));
@@ -106,11 +106,11 @@ impl LocalClone {
             let lifetime = status.lifetime(worktree.task());
             Tracked::new(worktree, lifetime)
         });
-        let root = std::fs::canonicalize(&root).unwrap_or(root);
+        let roots = roots.into_iter().map(|root| std::fs::canonicalize(&root).unwrap_or(root)).collect();
         let context = Context::new(
             self.checkout.clone(),
             self.git_dir.as_ref().to_path_buf(),
-            root,
+            roots,
             project.config().remote()?.clone(),
         );
         let host = Host::new(self.settings.clone());
