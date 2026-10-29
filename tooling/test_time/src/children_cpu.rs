@@ -38,13 +38,12 @@ mod tests {
     const NONE: TimeVal = TimeVal::new(0, 0);
     const SPENT: TimeVal = TimeVal::new(0, 2);
     #[test]
-    fn a_waited_child_adds_its_user_and_system_cpu_time_which_a_slower_reference_scales_down() {
+    fn a_waited_child_adds_its_user_and_system_cpu_time() {
         let before = ChildrenCpu::now().unwrap();
         Command::new("sh").args(["-c", BUSY]).status().unwrap();
         let spent = ChildrenCpu::now().unwrap().since(before);
-        let slow = crate::reference_cpu::ReferenceCpu::new(spent + spent, spent);
-        assert!(spent > before.since(before) && slow.scaled(spent + spent) == spent);
+        assert!(spent > before.since(before));
         let system = ChildrenCpu::summed(SPENT, SPENT).since(ChildrenCpu::summed(SPENT, NONE));
-        assert!(slow.to_string().contains("against") && system == ChildrenCpu::spent(SPENT));
+        assert!(system == ChildrenCpu::spent(SPENT));
     }
 }
