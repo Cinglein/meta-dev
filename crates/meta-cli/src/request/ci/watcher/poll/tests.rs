@@ -20,7 +20,6 @@ const AWAITED: [&str; 2] = ["no run yet; Stop stays blocked until one appears or
 const ERRORS: [&str; 2] = ["gh failed: HTTP 502: Bad Gateway", "gh failed: HTTP 401: Bad credentials"];
 const JOB_FAILED: &str = "ci failed; run `meta ci-log`";
 const LONG: Duration = Duration::from_secs(510);
-const HELD: &str = "CI 0517805f95e8ed06ed80c08dd2624fcc86e8402a: failed after 510s";
 const CONCLUDED: [&str; 7] = [
     "failed after 510s: ci / Run cargo xtask ci , ci-gate / ",
     "passed after 510s",
@@ -67,9 +66,7 @@ fn a_watch_concludes_failed_with_its_steps_else_finished_else_absent_else_timed_
     let currents = [None, Some(CiStatus::Running), Some(CiStatus::Absent), Some(CiStatus::Running), None, None, None];
     let concluded = lasts.iter().zip(currents).filter_map(|(last, current)| Note::concluded(current, *last, LONG));
     let shown = concluded.zip(CONCLUDED).filter(|(note, line)| note.line().starts_with(line)).count();
-    let [held, unchecked] = [CiStatus::Failed, CiStatus::Unchecked].map(|current| {
-        let concluded = Note::concluded(Some(current), Some(&passed), LONG);
-        concluded.map(|note| (note.status(), note.entry(&PASSED[4..].parse().unwrap())))
-    });
-    assert_eq!((shown, held, unchecked), (CONCLUDED.len(), Some((CiStatus::Failed, HELD.to_owned())), None));
+    let [held, unchecked] = [CiStatus::Failed, CiStatus::Unchecked]
+        .map(|current| Note::concluded(Some(current), Some(&passed), LONG).map(|note| note.status()));
+    assert_eq!((shown, held, unchecked), (CONCLUDED.len(), Some(CiStatus::Failed), None));
 }

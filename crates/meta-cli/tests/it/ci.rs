@@ -1,5 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+use std::fmt;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
@@ -37,6 +38,7 @@ const BLOCKING: &str = "budget over its blocking line:";
 const COMPILING: &str = "Compiling";
 const CI_WAIT: &str = "ci-wait";
 const CI_LOG: &str = "ci-log";
+const EVENT_PREFIX: &str = "CI ";
 const COMPLETIONS: [&str; 6] = [
     ": passed after",
     ": failed after",
@@ -207,6 +209,12 @@ impl Repo {
     }
 }
 
+impl fmt::Display for Repo {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}", self.clone.path().display())
+    }
+}
+
 #[test]
 fn a_push_hook_watches_ci_and_wait_stop_and_log_each_report_the_failure() {
     let repo = Repo::new(FAILURE);
@@ -215,6 +223,7 @@ fn a_push_hook_watches_ci_and_wait_stop_and_log_each_report_the_failure() {
     let waited = repo.meta(&[CI_WAIT]);
     let stop = repo.hook(STOP, COMMIT);
     let log = repo.meta(&[CI_LOG]).0;
+    assert!(watched.lines().all(|line| line.starts_with(EVENT_PREFIX)), "{watched}");
     assert!(watched.contains(STEP_LISTED) && !waited.1.success() && stop.contains(BLOCK_REASON), "{watched}");
     assert!(log.contains(LOGGED) && log.contains(BLOCKING) && !log.contains(COMPILING), "{log}");
 }

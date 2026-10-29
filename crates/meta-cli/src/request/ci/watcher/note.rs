@@ -4,7 +4,6 @@ use std::fmt;
 use std::time::Duration;
 
 use super::gh::Observation;
-use crate::request::ci::Commit;
 use crate::request::ci::ci_status::CiStatus;
 use elapsed::Elapsed;
 
@@ -45,10 +44,6 @@ impl Note {
             .map(|joined| format!(": {joined}; run `meta ci-log`"));
         let line = format!("{status} after {}{}{}", Elapsed::new(elapsed), status.detail(), failed.unwrap_or_default());
         unchecked.is_none().then_some(Self { line, status })
-    }
-
-    pub fn entry(&self, commit: &Commit) -> String {
-        format!("CI {commit}: {self}")
     }
 
     pub fn unchecked(elapsed: Duration, reason: impl fmt::Display) -> Self {

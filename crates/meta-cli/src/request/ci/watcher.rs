@@ -12,12 +12,14 @@ mod watch_clock;
 use std::ops::ControlFlow;
 use std::time::{Duration, Instant};
 
+use meta_log::RemoteHeads;
 use meta_run::{Budget, EnvPolicy, Run};
 
 use super::ci_status::CiStatus;
 use super::commit::Commit;
 use super::session_dir::SessionDir;
 use super::session_id::SessionId;
+use crate::request::checkout::Checkout;
 use crate::request::cli_failure::{CliFailure, Invalid, Setup};
 use crate::request::output::{Listed, Output};
 use crate::request::project::{BranchName, CiSettings, Project};
@@ -79,17 +81,19 @@ impl Watcher {
                 Watched::new(commit.clone(), dir.status_of(commit))
             })
             .collect();
+        let checkout = seen.as_ref().ok().map(SessionCommits::checkout);
+        let head = checkout.and_then(Checkout::head).and_then(Commit::commit_id);
+        let branch = checkout.and_then(Checkout::branch).filter(|branch| project.config().protects(branch).is_none());
+        let unseen = RemoteHeads::default();
+        let heads = seen.as_ref().map_or(&unseen, SessionCommits::heads);
+        let budget = project.ci_settings().budget(CiSettings::ROUTINE).within(deadline);
+        let read = || project.log(budget).and_then(|log| log.read_listed(heads).map_err(CliFailure::from));
+        let state = || WaitOnCi::state_read(budget, read);
         let reason = match StopView::new(&seen, unwritable, statuses).reason() {
             ControlFlow::Break(reason) => Some(Listed::new(reason)),
-            ControlFlow::Continue(statuses) => seen.as_ref().ok().and_then(|seen| {
-                let budget = project.ci_settings().budget(CiSettings::ROUTINE).within(deadline);
-                let read =
-                    || project.log(budget).and_then(|log| log.read_listed(seen.heads()).map_err(CliFailure::from));
-                let head = seen.checkout().head().and_then(Commit::commit_id);
-                let branch = seen.checkout().branch().filter(|branch| project.config().protects(branch).is_none());
-                let task = branch.and_then(BranchName::task);
-                WaitOnCi::stop_reason(&statuses, head.as_ref(), task, || WaitOnCi::state_read(budget, read))
-            }),
+            ControlFlow::Continue(statuses) => {
+                WaitOnCi::stop_reason(&statuses, head.as_ref(), branch.and_then(BranchName::task), state)
+            }
         };
         Self::stopped(Instant::now(), deadline, reason)
     }
@@ -174,7 +178,13 @@ impl Watcher {
     }
 
     fn note(&self, note: &Note) {
-        self.dir.record(note.entry(&self.commit)).ok();
+        self.dir.record(format!("{self}: {note}")).ok();
         self.dir.settle(&self.commit, note.status()).ok();
+    }
+}
+
+impl std::fmt::Display for Watcher {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "CI {}", self.commit)
     }
 }
