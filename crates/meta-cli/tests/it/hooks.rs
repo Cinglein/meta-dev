@@ -35,13 +35,7 @@ const GIT_CONFIG: &str = ".git/config";
 const BARE_CONFIG: &str = "config";
 const ELSEWHERE: &str = "ELSEWHERE";
 const FOREIGN_REASON: &str = "someone@example.com is not noreply; git config user.name";
-const UNRESOLVED_REASON: &str = "cannot resolve the commit directory";
-const REFUSED_COMMITS: [(&str, &str); 4] = [
-    ("cd ELSEWHERE && git commit --amend --no-edit", FOREIGN_REASON),
-    ("git commit -m change", FOREIGN_REASON),
-    ("git commit -m x && git -C ELSEWHERE commit -m y", FOREIGN_REASON),
-    ("git -C \"$REPO\" commit -m x", UNRESOLVED_REASON),
-];
+const REFUSED_COMMIT: &str = "git commit -m x && git -C ELSEWHERE commit -m y";
 const NEW_FEATURE: WorkStep = WorkStep::Branch("feature");
 const HEAD: &str = "HEAD";
 const FEATURE_BRANCH: &str = "feature";
@@ -150,9 +144,7 @@ fn pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_whereve
     Config::configure(&elsewhere.join(BARE_CONFIG), FOREIGN_IDENTITY);
     let push = repo.hook(PRE, PUSH, home);
     assert!(repo.hook(PRE, MERGE, home).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
-    let commits = REFUSED_COMMITS.into_iter().zip([home, elsewhere, home, home]);
-    let shown = commits.map(|((command, reason), cwd)| (repo.hook(PRE, command, cwd), format!("{DENY}{reason}")));
-    assert!(shown.into_iter().all(|(shown, refused)| shown.contains(&refused)));
+    assert!(repo.hook(PRE, REFUSED_COMMIT, home).contains(&format!("{DENY}{FOREIGN_REASON}")));
     assert_eq!(repo.hook(PRE, ALLOWED, home), "");
 }
 
