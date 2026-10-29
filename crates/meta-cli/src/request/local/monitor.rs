@@ -17,6 +17,7 @@ mod patrol;
 mod pid_list;
 mod process_row;
 mod signal;
+mod silence;
 mod target;
 mod unreadable;
 mod watch_item;
@@ -34,6 +35,7 @@ use crate::request::cli_failure::{CliFailure, Misuse, Setup};
 use crate::request::local::local_settings::MonitorSettings;
 use crate::request::output::{Listed, Output};
 use crate::request::project::HeartbeatSettings;
+use crate::request::scale_policy::ScalePolicy;
 use fault::Fault;
 use finding::Finding;
 use live_machine::LiveMachine;
@@ -42,6 +44,7 @@ use monitor_report::MonitorReport;
 use monitor_state::MonitorState;
 use monitor_trail::MonitorTrail;
 use patrol::Patrol;
+use silence::Silence;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Monitor {
@@ -71,7 +74,9 @@ impl Monitor {
             Self::Tick => {
                 let settings = clone.monitor_settings()?;
                 settings.paced(heartbeat).ok_or_else(|| CliFailure::raised::<Setup>(Self::UNPACED))?;
-                Self::patrolled(git_dir, &Patrol::new(&settings, &LiveMachine::new(&settings)), Utc::now())
+                let now = Utc::now();
+                let silences = Silence::heard(git_dir, ScalePolicy::read(clone.checkout())?.liveness(), now);
+                Self::patrolled(git_dir, &Patrol::new(&settings, &LiveMachine::new(&settings), &silences), now)
             }
             Self::Report => Ok(Output::Listed(Listed::new(MonitorReport::latest(git_dir)?))),
         }

@@ -32,9 +32,12 @@ impl ShellCommand {
     }
 
     pub fn commit_directories(&self, cwd: &Path) -> Vec<PathBuf> {
+        self.followed(cwd, |words| GitCall::parse(words)?.writes_commits())
+    }
+
+    pub fn followed(&self, cwd: &Path, wanted: impl Fn(&[String]) -> Option<()>) -> Vec<PathBuf> {
         let mut shell = WorkingDirectory::new(cwd);
-        let writes = |words: &[String]| GitCall::parse(words)?.writes_commits();
-        self.segments().filter_map(|words| shell.follow(words, writes)).collect()
+        self.segments().filter_map(|words| shell.follow(words, &wanted)).collect()
     }
 
     pub fn publishing_directory(&self, cwd: &Path) -> Option<PathBuf> {

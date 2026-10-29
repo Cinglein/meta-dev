@@ -17,6 +17,7 @@ use super::ownership::Ownership;
 use super::pid_list::PidList;
 use super::process_row::ProcessRow;
 use super::signal::Signal;
+use super::silence::Silence;
 use super::target::Target;
 use super::watch_item::WatchItem;
 use crate::request::local::local_settings::MonitorSettings;
@@ -28,11 +29,12 @@ use process_table::ProcessTable;
 pub struct Patrol<'patrol, Host> {
     settings: &'patrol MonitorSettings,
     host: &'patrol Host,
+    silences: &'patrol [Silence],
 }
 
 impl<'patrol, Host: Machine> Patrol<'patrol, Host> {
-    pub fn new(settings: &'patrol MonitorSettings, host: &'patrol Host) -> Self {
-        Self { settings, host }
+    pub fn new(settings: &'patrol MonitorSettings, host: &'patrol Host, silences: &'patrol [Silence]) -> Self {
+        Self { settings, host, silences }
     }
 
     pub fn settings(&self) -> &MonitorSettings {
@@ -41,8 +43,10 @@ impl<'patrol, Host: Machine> Patrol<'patrol, Host> {
 
     pub fn round(&self, before: &MonitorState, now: DateTime<Utc>) -> MonitorReport {
         let load = self.host.uptime().and_then(|uptime| uptime.parse::<LoadAverage>().ok());
+        let silent = self.silences.iter().cloned().map(Finding::Silent);
+        let blind = [Finding::Blind].into_iter().chain(silent.clone()).collect();
         self.rows().map_or_else(
-            || MonitorReport::new(now, load, before.clone()).found(vec![Finding::Blind], Vec::new()),
+            || MonitorReport::new(now, load, before.clone()).found(blind, Vec::new()),
             |rows| {
                 let table = ProcessTable::new(rows, self.settings, self.host.own_pid());
                 let marked = table.marked(before.marked(), now);
@@ -56,8 +60,8 @@ impl<'patrol, Host: Machine> Patrol<'patrol, Host> {
                 let promoted = watched.iter().filter(|item| self.settings.promotes(item.ticks()).is_some());
                 let promoted = promoted.cloned().map(Finding::Watched);
                 let findings = self.stopped(&stopped, &marked).into_iter();
-                let findings: Vec<Finding> =
-                    findings.chain(over.into_iter().map(Finding::OverLimit)).chain(unknown).chain(promoted).collect();
+                let findings = findings.chain(silent).chain(over.into_iter().map(Finding::OverLimit));
+                let findings: Vec<Finding> = findings.chain(unknown).chain(promoted).collect();
                 MonitorReport::new(now, load, MonitorState::new(marked, watched)).found(findings, judged.shown())
             },
         )
@@ -67,7 +71,7 @@ impl<'patrol, Host: Machine> Patrol<'patrol, Host> {
         let rows: Vec<ProcessRow> = self.host.table()?.lines().filter_map(|line| line.parse().ok()).collect();
         let cwds: CwdListing =
             self.host.cwds(&PidList::new(rows.iter().map(ProcessRow::pid).collect()))?.parse().ok()?;
-        Some(rows.into_iter().map(|row| cwds.placed(row)).collect())
+        Some(rows.into_iter().map(|row| cwds.placed(row).hushed(self.silences)).collect())
     }
 
     fn watched(&self, judged: &JudgedRows, before: &MonitorState, now: DateTime<Utc>) -> Vec<WatchItem> {

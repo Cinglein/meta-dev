@@ -18,7 +18,7 @@ impl fmt::Display for Usage {
              \x20 gc restore <quarantine>   (puts a stranded quarantine's file modes back, unlocks it and moves it home)\n\
              \x20 release <task-id>   (unassigns you)\n\
              \x20 done|reopen <task-id>\n\
-             \x20 wait <task-id> --on <issue-id|task-id|review|ci|merge> | resume <task-id>\n\
+             \x20 wait <task-id> --on <issue-id|task-id|review|ci|merge> [--due <rfc3339>] | resume <task-id>   (reply due: --due, else now + [liveness] reply_within in tooling/policy.toml)\n\
              \x20 link <task-id> <pr-number>\n\
              \x20 retire <id> <reason>   (won't do; keeps the entry)\n\
              \x20 correct <id> <text>   (replaces the entry's text)\n\

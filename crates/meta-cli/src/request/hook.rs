@@ -9,6 +9,7 @@ use std::panic::resume_unwind;
 use std::str::FromStr;
 use std::time::{Duration, Instant};
 
+use chrono::Utc;
 use meta_listing::Scope;
 use meta_run::Budget;
 use meta_schema::Actor;
@@ -77,6 +78,7 @@ impl HookEvent {
     pub fn respond(self) -> Result<Output, CliFailure> {
         let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
         let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
+        matches!(self, Self::PreToolUse | Self::PostToolUse).then(|| input.stamp(Utc::now()));
         let reply = match Project::found(input.cwd().as_path()) {
             Ok(Some(project)) => {
                 let session = input.session().and_then(|session| SessionDir::for_session(&project, session));

@@ -1,18 +1,22 @@
 mod expected_run;
+mod tool_stamp;
 mod watch_state;
 
 use std::fmt;
 use std::io::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use super::ci_status::CiStatus;
 use super::commit::Commit;
 use super::session_id::SessionId;
+use super::task_worktree::TaskWorktree;
 use crate::request::git_link::GitLink;
 use crate::request::output::Listed;
 use crate::request::project::Project;
+use chrono::{DateTime, Utc};
 use expected_run::ExpectedRun;
+use tool_stamp::ToolStamp;
 use watch_state::WatchState;
 
 #[derive(Clone, Debug)]
@@ -30,10 +34,35 @@ impl SessionDir {
     const LOCKS: &'static str = "locks";
     const PROBE: &'static str = "probe";
     const EXPECTED: &'static str = "expected";
+    const STAMP: &'static str = "tool-stamp";
 
     pub fn for_session(project: &Project, session: &SessionId) -> Option<Self> {
-        let own = GitLink::common_dir(project.root())?.join(Self::ROOT).join(session.file_name());
+        Self::within(project.root(), session)
+    }
+
+    pub fn within(root: &Path, session: &SessionId) -> Option<Self> {
+        let own = GitLink::common_dir(root)?.join(Self::ROOT).join(session.file_name());
         Some(Self { own, shared: std::env::temp_dir().join(Self::ROOT) })
+    }
+
+    pub fn stamped(touched: &Path, at: DateTime<Utc>) -> Option<()> {
+        let worktree = TaskWorktree::enclosing(touched)?.canonical();
+        let session = Self::within(worktree.path(), &SessionId::of_task(worktree.task()))?;
+        session.stamp(&ToolStamp::new(worktree, at)).ok()
+    }
+
+    fn stamp(&self, stamp: &ToolStamp) -> std::io::Result<()> {
+        std::fs::create_dir_all(&self.own)?;
+        let target = self.own.join(Self::STAMP);
+        let temp = target.with_extension(Self::PARTIAL);
+        std::fs::write(&temp, serde_json::to_string(stamp)?)?;
+        std::fs::rename(&temp, target)
+    }
+
+    pub fn stamps(common_dir: &Path) -> Vec<ToolStamp> {
+        let sessions = std::fs::read_dir(common_dir.join(Self::ROOT)).into_iter().flatten().flatten();
+        let texts = sessions.filter_map(|session| std::fs::read_to_string(session.path().join(Self::STAMP)).ok());
+        texts.filter_map(|text| serde_json::from_str(&text).ok()).collect()
     }
 
     pub fn record(&self, line: impl fmt::Display) -> std::io::Result<()> {

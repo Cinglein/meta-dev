@@ -187,7 +187,9 @@ impl Request {
             ),
             Self::Wait(block) => {
                 let head = project.head().and_then(|head| head.commit_id());
-                Self::Write(Event::TaskBlocked(head.into_iter().fold(block, Block::at_head))).answer_in(project)
+                let block = head.into_iter().fold(block, Block::at_head);
+                let asked = ScalePolicy::read(project.root())?.liveness().asked(block, Utc::now());
+                Self::Write(Event::TaskBlocked(asked)).answer_in(project)
             }
         }
     }

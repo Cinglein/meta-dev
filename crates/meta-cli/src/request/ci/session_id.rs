@@ -6,6 +6,8 @@ use std::str::FromStr;
 use meta_schema::{Actor, Id, Task};
 use serde::Deserialize;
 
+use super::task_worktree::TaskWorktree;
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(transparent)]
 pub struct SessionId(String);
@@ -22,7 +24,7 @@ impl SessionId {
     }
 
     pub fn chosen(variable: Option<String>, directory: &Path) -> Option<Self> {
-        let claimed = || directory.ancestors().find_map(|folder| folder.file_name()?.to_str()?.parse().ok());
+        let claimed = || TaskWorktree::enclosing(directory).map(|worktree| worktree.task());
         variable.map(Self).or_else(|| claimed().map(Self::of_task))
     }
 

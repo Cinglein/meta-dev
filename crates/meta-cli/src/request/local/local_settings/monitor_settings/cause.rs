@@ -8,6 +8,7 @@ pub enum Cause {
     Orphaned,
     CpuTime,
     WallTime,
+    Silent,
 }
 
 impl fmt::Display for Cause {
@@ -16,6 +17,7 @@ impl fmt::Display for Cause {
             Self::Orphaned => "orphaned past its limit",
             Self::CpuTime => "past its cpu time limit",
             Self::WallTime => "past its wall time limit",
+            Self::Silent => "in a task worktree silent past its limit",
         })
     }
 }

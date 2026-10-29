@@ -8,6 +8,7 @@ use meta_golden::Golden;
 
 use super::Monitor;
 use super::patrol::Patrol;
+use super::silence::Silence;
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::local_settings::MonitorSettings;
 use crate::request::local::{LocalClone, LocalFile};
@@ -45,7 +46,9 @@ const CWDS: &str =
 p100\nn/p-worktrees/t\np101\nn/p-worktrees/t\np105\nn/p-worktrees/t\np106\nn/other\np110\nn/p-worktrees/t\np120\nn/other
 p130\nn/p\np140\nn/p\np200\nn/p\np201\nn/p\np300\nn/other\np102\nn/other\np60\nn/p\n";
 const UPTIME: &str = "12:00  up 26 days, 19:01, 1 user, load averages: 1.00 2.00 3.01\n";
-const STOPPING: &str = "stop = [\"orphaned\", \"cpu-time\", \"wall-time\"]\nspared = []";
+const STOPPING: &str = "stop = [\"orphaned\", \"cpu-time\", \"wall-time\", \"silent\"]\nspared = []";
+const SILENT: &str = r#"{"task":"task-00000000000000c0","worktree":"/p-worktrees/t",
+"quiet":{"secs":4000,"nanos":0},"limit":{"secs":1800,"nanos":0}}"#;
 const PROMOTING: &str = "watch_ticks = 2\nkept_entries = 6";
 const LOOP: [&str; 2] = ["  100     1   100", "  201     1   201"];
 const JOINED: [&str; 2] =
@@ -66,7 +69,8 @@ impl Watch {
             MonitorSettings::merged(toml::from_str(overrides).unwrap(), checkout[0], &[checkout[1]], checkout[2]);
         let state = LocalFile::new(git_dir.join(STATE));
         state.text().unwrap().is_empty().then(|| state.replaced(MARKED).unwrap());
-        Monitor::patrolled(git_dir, &Patrol::new(&settings.unwrap(), host), now).unwrap()
+        let silences = [serde_json::from_str::<Silence>(SILENT).unwrap()];
+        Monitor::patrolled(git_dir, &Patrol::new(&settings.unwrap(), host, &silences), now).unwrap()
     }
 
     fn shown(host: &FakeMachine, after: &str) -> String {

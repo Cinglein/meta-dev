@@ -2,7 +2,10 @@ cwds 400,500,501,502,503,504,100,101,106,110,120,130,140,200,300,60
 succeeds: false
 monitor 2026-10-27 12:00Z, machine load 3.01 over 15 min (context only)
 obvious:
+  monitor: silent task-00000000000000c0: no tool call for 4000s, limit 1800s
   monitor: agent work pid 100 orphaned past its limit, target -100: bash -c while true; do :; done
+  monitor: agent work pid 101 in a task worktree silent past its limit, target -100: sleep 1
+  monitor: agent work pid 110 in a task worktree silent past its limit, target -110: sleep 600
   monitor: no agent marker under a root, pid 120 orphaned past its limit, target 120: tail -f log
   monitor: no agent marker under a root, pid 140 orphaned past its limit, target 140: bash -c source env.sh && make
   monitor: no agent marker under a root, pid 200 orphaned past its limit, target 200: bash -c while true; do :; done

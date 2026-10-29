@@ -3,13 +3,14 @@ mod pushed_commits;
 mod shell_command;
 mod tool_input;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+use chrono::{DateTime, Utc};
 use meta_schema::Actor;
 use serde::Deserialize;
 
-use crate::request::ci::{SessionId, SessionStart};
+use crate::request::ci::{SessionDir, SessionId, SessionStart};
 use crate::request::output::Listed;
 use crate::request::project::Project;
 
@@ -59,6 +60,13 @@ impl HookInput {
         self.command()?.publishing_directory(&self.cwd())
     }
 
+    pub fn stamp(&self, at: DateTime<Utc>) -> Option<()> {
+        let cwd = self.cwd();
+        let named = self.tool_input.as_ref().and_then(ToolInput::file_path).map(Path::to_path_buf);
+        let shell = self.command().map(|command| command.followed(&cwd, |_| Some(()))).unwrap_or_default();
+        named.into_iter().chain(shell).chain([cwd]).find_map(|path| SessionDir::stamped(&path, at))
+    }
+
     pub fn session(&self) -> Option<&SessionId> {
         self.session_id.as_ref()
     }
@@ -71,7 +79,29 @@ impl HookInput {
 
 #[cfg(test)]
 mod tests {
+    use chrono::Utc;
+    use serde_json::json;
+
     use super::HookInput;
+    use crate::request::ci::SessionDir;
+
+    const TASK: &str = "task-00000000000000c0";
+    const GIT: &str = ".git";
+
+    #[test]
+    fn a_tool_call_that_touches_a_task_worktree_stamps_that_task_and_any_other_call_stamps_nothing() {
+        let root = tempfile::tempdir().unwrap();
+        let worktree = root.path().join(TASK);
+        std::fs::create_dir_all(worktree.join(GIT)).unwrap();
+        let stamp = |input: serde_json::Value| serde_json::from_value::<HookInput>(input).unwrap().stamp(Utc::now());
+        let edit = json!({ "cwd": root.path(), "tool_input": { "file_path": worktree.join("a.rs") } });
+        let shell = json!({ "cwd": root.path(), "tool_input": { "command": format!("cd {TASK} && cargo build") } });
+        let elsewhere = json!({ "cwd": root.path(), "tool_input": { "command": "ls" } });
+        assert_eq!([edit, shell, elsewhere].map(stamp), [Some(()), Some(()), None]);
+        let stamps = SessionDir::stamps(&worktree.join(GIT).canonicalize().unwrap());
+        let tasks: Vec<String> = stamps.iter().map(|stamp| stamp.worktree().task().to_string()).collect();
+        assert_eq!(tasks, [TASK]);
+    }
 
     const PUBLISHING: [(&str, &str); 4] = [
         ("git push -u origin x", "/w"),

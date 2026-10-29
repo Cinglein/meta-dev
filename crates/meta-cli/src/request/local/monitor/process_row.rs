@@ -13,6 +13,7 @@ use chrono::{DateTime, TimeDelta, Utc};
 use super::command_summary::CommandSummary;
 use super::core_share::CoreShare;
 use super::culprit::Culprit;
+use super::silence::Silence;
 use super::target::Target;
 use super::unreadable::Unreadable;
 use super::watch_item::WatchItem;
@@ -32,6 +33,7 @@ pub struct ProcessRow {
     cpu: CoreShare,
     command: CommandLine,
     cwd: Option<PathBuf>,
+    silent: Option<()>,
 }
 
 impl ProcessRow {
@@ -39,6 +41,12 @@ impl ProcessRow {
 
     pub fn placed(self, cwd: Option<PathBuf>) -> Self {
         Self { cwd, ..self }
+    }
+
+    pub fn hushed(self, silences: &[Silence]) -> Self {
+        let cwd = self.cwd.as_deref();
+        let silent = cwd.and_then(|cwd| silences.iter().find_map(|silence| silence.holds(cwd)));
+        Self { silent, ..self }
     }
 
     pub fn pid(&self) -> Pid {
@@ -80,7 +88,7 @@ impl ProcessRow {
     }
 
     pub fn cause(&self, settings: &MonitorSettings) -> Option<Cause> {
-        settings.cause(self.age, self.cpu_time, self.orphaned())
+        settings.cause(self.age, self.cpu_time, self.orphaned()).or(self.silent.map(|()| Cause::Silent))
     }
 
     pub fn culprit(&self, cause: Cause, whole_group: Option<()>) -> Culprit {
@@ -93,7 +101,7 @@ impl ProcessRow {
     }
 
     pub fn watched(&self, settings: &MonitorSettings, now: DateTime<Utc>) -> Option<WatchItem> {
-        let quiet = self.cause(settings).map_or(Some(()), |_| None);
+        let quiet = settings.cause(self.age, self.cpu_time, self.orphaned()).map_or(Some(()), |_| None);
         quiet.and_then(|()| settings.near(self.age, self.cpu_time))?;
         Some(WatchItem::new(self.pid, CommandSummary::from(&self.command), now, self.cpu_time))
     }
@@ -131,6 +139,7 @@ impl FromStr for ProcessRow {
             cpu: cpu.parse::<CoreShare>().map_err(|_| Unreadable)?.hundredth(),
             command: command.join(" ").parse()?,
             cwd: None,
+            silent: None,
         })
     }
 }

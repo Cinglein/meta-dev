@@ -7,6 +7,9 @@ use serde::Deserialize;
 use serde::de::IgnoredAny;
 
 use crate::request::cli_failure::{CliFailure, Setup};
+pub use liveness::Liveness;
+
+mod liveness;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct ScalePolicy {
@@ -14,6 +17,8 @@ pub struct ScalePolicy {
     scales: Scales,
     #[serde(default)]
     domains: BTreeMap<Division, Option<IgnoredAny>>,
+    #[serde(default)]
+    liveness: Liveness,
 }
 
 impl ScalePolicy {
@@ -30,6 +35,10 @@ impl ScalePolicy {
         &self.scales
     }
 
+    pub fn liveness(&self) -> Liveness {
+        self.liveness
+    }
+
     pub fn known(&self, division: &Division) -> Result<(), RatingFailure> {
         (self.scales.declares(division) || self.domains.contains_key(division))
             .then_some(())
@@ -39,7 +48,7 @@ impl ScalePolicy {
 
 impl From<Scales> for ScalePolicy {
     fn from(scales: Scales) -> ScalePolicy {
-        ScalePolicy { scales, domains: BTreeMap::new() }
+        ScalePolicy { scales, domains: BTreeMap::new(), liveness: Liveness::default() }
     }
 }
 
