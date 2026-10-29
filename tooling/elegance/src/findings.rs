@@ -1,6 +1,10 @@
+use std::collections::BTreeSet;
 use std::fmt;
 
 use crate::finding::Finding;
+use crate::located::Located;
+use crate::places::Places;
+use crate::source_path::SourcePath;
 use crate::tally::Tally;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -24,6 +28,13 @@ impl<Subject, Detail> Findings<Subject, Detail> {
     #[must_use]
     pub fn found(&self) -> &[Finding<Subject, Detail>] {
         &self.0
+    }
+}
+
+impl<Subject: Located, Detail: Located> Findings<Subject, Detail> {
+    #[must_use]
+    pub fn located(&self, places: &Places) -> Vec<BTreeSet<SourcePath>> {
+        self.0.iter().map(|finding| finding.places(places)).collect()
     }
 }
 

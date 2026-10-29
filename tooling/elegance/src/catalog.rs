@@ -8,6 +8,7 @@ use std::fmt;
 
 use crate::Measures;
 use crate::naming::Naming;
+use crate::smell_inventory::SmellInventory;
 use crate::tally::Tally;
 use direction::Direction::{Higher, Lower, TargetZero};
 use measure::Measure;
@@ -21,11 +22,14 @@ pub struct Catalog;
 impl Catalog {
     pub const MEASURES: [Measure; 24] = [
         Measure::new(MeasureId::B1, "unnamed concepts", TraitGraph, TargetZero)
-            .measured(|measures| Reading::Count(measures.concepts.counted(|naming| *naming == Naming::Missing))),
+            .measured(|measures| Reading::Count(measures.concepts.counted(|naming| *naming == Naming::Missing)))
+            .scored("naming-completeness", |measures| measures.concepts.located(&measures.places, &Naming::Missing)),
         Measure::new(MeasureId::B2, "reducible traits", TraitGraph, TargetZero)
-            .measured(|measures| Reading::Count(Tally::counting(measures.reducible.found()))),
+            .measured(|measures| Reading::Count(Tally::counting(measures.reducible.found())))
+            .scored("reducible-traits", |measures| measures.reducible.located(&measures.places)),
         Measure::new(MeasureId::B3, "signatures declared in more than one trait", TraitGraph, TargetZero)
-            .measured(|measures| Reading::Count(Tally::counting(measures.shared.found()))),
+            .measured(|measures| Reading::Count(Tally::counting(measures.shared.found())))
+            .scored("orthogonality", |measures| measures.shared.located(&measures.places)),
         Measure::new(MeasureId::B4, "leverage: usable methods / written bodies", TraitGraph, Higher)
             .measured(|measures| Reading::Median(measures.leverage.median())),
         Measure::new(MeasureId::B5, "order not realised: derivable hand impls", TraitGraph, TargetZero),
@@ -34,13 +38,16 @@ impl Catalog {
         Measure::new(MeasureId::B8, "domain transitions touching primitives", TransitionGraph, TargetZero)
             .by_lint("primitive_boundary (partial)"),
         Measure::new(MeasureId::B9, "hidden state fields", TransitionGraph, TargetZero)
-            .measured(|measures| Reading::Count(Tally::counting(measures.hidden.found()))),
+            .measured(|measures| Reading::Count(Tally::counting(measures.hidden.found())))
+            .scored("hidden-state", |measures| measures.hidden.located(&measures.places)),
         Measure::new(MeasureId::B10, "typestate share of transitions", TransitionGraph, Higher),
         Measure::new(MeasureId::B11, "transition graph simplicity", TransitionGraph, Lower),
         Measure::new(MeasureId::B12, "unnamed field concepts", Types, TargetZero)
-            .measured(|measures| Reading::Count(measures.fields.counted(|naming| *naming == Naming::Missing))),
+            .measured(|measures| Reading::Count(measures.fields.counted(|naming| *naming == Naming::Missing)))
+            .scored("field-concepts", |measures| measures.fields.located(&measures.places, &Naming::Missing)),
         Measure::new(MeasureId::B13, "types with LCOM4 above 1", Types, TargetZero)
-            .measured(|measures| Reading::Count(Tally::counting(measures.split.found()))),
+            .measured(|measures| Reading::Count(Tally::counting(measures.split.found())))
+            .scored("lcom4", |measures| measures.split.located(&measures.places)),
         Measure::new(MeasureId::B14, "behavioural inherent methods", Types, Lower),
         Measure::new(MeasureId::B15, "bodies identical up to types", Code, TargetZero),
         Measure::new(MeasureId::B16, "same-job paths per external effect", Effects, Lower)
@@ -60,5 +67,15 @@ impl Catalog {
         Self::MEASURES
             .iter()
             .try_for_each(|measure| writeln!(formatter, "  {measure}: {}", measure.status().read(measures)))
+    }
+
+    pub fn scored(measures: &Measures, inventory: &SmellInventory, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(
+            formatter,
+            "smell inventory scoring, informational: a finding flags an entry when a type or trait it names is declared in a file the entry lists"
+        )?;
+        Self::MEASURES.iter().try_for_each(|measure| {
+            measure.recall(measures, inventory).map_or(Ok(()), |recall| writeln!(formatter, "  {measure}: {recall}"))
+        })
     }
 }

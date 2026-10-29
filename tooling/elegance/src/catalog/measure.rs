@@ -1,5 +1,8 @@
+mod recall;
+mod score;
 mod status;
 
+use std::collections::BTreeSet;
 use std::fmt;
 
 use super::direction::Direction;
@@ -7,6 +10,10 @@ use super::measure_graph::MeasureGraph;
 use super::measure_id::MeasureId;
 use super::reading::Reading;
 use crate::Measures;
+use crate::smell_inventory::SmellInventory;
+use crate::source_path::SourcePath;
+use recall::Recall;
+use score::Score;
 use status::Status;
 
 #[derive(Clone, Copy, Debug)]
@@ -16,12 +23,13 @@ pub struct Measure {
     graph: MeasureGraph,
     direction: Direction,
     status: Status,
+    score: Option<Score>,
 }
 
 impl Measure {
     #[must_use]
     pub const fn new(id: MeasureId, name: &'static str, graph: MeasureGraph, direction: Direction) -> Measure {
-        Measure { id, name, graph, direction, status: Status::NotImplemented }
+        Measure { id, name, graph, direction, status: Status::NotImplemented, score: None }
     }
 
     #[must_use]
@@ -35,8 +43,18 @@ impl Measure {
     }
 
     #[must_use]
+    pub const fn scored(self, tag: &'static str, located: fn(&Measures) -> Vec<BTreeSet<SourcePath>>) -> Measure {
+        Measure { score: Some(Score::new(tag, located)), ..self }
+    }
+
+    #[must_use]
     pub fn status(&self) -> Status {
         self.status
+    }
+
+    #[must_use]
+    pub fn recall(&self, measures: &Measures, inventory: &SmellInventory) -> Option<Recall> {
+        self.score.map(|score| score.recall(measures, inventory))
     }
 }
 

@@ -3,9 +3,12 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use crate::implementations::Implementations;
+use crate::located::Located;
 use crate::method_name::MethodName;
 use crate::naming::Naming;
+use crate::places::Places;
 use crate::signature::Signature;
+use crate::source_path::SourcePath;
 use crate::tally::Tally;
 use crate::trait_catalog::TraitCatalog;
 use crate::type_key::TypeKey;
@@ -55,6 +58,12 @@ impl<Object: Ord, Attribute: Ord> Concept<Object, Attribute> {
             .then_with(|| other.extent.len().cmp(&self.extent.len()))
             .then_with(|| self.extent.cmp(&other.extent))
             .then_with(|| self.intent.cmp(&other.intent))
+    }
+}
+
+impl<Object: Located, Attribute> Located for Concept<Object, Attribute> {
+    fn places(&self, places: &Places) -> BTreeSet<SourcePath> {
+        self.extent.iter().flat_map(|object| object.places(places)).collect()
     }
 }
 

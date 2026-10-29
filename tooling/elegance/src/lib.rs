@@ -25,15 +25,20 @@ mod layout;
 mod leverage;
 mod leverage_report;
 mod listed;
+mod located;
 mod method_name;
 mod method_use;
 mod naming;
+mod places;
 mod receiver_kind;
 mod reducible_traits;
 mod reduction;
+mod scoring;
 mod shape_report;
 mod shared_signatures;
 mod signature;
+mod smell_inventory;
+mod source_path;
 mod structure;
 mod syn_source;
 mod tally;
@@ -64,11 +69,14 @@ use leverage::Leverage;
 use leverage_report::LeverageReport;
 use listed::Listed;
 use method_name::MethodName;
+use places::Places;
 use reducible_traits::ReducibleTraits;
 use reduction::Reduction;
+pub use scoring::Scoring;
 use shape_report::ShapeReport;
 use shared_signatures::SharedSignatures;
 use signature::Signature;
+pub use smell_inventory::SmellInventory;
 pub use syn_source::SynSource;
 use tally::Tally;
 use trait_catalog::TraitCatalog;
@@ -90,6 +98,7 @@ pub struct Measures {
     split: Findings<TypeKey, Components>,
     graph: TraitGraph,
     shape: ShapeReport,
+    places: Places,
 }
 
 impl Measures {
@@ -119,6 +128,7 @@ impl Measures {
             fields: FormalContext::fields(&facts).concepts(settings.max_intents()),
             split: Cohesion::measured(&facts),
             shape: ShapeReport::measured(&facts, &graph),
+            places: facts.structure().places().clone(),
             graph,
         }
     }
@@ -158,7 +168,7 @@ impl fmt::Display for Measures {
 
 #[cfg(test)]
 mod tests {
-    use super::{Catalog, EleganceSettings, Measures, SynSource};
+    use super::{Catalog, EleganceSettings, Measures, Scoring, SmellInventory, SynSource};
     use std::sync::OnceLock;
 
     use meta_golden::Golden;
@@ -172,6 +182,7 @@ mod tests {
     const SMALL_CAP: &str = "max_intents = 4";
     const INCOMPLETE: &str = "INCOMPLETE: more than 4 distinct intents";
     const SNAPSHOT: &str = "fixture";
+    const SMELLS: &str = include_str!("../fixture/smells.toml");
 
     struct Fixture;
 
@@ -183,7 +194,9 @@ mod tests {
                     SourceFile::parse(*path, (*text).to_owned()).unwrap().in_crate(owner.parse().unwrap())
                 })
                 .collect();
-            Measures::measured(&SynSource::new(&files), &settings).to_string()
+            let measures = Measures::measured(&SynSource::new(&files), &settings);
+            let smells: SmellInventory = toml::from_str(SMELLS).unwrap();
+            format!("{measures}{}", Scoring::new(&measures, &smells))
         }
 
         fn by_default() -> &'static str {

@@ -35,7 +35,7 @@ pub use ci::CiStep;
 use ci::{Ci, LocalGate};
 use corpus_check::LintName;
 use crate_graph::CrateGraph;
-use elegance::{EleganceSettings, Measures, SynSource};
+use elegance::{EleganceSettings, Measures, Scoring, SmellInventory, SynSource};
 use failure::Failure;
 use meta_golden::Reach;
 use mutant_costs::MutantCosts;
@@ -149,7 +149,8 @@ impl Task {
             Task::GoldensOnline => GoldenRefresh::run(workspace, Reach::Online),
             Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
             Task::Elegance => Ok(workspace.source_files().map(|files| {
-                print!("{}", Measures::measured(&SynSource::new(&files), &EleganceSettings::defaults()));
+                let measures = Measures::measured(&SynSource::new(&files), &EleganceSettings::defaults());
+                print!("{measures}{}", Scoring::new(&measures, &SmellInventory::defaults()));
             })?),
             Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy, &mut ledger)
                 .and_then(|()| Ok(ledger.checked(&policy, &selection)?)),

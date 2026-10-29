@@ -140,3 +140,10 @@ trait-graph shape
     fixture::U04: fixture::Reading, fixture::Unit
     fixture::U05: fixture::Reading, fixture::Unit
     fixture::U06: fixture::Reading, fixture::Unit
+smell inventory scoring, informational: a finding flags an entry when a type or trait it names is declared in a file the entry lists
+  B1 unnamed concepts [trait graph, to zero]: recall 0 of 0 tagged naming-completeness []; other entries flagged 2 [gate-modes, split-gadget]; noise 0 of 22 findings
+  B2 reducible traits [trait graph, to zero]: recall 0 of 0 tagged reducible-traits []; other entries flagged 1 [gate-modes]; noise 0 of 2 findings
+  B3 signatures declared in more than one trait [trait graph, to zero]: recall 0 of 0 tagged orthogonality []; other entries flagged 1 [gate-modes]; noise 0 of 1 findings
+  B9 hidden state fields [transition graph, to zero]: recall 1 of 1 tagged hidden-state [gate-modes]; other entries flagged 0 []; noise 0 of 3 findings
+  B12 unnamed field concepts [types, to zero]: recall 0 of 0 tagged field-concepts []; other entries flagged 1 [gate-modes]; noise 0 of 3 findings
+  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 2 tagged lcom4 [split-gadget]; other entries flagged 1 [gate-modes]; noise 0 of 16 findings

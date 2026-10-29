@@ -1,0 +1,23 @@
+[[smell]]
+id = "split-gadget"
+category = "low-cohesion"
+locations = ["remote/src/lib.rs:3"]
+why = "Gadget splits into two components."
+confidence = "clear"
+measure = "lcom4"
+
+[[smell]]
+id = "elsewhere"
+category = "low-cohesion"
+locations = ["nowhere/src/lib.rs:1"]
+why = "No scanned file holds it."
+confidence = "likely"
+measure = "lcom4"
+
+[[smell]]
+id = "gate-modes"
+category = "hidden-state"
+locations = ["fixture/src/lib.rs:400"]
+why = "Gate flips shut, phase and key."
+confidence = "clear"
+measure = "hidden-state"

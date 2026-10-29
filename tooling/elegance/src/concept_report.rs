@@ -1,11 +1,15 @@
+use std::collections::BTreeSet;
 use std::fmt;
 
 use crate::concept::Concept;
 use crate::field::Field;
 use crate::implementations::Implementations;
 use crate::intent_cap::IntentCap;
+use crate::located::Located;
 use crate::naming::Naming;
+use crate::places::Places;
 use crate::signature::Signature;
+use crate::source_path::SourcePath;
 use crate::tally::Tally;
 use crate::trait_catalog::TraitCatalog;
 use crate::type_key::TypeKey;
@@ -38,6 +42,17 @@ impl<Object: Ord, Attribute: Ord> ConceptReport<Object, Attribute> {
     #[must_use]
     pub fn counted(&self, wanted: impl Fn(&Naming) -> bool) -> Tally {
         Tally::counting(self.concepts.iter().filter(|concept| wanted(concept.naming())))
+    }
+}
+
+impl<Object: Ord + Located, Attribute: Ord> ConceptReport<Object, Attribute> {
+    #[must_use]
+    pub fn located(&self, places: &Places, wanted: &Naming) -> Vec<BTreeSet<SourcePath>> {
+        self.concepts
+            .iter()
+            .filter(|concept| concept.naming() == wanted)
+            .map(|concept| concept.places(places))
+            .collect()
     }
 }
 

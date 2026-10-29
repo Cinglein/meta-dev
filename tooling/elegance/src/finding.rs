@@ -1,4 +1,9 @@
+use std::collections::BTreeSet;
 use std::fmt;
+
+use crate::located::Located;
+use crate::places::Places;
+use crate::source_path::SourcePath;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Finding<Subject, Detail> {
@@ -15,6 +20,12 @@ impl<Subject, Detail> Finding<Subject, Detail> {
     #[must_use]
     pub fn detail(&self) -> &Detail {
         &self.detail
+    }
+}
+
+impl<Subject: Located, Detail: Located> Located for Finding<Subject, Detail> {
+    fn places(&self, places: &Places) -> BTreeSet<SourcePath> {
+        self.subject.places(places).into_iter().chain(self.detail.places(places)).collect()
     }
 }
 
