@@ -25,10 +25,18 @@ impl Brief {
 }
 
 impl fmt::Display for Brief {
-    fn fmt(&self, _formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let unused = (&self.task, &self.rules, self.options.actor(), self.options.repository(), self.options.scratch());
-        drop(unused);
-        Ok(())
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let (id, actor) = (self.task.task(), self.options.actor());
+        let (repository, scratch) = (self.options.repository(), self.options.scratch());
+        writeln!(formatter, "brief for {id} as {actor}")?;
+        writeln!(formatter, "task: {}{}", self.task.text(), self.task.placement())?;
+        writeln!(formatter, "setup, in order:")?;
+        writeln!(formatter, "1. gh repo clone {repository} {scratch}/{id}")?;
+        writeln!(formatter, "2. in the clone: nice -n 19 env CARGO_BUILD_JOBS=2 cargo build --release -p meta-cli")?;
+        writeln!(formatter, "3. in the clone: META_ACTOR={actor} target.noindex/release/meta claim {id} --worktree")?;
+        writeln!(formatter, "4. work in the worktree path it prints")?;
+        writeln!(formatter, "rules ({}):", Rules::FILE)?;
+        writeln!(formatter, "{}", self.rules)
     }
 }
 
