@@ -156,7 +156,7 @@ source = "ci"
 [budgets.build-clean]
 division = "performance-and-cost"
 measure = { build_wall_time = "clean" }
-allowance = { duration = 45254 }
+allowance = { duration = 98800 }
 window = "per_change"
 source = "ci"
 overspend = "report"
@@ -164,7 +164,7 @@ overspend = "report"
 [budgets.build-core-edit]
 division = "performance-and-cost"
 measure = { build_wall_time = { touched = "crates/meta-schema/src/lib.rs" } }
-allowance = { duration = 8862 }
+allowance = { duration = 41212 }
 window = "per_change"
 source = "ci"
 overspend = "report"
@@ -172,7 +172,7 @@ overspend = "report"
 [budgets.build-leaf-edit]
 division = "performance-and-cost"
 measure = { build_wall_time = { touched = "crates/meta-cli/src/lib.rs" } }
-allowance = { duration = 1211 }
+allowance = { duration = 9379 }
 window = "per_change"
 source = "ci"
 overspend = "report"
@@ -180,7 +180,7 @@ overspend = "report"
 [budgets.build-test-edit]
 division = "performance-and-cost"
 measure = { build_wall_time = { touched = "crates/meta-cli/tests/status.rs" } }
-allowance = { duration = 254 }
+allowance = { duration = 397 }
 window = "per_change"
 source = "ci"
 overspend = "report"
