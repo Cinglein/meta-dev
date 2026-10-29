@@ -121,6 +121,7 @@ dependencies = [
  "primitive_boundary",
  "private_fns",
  "public_surface",
+ "repeated_methods",
  "settings",
  "settings_shape",
  "state_graph",
@@ -139,6 +140,7 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
+ "strum",
  "syn 2.0.119",
  "task",
 ]
@@ -564,7 +566,7 @@ dependencies = [
 
 [[package]]
 name = "meta-xtask"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "affected",
  "corpus_check",
@@ -837,6 +839,16 @@ dependencies = [
  "memchr",
  "unicode-ident",
  "unicode-properties",
+]
+
+[[package]]
+name = "repeated_methods"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+ "task",
 ]
 
 [[package]]

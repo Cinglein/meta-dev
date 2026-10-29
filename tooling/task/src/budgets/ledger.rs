@@ -54,6 +54,11 @@ impl Ledger {
         self.spent.insert(measure, amount);
     }
 
+    #[must_use]
+    pub fn spent(&self, measure: &Measure) -> Option<&Amount> {
+        self.spent.get(measure)
+    }
+
     pub fn measured_at_base(&mut self, base: Ledger) {
         self.based = base.spent;
     }

@@ -1,7 +1,8 @@
 use strum::{Display, EnumIter, EnumString, IntoStaticStr};
 
+use crate::enforcement::Enforcement;
 use const_shape::ConstShape;
-use crate_graph::CrateGraph;
+use crate_graph::GraphReport;
 use distinct_signatures::DistinctSignatures;
 use enum_predicates::EnumPredicates;
 use expression_flow::ExpressionFlow;
@@ -19,6 +20,7 @@ use no_parameter_bags::NoParameterBags;
 use primitive_boundary::PrimitiveBoundary;
 use private_fns::PrivateFns;
 use public_surface::PublicSurface;
+use repeated_methods::RepeatedMethods;
 use settings_shape::SettingsShape;
 use state_graph::StateGraph;
 use task::Policy;
@@ -52,6 +54,7 @@ pub enum LintName {
     PrimitiveBoundary,
     PrivateFns,
     PublicSurface,
+    RepeatedMethods,
     SettingsShape,
     StateGraph,
     TestBudget,
@@ -62,10 +65,42 @@ pub enum LintName {
 
 impl LintName {
     #[must_use]
-    pub fn report(self, files: &[SourceFile], policy: &Policy) -> Report {
+    pub const fn enforcement(self) -> Enforcement {
+        match self {
+            LintName::RepeatedMethods => Enforcement::Listed,
+            LintName::ConstShape
+            | LintName::CrateGraph
+            | LintName::DistinctSignatures
+            | LintName::EnumPredicates
+            | LintName::ExpressionFlow
+            | LintName::FnShape
+            | LintName::LiteralNames
+            | LintName::ManualIteration
+            | LintName::ModuleNesting
+            | LintName::NamedLifetimes
+            | LintName::NamedNumbers
+            | LintName::NoComments
+            | LintName::NoForwarders
+            | LintName::NoFreeFns
+            | LintName::NoNumbersInBinaries
+            | LintName::NoParameterBags
+            | LintName::PrimitiveBoundary
+            | LintName::PrivateFns
+            | LintName::PublicSurface
+            | LintName::SettingsShape
+            | LintName::StateGraph
+            | LintName::TestBudget
+            | LintName::ThinMain
+            | LintName::TypeShape
+            | LintName::VecOutParams => Enforcement::Ratchet,
+        }
+    }
+
+    #[must_use]
+    pub fn report(self, files: &[SourceFile], graphs: &GraphReport, policy: &Policy) -> Report {
         match self {
             LintName::ConstShape => ConstShape::report(files, policy),
-            LintName::CrateGraph => CrateGraph::report(files, policy),
+            LintName::CrateGraph => graphs.report(policy),
             LintName::DistinctSignatures => DistinctSignatures::report(files),
             LintName::EnumPredicates => EnumPredicates::report(files),
             LintName::ExpressionFlow => ExpressionFlow::report(files),
@@ -83,6 +118,7 @@ impl LintName {
             LintName::PrimitiveBoundary => PrimitiveBoundary::report(files, policy),
             LintName::PrivateFns => PrivateFns::report(files, policy),
             LintName::PublicSurface => PublicSurface::report(files),
+            LintName::RepeatedMethods => RepeatedMethods::report(files, policy),
             LintName::SettingsShape => SettingsShape::report(files),
             LintName::StateGraph => StateGraph::report(files, policy),
             LintName::TestBudget => TestBudget::report(files, policy),

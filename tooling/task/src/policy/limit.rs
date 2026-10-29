@@ -22,6 +22,7 @@ pub enum Limit {
     SlowestShown,
     ReferenceSpawns,
     SccItems,
+    TypesPerMethodShape,
 }
 
 impl Limit {
@@ -39,7 +40,8 @@ impl Limit {
             | Limit::AssertionsPerTest
             | Limit::LinesPerTest
             | Limit::LiteralsPerTest
-            | Limit::LargestInteger => TopDivision::FeaturesAndMaintenance,
+            | Limit::LargestInteger
+            | Limit::TypesPerMethodShape => TopDivision::FeaturesAndMaintenance,
         }
     }
 }
@@ -58,7 +60,7 @@ mod tests {
         TopDivision::PerformanceAndCost,
         TopDivision::ArchitectureAndPlanning,
     ];
-    const ENTRIES_PER_DIVISION: [usize; 3] = [17, 21, 0];
+    const ENTRIES_PER_DIVISION: [usize; 3] = [18, 21, 0];
 
     #[test]
     fn every_policy_entry_sits_in_one_division_and_none_enforced_in_code_is_architecture() {
