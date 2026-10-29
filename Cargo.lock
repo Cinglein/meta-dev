@@ -677,6 +677,7 @@ dependencies = [
 name = "meta-pull-query"
 version = "0.1.0"
 dependencies = [
+ "meta-gh",
  "meta-pulls",
  "meta-schema",
  "serde",
