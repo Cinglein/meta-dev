@@ -8,7 +8,10 @@ use std::time::{Duration, Instant};
 
 use meta_golden::{Goldens, Replay};
 
-const META: &str = env!("CARGO_BIN_EXE_meta");
+#[path = "support/meta_command.rs"]
+mod meta_command;
+use meta_command::MetaCommand;
+
 const REPLAY: Option<&str> = option_env!("CARGO_BIN_EXE_gh-replay");
 const UNBUILT: &str = "gh-replay is built with feature `replay`; run the tests with --all-features";
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n[ci]\npoll_millis = 2\n";
@@ -253,8 +256,8 @@ impl Repo {
     }
 
     pub fn command(&self, words: &[&str]) -> Command {
-        let mut command = Command::new(META);
-        command.args(words).current_dir(self.clone.path()).env("TMPDIR", self.sessions.path());
+        let mut command = MetaCommand::tagged(words);
+        command.current_dir(self.clone.path()).env("TMPDIR", self.sessions.path());
         let replies = self.sessions.path().join(Self::REPLIES);
         command.env(Replay::RECORDINGS, replies).env(Replay::TRAIL, self.sessions.path().join(Self::TRAIL));
         command

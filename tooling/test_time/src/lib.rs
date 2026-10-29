@@ -2,6 +2,8 @@ mod cargo_build;
 mod cargo_test;
 mod children_cpu;
 mod clock;
+mod execution;
+mod git_count;
 mod no_tests;
 mod reference_cpu;
 mod runner_config;
@@ -17,6 +19,8 @@ use std::time::Duration;
 use cargo_build::CargoBuild;
 use cargo_test::CargoTest;
 use clock::Clock;
+use execution::Execution;
+pub use git_count::GitCount;
 use no_tests::NoTests;
 use reference_cpu::ReferenceCpu;
 use runner_config::RunnerConfig;
@@ -69,43 +73,62 @@ impl TestTime {
                 Ok(())
             },
             |selection| {
-                let runs = tempfile::NamedTempFile::new().map_err(|error| Failure::Io {
-                    site: Site::Workspace,
-                    error,
-                })?;
-                let line = || workspace.line(Program::Cargo);
-                selection
-                    .within(workspace.packages().with_examples())
-                    .reaching()
-                    .map_or(Ok(()), |examples| {
-                        CargoBuild::examples(line(), examples, policy).run()
-                    })?;
+                Self::examples(workspace, selection, policy)?;
                 let reference = ReferenceCpu::measured(policy)?;
-                let cargo = |selection| CargoTest::new(line(), selection, policy);
-                let line = cargo(selection)
-                    .through(&RunnerConfig::current()?)
-                    .environment(TestRunner::RUNS, runs.path());
-                let ran = Self::GIT_SETTINGS
-                    .into_iter()
-                    .fold(line, |line, (name, value)| line.environment(name, value))
-                    .run();
-                let documented = selection.within(workspace.packages().doctested());
-                let documented_ran = documented
-                    .reaching()
-                    .map_or(Ok(()), |documented| cargo(documented).doctests().run());
-                let timings = fs::read_to_string(runs.path())
-                    .map_err(|error| Failure::Io {
-                        site: Site::File(runs.path().to_path_buf()),
-                        error,
-                    })?
-                    .parse::<TestRuns>()?
-                    .passed()?;
-                ran.and(documented_ran)?;
+                let timings = Self::timings(workspace, selection, policy, &Execution::Timed)?;
                 TestTime { timings, reference }
                     .recorded(policy, ledger)
                     .verdict()
             },
         )
+    }
+
+    pub(crate) fn examples(
+        workspace: &Workspace,
+        selection: &Selection,
+        policy: &Policy,
+    ) -> Result<(), Failure> {
+        selection
+            .within(workspace.packages().with_examples())
+            .reaching()
+            .map_or(Ok(()), |examples| {
+                CargoBuild::examples(workspace.line(Program::Cargo), examples, policy).run()
+            })
+    }
+
+    pub(crate) fn timings(
+        workspace: &Workspace,
+        selection: &Selection,
+        policy: &Policy,
+        execution: &Execution,
+    ) -> Result<Vec<TestTiming>, Failure> {
+        let runs = tempfile::NamedTempFile::new().map_err(|error| Failure::Io {
+            site: Site::Workspace,
+            error,
+        })?;
+        let cargo = |selection| CargoTest::new(workspace.line(Program::Cargo), selection, policy);
+        let line = cargo(selection)
+            .through(&RunnerConfig::current()?)
+            .environment(TestRunner::RUNS, runs.path());
+        let ran = Self::GIT_SETTINGS
+            .into_iter()
+            .fold(execution.traced(line), |line, (name, value)| {
+                line.environment(name, value)
+            })
+            .run();
+        let documented = selection.within(workspace.packages().doctested());
+        let documented_ran = execution
+            .doctested(documented.reaching())
+            .map_or(Ok(()), |documented| cargo(documented).doctests().run());
+        let timings = fs::read_to_string(runs.path())
+            .map_err(|error| Failure::Io {
+                site: Site::File(runs.path().to_path_buf()),
+                error,
+            })?
+            .parse::<TestRuns>()?
+            .passed()?;
+        ran.and(documented_ran)?;
+        Ok(timings)
     }
 
     fn recorded(mut self, policy: &Policy, ledger: &mut Ledger) -> Report {

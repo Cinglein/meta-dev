@@ -22,12 +22,14 @@ pub enum Measure {
     TestWallTime,
     TestCpuTime,
     SlowestTest,
+    GitProcesses,
     #[strum(to_string = "workflow_wall_time {0}")]
     WorkflowWallTime(MutationJob),
     MutantPrice,
     LintFindings,
     TestLineShare,
     TangleItems,
+    GitStarters,
     #[strum(to_string = "open_items {0}")]
     OpenItems(ItemFilter),
     EffectShare,
@@ -47,7 +49,9 @@ impl Measure {
             Measure::TangleItems
             | Measure::OpenItems(_)
             | Measure::EffectDispersion
-            | Measure::RepeatedShapes => Unit::Count,
+            | Measure::RepeatedShapes
+            | Measure::GitProcesses
+            | Measure::GitStarters => Unit::Count,
             Measure::LintFindings => Unit::Baseline,
         }
     }
@@ -55,9 +59,10 @@ impl Measure {
     #[must_use]
     pub const fn scope(&self) -> Option<ScopeKind> {
         match self {
-            Measure::TestWallTime | Measure::TestCpuTime | Measure::SlowestTest => {
-                Some(ScopeKind::Tests)
-            }
+            Measure::TestWallTime
+            | Measure::TestCpuTime
+            | Measure::SlowestTest
+            | Measure::GitProcesses => Some(ScopeKind::Tests),
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Some(ScopeKind::Workflows),
             Measure::TangleItems | Measure::EffectShare | Measure::EffectDispersion => {
                 Some(ScopeKind::Crates)
@@ -65,7 +70,7 @@ impl Measure {
             Measure::LintFindings | Measure::TestLineShare | Measure::RepeatedShapes => {
                 Some(ScopeKind::Paths)
             }
-            Measure::OpenItems(_) => None,
+            Measure::OpenItems(_) | Measure::GitStarters => None,
         }
     }
 
@@ -75,6 +80,8 @@ impl Measure {
             Measure::TestWallTime
             | Measure::TestCpuTime
             | Measure::SlowestTest
+            | Measure::GitProcesses
+            | Measure::GitStarters
             | Measure::OpenItems(_) => Enforcer::Checker,
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Enforcer::MutationJobs,
             Measure::LintFindings
@@ -93,6 +100,7 @@ impl Measure {
             Measure::TestWallTime
             | Measure::TestCpuTime
             | Measure::SlowestTest
+            | Measure::GitProcesses
             | Measure::WorkflowWallTime(_)
             | Measure::MutantPrice
             | Measure::LintFindings
@@ -100,7 +108,8 @@ impl Measure {
             | Measure::TangleItems
             | Measure::EffectShare
             | Measure::EffectDispersion
-            | Measure::RepeatedShapes => None,
+            | Measure::RepeatedShapes
+            | Measure::GitStarters => None,
         }
     }
 
@@ -112,7 +121,9 @@ impl Measure {
             | Measure::TangleItems
             | Measure::EffectShare
             | Measure::EffectDispersion
-            | Measure::RepeatedShapes => None,
+            | Measure::RepeatedShapes
+            | Measure::GitProcesses
+            | Measure::GitStarters => None,
             Measure::TestWallTime
             | Measure::TestCpuTime
             | Measure::SlowestTest
