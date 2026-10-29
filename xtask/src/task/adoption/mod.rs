@@ -80,7 +80,9 @@ impl Adoption {
                         && !self.dependabot.covers(&self.directory))
                     .then(|| Gap::Unlisted(tool, self.directory.clone()));
                     let alerted = matches!(tool, RequiredTool::DependabotAlerts).then(|| self.alerts(tool)).flatten();
-                    gaps.chain(tool.turned_off(policy)).chain(unlisted).chain(alerted)
+                    let proposing = (matches!(tool, RequiredTool::DependabotUpdates) && self.dependabot.proposes())
+                        .then_some(Gap::Proposing(tool));
+                    gaps.chain(tool.turned_off(policy)).chain(unlisted).chain(proposing).chain(alerted)
                 })
                 .collect(),
         )
@@ -181,10 +183,13 @@ jobs:
 updates:
   - package-ecosystem: \"cargo\"
     directories: [\"/\"]
+    open-pull-requests-limit: 0
   - package-ecosystem: cargo
     directory: /other/
+    open-pull-requests-limit: 0
   - package-ecosystem: github-actions
     directory: /unrun
+    open-pull-requests-limit: 0
 ";
     const DIRECTORIES: [(&str, &[&str]); 3] =
         [(".", &[FAILING]), ("other", &["true"]), ("unrun", &["sh", "-c", "echo 0"])];
@@ -225,8 +230,10 @@ updates:
             };
             adoption.gaps(&Policy::defaults()).to_string()
         };
-        let off = "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 0\n";
-        let non_zero = "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 5\n";
+        let off =
+            "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 0\n";
+        let non_zero =
+            "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 5\n";
         let missing = "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n";
         let one_left_on = "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 0\n  - package-ecosystem: github-actions\n    directory: /\n";
         let message = "dependabot-updates: .github/dependabot.yml opens version-update pull requests";
