@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use strum::{EnumString, IntoStaticStr, VariantNames};
 use task::{Branch, Ledger, Policy, Program, Selection, Workspace};
 
-use crate::task::build_directory::{BuildDirectory, Misplaced};
+use crate::task::build_directory::{BuildDirectory, Misplaced, TrackedBuildFiles};
 use crate::task::clippy::Clippy;
 use crate::task::coverage::Coverage;
 use crate::task::golden_refresh::GoldenRefresh;
