@@ -8,6 +8,8 @@ use crate::tool::Tool;
 pub enum GhArgv {
     CommitChecks,
     FailedLog,
+    UpdateBranch,
+    SquashMerge,
 }
 
 impl Tool for GhArgv {
@@ -25,6 +27,8 @@ impl Tool for GhArgv {
                 "query=query($owner:String!,$name:String!,$sha:GitObjectID!){repository(owner:$owner,name:$name){object(oid:$sha){...on Commit{checkSuites(first:20,filterBy:{appId:15368}){nodes{status conclusion workflowRun{databaseId} checkRuns(first:100,filterBy:{conclusions:[FAILURE,CANCELLED,TIMED_OUT,STARTUP_FAILURE,ACTION_REQUIRED]}){nodes{databaseId name conclusion steps(first:100){nodes{name conclusion}}}} otherJobs:checkRuns(first:1,filterBy:{conclusions:[SUCCESS,NEUTRAL,SKIPPED,STALE]}){nodes{databaseId name}}}} history(first:8){nodes{checkSuites(first:20,filterBy:{appId:15368}){nodes{status conclusion workflowRun{databaseId} createdAt updatedAt}}}}}}}}",
             ],
             Self::FailedLog => &["run", "view", "--log-failed", "--job"],
+            Self::UpdateBranch => &["pr", "update-branch"],
+            Self::SquashMerge => &["pr", "merge", "--squash", "--match-head-commit"],
         }
     }
 }

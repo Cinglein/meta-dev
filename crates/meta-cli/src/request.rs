@@ -6,6 +6,7 @@ mod heartbeat;
 mod hook;
 mod live_github;
 mod local;
+mod merge_queue;
 mod output;
 mod parsed;
 mod project;
@@ -32,6 +33,7 @@ use hook::HookEvent;
 use live_github::LiveGithub;
 pub use local::TraceRecord;
 use local::{LocalClone, Monitor, Sweep};
+use merge_queue::MergeQueue;
 use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
 use project::{CiSettings, Project};
@@ -61,6 +63,7 @@ pub enum Request {
     WaitCi(SessionId),
     CiLog(SessionId),
     Trace(TraceView),
+    Queue(MergeQueue),
 }
 
 impl TryFrom<Vec<String>> for Request {
@@ -144,6 +147,7 @@ impl TryFrom<Vec<String>> for Request {
             "ci-wait" => Self::session().map(Self::WaitCi),
             "ci-log" => Self::session().map(Self::CiLog),
             "trace" => Ok(Self::Trace(parsed.allowing(&[])?.text()?.to_string().parse()?)),
+            "queue" => parsed.allowing(&[])?.queue().map(Self::Queue),
             other => Err(CliFailure::raised::<Misuse>(format!("unknown command `{other}`"))),
         }
     }
@@ -167,6 +171,7 @@ impl Request {
             Self::WaitCi(session) => Watcher::wait(project, &session),
             Self::CiLog(session) => FailureLog::excerpt(project, &session),
             Self::Trace(view) => TraceRecord::shown(&LocalClone::try_from(project)?, view),
+            Self::Queue(queue) => queue.run(project),
             Self::Status(view) => {
                 let local = match view {
                     StatusView::Flags => Monitor::recent(&LocalClone::try_from(project)?, Utc::now())?,
@@ -219,6 +224,7 @@ impl Request {
             | Self::WaitCi(_)
             | Self::CiLog(_)
             | Self::Trace(_)
+            | Self::Queue(_)
             | Self::Status(_)
             | Self::ClaimWorktree(_)
             | Self::Worktrees

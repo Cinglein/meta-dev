@@ -2,9 +2,12 @@ use std::fmt;
 
 use super::LivePull;
 use super::checks::Checks;
+use super::merge_state::MergeState;
 use super::pull_state::PullState;
 use super::rollup::Rollup;
+use crate::head::{Behind, Checking, Conflicted, Gone, Green, Head, Red, Unmergeable};
 use crate::required_checks::RequiredChecks;
+use crate::verdict::Verdict;
 
 #[derive(Clone, Copy, Debug)]
 pub struct RuledPull<'pull> {
@@ -39,6 +42,28 @@ impl<'pull> RuledPull<'pull> {
         self.open()?;
         let checks = self.checks(self.required?);
         checks.truncated().map(|()| checks)
+    }
+
+    #[must_use]
+    pub fn head(self) -> Head {
+        let pull = self.pull;
+        let number = pull.number;
+        let verdict = self.required.map_or(Verdict::Pending, |required| self.checks(required).verdict());
+        match (pull.state, pull.merge, verdict.failing(), verdict.passed()) {
+            (PullState::Merged | PullState::Closed, ..) => Head::Gone(Gone::new(number, pull.state)),
+            (PullState::Open, MergeState::Dirty, ..) => Head::Conflicted(Conflicted::new(number)),
+            (PullState::Open, MergeState::Behind, ..) => Head::Behind(Behind::new(number)),
+            (PullState::Open, _, Some(_), _) => {
+                Head::Red(Red::new(number, pull.rollup.as_ref().map(Rollup::failing).unwrap_or_default()))
+            }
+            (PullState::Open, MergeState::Clean | MergeState::HasHooks, None, Some(())) => {
+                Head::Green(Green::new(number, pull.commit.clone()))
+            }
+            (PullState::Open, MergeState::Blocked | MergeState::Draft | MergeState::Unstable, None, Some(())) => {
+                Head::Unmergeable(Unmergeable::new(number, pull.merge))
+            }
+            (PullState::Open, _, None, _) => Head::Checking(Checking::new(number)),
+        }
     }
 
     fn checks(self, required: &RequiredChecks) -> Checks {

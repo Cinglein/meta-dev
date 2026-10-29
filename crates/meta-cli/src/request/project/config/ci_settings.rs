@@ -3,10 +3,12 @@ mod log_window;
 mod millis;
 mod poll_schedule;
 mod program_name;
+mod queue_pace;
 mod stop_limit;
 
 use std::time::{Duration, Instant};
 
+use meta_pulls::Patience;
 use meta_run::Budget;
 use serde::Deserialize;
 
@@ -17,6 +19,7 @@ pub use log_window::LogWindow;
 pub use millis::Millis;
 use poll_schedule::PollSchedule;
 pub use program_name::ProgramName;
+pub use queue_pace::QueuePace;
 use stop_limit::StopLimit;
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
@@ -30,6 +33,8 @@ pub struct CiSettings {
     claim_millis: Millis,
     gh_millis: Millis,
     stop_millis: StopLimit,
+    queue_poll_millis: QueuePace,
+    queue_checks_millis: Millis,
     #[serde(flatten)]
     poll_schedule: PollSchedule,
     #[serde(flatten)]
@@ -75,6 +80,19 @@ impl CiSettings {
 
     pub fn stop_limit(&self) -> StopLimit {
         self.stop_millis
+    }
+
+    pub fn queue_pace(&self) -> QueuePace {
+        self.queue_poll_millis
+    }
+
+    pub fn queue_turns(&self) -> impl Iterator<Item = ()> {
+        let polls = self.queue_checks_millis.duration().as_millis() / self.queue_poll_millis.duration().as_millis();
+        std::iter::repeat_n((), usize::try_from(polls).unwrap_or(usize::MAX).saturating_add(1))
+    }
+
+    pub fn queue_patience(&self, waited: Duration) -> Patience {
+        Patience::new(waited, self.queue_checks_millis.duration())
     }
 
     pub fn log_window(&self) -> &LogWindow {

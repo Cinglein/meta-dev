@@ -677,8 +677,10 @@ dependencies = [
 name = "meta-pulls"
 version = "0.1.0"
 dependencies = [
+ "meta-golden",
  "meta-schema",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
