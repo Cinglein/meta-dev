@@ -1,7 +1,6 @@
 mod memory_watch;
 mod missed_list;
 mod mutants_exit;
-mod uncaught;
 
 pub use memory_watch::MemoryWatch;
 
@@ -39,6 +38,6 @@ impl MutantsRun {
         self.baseline.iter().try_for_each(|tests| build.passes(tests, budget, policy))?;
         let mut child = self.line.spawn()?;
         let status = MemoryWatch::over(&child, budget, policy).guard(&mut child, None)?;
-        Ok(MutantsExit::judged(status) && MissedList::none_in(&self.output)? && MutantsExit::accepts(status))
+        MutantsExit::judged(status).map_or(Ok(false), |exit| Ok(MissedList::none_in(&self.output)? && exit.clean()))
     }
 }

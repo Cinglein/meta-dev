@@ -87,9 +87,8 @@ mod tests {
         let timeout = policy.interval(Interval::DiscoverEvery);
         let build = |script, kept| MutantsBuild::sharing(sh.clone().argument(script), kept, timeout, timeout);
         let passes = |build: &MutantsBuild, share| {
-            let run = MutantsRun::new(sh.clone().argument(UNJUDGED), PathBuf::new())
-                .baselined(Some(build.line(CargoArgument::Test)));
-            run.accepted(build, policy.memory(share), &policy)
+            let run = MutantsRun::new(sh.clone().argument(UNJUDGED), PathBuf::new());
+            run.baselined(Some(build.line(CargoArgument::Test))).accepted(build, policy.memory(share), &policy)
         };
         let failed = FAILING.map(|(script, kept)| build(script, kept).and_then(|made| passes(&made, GRANTED)).is_err());
         let ended = sh.clone().argument(LEFT).captured::<Stdout>().is_ok();

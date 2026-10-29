@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Uncaught {
     Missed,
@@ -13,13 +15,15 @@ impl Uncaught {
             Uncaught::TimedOut => "mutants.out/timeout.txt",
         }
     }
+}
 
-    pub fn way_out(self) -> &'static str {
-        match self {
+impl fmt::Display for Uncaught {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
             Uncaught::Missed => "missed: add a test that fails on each",
             Uncaught::TimedOut => {
                 "timed out, never judged: make the tests that cover each faster; if they are fast, the --timeout guard is too tight"
             }
-        }
+        })
     }
 }
