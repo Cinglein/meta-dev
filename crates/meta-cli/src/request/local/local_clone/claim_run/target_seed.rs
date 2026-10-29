@@ -35,21 +35,23 @@ impl<'seed> TargetSeed<'seed> {
 
     fn target(self, target: &DirEntry) -> io::Result<()> {
         let into = self.worktree.join(target.file_name());
-        (!into.exists())
-            .then(|| {
-                fs::create_dir_all(&into)
-                    .and_then(|()| Self::profiles(&target.path(), &into))
-                    .inspect_err(|_| drop(fs::remove_dir_all(&into)))
-            })
-            .unwrap_or(Ok(()))
+        if into.exists() {
+            Ok(())
+        } else {
+            fs::create_dir_all(&into)
+                .and_then(|()| Self::profiles(&target.path(), &into))
+                .inspect_err(|_| drop(fs::remove_dir_all(&into)))
+        }
     }
 
     fn profiles(from: &Path, into: &Path) -> io::Result<()> {
         fs::read_dir(from)?.flatten().try_for_each(|entry| {
             let held = File::open(entry.path().join(Self::LOCK)).ok().filter(|lock| lock.try_lock_shared().is_ok());
-            (!entry.file_type()?.is_dir() || held.is_some())
-                .then(|| Self::copied(&entry, &into.join(entry.file_name())))
-                .unwrap_or(Ok(()))
+            if !entry.file_type()?.is_dir() || held.is_some() {
+                Self::copied(&entry, &into.join(entry.file_name()))
+            } else {
+                Ok(())
+            }
         })
     }
 
