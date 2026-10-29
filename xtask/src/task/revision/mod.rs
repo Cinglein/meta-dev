@@ -99,8 +99,14 @@ mod tests {
     const LOST: &str = "0123456789abcdef0123456789abcdef01234567";
     const CHANGED: &str =
         "surfaces = [\"tooling/policy.toml\"]\nbaseline = \"lint-baseline.toml\"\nbit_boundary = []\n";
-    const VIEWED: [GitArgv; 5] =
-        [GitArgv::MergeBase, GitArgv::LsTree, GitArgv::ChangedNames, GitArgv::UntrackedNames, GitArgv::LogEmails];
+    const VIEWED: [GitArgv; 6] = [
+        GitArgv::MergeBase,
+        GitArgv::LsTree,
+        GitArgv::ChangedNames,
+        GitArgv::UntrackedNames,
+        GitArgv::TrackedNames,
+        GitArgv::LogEmails,
+    ];
 
     impl Revision {
         fn view(call: GitArgv, out: &str) -> Box<dyn Debug> {
