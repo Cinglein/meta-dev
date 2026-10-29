@@ -36,11 +36,14 @@ impl Procfs {
 
     fn excused(&self, process: &Path, failure: io::Error) -> Result<(), Cause> {
         let owner = fs::metadata(process).map(|found| found.uid());
-        match (failure.kind(), owner) {
+        match (failure.kind(), &owner) {
             (ErrorKind::NotFound, _) => Ok(()),
             (_, Err(gone)) if gone.kind() == ErrorKind::NotFound => Ok(()),
-            (_, Ok(uid)) if uid != self.own => Ok(()),
-            _ => Err(Cause::new(failure)),
+            (_, Ok(uid)) if *uid != self.own => Ok(()),
+            _ => {
+                let name = fs::read_to_string(process.join("comm")).unwrap_or_default();
+                Err(Cause::new(format!("{failure} ({}: {}, owner {owner:?})", process.display(), name.trim())))
+            }
         }
     }
 
