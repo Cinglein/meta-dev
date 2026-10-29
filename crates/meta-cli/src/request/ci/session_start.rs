@@ -61,6 +61,7 @@ mod tests {
         let read = first.zip(start.read()).filter(|(first, again)| first == again && !first.precedes(before));
         std::fs::write(root.path().join(BLOCKER), "").unwrap();
         let blocked = SessionStart(root.path().join(BLOCKER).join(SESSION));
+        assert!(blocked.to_string().ends_with(SESSION));
         let refused = blocked.record().map_err(|refusal| refusal.to_string()).err().unwrap_or_default();
         assert!(unread.is_none() && read.is_some() && refused.contains(&blocked.to_string()), "{refused}");
     }
