@@ -98,3 +98,27 @@ impl SessionDir {
         write!(std::fs::File::create(self.own.with_file_name(Self::EXPECTED))?, "{}", ExpectedRun::from(expected))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::SessionDir;
+    use crate::request::ci::ci_status::CiStatus;
+    use crate::request::ci::commit::Commit;
+
+    const OWN: &str = "session";
+    const SHA: &str = "f2e83b47f04f1aadaaf72b9d15074e933a513dc6";
+    const TOOK: Duration = Duration::from_millis(64);
+
+    #[test]
+    fn a_watched_commit_reads_as_running_and_a_learned_run_length_is_expected_next_time() {
+        let root = tempfile::tempdir().unwrap();
+        let dir = SessionDir { own: root.path().join(OWN), shared: root.path().to_path_buf() };
+        let Ok(commit) = SHA.parse::<Commit>();
+        let before = (dir.status_of(&commit), dir.expected());
+        dir.watch(&commit).and_then(|()| dir.learn(TOOK)).unwrap();
+        assert_eq!(before, (None, None));
+        assert_eq!((dir.status_of(&commit), dir.expected()), (Some(CiStatus::Running), Some(TOOK)));
+    }
+}
