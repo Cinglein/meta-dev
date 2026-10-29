@@ -3,6 +3,8 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
+use crate::micros::Micros;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields, default)]
 pub struct Retention {
@@ -14,6 +16,11 @@ pub struct Retention {
 impl Retention {
     const TRACES_LEN: usize = 200;
     const BYTES: usize = 4_000_000;
+
+    #[must_use]
+    pub(crate) fn due(self, at: Micros) -> bool {
+        at.micros().is_multiple_of(u64::try_from(self.traces_len.isqrt().max(1)).unwrap_or(u64::MAX))
+    }
 
     pub fn pruned(self, newest_first: &[Vec<PathBuf>]) -> io::Result<()> {
         let size = |file| std::fs::metadata(file).map_or(0, |meta| meta.len());

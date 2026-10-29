@@ -11,7 +11,9 @@ const NAMES: [&str; 3] = ["0000000000000001-1", "0000000000000001-2", "000000000
 const VERBS: [Option<Verb>; 3] = [Some(Hook), None, Some(Status)];
 const AGES: [Duration; 3] = [Duration::from_secs(1), Duration::from_secs(3), Duration::from_secs(2)];
 const OLDEST: &str = "0000000000000000";
-const RETAINED: [&str; 2] = [r#"{"traces": 2}"#, r#"{"traces": 0}"#];
+const RETAINED: [&str; 2] = [r#"{"traces": 2}"#, r#"{"traces": 1000000, "bytes": 0}"#];
+const CADENCE: &str = r#"{"traces": 20}"#;
+const PRUNED_AT: [Micros; 2] = [Micros::new(4), Micros::new(3)];
 const FILES_LEN: usize = 3;
 const CORRUPT: &str = "corrupt trace: span 100000001 recorded twice\n";
 const DROPPED: &str = "dropped";
@@ -51,7 +53,7 @@ fn the_newest_written_trace_is_latest_and_retention_keeps_or_prunes_whole_traces
 }
 
 #[test]
-fn a_write_that_fails_still_prunes_older_traces() {
+fn a_write_that_fails_still_prunes_older_traces_and_a_write_that_succeeds_prunes_once_per_root_of_the_count() {
     let dir = tempfile::tempdir().unwrap();
     let traces = TraceDir::new(dir.path().to_path_buf());
     Written::file(dir.path(), NAMES[0], VERBS[0], AGES[0]);
@@ -59,6 +61,7 @@ fn a_write_that_fails_still_prunes_older_traces() {
     std::fs::create_dir(blocked.file_in(dir.path(), Written::EXTENSION)).unwrap();
     let kept = traces.kept(blocked, &Written::trace(VERBS[0]), Written::retention(RETAINED[1]));
     assert!(kept.is_err() && traces.latest(None).unwrap().is_none());
+    assert_eq!(PRUNED_AT.map(|at| Written::retention(CADENCE).due(at)), [true, false]);
 }
 
 #[test]

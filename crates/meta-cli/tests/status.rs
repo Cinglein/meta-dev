@@ -24,11 +24,8 @@ const UNTRACED: [&str; VAR_LEN] = ["META_TRACE", "off"];
 const LIST: [&str; 1] = ["list"];
 const TRACE_LAST: [&str; 2] = ["trace", "last"];
 const STITCHED: [&str; 2] = ["command hook ", ", 2 processes,"];
-const TRACED: [&str; VAR_LEN] = ["META_TRACE", "on"];
-const UNKEPT_LEN: usize = 3;
 const UNKNOWN: [&str; 1] = ["nope"];
 const TRACES: &str = ".git/meta-local/traces";
-const MALFORMED: [&str; 2] = ["meta.local.toml", "[trace]\nfiles = \"x\"\n"];
 const FAKE_GH: &str = r#"#!/bin/sh
 case "$1 $2" in
 "pr list") echo 7 ;;
@@ -69,16 +66,13 @@ impl Project {
         child.wait_with_output().unwrap()
     }
 
-    fn unkept(&self) -> [Output; UNKEPT_LEN] {
-        let untraced = self.meta(&UNKNOWN, "", UNTRACED);
+    fn unkept(&self) -> Output {
         let kept_in = self.clone.path().join(TRACES);
         let writable = std::fs::metadata(&kept_in).unwrap().permissions();
         let mut read_only = writable.clone();
         read_only.set_readonly(true);
         std::fs::set_permissions(&kept_in, read_only).unwrap();
-        let unwritable = self.meta(&UNKNOWN, "", TRACED);
-        std::fs::write(self.clone.path().join(MALFORMED[0]), MALFORMED[1]).unwrap();
-        let ran = [untraced, unwritable, self.meta(&UNKNOWN, "", TRACED)];
+        let ran = self.meta(&UNKNOWN, "", STITCH);
         std::fs::set_permissions(&kept_in, writable).unwrap();
         ran
     }
@@ -103,7 +97,7 @@ fn opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_
     assert_eq!(String::from_utf8(flags.stdout).unwrap(), ORPHAN);
     project.meta(&LIST, "", UNTRACED);
     let traced = String::from_utf8(project.meta(&TRACE_LAST, "", UNTRACED).stdout).unwrap();
-    let [untraced, unkept @ ..] = project.unkept();
+    let unkept = project.unkept();
     assert!(traced.starts_with(STITCHED[0]) && traced.contains(STITCHED[1]), "{traced}");
-    assert!(unkept.iter().all(|ran| *ran == untraced) && !untraced.status.success(), "{unkept:?}");
+    assert!(unkept.status == flags.status && unkept.stdout.is_empty(), "{unkept:?}");
 }

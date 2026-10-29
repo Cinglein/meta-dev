@@ -3,6 +3,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
+use crate::micros::Micros;
 use crate::retention::Retention;
 use crate::trace::Trace;
 use crate::trace_id::TraceId;
@@ -21,10 +22,15 @@ impl TraceDir {
 
     pub fn kept(&self, trace: TraceId, spans: &Trace, retention: Retention) -> io::Result<()> {
         let file = trace.file_in(&self.0, Self::EXTENSION);
-        let written = std::fs::create_dir_all(&self.0).and_then(|()| std::fs::write(&file, Vec::from(spans)));
+        let bytes = Vec::from(spans);
+        let written = std::fs::write(&file, &bytes).or_else(|failure| {
+            let absent = (failure.kind() == io::ErrorKind::NotFound).then_some(()).ok_or(failure);
+            absent.and_then(|()| std::fs::create_dir_all(&self.0)).and_then(|()| std::fs::write(&file, &bytes))
+        });
         written.as_ref().err().into_iter().for_each(|_| drop(std::fs::remove_file(&file)));
-        let pruned = self.listed().and_then(|traces| retention.pruned(&traces));
-        written.and(pruned)
+        let pruned = (written.is_err() || retention.due(Micros::now()))
+            .then(|| self.listed().and_then(|traces| retention.pruned(&traces)));
+        written.and(pruned.unwrap_or(Ok(())))
     }
 
     pub fn latest(&self, verb: Option<Verb>) -> io::Result<Option<Trace>> {
