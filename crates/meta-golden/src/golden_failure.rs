@@ -34,3 +34,20 @@ impl GoldenFailure {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use super::{Difference, GoldenFailure};
+
+    const PATH: &str = "a.golden";
+
+    #[test]
+    fn only_a_differing_golden_names_its_path() {
+        let difference = Difference::between("a", "b").unwrap();
+        let differs = GoldenFailure::Differs { path: PathBuf::from(PATH), difference };
+        assert_eq!(differs.differing(), Some(Path::new(PATH)));
+        assert!(GoldenFailure::BlessedInCi.differing().is_none());
+    }
+}

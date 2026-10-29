@@ -48,7 +48,7 @@ pub struct Ci {
 
 impl Ci {
     pub fn new(summary: Option<PathBuf>, gate: Option<LocalGate>, log: LogSource) -> Ci {
-        Ci { summary, gate, attribution: Attribution::ambient(), log }
+        Ci { summary, gate, attribution: Attribution::from_ambient(&CommandLine::ambient()), log }
     }
 
     pub fn run(&self, workspace: &Workspace, selection: &Selection, policy: &Policy) -> Result<(), Failure> {

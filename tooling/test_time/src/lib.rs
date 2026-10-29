@@ -244,12 +244,16 @@ mod tests {
     }
 
     #[test]
-    fn a_test_over_its_wall_allowance_is_recorded_with_its_cpu() {
+    fn a_test_over_its_wall_allowance_is_recorded_with_its_cpu_and_one_at_it_is_not() {
+        let policy = Policy::defaults();
+        let limit = policy.interval(Interval::PerTest).duration();
+        let timing = TestTiming::new(Path::new(NAMES[0]), NAMES[1], limit, limit);
         let found = OVERRUN
             .parse::<TestRuns>()
             .and_then(TestRuns::passed)
-            .map(|timings| TestTime::overruns(&timings, &Policy::defaults()));
+            .map(|timings| TestTime::overruns(&timings, &policy));
         assert!(found.is_ok_and(|set| set.to_string() == OVERRUN_GOLDEN));
+        assert!(timing.overrun(limit).is_none() && timing.overrun(limit - TICK).is_some());
     }
 
     #[test]

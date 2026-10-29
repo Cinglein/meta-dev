@@ -69,11 +69,33 @@ impl fmt::Display for Report {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+    use std::path::PathBuf;
+
     use super::Report;
+    use crate::line_number::LineNumber;
     use crate::site::Site;
     use crate::violation::Violation;
     const HEADLINE: &str = "something slipped";
     const MESSAGE: &str = "a slip";
+    const FILE: &str = "a.rs";
+
+    #[test]
+    fn a_report_names_the_files_of_its_violations_and_not_the_workspace() {
+        let sites = [
+            Site::File(FILE.into()),
+            Site::Line(FILE.into(), LineNumber::new(1)),
+            Site::Workspace,
+        ];
+        let violations = sites
+            .into_iter()
+            .map(|site| Violation::new(site, MESSAGE))
+            .collect();
+        assert_eq!(
+            Report::new(HEADLINE, violations).files(),
+            BTreeSet::from([PathBuf::from(FILE)])
+        );
+    }
 
     #[test]
     fn a_report_is_clean_only_without_violations_and_lists_exactly_what_it_holds() {

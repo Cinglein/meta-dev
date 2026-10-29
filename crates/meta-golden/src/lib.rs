@@ -7,6 +7,7 @@ mod places;
 mod recording;
 mod replay;
 
+pub use difference::Difference;
 pub use golden::Golden;
 pub use golden_failure::GoldenFailure;
 pub use goldens::{Goldens, Reach};

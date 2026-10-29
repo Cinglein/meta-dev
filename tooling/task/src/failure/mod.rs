@@ -103,3 +103,25 @@ impl Failure {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+    use std::path::PathBuf;
+
+    use super::{Failure, FailureSet, Report, Site};
+    use crate::violation::Violation;
+
+    const FILE: &str = "a.rs";
+
+    #[test]
+    fn a_lint_failure_reports_the_files_of_its_violations_and_another_failure_reports_none() {
+        let report = Report::new(
+            "slip",
+            vec![Violation::new(Site::File(PathBuf::from(FILE)), FILE)],
+        );
+        let lint = FailureSet::lint(BTreeSet::from([PathBuf::from(FILE)]));
+        assert_eq!(Failure::Lint(vec![report]).found(), lint);
+        assert!(Failure::NoWorkspace.found().is_empty());
+    }
+}

@@ -112,21 +112,75 @@ impl fmt::Display for FailureSet {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::collections::BTreeSet;
+    use std::path::{Path, PathBuf};
+    use std::{env, fs, process};
 
     use super::{FailureKind, FailureSet};
 
-    const GONE: &str = "/nonexistent/failures.json";
-    const UNREADABLE: [&str; 4] = ["", "[]", "{}", r#"{"failures":[{"kind":"flaky"}]}"#];
+    const FILE: &str = "a.rs";
+    const JOB: &str = "job";
+    const SCRATCH: &str = "failure-set-";
+    const MISSING: &str = "no failures file";
+    const MALFORMED: [&str; 4] = ["", "[]", "{}", r#"{"failures":[{"kind":"flaky"}]}"#];
+
+    impl FailureSet {
+        fn linted() -> FailureSet {
+            FailureSet::lint(BTreeSet::from([PathBuf::from(FILE)]))
+        }
+    }
 
     #[test]
-    fn a_set_reads_back_as_written_and_a_missing_or_malformed_file_is_unattributed() {
-        let set = FailureSet::default().recording(FailureKind::Infra { job: "ci".into() });
-        let back =
-            [FailureSet::default(), set].map(|set| set.to_string().parse().ok() == Some(set));
-        let refused = UNREADABLE
-            .iter()
-            .all(|json| json.parse::<FailureSet>().is_err());
-        assert!(back == [true, true] && refused && FailureSet::read(Path::new(GONE)).is_err());
+    fn lint_and_golden_sets_name_their_paths_and_no_paths_is_no_failure() {
+        let kinds = |set: FailureSet| set.kinds().to_vec();
+        let paths = vec![PathBuf::from(FILE)];
+        assert_eq!(
+            kinds(FailureSet::linted()),
+            [FailureKind::Lint {
+                paths: paths.clone()
+            }]
+        );
+        assert_eq!(
+            kinds(FailureSet::golden(PathBuf::from(FILE))),
+            [FailureKind::Golden { paths }]
+        );
+        assert!(FailureSet::lint(BTreeSet::new()).is_empty());
+    }
+
+    #[test]
+    fn sets_join_and_only_an_empty_set_falls_back_to_infra() {
+        let joined = FailureSet::default()
+            .joined(&FailureSet::linted())
+            .joined(&FailureSet::linted());
+        let infra = |set: FailureSet| set.or_infra(JOB.into()).kinds().len();
+        assert_eq!(joined.kinds().len(), 2);
+        assert_eq!(
+            [infra(FailureSet::default()), infra(FailureSet::linted())],
+            [1, 1]
+        );
+    }
+
+    #[test]
+    fn a_set_reads_back_as_written_and_a_missing_file_a_directory_and_malformed_text_are_unattributed()
+     {
+        let file = env::temp_dir().join(format!("{SCRATCH}{}", process::id()));
+        FailureSet::linted().write(&file).unwrap();
+        let back = FailureSet::read(&file).ok();
+        fs::remove_file(&file).unwrap();
+        let told = |path: &Path| {
+            FailureSet::read(path)
+                .err()
+                .map(|failure| failure.to_string().contains(MISSING))
+        };
+        assert_eq!(back, Some(FailureSet::linted()));
+        assert_eq!(
+            [told(&file), told(&env::temp_dir())],
+            [Some(true), Some(false)]
+        );
+        assert!(
+            MALFORMED
+                .iter()
+                .all(|json| json.parse::<FailureSet>().is_err())
+        );
     }
 }

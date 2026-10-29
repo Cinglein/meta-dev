@@ -5,6 +5,18 @@
       "paths": [
         "src/lib.rs"
       ]
+    },
+    {
+      "kind": "compile",
+      "paths": [
+        "src/main.rs"
+      ]
+    },
+    {
+      "kind": "lint",
+      "paths": [
+        "src/lint.rs"
+      ]
     }
   ]
 }

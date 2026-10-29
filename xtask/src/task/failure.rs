@@ -96,3 +96,32 @@ pub enum Failure {
     #[error("{skipped}: fails closed in CI: {failure}")]
     Unreached { skipped: String, failure: Box<Failure> },
 }
+
+#[cfg(test)]
+mod tests {
+    use meta_golden::{Difference, GoldenFailure};
+    use task::FailureSet;
+
+    use super::Failure;
+
+    const PATH: &str = "a.golden";
+
+    impl Failure {
+        fn found_golden() -> Failure {
+            Failure::Task(task::Failure::Found { printed: String::new(), found: FailureSet::golden(PATH.into()) })
+        }
+
+        fn differing_golden() -> Failure {
+            let difference = Difference::between("a", "b").unwrap();
+            Failure::Golden(GoldenFailure::Differs { path: PATH.into(), difference })
+        }
+    }
+
+    #[test]
+    fn a_found_set_survives_wrapping_and_a_differing_golden_names_its_path() {
+        let wrapped = Failure::Unreached { skipped: String::new(), failure: Box::new(Failure::found_golden()) };
+        let all = [Failure::found_golden(), Failure::differing_golden(), wrapped];
+        assert!(all.iter().all(|failure| failure.found() == FailureSet::golden(PATH.into())));
+        assert!(Failure::Golden(GoldenFailure::BlessedInCi).found().is_empty());
+    }
+}
