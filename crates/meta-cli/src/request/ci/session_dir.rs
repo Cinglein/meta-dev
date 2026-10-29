@@ -26,6 +26,7 @@ impl SessionDir {
     const EVENTS: &'static str = "events";
     const SEEN: &'static str = "seen";
     const STATES: &'static str = "states";
+    const DETAILS: &'static str = "details";
     const PARTIAL: &'static str = "partial";
     const LOCKS: &'static str = "locks";
     const PROBE: &'static str = "probe";
@@ -68,6 +69,16 @@ impl SessionDir {
         let temp = target.with_extension(Self::PARTIAL);
         write!(std::fs::File::create(&temp)?, "{}", WatchState::new(commit.clone(), status))?;
         std::fs::rename(&temp, target)
+    }
+
+    pub fn detail(&self, commit: &Commit, line: &str) -> std::io::Result<()> {
+        let folder = self.shared.join(Self::DETAILS);
+        std::fs::create_dir_all(&folder)?;
+        std::fs::write(folder.join(commit.argument()), line)
+    }
+
+    pub fn detail_of(&self, commit: &Commit) -> Option<String> {
+        std::fs::read_to_string(self.shared.join(Self::DETAILS).join(commit.argument())).ok()
     }
 
     pub fn status_of(&self, commit: &Commit) -> Option<CiStatus> {
