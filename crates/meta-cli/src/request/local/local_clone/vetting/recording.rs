@@ -22,7 +22,7 @@ use crate::request::local::byte_count::ByteCount;
 
 // The views a real run on a Scene returned, replayed into a pure decision. A test changes one view
 // (the hazard it is about) and nothing else; a read the run never made gets the empty answer.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Recording<'scene> {
     scene: &'scene Scene,
     context: Context,
@@ -53,6 +53,10 @@ impl<'scene> Recording<'scene> {
             })
             .collect();
         Self { scene, context, answers, changed: Vec::new(), words: Vec::new(), walked: Vec::new(), open: Vec::new() }
+    }
+
+    pub fn empty(scene: &'scene Scene, context: Context) -> Self {
+        Self { scene, context, answers: Vec::new(), changed: Vec::new(), words: Vec::new(), walked: Vec::new(), open: Vec::new() }
     }
 
     pub fn context(&self) -> &Context {

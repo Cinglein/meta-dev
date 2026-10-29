@@ -140,19 +140,11 @@ const REFUSED: [Case; 56] = [
     }),
     Case("no recorded worktree id", |_| {}),
 ];
-// Pseudo refs written for real into the worktree's git dir: a held commit not on the remote, or a pause.
-const PLANTED: [(&str, &str); 9] = [
-    ("ORIG_HEAD", UNPUSHED),
-    ("WIP", UNPUSHED),
-    ("MY-WIP", UNPUSHED),
-    ("CHERRY_PICK_HEAD", PAUSED),
-    ("MERGE_HEAD", PAUSED),
-    ("REVERT_HEAD", PAUSED),
-    ("REBASE_HEAD", PAUSED),
-    ("MERGE_HEAD", PAUSED),
-    ("REBASE_HEAD", PAUSED),
-];
-const DANGLING: &str = "1111111111111111111111111111111111111111\n";
+// Pseudo refs written for real into the worktree's git dir, holding a commit that is not on the remote.
+const PLANTED: [(&str, &str); 3] = [("ORIG_HEAD", UNPUSHED), ("WIP", UNPUSHED), ("MY-WIP", UNPUSHED)];
+// A pause is any of these files in the worktree's git dir, whatever it holds (so dangling ones too).
+const PAUSES: [&str; 4] = ["CHERRY_PICK_HEAD", "MERGE_HEAD", "REVERT_HEAD", "REBASE_HEAD"];
+const GIT_DIR: &str = "/clone/.git/worktrees/task-00000000000000b1/";
 const ACCEPTED: [fn(&mut Recording<'_>); 6] = [
     |host| host.links(&["notes-a", "notes-b"], SharedNode::new(NodeId::new(1, 8), LinkCount::new(2))),
     |_| {},
@@ -305,8 +297,9 @@ impl Bench {
 #[test]
 fn only_a_clean_pushed_linked_worktree_under_the_root_is_vetted_and_its_bytes_include_its_target_dir() {
     let bench = Bench::new();
+    let recorded = bench.recording();
     let vetted = ACCEPTED.map(|tamper| {
-        let mut recording = bench.recording();
+        let mut recording = recorded.clone();
         tamper(&mut recording);
         Bench::vetted(&recording, &bench.scene.worktree()).map(|vetted| vetted.bytes().to_string())
     });
@@ -316,10 +309,11 @@ fn only_a_clean_pushed_linked_worktree_under_the_root_is_vetted_and_its_bytes_in
 #[test]
 fn every_hazard_keeps_the_worktree_with_its_reason() {
     let bench = Bench::new();
+    let recorded = bench.recording();
     let shown: Vec<String> = REFUSED
         .iter()
         .map(|Case(reason, tamper)| {
-            let mut recording = bench.recording();
+            let mut recording = recorded.clone();
             tamper(&mut recording);
             let worktree = if *reason == "no recorded worktree id" {
                 RecordedWorktree::new(bench.scene.real(PATH), Scene::TASK.parse().unwrap())
@@ -333,21 +327,25 @@ fn every_hazard_keeps_the_worktree_with_its_reason() {
 }
 
 #[test]
-fn a_held_or_dangling_pseudo_ref_in_the_real_git_dir_keeps_the_worktree() {
+fn a_held_pseudo_ref_in_the_real_git_dir_or_any_pause_file_keeps_the_worktree() {
     let bench = Bench::new();
     let wip = bench.wip();
-    let shown = PLANTED.iter().enumerate().map(|(at, (name, _))| {
-        let dangling = at >= PLANTED.len() - 2;
-        bench.planted(name, if dangling { DANGLING } else { &wip })
-    });
+    let shown = PLANTED.iter().map(|(name, _)| bench.planted(name, &wip));
     assert_eq!(shown.collect::<Vec<_>>(), PLANTED.map(|(_, reason)| reason));
+    let recorded = bench.recording();
+    let paused = PAUSES.map(|pause| {
+        let mut recording = recorded.clone();
+        recording.entry_is(&[GIT_DIR, pause].concat(), EntryKind::File);
+        Bench::shown(Bench::vetted(&recording, &bench.scene.worktree()))
+    });
+    assert_eq!(paused, PAUSES.map(|_| PAUSED));
 }
 
 #[test]
 fn only_a_worktree_that_vets_the_same_again_becomes_deletable() {
     let bench = Bench::new();
     let clean = bench.recording();
-    let mut moved = bench.recording();
+    let mut moved = clean.clone();
     let tip = bench.scene.git(&bench.scene.real("/clone"), &["rev-parse", Scene::TASK]);
     moved.answer_is(REFS, &MOVED_REFS.replace("c1", tip.trim()));
     let worktree = bench.scene.worktree();
@@ -489,7 +487,8 @@ fn a_stranded_quarantine_is_restored_from_its_ledger_and_without_one_nothing_mov
     let bench = Bench::new();
     let thaw = Thaw::planned(Path::new(PATH), Thaw::ledger_of(Path::new(QUARANTINE), Path::new("/clone/.git")))
         .holding(vec![Thawed::new(PathBuf::from(QUARANTINE).join("meta.toml"), &std::fs::Permissions::from_mode(WRITABLE))]);
-    let mut recording = bench.recording();
+    let empty = Recording::empty(&bench.scene, bench.scene.context());
+    let mut recording = empty.clone();
     recording.text_is(LEDGER, &serde_json::to_string(&thaw).unwrap());
     let (quarantine, common) = (bench.scene.real(QUARANTINE), bench.scene.real("/clone/.git"));
     let restore = Replayed::new(|replay| Deletable::unstranded(&quarantine, &common, replay));
@@ -510,7 +509,6 @@ fn a_stranded_quarantine_is_restored_from_its_ledger_and_without_one_nothing_mov
         .collect();
     assert_eq!(restored, Some(Ok(bench.scene.real(PATH))));
     assert_eq!(calls, [["thawed"].as_slice(), &RESTORE_STEPS].concat());
-    let empty = bench.recording();
     let (missing, journal) = empty.answered(&restore);
     assert!(missing.is_some_and(|missing| missing.is_err()) && !journal.iter().any(|turn| matches!(turn, Turn::Acted(..))));
 }
