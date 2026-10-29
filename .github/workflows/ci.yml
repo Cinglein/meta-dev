@@ -18,7 +18,7 @@ jobs:
     env: &tests-on-tmpfs
       TMPDIR: /dev/shm
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - run: git remote set-head origin --auto
@@ -54,7 +54,7 @@ jobs:
       contents: read
     env: *tests-on-tmpfs
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - run: git remote set-head origin --auto
@@ -71,7 +71,7 @@ jobs:
       contents: read
     env: *tests-on-tmpfs
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - run: rustup toolchain install
       - &cache
         uses: Swatinem/rust-cache@v2
@@ -87,7 +87,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - run: rustup toolchain install
       - run: cargo xtask build-time | tee -a "$GITHUB_STEP_SUMMARY"
         shell: bash
@@ -109,7 +109,7 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - run: rustup toolchain install
       - *cache
       - run: cargo xtask stacked
@@ -124,7 +124,7 @@ jobs:
       shards: ${{ steps.plan.outputs.shards }}
     steps:
       - &mutants-checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - &mutants-toolchain
@@ -182,7 +182,7 @@ jobs:
     if: ${{ !cancelled() && needs.mutants-plan.outputs.shards != '[]' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - run: rustup toolchain install
       - *cache
       - uses: actions/download-artifact@v4
