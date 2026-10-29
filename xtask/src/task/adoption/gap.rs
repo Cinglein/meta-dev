@@ -13,6 +13,7 @@ pub enum Gap {
     TurnedOff(RequiredTool),
     Unlisted(RequiredTool, WorkingDirectory),
     Alerted(RequiredTool, String),
+    Proposing(RequiredTool),
     Unreadable(RequiredTool, Box<Failure>),
 }
 
@@ -37,6 +38,11 @@ impl fmt::Display for Gap {
             Gap::Alerted(tool, count) => {
                 write!(formatter, "{tool}: {} open alerts; fix: {}", count.trim(), tool.fix())
             }
+            Gap::Proposing(tool) => write!(
+                formatter,
+                "{tool}: .github/dependabot.yml opens version-update pull requests; fix: {}",
+                tool.fix()
+            ),
             Gap::Unreadable(tool, failure) => write!(formatter, "{tool}: {failure}; fix: {}", tool.fix()),
         }
     }

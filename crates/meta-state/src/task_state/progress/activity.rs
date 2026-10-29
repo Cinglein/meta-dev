@@ -1,6 +1,6 @@
 mod waiting;
 
-use meta_schema::{Actor, Block, Blocker, CommitId};
+use meta_schema::{Actor, Block, Blocker};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
@@ -24,8 +24,8 @@ impl Activity {
         Self { assignments, ..Self::unassigned() }
     }
 
-    pub fn waited_at(&self) -> Option<&CommitId> {
-        self.waiting.as_ref().and_then(Block::head)
+    pub fn waiting(&self) -> Option<&Block> {
+        self.waiting.as_ref()
     }
 
     pub fn assignments(&self) -> &[Stamp] {
