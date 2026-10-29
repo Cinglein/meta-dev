@@ -208,13 +208,13 @@ fn a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_
     std::fs::remove_file(project.clone.path().join(RECORD_DIR)).unwrap();
     assert!(failed.contains(RECORD_DIR) && Fixture::opened(project.origin.path()).history_len(LOG) == SEEDED_LEN);
     let run = claim();
-    let (claimed, skipped) = (run.to_string(), run.complaint().0.contains(SKIPPED));
+    let claimed = run.to_string();
     let created = Path::new(claimed.lines().last().unwrap_or_default());
     let worktree = Fixture::opened(created);
     let shown = SHOWN_BY_GIT.map(|key| worktree.setting(key));
     let expected = [NOREPLY, NOREPLY, AGENT].map(|value| Some(value.to_owned()));
     assert!(claimed.contains(CLAIMED) && shown == expected && worktree.branch_name() == TASK);
-    assert_eq!(Seed::copied(created), !skipped);
+    assert_eq!(Seed::copied(created), !run.complaint().0.contains(SKIPPED));
     let stray = worktrees.path().join(AGENT);
     Fixture::opened(project.clone.path()).worktrees(worktrees.path(), &[], AGENT);
     let listed = project.meta(OWNER, &WORKTREES).to_string();
