@@ -15,7 +15,7 @@ use crate::request::local::local_clone::worktree_listing::WorktreeListing;
 pub struct Context {
     checkout: PathBuf,
     common: PathBuf,
-    root: PathBuf,
+    roots: Vec<PathBuf>,
     remote: RemoteName,
     worktrees: OnceLock<Result<WorktreeListing, Kept>>,
     checkouts: OnceLock<Result<Checkouts, Kept>>,
@@ -26,11 +26,11 @@ impl Context {
     const LINKED: &'static str = "worktrees";
     const REMOTE_REFS: &'static str = "ls-remote";
 
-    pub fn new(checkout: PathBuf, common: PathBuf, root: PathBuf, remote: RemoteName) -> Self {
+    pub fn new(checkout: PathBuf, common: PathBuf, roots: Vec<PathBuf>, remote: RemoteName) -> Self {
         Self {
             checkout,
             common,
-            root,
+            roots,
             remote,
             worktrees: OnceLock::new(),
             checkouts: OnceLock::new(),
@@ -61,15 +61,15 @@ impl Context {
     }
 
     pub fn enclosed(&self, path: &Path) -> Option<()> {
-        (path.starts_with(&self.root)
-            && path != self.root
+        (self.roots.iter().any(|root| path.starts_with(root) && path != root)
             && !self.checkout.starts_with(path)
             && !self.common.starts_with(path))
         .then_some(())
     }
 
     pub fn lenders(&self, host: &impl Inspection) -> Vec<Alternates> {
-        [host.neighbours(&self.root), host.neighbours(&self.common.join(Self::LINKED))].concat()
+        let linked = self.common.join(Self::LINKED);
+        self.roots.iter().chain([&linked]).flat_map(|root| host.neighbours(root)).collect()
     }
 
     pub fn common(&self) -> &Path {

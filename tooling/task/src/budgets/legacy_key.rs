@@ -113,7 +113,6 @@ impl LegacyKey {
 
 #[cfg(test)]
 mod tests {
-    use meta_golden::Golden;
     use settings::EmbeddedDefaults;
 
     use crate::budget::{Interval, Millis};
@@ -173,9 +172,12 @@ mod tests {
             derived.collect::<Vec<_>>(),
             Policy::defaults().deprecated()
         );
-        Golden::for_test(module_path!(), "derived")
-            .checked(&shown)
-            .unwrap();
+        assert_eq!(
+            shown,
+            include_str!(
+                "../../../../goldens/snapshots/task/budgets/legacy_key/tests/derived.snap"
+            )
+        );
     }
 
     #[test]
@@ -187,8 +189,11 @@ mod tests {
             flat,
         ];
         let refusals = texts.map(|text| Policy::refusal(&text));
-        Golden::for_test(module_path!(), "refused")
-            .checked(&format!("{refusals:#?}"))
-            .unwrap();
+        assert_eq!(
+            format!("{refusals:#?}"),
+            include_str!(
+                "../../../../goldens/snapshots/task/budgets/legacy_key/tests/refused.snap"
+            )
+        );
     }
 }
