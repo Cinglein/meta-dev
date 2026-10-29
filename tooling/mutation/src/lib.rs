@@ -8,7 +8,7 @@ pub use trigger_event::TriggerEvent;
 
 use std::fs::{self, File};
 
-use sysinfo::{ProcessesToUpdate, System};
+use process_tree::Host;
 
 use scope::MutantsBuild;
 use task::AvailableGib;
@@ -55,12 +55,7 @@ impl Mutants {
     }
 
     fn refuse_if_another_run_exists() -> Result<(), Failure> {
-        let mut system = System::new();
-        system.refresh_processes(ProcessesToUpdate::All, true);
-        match system.processes_by_name(Self::PROCESS_NAME.as_ref()).next() {
-            Some(_) => Err(Failure::AlreadyRunning(Self::PROCESS_NAME)),
-            None => Ok(()),
-        }
+        if Host::runs(Self::PROCESS_NAME) { Err(Failure::AlreadyRunning(Self::PROCESS_NAME)) } else { Ok(()) }
     }
 
     fn refuse_if_memory_is_short(policy: &Policy) -> Result<AvailableGib, Failure> {
