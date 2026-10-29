@@ -36,11 +36,13 @@ mod tests {
     use super::DenyConfig;
 
     const PATH: &str = "target/meta/deny.toml";
+    const SEMVER: [&str; 1] = ["meta-xtask"];
 
     #[test]
     fn the_policy_writes_a_deny_config_that_denies_unknown_sources_and_unlisted_licences() {
-        let config = Policy::defaults().supply_chain().to_string();
-        Golden::for_test(module_path!(), "deny").checked(&config).unwrap();
+        let policy = Policy::defaults();
+        Golden::for_test(module_path!(), "deny").checked(&policy.supply_chain().to_string()).unwrap();
         assert_eq!(DenyConfig(PATH.into()).to_string(), PATH);
+        assert!(policy.supply_chain().semver().iter().map(ToString::to_string).eq(SEMVER));
     }
 }
