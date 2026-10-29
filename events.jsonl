@@ -1316,3 +1316,4 @@
 {"at":"2026-10-29T02:30:18.635132Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-d5ce228222e97f37","text":"Main red: slowest-test wall 1108 ms > 1000; ci tests a_passing_push... (1.1 s wall, 135 ms CPU) and ci_wait... (970 ms) wait again.","division":"performance-and-cost","severity":"critical"}
 {"at":"2026-10-29T02:30:54.536056Z","actor":"claude-slow2","kind":"TaskOpened","task":"task-06bb10344144700a","text":"Main red: ci tests wait again (slowest-test line)","division":"performance-and-cost","addresses":["concern-d5ce228222e97f37"]}
 {"at":"2026-10-29T02:30:58.722919Z","actor":"claude-slow2","kind":"TaskClaimed","task":"task-06bb10344144700a"}
+{"at":"2026-10-29T02:37:21.530783Z","actor":"claude-slow2","kind":"TaskLinked","task":"task-06bb10344144700a","pr":155}
