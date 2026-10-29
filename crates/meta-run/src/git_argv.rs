@@ -36,6 +36,7 @@ pub enum GitArgv {
     IndependentTips,
     GitPath,
     RemoteUrl,
+    ConfigValue,
 }
 
 impl Tool for GitArgv {
@@ -84,6 +85,7 @@ impl Tool for GitArgv {
             Self::IndependentTips => &["merge-base", "--independent"],
             Self::GitPath => &["rev-parse", "--git-path"],
             Self::RemoteUrl => &["remote", "get-url"],
+            Self::ConfigValue => &["config", "--get"],
         }
     }
 }

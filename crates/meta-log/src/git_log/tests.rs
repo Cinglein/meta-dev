@@ -10,7 +10,7 @@ use meta_schema::{Event, NewTask, Record};
 mod malformed;
 
 use super::pacing::Pacing;
-use super::{Budget, GitLog};
+use super::{Budget, GitLog, RemoteHeads};
 use crate::LogStore;
 use crate::log_failure::LogFailure;
 
@@ -25,6 +25,7 @@ const REFUSE_PUSHES: [&str; 2] = ["/usr/bin/false", "hooks/pre-receive"];
 const STATUS: [&str; 3] = ["status", "--porcelain", "--branch"];
 const COUNT: [&str; 3] = ["rev-list", "--count", "meta/log"];
 const REWIND: [&str; 3] = ["update-ref", "refs/heads/meta/log", "refs/heads/meta/log~1"];
+const LIST_REMOTE: [&str; 2] = ["ls-remote", ORIGIN];
 const FIRST: usize = 0;
 const SECOND: usize = 1;
 const PAIR: usize = 2;
@@ -163,5 +164,8 @@ fn a_write_after_the_remote_rewound_retries_on_the_fresh_tip_and_brings_nothing_
     appended();
     Git::run(fixture.origin.path(), &REWIND);
     let written = appended();
-    assert_eq!(fixture.log(FIRST).read().unwrap().records(), [kept, written]);
+    let heads: RemoteHeads = Git::text(fixture.clones[FIRST].path(), &LIST_REMOTE).parse().unwrap();
+    let [read, listed] =
+        [fixture.log(FIRST).read(), log.read_listed(&heads)].map(|read| read.unwrap().records().to_vec());
+    assert_eq!((read, listed), (vec![kept.clone(), written.clone()], vec![kept, written]));
 }
