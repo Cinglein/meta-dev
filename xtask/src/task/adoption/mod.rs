@@ -210,6 +210,31 @@ updates:
     }
 
     #[test]
+    fn dependabot_version_update_pull_requests_must_be_off_so_a_missing_or_non_zero_limit_is_a_gap() {
+        let gaps = |dependabot: &str| {
+            let Ok(directory) = ".".parse::<WorkingDirectory>();
+            let Ok(dependabot) = dependabot.parse();
+            let line = || CommandLine::new(Program::Executable("true".into()));
+            let adoption = Adoption {
+                cargo: line(),
+                gh: line(),
+                runner: Runner::Ci,
+                workflows: Vec::new(),
+                dependabot,
+                directory,
+            };
+            adoption.gaps(&Policy::defaults()).to_string()
+        };
+        let off = "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 0\n";
+        let non_zero = "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 5\n";
+        let missing = "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n";
+        let one_left_on = "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 0\n  - package-ecosystem: github-actions\n    directory: /\n";
+        let message = "dependabot-updates: .github/dependabot.yml opens version-update pull requests";
+        assert!(!gaps(off).contains("dependabot-updates"));
+        [non_zero, missing, one_left_on].iter().for_each(|text| assert!(gaps(text).contains(message), "{text}"));
+    }
+
+    #[test]
     fn a_policy_without_semver_crates_a_weekly_full_run_or_a_required_budget_fails_with_the_default_to_copy() {
         let stripped = DROPPED.iter().fold(CONSUMER.to_owned(), |text, dropped| text.replace(dropped, ""));
         let policy: Policy = toml::from_str(&stripped).unwrap();
