@@ -3,7 +3,6 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use super::Host;
-use crate::request::local::local_clone::vetting::inspection::Inspection;
 use crate::request::local::local_clone::vetting::thaw::Thaw;
 
 const FILE: &str = "tree/dir/file";

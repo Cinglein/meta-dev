@@ -1,21 +1,22 @@
 mod assessed;
 mod candidate;
 mod census;
+mod surveyed;
 mod sweeper;
 mod tracked;
 mod verdict;
 
-use std::cell::LazyCell;
 use std::fmt;
-use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 
-use crate::request::local::local_clone::vetting::Inspection;
+use crate::request::local::local_clone::vetting::Occupancy;
+use crate::request::local::sweep::Sweep;
 use crate::request::local::trail_entry::TrailEntry;
 use assessed::Assessed;
 pub use census::Census;
+pub use surveyed::Surveyed;
 pub use sweeper::Sweeper;
 pub use tracked::Tracked;
 use verdict::Verdict;
@@ -24,14 +25,18 @@ use verdict::Verdict;
 pub struct Collection(Vec<Verdict>);
 
 impl Collection {
-    pub fn swept<Host: Inspection + Sync>(sweeper: &Sweeper<'_, Host>, census: &Census) -> Self {
-        let width = std::thread::available_parallelism().map_or(1, NonZeroUsize::get);
+    pub fn swept(sweeper: &Sweeper<'_>, census: &Census, surveyed: &Surveyed) -> Self {
+        let sorted = sweeper.sorted(census, surveyed);
+        let vetting: Vec<_> = sorted.iter().filter_map(|sorted| sorted.as_ref().err().copied()).collect();
+        let mut vetted = sweeper.vetted(&vetting, surveyed).into_iter();
         let assessed: Vec<Assessed<'_>> =
-            census.tracked().chunks(width).flat_map(|chunk| sweeper.assessed_together(chunk, census)).collect();
+            sorted.into_iter().filter_map(|sorted| sorted.map_or_else(|_| vetted.next(), Some)).collect();
         let candidates: Vec<PathBuf> = assessed.iter().filter_map(Assessed::candidate).map(Path::to_path_buf).collect();
-        let occupancy = LazyCell::new(|| sweeper.host().occupancy(&candidates));
-        let finished =
-            assessed.into_iter().map(|assessed| assessed.verdict(|candidate| sweeper.freed(candidate, &occupancy)));
+        let occupancy = match sweeper.sweep() {
+            Sweep::Planned if !candidates.is_empty() => sweeper.scanned(&candidates),
+            Sweep::Planned | Sweep::Done => Occupancy::Listed(Vec::new()),
+        };
+        let finished = assessed.into_iter().map(|assessed| assessed.verdict(|candidate| sweeper.freed(candidate, &occupancy)));
         let unrecorded = census.unrecorded().map(|path| sweeper.unrecorded(path));
         let mut verdicts: Vec<Verdict> = finished.chain(unrecorded).collect();
         verdicts.sort_by_key(|verdict| verdict.stranded().is_none());

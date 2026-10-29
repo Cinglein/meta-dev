@@ -3,8 +3,11 @@ use std::path::Path;
 use std::str::FromStr;
 
 use super::link::{Link, Scope};
-use crate::request::local::local_clone::vetting::inspection::Inspection;
+use crate::request::local::local_clone::vetting::halt::Halt;
 use crate::request::local::local_clone::vetting::kept::Kept;
+use crate::request::local::local_clone::vetting::look::Look;
+use crate::request::local::local_clone::vetting::replay::Replay;
+use crate::request::local::local_clone::vetting::seen::Seen;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Checkouts(Vec<String>);
@@ -17,11 +20,15 @@ impl Checkouts {
     const BRANCH: &'static str = "branch ";
     const SEPARATOR: &'static str = "\0";
 
-    pub fn held_now(link: &Link, branch: &str, host: &impl Inspection) -> Result<(), Kept> {
-        let head = link.git(host, Scope::Worktree, &Self::ON_BRANCH.map(OsStr::new)).ok();
+    pub fn held_now(link: &Link, branch: &str, replay: &Replay<'_>) -> Result<(), Halt> {
+        let looks = [(Scope::Worktree, Self::ON_BRANCH.as_slice()), (Scope::Common, Self::LIST.as_slice())]
+            .map(|(scope, words)| Look::Git(link.call(scope, &words.iter().map(OsStr::new).collect::<Vec<_>>())));
+        let mut seen = replay.looked(looks.to_vec())?.into_iter();
+        let mut next = || seen.next().ok_or_else(Replay::diverged).and_then(Seen::git);
+        let head = next()?.ok();
         head.filter(|head| head.lines().next() == Some(branch)).ok_or(Kept::OffBranch)?;
-        let Ok(checkouts) = link.git(host, Scope::Common, &Self::LIST.map(OsStr::new))?.parse::<Self>();
-        checkouts.unshared(branch, Self::entry(branch, link.path()).as_ref())
+        let Ok(checkouts) = next()??.parse::<Self>();
+        Ok(checkouts.unshared(branch, Self::entry(branch, link.path()).as_ref())?)
     }
 
     pub fn held(&self, branch: &str, path: &Path) -> Result<(), Kept> {

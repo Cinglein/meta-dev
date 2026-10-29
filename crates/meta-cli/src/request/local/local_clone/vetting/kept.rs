@@ -31,6 +31,7 @@ pub enum Kept {
     Unreachable(Cause),
     InUse,
     Changed,
+    Stale,
     Uninspected(Cause),
     Unremoved(Cause),
 }
@@ -74,6 +75,7 @@ impl fmt::Display for Kept {
             Self::Unreachable(cause) => write!(formatter, "remote unreachable: {cause}"),
             Self::InUse => formatter.write_str("in use"),
             Self::Changed => formatter.write_str("changed during checks"),
+            Self::Stale => formatter.write_str("no fresh look before a destructive change"),
             Self::Uninspected(cause) => write!(formatter, "cannot inspect: {cause}"),
             Self::Unremoved(cause) => write!(formatter, "removal failed: {cause}"),
         }

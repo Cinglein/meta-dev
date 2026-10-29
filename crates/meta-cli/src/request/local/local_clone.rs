@@ -36,7 +36,8 @@ use collection::{Census, Collection, Sweeper, Tracked};
 use gc_lock::GcLock;
 use git::Git;
 use git_dir::GitDir;
-use vetting::{Context, Deletable, Host};
+use quarantine::Stamp;
+use vetting::{Context, Deletable, Host, Interpreter, Replayed};
 use worktree_listing::WorktreeListing;
 
 #[derive(Debug)]
@@ -116,17 +117,23 @@ impl LocalClone {
             project.config().remote()?.clone(),
         );
         let host = Host::new(self.settings.clone());
-        let listed = context.worktrees(&host).as_ref().map_err(CliFailure::raised::<Setup>)?;
-        let census = Census::new(tracked.collect(), listed.paths(&self.checkout));
-        let collection = Collection::swept(&Sweeper::new(sweep, &context, &host), &census);
+        let interpreter = Interpreter::new(&host);
+        let sweeper = Sweeper::new(sweep, context, &interpreter, Stamp::current());
+        let tracked: Vec<Tracked> = tracked.collect();
+        let surveyed = sweeper.surveyed(&Census::new(tracked.clone(), Vec::new())).map_err(CliFailure::raised::<Setup>)?;
+        surveyed.listing().as_ref().map_err(CliFailure::raised::<Setup>)?;
+        let census = Census::new(tracked, surveyed.path_listed(&self.checkout));
+        let collection = Collection::swept(&sweeper.lent(&surveyed), &census, &surveyed);
         collection.trailed(Utc::now()).iter().try_for_each(|entry| LocalTrail::append(self.git_dir.as_ref(), entry))?;
         Ok(Output::Listed(Listed::new(collection)))
     }
 
     pub fn unstranded(&self, quarantine: &Path) -> Result<Output, CliFailure> {
         let quarantine = std::fs::canonicalize(quarantine).map_err(CliFailure::raised::<Setup>)?;
-        let origin = Deletable::unstranded(&quarantine, self.git_dir.as_ref(), &Host::new(self.settings.clone()))
-            .map_err(CliFailure::raised::<Setup>)?;
+        let host = Host::new(self.settings.clone());
+        let common = self.git_dir.as_ref();
+        let restore = Replayed::new(|replay|Deletable::unstranded(&quarantine, common, replay));
+        let origin = Interpreter::new(&host).ran(&restore).and_then(|origin| origin).map_err(CliFailure::raised::<Setup>)?;
         Ok(Output::Listed(Listed::new(format!("restored {} to {}\n", quarantine.display(), origin.display()))))
     }
 

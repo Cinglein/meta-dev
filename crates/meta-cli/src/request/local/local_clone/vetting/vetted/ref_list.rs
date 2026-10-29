@@ -8,6 +8,10 @@ use crate::request::local::local_clone::vetting::kept::Kept;
 pub struct RefList(Vec<RefLine>);
 
 impl RefList {
+    pub fn remote(listed: Result<String, Kept>) -> Result<Self, Kept> {
+        listed.map_err(|kept| kept.recast(Kept::Unreachable))?.parse()
+    }
+
     pub fn headed(self, head: RefLine) -> Self {
         Self([self.0, vec![head]].concat())
     }

@@ -5,31 +5,31 @@ mod freeze_tests;
 #[cfg(test)]
 mod tests;
 
-use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, PoisonError};
 
 use meta_run::{EnvPolicy, Environment, Run};
 
 use super::alternates::Alternates;
 use super::cause::Cause;
+use super::change::Change;
 use super::entry_kind::EntryKind;
 use super::found::Found;
 use super::git_call::GitCall;
-use super::inspection::Inspection;
 use super::kept::Kept;
+use super::look::Look;
+use super::made::Made;
 use super::occupancy::Occupancy;
+use super::seen::Seen;
 use super::thaw::{Thaw, Thawed};
 use crate::request::local::LocalFile;
-use crate::request::local::local_clone::quarantine::Stamp;
 use crate::request::project::CiSettings;
 use walker::Walker;
 
+// The only place gc touches the world. The interpreter is its only caller.
 #[derive(Debug)]
 pub struct Host {
-    lenders: Mutex<HashMap<PathBuf, Vec<Alternates>>>,
     settings: CiSettings,
 }
 
@@ -39,28 +39,33 @@ impl Host {
     const RECURSIVE: &'static str = "+D";
 
     pub fn new(settings: CiSettings) -> Self {
-        Self { lenders: Mutex::default(), settings }
+        Self { settings }
     }
 
-    fn lenders(&self, root: &Path) -> Vec<Alternates> {
-        let found = self.walked(root).into_iter().filter(|found| found.kind() == EntryKind::File && found.lends());
-        let listed = found.map(|found| root.join(found.path())).filter_map(|file| {
-            let objects = file.parent().and_then(Path::parent)?.to_path_buf();
-            self.text(&file).map(|listed| Alternates::new(objects, &listed))
-        });
-        listed.collect()
+    pub fn seen(&self, look: &Look) -> Seen {
+        match look {
+            Look::Entry(path) => Seen::Entry(self.entry(path)),
+            Look::Canonical(path) => Seen::Canonical(self.canonical(path)),
+            Look::Text(path) => Seen::Text(self.text(path)),
+            Look::Git(call) => Seen::Git(self.git(call)),
+            Look::Walk(path) => Seen::Walk(self.walked(path)),
+            Look::Lenders(root) => Seen::Lenders(self.neighbours(root)),
+            Look::Occupancy(paths) => Seen::Occupancy(self.occupancy(paths)),
+        }
     }
-}
 
-#[cfg(test)]
-impl Default for Host {
-    fn default() -> Self {
-        Self::new(CiSettings::try_from(&crate::request::project::Config::default()).unwrap())
+    pub fn made(&self, change: &Change) -> Made {
+        match change {
+            Change::Git(call) | Change::Destroy(call) => Made::Git(self.git(call)),
+            Change::Freeze(quarantine, plan) => Made::Frozen(self.frozen(quarantine, plan.clone())),
+            Change::Thaw(thaw) => {
+                self.thawed(thaw);
+                Made::Thawed
+            }
+        }
     }
-}
 
-impl Inspection for Host {
-    fn entry(&self, path: &Path) -> EntryKind {
+    pub fn entry(&self, path: &Path) -> EntryKind {
         match path.symlink_metadata() {
             Ok(entry) if entry.is_symlink() => EntryKind::Symlink,
             Ok(entry) if entry.is_dir() => EntryKind::Dir,
@@ -70,31 +75,35 @@ impl Inspection for Host {
         }
     }
 
-    fn canonical(&self, path: &Path) -> Option<PathBuf> {
+    pub fn canonical(&self, path: &Path) -> Option<PathBuf> {
         path.canonicalize().ok()
     }
 
-    fn text(&self, path: &Path) -> Option<String> {
+    pub fn text(&self, path: &Path) -> Option<String> {
         (self.entry(path) == EntryKind::File).then(|| std::fs::read_to_string(path).ok()).flatten()
     }
 
-    fn git(&self, call: &GitCall) -> Result<String, Kept> {
+    pub fn git(&self, call: &GitCall) -> Result<String, Kept> {
         let ran = call.run(Environment::current()).ran(self.settings.budget(CiSettings::ROUTINE).deadline());
         let ran = ran.map_err(|failure| Kept::Uninspected(Cause::new(failure)))?;
         let output = ran.stdout().text().into_owned();
         ran.success().then_some(output).ok_or_else(|| Kept::Uninspected(Cause::new(ran.stderr())))
     }
 
-    fn walked(&self, path: &Path) -> Vec<Found> {
+    pub fn walked(&self, path: &Path) -> Vec<Found> {
         Walker::new(path).descended(Path::new(""))
     }
 
-    fn neighbours(&self, root: &Path) -> Vec<Alternates> {
-        let mut known = self.lenders.lock().unwrap_or_else(PoisonError::into_inner);
-        known.entry(root.to_path_buf()).or_insert_with(|| self.lenders(root)).clone()
+    pub fn neighbours(&self, root: &Path) -> Vec<Alternates> {
+        let found = self.walked(root).into_iter().filter(|found| found.kind() == EntryKind::File && found.lends());
+        let listed = found.map(|found| root.join(found.path())).filter_map(|file| {
+            let objects = file.parent().and_then(Path::parent)?.to_path_buf();
+            self.text(&file).map(|listed| Alternates::new(objects, &listed))
+        });
+        listed.collect()
     }
 
-    fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
+    pub fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
         let scanned = paths.iter().flat_map(|path| [OsStr::new(Self::RECURSIVE), path.as_os_str()]);
         let listing = Run::new(Self::LSOF, EnvPolicy::Inherit).args(Self::LISTING).args(scanned);
         match listing.ran(self.settings.budget(CiSettings::ROUTINE).deadline()) {
@@ -107,7 +116,7 @@ impl Inspection for Host {
         }
     }
 
-    fn frozen(&self, quarantine: &Path, plan: Thaw) -> Result<Thaw, Kept> {
+    pub fn frozen(&self, quarantine: &Path, plan: Thaw) -> Result<Thaw, Kept> {
         let found = self.walked(quarantine).into_iter();
         let files = found.filter(|found| found.kind() == EntryKind::File && found.shared().is_none());
         let originals = files.map(|found| {
@@ -130,12 +139,15 @@ impl Inspection for Host {
         })
     }
 
-    fn thawed(&self, thaw: &Thaw) {
+    pub fn thawed(&self, thaw: &Thaw) {
         thaw.files().iter().for_each(|thawed| drop(std::fs::set_permissions(thawed.path(), thawed.permissions())));
         drop(std::fs::remove_file(thaw.ledger()));
     }
+}
 
-    fn stamp(&self) -> Stamp {
-        Stamp::current()
+#[cfg(test)]
+impl Default for Host {
+    fn default() -> Self {
+        Self::new(CiSettings::try_from(&crate::request::project::Config::default()).unwrap())
     }
 }

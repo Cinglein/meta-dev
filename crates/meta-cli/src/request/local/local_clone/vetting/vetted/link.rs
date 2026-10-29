@@ -14,8 +14,11 @@ use crate::request::local::local_clone::vetting::cause::Cause;
 use crate::request::local::local_clone::vetting::context::Context;
 use crate::request::local::local_clone::vetting::entry_kind::EntryKind;
 use crate::request::local::local_clone::vetting::git_call::GitCall;
-use crate::request::local::local_clone::vetting::inspection::Inspection;
+use crate::request::local::local_clone::vetting::halt::Halt;
 use crate::request::local::local_clone::vetting::kept::Kept;
+use crate::request::local::local_clone::vetting::look::Look;
+use crate::request::local::local_clone::vetting::replay::Replay;
+use crate::request::local::local_clone::vetting::seen::Seen;
 use crate::request::local::local_clone::vetting::thaw::Thaw;
 use crate::request::local::worktree_id::WorktreeId;
 use path_line::PathLine;
@@ -63,48 +66,58 @@ impl Link {
     const MOVE: [&'static str; 2] = ["worktree", "move"];
     const UNBRANCH: [&'static str; 2] = ["update-ref", "-d"];
 
+    // The chain is data-dependent: each round can name only what the last one revealed.
     pub fn proved(
         path: &Path,
         id: Option<&WorktreeId>,
         context: &Context,
-        host: &impl Inspection,
-    ) -> Result<Self, Kept> {
+        replay: &Replay<'_>,
+    ) -> Result<Self, Halt> {
         let entry = path.join(Self::ENTRY);
-        (host.entry(&entry) == EntryKind::File).then_some(()).ok_or(Kept::Unlinked)?;
+        let [kind, text] = Self::batch(replay, [Look::Entry(entry.clone()), Look::Text(entry.clone())])?;
+        (kind.entry()? == EntryKind::File).then_some(()).ok_or(Kept::Unlinked)?;
         let common = context.common();
-        let git_dir = Self::followed(host, &entry, path)
-            .filter(|git_dir| git_dir.parent() == Some(common.join(Self::LINKED).as_path()))
-            .ok_or(Kept::Unlinked)?;
+        let pointed = text.text()?.map(|text| Self::pointed(&text, path));
+        let git_dir = match pointed {
+            Some(pointed) => replay.canonical(&pointed)?,
+            None => None,
+        };
+        let git_dir =
+            git_dir.filter(|git_dir| git_dir.parent() == Some(common.join(Self::LINKED).as_path())).ok_or(Kept::Unlinked)?;
         id.ok_or(Kept::Unidentified)?.names(&git_dir).then_some(()).ok_or(Kept::Stranger)?;
-        (Self::followed(host, &git_dir.join(Self::BACK), &git_dir) == Some(entry))
-            .then_some(())
-            .ok_or(Kept::Escaped)?;
-        let shared = Self::followed(host, &git_dir.join(Self::COMMON), &git_dir);
+        let [back, shared] = Self::followed(replay, [git_dir.join(Self::BACK), git_dir.join(Self::COMMON)], &git_dir)?;
+        (back == Some(entry)).then_some(()).ok_or(Kept::Escaped)?;
         (shared.as_deref() == Some(common)).then_some(()).ok_or(Kept::Escaped)?;
         let link = Self { path: path.to_path_buf(), git_dir, common: common.to_path_buf() };
-        link.guarded(host).map(|()| link)
+        link.guarded(replay).map(|()| link)
     }
 
-    pub fn git(&self, host: &impl Inspection, scope: Scope, words: &[&OsStr]) -> Result<String, Kept> {
-        host.git(&match scope {
+    pub fn call(&self, scope: Scope, words: &[&OsStr]) -> GitCall {
+        match scope {
             Scope::Worktree => GitCall::worktree(&self.git_dir, &self.path, words),
             Scope::Common => GitCall::common(&self.common, words),
-        })
+        }
     }
 
-    pub fn refs(&self, host: &impl Inspection, branch: &str) -> Result<RefList, Kept> {
-        let listed = host.walked(&self.git_dir);
+    pub fn git(&self, replay: &Replay<'_>, scope: Scope, words: &[&OsStr]) -> Result<Result<String, Kept>, Halt> {
+        replay.git(self.call(scope, words))
+    }
+
+    pub fn refs(&self, replay: &Replay<'_>, branch: &str) -> Result<RefList, Halt> {
+        let named = Self::REFS.map(OsStr::new).into_iter().chain([OsStr::new(branch)]).collect::<Vec<_>>();
+        let local = Look::Git(self.call(Scope::Worktree, &named));
+        let [walked, local] = Self::batch(replay, [Look::Walk(self.git_dir.clone()), local])?;
+        let listed = walked.walked()?;
         let named = listed.iter().filter(|found| found.kind() == EntryKind::File);
         let peeled: Vec<String> = named
             .filter_map(|found| found.path().to_str()?.parse::<RootRef>().ok())
             .map(|root| root.peeled())
             .collect();
         let wanted = [Self::HEAD.to_owned()].into_iter().chain(peeled.iter().cloned()).collect::<Vec<_>>();
-        let resolved = self.resolved(host, &wanted)?;
+        let resolved = self.resolved(replay, &wanted)?;
         let (head, objects) = resolved.split_first().ok_or_else(|| Kept::Uninspected(Cause::new(Self::NO_HEAD)))?;
         let head = head.as_deref().ok_or_else(|| Kept::Uninspected(Cause::new(Self::NO_HEAD)))?;
-        let named = Self::REFS.map(OsStr::new).into_iter().chain([OsStr::new(branch)]).collect::<Vec<_>>();
-        let local = self.git(host, Scope::Worktree, &named)?.parse::<RefList>()?.headed(RefLine::head(head));
+        let local = local.git()??.parse::<RefList>()?.headed(RefLine::head(head));
         let roots =
             peeled.iter().zip(objects).filter_map(|(peeled, object)| Some(RefLine::pseudo(peeled, object.as_deref()?)));
         Ok(roots.fold(local, RefList::headed))
@@ -137,38 +150,82 @@ impl Link {
         GitCall::common(&self.common, &words)
     }
 
-    fn resolved(&self, host: &impl Inspection, names: &[String]) -> Result<Vec<Option<String>>, Kept> {
+    fn batch<const N: usize>(replay: &Replay<'_>, looks: [Look; N]) -> Result<[Seen; N], Halt> {
+        <[Seen; N]>::try_from(replay.looked(looks.to_vec())?).map_err(|_| Replay::diverged())
+    }
+
+    fn pointed(text: &str, base: &Path) -> PathBuf {
+        let Ok(line) = text.parse::<PathLine>();
+        line.resolved(base)
+    }
+
+    fn resolved(&self, replay: &Replay<'_>, names: &[String]) -> Result<Vec<Option<String>>, Halt> {
         let input = names.iter().flat_map(|name| [name.as_str(), Self::LINE_END]).collect::<String>();
         let call = GitCall::worktree(&self.git_dir, &self.path, &Self::RESOLVE.map(OsStr::new)).fed(input);
-        let Ok(resolved) = host.git(&call)?.parse::<Resolved>();
-        (resolved.objects().len() == names.len())
+        let Ok(resolved) = replay.git(call)??.parse::<Resolved>();
+        Ok((resolved.objects().len() == names.len())
             .then(|| resolved.objects().to_vec())
-            .ok_or_else(|| Kept::Uninspected(Cause::new(Self::UNEXPECTED)))
+            .ok_or_else(|| Kept::Uninspected(Cause::new(Self::UNEXPECTED)))?)
     }
 
-    fn names(&self, host: &impl Inspection, name: &str) -> bool {
-        let words = Self::VERIFY.map(OsStr::new).into_iter().chain([OsStr::new(name)]).collect::<Vec<_>>();
-        self.git(host, Scope::Worktree, &words).is_ok_and(|object| object.lines().next().is_some())
-    }
-
-    fn guarded(&self, host: &impl Inspection) -> Result<(), Kept> {
-        let absent =
-            |dirs: &[&Path], name: &str| dirs.iter().all(|dir| host.entry(&dir.join(name)) == EntryKind::Missing);
+    fn guarded(&self, replay: &Replay<'_>) -> Result<(), Halt> {
         let both = [self.git_dir.as_path(), self.common.as_path()];
-        absent(&[&self.git_dir], Self::LOCKED).then_some(()).ok_or(Kept::Locked)?;
-        absent(&[&self.git_dir], Self::REFTABLE).then_some(()).ok_or(Kept::Unlistable)?;
-        absent(&both, Self::ALTERNATES).then_some(()).ok_or(Kept::Borrowed)?;
-        absent(&both, Self::MODULES).then_some(()).ok_or(Kept::Submodules)?;
-        Self::PAUSED_DIRS.iter().all(|pause| absent(&[&self.git_dir], pause)).then_some(()).ok_or(Kept::Paused)?;
-        (!self.names(host, Self::MERGING)).then_some(()).ok_or(Kept::Paused)?;
-        let roots = self.git(host, Scope::Worktree, &Self::PAUSED_ROOTS.map(OsStr::new))?;
+        let own = [self.git_dir.as_path()];
+        let groups: [(&[&Path], &[&str]); 5] = [
+            (&own, &[Self::LOCKED]),
+            (&own, &[Self::REFTABLE]),
+            (&both, &[Self::ALTERNATES]),
+            (&both, &[Self::MODULES]),
+            (&own, &Self::PAUSED_DIRS),
+        ];
+        let entries = groups.iter().flat_map(|(dirs, names)| {
+            names.iter().flat_map(move |name| dirs.iter().map(move |dir| Look::Entry(dir.join(name))))
+        });
+        let merging = Self::VERIFY.map(OsStr::new).into_iter().chain([OsStr::new(Self::MERGING)]).collect::<Vec<_>>();
+        let tail = [
+            Look::Git(self.call(Scope::Worktree, &merging)),
+            Look::Git(self.call(Scope::Worktree, &Self::PAUSED_ROOTS.map(OsStr::new))),
+            Look::Text(self.git_dir.join(Self::CONFIG)),
+        ];
+        let looks: Vec<Look> = entries.chain(tail).collect();
+        let mut seen = replay.looked(looks)?.into_iter();
+        let mut absent = |count: usize| -> Result<bool, Halt> {
+            seen.by_ref().take(count).try_fold(true, |all, seen| Ok(all && seen.entry()? == EntryKind::Missing))
+        };
+        let verdicts = [Kept::Locked, Kept::Unlistable, Kept::Borrowed, Kept::Submodules, Kept::Paused];
+        let mut found = None;
+        for ((dirs, names), kept) in groups.iter().zip(verdicts) {
+            let clear = absent(dirs.len() * names.len())?;
+            found = found.or((!clear).then_some(kept));
+        }
+        found.map_or(Ok(()), Err)?;
+        let mut rest = seen;
+        let mut next = || rest.next().ok_or_else(Replay::diverged);
+        let merging = next()?.git()?.is_ok_and(|object| object.lines().next().is_some());
+        (!merging).then_some(()).ok_or(Kept::Paused)?;
+        let roots = next()?.git()??;
         roots.lines().next().is_none().then_some(()).ok_or(Kept::Paused)?;
-        let Ok(config) = host.text(&self.git_dir.join(Self::CONFIG)).unwrap_or_default().parse::<WorktreeConfig>();
-        config.unredirected()
+        let Ok(config) = next()?.text()?.unwrap_or_default().parse::<WorktreeConfig>();
+        Ok(config.unredirected()?)
     }
 
-    fn followed(host: &impl Inspection, file: &Path, base: &Path) -> Option<PathBuf> {
-        let Ok(line) = host.text(file)?.parse::<PathLine>();
-        host.canonical(&line.resolved(base))
+    fn followed<const N: usize>(
+        replay: &Replay<'_>,
+        files: [PathBuf; N],
+        base: &Path,
+    ) -> Result<[Option<PathBuf>; N], Halt> {
+        let texts = Self::batch(replay, files.map(Look::Text))?;
+        let pointed: Vec<Option<PathBuf>> =
+            texts.into_iter().map(|text| Ok(text.text()?.map(|text| Self::pointed(&text, base)))).collect::<Result<_, Halt>>()?;
+        let looks: Vec<Look> = pointed.iter().flatten().cloned().map(Look::Canonical).collect();
+        let mut canonical = if looks.is_empty() { Vec::new() } else { replay.looked(looks)? }.into_iter();
+        let followed: Vec<Option<PathBuf>> = pointed
+            .iter()
+            .map(|pointed| match pointed {
+                Some(_) => canonical.next().ok_or_else(Replay::diverged)?.canonical(),
+                None => Ok(None),
+            })
+            .collect::<Result<_, Halt>>()?;
+        <[Option<PathBuf>; N]>::try_from(followed).map_err(|_| Replay::diverged())
     }
 }

@@ -48,8 +48,8 @@ impl GitCall {
     }
 
     #[cfg(test)]
-    pub fn input(&self) -> Option<&str> {
-        self.input.as_deref()
+    pub fn words(&self) -> &[OsString] {
+        &self.words
     }
 
     pub fn common(git_dir: &Path, words: &[&OsStr]) -> Self {
