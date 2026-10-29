@@ -8,6 +8,20 @@ use crate::LogStore;
 use crate::log_failure::LogFailure;
 
 #[test]
+fn a_stale_staged_lock_fails_the_append_naming_the_lock_and_the_way_out() {
+    let fixture = Fixture::new(SINGLE);
+    let log = fixture.log(FIRST);
+    let lock = fixture.clones[FIRST].path().join(".git").join(format!("{}.lock", StagedRef::NAME));
+    std::fs::create_dir_all(lock.parent().unwrap()).unwrap();
+    std::fs::write(&lock, "").unwrap();
+    let refused = log.append::<LogFailure>(&mut |_| Ok(Fixture::record())).unwrap_err().to_string();
+    assert!(
+        refused.contains(&format!("{}.lock", StagedRef::NAME)) && refused.contains("no meta process is running"),
+        "{refused}"
+    );
+}
+
+#[test]
 fn a_staged_ref_moved_while_the_writer_decided_races_and_the_writer_decides_again() {
     let fixture = Fixture::new(SINGLE);
     let log = fixture.log(FIRST);
