@@ -1,4 +1,5 @@
 mod misplaced;
+mod tracked_build_files;
 
 use std::fmt;
 use std::fs::{self, File};
@@ -8,6 +9,7 @@ use std::path::{Path, PathBuf};
 use toml_edit::{DocumentMut, Item, Table, value};
 
 pub use misplaced::Misplaced;
+pub use tracked_build_files::TrackedBuildFiles;
 
 #[derive(Debug)]
 pub struct BuildDirectory {
