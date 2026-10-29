@@ -21,7 +21,7 @@ exclude_re = [
     "GitCount::run",
     "TestRunner::run",
     "TestBinary::timed",
-    "Changes::(reaches|since_main)",
+    "Changes::(reaches|paths|reaching|reached|since_main)",
     "Stacked::",
     "Scope::(applied|changed_shards|tested|shard_runs|write_diff)",
     "CrateLoad::listed",

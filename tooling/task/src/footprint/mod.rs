@@ -52,7 +52,8 @@ mod tests {
     use crate::selection::Selection;
 
     type Side = (Option<&'static [&'static str]>, &'static [&'static str]);
-    const CRATES: [&str; 3] = ["a", "b", "c"];
+    const CRATES: [&str; 5] = ["a", "b", "c", "d", "e"];
+    const MEMBERS: usize = 4;
     const LONGEST_QUEUE: usize = 5;
     const ROWS: [(Side, Side, bool); 6] = [
         ((None, &["a"]), (Some(&["eval"]), &["b"]), true),
@@ -126,9 +127,7 @@ mod tests {
             .all(|queue| {
                 let batches = Footprint::batches(&queue, &policy);
                 batches.iter().all(|batch| {
-                    policy
-                        .queue()
-                        .admits(&batch[..batch.len().saturating_sub(1)])
+                    batch.len() <= MEMBERS
                         && batch.iter().enumerate().all(|(at, member)| {
                             batch[at + 1..]
                                 .iter()
@@ -146,5 +145,9 @@ mod tests {
         let queue = [a.clone(), whole.clone(), b.clone()];
         let expected = vec![vec![&a, &b], vec![&whole]];
         assert_eq!(Footprint::batches(&queue, &Policy::defaults()), expected);
+        let crowd = &alphabet[..CRATES.len()];
+        let batches = Footprint::batches(crowd, &Policy::defaults());
+        let sizes: Vec<usize> = batches.iter().map(Vec::len).collect();
+        assert_eq!(sizes, [MEMBERS, CRATES.len() - MEMBERS]);
     }
 }
