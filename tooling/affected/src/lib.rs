@@ -3,8 +3,10 @@ mod crate_load;
 mod packing;
 mod reach;
 mod tested_crates;
+mod trusted;
 
 pub use changes::Changes;
+pub use trusted::Trusted;
 pub use crate_load::CrateLoad;
 pub use packing::Packing;
 pub use tested_crates::TestedCrates;
