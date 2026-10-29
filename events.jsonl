@@ -1407,3 +1407,4 @@
 {"at":"2026-10-29T10:01:11.596328Z","actor":"claude-buildtime","kind":"TaskOpened","task":"task-8f28750069421696","text":"Build-time waterfall and raw measures","division":"performance-and-cost","addresses":["concern-aa78a864a1100142"]}
 {"at":"2026-10-29T10:01:16.236931Z","actor":"claude-buildtime","kind":"TaskClaimed","task":"task-8f28750069421696"}
 {"at":"2026-10-29T10:01:25.692914Z","actor":"claude-claimport","kind":"TaskLinked","task":"task-0ff17d17778b9b34","pr":166}
+{"at":"2026-10-29T10:03:12.312778Z","actor":"claude-lead","kind":"TaskOpened","task":"task-188766396a67bbcb","text":"Elegance lint: flag same-job duplicates (wrappers reaching one effect, parsers of one external command, identically shaped types); raw counts.","division":"architecture-and-planning"}
