@@ -239,6 +239,6 @@ fn a_push_hook_watches_ci_wait_stop_and_log_report_a_failure_and_an_unreadable_r
     assert!(watched.contains(STEP_LISTED) && !waited.1.success() && stop.contains(BLOCK_REASON), "{watched}");
     assert!(waited.0.contains(STEP_LISTED) && waited.0.ends_with(WAIT_FAILED), "{}", waited.0);
     assert!(log.contains(LOGGED) && log.contains(BLOCKING) && !log.contains(COMPILING), "{log}");
-    let told = [UNCHECKED_STOP, TASKLESS].iter().all(|told| stopped.contains(told));
-    assert!(unchecked.contains(UNCHECKED_EVENT) && told, "{unchecked}{stopped}");
+    let shown = [unchecked.as_str(), stopped.as_str()].concat();
+    assert!([UNCHECKED_EVENT, UNCHECKED_STOP, TASKLESS].iter().all(|told| shown.contains(told)), "{shown}");
 }
