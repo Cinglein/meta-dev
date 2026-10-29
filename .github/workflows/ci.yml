@@ -28,9 +28,18 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny@0.20.2,cargo-semver-checks@0.51.0
+      - name: writeback sampler (diagnostic)
+        run: |
+          df -T /tmp /dev/shm "$GITHUB_WORKSPACE"
+          findmnt -no FSTYPE,OPTIONS /
+          sysctl vm.dirty_ratio vm.dirty_background_ratio vm.dirty_expire_centisecs vm.dirty_writeback_centisecs
+          (while :; do echo "wb $(date -u +%H:%M:%S.%N | cut -c1-12) $(grep -E '^(Dirty|Writeback):' /proc/meminfo | tr -s ' ' | tr '\n' ' ') $(cat /proc/pressure/io | tr '\n' ' ')"; sleep 0.2; done | tee -a "$RUNNER_TEMP/wb.log" | grep -q never-printed) &
       - run: cargo xtask ci ${{ github.event_name == 'pull_request' && '--affected' || '' }}
         env:
           PULL_REQUEST: ${{ github.event.pull_request.number }}
+      - name: writeback samples (diagnostic)
+        if: always()
+        run: cat "$RUNNER_TEMP/wb.log"
       - run: cargo xtask ci
         working-directory: examples/consumer
         env:
