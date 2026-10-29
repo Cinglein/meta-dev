@@ -49,7 +49,7 @@ impl Parsed {
 
 #[test]
 fn the_latest_decided_run_per_required_workflow_wins_and_none_or_no_default_branch_reads_unknown() {
-    assert_eq!(Parsed::trunk(MIXED), "ci red, mutants green");
+    assert_eq!(Parsed::trunk(MIXED), "ci red, mutants red");
     assert_eq!(Parsed::trunk(SOLO), "ci green, mutants red");
     assert_eq!([ABSENT, UNBORN].map(Parsed::trunk), ["ci unknown, mutants unknown"; 2]);
 }
@@ -62,10 +62,9 @@ fn ci_runs_and_trunk_suites_read_every_github_conclusion_alike() {
         let suite = format!(r#"{{"conclusion":"{conclusion}","workflowRun":{{"workflow":{{"name":"ci"}}}}}}"#);
         (outcome, Parsed::trunk(&SUITE.replace(SUITE_SLOT, &suite)))
     };
-    let alike = |(outcome, trunk): (Outcome, String)| match outcome {
-        Outcome::Succeeded => trunk == "ci green, mutants unknown",
-        Outcome::Failing => trunk == "ci red, mutants unknown",
-        Outcome::Undecided => trunk == "ci unknown, mutants unknown",
+    let alike = |(outcome, trunk): (Outcome, String)| {
+        let expected = outcome.decided("ci green, mutants unknown", "ci red, mutants unknown");
+        trunk == expected.unwrap_or("ci unknown, mutants unknown")
     };
     assert_eq!(CONCLUSIONS.map(|conclusion| alike(read(conclusion))), [true; CONCLUSIONS.len()]);
 }
