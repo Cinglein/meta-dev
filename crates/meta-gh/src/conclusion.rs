@@ -22,11 +22,27 @@ impl Conclusion {
     #[must_use]
     pub fn outcome(self) -> Outcome {
         match self {
-            Self::Success | Self::Skipped | Self::Neutral => Outcome::Succeeded,
+            Self::Success => Outcome::Succeeded,
             Self::Failure | Self::Cancelled | Self::TimedOut | Self::StartupFailure | Self::ActionRequired => {
                 Outcome::Failing
             }
-            Self::Stale | Self::Unknown => Outcome::Undecided,
+            Self::Skipped | Self::Neutral | Self::Stale | Self::Unknown => Outcome::Undecided,
+        }
+    }
+
+    #[must_use]
+    pub fn behind_a_newer_run(self) -> Option<Self> {
+        match self {
+            Self::Cancelled => None,
+            Self::Success
+            | Self::Failure
+            | Self::Skipped
+            | Self::TimedOut
+            | Self::ActionRequired
+            | Self::Neutral
+            | Self::Stale
+            | Self::StartupFailure
+            | Self::Unknown => Some(self),
         }
     }
 }
