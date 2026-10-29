@@ -8,7 +8,6 @@ mod notices;
 mod rating;
 #[cfg(test)]
 mod status;
-mod trace;
 mod usage;
 
 use meta_log::{LogStore, MemoryLog};
