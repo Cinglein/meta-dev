@@ -3,6 +3,9 @@ mod probe_failure;
 mod process_dirs;
 mod vnode_path;
 
+#[cfg(test)]
+mod tests;
+
 use std::path::PathBuf;
 
 use libproc::bsd_info::BSDInfo;

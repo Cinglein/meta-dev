@@ -6,16 +6,19 @@ use crate::request::local::local_clone::vetting::cause::Cause;
 pub enum ProbeFailure {
     #[error("refused by the kernel")]
     Refused,
+    #[error("no such process")]
+    Gone,
     #[error("{0}")]
     Failed(Cause),
 }
 
 impl ProbeFailure {
     const REFUSED: &'static str = "errno = 1,";
+    const GONE: &'static str = "errno = 3,";
 
     pub fn unexplained(self) -> Option<Cause> {
         match self {
-            Self::Refused => None,
+            Self::Refused | Self::Gone => None,
             Self::Failed(cause) => Some(cause),
         }
     }
@@ -25,7 +28,11 @@ impl FromStr for ProbeFailure {
     type Err = std::convert::Infallible;
 
     fn from_str(reported: &str) -> Result<Self, Self::Err> {
-        Ok(if reported.contains(Self::REFUSED) { Self::Refused } else { Self::Failed(Cause::new(reported)) })
+        Ok(match reported {
+            refused if refused.contains(Self::REFUSED) => Self::Refused,
+            gone if gone.contains(Self::GONE) => Self::Gone,
+            failed => Self::Failed(Cause::new(failed)),
+        })
     }
 }
 
