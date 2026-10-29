@@ -238,7 +238,9 @@ updates:
         let one_left_on = "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 0\n  - package-ecosystem: github-actions\n    directory: /\n";
         let message = "dependabot-updates: .github/dependabot.yml opens version-update pull requests";
         assert!(!gaps(off).contains("dependabot-updates"));
-        [non_zero, missing, one_left_on].iter().for_each(|text| assert!(gaps(text).contains(message), "{text}"));
+        for text in [non_zero, missing, one_left_on] {
+            assert!(gaps(text).contains(message), "{text}");
+        }
     }
 
     #[test]
