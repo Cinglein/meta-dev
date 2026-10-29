@@ -3,15 +3,16 @@
 use std::io::Write as _;
 use std::process::{Output, Stdio};
 
+#[allow(dead_code)]
+#[path = "support/fixture.rs"]
+mod fixture;
 #[path = "support/meta_command.rs"]
 mod meta_command;
 #[path = "support/seeded_log.rs"]
 mod seeded_log;
-#[path = "support/skeleton.rs"]
-mod skeleton;
+use fixture::Fixture;
 use meta_command::MetaCommand;
 use seeded_log::{SeededLog, TASK};
-use skeleton::Skeleton;
 
 const OWNER: &str = "owner";
 const CLAIMED: &str = "TaskClaimed";
@@ -34,14 +35,8 @@ impl Project {
     fn new() -> Self {
         let origin = tempfile::tempdir().unwrap();
         let clone = tempfile::tempdir().unwrap();
-        Skeleton::Bare.lay(origin.path(), "main");
-        Skeleton::Working.lay(clone.path(), TASK);
-        let remote = format!(
-            "[remote \"origin\"]\n\turl = {}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n",
-            origin.path().display()
-        );
-        let config = clone.path().join(".git/config");
-        std::fs::write(&config, [std::fs::read_to_string(&config).unwrap(), remote].concat()).unwrap();
+        Fixture::bare(origin.path(), "main");
+        Fixture::working(clone.path(), origin.path(), TASK);
         std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
         let bin = clone.path().join("bin");
         std::fs::create_dir(&bin).unwrap();
