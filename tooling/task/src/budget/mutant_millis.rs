@@ -2,9 +2,12 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+mod unpriced_note;
+
 use super::millis::Millis;
 use crate::crate_name::CrateName;
 use meta_schema::TopDivision;
+use unpriced_note::UnpricedNote;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -25,13 +28,8 @@ impl MutantMillis {
     }
 
     #[must_use]
-    pub fn unpriced_note(&self, name: &CrateName) -> Option<String> {
-        (!self.crates.contains_key(name)).then(|| {
-            format!(
-                "mutants: {name} is unpriced in [mutant_millis]; planned at the table median, {} ms per mutant; `cargo xtask mutant-costs` will measure it",
-                self.median()
-            )
-        })
+    pub fn unpriced_note(&self, name: &CrateName) -> Option<UnpricedNote> {
+        (!self.crates.contains_key(name)).then(|| UnpricedNote::new(name.clone(), self.median()))
     }
 
     fn median(&self) -> Millis {
@@ -63,7 +61,11 @@ mod tests {
     #[test]
     fn only_an_unlisted_crate_gets_a_note_naming_it_its_price_and_the_command_that_measures_it() {
         let table: MutantMillis = toml::from_str(TABLE).unwrap();
-        let notes = [LISTED, UNLISTED].map(|name| table.unpriced_note(&name.parse().unwrap()));
+        let notes = [LISTED, UNLISTED].map(|name| {
+            table
+                .unpriced_note(&name.parse().unwrap())
+                .map(|note| note.to_string())
+        });
         assert_eq!(notes, [None, Some(NOTE.to_owned())]);
     }
 }
