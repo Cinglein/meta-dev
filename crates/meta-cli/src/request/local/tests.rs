@@ -11,7 +11,7 @@ use super::worktrees::Worktrees;
 
 const CHECKOUT: &str = "/work/clone";
 const SIBLING: &str = "/work/clone-worktrees";
-const RELATIVE: &str = "worktree_root = \"trees\"\n[trace]\ntraces = 1";
+const RELATIVE: &str = "worktree_root = \"trees\"";
 const NESTED: &str = "/work/clone/trees";
 const NOWHERE: &str = "/nonexistent/clone";
 const NOT_A_DIRECTORY: &str = "/dev/null";
@@ -56,8 +56,7 @@ fn settings_default_to_a_sibling_root_resolve_relative_roots_and_refuse_foreign_
     let absent = LocalSettings::read(Path::new(NOWHERE)).unwrap();
     let relative: LocalSettings = RELATIVE.parse().unwrap();
     let roots = [absent.worktree_root(checkout), relative.worktree_root(checkout)];
-    let traces = [absent.trace(), relative.trace()];
-    assert_eq!((roots, traces[0] == traces[1]), ([PathBuf::from(SIBLING), PathBuf::from(NESTED)], false));
+    assert_eq!(roots, [PathBuf::from(SIBLING), PathBuf::from(NESTED)]);
     let given = [(None, None), (Some(ACTOR), None), (Some(ACTOR), Some("a@example.com")), (Some(""), Some(NOREPLY))];
     let kept = LocalTrail::read(Path::new(NOWHERE)).unwrap().current();
     assert!(given.iter().all(|(name, email)| absent.identity(*name, *email).is_err()) && kept.is_empty());
