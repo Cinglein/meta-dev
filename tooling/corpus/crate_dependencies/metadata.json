@@ -3,7 +3,7 @@
     {"name": "serde", "path": null, "kind": null},
     {"name": "syn", "path": null, "kind": null},
     {"name": "chrono", "path": null, "kind": null},
-    {"name": "nix", "path": null, "kind": null},
+    {"name": "rand", "path": null, "kind": null},
     {"name": "meta-log", "path": "/w/crates/meta-log", "kind": null},
     {"name": "meta-golden", "path": "/w/crates/meta-golden", "kind": "dev"},
     {"name": "meta-run", "path": "/w/crates/meta-run", "kind": "dev"},
