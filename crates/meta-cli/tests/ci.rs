@@ -46,7 +46,8 @@ const BLOCK: &str = "\"decision\":\"block\"";
 const BLOCK_REASON: &str = "\"reason\":\"meta-development: CI failed for your last push";
 const JOB_FAILED: &str = "ci failed; run `meta ci-log`";
 const STEP_LISTED: &str = ": ci / Run cargo xtask ci , ci-gate / Run echo '{; run `meta ci-log`";
-const LOGGED: &str = "== ci / Run cargo xtask ci  ==\n##[error]Process completed with exit code 1.";
+const LOGGED: &str = "== ci / Run cargo xtask ci  ==\n";
+const BLOCKING: &str = "budget over its blocking line:";
 const COMPILING: &str = "Compiling";
 const CI_WAIT: &str = "ci-wait";
 const CI_LOG: &str = "ci-log";
@@ -279,7 +280,10 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_pus
     Planted::twin(&repo).wait().unwrap();
     repo.hook(POST, COMMIT);
     let fixed = repo.hook(STOP, COMMIT);
-    assert!(log.contains(LOGGED) && !log.contains(COMPILING) && !fixed.contains(BLOCK), "{log}");
+    assert!(
+        log.contains(LOGGED) && log.contains(BLOCKING) && !log.contains(COMPILING) && !fixed.contains(BLOCK),
+        "{log}"
+    );
 }
 
 #[test]

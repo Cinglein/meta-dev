@@ -17,7 +17,7 @@ ci\tRun cargo xtask ci\t2026-10-25T06:30:05.4000000Z ci: clippy failed
 ci\tRun cargo xtask ci\t2026-10-25T06:30:05.5000000Z ##[error]Process completed with exit code 1.";
 const WIDE: &str = "log_lines = 50\nlog_context = 1\n";
 const NARROW: &str = "log_lines = 3\nlog_context = 0\n";
-const HEADED_ERROR: &str = "== ci / Run cargo xtask ci ==\nerror: this method chain";
+const HEADED_ERROR: &str = "== ci / Run cargo xtask ci ==\n    Checking meta-cli v0.0.0\nerror: this method chain";
 const LOCATION: &str = "remote.rs:43:9";
 const NOISE: &[&str] = &["Compiling", "2026-10-25T", "\u{1b}"];
 const CAPPED: &str = "[kept 3 of 8 log lines; cut setup, passing output and anything beyond 3 lines]\n";

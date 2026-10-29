@@ -18,6 +18,6 @@ impl LogWindow {
     }
 
     pub fn index_span(&self, index: usize) -> RangeInclusive<usize> {
-        index..=index.saturating_add(self.log_context.len())
+        index.saturating_sub(self.log_context.len())..=index.saturating_add(self.log_context.len())
     }
 }
