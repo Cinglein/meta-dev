@@ -157,9 +157,9 @@ const OPEN: [&[&str]; 4] = [
     &["/clone/.git/worktrees/task-00000000000000b1/HEAD"],
 ];
 const MOVED_REFS: &str = "c1 refs/heads/task-00000000000000b1\nc1 refs/worktree/bisect\n";
-const NO_LSOF: &str = "no lsof";
+const NO_TABLE: &str = "no process table";
 const CONFIRMATIONS: [&str; 3] = ["", "changed during checks", "locked"];
-const VACANCIES: [&str; 5] = ["in use", "", "", "", "cannot inspect: no lsof"];
+const VACANCIES: [&str; 5] = ["in use", "", "", "", "cannot inspect: no process table"];
 
 #[test]
 fn only_a_clean_pushed_linked_worktree_under_the_root_is_vetted_and_its_bytes_include_its_target_dir() {
@@ -203,7 +203,7 @@ fn only_a_worktree_that_vets_the_same_again_becomes_deletable() {
 #[test]
 fn only_open_files_under_the_worktree_block_it_and_a_failed_scan_blocks_every_worktree() {
     let scans = OPEN.map(|open| Occupancy::Listed(open.iter().map(PathBuf::from).collect()));
-    let scans = [&scans[..], &[Occupancy::Unlisted(Cause::new(NO_LSOF))]].concat();
+    let scans = [&scans[..], &[Occupancy::Unlisted(Cause::new(NO_TABLE))]].concat();
     let shown =
         scans.iter().map(|scan| scan.vacant(Path::new(PATH)).err().map(|kept| kept.to_string()).unwrap_or_default());
     assert_eq!(shown.collect::<Vec<_>>(), VACANCIES);

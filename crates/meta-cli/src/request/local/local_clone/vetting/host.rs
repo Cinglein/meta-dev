@@ -1,3 +1,4 @@
+mod process_table;
 mod walker;
 
 #[cfg(test)]
@@ -6,12 +7,11 @@ mod freeze_tests;
 mod tests;
 
 use std::collections::HashMap;
-use std::ffi::OsStr;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 
-use meta_run::{EnvPolicy, Environment, Run};
+use meta_run::Environment;
 
 use super::alternates::Alternates;
 use super::cause::Cause;
@@ -25,6 +25,7 @@ use super::thaw::{Thaw, Thawed};
 use crate::request::local::LocalFile;
 use crate::request::local::local_clone::quarantine::Stamp;
 use crate::request::project::CiSettings;
+use process_table::ProcessTable;
 use walker::Walker;
 
 #[derive(Debug)]
@@ -34,9 +35,7 @@ pub struct Host {
 }
 
 impl Host {
-    const LSOF: &'static str = "lsof";
-    const LISTING: [&'static str; 3] = ["-w", "-F", "n"];
-    const RECURSIVE: &'static str = "+D";
+    const NOT_A_DIR: &'static str = "not a directory:";
 
     pub fn new(settings: CiSettings) -> Self {
         Self { lenders: Mutex::default(), settings }
@@ -95,15 +94,9 @@ impl Inspection for Host {
     }
 
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
-        let scanned = paths.iter().flat_map(|path| [OsStr::new(Self::RECURSIVE), path.as_os_str()]);
-        let listing = Run::new(Self::LSOF, EnvPolicy::Inherit).args(Self::LISTING).args(scanned);
-        match listing.ran(self.settings.budget(CiSettings::ROUTINE).deadline()) {
-            Ok(listed) if listed.stderr().first_line().is_none() => {
-                let Ok(occupancy) = listed.stdout().text().parse();
-                occupancy
-            }
-            Ok(listed) => Occupancy::Unlisted(Cause::new(listed.stderr())),
-            Err(failure) => Occupancy::Unlisted(Cause::new(failure)),
+        match paths.iter().find(|path| self.entry(path) != EntryKind::Dir) {
+            Some(absent) => Occupancy::Unlisted(Cause::new(format_args!("{} {}", Self::NOT_A_DIR, absent.display()))),
+            None => ProcessTable::occupancy(paths),
         }
     }
 
