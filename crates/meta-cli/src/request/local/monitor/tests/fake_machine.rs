@@ -7,6 +7,7 @@ use super::super::machine::Machine;
 use super::super::pid_list::PidList;
 use super::super::process_row::Pid;
 use super::super::signal::Signal;
+use super::super::start_time::StartTime;
 use super::super::target::Target;
 
 const ME: &str = "60";
@@ -17,11 +18,16 @@ pub struct FakeMachine<'scene> {
     cwds: &'scene str,
     uptime: &'scene str,
     acts: RefCell<Vec<String>>,
+    start: &'scene str,
 }
 
 impl<'scene> FakeMachine<'scene> {
     pub fn new(tables: &[&'scene str], cwds: &'scene str, uptime: &'scene str) -> Self {
-        Self { tables: RefCell::new(tables.to_vec()), cwds, uptime, acts: RefCell::default() }
+        Self { tables: RefCell::new(tables.to_vec()), cwds, uptime, acts: RefCell::default(), start: "t0" }
+    }
+
+    pub fn started_at(self, start: &'scene str) -> Self {
+        Self { start, ..self }
     }
 }
 
@@ -38,6 +44,10 @@ impl Machine for FakeMachine<'_> {
 
     fn uptime(&self) -> Option<String> {
         Some(self.uptime.to_owned())
+    }
+
+    fn started(&self, _pid: Pid) -> Option<StartTime> {
+        StartTime::read(self.start)
     }
 
     fn signal(&self, signal: Signal, targets: &BTreeSet<Target>) {

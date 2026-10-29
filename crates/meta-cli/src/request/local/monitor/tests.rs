@@ -7,7 +7,10 @@ use chrono::{DateTime, TimeDelta, Utc};
 use meta_golden::Golden;
 
 use super::Monitor;
+use super::identity::Identity;
 use super::patrol::Patrol;
+use super::process_row::Pid;
+use super::reused::Reused;
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::local_settings::MonitorSettings;
 use crate::request::local::{LocalClone, LocalFile};
@@ -55,6 +58,16 @@ const LATER: [TimeDelta; 5] =
     [TimeDelta::zero(), TimeDelta::minutes(5), TimeDelta::minutes(10), TimeDelta::minutes(61), TimeDelta::minutes(62)];
 const BROKEN: &str = "settings unreadable";
 const GIT: &str = ".git";
+
+#[test]
+fn a_recorded_identity_is_refused_once_the_start_time_differs() {
+    let pid = Pid::from(100);
+    let recorded = Identity::observe(&FakeMachine::new(&[], "", "").started_at("t0"), pid).unwrap();
+    let confirmed = |start| recorded.confirmed(&FakeMachine::new(&[], "", "").started_at(start));
+    assert_eq!(confirmed("t0"), Ok(()));
+    assert_eq!(confirmed("t1"), Err(Reused(pid)));
+    assert_eq!(confirmed(""), Err(Reused(pid)));
+}
 
 struct Watch;
 

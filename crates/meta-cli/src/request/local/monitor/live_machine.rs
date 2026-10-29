@@ -7,6 +7,7 @@ use super::machine::Machine;
 use super::pid_list::PidList;
 use super::process_row::Pid;
 use super::signal::Signal;
+use super::start_time::StartTime;
 use super::target::Target;
 use crate::request::local::local_settings::MonitorSettings;
 
@@ -18,6 +19,7 @@ pub struct LiveMachine<'settings> {
 impl<'settings> LiveMachine<'settings> {
     const PS: &'static str = "ps";
     const LISTING: [&'static str; 3] = ["x", "-o", "pid=,ppid=,pgid=,etime=,time=,%cpu=,command="];
+    const START: [&'static str; 3] = ["-o", "lstart=", "-p"];
     const LSOF: &'static str = "lsof";
     const CWD: [&'static str; 6] = ["-a", "-d", "cwd", "-F", "n", "-p"];
     const UPTIME: &'static str = "uptime";
@@ -52,6 +54,11 @@ impl Machine for LiveMachine<'_> {
 
     fn uptime(&self) -> Option<String> {
         self.timed(Self::probe(Self::UPTIME)).and_then(Ran::succeeded).ok()
+    }
+
+    fn started(&self, pid: Pid) -> Option<StartTime> {
+        let started = Self::probe(Self::PS).args(Self::START).arg(pid.to_string());
+        StartTime::read(&self.timed(started).and_then(Ran::succeeded).ok()?)
     }
 
     fn signal(&self, signal: Signal, targets: &BTreeSet<Target>) {
