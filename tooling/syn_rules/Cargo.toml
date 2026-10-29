@@ -6,7 +6,10 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
-syn = { version = "2", features = ["full", "parsing", "visit"] }
+syn = { version = "2", features = ["extra-traits", "full", "parsing", "visit"] }
+
+[dev-dependencies]
+quote = "1"
 
 [lints]
 workspace = true
