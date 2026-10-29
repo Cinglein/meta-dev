@@ -32,7 +32,7 @@ pub use git_failure::GitFailure;
 pub use identity::Identity;
 pub use layout::Layout;
 pub use object_id::ObjectId;
-pub use queries::{FilesAt, FirstAddition, FirstParents, Heads, RefTarget, Signers};
+pub use queries::{FilesAt, FirstAddition, FirstParents, Heads, RefTarget, RemoteUrl, Signers};
 pub use query::Query;
 pub use reads::Reads;
 pub use ref_name::RefName;
