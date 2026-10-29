@@ -12,7 +12,7 @@ use meta_golden::{Goldens, Replay};
 mod fixture;
 #[path = "support/meta_command.rs"]
 mod meta_command;
-use fixture::Fixture;
+use fixture::{Fixture, Moment};
 use meta_command::MetaCommand;
 
 const REPLAY: Option<&str> = option_env!("CARGO_BIN_EXE_gh-replay");
@@ -36,7 +36,7 @@ const SLOW: Duration = Duration::from_millis(500);
 const OUT_OF_TIME: &str = "couldn't check CI in time; run `meta ci-wait`";
 const PUSHED: &str = "feature";
 const NEXT_COMMIT: &str = "next";
-const LONG_AGO: i64 = 1_000_000_000;
+const LONG_AGO: Moment = Moment::after_epoch(1_000_000_000);
 const POST: &str = "post-tool-use";
 const COMMIT: &str = "git commit -m change";
 const PRE: &str = "pre-tool-use";
@@ -141,7 +141,7 @@ impl Planted {
     }
 
     fn twin(repo: &Repo) -> std::process::Child {
-        let head = repo.head();
+        let head = repo.git().to_string();
         repo.command(&["ci-watch", SESSION, &head]).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().unwrap()
     }
 }
@@ -188,7 +188,7 @@ impl Repo {
         let origin = sessions.path().join(Self::ORIGIN);
         let clone = tempfile::tempdir().unwrap();
         Fixture::bare(&origin, PUSHED);
-        Fixture::working(clone.path(), PUSHED).linked(&origin).committed_at("change", LONG_AGO);
+        Fixture::working(clone.path(), &origin, PUSHED).committed_at("change", &LONG_AGO);
         StartFile::plant(sessions.path(), SESSION_FILE, "0");
         std::fs::create_dir(sessions.path().join(Self::TRAIL)).unwrap();
         let repo = Self { origin, clone, sessions, answer };
@@ -198,15 +198,11 @@ impl Repo {
     }
 
     pub fn answered(&self) {
-        self.answer.given(&self.sessions.path().join(Self::REPLIES), &self.head());
+        self.answer.given(&self.sessions.path().join(Self::REPLIES), &self.git().to_string());
     }
 
     fn git(&self) -> Fixture {
         Fixture::opened(self.clone.path())
-    }
-
-    fn head(&self) -> String {
-        self.git().head()
     }
 
     pub fn configured(&self, limits: &str) {
@@ -244,7 +240,7 @@ impl Repo {
 
     pub fn settled_past(&self, seen: &str) -> String {
         let events = self.clone.path().join(".git/meta-ci/ABCDEF1234/events");
-        let lock = self.sessions.path().join(Planted::LOCKS).join(self.head());
+        let lock = self.sessions.path().join(Planted::LOCKS).join(self.git().to_string());
         let pauses = std::iter::successors(Some(Duration::ZERO), |_| Some(SETTLE_POLL)).take(SETTLE_LENGTH);
         pauses
             .map(std::thread::sleep)

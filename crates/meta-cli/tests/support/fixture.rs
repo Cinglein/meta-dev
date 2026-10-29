@@ -1,7 +1,16 @@
+use std::fmt;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct Fixture(git2::Repository);
+
+pub struct Moment(i64);
+
+impl Moment {
+    pub const fn after_epoch(seconds: i64) -> Moment {
+        Moment(seconds)
+    }
+}
 
 impl Fixture {
     const NAME: &'static str = "t";
@@ -10,13 +19,16 @@ impl Fixture {
     const HEAD: &'static str = "HEAD";
     const QUIET: [&'static str; 2] = ["maintenance.auto", "receive.autogc"];
     const NO_REFLOG: &'static str = "core.logAllRefUpdates";
+    const EVERY_HEAD: [&'static str; 0] = [];
 
     pub fn bare(dir: &Path, head: &str) -> Fixture {
         Self::laid(dir, head, true)
     }
 
-    pub fn working(dir: &Path, head: &str) -> Fixture {
-        Self::laid(dir, head, false)
+    pub fn working(dir: &Path, origin: &Path, head: &str) -> Fixture {
+        let fixture = Self::laid(dir, head, false);
+        fixture.0.remote(Self::ORIGIN, origin.to_str().unwrap()).unwrap();
+        fixture
     }
 
     pub fn opened(dir: &Path) -> Fixture {
@@ -32,41 +44,33 @@ impl Fixture {
         Fixture(repository)
     }
 
-    pub fn linked(self, origin: &Path) -> Fixture {
-        self.0.remote(Self::ORIGIN, origin.to_str().unwrap()).unwrap();
-        self
-    }
-
-    pub fn pointed(&self, url: &str) {
-        self.0.remote_set_url(Self::ORIGIN, url).unwrap();
+    pub fn pointed(&self, url: &Path) {
+        self.0.remote_set_url(Self::ORIGIN, url.to_str().unwrap()).unwrap();
     }
 
     pub fn configured(&self, key: &str, value: &str) {
         self.0.config().unwrap().set_str(key, value).unwrap();
     }
 
-    pub fn cloned_quietly(origin: &Path, dir: &Path, branch: &str) -> Fixture {
-        let fixture = Self::working(dir, branch);
-        fixture.0.config().unwrap().set_bool(Self::NO_REFLOG, false).unwrap();
-        let fixture = fixture.linked(origin);
-        fixture.0.find_remote(Self::ORIGIN).unwrap().fetch(&[] as &[&str], None, None).unwrap();
-        let tracked = format!("{}/{branch}", Self::ORIGIN);
-        fixture.tracked(branch, &tracked);
-        fixture
-    }
-
-    fn tracked(&self, branch: &str, tracked: &str) {
-        let tip = self.0.find_branch(tracked, git2::BranchType::Remote).unwrap().get().peel_to_commit().unwrap();
-        self.0.branch(branch, &tip, false).unwrap().set_upstream(Some(tracked)).unwrap();
-        self.0.checkout_head(Some(git2::build::CheckoutBuilder::new().force())).unwrap();
+    pub fn quietly_tracking(self, branch: &str) -> Fixture {
+        self.0.config().unwrap().set_bool(Self::NO_REFLOG, false).unwrap();
+        self.0.find_remote(Self::ORIGIN).unwrap().fetch(&Self::EVERY_HEAD, None, None).unwrap();
+        {
+            let tracked = [Self::ORIGIN, branch].join("/");
+            let tip = self.0.find_branch(&tracked, git2::BranchType::Remote).unwrap().get().peel_to_commit().unwrap();
+            self.0.branch(branch, &tip, false).unwrap().set_upstream(Some(&tracked)).unwrap();
+            self.0.checkout_head(Some(git2::build::CheckoutBuilder::new().force())).unwrap();
+        }
+        self
     }
 
     pub fn committed(&self, message: &str) -> String {
-        self.committed_at(message, SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().cast_signed())
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().cast_signed();
+        self.committed_at(message, &Moment::after_epoch(now))
     }
 
-    pub fn committed_at(&self, message: &str, seconds: i64) -> String {
-        let signature = git2::Signature::new(Self::NAME, Self::EMAIL, &git2::Time::new(seconds, 0)).unwrap();
+    pub fn committed_at(&self, message: &str, at: &Moment) -> String {
+        let signature = git2::Signature::new(Self::NAME, Self::EMAIL, &git2::Time::new(at.0, 0)).unwrap();
         let parent = self.0.head().and_then(|head| head.peel_to_commit()).ok();
         let tree = parent
             .as_ref()
@@ -83,19 +87,23 @@ impl Fixture {
     fn relogged(&self, name: &str, made: git2::Oid, signature: &git2::Signature<'_>) {
         let mut log = self.0.reflog(name).unwrap();
         let newest = log.get(0).filter(|entry| entry.id_new() == made);
-        if let Some(message) = newest.and_then(|entry| entry.message().unwrap().map(str::to_owned)) {
-            log.remove(0, false).unwrap();
-            log.append(made, signature, Some(&message)).unwrap();
-            log.write().unwrap();
-        }
+        let message = newest.and_then(|entry| entry.message().unwrap().map(str::to_owned));
+        let rewritten = message.map_or(Ok(()), |message| {
+            log.remove(0, false)?;
+            log.append(made, signature, Some(&message))?;
+            log.write()
+        });
+        rewritten.unwrap();
     }
 
     pub fn pushed(&self, to: &str) {
         let from = self.0.head().unwrap().name().unwrap().to_owned();
         self.0.find_remote(Self::ORIGIN).unwrap().push(&[format!("+{from}:refs/heads/{to}")], None).unwrap();
     }
+}
 
-    pub fn head(&self) -> String {
-        self.0.head().unwrap().target().unwrap().to_string()
+impl fmt::Display for Fixture {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}", self.0.head().unwrap().target().unwrap())
     }
 }

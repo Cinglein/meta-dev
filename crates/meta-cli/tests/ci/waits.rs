@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use super::{BLOCK, CI_WAIT, COMMIT, EXPECTED, NEXT_COMMIT, PASSED_EVENT, POST, Planted, Repo, STOP, SUCCESS};
 const NAMELESS: &str = "origin.git";
 const UNHURRIED: &str = "expected_millis = 0\n";
@@ -10,12 +12,12 @@ const LEARNED: &str = "422000";
 fn an_unreadable_remote_settles_the_hook_spawned_watch_unchecked_and_a_fixed_remote_passes_and_learns_the_run() {
     let repo = Repo::limited(SUCCESS, UNHURRIED);
     std::os::unix::fs::symlink(&repo.origin, repo.clone.path().join(NAMELESS)).unwrap();
-    repo.git().pointed(NAMELESS);
+    repo.git().pointed(Path::new(NAMELESS));
     repo.hook(POST, COMMIT);
     let unchecked = repo.settled();
     let stopped = repo.hook(STOP, COMMIT);
     let waited = repo.meta(&[CI_WAIT]).1;
-    repo.git().pointed(repo.origin.to_str().unwrap());
+    repo.git().pointed(&repo.origin);
     repo.git().committed(NEXT_COMMIT);
     repo.answered();
     Planted::twin(&repo).wait().unwrap();
