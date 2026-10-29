@@ -4,6 +4,7 @@ use std::path::Path;
 use chrono::{DateTime, Utc};
 use meta_schema::DueTime;
 
+use super::fault::Fault;
 use super::finding::Finding;
 use super::judged_row::JudgedRow;
 use super::load_average::LoadAverage;
@@ -31,6 +32,12 @@ impl MonitorReport {
     #[must_use]
     pub fn found(self, obvious: Vec<Finding>, rows: Vec<JudgedRow>) -> Self {
         Self { obvious, rows, ..self }
+    }
+
+    #[must_use]
+    pub fn noticed(self, notice: Option<&Fault>) -> Self {
+        let notices = notice.cloned().map(Finding::Failed);
+        Self { obvious: notices.into_iter().chain(self.obvious).collect(), ..self }
     }
 
     pub fn obvious(&self) -> &[Finding] {

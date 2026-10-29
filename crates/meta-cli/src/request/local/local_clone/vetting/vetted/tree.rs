@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::request::local::byte_count::ByteCount;
+use crate::request::local::local_clone::cargo_tag::CargoTag;
 use crate::request::local::local_clone::vetting::entry_kind::EntryKind;
 use crate::request::local::local_clone::vetting::found::Found;
 use crate::request::local::local_clone::vetting::kept::Kept;
@@ -17,8 +18,6 @@ impl Tree {
     const GIT_ENTRY: &'static str = ".git";
     const REPO_SHAPE: [(&'static str, EntryKind); 3] =
         [("HEAD", EntryKind::File), ("objects", EntryKind::Dir), ("refs", EntryKind::Dir)];
-    const SIGNATURE: &'static str = "Signature: 8a477f597d28d172789f06886806bc55";
-    const AUTHOR: &'static str = "created by cargo";
 
     pub fn new(found: Vec<Found>) -> Self {
         Self(found)
@@ -42,7 +41,7 @@ impl Tree {
     }
 
     pub fn cargo_target(&self, dir: &Path, tag: Option<&str>) -> Result<(), Kept> {
-        tag.filter(|tag| tag.starts_with(Self::SIGNATURE) && tag.contains(Self::AUTHOR)).ok_or(Kept::Ignored)?;
+        tag.filter(|tag| CargoTag::marks(tag)).ok_or(Kept::Ignored)?;
         let kinds = self.kinds();
         (kinds.get(dir) == Some(&EntryKind::Dir)).then_some(()).ok_or(Kept::Ignored)?;
         let layout = CargoLayout::new(dir, &kinds);

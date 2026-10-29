@@ -17,6 +17,9 @@ mod patrol;
 mod pid_list;
 mod process_row;
 mod signal;
+mod standing;
+mod start_time;
+mod starts;
 mod target;
 mod unreadable;
 mod watch_item;
@@ -95,7 +98,8 @@ impl Monitor {
     }
 
     fn patrolled(git_dir: &Path, patrol: &Patrol<'_, impl Machine>, now: DateTime<Utc>) -> Result<Output, CliFailure> {
-        let report = patrol.round(&MonitorState::read(git_dir), now);
+        let restored = MonitorState::read(git_dir, now)?;
+        let report = patrol.round(restored.state(), now).noticed(restored.notice());
         report.state().write(git_dir)?;
         report.write(git_dir)?;
         MonitorTrail::new(git_dir).appended(now, report.obvious(), patrol.settings())?;
