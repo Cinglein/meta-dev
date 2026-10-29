@@ -1,12 +1,14 @@
 use std::time::Instant;
 
-use super::HookEvent;
+use super::{HookEvent, HookInput};
 use crate::request::output::Listed;
 use crate::request::project::{CiSettings, Config};
 
 const HOOKS: &str = include_str!("../../../../../plugin/hooks/hooks.json");
 const EVENTS: [HookEvent; 4] =
     [HookEvent::SessionStart, HookEvent::PreToolUse, HookEvent::PostToolUse, HookEvent::Stop];
+const OUTSIDE: &str = r#"{"cwd":"/nonexistent-meta-dir","tool_input":{"command":"git commit -m x"}}"#;
+const UNRESOLVED: &str = "cannot resolve the commit directory";
 const REFUSED: [(HookEvent, &str); 2] =
     [(HookEvent::PreToolUse, "\"permissionDecision\":\"deny\""), (HookEvent::Stop, "\"decision\":\"block\"")];
 
@@ -20,7 +22,12 @@ fn hook_timeouts_match_hooks_json_and_bound_every_git_deadline() {
 }
 
 #[test]
-fn a_refused_project_denies_tool_use_and_blocks_stop_with_its_reason() {
+fn a_refused_project_denies_tool_use_and_blocks_stop_and_outside_one_only_pre_tool_use_refuses_and_session_start_opens()
+{
     let shown = REFUSED.map(|(event, _)| event.refused(Listed::new(REFUSED[0].1)).to_string());
     assert!(shown.iter().zip(REFUSED).all(|(shown, (_, verdict))| shown.contains(verdict)), "{shown:?}");
+    let input: HookInput = serde_json::from_str(OUTSIDE).unwrap();
+    let refused = [HookEvent::SessionStart, HookEvent::PreToolUse, HookEvent::Stop]
+        .map(|event| event.outside_projects(&input).is_some_and(|reply| reply.to_string().contains(UNRESOLVED)));
+    assert_eq!((EVENTS.map(HookEvent::opens_session), refused), ([Some(()), None, None, None], [false, true, false]));
 }

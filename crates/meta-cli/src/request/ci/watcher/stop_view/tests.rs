@@ -9,7 +9,7 @@ use crate::request::remote_failure::RemoteFailure;
 
 const HEAD: &str = "f2e83b47f04f1aadaaf72b9d15074e933a513dc6";
 const OLDER: &str = "0535038a5657a4872055f5ca2aa4ae04f811e419";
-const ON_FEATURE: &str = "HEAD -> refs/heads/feature";
+const FEATURE: &str = "feature";
 const DENIED: &str = "permission denied";
 const SHOWN: [&str; 3] = [
     "reflog is off",
@@ -23,7 +23,7 @@ impl Seen {
     fn pushed(unpushed: &[&str]) -> SessionCommits {
         let [head, older] = [HEAD, OLDER].map(|sha| sha.parse::<Commit>().unwrap());
         let unpushed = unpushed.iter().map(|sha| sha.parse().unwrap()).collect();
-        let checkout = Checkout::decorated(&head, ON_FEATURE).unwrap();
+        let checkout = Checkout::new(Some(head.clone()), FEATURE.parse().ok());
         SessionCommits::new(&[head, older], Some(unpushed), checkout, RemoteHeads::default())
     }
 
@@ -53,7 +53,7 @@ fn stop_restarts_the_watcher_of_every_unfinished_commit_and_a_failed_remote_url_
     let statuses = [Some(CiStatus::Running), None, Some(CiStatus::Passed), Some(CiStatus::TimedOut)];
     let restarted = statuses.map(|status| Watched::new(older.clone(), status).restarted().cloned());
     assert_eq!(restarted, [Some(older.clone()), Some(older), None, None]);
-    let [flaked, nameless] = [DENIED, ON_FEATURE].map(Listed::new);
+    let [flaked, nameless] = [DENIED, FEATURE].map(Listed::new);
     let retried = [RemoteFailure::GitFailed(flaked.clone()), RemoteFailure::NotGithub(nameless.clone())];
     assert_eq!(retried.map(RemoteFailure::retry), [Ok(flaked), Err(nameless)]);
 }

@@ -653,7 +653,6 @@ dependencies = [
 name = "meta-log"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "meta-git",
  "meta-run",
  "meta-schema",
