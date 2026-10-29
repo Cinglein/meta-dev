@@ -8,7 +8,11 @@ Principles, ladder and design: `context/SPEC.md`. Build stages: `context/BOOTSTR
 - `crates/`: `meta-schema` (types), `meta-log` (the `meta/log` branch), `meta-state` (folds),
   `meta-listing`, `meta-gh`, `meta-cli` (the `meta` binary and its Claude Code hooks).
 - `tooling/`: one crate per lint or task; `tooling/policy.toml` holds every limit and budget.
-- `xtask/`: `cargo xtask ci` (fmt, clippy, lints, tests, test-time budget); CI runs it with `--affected`.
+- `xtask/`: `cargo xtask ci` (fmt, clippy, lints, tests, test-time budget, supply chain); CI runs it with `--affected`.
+  Supply chain: cargo-deny with a config rendered from `[supply_chain]` in `tooling/policy.toml` (into
+  `target/meta/deny.toml`; no file to copy), and cargo-semver-checks against the merge base for published crates
+  plus `semver`. A breaking change to `meta-xtask` needs an explicit version bump. An advisory fetch failure
+  blocks in CI only.
 - `plugin/`: Claude Code hooks that call `meta hook`. `self/`: lint baseline and log seed scripts.
 - `self/spec` (`meta-spec`): spec rules as typed records; `context/SPEC.md` is rendered from them
   (`cargo run -p meta-spec`). `cargo xtask ci` checks the render in its `spec` step.

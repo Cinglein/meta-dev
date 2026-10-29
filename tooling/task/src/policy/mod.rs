@@ -9,6 +9,7 @@ mod policy_failure;
 mod policy_file;
 mod share;
 mod spec_settings;
+mod supply_chain;
 mod surface;
 mod vague;
 #[cfg(test)]
@@ -44,6 +45,7 @@ use policy_file::PolicyFile;
 use serde::{Deserialize, Serialize, Serializer};
 #[cfg(any(test, feature = "test-policy"))]
 use settings::EmbeddedDefaults;
+use supply_chain::SupplyChain;
 use vague::Vague;
 use vocabulary::Vocabulary;
 
@@ -81,6 +83,7 @@ pub struct Policy {
     budgets: Budgets,
     deprecated: Vec<LegacyKey>,
     spec: Option<SpecSettings>,
+    supply_chain: SupplyChain,
 }
 
 #[cfg(any(test, feature = "test-policy"))]
@@ -209,6 +212,11 @@ impl Policy {
     #[must_use]
     pub fn spec(&self) -> Option<&SpecSettings> {
         self.spec.as_ref()
+    }
+
+    #[must_use]
+    pub fn supply_chain(&self) -> &SupplyChain {
+        &self.supply_chain
     }
 
     #[must_use]
