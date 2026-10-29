@@ -84,7 +84,7 @@ mod tests {
     use crate::task::fixture::Fixture;
     use crate::task::ratchet::{Baseline, Drift};
     use crate::task::revision::ForeignEmails;
-    use task::{Ledger, Policy, Report, Site, SourceFile, Violation};
+    use task::{Ledger, Measure, Policy, Report, Site, SourceFile, Violation};
 
     const LINT_FINDINGS: &str = "lint-findings";
     const MEASURED_OK: &str = "-                     - ok";
@@ -97,7 +97,13 @@ mod tests {
     const REPEATED: [(&str, &str); 3] = [
         ("crates/ant/src/lib.rs", "pub struct Ant; impl Ant { pub fn walk(&self) {} }"),
         ("crates/bee/src/lib.rs", "pub struct Bee; impl Bee { pub fn walk(&self) {} }"),
-        ("crates/cow/src/lib.rs", "pub struct Cow; impl Cow { pub fn walk(&self) {} }"),
+        ("crates/cow/src/lib.rs", "pub struct Cow; impl Cow { pub fn walk(&self) { std::process::exit(CODE) } }"),
+    ];
+    const RECORDED: [(Measure, &str); 4] = [
+        (Measure::TangleItems, "0"),
+        (Measure::EffectShare, "100%"),
+        (Measure::EffectDispersion, "1"),
+        (Measure::RepeatedShapes, "1"),
     ];
     const NOREPLY: &str = "1+someone@users.noreply.github.com\nnoreply@github.com\n";
     const EMAILS: &str =
@@ -131,6 +137,16 @@ mod tests {
             && fs::read_to_string(fixture.path(BASELINE)).is_ok_and(|text| text.is_empty());
         let statement = ledger.statement(&policy).to_string();
         assert!(passed && statement.lines().any(|row| row.starts_with(LINT_FINDINGS) && row.ends_with(MEASURED_OK)));
+    }
+
+    #[test]
+    fn the_lint_step_records_every_elegance_measure_in_the_ledger() {
+        let (policy, mut ledger) = (Policy::defaults(), Ledger::default());
+        let files = REPEATED.map(|(path, text)| SourceFile::parse(path, text.to_owned()).unwrap());
+        let allowed = Lint::gathered(&files, &policy, None).ratchet(&Baseline::default(), |_| false).unwrap();
+        assert!(Lint::gathered(&files, &policy, None).checked(&files, &allowed, &policy, &mut ledger).is_ok());
+        let recorded = RECORDED.map(|(measure, _)| ledger.spent(&measure).map(ToString::to_string));
+        assert_eq!(recorded, RECORDED.map(|(_, amount)| Some(amount.to_owned())));
     }
 
     #[test]

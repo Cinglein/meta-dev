@@ -32,6 +32,7 @@ pub enum Measure {
     OpenItems(ItemFilter),
     EffectShare,
     EffectDispersion,
+    RepeatedShapes,
 }
 
 impl Measure {
@@ -43,7 +44,10 @@ impl Measure {
             | Measure::SlowestTest
             | Measure::WorkflowWallTime(_) => Unit::Duration,
             Measure::MutantPrice | Measure::TestLineShare | Measure::EffectShare => Unit::Share,
-            Measure::TangleItems | Measure::OpenItems(_) | Measure::EffectDispersion => Unit::Count,
+            Measure::TangleItems
+            | Measure::OpenItems(_)
+            | Measure::EffectDispersion
+            | Measure::RepeatedShapes => Unit::Count,
             Measure::LintFindings => Unit::Baseline,
         }
     }
@@ -58,7 +62,9 @@ impl Measure {
             Measure::TangleItems | Measure::EffectShare | Measure::EffectDispersion => {
                 Some(ScopeKind::Crates)
             }
-            Measure::LintFindings | Measure::TestLineShare => Some(ScopeKind::Paths),
+            Measure::LintFindings | Measure::TestLineShare | Measure::RepeatedShapes => {
+                Some(ScopeKind::Paths)
+            }
             Measure::OpenItems(_) => None,
         }
     }
@@ -75,7 +81,8 @@ impl Measure {
             | Measure::TestLineShare
             | Measure::TangleItems
             | Measure::EffectShare
-            | Measure::EffectDispersion => Enforcer::Lint,
+            | Measure::EffectDispersion
+            | Measure::RepeatedShapes => Enforcer::Lint,
         }
     }
 
@@ -92,7 +99,8 @@ impl Measure {
             | Measure::TestLineShare
             | Measure::TangleItems
             | Measure::EffectShare
-            | Measure::EffectDispersion => None,
+            | Measure::EffectDispersion
+            | Measure::RepeatedShapes => None,
         }
     }
 
@@ -103,7 +111,8 @@ impl Measure {
             Measure::TestLineShare
             | Measure::TangleItems
             | Measure::EffectShare
-            | Measure::EffectDispersion => None,
+            | Measure::EffectDispersion
+            | Measure::RepeatedShapes => None,
             Measure::TestWallTime
             | Measure::TestCpuTime
             | Measure::SlowestTest
