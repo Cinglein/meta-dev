@@ -214,6 +214,14 @@ updates:
         Golden::for_test(module_path!(), "gaps").checked(&gaps.map(|gaps| gaps.to_string()).join("\n")).unwrap();
     }
 
+    const LIMIT_OFF: &str =
+        "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 0\n";
+    const LIMIT_NON_ZERO: &str =
+        "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 5\n";
+    const LIMIT_MISSING: &str = "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n";
+    const LIMIT_ONE_LEFT_ON: &str = "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 0\n  - package-ecosystem: github-actions\n    directory: /\n";
+    const LIMIT_MESSAGE: &str = "dependabot-updates: .github/dependabot.yml opens version-update pull requests";
+
     #[test]
     fn dependabot_version_update_pull_requests_must_be_off_so_a_missing_or_non_zero_limit_is_a_gap() {
         let gaps = |dependabot: &str| {
@@ -230,16 +238,9 @@ updates:
             };
             adoption.gaps(&Policy::defaults()).to_string()
         };
-        let off =
-            "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 0\n";
-        let non_zero =
-            "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 5\n";
-        let missing = "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n";
-        let one_left_on = "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 0\n  - package-ecosystem: github-actions\n    directory: /\n";
-        let message = "dependabot-updates: .github/dependabot.yml opens version-update pull requests";
-        assert!(!gaps(off).contains("dependabot-updates"));
-        for text in [non_zero, missing, one_left_on] {
-            assert!(gaps(text).contains(message), "{text}");
+        assert!(!gaps(LIMIT_OFF).contains("dependabot-updates"));
+        for text in [LIMIT_NON_ZERO, LIMIT_MISSING, LIMIT_ONE_LEFT_ON] {
+            assert!(gaps(text).contains(LIMIT_MESSAGE), "{text}");
         }
     }
 
