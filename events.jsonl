@@ -1373,3 +1373,4 @@
 {"at":"2026-10-29T05:50:08.115233Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-8a23d965a574aea2"}
 {"at":"2026-10-29T05:50:09.795145Z","actor":"claude-lead","kind":"TaskDone","task":"task-8a23d965a574aea2"}
 {"at":"2026-10-29T06:43:18.710919Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-647627494c4563f8","text":"meta status part 4: agents decoupled from tasks; per-agent tokens, wall time, compute attributed to tasks; worktree lifetime. Detail in entry history."}
+{"at":"2026-10-29T06:43:20.481248Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-04c5ae40d18b52e7","text":"Machine layer: machine.toml capacity, local leases and queue (file-lock slots, CARGO_BUILD_JOBS per lease); never in repos. Detail in entry history."}
