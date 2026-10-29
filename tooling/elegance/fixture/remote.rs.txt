@@ -1,0 +1,7 @@
+pub struct Gadget;
+
+impl Gadget {
+    pub fn width(&self) -> Width {
+        Width
+    }
+}

@@ -35,10 +35,12 @@ pub use ci::CiStep;
 use ci::{Ci, LocalGate};
 use corpus_check::LintName;
 use crate_graph::CrateGraph;
+use elegance::{EleganceSettings, Measures, SynSource};
 use failure::Failure;
 use meta_golden::Reach;
 use mutant_costs::MutantCosts;
 use mutation::{Mutants, Scope, ShardPlan, TriggerEvent};
+use settings::EmbeddedDefaults;
 use stacked::Stacked;
 use test_time::{GitCount, TestRunner, TestTime};
 
@@ -53,6 +55,7 @@ pub enum Task {
     CrateGraph,
     Deny,
     DistinctSignatures,
+    Elegance,
     EnumPredicates,
     ExpressionFlow,
     FnShape,
@@ -145,6 +148,9 @@ impl Task {
             Task::Goldens => GoldenRefresh::run(workspace, Reach::Offline),
             Task::GoldensOnline => GoldenRefresh::run(workspace, Reach::Online),
             Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
+            Task::Elegance => Ok(workspace.source_files().map(|files| {
+                print!("{}", Measures::measured(&SynSource::new(&files), &EleganceSettings::defaults()));
+            })?),
             Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy, &mut ledger)
                 .and_then(|()| Ok(ledger.checked(&policy, &selection)?)),
             Task::MutantCosts => Ok(MutantCosts::measure(
