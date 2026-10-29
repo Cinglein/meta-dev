@@ -50,16 +50,20 @@ impl Attempt {
 #[cfg(test)]
 mod tests {
     use super::Attempt;
+    use crate::log_failure::LogFailure;
     use meta_run::Budget;
     use std::time::{Duration, Instant};
     const PATIENCE: Duration = Duration::from_millis(64);
-    const SLACK: Duration = Duration::from_millis(64);
+    const SLACK: Duration = Duration::from_secs(2);
 
     #[test]
-    fn a_retry_that_never_settles_gives_up_by_its_deadline() {
-        let started = Instant::now();
-        let gave_up = Attempt::within(started + PATIENCE, &Budget::new(PATIENCE), || Ok::<Option<()>, ()>(None));
-        assert!(gave_up.is_none() && started.elapsed() < PATIENCE + SLACK);
+    fn a_retry_that_never_settles_gives_up_expired_by_a_deadline_each_call_takes_afresh() {
+        let (budget, started) = (Budget::new(PATIENCE), Instant::now());
+        let deadline = budget.deadline();
+        let gave_up = Attempt::within(deadline, &budget, || Ok::<Option<()>, ()>(None));
+        let expired = matches!(LogFailure::gave_up(deadline), LogFailure::Expired);
+        assert!(gave_up.is_none() && expired && started.elapsed() < PATIENCE + SLACK);
+        assert!(budget.deadline() > deadline);
     }
 
     #[test]

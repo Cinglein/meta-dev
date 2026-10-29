@@ -45,3 +45,36 @@ impl MutantsRun {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::scope::{MutantsBuild, MutantsRun};
+    use settings::EmbeddedDefaults;
+    use task::{CommandLine, Interval, MemoryShare, Policy, Program};
+    const SH: &str = "sh";
+    const SCRIPT: &str = "-c";
+    const EMPTY: &str = "";
+    const FILES: [&str; 2] = ["mutants.out/missed.txt", "mutants.out/timeout.txt"];
+    const TIMED_OUT: &str = "a.rs:1:1: delete x";
+    const EXITS: [(&str, bool); 3] = [("exit 0", true), ("exit 3", false), ("exit 2", false)];
+
+    #[test]
+    fn only_a_clean_exit_with_empty_lists_passes_and_a_listed_timeout_fails_even_on_a_clean_exit() {
+        let policy = Policy::defaults();
+        let output = std::env::temp_dir().join(format!("meta-run-{}", std::process::id()));
+        let [missed, timed_out] = FILES.map(|file| output.join(file));
+        std::fs::create_dir_all(missed.parent().unwrap()).unwrap();
+        let written = [&missed, &timed_out].into_iter().all(|file| std::fs::write(file, EMPTY).is_ok());
+        let sh = CommandLine::new(Program::Executable(SH.into())).argument(SCRIPT);
+        let limit = policy.interval(Interval::DiscoverEvery);
+        let build = MutantsBuild::sharing(sh.clone(), EMPTY, limit, limit).unwrap();
+        let run = |script| MutantsRun::new(sh.clone().argument(script), output.clone());
+        let accepted = |script| run(script).accepted(&build, policy.memory(MemoryShare::Granted), &policy).unwrap();
+        let judged = EXITS.map(|(script, _)| accepted(script));
+        std::fs::write(&timed_out, TIMED_OUT).unwrap();
+        let [(clean, _), ..] = EXITS;
+        let listed = accepted(clean);
+        std::fs::remove_dir_all(&output).unwrap();
+        assert!(written && judged == EXITS.map(|(_, verdict)| verdict) && !listed);
+    }
+}

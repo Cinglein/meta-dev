@@ -43,11 +43,13 @@ mod tests {
     use super::LogFailure;
     use std::time::{Duration, Instant};
     const AHEAD: Duration = Duration::from_secs(60);
+    const BEHIND: Duration = Duration::from_millis(1);
 
     #[test]
     fn giving_up_before_the_deadline_is_contention_and_after_it_is_expiry() {
         let now = Instant::now();
-        let given = [now + AHEAD, now].map(|deadline| matches!(LogFailure::gave_up(deadline), LogFailure::Expired));
+        let given = [now + AHEAD, now.checked_sub(BEHIND).unwrap()]
+            .map(|deadline| matches!(LogFailure::gave_up(deadline), LogFailure::Expired));
         assert_eq!(given, [false, true]);
     }
 }
