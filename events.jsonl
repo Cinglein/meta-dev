@@ -1510,3 +1510,4 @@
 {"at":"2026-10-29T13:36:43.230502Z","actor":"claude-liveness","kind":"TaskLinked","task":"task-ae914e46858fa3fe","pr":187}
 {"at":"2026-10-29T13:45:32.279148Z","actor":"claude-cratedeps","kind":"TaskLinked","task":"task-90da5dd59f8af0c5","pr":188}
 {"at":"2026-10-29T14:10:06.506639Z","actor":"claude-bugs3","kind":"TaskDone","task":"task-128362e7c1033465"}
+{"at":"2026-10-29T14:17:02.304844Z","actor":"claude-lead","kind":"TaskOpened","task":"task-5d684fe488424975","text":"Adoption gate: CI in meta-dev and every consumer requires every dogfooded tool (one list in meta-xtask); no opt-out, nothing skips; missing or skipped tool fails closed (owner 2026-10-29).","division":"features-and-maintenance"}
