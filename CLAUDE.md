@@ -38,7 +38,7 @@ Principles, ladder and design: `context/SPEC.md`. Build stages: `context/BOOTSTR
 
 ## Process
 
-- Work from the log: `meta list`, `meta claim <task>`, `meta done <task>` is run by the lead after merge.
+- Work from the log: `meta list`, `meta claim <task>` before work. The lead runs `meta done <task>` after the PR merges.
   Report surprises with `meta issue`; vague worries with `meta concern`. Every new concern, issue
   and task takes `--division <path>` (a path under a top division, see `meta` usage).
 - One task, one small PR off `main`. Stack only a truly atomic sequence, and then only with

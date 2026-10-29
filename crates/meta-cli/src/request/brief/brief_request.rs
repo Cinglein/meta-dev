@@ -22,7 +22,7 @@ impl BriefRequest {
     }
 
     pub fn answer(
-        self,
+        mut self,
         project: &Project,
         default_actor: impl FnOnce() -> Result<Actor, CliFailure>,
     ) -> Result<Output, CliFailure> {
@@ -30,7 +30,7 @@ impl BriefRequest {
         let state = State::fold(log.read()?.records());
         let rules = std::fs::read_to_string(project.root().join(Rules::FILE));
         let repository = project.repository().map_err(|reason| CliFailure::raised::<Setup>(reason.into_listed()))?;
-        let actor = self.actor.clone().map_or_else(default_actor, Ok)?;
+        let actor = self.actor.take().map_or_else(default_actor, Ok)?;
         self.briefed(&state, rules, actor, repository).map(|brief| Output::Listed(Listed::new(brief)))
     }
 

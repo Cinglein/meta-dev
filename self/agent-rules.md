@@ -5,7 +5,7 @@ version: 2
 - commit as `git commit -m "<subject>" -m "<trailer>"`; end every commit with the Co-Authored-By trailer your harness's attribution instruction gives you; push after each commit
 - end PR bodies with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`; open the PR with `gh pr create`, then `meta link <task> <pr>`
 - every cargo command runs as `nice -n 19` with `CARGO_BUILD_JOBS=2`, one at a time
-- local gate: `cargo xtask ci --affected` green before every push, ignoring local timing budgets; then push and stop
+- local gate: `cargo xtask ci --affected` green before every push, ignoring local timing budgets, except the red-first commit, which fails its own target by design; then push and stop
 - CI: never watch it, never wait on it, never re-run it or a failed job; if it later goes red, the lead or a fresh agent handles it
 - red first: the first commit only tightens the check; push it; implement the fix locally; before pushing the fix, check the red run once with `gh run list`; if it has not concluded, wait for it (the one allowed CI wait: poll every 60 s, deadline 30 min) so the push does not cancel it; link the red run in the PR body
 - never merge or approve; never run `meta done` (the lead marks done after merge)
