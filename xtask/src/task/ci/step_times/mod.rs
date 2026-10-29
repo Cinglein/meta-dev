@@ -6,6 +6,7 @@ use std::time::Duration;
 use crate::task::ci::ci_step::CiStep;
 use crate::task::failure::Failure;
 use step_time::StepTime;
+use task::CheckName;
 
 #[derive(Debug, Default)]
 pub struct StepTimes {
@@ -14,6 +15,8 @@ pub struct StepTimes {
 }
 
 impl StepTimes {
+    const GATE: &str = "gate";
+
     pub fn record(&mut self, step: CiStep, outcome: Result<Duration, Failure>) -> Result<(), Failure> {
         match outcome {
             Ok(elapsed) => {
@@ -25,6 +28,10 @@ impl StepTimes {
                 Err(failure)
             }
         }
+    }
+
+    pub fn failed_job(&self) -> CheckName {
+        self.failed.map_or_else(|| CheckName::from(Self::GATE), CheckName::from)
     }
 }
 
@@ -42,8 +49,8 @@ mod tests {
     use std::time::Duration;
 
     use super::StepTimes;
+    use crate::task::ci::attribution::Attribution;
     use crate::task::ci::ci_step::CiStep;
-    use crate::task::ci::{Ci, LogSource};
     use crate::task::failure::Failure;
     use crate::task::fixture::Fixture;
 
@@ -62,7 +69,7 @@ mod tests {
         let (fixture, mut times) = (Fixture::new(), StepTimes::default());
         assert!(times.record(CiStep::Fmt, Ok(SECOND)).is_ok());
         assert!(times.failing(CiStep::Clippy).is_err());
-        Ci::new(None, None, Some(fixture.path(TIMES)), None, LogSource::Origin).recorded(&times).unwrap();
+        Attribution::new(Some(fixture.path(TIMES)), None).recorded(&times).unwrap();
         assert_eq!(fs::read_to_string(fixture.path(TIMES)).ok().as_deref(), Some(SHOWN));
     }
 }

@@ -1,10 +1,13 @@
-use std::collections::BTreeSet;
-use std::path::PathBuf;
+mod cargo_line;
+mod message;
 
-use task::{FailureKind, FailureSet};
+use std::convert::Infallible;
+use std::str::FromStr;
 
-use super::cargo_line::CargoLine;
-use super::message::Message;
+use task::{Failure, FailureSet};
+
+use cargo_line::CargoLine;
+use message::Message;
 
 #[derive(Debug)]
 pub(super) struct Diagnostics {
@@ -12,35 +15,29 @@ pub(super) struct Diagnostics {
 }
 
 impl Diagnostics {
-    pub(super) fn parse(printed: &str) -> Diagnostics {
-        let errors = printed
-            .lines()
-            .filter_map(|line| serde_json::from_str::<CargoLine>(line).ok())
-            .filter_map(CargoLine::message)
-            .filter(Message::is_error)
-            .collect();
-        Diagnostics { errors }
-    }
-
-    pub(super) fn is_empty(&self) -> bool {
-        self.errors.is_empty()
+    pub(super) fn reading(printed: &str) -> Option<Failure> {
+        let Ok(diagnostics) = printed.parse::<Diagnostics>();
+        Some(diagnostics).filter(|diagnostics| !diagnostics.errors.is_empty()).map(|diagnostics| Failure::Found {
+            printed: diagnostics.errors.iter().filter_map(Message::rendered).collect(),
+            found: diagnostics.found(),
+        })
     }
 
     pub(super) fn found(&self) -> FailureSet {
-        let paths = |lint: bool| -> BTreeSet<PathBuf> {
-            self.errors.iter().filter(|message| message.is_lint() == lint).flat_map(Message::primary_paths).collect()
-        };
-        let [compile, lint] = [false, true].map(paths);
-        let kind = |paths: BTreeSet<PathBuf>, kind: fn(Vec<PathBuf>) -> FailureKind| {
-            (!paths.is_empty()).then(|| kind(paths.into_iter().collect()))
-        };
-        [kind(compile, |paths| FailureKind::Compile { paths }), kind(lint, |paths| FailureKind::Lint { paths })]
-            .into_iter()
-            .flatten()
-            .fold(FailureSet::default(), FailureSet::with)
+        self.errors.iter().fold(FailureSet::default(), |set, message| set.recording(message.failure()))
     }
+}
 
-    pub(super) fn rendered(&self) -> String {
-        self.errors.iter().filter_map(Message::rendered).collect::<Vec<&str>>().join("\n")
+impl FromStr for Diagnostics {
+    type Err = Infallible;
+
+    fn from_str(printed: &str) -> Result<Diagnostics, Infallible> {
+        Ok(Diagnostics {
+            errors: printed
+                .lines()
+                .filter_map(|line| line.parse::<CargoLine>().ok())
+                .filter_map(CargoLine::error)
+                .collect(),
+        })
     }
 }

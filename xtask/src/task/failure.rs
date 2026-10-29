@@ -5,6 +5,7 @@ use meta_golden::GoldenFailure;
 use meta_log::LogFailure;
 use meta_run::Unread;
 use meta_severity::{Demotions, ScaleFailure, Strands};
+use task::FailureSet;
 use thiserror::Error;
 
 use crate::task::adoption::Gaps;
@@ -12,6 +13,19 @@ use crate::task::ci::{Busy, OutsideConfig, Unready, Untracked};
 use crate::task::ratchet::{Raised, Ratchet};
 use crate::task::revision::ForeignEmails;
 use crate::task::{Misplaced, TrackedBuildFiles};
+
+impl Failure {
+    pub fn found(&self) -> FailureSet {
+        match self {
+            Failure::Task(failure) => failure.found(),
+            Failure::Golden(failure) => {
+                failure.differing().map_or_else(FailureSet::default, |path| FailureSet::golden(path.to_path_buf()))
+            }
+            Failure::Unreached { failure, .. } => failure.found(),
+            _ => FailureSet::default(),
+        }
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum Failure {

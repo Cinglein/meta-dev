@@ -29,7 +29,6 @@ use test_runs::TestRuns;
 use test_timing::TestTiming;
 
 use task::Failure;
-use task::FailureKind;
 use task::FailureSet;
 use task::Interval;
 use task::Program;
@@ -69,7 +68,6 @@ impl TestTime {
         selection: &Selection,
         policy: &Policy,
         ledger: &mut Ledger,
-        captured: &mut FailureSet,
     ) -> Result<(), Failure> {
         selection.reaching().map_or_else(
             || {
@@ -80,7 +78,7 @@ impl TestTime {
                 Self::examples(workspace, selection, policy)?;
                 let reference = ReferenceCpu::measured(policy)?;
                 let timings = Self::timings(workspace, selection, policy, &Execution::Timed)?;
-                captured.extend(Self::overruns(&timings, policy));
+                ledger.fail(Self::overruns(&timings, policy));
                 TestTime { timings, reference }
                     .recorded(policy, ledger)
                     .verdict()
@@ -92,13 +90,8 @@ impl TestTime {
         let allowance = policy.interval(Interval::PerTest).duration();
         timings
             .iter()
-            .filter(|timing| timing.spent(Clock::Wall) > allowance)
-            .fold(FailureSet::default(), |set, timing| {
-                set.with(FailureKind::Budget {
-                    test: timing.test().into(),
-                    cpu: Millis::rounded_up(timing.spent(Clock::Cpu)),
-                })
-            })
+            .filter_map(|timing| timing.overrun(allowance))
+            .fold(FailureSet::default(), FailureSet::recording)
     }
 
     pub(crate) fn examples(

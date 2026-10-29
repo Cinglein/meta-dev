@@ -1,4 +1,6 @@
+use std::collections::BTreeSet;
 use std::fmt;
+use std::path::{Path, PathBuf};
 
 use crate::failure::Failure;
 use crate::violation::Violation;
@@ -21,6 +23,15 @@ impl Report {
     #[must_use]
     pub fn violations(&self) -> &[Violation] {
         &self.violations
+    }
+
+    #[must_use]
+    pub fn files(&self) -> BTreeSet<PathBuf> {
+        self.violations
+            .iter()
+            .filter_map(|violation| violation.site().path())
+            .map(Path::to_path_buf)
+            .collect()
     }
 
     #[must_use]

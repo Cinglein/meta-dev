@@ -9,6 +9,7 @@ use super::budget::{Amount, Budget, Measure};
 use super::budget_id::BudgetId;
 use super::standing::{Exposure, Standing};
 use crate::failure::Failure;
+use crate::failure_set::FailureSet;
 use crate::policy::Policy;
 use crate::selection::Selection;
 use mode::Mode;
@@ -23,9 +24,19 @@ pub struct Ledger {
     standing: Option<Standing>,
     prior: Option<PriorStanding>,
     mode: Mode,
+    failures: FailureSet,
 }
 
 impl Ledger {
+    pub fn fail(&mut self, failures: FailureSet) {
+        self.failures.extend(failures);
+    }
+
+    #[must_use]
+    pub fn failures(&self) -> &FailureSet {
+        &self.failures
+    }
+
     pub fn report_only(&mut self) {
         self.mode = Mode::Reporting;
     }

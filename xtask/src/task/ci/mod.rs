@@ -15,8 +15,6 @@ pub use local_gate::{Busy, LocalGate, OutsideConfig, Posting, Unready};
 pub use log_source::LogSource;
 pub use untracked::Untracked;
 
-use std::fs::File;
-use std::io::Write;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -34,8 +32,6 @@ use step_times::StepTimes;
 use stranding::Stranding;
 use task::Branch;
 use task::CommandLine;
-use task::FailureSet;
-use task::JobName;
 use task::Ledger;
 use task::Policy;
 use task::Selection;
@@ -46,24 +42,13 @@ use tracked_work::TrackedWork;
 pub struct Ci {
     summary: Option<PathBuf>,
     gate: Option<LocalGate>,
-    record: Option<PathBuf>,
-    failures: Option<PathBuf>,
+    attribution: Attribution,
     log: LogSource,
 }
 
 impl Ci {
-    pub const FAILURES: &str = "META_CI_FAILURES";
-    const PREFLIGHT: &str = "preflight";
-    const STANDING: &str = "standing";
-
-    pub fn new(
-        summary: Option<PathBuf>,
-        gate: Option<LocalGate>,
-        record: Option<PathBuf>,
-        failures: Option<PathBuf>,
-        log: LogSource,
-    ) -> Ci {
-        Ci { summary, gate, record, failures, log }
+    pub fn new(summary: Option<PathBuf>, gate: Option<LocalGate>, log: LogSource) -> Ci {
+        Ci { summary, gate, attribution: Attribution::ambient(), log }
     }
 
     pub fn run(&self, workspace: &Workspace, selection: &Selection, policy: &Policy) -> Result<(), Failure> {
@@ -84,15 +69,12 @@ impl Ci {
                     .map_err(Failure::from)
                     .and_then(|()| TrackedBuildOutput::refuse(workspace.root()))
                     .and_then(|()| TrackedWork::refuse_untracked(&run, read));
-                let mut collected = FailureSet::default();
-                let mut job = JobName::from(Self::PREFLIGHT);
-                let stepped = tracked.is_ok().then(CiStep::iter).into_iter().flatten().try_for_each(|step| {
-                    job = step.to_string().into();
-                    times.record(step, step.timed(workspace, selection, policy, &mut ledger, &mut collected))
-                });
-                if tracked.is_ok() && stepped.is_ok() {
-                    job = JobName::from(Self::STANDING);
-                }
+                let stepped = tracked
+                    .is_ok()
+                    .then(CiStep::iter)
+                    .into_iter()
+                    .flatten()
+                    .try_for_each(|step| times.record(step, step.timed(workspace, selection, policy, &mut ledger)));
                 let outcome = tracked
                     .and(stepped)
                     .and_then(|()| StandingLog::enforcing(&run, &mut ledger, prior))
@@ -100,29 +82,13 @@ impl Ci {
                     .and_then(|()| Ok(ledger.checked(policy, selection)?))
                     .and_then(|()| Stranding::refuse_stranded(workspace.root(), policy, read));
                 println!("ci: total {:.1?}", started.elapsed());
-                self.recorded(&times)?;
-                self.attributed(outcome.as_ref().err(), &job, collected)?;
+                self.attribution.recorded(&times)?;
+                self.attribution.attributed(outcome.as_ref().err(), &times, &ledger)?;
                 Surfaces::announce(workspace.root(), policy, self.summary.as_deref())
                     .unwrap_or_else(|failure| eprintln!("surfaces: {failure}"));
                 outcome
             },
             |gate| gate.run(policy, self.summary.as_deref()),
         )
-    }
-
-    fn attributed(&self, failure: Option<&Failure>, job: &JobName, collected: FailureSet) -> Result<(), Failure> {
-        self.failures
-            .as_ref()
-            .map_or(Ok(()), |path| {
-                failure.map_or_else(FailureSet::default, |failure| Attribution::of(failure, job, collected)).write(path)
-            })
-            .map_err(Failure::Failures)
-    }
-
-    fn recorded(&self, times: &StepTimes) -> Result<(), Failure> {
-        self.record
-            .as_ref()
-            .map_or(Ok(()), |path| File::create(path).and_then(|mut file| write!(file, "{times}")))
-            .map_err(Failure::Summary)
     }
 }

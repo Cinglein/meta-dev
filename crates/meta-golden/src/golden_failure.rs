@@ -1,5 +1,5 @@
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use meta_run::Unread;
 use thiserror::Error;
@@ -23,4 +23,14 @@ pub enum GoldenFailure {
     Exhausted { asked: Argv, answers_len: usize },
     #[error("goldens are not blessed in CI; run `cargo xtask goldens` locally and commit the diff")]
     BlessedInCi,
+}
+
+impl GoldenFailure {
+    #[must_use]
+    pub fn differing(&self) -> Option<&Path> {
+        match self {
+            GoldenFailure::Differs { path, .. } => Some(path),
+            _ => None,
+        }
+    }
 }

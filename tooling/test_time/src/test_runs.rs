@@ -9,7 +9,7 @@ use task::{Failure, FailureKind, FailureSet};
 #[derive(Debug, Default)]
 pub(super) struct TestRuns {
     passed: Vec<TestTiming>,
-    failed: Vec<TestTiming>,
+    failed: FailureSet,
     unlisted: Vec<PathBuf>,
 }
 
@@ -19,21 +19,10 @@ impl TestRuns {
             Ok(self.passed)
         } else {
             Err(Failure::Found {
-                shown: self.to_string(),
-                found: self.failures(),
+                printed: self.to_string(),
+                found: self.failed,
             })
         }
-    }
-
-    fn failures(&self) -> FailureSet {
-        self.failed
-            .iter()
-            .fold(FailureSet::default(), |set, timing| {
-                set.with(FailureKind::Test {
-                    crate_name: timing.crate_name(),
-                    name: timing.test().into(),
-                })
-            })
     }
 
     pub(super) fn passing(mut self, timing: TestTiming) -> TestRuns {
@@ -41,8 +30,8 @@ impl TestRuns {
         self
     }
 
-    pub(super) fn failing(mut self, timing: TestTiming) -> TestRuns {
-        self.failed.push(timing);
+    pub(super) fn failing(mut self, kind: FailureKind) -> TestRuns {
+        self.failed = self.failed.recording(kind);
         self
     }
 
@@ -73,8 +62,12 @@ impl FromStr for TestRuns {
 
 impl fmt::Display for TestRuns {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let tests = self.failed.len() + self.passed.len();
-        write!(formatter, "{} of {tests} tests failed", self.failed.len())?;
+        let failed = self.failed.kinds().len();
+        write!(
+            formatter,
+            "{failed} of {} tests failed",
+            failed + self.passed.len()
+        )?;
         match self.unlisted.len() {
             0 => Ok(()),
             unlisted => write!(
@@ -91,7 +84,7 @@ mod tests {
     use std::time::Duration;
 
     use super::TestRun::{Failed, Passed};
-    use super::{Failure, TestRun, TestRuns, TestTiming};
+    use super::{TestRun, TestRuns, TestTiming};
 
     const FAILING: &str = include_str!("../fixtures/failing-test.tsv");
     const FAILING_GOLDEN: &str = include_str!("../fixtures/failing-test.golden.json");
@@ -99,8 +92,12 @@ mod tests {
     #[test]
     fn a_failing_test_is_recorded_with_its_crate_and_name() {
         let found = FAILING.parse::<TestRuns>().and_then(TestRuns::passed);
-        assert!(
-            matches!(found, Err(Failure::Found { found, .. }) if found.to_string() == FAILING_GOLDEN)
+        assert_eq!(
+            found
+                .err()
+                .map(|failure| failure.found().to_string())
+                .as_deref(),
+            Some(FAILING_GOLDEN)
         );
     }
 

@@ -1,68 +1,72 @@
-use std::collections::BTreeSet;
+use std::env;
+use std::fs::File;
+use std::io::Write;
 use std::path::PathBuf;
 
-use meta_golden::GoldenFailure;
-use task::{FailureKind, FailureSet, JobName, Site};
+use task::{FailureSet, Ledger};
 
+use crate::task::ci::LocalGate;
+use crate::task::ci::step_times::StepTimes;
 use crate::task::failure::Failure;
 
-pub struct Attribution;
+#[derive(Debug, Default)]
+pub struct Attribution {
+    times: Option<PathBuf>,
+    failures: Option<PathBuf>,
+}
 
 impl Attribution {
-    pub fn of(failure: &Failure, job: &JobName, collected: FailureSet) -> FailureSet {
-        let found = Self::structured(failure).joined(collected);
-        if found.is_empty() { found.with(FailureKind::Infra { job: job.clone() }) } else { found }
+    pub const FAILURES: &str = "META_CI_FAILURES";
+
+    pub fn new(times: Option<PathBuf>, failures: Option<PathBuf>) -> Attribution {
+        Attribution { times, failures }
     }
 
-    fn structured(failure: &Failure) -> FailureSet {
-        match failure {
-            Failure::Task(task::Failure::Found { found, .. }) => found.clone(),
-            Failure::Task(task::Failure::Lint(reports)) => {
-                let paths: BTreeSet<PathBuf> = reports
-                    .iter()
-                    .flat_map(task::Report::violations)
-                    .filter_map(|violation| match violation.site() {
-                        Site::File(path) | Site::Line(path, _) => Some(path.clone()),
-                        Site::Workspace => None,
+    pub fn ambient() -> Attribution {
+        Attribution::new(
+            env::var_os(LocalGate::TIMES).map(PathBuf::from),
+            env::var_os(Attribution::FAILURES).map(PathBuf::from),
+        )
+    }
+
+    pub fn recorded(&self, times: &StepTimes) -> Result<(), Failure> {
+        self.times
+            .as_ref()
+            .map_or(Ok(()), |path| File::create(path).and_then(|mut file| write!(file, "{times}")))
+            .map_err(Failure::Summary)
+    }
+
+    pub fn attributed(&self, failure: Option<&Failure>, times: &StepTimes, ledger: &Ledger) -> Result<(), Failure> {
+        self.failures
+            .as_ref()
+            .map_or(Ok(()), |path| {
+                failure
+                    .map_or_else(FailureSet::default, |failure| {
+                        failure.found().joined(ledger.failures()).or_infra(times.failed_job())
                     })
-                    .collect();
-                Self::with_paths(paths, |paths| FailureKind::Lint { paths })
-            }
-            Failure::Golden(GoldenFailure::Differs { path, .. }) => {
-                Self::with_paths(BTreeSet::from([path.clone()]), |paths| FailureKind::Golden { paths })
-            }
-            Failure::Unreached { failure, .. } => Self::structured(failure),
-            _ => FailureSet::default(),
-        }
-    }
-
-    fn with_paths(paths: BTreeSet<PathBuf>, kind: impl FnOnce(Vec<PathBuf>) -> FailureKind) -> FailureSet {
-        if paths.is_empty() {
-            FailureSet::default()
-        } else {
-            FailureSet::default().with(kind(paths.into_iter().collect()))
-        }
+                    .write(path)
+            })
+            .map_err(Failure::Failures)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use task::{FailureKind, FailureSet, Report, Site, Violation};
+    use task::{FailureKind, Ledger};
 
     use super::Attribution;
+    use crate::task::ci::step_times::StepTimes;
     use crate::task::failure::Failure;
 
-    const JOB: &str = "lint";
-    const FILE: &str = "src/lib.rs";
+    const GATE: &str = "gate";
 
     #[test]
-    fn lint_paths_are_kept_and_a_failure_with_no_structure_is_infra() {
-        let site = Site::File(FILE.into());
-        let lint = Failure::Task(task::Failure::Lint(vec![Report::new("slip", vec![Violation::new(site, "a")])]));
-        let bare = Failure::Task(task::Failure::Command(JOB.into()));
-        let kinds = |failure: &Failure| Attribution::of(failure, &JOB.into(), FailureSet::default()).kinds().to_vec();
-        let paths = vec![FILE.into()];
-        assert_eq!(kinds(&lint), [FailureKind::Lint { paths }]);
-        assert_eq!(kinds(&bare), [FailureKind::Infra { job: JOB.into() }]);
+    fn a_failure_with_no_structure_is_infra_and_a_pass_writes_an_empty_set() {
+        let bare = Failure::from(task::Failure::NoWorkspace);
+        let found = bare.found().or_infra(StepTimes::default().failed_job());
+        let infra = FailureKind::Infra { job: GATE.into() };
+        let silent = Attribution::default().attributed(Some(&bare), &StepTimes::default(), &Ledger::default());
+        assert_eq!(found.kinds(), [infra]);
+        assert!(silent.is_ok());
     }
 }

@@ -32,8 +32,8 @@ pub enum Failure {
     Command(String),
     #[error("{command} failed:\n{printed}")]
     Printed { command: String, printed: String },
-    #[error("{shown}")]
-    Found { shown: String, found: FailureSet },
+    #[error("{printed}")]
+    Found { printed: String, found: FailureSet },
     #[error("{0}")]
     Runs(FailedRuns),
     #[error("gh failed: {0}")]
@@ -79,4 +79,27 @@ pub enum Failure {
     Parse { site: Site, error: syn::Error },
     #[error("{}", .0.iter().map(ToString::to_string).collect::<Vec<String>>().join("\n"))]
     Lint(Vec<Report>),
+}
+
+impl Failure {
+    #[must_use]
+    pub fn found(&self) -> FailureSet {
+        match self {
+            Failure::Found { found, .. } => found.clone(),
+            Failure::Lint(reports) => {
+                FailureSet::lint(reports.iter().flat_map(Report::files).collect())
+            }
+            _ => FailureSet::default(),
+        }
+    }
+
+    #[must_use]
+    pub fn reading(self, read: impl FnOnce(&str) -> Option<Failure>) -> Failure {
+        match self {
+            Failure::Printed { command, printed } => {
+                read(&printed).unwrap_or(Failure::Printed { command, printed })
+            }
+            other => other,
+        }
+    }
 }

@@ -1,13 +1,13 @@
 use std::time::{Duration, Instant};
 
-use strum::{Display, EnumIter, EnumString};
+use strum::{Display, EnumIter, EnumString, IntoStaticStr};
 
 use crate::task::adoption::Adoption;
 use crate::task::clippy::Clippy;
 use crate::task::failure::Failure;
 use crate::task::lint::Lint;
 use crate::task::supply::Supply;
-use task::FailureSet;
+use task::CheckName;
 use task::Ledger;
 use task::Policy;
 use task::Selection;
@@ -16,7 +16,7 @@ use task::Workspace;
 use task::{CargoArgument, Program};
 use test_time::TestTime;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumIter, EnumString)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumIter, EnumString, IntoStaticStr)]
 #[strum(serialize_all = "kebab-case")]
 pub enum CiStep {
     Adoption,
@@ -28,6 +28,12 @@ pub enum CiStep {
     Supply,
 }
 
+impl From<CiStep> for CheckName {
+    fn from(step: CiStep) -> CheckName {
+        <&'static str>::from(step).into()
+    }
+}
+
 impl CiStep {
     pub fn timed(
         self,
@@ -35,7 +41,6 @@ impl CiStep {
         selection: &Selection,
         policy: &Policy,
         ledger: &mut Ledger,
-        captured: &mut FailureSet,
     ) -> Result<Duration, Failure> {
         let started = Instant::now();
         let outcome = match self {
@@ -48,7 +53,7 @@ impl CiStep {
                 .run()
                 .map_err(Failure::from),
             CiStep::Clippy => Clippy::run(workspace, selection, policy).map_err(Failure::from),
-            CiStep::Test => TestTime::run(workspace, selection, policy, ledger, captured).map_err(Failure::from),
+            CiStep::Test => TestTime::run(workspace, selection, policy, ledger).map_err(Failure::from),
             CiStep::Lint => workspace
                 .source_files()
                 .map_err(Failure::from)

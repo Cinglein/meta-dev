@@ -1,10 +1,4 @@
-mod cargo_line;
-mod code;
-mod code_name;
 mod diagnostics;
-mod level;
-mod message;
-mod span;
 
 use diagnostics::Diagnostics;
 use task::Failure;
@@ -17,23 +11,6 @@ use task::{CargoTool, Selection};
 pub struct Clippy;
 
 impl Clippy {
-    fn diagnosed(failure: Failure) -> Failure {
-        match failure {
-            Failure::Printed { command, printed } => {
-                let diagnostics = Diagnostics::parse(&printed);
-                if diagnostics.is_empty() {
-                    Failure::Printed { command, printed }
-                } else {
-                    Failure::Found {
-                        shown: format!("{command} failed:\n{}", diagnostics.rendered()),
-                        found: diagnostics.found(),
-                    }
-                }
-            }
-            other => other,
-        }
-    }
-
     pub fn run(workspace: &Workspace, selection: &Selection, policy: &Policy) -> Result<(), Failure> {
         selection.reaching().map_or_else(
             || {
@@ -55,7 +32,7 @@ impl Clippy {
                     .argument(CargoArgument::Warnings)
                     .captured::<Stdout>()
                     .map(|_| ())
-                    .map_err(Self::diagnosed)
+                    .map_err(|failure| failure.reading(Diagnostics::reading))
             },
         )
     }
@@ -70,6 +47,7 @@ mod tests {
 
     #[test]
     fn a_compile_error_is_recorded_with_its_path() {
-        assert_eq!(Diagnostics::parse(PRINTED).found().to_string(), GOLDEN);
+        let read = Diagnostics::reading(PRINTED).map(|failure| failure.found().to_string());
+        assert_eq!(read.as_deref(), Some(GOLDEN));
     }
 }

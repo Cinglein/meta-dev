@@ -1,10 +1,13 @@
-use std::path::PathBuf;
+mod code;
+mod level;
+mod span;
 
 use serde::Deserialize;
+use task::FailureKind;
 
-use super::code::Code;
-use super::level::Level;
-use super::span::Span;
+use code::Code;
+use level::Level;
+use span::Span;
 
 #[derive(Debug, Deserialize)]
 pub(super) struct Message {
@@ -20,12 +23,12 @@ impl Message {
         self.level == Level::Error && self.spans.iter().any(Span::is_primary)
     }
 
-    pub(super) fn is_lint(&self) -> bool {
-        self.code.as_ref().is_some_and(Code::is_lint)
-    }
-
-    pub(super) fn primary_paths(&self) -> impl Iterator<Item = PathBuf> + '_ {
-        self.spans.iter().filter(|span| span.is_primary()).map(Span::path)
+    pub(super) fn failure(&self) -> FailureKind {
+        let paths = self.spans.iter().filter(|span| span.is_primary()).map(Span::path).collect();
+        match &self.code {
+            Some(code) => code.failure(paths),
+            None => FailureKind::Compile { paths },
+        }
     }
 
     pub(super) fn rendered(&self) -> Option<&str> {

@@ -20,7 +20,7 @@ use std::env;
 use std::path::PathBuf;
 
 use strum::{EnumString, IntoStaticStr, VariantNames};
-use task::{Branch, FailureSet, Ledger, Policy, Program, Selection, Workspace};
+use task::{Branch, Ledger, Policy, Program, Selection, Workspace};
 
 use crate::task::adoption::Adoption;
 use crate::task::build_directory::{BuildDirectory, Misplaced, TrackedBuildFiles};
@@ -34,8 +34,8 @@ use crate::task::test::Test;
 use crate::task::usage::Usage;
 use affected::{Affected, Changes};
 use build_time::BuildTime;
+use ci::Ci;
 pub use ci::CiStep;
-use ci::{Ci, LocalGate};
 use corpus_check::LintName;
 use crate_graph::CrateGraph;
 use elegance::{EleganceSettings, Measures, SynSource};
@@ -146,14 +146,8 @@ impl Task {
                 .map(|reached| println!("{reached}"))?),
             Task::Baseline => Lint::shrink(workspace.root(), &workspace.source_files()?, &policy)
                 .map(|kept| println!("baseline: {} violations", kept.total())),
-            Task::Ci => Ci::new(
-                summary,
-                coverage.gate(workspace.root(), &policy)?,
-                env::var_os(LocalGate::TIMES).map(PathBuf::from),
-                env::var_os(Ci::FAILURES).map(PathBuf::from),
-                coverage.log().clone(),
-            )
-            .run(workspace, &selection, &policy),
+            Task::Ci => Ci::new(summary, coverage.gate(workspace.root(), &policy)?, coverage.log().clone())
+                .run(workspace, &selection, &policy),
             Task::BuildTime => Ok(BuildTime::run(workspace, &policy, &mut ledger)
                 .and_then(|()| ledger.checked(&policy, &Selection::Workspace))?),
             Task::Clippy => Ok(Clippy::run(workspace, &selection, &policy)?),
@@ -193,7 +187,7 @@ impl Task {
             Task::Test => Ok(Test::run(workspace, &selection, &policy)?),
             Task::TestTime => Ok(match env::var_os(GitCount::SWITCH) {
                 Some(_) => GitCount::run(workspace, &selection, &policy, &mut ledger),
-                None => TestTime::run(workspace, &selection, &policy, &mut ledger, &mut FailureSet::default()),
+                None => TestTime::run(workspace, &selection, &policy, &mut ledger),
             }
             .and_then(|()| ledger.checked(&policy, &selection))?),
             lint => Ok(<&'static str>::from(lint).parse::<LintName>().map_or(Ok(()), |lint| {
