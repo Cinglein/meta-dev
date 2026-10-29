@@ -1,0 +1,91 @@
+use strum::{Display, EnumIter};
+use task::{FullRun, Measure, Policy};
+
+use crate::task::Task;
+use crate::task::adoption::gap::Gap;
+use crate::task::adoption::trigger::Trigger;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumIter)]
+#[strum(serialize_all = "kebab-case")]
+pub enum RequiredTool {
+    Ci,
+    CargoDeny,
+    CargoSemverChecks,
+    DiffMutants,
+    FullMutants,
+    Stacked,
+    TestBudgets,
+    LintBaseline,
+}
+
+impl RequiredTool {
+    const TEST_MEASURES: [Measure; 4] =
+        [Measure::TestWallTime, Measure::TestCpuTime, Measure::SlowestTest, Measure::TestLineShare];
+
+    pub fn subcommand(self) -> Option<&'static str> {
+        match self {
+            RequiredTool::CargoDeny => Some("deny"),
+            RequiredTool::CargoSemverChecks => Some("semver-checks"),
+            _ => None,
+        }
+    }
+
+    pub fn task(self) -> Option<Task> {
+        match self {
+            RequiredTool::Ci => Some(Task::Ci),
+            RequiredTool::DiffMutants => Some(Task::Mutants),
+            RequiredTool::FullMutants => Some(Task::MutantsFull),
+            RequiredTool::Stacked => Some(Task::Stacked),
+            _ => None,
+        }
+    }
+
+    pub fn trigger(self) -> Trigger {
+        match self {
+            RequiredTool::FullMutants => Trigger::Main,
+            _ => Trigger::PullRequest,
+        }
+    }
+
+    pub fn turned_off(self, policy: &Policy) -> Option<Gap> {
+        match self {
+            RequiredTool::CargoSemverChecks => policy.supply_chain().semver().is_empty(),
+            RequiredTool::FullMutants => policy.mutation().due(Some(FullRun::Weekly)).is_none(),
+            RequiredTool::TestBudgets => {
+                Self::TEST_MEASURES.iter().any(|measure| policy.budgets().whole(measure).is_none())
+            }
+            RequiredTool::LintBaseline => policy.budgets().whole(&Measure::LintFindings).is_none(),
+            _ => false,
+        }
+        .then_some(Gap::TurnedOff(self))
+    }
+
+    pub fn fix(self) -> &'static str {
+        match self {
+            RequiredTool::Ci => {
+                "add a step `run: cargo xtask ci` (checkout with fetch-depth: 0) to a workflow on pull_request"
+            }
+            RequiredTool::CargoDeny => {
+                "install it before `cargo xtask ci`: `uses: taiki-e/install-action@v2` with `tool: cargo-deny@0.20.2`"
+            }
+            RequiredTool::CargoSemverChecks => {
+                "install it before `cargo xtask ci` (`uses: taiki-e/install-action@v2` with `tool: cargo-semver-checks@0.51.0`) and list your library crates in `[supply_chain] semver`"
+            }
+            RequiredTool::DiffMutants => {
+                "add a step `run: cargo xtask mutants` (cargo-mutants@27.1.0 installed, checkout with fetch-depth: 0) to a workflow on pull_request"
+            }
+            RequiredTool::FullMutants => {
+                "add a step `run: cargo xtask mutants-full` (cargo-mutants@27.1.0 installed) to a workflow on push or schedule, and list \"weekly\" in `[mutation] full_run`"
+            }
+            RequiredTool::Stacked => {
+                "add a step `run: cargo xtask stacked` with env GH_TOKEN and PULL_REQUEST (permissions: pull-requests: read) to a workflow on pull_request"
+            }
+            RequiredTool::TestBudgets => {
+                "declare `[budgets.<id>]` with measure test_wall_time, test_cpu_time, slowest_test and test_line_share in tooling/policy.toml"
+            }
+            RequiredTool::LintBaseline => {
+                "declare `[budgets.<id>]` with measure = \"lint_findings\" and a baseline allowance in tooling/policy.toml"
+            }
+        }
+    }
+}
