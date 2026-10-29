@@ -90,6 +90,7 @@ mod tests {
 
     const WRITERS: [&str; 4] = ["git revert HEAD", "git pull", "git am x.patch", "git commit-tree t"];
     const NOT_WRITERS: [&str; 3] = ["git merge --abort", "git rebase --abort", "git merge-base a b"];
+    const SESSION_WRITES: [(&str, bool); 2] = [("git pull", true), ("git merge-base a b", false)];
     const CWD: &str = "/w/good";
     const CHAINS: [(&str, &[&str]); 5] = [
         ("(cd a && git -c x=y -C b commit -m 'cd z')", &["/w/good/a/b"]),
@@ -105,7 +106,9 @@ mod tests {
         let directories = |command: &str| command.parse::<ShellCommand>().unwrap().commit_directories(Path::new(CWD));
         let expected =
             |paths: &[&str]| paths.iter().map(|path| PathBuf::from(path.replacen('~', &home, 1))).collect::<Vec<_>>();
-        assert!(WRITERS.iter().all(|command| directories(command).len() == 1));
+        let writes =
+            |(command, writes): &(&str, bool)| command.parse::<ShellCommand>().unwrap().writes().is_some() == *writes;
+        assert!(WRITERS.iter().all(|command| directories(command).len() == 1) && SESSION_WRITES.iter().all(writes));
         assert!(NOT_WRITERS.iter().all(|command| directories(command).is_empty()));
         assert!(CHAINS.iter().all(|(command, paths)| directories(command) == expected(paths)));
     }
