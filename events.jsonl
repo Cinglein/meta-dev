@@ -1275,3 +1275,4 @@
 {"at":"2026-10-29T00:43:22.983171Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-29369e1d7c19fd5a","text":"Agent wall-time categories (work, run, wait, poll) from hook spans via meta-trace."}
 {"at":"2026-10-29T00:49:57.667371Z","actor":"claude-cpucut","kind":"TaskLinked","task":"task-bafed2692f095d5c","pr":149}
 {"at":"2026-10-29T00:50:10.328881Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-92b42baa1363a624"}
+{"at":"2026-10-29T00:50:12.024568Z","actor":"claude-lead","kind":"TaskDone","task":"task-92b42baa1363a624"}
