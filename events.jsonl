@@ -1513,3 +1513,4 @@
 {"at":"2026-10-29T14:17:02.304844Z","actor":"claude-lead","kind":"TaskOpened","task":"task-5d684fe488424975","text":"Adoption gate: CI in meta-dev and every consumer requires every dogfooded tool (one list in meta-xtask); no opt-out, nothing skips; missing or skipped tool fails closed (owner 2026-10-29).","division":"features-and-maintenance"}
 {"at":"2026-10-29T14:17:04.204819Z","actor":"claude-lead","kind":"TaskOpened","task":"task-c0964954df244860","text":"Mutation planner: an unpriced crate gets the max default price and dozens of tiny shards (elegance 82, meta-trace 62); price new crates from a quick measurement or a cheap default refreshed after.","division":"performance-and-cost"}
 {"at":"2026-10-29T14:18:17.724402Z","actor":"claude-adopt","kind":"TaskClaimed","task":"task-5d684fe488424975"}
+{"at":"2026-10-29T14:35:46.054823Z","actor":"claude-adopt","kind":"TaskLinked","task":"task-5d684fe488424975","pr":189}
