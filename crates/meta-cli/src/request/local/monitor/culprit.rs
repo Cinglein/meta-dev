@@ -22,6 +22,10 @@ impl Culprit {
         Self { pid, summary: CommandSummary::from(&command), command, cause, target }
     }
 
+    pub fn pid(&self) -> Pid {
+        self.pid
+    }
+
     pub fn target(&self) -> Target {
         self.target
     }
