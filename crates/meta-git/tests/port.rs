@@ -71,7 +71,7 @@ impl Merges {
         let leak = FirstAddition::new("origin".parse().unwrap(), Self::NEEDLE.to_owned());
         let found = Repository::open(directory.path()).unwrap().read(&leak).unwrap();
         let last = FileLine::from(u32::try_from(merged.lines().count()).unwrap());
-        found.map(|found| found == Addition::new(Self::FILE.to_owned(), last, short))
+        found.map(|found| found.commit() == short && found == Addition::new(Self::FILE.to_owned(), last, short))
     }
 }
 
@@ -93,4 +93,12 @@ fn a_reftable_repository_fails_closed_with_a_clear_error() {
     std::fs::write(directory.path().join("config"), REFTABLE).unwrap();
     let refused = Repository::open(directory.path());
     assert!(matches!(refused, Err(GitFailure::Reftable(path)) if path == directory.path()));
+}
+
+#[test]
+fn discovery_finds_nothing_outside_a_repository_and_fails_on_a_broken_link() {
+    let directory = tempfile::tempdir().unwrap();
+    assert!(matches!(Repository::discovered(directory.path()), Ok(None)));
+    std::fs::write(directory.path().join(".git"), FILE).unwrap();
+    assert!(Repository::discovered(directory.path()).is_err());
 }
