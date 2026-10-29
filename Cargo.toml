@@ -13,6 +13,7 @@ meta-schema = { path = "crates/meta-schema" }
 meta-log = { path = "crates/meta-log" }
 meta-run = { path = "crates/meta-run" }
 meta-golden = { path = "crates/meta-golden" }
+meta-git = { path = "crates/meta-git" }
 meta-git-view = { path = "crates/meta-git-view" }
 meta-state = { path = "crates/meta-state" }
 meta-gh = { path = "crates/meta-gh" }

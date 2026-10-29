@@ -6,6 +6,7 @@ publish.workspace = true
 license.workspace = true
 
 [dependencies]
+meta-git.workspace = true
 meta-schema.workspace = true
 meta-run.workspace = true
 chrono.workspace = true
