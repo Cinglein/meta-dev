@@ -17,6 +17,7 @@ use super::kept::Kept;
 use super::occupancy::Occupancy;
 use super::shared_node::SharedNode;
 use super::thaw::{Thaw, Thawed};
+use super::uninspected::Uninspected;
 use crate::request::local::byte_count::ByteCount;
 use crate::request::local::local_clone::quarantine::Stamp;
 use crate::request::local::recorded_worktree::RecordedWorktree;
@@ -105,6 +106,7 @@ pub struct FakeHost {
     pseudo: Vec<&'static str>,
     dangling: Vec<&'static str>,
     open: Vec<PathBuf>,
+    uninspected: Uninspected,
 }
 
 impl FakeHost {
@@ -127,7 +129,12 @@ impl FakeHost {
             pseudo: Vec::new(),
             dangling: Vec::new(),
             open: Vec::new(),
+            uninspected: Uninspected::default(),
         }
+    }
+
+    pub fn uninspected_are(&mut self, uninspected: Uninspected) {
+        self.uninspected = uninspected;
     }
 
     pub fn worktree() -> RecordedWorktree {
@@ -300,6 +307,10 @@ impl Inspection for FakeHost {
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
         self.scans.lock().unwrap().push(paths.to_vec());
         Occupancy::Listed(self.open.clone())
+    }
+
+    fn uninspected(&self) -> Uninspected {
+        self.uninspected
     }
 
     fn frozen(&self, quarantine: &Path, plan: Thaw) -> Result<Thaw, Kept> {

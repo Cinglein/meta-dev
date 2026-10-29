@@ -1,8 +1,8 @@
 #![allow(clippy::unwrap_used)]
 
 use std::fmt;
-use std::fs::File;
 use std::path::{Path, PathBuf};
+use std::process::{Child, Command};
 
 use crate::fixture::{Fixture, Moment};
 use crate::meta_command::MetaCommand;
@@ -78,7 +78,19 @@ const TRAIL: &str = ".git/meta-local/worktrees.jsonl";
 const TRAILED: [&str; 3] = ["\"change\":\"Freed\"", "\"change\":\"Refused\"", "\"change\":\"Closed\""];
 const KEPT: [&str; 8] = [OPEN, DIRTY, BUSY, STRAY, PAUSED, PICKED, REVERTED, REBASED];
 
+const SLEEP: &str = "sleep";
+const SECONDS: &str = "30";
+
 struct Line(&'static str, &'static str, &'static str);
+
+struct Sleeper(Child);
+
+impl Drop for Sleeper {
+    fn drop(&mut self) {
+        drop(self.0.kill());
+        drop(self.0.wait());
+    }
+}
 
 struct Shown<'line>(&'line Line, &'line Path);
 
@@ -223,7 +235,7 @@ impl Scene {
 fn gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_with_reasons() {
     let scene = Scene::new();
     let trees = scene.trees();
-    let _held = File::open(trees.join(BUSY).join(".git")).unwrap();
+    let _held = Sleeper(Command::new(SLEEP).arg(SECONDS).current_dir(trees.join(BUSY)).spawn().unwrap());
     let shows = |shown: &str, lines: &[Line]| lines.iter().all(|line| shown.contains(&Shown(line, &trees).to_string()));
     let freed = Freed(&trees).to_string();
     let ticked = scene.meta(&GC_RUN);
