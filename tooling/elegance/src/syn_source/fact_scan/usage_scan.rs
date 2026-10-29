@@ -3,7 +3,7 @@ use syn::{
     BinOp, Block, Expr, ExprAssign, ExprBinary, ExprField, ExprMethodCall, ExprPath, ImplItem, ImplItemFn, Item,
     ItemImpl, Macro,
 };
-use task::{FieldAccess, MacroExpressions};
+use syn_rules::{FieldAccess, MacroExpressions};
 
 use crate::field_name::FieldName;
 use crate::field_write::FieldWrite;

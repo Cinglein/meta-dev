@@ -1,5 +1,5 @@
 use syn::Block;
-use task::FieldAccess;
+use syn_rules::FieldAccess;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Body {

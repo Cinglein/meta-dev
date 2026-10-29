@@ -2,7 +2,7 @@ mod proptest_closure;
 
 use syn::Macro;
 use syn::visit::Visit;
-use task::MacroExpressions;
+use syn_rules::MacroExpressions;
 
 use proptest_closure::ProptestClosure;
 

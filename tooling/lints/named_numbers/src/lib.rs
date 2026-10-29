@@ -6,7 +6,7 @@ use syn::{
 };
 
 use task::LineNumber;
-use task::MacroExpressions;
+use syn_rules::MacroExpressions;
 use task::Policy;
 use task::Report;
 use task::Site;

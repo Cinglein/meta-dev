@@ -37,14 +37,11 @@ impl<'body> FieldAccess<'body> {
     #[must_use]
     pub fn member(self) -> &'body Member {
         match self {
-            FieldAccess::Projected(member)
-            | FieldAccess::Lent(member)
-            | FieldAccess::Assigned(member) => member,
+            FieldAccess::Projected(member) | FieldAccess::Lent(member) | FieldAccess::Assigned(member) => member,
         }
     }
 
     fn own(field: &'body ExprField) -> Option<&'body Member> {
-        matches!(&*field.base, Expr::Path(base) if base.path.is_ident(Self::SELF))
-            .then_some(&field.member)
+        matches!(&*field.base, Expr::Path(base) if base.path.is_ident(Self::SELF)).then_some(&field.member)
     }
 }
