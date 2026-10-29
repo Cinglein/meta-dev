@@ -10,7 +10,7 @@ task = { path = "../../task" }
 proc-macro2 = { version = "1", features = ["span-locations"] }
 quote = "1"
 strum = { version = "0.28", features = ["derive"] }
-syn = { version = "2", features = ["full", "parsing", "visit"] }
+syn = { version = "3", features = ["full", "parsing", "visit"] }
 
 [lints]
 workspace = true

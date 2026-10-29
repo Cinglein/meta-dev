@@ -8,7 +8,7 @@ publish.workspace = true
 [dependencies]
 named_numbers = { path = "../named_numbers" }
 task = { path = "../../task" }
-syn = { version = "2", features = ["full", "parsing", "visit"] }
+syn = { version = "3", features = ["full", "parsing", "visit"] }
 
 [lints]
 workspace = true

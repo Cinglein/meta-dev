@@ -9,7 +9,7 @@ dependencies = [
  "serde",
  "serde_json",
  "settings",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -135,7 +135,7 @@ name = "const_shape"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -197,7 +197,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "strum",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -239,7 +239,7 @@ name = "distinct_signatures"
 version = "0.1.0"
 dependencies = [
  "quote",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -258,7 +258,7 @@ dependencies = [
  "quote",
  "serde",
  "settings",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
  "toml 0.9.12+spec-1.1.0",
 ]
@@ -288,7 +288,7 @@ dependencies = [
 name = "enum_predicates"
 version = "0.1.0"
 dependencies = [
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -313,7 +313,7 @@ name = "expression_flow"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -334,7 +334,7 @@ name = "fn_shape"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -390,7 +390,7 @@ name = "git_starters"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -553,7 +553,7 @@ checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 name = "literal_names"
 version = "0.1.0"
 dependencies = [
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -568,7 +568,7 @@ name = "manual_iteration"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -836,7 +836,7 @@ dependencies = [
 name = "named_lifetimes"
 version = "0.1.0"
 dependencies = [
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -845,7 +845,7 @@ name = "named_numbers"
 version = "0.1.0"
 dependencies = [
  "quote",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -874,7 +874,7 @@ dependencies = [
 name = "no_forwarders"
 version = "0.1.0"
 dependencies = [
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -882,7 +882,7 @@ dependencies = [
 name = "no_free_fns"
 version = "0.1.0"
 dependencies = [
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -891,7 +891,7 @@ name = "no_numbers_in_binaries"
 version = "0.1.0"
 dependencies = [
  "named_numbers",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -899,7 +899,7 @@ dependencies = [
 name = "no_parameter_bags"
 version = "0.1.0"
 dependencies = [
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -1010,7 +1010,7 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 name = "primitive_boundary"
 version = "0.1.0"
 dependencies = [
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -1019,7 +1019,7 @@ name = "private_fns"
 version = "0.1.0"
 dependencies = [
  "quote",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -1036,7 +1036,7 @@ dependencies = [
 name = "public_surface"
 version = "0.1.0"
 dependencies = [
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -1101,7 +1101,7 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -1220,7 +1220,7 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -1276,7 +1276,7 @@ version = "0.1.0"
 dependencies = [
  "derive_more",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -1353,7 +1353,7 @@ dependencies = [
  "serde_json",
  "settings",
  "strum",
- "syn 2.0.119",
+ "syn 3.0.9",
  "sysinfo",
  "thiserror",
  "toml 0.9.12+spec-1.1.0",
@@ -1378,7 +1378,7 @@ version = "0.1.0"
 dependencies = [
  "derive_more",
  "proc-macro2",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -1398,7 +1398,7 @@ dependencies = [
 name = "thin_main"
 version = "0.1.0"
 dependencies = [
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -1526,7 +1526,7 @@ name = "type_shape"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
@@ -1564,7 +1564,7 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 name = "vec_out_params"
 version = "0.1.0"
 dependencies = [
- "syn 2.0.119",
+ "syn 3.0.9",
  "task",
 ]
 
