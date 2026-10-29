@@ -79,7 +79,7 @@ fn head_reads_unborn_and_born_branches_and_fails_on_a_corrupt_ref() {
     assert_eq!((unborn.commit(), unborn.branch().map(ToString::to_string)), (None, Some("refs/heads/main".to_owned())));
     let tip = Commits::written(&repository, None, FILE);
     let Ok(main) = "refs/heads/main".parse::<RefName>();
-    repository.write(&RefMove::new(main, tip)).unwrap();
+    repository.write(&RefMove::new(main, None, tip)).unwrap();
     assert_eq!(repository.read(&Head).unwrap().commit(), Some(tip));
     std::fs::write(directory.path().join("refs/heads/main"), "garbage\n").unwrap();
     assert!(repository.read(&Head).is_err());
