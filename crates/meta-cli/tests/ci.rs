@@ -263,28 +263,6 @@ impl fmt::Display for Repo {
 }
 
 #[test]
-fn a_aa_diagnostic_process_listing() {
-    let listed = Command::new("ps").args(["-eo", "pid,ppid,pgid,etime,time,stat,comm"]).output().unwrap();
-    let started = Instant::now();
-    let repo = Repo::new(SUCCESS);
-    let made = started.elapsed();
-    let watched = Planted::twin(&repo).wait_with_output().unwrap();
-    let twin = started.elapsed();
-    let posted = repo.hook(POST, COMMIT);
-    let post = started.elapsed();
-    let waited = repo.meta(&[CI_WAIT]);
-    let wait = started.elapsed();
-    let events = std::fs::read_to_string(repo.clone.path().join(".git/meta-ci/ABCDEF1234/events")).unwrap_or_default();
-    panic!(
-        "DIAG made={made:?} twin={twin:?} post={post:?} wait={wait:?}\nwatched={}\nposted={posted}\nwaited={}\nevents={events}\nenv={:?}\nps=\n{}",
-        String::from_utf8_lossy(&watched.stdout),
-        waited.0,
-        std::env::vars().filter(|(name, _)| name.starts_with("META") || name.starts_with("GIT")).collect::<Vec<_>>(),
-        String::from_utf8_lossy(&listed.stdout)
-    );
-}
-
-#[test]
 fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push() {
     let repo = Repo::new(FAILURE);
     Planted::twin(&repo).wait().unwrap();
