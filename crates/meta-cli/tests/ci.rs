@@ -56,6 +56,9 @@ const COMPLETIONS: [&str; 6] = [
 
 #[path = "ci/pushes.rs"]
 mod pushes;
+#[path = "support/skeleton.rs"]
+mod skeleton;
+use skeleton::Skeleton;
 #[path = "ci/review.rs"]
 mod review;
 #[path = "ci/waits.rs"]
@@ -116,6 +119,7 @@ impl Git {
     ];
 
     const LONG_AGO: &'static str = "@1000000000 +0000";
+    const SYMBOLIC: &'static str = "ref: ";
 
     fn run(dir: &Path, words: &[&str]) -> Output {
         Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
@@ -133,7 +137,9 @@ impl Git {
     }
 
     fn head(dir: &Path) -> String {
-        String::from_utf8(Self::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap().trim().to_owned()
+        let named = std::fs::read_to_string(dir.join(".git/HEAD")).unwrap();
+        let branch = dir.join(".git").join(named.trim_end().trim_start_matches(Self::SYMBOLIC));
+        std::fs::read_to_string(branch).unwrap().trim_end().to_owned()
     }
 
     fn pushed(repo: &Repo, branch: &str) {
@@ -221,8 +227,14 @@ impl Repo {
         let sessions = tempfile::tempdir().unwrap();
         let origin = sessions.path().join(Self::ORIGIN);
         let clone = tempfile::tempdir().unwrap();
-        assert!(Git::run(sessions.path(), &["init", "-q", "--bare", "-b", PUSHED, Self::ORIGIN]).status.success());
-        Git::run(sessions.path(), &["clone", "-q", Self::ORIGIN, clone.path().to_str().unwrap()]);
+        Skeleton::Bare.lay(&origin, PUSHED);
+        Skeleton::Working.lay(clone.path(), PUSHED);
+        let remote = format!(
+            "[remote \"origin\"]\n\turl = {}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n",
+            origin.display()
+        );
+        let config = clone.path().join(".git/config");
+        std::fs::write(&config, [std::fs::read_to_string(&config).unwrap(), remote].concat()).unwrap();
         Git::run_at(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"], Git::LONG_AGO);
         StartFile::plant(sessions.path(), SESSION_FILE, "0");
         std::fs::create_dir(sessions.path().join(Self::TRAIL)).unwrap();
