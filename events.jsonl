@@ -1575,3 +1575,4 @@
 {"at":"2026-10-29T19:10:18.098351Z","actor":"claude-fmpay","kind":"TaskDone","task":"task-6fd44d9595d6d855"}
 {"at":"2026-10-29T19:10:19.787551Z","actor":"claude-fmpay","kind":"TaskDone","task":"task-ad95ca1ffd2d23c6"}
 {"at":"2026-10-29T19:11:39.796598Z","actor":"claude-price","kind":"TaskClaimed","task":"task-c0964954df244860"}
+{"at":"2026-10-29T19:13:02.523042Z","actor":"claude-price","kind":"TaskLinked","task":"task-c0964954df244860","pr":203}
