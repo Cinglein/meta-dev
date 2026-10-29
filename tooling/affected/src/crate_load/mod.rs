@@ -39,6 +39,11 @@ impl CrateLoad {
         job: Interval,
     ) -> CrateLoad {
         let each = policy.mutant_price(&name, job);
+        if !policy.mutant_millis().is_priced(&name) {
+            eprintln!(
+                "mutants: {name} is unpriced in [mutant_millis]; planned at the table median, {each} ms per mutant; `cargo xtask mutant-costs` will measure it"
+            );
+        }
         CrateLoad::new(name, mutants, each, policy)
     }
 

@@ -97,7 +97,12 @@ mod tests {
     fn a_crate_with_no_price_is_not_split_into_more_shards_than_a_priced_crate_of_the_same_size() {
         let policy = Policy::defaults();
         let shards = |name: &str| {
-            let load = CrateLoad::priced(name.parse().unwrap(), MutantCount::from(UNPRICED_MUTANTS), &policy, Interval::DiffJob);
+            let load = CrateLoad::priced(
+                name.parse().unwrap(),
+                MutantCount::from(UNPRICED_MUTANTS),
+                &policy,
+                Interval::DiffJob,
+            );
             Packing::shards(&[load], &policy, Interval::DiffJob).len()
         };
         assert!(shards(UNPRICED) <= shards(PR_SEVEN_CRATE));
