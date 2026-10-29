@@ -41,17 +41,23 @@ const SUCCEEDED: &str = "0";
 const FAILED: &str = "1";
 const CLAIMED: &str = "0";
 
-struct Fake {
+struct ReplayedGh {
     dir: tempfile::TempDir,
     github: LiveGithub,
     replies: Vec<[String; 5]>,
 }
 
-impl Fake {
+impl ReplayedGh {
     fn new(scenario: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let replies = Self::replies(scenario);
-        replies.iter().try_for_each(|reply| Self::recorded(dir.path(), reply)).unwrap();
+        let recorded = |[name, argv, out, err, status]: &[String; 5]| {
+            let stem = dir.path().join(name);
+            [("argv", argv), ("out", out), ("err", err), ("status", status)]
+                .iter()
+                .try_for_each(|(extension, text)| std::fs::write(stem.with_extension(extension), text))
+        };
+        replies.iter().try_for_each(recorded).unwrap();
         let tests = std::env::current_exe().unwrap();
         let replay = tests.parent().and_then(Path::parent).map(|built| built.join(PROGRAM));
         let replay = replay.filter(|built| built.exists()).expect(UNBUILT);
@@ -64,22 +70,25 @@ impl Fake {
     }
 
     fn replies(scenario: &str) -> Vec<[String; 5]> {
+        let argv = |words: Vec<String>| {
+            serde_json::to_string(&[PROGRAM.to_string()].into_iter().chain(words).collect::<Vec<_>>()).unwrap()
+        };
         let first = LiveQuery::new(vec![]);
         let following = serde_json::from_str::<LiveReply>(FIRST_PAGE).unwrap().answered().unwrap().following().unwrap();
         let paged = |query: &LiveQuery| {
             let words =
                 LiveGithub::GRAPHQL.map(String::from).into_iter().chain([LiveGithub::QUERY.into(), query.field()]);
             let after = query.cursor_field().into_iter().flat_map(|cursor| [LiveGithub::QUERY.into(), cursor]);
-            Self::argv(words.chain(after))
+            argv(words.chain(after).collect())
         };
         let rules = |endpoint: &str, base: &str, filter: &str| {
-            Self::argv([LiveGithub::API.into(), format!("{endpoint}{base}"), LiveGithub::FILTER.into(), filter.into()])
+            argv(vec![LiveGithub::API.into(), format!("{endpoint}{base}"), LiveGithub::FILTER.into(), filter.into()])
         };
         let reply = |name: &str, argv: String, out: &str, err: &str, status: &str| {
             [name.into(), argv, out.into(), err.into(), status.into()]
         };
         let opened = reply("01-first-page", paged(&first), FIRST_PAGE, PARTIAL, FAILED);
-        let headed = Self::argv(HEADED.map(String::from));
+        let headed = argv(HEADED.map(String::from).to_vec());
         match scenario {
             "down" => vec![reply("01-down", paged(&first), "", "HTTP 502: Bad Gateway\n", FAILED)],
             "garbage" => vec![reply("01-garbage", paged(&first), "not json\n", "", SUCCEEDED)],
@@ -103,17 +112,6 @@ impl Fake {
         }
     }
 
-    fn argv(words: impl IntoIterator<Item = String>) -> String {
-        serde_json::to_string(&[PROGRAM.to_string()].into_iter().chain(words).collect::<Vec<_>>()).unwrap()
-    }
-
-    fn recorded(dir: &Path, [name, argv, out, err, status]: &[String; 5]) -> std::io::Result<()> {
-        let stem = dir.join(name);
-        [("argv", argv), ("out", out), ("err", err), ("status", status)]
-            .iter()
-            .try_for_each(|(extension, text)| std::fs::write(stem.with_extension(extension), text))
-    }
-
     fn unclaimed(&self) -> Vec<String> {
         let claimed = |name: &String| self.dir.path().join(format!("{name}.{CLAIMED}")).exists();
         self.replies.iter().map(|[name, ..]| name.clone()).filter(|name| !claimed(name)).collect()
@@ -127,7 +125,7 @@ impl Fake {
 
 #[test]
 fn one_graphql_call_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_its_own_pull_requests() {
-    let fake = Fake::new("partial");
+    let fake = ReplayedGh::new("partial");
     let read = fake.github.read(&LiveQuery::new(vec![]));
     let pulls = fake.github.pulls_from(&"feature".parse().unwrap());
     let state = meta_state::State::default();
@@ -139,8 +137,8 @@ fn one_graphql_call_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_
 
 #[test]
 fn an_unreachable_or_unreadable_github_reads_as_unknown_with_its_reason() {
-    assert_eq!(REASONS.map(|(scenario, _)| Fake::reason(scenario)), REASONS.map(|(_, reason)| reason));
-    let fake = Fake::new("down");
+    assert_eq!(REASONS.map(|(scenario, _)| ReplayedGh::reason(scenario)), REASONS.map(|(_, reason)| reason));
+    let fake = ReplayedGh::new("down");
     let missing =
         LiveGithub::new(fake.github.program.clone(), Path::new("/nonexistent").into(), Instant::now(), vec![]);
     let unread = missing.read(&LiveQuery::new(vec![]));

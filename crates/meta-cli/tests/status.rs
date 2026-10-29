@@ -60,17 +60,17 @@ impl Project {
         std::fs::write(clone.path().join("meta.toml"), format!("remote = \"origin\"\n[ci]\nprogram = {program:?}\n"))
             .unwrap();
         let gh = RecordedGh::new();
-        gh.answered("01-headed", &HEADED, "7\n")
+        gh.answered("01-headed", HEADED, "7\n")
             .graphql("02-open", &LINKED, OPEN)
-            .answered("03-rules", &RULES, NONE_REQUIRED)
-            .answered("04-classic", &CLASSIC, NONE_REQUIRED);
+            .answered("03-rules", RULES, NONE_REQUIRED)
+            .answered("04-classic", CLASSIC, NONE_REQUIRED);
         Self { origin, clone, gh }
     }
 
     fn meta(&self, words: &[&str], stdin: &str) -> Output {
         let mut command = MetaCommand::tagged(words);
         command.current_dir(self.clone.path()).env("META_ACTOR", OWNER);
-        let mut child = self.gh.on(&mut command).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
+        let mut child = self.gh.replaying(&mut command).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
         child.stdin.take().unwrap().write_all(stdin.as_bytes()).unwrap();
         child.wait_with_output().unwrap()
     }

@@ -181,7 +181,7 @@ impl Scene {
             &LINKED,
             OPEN_AND_LINKED,
         );
-        scene.gh.answered("03-rules", &RULES, NONE_REQUIRED).answered("04-classic", &CLASSIC, NONE_REQUIRED);
+        scene.gh.answered("03-rules", RULES, NONE_REQUIRED).answered("04-classic", CLASSIC, NONE_REQUIRED);
         scene.planted();
         scene
     }
@@ -208,7 +208,7 @@ impl Scene {
         let mut command = MetaCommand::tagged(words);
         command.current_dir(self.clone.path()).env("META_ACTOR", "gc-test");
         command.env("GIT_INDEX_FILE", self.trees.path().join("foreign-index"));
-        let output = self.gh.on(&mut command).output().unwrap();
+        let output = self.gh.replaying(&mut command).output().unwrap();
         [String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)].concat()
     }
 }

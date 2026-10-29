@@ -33,21 +33,21 @@ impl RecordedGh {
         self.recorded(name, words, out)
     }
 
-    pub fn answered(&self, name: &str, words: &[&str], out: &str) -> &Self {
-        self.recorded(name, words.iter().map(|word| (*word).to_string()), out)
+    pub fn answered(&self, name: &str, words: impl IntoIterator<Item = &'static str>, out: &str) -> &Self {
+        self.recorded(name, words.into_iter().map(Into::into), out)
     }
 
-    pub fn on<'command>(&self, command: &'command mut Command) -> &'command mut Command {
+    pub fn replaying<'command>(&self, command: &'command mut Command) -> &'command mut Command {
         command
             .env(Replay::RECORDINGS, self.0.path().join(Self::REPLIES))
             .env(Replay::TRAIL, self.0.path().join(Self::TRAIL))
     }
 
     fn recorded(&self, name: &str, words: impl Iterator<Item = String>, out: &str) -> &Self {
-        let argv = [Self::PROGRAM.to_string()].into_iter().chain(words).collect::<Vec<_>>();
+        let argv = [Self::PROGRAM.into()].into_iter().chain(words).collect::<Vec<_>>();
         let argv = serde_json::to_string(&argv).unwrap();
         let files = [("argv", argv.as_str()), ("out", out), ("err", ""), ("status", Self::SUCCEEDED)];
-        let stems = Self::COPIES.map(|copy| self.0.path().join(Self::REPLIES).join(format!("{name}-{copy}")));
+        let stems = Self::COPIES.map(|copy| self.0.path().join(Self::REPLIES).join([name, copy].join("-")));
         let written =
             stems.iter().flat_map(|stem| files.map(|(extension, text)| (stem.with_extension(extension), text)));
         written.into_iter().try_for_each(|(file, text)| std::fs::write(file, text)).unwrap();
