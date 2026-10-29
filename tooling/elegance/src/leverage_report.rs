@@ -21,6 +21,14 @@ impl LeverageReport {
         measured.sort_by(Leverage::lowest_first);
         LeverageReport { measured, without_bodies }
     }
+
+    #[must_use]
+    pub fn median(&self) -> Hundredths {
+        Distribution::<Hundredths>::sorted(self.measured.iter().map(Leverage::ratio))
+            .quarter(Tally::PAIR)
+            .copied()
+            .unwrap_or_default()
+    }
 }
 
 impl fmt::Display for LeverageReport {

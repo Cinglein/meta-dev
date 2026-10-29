@@ -1,8 +1,11 @@
+mod layout_scan;
+mod usage_scan;
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use syn::visit::Visit;
 use syn::{
-    GenericArgument, Ident, ImplItem, ItemFn, ItemImpl, ItemMod, ItemTrait, PathArguments, PathSegment,
+    GenericArgument, Ident, ImplItem, ItemFn, ItemImpl, ItemMod, ItemStruct, ItemTrait, PathArguments, PathSegment,
     TraitBoundModifier, TraitItem, Type, TypeParamBound, TypePath, WherePredicate,
 };
 use task::{CrateName, SourceFile, Walk};
@@ -12,9 +15,12 @@ use crate::facts::Facts;
 use crate::impl_fact::ImplFact;
 use crate::impl_kind::ImplKind;
 use crate::signature::Signature;
+use crate::structure::Structure;
 use crate::trait_key::TraitKey;
 use crate::trait_shape::TraitShape;
 use crate::type_key::TypeKey;
+use layout_scan::LayoutScan;
+use usage_scan::UsageScan;
 
 #[derive(Debug)]
 pub struct FactScan<'declared> {
@@ -22,14 +28,21 @@ pub struct FactScan<'declared> {
     owner: Option<CrateName>,
     traits: BTreeMap<TraitKey, TraitShape>,
     impls: Vec<ImplFact>,
+    structure: Structure,
 }
 
 impl<'declared> FactScan<'declared> {
     #[must_use]
     pub fn scanned(declarations: &'declared Declarations, files: &[&SourceFile]) -> Facts {
-        let empty = FactScan { declarations, owner: None, traits: BTreeMap::new(), impls: Vec::new() };
+        let empty = FactScan {
+            declarations,
+            owner: None,
+            traits: BTreeMap::new(),
+            impls: Vec::new(),
+            structure: Structure::default(),
+        };
         let scan = files.iter().fold(empty, |scan, file| scan.within(file));
-        Facts::new(declarations.local_types(), scan.traits, scan.impls)
+        Facts::new(declarations.local_types(), scan.traits, scan.impls, scan.structure)
     }
 
     fn within(mut self, file: &SourceFile) -> FactScan<'declared> {
@@ -193,8 +206,16 @@ impl<'ast> Visit<'ast> for FactScan<'_> {
         self.traits.extend(shaped);
     }
 
+    fn visit_item_struct(&mut self, item: &'ast ItemStruct) {
+        let layout = LayoutScan::new(self.declarations).scanned(&item.fields);
+        let owner = self.owner.as_ref().map(|owner| self.declarations.type_key(owner, &item.ident));
+        self.structure.laid_out(owner, layout);
+    }
+
     fn visit_item_impl(&mut self, item: &'ast ItemImpl) {
         let fact = self.owner.as_ref().and_then(|owner| self.fact(owner, item));
+        let target = fact.as_ref().and_then(|fact| fact.kind().target());
+        self.structure.used(target.into_iter().flat_map(|target| UsageScan::methods(target, item)));
         self.impls.extend(fact);
     }
 }

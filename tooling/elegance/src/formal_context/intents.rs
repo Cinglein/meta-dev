@@ -1,22 +1,27 @@
 use std::collections::BTreeSet;
 
 use crate::intent_cap::IntentCap;
-use crate::signature::Signature;
 use crate::tally::Tally;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Intents {
-    found: BTreeSet<BTreeSet<Signature>>,
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Intents<Attribute> {
+    found: BTreeSet<BTreeSet<Attribute>>,
     stopped: Option<IntentCap>,
 }
 
-impl Intents {
+impl<Attribute> Default for Intents<Attribute> {
+    fn default() -> Intents<Attribute> {
+        Intents { found: BTreeSet::new(), stopped: None }
+    }
+}
+
+impl<Attribute: Ord + Clone> Intents<Attribute> {
     #[must_use]
-    pub fn met(self, intent: &BTreeSet<Signature>, cap: IntentCap) -> Intents {
-        let fresh: BTreeSet<BTreeSet<Signature>> = self
+    pub fn met(self, intent: &BTreeSet<Attribute>, cap: IntentCap) -> Intents<Attribute> {
+        let fresh: BTreeSet<BTreeSet<Attribute>> = self
             .found
             .iter()
-            .map(|other| other.intersection(intent).cloned().collect::<BTreeSet<Signature>>())
+            .map(|other| other.intersection(intent).cloned().collect::<BTreeSet<Attribute>>())
             .filter(|meet| Tally::counting(meet).reaches(Tally::PAIR))
             .chain(std::iter::once(intent.clone()))
             .filter(|candidate| !self.found.contains(candidate))
@@ -34,7 +39,7 @@ impl Intents {
     }
 
     #[must_use]
-    pub fn into_found(self) -> BTreeSet<BTreeSet<Signature>> {
+    pub fn into_found(self) -> BTreeSet<BTreeSet<Attribute>> {
         self.found
     }
 }

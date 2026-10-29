@@ -368,6 +368,98 @@ pub mod gauges {
     }
 }
 
+pub struct Gate {
+    shut: bool,
+    phase: Phase,
+    key: Option<Key>,
+    name: Name,
+    size: Size,
+}
+
+pub struct Hatch {
+    name: Name,
+    size: Size,
+    hinge: Hinge,
+}
+
+pub struct Vault {
+    name: Name,
+    size: Size,
+    hinge: Hinge,
+    key: Option<Key>,
+}
+
+pub trait Swing {
+    fn open(&self) -> Door;
+}
+
+pub trait Lock {
+    fn open(&self) -> Door;
+}
+
+pub trait Bolt {}
+pub trait Seal {}
+pub trait Shut {}
+
+impl Swing for Gate {
+    fn open(&self) -> Door {
+        Door
+    }
+}
+
+impl Swing for Hatch {
+    fn open(&self) -> Door {
+        Door
+    }
+}
+
+impl Lock for Gate {
+    fn open(&self) -> Door {
+        Door
+    }
+}
+
+impl Bolt for Gate {}
+impl Bolt for Vault {}
+impl Seal for Hatch {}
+impl Seal for Vault {}
+impl Shut for Hatch {}
+impl Shut for Vault {}
+
+impl Gate {
+    pub fn new(name: Name, size: Size) -> Gate {
+        Gate { shut: false, phase: Phase::Solid, key: None, name, size }
+    }
+    pub fn toggle(&mut self) {
+        self.shut = !self.shut;
+    }
+    pub fn melt(&mut self) {
+        self.phase = Phase::Solid;
+    }
+    pub fn fit(&mut self, key: Key) {
+        self.key.replace(key);
+    }
+    pub fn ready(&self) -> bool {
+        !self.shut && self.key.is_some()
+    }
+    pub fn sealed(&self) -> bool {
+        self.ready() && matches!(self.phase, Phase::Solid)
+    }
+    pub fn label(&self) -> Text {
+        Text::from(format!("{} {}", self.name, self.size))
+    }
+}
+
+impl Vault {
+    pub fn rename(&mut self, name: Name) {
+        self.name = name;
+    }
+    pub fn keyed(mut self, key: Key) -> Vault {
+        self.key = Some(key);
+        self
+    }
+}
+
 #[cfg(test)]
 mod tests {
     pub struct Probe;
