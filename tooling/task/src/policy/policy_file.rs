@@ -10,6 +10,7 @@ use strum::IntoEnumIterator;
 use super::bit_boundary::BitBoundary;
 use super::least::Least;
 use super::policy_failure::PolicyFailure;
+use super::queue_settings::QueueSettings;
 use super::supply_chain::SupplyChain;
 use super::{BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface};
 use crate::branches::{Branch, BranchName};
@@ -44,6 +45,7 @@ pub struct PolicyFile {
     millis: Entries<Interval, Millis>,
     mutant_millis: MutantMillis,
     mutation: MutationCadence,
+    queue: QueueSettings,
     #[serde(default)]
     domains: Domains,
     #[serde(default)]
@@ -77,6 +79,7 @@ impl PolicyFile {
             }),
             mutant_millis: policy.mutant_millis.clone(),
             mutation: policy.mutation.clone(),
+            queue: policy.queue.clone(),
             domains: policy.domains.clone(),
             scales: policy.scales.clone(),
             budgets: BudgetDrafts::from(policy.budgets.clone()),
@@ -210,6 +213,7 @@ impl PolicyFile {
                 .map_err(|key| PolicyFailure::MissingKey(Self::MILLIS, key))?,
             mutant_millis: self.mutant_millis,
             mutation: self.mutation,
+            queue: self.queue,
             domains: self.domains,
             scales: self.scales,
             budgets,

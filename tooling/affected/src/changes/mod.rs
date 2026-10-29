@@ -16,15 +16,29 @@ pub enum Changes {
 
 impl Changes {
     pub fn reaches(self, workspace: &Workspace, base: &BranchName) -> Result<Vec<Reach>, Failure> {
+        self.reaching(workspace, &self.paths(workspace, base)?)
+    }
+
+    pub fn paths(self, workspace: &Workspace, base: &BranchName) -> Result<Vec<PathBuf>, Failure> {
         match self {
-            Changes::Everything => Ok(vec![Reach::Everything]),
+            Changes::Everything => Ok(Vec::new()),
             Changes::SinceMain => Self::since_main(workspace, base),
         }
     }
 
-    fn since_main(workspace: &Workspace, base: &BranchName) -> Result<Vec<Reach>, Failure> {
-        let packages = workspace.packages();
-        let changed: Vec<PathBuf> = workspace
+    pub fn reaching(
+        self,
+        workspace: &Workspace,
+        changed: &[PathBuf],
+    ) -> Result<Vec<Reach>, Failure> {
+        match self {
+            Changes::Everything => Ok(vec![Reach::Everything]),
+            Changes::SinceMain => Self::reached(workspace, changed),
+        }
+    }
+
+    fn since_main(workspace: &Workspace, base: &BranchName) -> Result<Vec<PathBuf>, Failure> {
+        Ok(workspace
             .line(Program::Git)
             .argument(GitArgument::Diff)
             .argument(GitArgument::NameOnly)
@@ -35,7 +49,11 @@ impl Changes {
             .map_err(|_| Failure::NoMergeBase)?
             .lines()
             .map(PathBuf::from)
-            .collect();
+            .collect())
+    }
+
+    fn reached(workspace: &Workspace, changed: &[PathBuf]) -> Result<Vec<Reach>, Failure> {
+        let packages = workspace.packages();
         let included = if changed
             .iter()
             .all(|path| Reach::reached_by(path, packages).is_some())

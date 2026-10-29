@@ -46,7 +46,8 @@ pub use nesting_depth::NestingDepth;
 pub use package_graph::PackageGraph;
 pub use percent::Percent;
 pub use policy::{
-    BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface, WireType,
+    BaselineFile, BatchSize, Floor, Limit, Most, Policy, QueueSettings, Share, SpecSettings,
+    Surface, WireType,
 };
 pub use reexport_count::ReexportCount;
 pub use report::Report;

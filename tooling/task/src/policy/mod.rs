@@ -1,12 +1,15 @@
 mod baseline_file;
+mod batch_size;
 mod bit_boundary;
 mod floor;
+mod hot_path;
 mod key_name;
 mod least;
 mod limit;
 mod most;
 mod policy_failure;
 mod policy_file;
+mod queue_settings;
 mod share;
 mod spec_settings;
 mod supply_chain;
@@ -20,10 +23,12 @@ mod wire_type;
 use crate::gate_env_name::GateEnvName;
 use crate::gate_status::GateStatus;
 pub use baseline_file::BaselineFile;
+pub use batch_size::BatchSize;
 pub use floor::Floor;
 pub use limit::Limit;
 
 pub use most::Most;
+pub use queue_settings::QueueSettings;
 pub use share::Share;
 pub use spec_settings::SpecSettings;
 pub use surface::Surface;
@@ -78,6 +83,7 @@ pub struct Policy {
     millis: EnumMap<Interval, Millis>,
     mutant_millis: MutantMillis,
     mutation: MutationCadence,
+    queue: QueueSettings,
     domains: Domains,
     scales: Scales,
     budgets: Budgets,
@@ -179,6 +185,11 @@ impl Policy {
     #[must_use]
     pub fn mutation(&self) -> &MutationCadence {
         &self.mutation
+    }
+
+    #[must_use]
+    pub fn queue(&self) -> &QueueSettings {
+        &self.queue
     }
 
     #[must_use]

@@ -95,6 +95,10 @@ job_setup = 90000
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]
 
+[queue]
+hot = ["Cargo.lock", "tooling/policy.toml", "self/lint-baseline.toml", "goldens/snapshots/**", "lib.rs"]
+members = 4
+
 [domains.features-and-maintenance]
 crates = ["*"]
 paths = ["*"]
