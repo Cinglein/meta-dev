@@ -11,7 +11,7 @@ mod kept;
 mod occupancy;
 mod shared_node;
 mod thaw;
-mod uninspected;
+pub mod uninspected;
 mod vetted;
 
 pub use context::Context;
@@ -21,7 +21,6 @@ pub use host::Host;
 pub use inspection::Inspection;
 pub use kept::Kept;
 pub use occupancy::Occupancy;
-pub use uninspected::Uninspected;
 pub use vetted::Vetted;
 
 #[cfg(test)]

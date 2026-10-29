@@ -19,17 +19,18 @@ impl Held {
         let under = self.paths.into_iter().filter(|path| scanned.iter().any(|root| path.starts_with(root)));
         Occupancy::Listed(under.collect())
     }
+
+    pub fn holding(self, paths: Vec<PathBuf>) -> Self {
+        Self { paths: [self.paths, paths].concat(), ..self }
+    }
+
+    pub fn refused(self) -> Self {
+        Self { uninspected: self.uninspected.counted(), ..self }
+    }
 }
 
 impl FromIterator<Scan> for Held {
     fn from_iter<Scans: IntoIterator<Item = Scan>>(scans: Scans) -> Self {
-        scans.into_iter().fold(Self::default(), |mut held, scan| {
-            match scan {
-                Scan::Opened(paths) => held.paths.extend(paths),
-                Scan::Skipped => {}
-                Scan::Uninspected => held.uninspected = held.uninspected.counted(),
-            }
-            held
-        })
+        scans.into_iter().fold(Self::default(), |held, scan| scan.added(held))
     }
 }

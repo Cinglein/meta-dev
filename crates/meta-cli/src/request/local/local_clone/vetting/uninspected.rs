@@ -7,6 +7,10 @@ impl Uninspected {
     pub fn counted(self) -> Self {
         Self(self.0 + 1)
     }
+
+    pub fn raise(&mut self, seen: Self) {
+        *self = (*self).max(seen);
+    }
 }
 
 impl fmt::Display for Uninspected {

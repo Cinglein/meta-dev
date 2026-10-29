@@ -12,7 +12,8 @@ use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 
-use crate::request::local::local_clone::vetting::{Inspection, Uninspected};
+use crate::request::local::local_clone::vetting::Inspection;
+use crate::request::local::local_clone::vetting::uninspected::Uninspected;
 use crate::request::local::trail_entry::TrailEntry;
 use assessed::Assessed;
 pub use census::Census;

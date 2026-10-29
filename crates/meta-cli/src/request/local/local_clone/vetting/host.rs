@@ -44,8 +44,7 @@ impl Host {
     }
 
     fn noted(&self, held: Held, paths: &[PathBuf]) -> Occupancy {
-        let mut seen = self.uninspected.lock().unwrap_or_else(PoisonError::into_inner);
-        *seen = (*seen).max(held.uninspected());
+        self.uninspected.lock().unwrap_or_else(PoisonError::into_inner).raise(held.uninspected());
         held.occupancy(paths)
     }
 
