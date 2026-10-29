@@ -1554,3 +1554,4 @@
 {"at":"2026-10-29T16:50:09.941699Z","actor":"claude-trace2","kind":"TaskDone","task":"task-3eff53b5184f17ca"}
 {"at":"2026-10-29T16:50:11.840452Z","actor":"claude-sharedtarget","kind":"TaskDone","task":"task-91243509355af29b"}
 {"at":"2026-10-29T16:57:15.139480Z","actor":"claude-fcore","kind":"TaskClaimed","task":"task-213dbf51281b7c23"}
+{"at":"2026-10-29T17:01:26.021043Z","actor":"claude-fcore","kind":"TaskLinked","task":"task-213dbf51281b7c23","pr":201}
