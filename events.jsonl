@@ -1465,3 +1465,4 @@
 {"at":"2026-10-29T11:11:20.114976Z","actor":"claude-sharedtarget","kind":"TaskLinked","task":"task-91243509355af29b","pr":180}
 {"at":"2026-10-29T11:33:09.750158Z","actor":"claude-bugs2","kind":"IssueReported","issue":"issue-e43ff04178f9fb64","text":"slowest-test blocked PR 177 on wall time: ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push took 2.1s wall, 136ms cpu; untouched by the PR","division":"performance-and-cost"}
 {"at":"2026-10-29T11:40:28.228624Z","actor":"claude-bugs3","kind":"TaskOpened","task":"task-128362e7c1033465","text":"Monitor checks process identity before signalling","division":"performance-and-cost","addresses":["concern-9b9299b8d346221a"]}
+{"at":"2026-10-29T11:40:29.805261Z","actor":"claude-bugs3","kind":"TaskOpened","task":"task-f3655d764b4c0108","text":"Fail closed on missing policy and corrupt monitor state","division":"features-and-maintenance","addresses":["concern-c835984c46618f1e"]}
