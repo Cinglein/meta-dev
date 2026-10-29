@@ -85,7 +85,10 @@ impl Monitor {
                 let settings = clone.monitor_settings()?;
                 settings.paced(heartbeat).ok_or_else(|| CliFailure::raised::<Setup>(Self::UNPACED))?;
                 let now = Utc::now();
-                let heard = Self::heard(project, git_dir, now);
+                let budget = project.ci_settings().budget(CiSettings::ROUTINE);
+                let state = || Ok::<_, CliFailure>(State::fold(project.log(budget)?.read()?.records()));
+                let policy = ScalePolicy::read(project.root());
+                let heard = policy.and_then(|policy| Silence::heard(git_dir, policy.liveness(), state, now));
                 let unheard = heard.as_ref().err().map(|failure| Fault::shown(format!("liveness unread: {failure}")));
                 let silences = heard.unwrap_or_default();
                 let machine = LiveMachine::new(&settings);
@@ -93,13 +96,6 @@ impl Monitor {
             }
             Self::Report => Ok(Output::Listed(Listed::new(MonitorReport::latest(git_dir)?))),
         }
-    }
-
-    fn heard(project: &Project, git_dir: &Path, now: DateTime<Utc>) -> Result<Vec<Silence>, CliFailure> {
-        let liveness = ScalePolicy::read(project.root())?.liveness();
-        let log = project.log(project.ci_settings().budget(CiSettings::ROUTINE))?;
-        let state = State::fold(log.read()?.records());
-        Silence::heard(git_dir, liveness, &Silence::watched(&state), now)
     }
 
     pub fn noted(clone: &LocalClone, failure: &CliFailure, at: DateTime<Utc>) {

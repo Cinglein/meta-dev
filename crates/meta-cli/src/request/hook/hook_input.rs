@@ -80,29 +80,47 @@ mod tests {
     use chrono::{DateTime, Utc};
     use serde_json::json;
 
+    use super::super::HookEvent;
     use super::{CallPhase, HookInput};
     use crate::request::ci::SessionDir;
 
     const TASK: &str = "task-00000000000000c0";
     const GIT: &str = ".git";
+    const FILE: &str = "a.rs";
+    const SHELL: &str = "cd task-00000000000000c0 && cargo build";
+    const LISTING: &str = "ls";
+    const STAMPED: [Option<bool>; 3] = [None, None, Some(true)];
+    const FINISHED: CallPhase = CallPhase::Finished;
+    const STARTED: CallPhase = CallPhase::Started;
+    const KEPT: [Option<CallPhase>; 2] = [Some(CallPhase::Finished), Some(CallPhase::Started)];
+    const EVENTS: [HookEvent; 3] = [HookEvent::PreToolUse, HookEvent::PostToolUse, HookEvent::Stop];
+    const PHASES: [Option<CallPhase>; 3] = [Some(CallPhase::Started), Some(CallPhase::Finished), None];
 
     #[test]
-    fn only_a_session_working_in_a_task_worktree_stamps_that_task_whatever_paths_others_touch() {
+    fn only_a_session_working_in_a_task_worktree_stamps_that_task_and_an_older_stamp_never_wins() {
         let root = tempfile::tempdir().unwrap();
         let worktree = root.path().join(TASK);
         std::fs::create_dir_all(worktree.join(GIT)).unwrap();
+        let at = Utc::now();
         let stamp = |input: serde_json::Value| {
             let input = serde_json::from_value::<HookInput>(input).unwrap();
-            input.stamp(CallPhase::Finished, Utc::now()).map(|stamped| stamped.is_ok())
+            input.stamp(FINISHED, at).map(|stamped| stamped.is_ok())
         };
-        let edit = json!({ "cwd": root.path(), "tool_input": { "file_path": worktree.join("a.rs") } });
-        let shell = json!({ "cwd": root.path(), "tool_input": { "command": format!("cd {TASK} && cargo build") } });
-        let own = json!({ "cwd": worktree, "tool_input": { "command": "ls" } });
-        assert_eq!([edit, shell, own].map(stamp), [None, None, Some(true)]);
-        SessionDir::stamped(&worktree, CallPhase::Started, DateTime::<Utc>::MIN_UTC).unwrap().unwrap();
-        let read = SessionDir::stamp_of(&worktree.join(GIT).canonicalize().unwrap(), TASK.parse().unwrap()).unwrap();
-        let kept = read.map(|stamp| (stamp.worktree().task().to_string(), stamp.call()));
-        assert_eq!(kept, Some((TASK.to_owned(), CallPhase::Finished)));
+        let edit = json!({ "cwd": root.path(), "tool_input": { "file_path": worktree.join(FILE) } });
+        let shell = json!({ "cwd": root.path(), "tool_input": { "command": SHELL } });
+        let own = json!({ "cwd": worktree, "tool_input": { "command": LISTING } });
+        assert_eq!([edit, shell, own].map(stamp), STAMPED);
+        let kept = [DateTime::<Utc>::MIN_UTC, at].map(|when| {
+            SessionDir::stamped(&worktree, STARTED, when).unwrap().unwrap();
+            let read = SessionDir::stamp_of(&worktree.join(GIT).canonicalize().unwrap(), TASK.parse().unwrap());
+            read.unwrap().map(|stamp| stamp.call())
+        });
+        assert_eq!(kept, KEPT);
+    }
+
+    #[test]
+    fn only_tool_use_hooks_stamp_a_call_phase() {
+        assert_eq!(EVENTS.map(HookEvent::phase), PHASES);
     }
 
     const PUBLISHING: [(&str, &str); 4] = [
