@@ -317,8 +317,8 @@ window = "standing"
 
 [crate_policy]
 general = [
-    "derive_more", "enum-map", "serde", "serde_json", "strum", "tempfile", "thiserror", "toml",
-    "toml_edit", "unicode-ident",
+    "derive_more", "enum-map", "libc", "serde", "serde_json", "strum", "tempfile", "thiserror",
+    "toml", "toml_edit", "unicode-ident",
 ]
 framework = ["proc-macro2", "quote", "ra-ap-rustc_lexer", "syn"]
 
@@ -326,7 +326,7 @@ framework = ["proc-macro2", "quote", "ra-ap-rustc_lexer", "syn"]
 datetime = "chrono"
 git = "git2"
 host = "sysinfo"
-os = "libc"
+os = "nix"
 process-table = "libproc"
 signals = "signal-hook"
 
