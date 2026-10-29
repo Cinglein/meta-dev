@@ -11,5 +11,8 @@ syn = { version = "2", features = ["full", "parsing", "visit", "visit-mut"] }
 quote = "1"
 proc-macro2 = "1"
 
+[dev-dependencies]
+meta-golden = { path = "../../crates/meta-golden" }
+
 [lints]
 workspace = true

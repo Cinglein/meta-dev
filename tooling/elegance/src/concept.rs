@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use crate::implementations::Implementations;
+use crate::method_name::MethodName;
 use crate::naming::Naming;
 use crate::signature::Signature;
 use crate::tally::Tally;
@@ -24,10 +25,10 @@ impl Concept {
         catalog: &TraitCatalog,
         implementations: &Implementations,
     ) -> Concept {
-        let covered = |methods: BTreeSet<&Signature>| intent.iter().all(|signature| methods.contains(signature));
+        let covered = |methods: BTreeSet<&MethodName>| intent.iter().all(|signature| methods.contains(signature.name()));
         let shared = implementations.shared_by(&extent);
         let single = shared.iter().find(|key| covered(catalog.methods(key))).map(|key| Naming::Trait((*key).clone()));
-        let composed: BTreeSet<&Signature> = shared.iter().flat_map(|key| catalog.methods(key)).collect();
+        let composed: BTreeSet<&MethodName> = shared.iter().flat_map(|key| catalog.methods(key)).collect();
         let naming = single.unwrap_or(if covered(composed) { Naming::Composed } else { Naming::Missing });
         Concept { extent, intent, naming }
     }

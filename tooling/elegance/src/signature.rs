@@ -2,15 +2,24 @@ mod normalizer;
 
 use std::fmt;
 
+use crate::method_name::MethodName;
 use normalizer::Normalizer;
 use quote::ToTokens;
 use syn::visit_mut::VisitMut;
 use syn::{FnArg, Ident, ReturnType};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Signature(String);
+pub struct Signature {
+    name: MethodName,
+    text: String,
+}
 
 impl Signature {
+    #[must_use]
+    pub fn name(&self) -> &MethodName {
+        &self.name
+    }
+
     #[must_use]
     pub fn abstracted(signature: &syn::Signature, own: Option<&Ident>) -> Signature {
         let mut normalized = signature.clone();
@@ -20,7 +29,10 @@ impl Signature {
             ReturnType::Default => String::new(),
             ReturnType::Type(_, ty) => format!(" -> {}", Self::spaced(ty)),
         };
-        Signature(format!("{}({}){output}", normalized.ident, inputs.join(", ")))
+        Signature {
+            name: MethodName::new(&normalized.ident),
+            text: format!("{}({}){output}", normalized.ident, inputs.join(", ")),
+        }
     }
 
     fn input(argument: &FnArg) -> String {
@@ -53,6 +65,6 @@ impl Signature {
 
 impl fmt::Display for Signature {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.0)
+        formatter.write_str(&self.text)
     }
 }

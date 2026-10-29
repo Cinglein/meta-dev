@@ -1,4 +1,4 @@
-types 13, traits declared 8, impls 19
+types 15, traits declared 8, impls 21
 missing abstractions: maximal (types, signatures) concepts with at least 2 of each
   concepts 5: named by one trait 2, by a composition only 1, unnamed 2
   missing, one trait must name it: 3
@@ -14,8 +14,9 @@ missing abstractions: maximal (types, signatures) concepts with at least 2 of ea
   1. 4 = 2 types x 2 signatures
     types: fixture::Celsius, fixture::Kelvin
     share: symbol(&self) -> Symbol; value(&self) -> Degrees
-leverage: methods usable on a type / method bodies written for it
-  n 12: min 1.00, q1 1.00, median 1.00, q3 1.66, max 2.50
+leverage: distinct method names usable on a type / method bodies written for it
+  usable = inherent names + the methods of each trait the type has; a local trait contributes its declared methods, a foreign trait the names seen in impls
+  n 14: min 1.00, q1 1.00, median 1.00, q3 1.66, max 2.50
   types with no bodies: 1
   lowest:
     fixture::Label 1.00 (3 usable / 3 written)
@@ -25,17 +26,17 @@ leverage: methods usable on a type / method bodies written for it
     fixture::Kelvin 1.00 (2 usable / 2 written)
     fixture::Phase 1.00 (2 usable / 2 written)
     remote::Gadget 1.00 (2 usable / 2 written)
+    fixture::Ember 1.00 (1 usable / 1 written)
+    fixture::Flint 1.00 (1 usable / 1 written)
     fixture::Square 1.50 (3 usable / 2 written)
-    fixture::Circle 1.66 (5 usable / 3 written)
-    fixture::Meter 2.00 (2 usable / 1 written)
 trait-graph shape
   graph edges: supertrait 1, blanket 1; depth 2
-  blanket share: 1 of 13 trait impls = 0.07
+  blanket share: 1 of 15 trait impls = 0.06
   single-implementor traits: 3
     fixture::Gauge -> fixture::Meter
     fixture::Scaled -> fixture::Circle
     fixture::Solo -> fixture::Lonely
-  traits implemented directly, per implementing type: n 9: min 1, q1 1, median 1, q3 2, max 2
+  traits implemented directly, per implementing type: n 11: min 1, q1 1, median 1, q3 2, max 2
   types with at least N = 2 traits (q3, at least 2) and no edge among them: 2
     fixture::Celsius: fixture::Reading, fixture::Unit
     fixture::Kelvin: fixture::Reading, fixture::Unit

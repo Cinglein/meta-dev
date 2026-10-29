@@ -193,6 +193,23 @@ impl Pair for Port {
     }
 }
 
+pub struct Ember;
+pub struct Flint;
+
+impl FromStr for Ember {
+    type Err = EmberError;
+    fn from_str(text: &str) -> Result<Ember, EmberError> {
+        Ok(Ember)
+    }
+}
+
+impl FromStr for Flint {
+    type Err = FlintError;
+    fn from_str(text: &str) -> Result<Flint, FlintError> {
+        Ok(Flint)
+    }
+}
+
 pub mod gauges {
     pub struct Meter;
 

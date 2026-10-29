@@ -6,6 +6,7 @@ use crate::facts::Facts;
 use crate::hundredths::Hundredths;
 use crate::impl_fact::ImplFact;
 use crate::implementations::Implementations;
+use crate::method_name::MethodName;
 use crate::signature::Signature;
 use crate::tally::Tally;
 use crate::trait_catalog::TraitCatalog;
@@ -27,10 +28,11 @@ impl Leverage {
         catalog: &TraitCatalog,
         implementations: &Implementations,
     ) -> Leverage {
-        let inherent: BTreeSet<&Signature> = facts
+        let inherent: BTreeSet<&MethodName> = facts
             .impls_on(owner)
             .filter(|fact| fact.kind().implemented().is_none())
             .flat_map(ImplFact::bodies)
+            .map(Signature::name)
             .collect();
         let usable = Tally::counting(inherent) + catalog.usable(implementations.traits_of(owner));
         let written = Tally::counting(facts.impls_on(owner).flat_map(ImplFact::bodies));

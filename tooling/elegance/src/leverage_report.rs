@@ -25,7 +25,11 @@ impl LeverageReport {
 
 impl fmt::Display for LeverageReport {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(formatter, "leverage: methods usable on a type / method bodies written for it")?;
+        writeln!(formatter, "leverage: distinct method names usable on a type / method bodies written for it")?;
+        writeln!(
+            formatter,
+            "  usable = inherent names + the methods of each trait the type has; a local trait contributes its declared methods, a foreign trait the names seen in impls"
+        )?;
         writeln!(formatter, "  {}", Distribution::<Hundredths>::sorted(self.measured.iter().map(Leverage::ratio)))?;
         writeln!(formatter, "  types with no bodies: {}", self.without_bodies)?;
         writeln!(formatter, "  lowest:")?;

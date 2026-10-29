@@ -191,6 +191,7 @@ dependencies = [
 name = "elegance"
 version = "0.1.0"
 dependencies = [
+ "meta-golden",
  "proc-macro2",
  "quote",
  "syn 2.0.119",

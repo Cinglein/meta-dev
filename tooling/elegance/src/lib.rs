@@ -10,6 +10,7 @@ mod impl_kind;
 mod implementations;
 mod leverage;
 mod leverage_report;
+mod method_name;
 mod naming;
 mod shape_report;
 mod signature;
@@ -83,22 +84,23 @@ impl fmt::Display for Measures {
 #[cfg(test)]
 mod tests {
     use super::{Measures, SynSource};
+    use meta_golden::Golden;
     use task::SourceFile;
 
     const CRATES: [[&str; 3]; 2] = [
         ["fixture", "fixture/src/lib.rs", include_str!("../fixture/shapes.rs.txt")],
         ["remote", "remote/src/lib.rs", include_str!("../fixture/remote.rs.txt")],
     ];
-    const GOLDEN: &str = include_str!("../goldens/fixture.txt");
 
     #[test]
-    fn the_fixture_measures_match_the_hand_worked_golden() {
+    fn the_fixture_measures_match_the_golden() {
         let files: Vec<SourceFile> = CRATES
             .iter()
             .map(|[owner, path, text]| {
                 SourceFile::parse(*path, (*text).to_owned()).unwrap().in_crate(owner.parse().unwrap())
             })
             .collect();
-        assert_eq!(Measures::measured(&SynSource::new(&files)).to_string(), GOLDEN);
+        let measured = Measures::measured(&SynSource::new(&files)).to_string();
+        Golden::for_test(module_path!(), "fixture").checked(&measured).unwrap();
     }
 }
