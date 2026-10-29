@@ -1,6 +1,6 @@
 [package]
 name = "meta-xtask"
-version = "0.5.0"
+version = "0.6.0"
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
@@ -9,6 +9,7 @@ publish.workspace = true
 affected = { path = "../tooling/affected" }
 corpus_check = { path = "../tooling/corpus_check" }
 crate_graph = { path = "../tooling/lints/crate_graph" }
+elegance = { path = "../tooling/elegance" }
 git_starters = { path = "../tooling/lints/git_starters" }
 meta-golden = { path = "../crates/meta-golden" }
 meta-log = { path = "../crates/meta-log" }
