@@ -34,7 +34,7 @@ mod tests {
     const WAITS: [u64; 9] = [7, 3, 6, 12, 20, 20, 20, 20, 20];
     const FOREVER: usize = 64;
 
-    const DEFAULT_LEARNED: Duration = Duration::from_secs(60 * 7);
+    const DEFAULT_LEARNED: Duration = Duration::from_mins(7);
     const LONGEST_GAP: Duration = Duration::from_secs(60);
     const POLLS_CHECKED: usize = 64;
 
