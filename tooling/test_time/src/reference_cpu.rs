@@ -2,13 +2,10 @@ use std::fmt;
 use std::time::Duration;
 
 use super::children_cpu::ChildrenCpu;
-use task::{CommandLine, Failure, Interval, Limit, Policy, Program, Stdout};
+use task::{CommandLine, Failure, Limit, Policy, Program, Stdout};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct ReferenceCpu {
-    measured: Duration,
-    nominal: Duration,
-}
+pub(super) struct ReferenceCpu(Duration);
 
 impl ReferenceCpu {
     const VERSION: &str = "--version";
@@ -18,29 +15,16 @@ impl ReferenceCpu {
         let before = ChildrenCpu::now()?;
         (0..policy.limit(Limit::ReferenceSpawns).count())
             .try_for_each(|_| line.captured::<Stdout>().map(|_| ()))?;
-        let measured = ChildrenCpu::now()?.since(before);
-        Ok(ReferenceCpu::new(
-            measured,
-            policy.interval(Interval::ReferenceCpu).duration(),
-        ))
+        Ok(ReferenceCpu::new(ChildrenCpu::now()?.since(before)))
     }
 
-    pub(super) const fn new(measured: Duration, nominal: Duration) -> ReferenceCpu {
-        ReferenceCpu { measured, nominal }
-    }
-
-    pub(super) fn scaled(self, cpu: Duration) -> Duration {
-        let nanos = cpu.as_nanos() * self.nominal.as_nanos() / self.measured.as_nanos().max(1);
-        Duration::from_nanos(u64::try_from(nanos).unwrap_or(u64::MAX))
+    pub(super) const fn new(measured: Duration) -> ReferenceCpu {
+        ReferenceCpu(measured)
     }
 }
 
 impl fmt::Display for ReferenceCpu {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "reference {:.2?} against {:.2?}",
-            self.measured, self.nominal
-        )
+        write!(formatter, "runner reference {} ms", self.0.as_millis())
     }
 }
