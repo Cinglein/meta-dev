@@ -1,6 +1,6 @@
-types 11, traits declared 7, impls 17
+types 13, traits declared 8, impls 19
 missing abstractions: maximal (types, signatures) concepts with at least 2 of each
-  concepts 4: named by one trait 1, by a composition only 1, unnamed 2
+  concepts 5: named by one trait 2, by a composition only 1, unnamed 2
   missing, one trait must name it: 3
   missing, a composition may name it: 2
   largest, unnamed:
@@ -15,7 +15,7 @@ missing abstractions: maximal (types, signatures) concepts with at least 2 of ea
     types: fixture::Celsius, fixture::Kelvin
     share: symbol(&self) -> Symbol; value(&self) -> Degrees
 leverage: methods usable on a type / method bodies written for it
-  n 10: min 1.00, q1 1.00, median 1.00, q3 1.50, max 2.00
+  n 12: min 1.00, q1 1.00, median 1.00, q3 1.66, max 2.50
   types with no bodies: 1
   lowest:
     fixture::Label 1.00 (3 usable / 3 written)
@@ -30,12 +30,12 @@ leverage: methods usable on a type / method bodies written for it
     fixture::Meter 2.00 (2 usable / 1 written)
 trait-graph shape
   graph edges: supertrait 1, blanket 1; depth 2
-  blanket share: 1 of 11 trait impls = 0.09
+  blanket share: 1 of 13 trait impls = 0.07
   single-implementor traits: 3
     fixture::Gauge -> fixture::Meter
     fixture::Scaled -> fixture::Circle
     fixture::Solo -> fixture::Lonely
-  traits implemented directly, per implementing type: n 7: min 1, q1 1, median 1, q3 2, max 2
+  traits implemented directly, per implementing type: n 9: min 1, q1 1, median 1, q3 2, max 2
   types with at least N = 2 traits (q3, at least 2) and no edge among them: 2
     fixture::Celsius: fixture::Reading, fixture::Unit
     fixture::Kelvin: fixture::Reading, fixture::Unit

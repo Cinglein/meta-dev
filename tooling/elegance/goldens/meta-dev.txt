@@ -1,4 +1,4 @@
-types 860, traits declared 16, impls 1325
+types 870, traits declared 16, impls 1339
 missing abstractions: maximal (types, signatures) concepts with at least 2 of each
   concepts 103: named by one trait 31, by a composition only 20, unnamed 52
   missing, one trait must name it: 72
@@ -66,8 +66,8 @@ missing abstractions: maximal (types, signatures) concepts with at least 2 of ea
     types: meta-cli::BranchName, meta-cli::Stamp, meta-log::RemoteName
     share: as_ref(&self) -> &OsStr; from_str(&str) -> Result<Self, Err>
 leverage: methods usable on a type / method bodies written for it
-  n 780: min 0.66, q1 1.00, median 1.00, q3 2.00, max 50.00
-  types with no bodies: 80
+  n 789: min 0.66, q1 1.00, median 1.00, q3 2.00, max 50.00
+  types with no bodies: 81
   lowest:
     meta-cli::Cause 0.66 (2 usable / 3 written)
     meta-cli::Repo 0.94 (16 usable / 17 written)
@@ -81,7 +81,7 @@ leverage: methods usable on a type / method bodies written for it
     meta-state::Activity 1.00 (15 usable / 15 written)
 trait-graph shape
   graph edges: supertrait 3, blanket 0; depth 1
-  blanket share: 0 of 618 trait impls = 0.00
+  blanket share: 0 of 623 trait impls = 0.00
   single-implementor traits: 7
     elegance::FactSource -> elegance::SynSource
     meta-cli::ClaimHands -> meta-cli::ClaimRun
@@ -90,7 +90,7 @@ trait-graph shape
     settings::EmbeddedDefaults -> task::Policy
     task::Stream -> task::Stdout
     task::Tool -> task::CargoTool
-  traits implemented directly, per implementing type: n 463: min 1, q1 1, median 1, q3 1, max 5
+  traits implemented directly, per implementing type: n 468: min 1, q1 1, median 1, q3 1, max 5
   types with at least N = 2 traits (q3, at least 2) and no edge among them: 95
     corpus_check::AnnotatedLine: Display, FromStr
     corpus_check::AnnotatedSource: Display, FromStr
