@@ -15,6 +15,7 @@ use super::entry_kind::EntryKind;
 use super::inspection::Inspection;
 use super::kept::Kept;
 use crate::request::local::byte_count::ByteCount;
+use crate::request::local::local_clone::cargo_tag::CargoTag;
 use crate::request::local::recorded_worktree::RecordedWorktree;
 pub use checkouts::Checkouts;
 use index::Index;
@@ -48,7 +49,6 @@ impl Vetted {
     const BEYOND: [&'static str; 3] = ["rev-list", "--max-count=1", "--ignore-missing"];
     const NOT: &'static str = "--not";
     const MODULES: &'static str = ".gitmodules";
-    const TAG: &'static str = "CACHEDIR.TAG";
 
     pub fn proved(worktree: &RecordedWorktree, context: &Context, host: &impl Inspection) -> Result<Self, Kept> {
         Self::judged(worktree, context, host, Survey::Fresh)
@@ -118,7 +118,7 @@ impl Vetted {
         (host.entry(&path.join(Self::MODULES)) == EntryKind::Missing).then_some(()).ok_or(Kept::Submodules)?;
         let Ok(status) = link.git(host, Scope::Worktree, &Self::STATUS.map(OsStr::new))?.parse::<Porcelain>();
         status.ignored()?.iter().try_for_each(|ignored| {
-            tree.cargo_target(ignored, host.text(&path.join(ignored).join(Self::TAG)).as_deref())
+            tree.cargo_target(ignored, host.text(&path.join(ignored).join(CargoTag::FILE)).as_deref())
         })?;
         Ok(tree.bytes())
     }

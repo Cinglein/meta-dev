@@ -1,3 +1,4 @@
+mod cargo_tag;
 mod claim_plan;
 mod claim_run;
 mod collection;
