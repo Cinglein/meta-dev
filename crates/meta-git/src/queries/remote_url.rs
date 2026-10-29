@@ -1,3 +1,5 @@
+use std::ffi::OsStr;
+
 use crate::git_failure::GitFailure;
 use crate::query::Query;
 use crate::remote_name::RemoteName;
@@ -15,6 +17,7 @@ impl Query for RemoteUrl {
     type View = Option<String>;
 
     fn answered(&self, repository: &git2::Repository) -> Result<Option<String>, GitFailure> {
-        Ok(repository.find_remote(&self.0.to_string())?.url().ok().map(str::to_owned))
+        let name = AsRef::<OsStr>::as_ref(&self.0).to_string_lossy();
+        Ok(repository.find_remote(&name)?.url().ok().map(str::to_owned))
     }
 }
