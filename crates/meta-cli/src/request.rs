@@ -15,6 +15,7 @@ mod remote_failure;
 mod repository;
 mod scale_policy;
 mod status_view;
+mod trace_view;
 mod writing;
 
 use std::path::PathBuf;
@@ -29,6 +30,7 @@ use cli_failure::{CliFailure, Invalid, Misuse, Setup};
 use heartbeat::Heartbeat;
 use hook::HookEvent;
 use live_github::LiveGithub;
+pub use local::TraceRecord;
 use local::{LocalClone, Monitor, Sweep};
 use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
@@ -37,6 +39,7 @@ use rate::Rate;
 use relocate::Relocate;
 use scale_policy::ScalePolicy;
 use status_view::StatusView;
+use trace_view::TraceView;
 use writing::Writing;
 
 #[derive(Debug)]
@@ -57,6 +60,7 @@ pub enum Request {
     WatchCi(SessionId, Commit),
     WaitCi(SessionId),
     CiLog(SessionId),
+    Trace(TraceView),
 }
 
 impl TryFrom<Vec<String>> for Request {
@@ -139,6 +143,7 @@ impl TryFrom<Vec<String>> for Request {
             "ci-watch" => parsed.allowing(&[])?.session_and_commit(Self::WatchCi),
             "ci-wait" => Self::session().map(Self::WaitCi),
             "ci-log" => Self::session().map(Self::CiLog),
+            "trace" => Ok(Self::Trace(parsed.allowing(&[])?.text()?.to_string().parse()?)),
             other => Err(CliFailure::raised::<Misuse>(format!("unknown command `{other}`"))),
         }
     }
@@ -161,6 +166,7 @@ impl Request {
             Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
             Self::WaitCi(session) => Watcher::wait(project, &session),
             Self::CiLog(session) => FailureLog::excerpt(project, &session),
+            Self::Trace(view) => TraceRecord::shown(&LocalClone::try_from(project)?, view),
             Self::Status(view) => {
                 let local = match view {
                     StatusView::Flags => Monitor::recent(&LocalClone::try_from(project)?, Utc::now())?,
@@ -212,6 +218,7 @@ impl Request {
             | Self::WatchCi(..)
             | Self::WaitCi(_)
             | Self::CiLog(_)
+            | Self::Trace(_)
             | Self::Status(_)
             | Self::ClaimWorktree(_)
             | Self::Worktrees

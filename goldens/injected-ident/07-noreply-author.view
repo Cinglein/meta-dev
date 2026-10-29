@@ -1,7 +1,0 @@
-Ok(
-    Ident(
-        Email(
-            "1+someone@users.noreply.github.com",
-        ),
-    ),
-)
