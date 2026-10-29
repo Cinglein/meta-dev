@@ -86,9 +86,13 @@ impl HookEvent {
             Ok(None) => self.outside_projects(&input),
             Err(failure) => Some(self.refused(Listed::new(failure))),
         };
-        let opened = (self == Self::SessionStart).then(|| input.open_session()).and_then(Result::err);
+        let opened = self.opens_session().and_then(|()| input.open_session().err());
         let reply = reply.map(|reply| reply.with_news(opened));
         Ok(Output::Listed(Listed::new(reply.map(|reply| reply.to_string()).unwrap_or_default())))
+    }
+
+    pub fn opens_session(self) -> Option<()> {
+        (self == Self::SessionStart).then_some(())
     }
 
     pub fn refused(self, reason: Listed) -> Reply {
