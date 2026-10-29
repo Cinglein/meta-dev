@@ -93,7 +93,7 @@ impl Budget {
     pub fn blocks(&self, state: Option<State>) -> bool {
         state == Some(State::Over)
             && self.overspend == Overspend::Block
-            && self.measure.enforcer() != Enforcer::Lint
+            && (self.standing_in().is_some() || self.measure.enforcer() != Enforcer::Lint)
     }
 
     #[must_use]
@@ -172,7 +172,13 @@ impl Budget {
             self.allowance.resolved(|_| None),
             self.allowance.parent().map(|parent| budgets.get(parent)),
         ) {
-            _ if self.window != self.measure.window() => refused(TreeFailure::OtherWindow),
+            _ if self
+                .measure
+                .window()
+                .is_some_and(|window| window != self.window) =>
+            {
+                refused(TreeFailure::OtherWindow)
+            }
             _ if self.tolerance.is_some() && self.measure.enforcer() == Enforcer::Lint => {
                 refused(TreeFailure::LintTolerance)
             }

@@ -185,7 +185,12 @@ const REFUSED: [(&str, &str, &str, &str); 34] = [
     ),
 ];
 
-const ACCEPTED: [(&str, &str, &str); 6] = [
+const ACCEPTED: [(&str, &str, &str); 7] = [
+    (
+        "meta",
+        END,
+        "\n[budgets.elegance-tangle]\ndivision = \"features-and-maintenance\"\nmeasure = \"tangle_items\"\nallowance = { count = 10 }\nwindow = \"standing\"\n",
+    ),
     (
         "old",
         END,
@@ -280,7 +285,7 @@ fn the_kept_forms_are_read_and_the_table_shows_the_line_each_check_enforces() {
     let read = variants
         .each_ref()
         .map(|variant| variant.as_ref().err().map(ToString::to_string));
-    assert_eq!(read, [None, None, None, None, None, None]);
+    assert_eq!(read, [None, None, None, None, None, None, None]);
     let disagreements: Vec<String> = variants
         .iter()
         .flatten()
