@@ -36,7 +36,7 @@ impl Silence {
     }
 
     pub fn same(&self, other: &Self) -> Option<()> {
-        (self.task == other.task && self.worktree == other.worktree).then_some(())
+        (self.task == other.task).then_some(())
     }
 }
 
@@ -63,7 +63,11 @@ mod tests {
     const GIT: &str = ".git";
     const NOW: &str = "2026-10-29T12:00:00Z";
     const POLICIES: [&str; 2] = ["silent_after = 1800000", ""];
-    const LATER: [TimeDelta; 2] = [TimeDelta::minutes(31), TimeDelta::minutes(29)];
+    const LATER: [TimeDelta; 2] = [TimeDelta::minutes(31), TimeDelta::minutes(30)];
+    const SILENCES: [&str; 2] = [
+        r#"{"task":"task-00000000000000c0","worktree":"/w/a","quiet":{"secs":9,"nanos":0},"limit":{"secs":1,"nanos":0}}"#,
+        r#"{"task":"task-00000000000000c1","worktree":"/w/a","quiet":{"secs":9,"nanos":0},"limit":{"secs":1,"nanos":0}}"#,
+    ];
     const HEARD: &str = "silent task-00000000000000c0: no tool call for 1860s, limit 1800s";
 
     #[test]
@@ -80,5 +84,11 @@ mod tests {
         let ([limited, unlimited], [past, before]) = (POLICIES, LATER);
         assert_eq!(heard(limited, past), [HEARD]);
         assert!(heard(limited, before).is_empty() && heard(unlimited, past).is_empty());
+    }
+
+    #[test]
+    fn a_silence_repeats_only_a_silence_of_the_same_task() {
+        let [first, other] = SILENCES.map(|text| serde_json::from_str::<Silence>(text).unwrap());
+        assert_eq!((first.same(&first), first.same(&other)), (Some(()), None));
     }
 }
