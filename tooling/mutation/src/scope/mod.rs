@@ -1,7 +1,9 @@
+mod mutants_build;
 mod mutants_run;
 mod output_directory;
 mod test_packages;
 
+pub use mutants_build::MutantsBuild;
 pub use mutants_run::MutantsRun;
 
 use std::env;
@@ -32,6 +34,7 @@ impl Scope {
     pub fn applied(
         self,
         line: CommandLine,
+        build: &MutantsBuild,
         workspace: &Workspace,
         policy: &Policy,
     ) -> Result<Vec<MutantsRun>, Failure> {
@@ -48,16 +51,18 @@ impl Scope {
                         )?;
                         vec![spelled.parse()?]
                     }
-                    Err(_) => Self::changed_shards(workspace, policy)?,
+                    Err(_) => Self::changed_shards(build, workspace, policy)?,
                 };
                 let line = line
                     .argument(MutantsArgument::InDiff)
                     .argument(workspace.target().path().join(Self::DIFF_FILE).display())
                     .argument(MutantsArgument::BaselineSkip);
-                Self::shard_runs(&line, workspace, &output, &shards)
+                let tested = Self::tested(workspace, &shards)?;
+                let runs = Self::shard_runs(&line, &output, &tested)?.into_iter();
+                Ok(runs.zip(TestPackages::baselines(&tested, build)).map(|(run, tests)| run.baselined(tests)).collect())
             }
             Scope::Workspace => match env::var(Self::SHARD_VARIABLE) {
-                Ok(spelled) => Self::shard_runs(&line, workspace, &output, &[spelled.parse()?]),
+                Ok(spelled) => Self::shard_runs(&line, &output, &Self::tested(workspace, &[spelled.parse()?])?),
                 Err(_) => Ok(vec![MutantsRun::new(
                     line.argument(MutantsArgument::Output)
                         .argument(output.root().display())
@@ -68,39 +73,38 @@ impl Scope {
         }
     }
 
-    pub fn changed_shards(workspace: &Workspace, policy: &Policy) -> Result<Vec<Shard>, Failure> {
+    pub fn changed_shards(build: &MutantsBuild, workspace: &Workspace, policy: &Policy) -> Result<Vec<Shard>, Failure> {
         Self::write_diff(
             workspace.root(),
             policy.branch(Branch::Base),
             &workspace.target().path().join(Self::DIFF_FILE),
         )?;
-        let listing = workspace
-            .line(Program::Cargo)
-            .argument(CargoArgument::Mutants)
+        let listing = build
+            .line(CargoArgument::Mutants)
             .argument(MutantsArgument::InDiff)
             .argument(workspace.target().path().join(Self::DIFF_FILE).display());
         Ok(Packing::shards(&CrateLoad::listed(listing, policy, Interval::DiffJob)?, policy, Interval::DiffJob))
     }
 
+    fn tested(workspace: &Workspace, shards: &[Shard]) -> Result<Vec<TestPackages>, Failure> {
+        let tested = TestedCrates::collect(&workspace.source_files()?);
+        Ok(TestPackages::each_run(shards, workspace.packages(), &tested))
+    }
+
     fn shard_runs(
         line: &CommandLine,
-        workspace: &Workspace,
         output: &OutputDirectory,
-        shards: &[Shard],
+        runs: &[TestPackages],
     ) -> Result<Vec<MutantsRun>, Failure> {
-        let tested = TestedCrates::collect(&workspace.source_files()?);
-        shards
-            .iter()
-            .flat_map(Shard::runs)
-            .map(|run| {
-                let directory = output.prepared_for(&run)?;
+        runs.iter()
+            .map(|tested_by| {
+                let directory = output.prepared_for(tested_by.run())?;
                 let prepared = line
                     .clone()
                     .argument(MutantsArgument::Output)
                     .argument(directory.display())
                     .argument(MutantsArgument::TestWorkspaceOff);
-                let tested_by = TestPackages::around(&run, workspace.packages(), &tested);
-                Ok(MutantsRun::new(tested_by.applied_to(run.applied_to(prepared)), directory))
+                Ok(MutantsRun::new(tested_by.applied_to(prepared), directory))
             })
             .collect()
     }
@@ -120,9 +124,7 @@ impl Scope {
 #[cfg(test)]
 mod tests {
     use super::Scope;
-    use std::path::Path;
-    use std::process::Command;
-    use std::{env, fs, process};
+    use std::{env, fs, path::Path, process, process::Command};
     const SOURCE: &str = "consumer/a.rs";
     const BASE: &str = "origin/main";
     const RELATIVE: &str = "+++ b/a.rs";

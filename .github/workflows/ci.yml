@@ -19,9 +19,7 @@ jobs:
         with:
           fetch-depth: 0
       - run: git remote set-head origin --auto
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
+      - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
@@ -41,7 +39,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
       - run: git --version
       - run: cargo xtask goldens
@@ -56,7 +54,7 @@ jobs:
       pull-requests: read
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
       - run: cargo xtask stacked
         env:
@@ -66,21 +64,32 @@ jobs:
   mutants-plan:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 6
     outputs:
       shards: ${{ steps.plan.outputs.shards }}
     steps:
-      - uses: actions/checkout@v5
+      - &mutants-checkout
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
+      - &mutants-toolchain
+        run: rustup toolchain install
+      - &mutants-linker
+        uses: rui314/setup-mold@v1
       - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2
         with:
-          tool: cargo-mutants
+          shared-key: mutants
+          save-if: false
+      - &mutants-tool
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-mutants@27.1.0
       - id: plan
         run: |
           shards=$(cargo xtask mutants-diff-plan)
           echo "shards=$shards" >> "$GITHUB_OUTPUT"
+        env: &mutants-build-env
+          CARGO_INCREMENTAL: 1
 
   mutants:
     needs: mutants-plan
@@ -94,21 +103,16 @@ jobs:
     env:
       MUTANTS_SHARD: ${{ matrix.shard }}
     steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: rui314/setup-mold@v1
+      - *mutants-checkout
+      - *mutants-toolchain
+      - *mutants-linker
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: mutants
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-mutants
+      - *mutants-tool
       - run: cargo xtask mutants
         timeout-minutes: 5
-        env:
-          CARGO_INCREMENTAL: 1
+        env: *mutants-build-env
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -122,7 +126,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
       - uses: actions/download-artifact@v4
         with:
