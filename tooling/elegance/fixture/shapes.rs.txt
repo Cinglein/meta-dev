@@ -460,6 +460,36 @@ impl Vault {
     }
 }
 
+pub struct Latch {
+    armed: bool,
+    spare: Option<Pin>,
+    count: Count,
+}
+
+impl Latch {
+    pub fn arm(&mut self) {
+        (self.armed) = true;
+    }
+    pub fn stash(&mut self, pin: Pin) {
+        self.spare.0 = pin;
+    }
+    pub fn bump(&mut self, other: &mut Latch) {
+        other.armed = false;
+    }
+    pub fn peek(&mut self) -> bool {
+        self.spare.is_some()
+    }
+    pub fn ready(&self) -> bool {
+        self.armed && self.spare.is_some()
+    }
+    pub fn twin(&self) -> Latch {
+        Latch::copied(self)
+    }
+    pub fn show(&self) -> Text {
+        Text::from(format!("{}{}", self.count, self.armed))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     pub struct Probe;
