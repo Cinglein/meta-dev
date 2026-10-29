@@ -35,6 +35,20 @@ mod tests {
     const LEARNED: Duration = Duration::from_millis(5);
     const WAITS: [u64; 9] = [7, 3, 6, 12, 20, 20, 20, 20, 20];
 
+    const DEFAULT_LEARNED: Duration = Duration::from_secs(422);
+    const LONGEST_GAP: Duration = Duration::from_secs(60);
+    const POLLS_CHECKED: usize = 1000;
+
+    #[test]
+    fn with_the_defaults_a_run_ending_after_the_expected_time_is_noticed_within_a_minute_until_the_timeout() {
+        let settings = CiSettings::try_from(&toml::from_str::<Config>("").unwrap()).unwrap();
+        let timeout = settings.remaining(Duration::ZERO).unwrap();
+        let waits: Vec<Duration> = settings.poll_schedule().waits(Some(DEFAULT_LEARNED)).take(POLLS_CHECKED).collect();
+        let covered = waits.iter().fold(Duration::ZERO, |sum, wait| sum.saturating_add(*wait));
+        let slowest = waits.iter().skip(1).max().copied();
+        assert!(slowest <= Some(LONGEST_GAP) && covered >= timeout, "{slowest:?} {covered:?}");
+    }
+
     #[test]
     fn the_first_poll_waits_the_expected_run_then_waits_double_to_the_cap_and_the_last_runs_to_the_deadline() {
         let schedule = CiSettings::try_from(&toml::from_str::<Config>(SETTINGS).unwrap()).unwrap().poll_schedule();

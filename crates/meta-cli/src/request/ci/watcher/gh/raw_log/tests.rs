@@ -1,5 +1,11 @@
+use meta_run::GhArgv;
+
 use super::RawLog;
-use crate::request::project::LogWindow;
+use crate::request::ci::watcher::gh::replies::Replies;
+use crate::request::project::{CiSettings, Config, LogWindow};
+
+const BUDGET_JOB: &str = "122967870084";
+const KEPT: [&str; 2] = ["budget over its blocking line:", "workspace: test-time"];
 
 const CLIPPY: &str = "ci\tRun cargo xtask ci\t2026-10-25T06:30:01.1000000Z    Compiling meta-log v0.0.0
 ci\tRun cargo xtask ci\t2026-10-25T06:30:02.1000000Z     Checking meta-cli v0.0.0
@@ -30,6 +36,15 @@ fn keeps_error_blocks_without_setup_noise_timestamps_or_colour() {
     let excerpt = Limits::excerpt(WIDE);
     assert!(excerpt.contains(HEADED_ERROR) && excerpt.contains(LOCATION));
     assert!(NOISE.iter().all(|noise| !excerpt.contains(noise)));
+}
+
+#[test]
+fn a_recorded_failed_log_keeps_the_lines_above_its_final_error_marker_with_the_default_window() {
+    let logs = Replies::recorded(GhArgv::FailedLog);
+    let log = logs.iter().find(|log| log.argv().to_string().contains(BUDGET_JOB)).unwrap();
+    let settings = CiSettings::try_from(&toml::from_str::<Config>("").unwrap()).unwrap();
+    let excerpt = log.out().parse::<RawLog>().unwrap().excerpt(settings.log_window()).to_string();
+    assert!(KEPT.iter().all(|line| excerpt.contains(line)), "{excerpt}");
 }
 
 #[test]
