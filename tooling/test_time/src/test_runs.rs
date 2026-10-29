@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use super::test_run::TestRun;
 use super::test_timing::TestTiming;
-use task::{Failure, FailureSet};
+use task::{Failure, FailureKind, FailureSet};
 
 #[derive(Debug, Default)]
 pub(super) struct TestRuns {
@@ -26,7 +26,14 @@ impl TestRuns {
     }
 
     fn failures(&self) -> FailureSet {
-        FailureSet::default()
+        self.failed
+            .iter()
+            .fold(FailureSet::default(), |set, timing| {
+                set.with(FailureKind::Test {
+                    crate_name: timing.crate_name(),
+                    name: timing.test().into(),
+                })
+            })
     }
 
     pub(super) fn passing(mut self, timing: TestTiming) -> TestRuns {

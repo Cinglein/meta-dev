@@ -29,7 +29,9 @@ use test_runs::TestRuns;
 use test_timing::TestTiming;
 
 use task::Failure;
+use task::FailureKind;
 use task::FailureSet;
+use task::Interval;
 use task::Program;
 use task::Report;
 use task::Selection;
@@ -86,8 +88,17 @@ impl TestTime {
         )
     }
 
-    fn overruns(_timings: &[TestTiming], _policy: &Policy) -> FailureSet {
-        FailureSet::default()
+    fn overruns(timings: &[TestTiming], policy: &Policy) -> FailureSet {
+        let allowance = policy.interval(Interval::PerTest).duration();
+        timings
+            .iter()
+            .filter(|timing| timing.spent(Clock::Wall) > allowance)
+            .fold(FailureSet::default(), |set, timing| {
+                set.with(FailureKind::Budget {
+                    test: timing.test().into(),
+                    cpu: Millis::rounded_up(timing.spent(Clock::Cpu)),
+                })
+            })
     }
 
     pub(crate) fn examples(

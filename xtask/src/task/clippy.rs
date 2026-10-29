@@ -1,7 +1,15 @@
+mod cargo_line;
+mod code;
+mod code_name;
 mod diagnostics;
+mod level;
+mod message;
+mod span;
 
+use diagnostics::Diagnostics;
 use task::Failure;
 use task::Policy;
+use task::Stdout;
 use task::Workspace;
 use task::{CargoArgument, Program};
 use task::{CargoTool, Selection};
@@ -9,6 +17,23 @@ use task::{CargoTool, Selection};
 pub struct Clippy;
 
 impl Clippy {
+    fn diagnosed(failure: Failure) -> Failure {
+        match failure {
+            Failure::Printed { command, printed } => {
+                let diagnostics = Diagnostics::parse(&printed);
+                if diagnostics.is_empty() {
+                    Failure::Printed { command, printed }
+                } else {
+                    Failure::Found {
+                        shown: format!("{command} failed:\n{}", diagnostics.rendered()),
+                        found: diagnostics.found(),
+                    }
+                }
+            }
+            other => other,
+        }
+    }
+
     pub fn run(workspace: &Workspace, selection: &Selection, policy: &Policy) -> Result<(), Failure> {
         selection.reaching().map_or_else(
             || {
@@ -22,12 +47,15 @@ impl Clippy {
                     .arguments(selection.arguments::<CargoTool>())
                     .argument(CargoArgument::AllTargets)
                     .argument(CargoArgument::AllFeatures)
+                    .argument(CargoArgument::MessageFormatJson)
                     .argument(CargoArgument::Jobs)
                     .argument(policy.compiler_tasks())
                     .argument(CargoArgument::ToolArguments)
                     .argument(CargoArgument::Deny)
                     .argument(CargoArgument::Warnings)
-                    .run()
+                    .captured::<Stdout>()
+                    .map(|_| ())
+                    .map_err(Self::diagnosed)
             },
         )
     }

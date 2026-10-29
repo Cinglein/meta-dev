@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use super::clock::Clock;
+use task::CrateName;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct TestTiming {
@@ -32,6 +33,19 @@ impl TestTiming {
             Clock::Wall => self.elapsed,
             Clock::Cpu => self.cpu,
         }
+    }
+
+    pub(super) fn crate_name(&self) -> CrateName {
+        let stem = self
+            .binary
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let Ok(name) = stem
+            .rsplit_once('-')
+            .map_or(stem.as_str(), |(name, _)| name)
+            .parse();
+        name
     }
 
     pub(super) fn binary(&self) -> &Path {
