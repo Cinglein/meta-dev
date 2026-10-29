@@ -1,0 +1,10 @@
+Ok(
+    Ok(
+        GitPaths(
+            [
+                "lint-baseline.toml",
+                "tooling/policy.toml",
+            ],
+        ),
+    ),
+)

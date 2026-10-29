@@ -7,10 +7,10 @@ use meta_run::Unread;
 use meta_severity::{Demotions, ScaleFailure, Strands};
 use thiserror::Error;
 
-use crate::task::Misplaced;
 use crate::task::ci::{Busy, OutsideConfig, Unready, Untracked};
 use crate::task::ratchet::{Raised, Ratchet};
 use crate::task::revision::ForeignEmails;
+use crate::task::{Misplaced, TrackedBuildFiles};
 
 #[derive(Debug, Error)]
 pub enum Failure {
@@ -70,6 +70,8 @@ pub enum Failure {
     Git(Unread),
     #[error("{0}")]
     BuildDirectory(#[from] Misplaced),
+    #[error("{0}")]
+    TrackedBuildOutput(TrackedBuildFiles),
     #[error("{failure}\nsupply chain fails closed: fix the finding above, or install {tool} if it is missing")]
     Supply { tool: &'static str, failure: Box<task::Failure> },
     #[error("{skipped}: fails closed in CI: {failure}")]
