@@ -46,12 +46,9 @@ impl Project {
     }
 
     pub fn found(dir: &Path) -> Result<Option<Self>, CliFailure> {
-        Self::located(dir).map(Self::loaded).transpose()
-    }
-
-    pub fn located(dir: &Path) -> Option<PathBuf> {
         let root = dir.ancestors().find(|ancestor| ancestor.join(Self::GIT_ENTRY).exists()).map(Path::to_path_buf);
-        root.filter(|root| root.join(Self::CONFIG_FILE).exists())
+        let configured = root.filter(|root| root.join(Self::CONFIG_FILE).exists());
+        configured.map(Self::loaded).transpose()
     }
 
     pub fn ci_settings(&self) -> &CiSettings {
