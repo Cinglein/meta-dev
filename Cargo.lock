@@ -650,6 +650,7 @@ dependencies = [
  "affected",
  "corpus_check",
  "crate_graph",
+ "git2",
  "git_starters",
  "meta-golden",
  "meta-log",

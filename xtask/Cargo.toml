@@ -35,4 +35,5 @@ toml_edit = "0.22"
 workspace = true
 
 [dev-dependencies]
+git2 = { version = "=0.21.0", default-features = false, features = ["vendored-libgit2"] }
 task = { path = "../tooling/task", features = ["test-policy"] }
