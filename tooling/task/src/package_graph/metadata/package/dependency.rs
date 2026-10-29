@@ -25,11 +25,6 @@ impl Dependency {
     }
 
     #[must_use]
-    pub fn is_local(&self) -> bool {
-        self.path.is_some()
-    }
-
-    #[must_use]
     pub fn for_tests(&self) -> bool {
         self.kind == Some(DependencyKind::Dev)
     }

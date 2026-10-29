@@ -1,4 +1,3 @@
-mod crate_dependencies;
 mod crate_summary;
 mod effect;
 mod graph_report;

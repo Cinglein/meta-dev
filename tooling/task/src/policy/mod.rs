@@ -21,7 +21,6 @@ mod wire_type;
 use crate::gate_env_name::GateEnvName;
 use crate::gate_status::GateStatus;
 pub use baseline_file::BaselineFile;
-pub use crate_policy::{CrateCategory, CratePolicy, DomainName, ExternalClass};
 pub use floor::Floor;
 pub use limit::Limit;
 
@@ -39,6 +38,7 @@ use crate::budgets::{Budgets, LegacyKey};
 use crate::domains::Domains;
 use crate::percent::Percent;
 use bit_boundary::BitBoundary;
+use crate_policy::CratePolicy;
 use enum_map::EnumMap;
 use least::Least;
 use meta_severity::Scales;

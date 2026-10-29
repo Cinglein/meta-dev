@@ -2,7 +2,6 @@ use std::fmt;
 
 use task::{Amount, Most, PackageGraph, Percent, Policy, Report};
 
-use crate::crate_dependencies::CrateDependencies;
 use crate::crate_summary::CrateSummary;
 
 #[derive(Clone, Debug, Default)]
@@ -20,6 +19,11 @@ impl GraphReport {
     }
 
     #[must_use]
+    pub fn packages(&self) -> &PackageGraph {
+        &self.packages
+    }
+
+    #[must_use]
     pub fn report(&self, policy: &Policy) -> Report {
         Report::new(
             "a crate whose items form one big cycle or two loosely linked groups is split",
@@ -27,14 +31,6 @@ impl GraphReport {
                 .iter()
                 .flat_map(|summary| summary.violations(policy))
                 .collect(),
-        )
-    }
-
-    #[must_use]
-    pub fn dependency_report(&self, policy: &Policy) -> Report {
-        Report::new(
-            "a crate depends only on what its category in crate_policy allows",
-            CrateDependencies::violations(&self.packages, policy.crate_policy()),
         )
     }
 

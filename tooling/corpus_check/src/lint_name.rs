@@ -102,7 +102,7 @@ impl LintName {
     pub fn report(self, files: &[SourceFile], graphs: &GraphReport, policy: &Policy) -> Report {
         match self {
             LintName::ConstShape => ConstShape::report(files, policy),
-            LintName::CrateDependencies => graphs.dependency_report(policy),
+            LintName::CrateDependencies => policy.crate_policy().report(graphs.packages()),
             LintName::CrateGraph => graphs.report(policy),
             LintName::DistinctSignatures => DistinctSignatures::report(files),
             LintName::EnumPredicates => EnumPredicates::report(files),

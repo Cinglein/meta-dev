@@ -43,11 +43,10 @@ pub use meta_schema::TopDivision;
 pub use mutant_count::MutantCount;
 pub use name::{Casing, LoweredInfix, Name, Prefix, Whole};
 pub use nesting_depth::NestingDepth;
-pub use package_graph::{Dependency, PackageGraph};
+pub use package_graph::PackageGraph;
 pub use percent::Percent;
 pub use policy::{
-    BaselineFile, CrateCategory, CratePolicy, DomainName, ExternalClass, Floor, Limit, Most,
-    Policy, Share, SpecSettings, Surface, WireType,
+    BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface, WireType,
 };
 pub use reexport_count::ReexportCount;
 pub use report::Report;

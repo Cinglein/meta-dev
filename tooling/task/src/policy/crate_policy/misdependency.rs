@@ -1,8 +1,10 @@
 use std::fmt;
 
-use task::{CrateCategory, CrateName, DomainName, ExternalClass};
-
+use super::crate_category::CrateCategory;
 use super::dependent::Dependent;
+use super::domain_name::DomainName;
+use super::external_class::ExternalClass;
+use crate::crate_name::CrateName;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Misdependency {
