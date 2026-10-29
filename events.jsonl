@@ -1537,3 +1537,4 @@
 {"at":"2026-10-29T15:40:15.314591Z","actor":"claude-cratedeps","kind":"TaskLinked","task":"task-90da5dd59f8af0c5","pr":199}
 {"at":"2026-10-29T15:43:17.995719Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-10d865bce78fba85","text":"owner declined dependency opt-level changes as marginal (2026-10-28); build time dominates"}
 {"at":"2026-10-29T15:43:20.250590Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-1c19dbf5e0aa2ff7","text":"CI perf: compiler_tasks() grants jobs from real machine memory (guard kept) instead of a laptop policy; test build 9.2 to 5.5 s at 4 jobs; consumers inherit."}
+{"at":"2026-10-29T15:43:22.884334Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-511e01fba4cfff25","text":"Place remaining root items via triage; then root items count toward every top division's standing budgets so missing divisions can't hide debt."}
