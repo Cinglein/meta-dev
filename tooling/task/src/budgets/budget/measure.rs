@@ -69,11 +69,13 @@ impl Measure {
             Measure::TestWallTime
             | Measure::TestCpuTime
             | Measure::SlowestTest
-            | Measure::OpenItems(_)
-            | Measure::EffectShare
-            | Measure::EffectDispersion => Enforcer::Checker,
+            | Measure::OpenItems(_) => Enforcer::Checker,
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Enforcer::MutationJobs,
-            Measure::LintFindings | Measure::TestLineShare | Measure::TangleItems => Enforcer::Lint,
+            Measure::LintFindings
+            | Measure::TestLineShare
+            | Measure::TangleItems
+            | Measure::EffectShare
+            | Measure::EffectDispersion => Enforcer::Lint,
         }
     }
 
@@ -95,19 +97,19 @@ impl Measure {
     }
 
     #[must_use]
-    pub const fn window(&self) -> Window {
+    pub const fn window(&self) -> Option<Window> {
         match self {
-            Measure::OpenItems(_) | Measure::EffectShare | Measure::EffectDispersion => {
-                Window::Standing
-            }
+            Measure::OpenItems(_) => Some(Window::Standing),
+            Measure::TestLineShare
+            | Measure::TangleItems
+            | Measure::EffectShare
+            | Measure::EffectDispersion => None,
             Measure::TestWallTime
             | Measure::TestCpuTime
             | Measure::SlowestTest
             | Measure::WorkflowWallTime(_)
             | Measure::MutantPrice
-            | Measure::LintFindings
-            | Measure::TestLineShare
-            | Measure::TangleItems => Window::PerChange,
+            | Measure::LintFindings => Some(Window::PerChange),
         }
     }
 }

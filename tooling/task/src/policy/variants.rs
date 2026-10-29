@@ -52,13 +52,13 @@ const REFUSED: [(&str, &str, &str, &str); 34] = [
         "budget a: its measure is not the measure of the budget it is part of",
     ),
     (
-        "meta", WINDOW, "window = \"standing\"\n", "effects take a standing window",
+        "meta", WINDOW, "window = \"standing\"\n", "open items take a standing window",
     ),
     (
         "meta",
         END,
         "\n[budgets.issues]\ndivision = \"features-and-maintenance\"\nmeasure = { open_items = { kind = \"task\" } }\nallowance = { count = 2 }\nwindow = \"per_change\"\n",
-        "effects take a standing window",
+        "open items take a standing window",
     ),
     (
         "meta",
@@ -185,7 +185,12 @@ const REFUSED: [(&str, &str, &str, &str); 34] = [
     ),
 ];
 
-const ACCEPTED: [(&str, &str, &str); 6] = [
+const ACCEPTED: [(&str, &str, &str); 7] = [
+    (
+        "meta",
+        END,
+        "\n[budgets.elegance-tangle]\ndivision = \"features-and-maintenance\"\nmeasure = \"tangle_items\"\nallowance = { count = 10 }\nwindow = \"standing\"\n",
+    ),
     (
         "old",
         END,
@@ -280,7 +285,7 @@ fn the_kept_forms_are_read_and_the_table_shows_the_line_each_check_enforces() {
     let read = variants
         .each_ref()
         .map(|variant| variant.as_ref().err().map(ToString::to_string));
-    assert_eq!(read, [None, None, None, None, None, None]);
+    assert_eq!(read, [None, None, None, None, None, None, None]);
     let disagreements: Vec<String> = variants
         .iter()
         .flatten()

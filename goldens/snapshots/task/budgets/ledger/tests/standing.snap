@@ -4,8 +4,6 @@ architecture-and-planning-critical architecture-and-planning  open_items critica
 architecture-and-planning-major architecture-and-planning  open_items major                     0          2          4 ok
 architecture-and-planning-minor architecture-and-planning  open_items minor                     0          4          8 ok
 architecture-and-planning-unrated architecture-and-planning  open_items unrated                   1          1          2 ok
-effect-dispersion  features-and-maintenance   effect_dispersion                    -          1          2 -
-effect-share       features-and-maintenance   effect_share                         -        10%        20% -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -53,8 +51,6 @@ architecture-and-planning-critical architecture-and-planning  open_items critica
 architecture-and-planning-major architecture-and-planning  open_items major                     0          2          4 ok
 architecture-and-planning-minor architecture-and-planning  open_items minor                     0          4          8 ok
 architecture-and-planning-unrated architecture-and-planning  open_items unrated                   1          1          2 ok
-effect-dispersion  features-and-maintenance   effect_dispersion                    -          1          2 -
-effect-share       features-and-maintenance   effect_share                         -        10%        20% -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -96,8 +92,6 @@ architecture-and-planning-critical architecture-and-planning  open_items critica
 architecture-and-planning-major architecture-and-planning  open_items major                     0          2          4 ok
 architecture-and-planning-minor architecture-and-planning  open_items minor                     0          4          8 ok
 architecture-and-planning-unrated architecture-and-planning  open_items unrated                   1          1          2 ok
-effect-dispersion  features-and-maintenance   effect_dispersion                    -          1          2 -
-effect-share       features-and-maintenance   effect_share                         -        10%        20% -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, outside the linked task's division
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -137,8 +131,6 @@ architecture-and-planning-critical architecture-and-planning  open_items critica
 architecture-and-planning-major architecture-and-planning  open_items major                     0          2          4 ok
 architecture-and-planning-minor architecture-and-planning  open_items minor                     0          4          8 ok
 architecture-and-planning-unrated architecture-and-planning  open_items unrated                   1          1          2 ok
-effect-dispersion  features-and-maintenance   effect_dispersion                    -          1          2 -
-effect-share       features-and-maintenance   effect_share                         -        10%        20% -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over, paid down by the linked task
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -176,8 +168,6 @@ architecture-and-planning-critical architecture-and-planning  open_items critica
 architecture-and-planning-major architecture-and-planning  open_items major                     0          2          4 ok
 architecture-and-planning-minor architecture-and-planning  open_items minor                     0          4          8 ok
 architecture-and-planning-unrated architecture-and-planning  open_items unrated                   1          1          2 ok
-effect-dispersion  features-and-maintenance   effect_dispersion                    -          1          2 -
-effect-share       features-and-maintenance   effect_share                         -        10%        20% -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -225,8 +215,6 @@ architecture-and-planning-critical architecture-and-planning  open_items critica
 architecture-and-planning-major architecture-and-planning  open_items major                     0          2          4 ok
 architecture-and-planning-minor architecture-and-planning  open_items minor                     0          4          8 ok
 architecture-and-planning-unrated architecture-and-planning  open_items unrated                   1          1          2 ok
-effect-dispersion  features-and-maintenance   effect_dispersion                    -          1          2 -
-effect-share       features-and-maintenance   effect_share                         -        10%        20% -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -268,8 +256,6 @@ architecture-and-planning-critical architecture-and-planning  open_items critica
 architecture-and-planning-major architecture-and-planning  open_items major                     0          2          4 ok
 architecture-and-planning-minor architecture-and-planning  open_items minor                     0          4          8 ok
 architecture-and-planning-unrated architecture-and-planning  open_items unrated                   1          1          2 ok
-effect-dispersion  features-and-maintenance   effect_dispersion                    -          1          2 -
-effect-share       features-and-maintenance   effect_share                         -        10%        20% -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  1          0          0 over
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
@@ -310,8 +296,6 @@ architecture-and-planning-critical architecture-and-planning  open_items critica
 architecture-and-planning-major architecture-and-planning  open_items major                     -          2          4 -
 architecture-and-planning-minor architecture-and-planning  open_items minor                     -          4          8 -
 architecture-and-planning-unrated architecture-and-planning  open_items unrated                   -          1          2 -
-effect-dispersion  features-and-maintenance   effect_dispersion                    -          1          2 -
-effect-share       features-and-maintenance   effect_share                         -        10%        20% -
 features-and-maintenance-critical features-and-maintenance   open_items critical                  -          0          0 -
 features-and-maintenance-major features-and-maintenance   open_items major                     -          2          4 -
 features-and-maintenance-minor features-and-maintenance   open_items minor                     -          4          8 -

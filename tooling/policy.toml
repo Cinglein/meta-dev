@@ -267,17 +267,3 @@ division = "architecture-and-planning"
 measure = { open_items = { severity = "unrated" } }
 allowance = { count = 2 }
 window = "standing"
-
-[budgets.effect-share]
-division = "features-and-maintenance"
-measure = "effect_share"
-allowance = { share = 20 }
-warning = 50
-window = "standing"
-
-[budgets.effect-dispersion]
-division = "features-and-maintenance"
-measure = "effect_dispersion"
-allowance = { count = 2 }
-warning = 50
-window = "standing"

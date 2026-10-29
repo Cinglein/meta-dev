@@ -3,7 +3,7 @@ mod exposure;
 mod open_item;
 
 use meta_schema::{Division, NewTask};
-use meta_severity::Scales;
+use meta_severity::{Scales, SeverityFilter};
 use meta_state::{State, TaskState};
 
 use super::budget::{Amount, ItemFilter, ItemKind};
@@ -70,8 +70,16 @@ impl Standing {
     }
 
     #[must_use]
-    pub fn exposure(&self, filter: &ItemFilter, division: &Division) -> Exposure {
-        if self.paid_down(filter, division) {
+    pub fn least_severe(&self, division: &Division) -> Option<ItemFilter> {
+        self.scales
+            .scale(division)
+            .and_then(|scale| scale.levels().last())
+            .map(|level| ItemFilter::Severity(SeverityFilter::AtLevel(level.name().clone())))
+    }
+
+    #[must_use]
+    pub fn exposure(&self, filter: Option<&ItemFilter>, division: &Division) -> Exposure {
+        if filter.is_some_and(|filter| self.paid_down(filter, division)) {
             Exposure::PaysDown
         } else if self.within(division) {
             Exposure::Within

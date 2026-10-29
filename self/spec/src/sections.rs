@@ -231,7 +231,7 @@ pub const SECTIONS: &[Section] = &[
                 RuleId::new("domain-reach"),
                 FeaturesAndMaintenance,
                 Wording::new(
-                    "A per-change budget reaches a PR when its diff touches the domain; the domain only scopes what per-change budgets measure. A standing budget never uses the domain or the diff: it reaches a PR only when its linked task is in the division; a PR with no linked task, or whose task is at the root, is within every standing budget's reach.",
+                    "A per-change budget reaches a PR when its diff touches the domain; the domain only scopes what per-change budgets measure. A standing budget never uses the domain or the diff to reach a PR, only to judge an unchanged measure: it reaches a PR only when its linked task is in the division; a PR with no linked task, or whose task is at the root, is within every standing budget's reach.",
                 ),
                 Check(
                     Enforcer::new(
@@ -242,6 +242,20 @@ pub const SECTIONS: &[Section] = &[
                         "tooling/task/src/budgets/ledger.rs",
                         "an_overspend_fails_a_change_within_reach_and_a_nested_part_is_measured",
                     )],
+                ),
+            ),
+            Rule::new(
+                RuleId::new("standing-measure-paydown"),
+                FeaturesAndMaintenance,
+                Wording::new(
+                    "A standing budget on a measured quantity (a tree count or share) uses the standing-cap path: merge-base policy, division reach, report-only off pull requests. While its head spend is over the blocking line, a PR in its division passes only if the head spend is below the merge-base spend, or equal to it while the diff reaches no crate. A PR whose task addresses an open item in the division at its least severe level or above is paid down, so a fix for a worse problem is never blocked. A spend missing at either end fails closed; the row names both ways out.",
+                ),
+                Check(
+                    Enforcer::new(
+                        "tooling/task/src/budgets/ledger.rs",
+                        "an_over_standing_measure_blocks_its_division_until_a_change_moves_it_toward_its_line",
+                    ),
+                    &[],
                 ),
             ),
             Rule::new(

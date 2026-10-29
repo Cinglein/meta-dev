@@ -41,7 +41,9 @@ impl<'policy> Row<'policy> {
 
     #[must_use]
     pub fn state(&self) -> Option<State> {
-        self.budget.state(self.lines.as_ref(), self.spend.as_ref())
+        self.budget
+            .state(self.lines.as_ref(), self.spend.as_ref())
+            .or_else(|| self.exposure.unknown_state())
     }
 
     #[must_use]
