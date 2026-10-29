@@ -37,12 +37,14 @@ use super::LocalClone;
 use crate::request::cli_failure::{CliFailure, Misuse, Setup};
 use crate::request::local::local_settings::MonitorSettings;
 use crate::request::output::{Listed, Output};
-use crate::request::project::HeartbeatSettings;
+use crate::request::project::{CiSettings, HeartbeatSettings, Project};
 use crate::request::scale_policy::ScalePolicy;
 use fault::Fault;
 use finding::Finding;
 use live_machine::LiveMachine;
 use machine::Machine;
+use meta_log::LogStore;
+use meta_state::State;
 use monitor_report::MonitorReport;
 use monitor_state::MonitorState;
 use monitor_trail::MonitorTrail;
@@ -71,18 +73,33 @@ impl Monitor {
     const UNPACED: &'static str =
         "meta.local.toml [monitor] mark_seconds must be at least meta.toml [heartbeat] interval_seconds";
 
-    pub fn answer(self, clone: &LocalClone, heartbeat: &HeartbeatSettings) -> Result<Output, CliFailure> {
+    pub fn answer(
+        self,
+        project: &Project,
+        clone: &LocalClone,
+        heartbeat: &HeartbeatSettings,
+    ) -> Result<Output, CliFailure> {
         let git_dir = clone.git_dir().as_ref();
         match self {
             Self::Tick => {
                 let settings = clone.monitor_settings()?;
                 settings.paced(heartbeat).ok_or_else(|| CliFailure::raised::<Setup>(Self::UNPACED))?;
                 let now = Utc::now();
-                let silences = Silence::heard(git_dir, ScalePolicy::read(clone.checkout())?.liveness(), now);
-                Self::patrolled(git_dir, &Patrol::new(&settings, &LiveMachine::new(&settings), &silences), now)
+                let heard = Self::heard(project, git_dir, now);
+                let unheard = heard.as_ref().err().map(|failure| Fault::shown(format!("liveness unread: {failure}")));
+                let silences = heard.unwrap_or_default();
+                let machine = LiveMachine::new(&settings);
+                Self::patrolled(git_dir, &Patrol::new(&settings, &machine, &silences, unheard.as_ref()), now)
             }
             Self::Report => Ok(Output::Listed(Listed::new(MonitorReport::latest(git_dir)?))),
         }
+    }
+
+    fn heard(project: &Project, git_dir: &Path, now: DateTime<Utc>) -> Result<Vec<Silence>, CliFailure> {
+        let liveness = ScalePolicy::read(project.root())?.liveness();
+        let log = project.log(project.ci_settings().budget(CiSettings::ROUTINE))?;
+        let state = State::fold(log.read()?.records());
+        Silence::heard(git_dir, liveness, &Silence::watched(&state), now)
     }
 
     pub fn noted(clone: &LocalClone, failure: &CliFailure, at: DateTime<Utc>) {

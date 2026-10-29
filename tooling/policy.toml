@@ -97,6 +97,7 @@ full_run = ["every_main_push", "weekly", "on_demand"]
 
 [liveness]
 silent_after = 1800000
+long_call_after = 3600000
 reply_within = 3600000
 
 [domains.features-and-maintenance]

@@ -11,11 +11,15 @@ use super::ci_status::CiStatus;
 use super::commit::Commit;
 use super::session_id::SessionId;
 use super::task_worktree::TaskWorktree;
+use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::git_link::GitLink;
+use crate::request::hook::CallPhase;
+use crate::request::local::LocalFile;
 use crate::request::output::Listed;
 use crate::request::project::Project;
 use chrono::{DateTime, Utc};
 use expected_run::ExpectedRun;
+use meta_schema::{Id, Task};
 use tool_stamp::ToolStamp;
 use watch_state::WatchState;
 
@@ -35,6 +39,9 @@ impl SessionDir {
     const PROBE: &'static str = "probe";
     const EXPECTED: &'static str = "expected";
     const STAMP: &'static str = "tool-stamp";
+    const STAMP_LOCK: &'static str = "tool-stamp.lock";
+    const NO_GIT: &'static str = "no git directory";
+    const UNSTAMPED: &'static str = "tool-call stamp not written; liveness reads this task as unstamped: ";
 
     pub fn for_session(project: &Project, session: &SessionId) -> Option<Self> {
         Self::within(project.root(), session)
@@ -45,24 +52,39 @@ impl SessionDir {
         Some(Self { own, shared: std::env::temp_dir().join(Self::ROOT) })
     }
 
-    pub fn stamped(touched: &Path, at: DateTime<Utc>) -> Option<()> {
-        let worktree = TaskWorktree::enclosing(touched)?.canonical();
-        let session = Self::within(worktree.path(), &SessionId::of_task(worktree.task()))?;
-        session.stamp(&ToolStamp::new(worktree, at)).ok()
+    pub fn stamped(cwd: &Path, call: CallPhase, at: DateTime<Utc>) -> Option<Result<(), Listed>> {
+        let worktree = TaskWorktree::enclosing(cwd)?.canonical();
+        let session = Self::within(worktree.path(), &SessionId::of_task(worktree.task()));
+        let stamped = session
+            .ok_or_else(|| CliFailure::raised::<Setup>(Self::NO_GIT))
+            .and_then(|session| session.stamp(&ToolStamp::new(worktree, at, call)));
+        Some(stamped.map_err(|failure| Listed::new(Self::UNSTAMPED).then(failure)))
     }
 
-    fn stamp(&self, stamp: &ToolStamp) -> std::io::Result<()> {
-        std::fs::create_dir_all(&self.own)?;
-        let target = self.own.join(Self::STAMP);
-        let temp = target.with_extension(Self::PARTIAL);
-        std::fs::write(&temp, serde_json::to_string(stamp)?)?;
-        std::fs::rename(&temp, target)
+    fn stamp(&self, stamp: &ToolStamp) -> Result<(), CliFailure> {
+        let target = LocalFile::new(self.own.join(Self::STAMP));
+        let locking = || {
+            std::fs::create_dir_all(&self.own)?;
+            let lock = std::fs::File::options().create(true).append(true).open(self.own.join(Self::STAMP_LOCK))?;
+            lock.lock().map(|()| lock)
+        };
+        let _held = locking().map_err(|failure| target.failure(failure))?;
+        let kept = serde_json::from_str::<ToolStamp>(&target.text()?).ok();
+        let newer = kept.as_ref().and_then(|kept| kept.newer_than(stamp));
+        let text = serde_json::to_string(stamp).map_err(|failure| target.failure(failure))?;
+        newer.map_or_else(|| target.replaced(&text), Ok)
     }
 
-    pub fn stamps(common_dir: &Path) -> Vec<ToolStamp> {
-        let sessions = std::fs::read_dir(common_dir.join(Self::ROOT)).into_iter().flatten().flatten();
-        let texts = sessions.filter_map(|session| std::fs::read_to_string(session.path().join(Self::STAMP)).ok());
-        texts.filter_map(|text| serde_json::from_str(&text).ok()).collect()
+    pub fn stamp_of(common_dir: &Path, task: Id<Task>) -> Result<Option<ToolStamp>, CliFailure> {
+        let own = common_dir.join(Self::ROOT).join(SessionId::of_task(task).file_name());
+        let stamp = LocalFile::new(own.join(Self::STAMP));
+        let text = stamp.text()?;
+        let parsed = |text: &str| serde_json::from_str::<ToolStamp>(text).map_err(|failure| stamp.failure(failure));
+        let owned = |read: ToolStamp| {
+            let named = read.worktree().task();
+            (named == task).then_some(read).ok_or_else(|| stamp.failure(named))
+        };
+        (!text.is_empty()).then(|| parsed(&text).and_then(owned)).transpose()
     }
 
     pub fn record(&self, line: impl fmt::Display) -> std::io::Result<()> {

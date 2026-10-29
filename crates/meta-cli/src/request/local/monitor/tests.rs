@@ -8,6 +8,8 @@ use meta_golden::Golden;
 
 use super::Monitor;
 use super::culprit::Culprit;
+use super::fault::Fault;
+use super::monitor_report::MonitorReport;
 use super::monitor_state::MonitorState;
 use super::patrol::Patrol;
 use super::process_row::{GroupId, Pid, ProcessRow};
@@ -20,7 +22,7 @@ use crate::request::local::local_settings::Cause;
 use crate::request::local::local_settings::MonitorSettings;
 use crate::request::local::{LocalClone, LocalFile};
 use crate::request::output::{Listed, Output};
-use crate::request::project::{CiSettings, Config, HeartbeatSettings};
+use crate::request::project::{CiSettings, Config};
 use fake_machine::FakeMachine;
 
 const NOW: &str = "2026-10-27T12:00:00Z";
@@ -56,7 +58,8 @@ const UPTIME: &str = "12:00  up 26 days, 19:01, 1 user, load averages: 1.00 2.00
 const STOPPING: &str = "stop = [\"orphaned\", \"cpu-time\", \"wall-time\"]\nspared = []";
 const SILENCING: &str = "stop = [\"orphaned\", \"cpu-time\", \"wall-time\", \"silent\"]\nspared = []";
 const SILENT: &str = r#"{"task":"task-00000000000000c0","worktree":"/p-worktrees/t",
-"quiet":{"secs":4000,"nanos":0},"limit":{"secs":1800,"nanos":0}}"#;
+"hush":{"Quiet":{"quiet":{"secs":4000,"nanos":0},"limit":{"secs":1800,"nanos":0}}}}"#;
+const UNHEARD: &str = "liveness unread: tooling/policy.toml: unreadable";
 const PROMOTING: &str = "watch_ticks = 2\nkept_entries = 6";
 const LOOP: [&str; 2] = ["  100     1   100", "  201     1   201"];
 const JOINED: [&str; 2] =
@@ -129,7 +132,8 @@ impl Watch {
         let state = LocalFile::new(git_dir.join(STATE));
         state.text().unwrap().is_empty().then(|| state.replaced(MARKED).unwrap());
         let silences = [serde_json::from_str::<Silence>(SILENT).unwrap()];
-        Monitor::patrolled(git_dir, &Patrol::new(&settings.unwrap(), host, &silences), now).unwrap()
+        let unheard = Fault::shown(UNHEARD);
+        Monitor::patrolled(git_dir, &Patrol::new(&settings.unwrap(), host, &silences, Some(&unheard)), now).unwrap()
     }
 
     fn shown(host: &FakeMachine, after: &str) -> String {
@@ -174,8 +178,7 @@ fn watch_items_persist_into_obvious_and_the_trail_keeps_no_repeats_failures_or_b
     Monitor::noted(&clone, &failure, last);
     Monitor::noted(&clone, &failure, last);
     let recent = Monitor::recent(&clone, last).unwrap();
-    let heartbeat = HeartbeatSettings::try_from(&Config::default()).unwrap();
-    let report = Monitor::Report.answer(&clone, &heartbeat).unwrap().to_string();
+    let report = MonitorReport::latest(git_dir).unwrap();
     assert!(ticks.iter().all(|tick| matches!(tick, Output::Flagged(_))) && report == ticks[4].to_string());
     let trail = Output::Listed(Listed::new("")).raised_with(recent).to_string();
     Golden::for_test(module_path!(), "trail").checked(&trail).unwrap();

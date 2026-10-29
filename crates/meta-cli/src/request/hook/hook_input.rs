@@ -3,13 +3,14 @@ mod pushed_commits;
 mod shell_command;
 mod tool_input;
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Instant;
 
 use chrono::{DateTime, Utc};
 use meta_schema::Actor;
 use serde::Deserialize;
 
+use super::CallPhase;
 use crate::request::ci::{SessionDir, SessionId, SessionStart};
 use crate::request::output::Listed;
 use crate::request::project::Project;
@@ -60,11 +61,8 @@ impl HookInput {
         self.command()?.publishing_directory(&self.cwd())
     }
 
-    pub fn stamp(&self, at: DateTime<Utc>) -> Option<()> {
-        let cwd = self.cwd();
-        let named = self.tool_input.as_ref().and_then(ToolInput::file_path).map(Path::to_path_buf);
-        let shell = self.command().map(|command| command.followed(&cwd, |_| Some(()))).unwrap_or_default();
-        named.into_iter().chain(shell).chain([cwd]).find_map(|path| SessionDir::stamped(&path, at))
+    pub fn stamp(&self, call: CallPhase, at: DateTime<Utc>) -> Option<Result<(), Listed>> {
+        SessionDir::stamped(&self.cwd(), call, at)
     }
 
     pub fn session(&self) -> Option<&SessionId> {
@@ -79,10 +77,10 @@ impl HookInput {
 
 #[cfg(test)]
 mod tests {
-    use chrono::Utc;
+    use chrono::{DateTime, Utc};
     use serde_json::json;
 
-    use super::HookInput;
+    use super::{CallPhase, HookInput};
     use crate::request::ci::SessionDir;
 
     const TASK: &str = "task-00000000000000c0";
@@ -93,14 +91,18 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let worktree = root.path().join(TASK);
         std::fs::create_dir_all(worktree.join(GIT)).unwrap();
-        let stamp = |input: serde_json::Value| serde_json::from_value::<HookInput>(input).unwrap().stamp(Utc::now());
+        let stamp = |input: serde_json::Value| {
+            let input = serde_json::from_value::<HookInput>(input).unwrap();
+            input.stamp(CallPhase::Finished, Utc::now()).map(|stamped| stamped.is_ok())
+        };
         let edit = json!({ "cwd": root.path(), "tool_input": { "file_path": worktree.join("a.rs") } });
         let shell = json!({ "cwd": root.path(), "tool_input": { "command": format!("cd {TASK} && cargo build") } });
         let own = json!({ "cwd": worktree, "tool_input": { "command": "ls" } });
-        assert_eq!([edit, shell, own].map(stamp), [None, None, Some(())]);
-        let stamps = SessionDir::stamps(&worktree.join(GIT).canonicalize().unwrap());
-        let tasks: Vec<String> = stamps.iter().map(|stamp| stamp.worktree().task().to_string()).collect();
-        assert_eq!(tasks, [TASK]);
+        assert_eq!([edit, shell, own].map(stamp), [None, None, Some(true)]);
+        SessionDir::stamped(&worktree, CallPhase::Started, DateTime::<Utc>::MIN_UTC).unwrap().unwrap();
+        let read = SessionDir::stamp_of(&worktree.join(GIT).canonicalize().unwrap(), TASK.parse().unwrap()).unwrap();
+        let kept = read.map(|stamp| (stamp.worktree().task().to_string(), stamp.call()));
+        assert_eq!(kept, Some((TASK.to_owned(), CallPhase::Finished)));
     }
 
     const PUBLISHING: [(&str, &str); 4] = [

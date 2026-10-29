@@ -6,5 +6,6 @@ use crate::budget::Millis;
 #[serde(deny_unknown_fields)]
 pub struct Liveness {
     silent_after: Millis,
+    long_call_after: Millis,
     reply_within: Millis,
 }

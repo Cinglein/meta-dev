@@ -8,6 +8,7 @@ use std::collections::BTreeSet;
 use chrono::{DateTime, Utc};
 
 use super::culprit::Culprit;
+use super::fault::Fault;
 use super::finding::Finding;
 use super::load_average::LoadAverage;
 use super::machine::Machine;
@@ -33,11 +34,17 @@ pub struct Patrol<'patrol, Host> {
     settings: &'patrol MonitorSettings,
     host: &'patrol Host,
     silences: &'patrol [Silence],
+    unheard: Option<&'patrol Fault>,
 }
 
 impl<'patrol, Host: Machine> Patrol<'patrol, Host> {
-    pub fn new(settings: &'patrol MonitorSettings, host: &'patrol Host, silences: &'patrol [Silence]) -> Self {
-        Self { settings, host, silences }
+    pub fn new(
+        settings: &'patrol MonitorSettings,
+        host: &'patrol Host,
+        silences: &'patrol [Silence],
+        unheard: Option<&'patrol Fault>,
+    ) -> Self {
+        Self { settings, host, silences, unheard }
     }
 
     pub fn settings(&self) -> &MonitorSettings {
@@ -46,7 +53,8 @@ impl<'patrol, Host: Machine> Patrol<'patrol, Host> {
 
     pub fn round(&self, before: &MonitorState, now: DateTime<Utc>) -> MonitorReport {
         let load = self.host.uptime().and_then(|uptime| uptime.parse::<LoadAverage>().ok());
-        let silent = self.silences.iter().cloned().map(Finding::Silent);
+        let unheard = self.unheard.cloned().map(Finding::Failed);
+        let silent = unheard.into_iter().chain(self.silences.iter().cloned().map(Finding::Silent));
         let blind = [Finding::Blind].into_iter().chain(silent.clone()).collect();
         self.rows().map_or_else(
             || MonitorReport::new(now, load, before.clone()).found(blind, Vec::new()),

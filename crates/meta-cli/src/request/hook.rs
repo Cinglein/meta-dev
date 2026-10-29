@@ -1,3 +1,4 @@
+mod call_phase;
 mod hook_input;
 mod linking;
 mod reply;
@@ -18,6 +19,7 @@ use crate::request::ci::{SessionDir, Watcher};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
 use crate::request::output::{Listed, Output};
 use crate::request::project::{CiSettings, Config, Project};
+pub use call_phase::CallPhase;
 use hook_input::HookInput;
 use linking::Linking;
 use reply::{Blocking, Denial, Reply, Verdict};
@@ -78,7 +80,7 @@ impl HookEvent {
     pub fn respond(self) -> Result<Output, CliFailure> {
         let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
         let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
-        matches!(self, Self::PreToolUse | Self::PostToolUse).then(|| input.stamp(Utc::now()));
+        let unstamped = self.phase().and_then(|call| input.stamp(call, Utc::now())).and_then(Result::err);
         let reply = match Project::found(input.cwd().as_path()) {
             Ok(Some(project)) => {
                 let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
@@ -90,7 +92,17 @@ impl HookEvent {
         };
         let opened = (self == Self::SessionStart).then(|| input.open_session()).and_then(Result::err);
         let reply = reply.map(|reply| reply.with_news(opened));
+        let reply = reply.or_else(|| unstamped.as_ref().map(|_| Reply::new(self, Verdict::Allow, None)));
+        let reply = reply.map(|reply| reply.with_news(unstamped));
         Ok(Output::Listed(Listed::new(reply.map(|reply| reply.to_string()).unwrap_or_default())))
+    }
+
+    pub const fn phase(self) -> Option<CallPhase> {
+        match self {
+            Self::PreToolUse => Some(CallPhase::Started),
+            Self::PostToolUse => Some(CallPhase::Finished),
+            Self::SessionStart | Self::Stop => None,
+        }
     }
 
     pub fn refused(self, reason: Listed) -> Reply {

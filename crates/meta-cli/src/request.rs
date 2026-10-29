@@ -180,8 +180,11 @@ impl Request {
                 )?;
                 Ok(answered.raised_with(local))
             }
-            Self::Monitor(command) => command
-                .answer(&LocalClone::try_from(project)?, &project::HeartbeatSettings::try_from(project.config())?),
+            Self::Monitor(command) => command.answer(
+                project,
+                &LocalClone::try_from(project)?,
+                &project::HeartbeatSettings::try_from(project.config())?,
+            ),
             Self::ClaimWorktree(claim) => LocalClone::try_from(project)?.claimed(project, claim, Self::actor()?),
             Self::Worktrees => LocalClone::try_from(project)?.worktrees(project),
             Self::Gc(sweep) => LocalClone::try_from(project)?.collected(project, sweep),
