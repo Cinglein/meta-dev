@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use meta_run::RunFailure;
 use thiserror::Error;
 
+use crate::ref_name::RefName;
+
 #[derive(Debug, Error)]
 pub enum GitFailure {
     #[error("{0} keeps refs in reftable; meta reads only files refs; nothing done")]
@@ -15,4 +17,6 @@ pub enum GitFailure {
     NotText(String),
     #[error("not an object id: {0:?}")]
     NotObjectId(String),
+    #[error("{0} moved since it was read; nothing done")]
+    RefMoved(RefName),
 }

@@ -12,7 +12,7 @@ mod tip;
 pub use remote_heads::RemoteHeads;
 pub use sha::{NotCommitId, Sha};
 
-use meta_git::{FileCommit, Files, Identity, RefMove, RemoteName, Repository, Writes};
+use meta_git::{FileCommit, Files, Identity, Reads, RefMove, RefName, RefTarget, RemoteName, Repository, Writes};
 use meta_run::{Budget, Stderr};
 use meta_schema::Record;
 use std::cell::RefCell;
@@ -75,8 +75,9 @@ impl GitLog {
         let parent = tip.map(Sha::object_id).transpose()?;
         let made = FileCommit::new(parent, files, author, format!("{actor}: {}", record.event()));
         let commit = self.repository.write(&made)?;
-        let Ok(staged) = Self::STAGED.parse();
-        self.repository.write(&RefMove::new(staged, commit))?;
+        let Ok(staged) = Self::STAGED.parse::<RefName>();
+        let was = self.repository.read(&RefTarget::from(staged.clone()))?;
+        self.repository.write(&RefMove::new(staged, was, commit))?;
         Ok(Sha::from(commit))
     }
 

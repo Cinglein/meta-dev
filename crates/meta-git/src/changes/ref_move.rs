@@ -6,6 +6,7 @@ use crate::ref_name::RefName;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RefMove {
     name: RefName,
+    from: Option<ObjectId>,
     to: ObjectId,
 }
 
@@ -13,8 +14,8 @@ impl RefMove {
     const REASON: &'static str = "meta";
 
     #[must_use]
-    pub fn new(name: RefName, to: ObjectId) -> RefMove {
-        RefMove { name, to }
+    pub fn new(name: RefName, from: Option<ObjectId>, to: ObjectId) -> RefMove {
+        RefMove { name, from, to }
     }
 }
 

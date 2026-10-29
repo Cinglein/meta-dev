@@ -157,7 +157,8 @@ fn a_write_after_the_remote_rewound_fast_forwards_and_restores_every_record_it_k
     let kept = vec![appended(), appended()];
     let earlier = Port::history(fixture.origin.path())[SECOND];
     let origin = Repository::open(fixture.origin.path()).unwrap();
-    origin.write(&RefMove::new(BRANCH.parse().unwrap(), earlier)).unwrap();
+    let latest = Port::target(fixture.origin.path(), BRANCH);
+    origin.write(&RefMove::new(BRANCH.parse().unwrap(), latest, earlier)).unwrap();
     let written = [kept.clone(), vec![appended()]].concat();
     let tip = Port::target(fixture.origin.path(), BRANCH).unwrap();
     let heads: RemoteHeads = format!("{tip}\t{BRANCH}\n").parse().unwrap();
