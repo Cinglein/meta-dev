@@ -20,6 +20,7 @@ use std::time::Instant;
 
 use strum::IntoEnumIterator;
 
+use crate::task::BuildDirectory;
 use crate::task::failure::Failure;
 use crate::task::prior_policy::PriorPolicy;
 use crate::task::surfaces::Surfaces;
@@ -61,7 +62,10 @@ impl Ci {
                 };
                 let prior = || PriorPolicy::text_at_merge_base(workspace.root(), policy.branch(Branch::Base));
                 let run = RunKind::from_ambient(&CommandLine::ambient());
-                let tracked = TrackedWork::refuse_untracked(&run, read);
+                let tracked = BuildDirectory::read(workspace.root())
+                    .and_then(|config| config.checked())
+                    .map_err(Failure::from)
+                    .and_then(|()| TrackedWork::refuse_untracked(&run, read));
                 let stepped = tracked
                     .is_ok()
                     .then(CiStep::iter)

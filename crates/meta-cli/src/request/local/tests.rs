@@ -10,7 +10,7 @@ use super::trail_entry::TrailEntry;
 use super::worktrees::Worktrees;
 
 const CHECKOUT: &str = "/work/clone";
-const SIBLING: &str = "/work/clone-worktrees";
+const SIBLING: &str = "/work/clone-worktrees.noindex";
 const RELATIVE: &str = "worktree_root = \"trees\"";
 const NESTED: &str = "/work/clone/trees";
 const NOWHERE: &str = "/nonexistent/clone";

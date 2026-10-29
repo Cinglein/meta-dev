@@ -35,7 +35,7 @@ mod tests {
 
     use super::DenyConfig;
 
-    const PATH: &str = "target/meta/deny.toml";
+    const PATH: &str = "target.noindex/meta/deny.toml";
     const SEMVER: [&str; 1] = ["meta-xtask"];
 
     #[test]

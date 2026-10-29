@@ -1,7 +1,5 @@
 use std::fs;
-use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
 
 use tempfile::TempDir;
 
@@ -17,8 +15,16 @@ pub struct Fixture {
 impl Fixture {
     const WORKING: &str =
         "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = false\n[maintenance]\n\tauto = false\n";
-    const BARE: &str =
-        "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = true\n[maintenance]\n\tauto = false\n";
+    const BARE: &str = "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = true\n[maintenance]\n\tauto = false\n[receive]\n\tautogc = false\n";
+    const NAME: &str = "fixture";
+    const EMAIL: &str = "fixture@invalid";
+    const MESSAGE: &str = "fixture\n";
+    const CHANGE: &str = "refs/heads/change";
+    const HEAD: &str = "HEAD";
+    const EVERY: &str = "*";
+    const GIT_DIR: &str = ".git";
+    const LINE_END: &str = "\n";
+    const SEEDED: Stamp = Stamp(1_700_000_000);
 
     pub fn new() -> Fixture {
         let directory = TempDir::new().expect("temp dir");
@@ -40,50 +46,57 @@ impl Fixture {
     }
 
     pub fn imported(&self, branched: Branched) -> &Fixture {
-        let parent = if self.work.join(".git/refs/heads/change").exists() { "from refs/heads/change^0\n" } else { "" };
-        let files = Self::files(&self.work, Path::new(""));
-        let stream = format!(
-            "commit refs/heads/change\ncommitter fixture <fixture@invalid> 1700000000 +0000\ndata 8\nfixture\n{parent}deleteall\n{files}\n"
-        );
-        let mut child = Self::git(&self.work)
-            .args(["-c", "fastimport.unpackLimit=0", "fast-import", "--quiet"])
-            .stdin(Stdio::piped())
-            .spawn()
-            .expect("run git");
-        child.stdin.take().expect("stdin").write_all(stream.as_bytes()).expect("write stream");
-        child.wait().expect("wait git").success().then_some(()).expect("git succeeds");
+        let repository = self.opened();
+        let tree = Self::tree(&repository, &self.work, Path::new(""));
+        let tree = tree.map_or_else(|| repository.treebuilder(None).and_then(|empty| empty.write()), Ok);
+        let tree = repository.find_tree(tree.expect("write tree")).expect("find tree");
+        let parent = repository.find_reference(Self::CHANGE).and_then(|tip| tip.peel_to_commit()).ok();
+        let time = git2::Time::new(Self::SEEDED.0, 0);
+        let signature = git2::Signature::new(Self::NAME, Self::EMAIL, &time).expect("signature");
+        let parents = Vec::from_iter(&parent);
+        repository.commit(Some(Self::CHANGE), &signature, &signature, Self::MESSAGE, &tree, &parents).expect("commit");
         branched.applied(&self.work);
         self
     }
 
-    fn files(root: &Path, under: &Path) -> String {
+    fn tree(repository: &git2::Repository, root: &Path, under: &Path) -> Option<git2::Oid> {
         let entries = fs::read_dir(root.join(under)).expect("read dir");
-        let named = entries.map(|entry| under.join(entry.expect("dir entry").file_name()));
-        named.filter(|path| path != Path::new(".git")).fold(String::new(), |mut files, path| {
-            let listed = if root.join(&path).is_dir() {
-                Self::files(root, &path)
-            } else {
-                let text = fs::read_to_string(root.join(&path)).expect("read file");
-                let shown = path.display().to_string();
-                ["M 100644 inline ", &shown, "\ndata ", &text.len().to_string(), "\n", &text, "\n"].concat()
-            };
-            files.push_str(&listed);
-            files
-        })
+        let named = entries.map(|entry| entry.expect("dir entry").file_name());
+        let mut tree = repository.treebuilder(None).expect("tree builder");
+        let inserted = named
+            .filter(|name| under.join(name) != Path::new(Self::GIT_DIR))
+            .try_for_each(|name| Self::inserted(repository, root, &under.join(name), &mut tree));
+        inserted.expect("insert entries");
+        (!tree.is_empty()).then(|| tree.write().expect("write tree"))
+    }
+
+    fn inserted(
+        repository: &git2::Repository,
+        root: &Path,
+        path: &Path,
+        tree: &mut git2::TreeBuilder<'_>,
+    ) -> Result<(), git2::Error> {
+        let name = path.file_name().expect("file name");
+        if root.join(path).is_dir() {
+            let subtree = Self::tree(repository, root, path);
+            subtree.map_or(Ok(()), |oid| tree.insert(name, oid, git2::FileMode::Tree.into()).map(drop))
+        } else {
+            let blob = repository.blob(&fs::read(root.join(path)).expect("read file"))?;
+            tree.insert(name, blob, git2::FileMode::Blob.into()).map(drop)
+        }
     }
 
     pub fn committed(&self) -> &Fixture {
-        Self::ran(Self::git(&self.work).args(["add", "--all"]));
-        Self::ran(Self::git(&self.work).args([
-            "-c",
-            "user.name=fixture",
-            "-c",
-            "user.email=fixture@invalid",
-            "commit",
-            "--quiet",
-            "-m",
-            "fixture",
-        ]));
+        let repository = self.opened();
+        let mut index = repository.index().expect("index");
+        index.add_all([Self::EVERY], git2::IndexAddOption::DEFAULT, None).expect("stage files");
+        index.update_all([Self::EVERY], None).expect("stage removals");
+        index.write().expect("write index");
+        let tree = repository.find_tree(index.write_tree().expect("write tree")).expect("find tree");
+        let parent = repository.head().and_then(|head| head.peel_to_commit()).ok();
+        let signature = git2::Signature::now(Self::NAME, Self::EMAIL).expect("signature");
+        let parents = Vec::from_iter(&parent);
+        repository.commit(Some(Self::HEAD), &signature, &signature, Self::MESSAGE, &tree, &parents).expect("commit");
         self
     }
 
@@ -108,8 +121,8 @@ impl Fixture {
     pub fn revision(&self, name: &str) -> String {
         let tip = fs::read_to_string(self.work.join(".git/refs/heads/change")).ok().filter(|_| name == "HEAD");
         tip.unwrap_or_else(|| {
-            let output = Self::git(&self.work).args(["rev-parse", name]).output().expect("run git");
-            String::from_utf8_lossy(&output.stdout).into_owned()
+            let found = self.opened().revparse_single(name).map(|found| found.id());
+            found.map(|id| [id.to_string(), String::from(Self::LINE_END)].concat()).unwrap_or_default()
         })
     }
 
@@ -128,13 +141,9 @@ impl Fixture {
         &self.work
     }
 
-    fn git(directory: &Path) -> Command {
-        let mut command = Command::new("git");
-        command.args(["-c", "core.hooksPath=/dev/null"]).current_dir(directory);
-        command
-    }
-
-    fn ran(command: &mut Command) {
-        command.status().expect("run git").success().then_some(()).expect("git succeeds");
+    fn opened(&self) -> git2::Repository {
+        git2::Repository::open(&self.work).expect("open repository")
     }
 }
+
+struct Stamp(i64);

@@ -143,7 +143,6 @@ impl From<Budgets> for BTreeMap<BudgetId, Budget> {
 
 #[cfg(test)]
 mod tests {
-    use meta_golden::Golden;
 
     use super::Budgets;
     use super::budget::State;
@@ -202,9 +201,10 @@ overspend = "report"
             [PART, WHOLE, REPORTED].map(|id| budgets.budget(&id.parse().unwrap()).unwrap());
         let amount = budgets.amount(part).map(|amount| amount.to_string());
         let shown = format!("{}{PART}: {amount:?}\n", toml::to_string(&budgets).unwrap());
-        Golden::for_test(module_path!(), "written")
-            .checked(&shown)
-            .unwrap();
+        assert_eq!(
+            shown,
+            include_str!("../../../goldens/snapshots/task/budgets/tests/written.snap")
+        );
         assert!(
             part.blocks(OVER)
                 && whole.blocks(OVER)
@@ -221,8 +221,9 @@ overspend = "report"
                 .err()
                 .map(|error| error.message().to_owned())
         });
-        Golden::for_test(module_path!(), "refused")
-            .checked(&format!("{refusals:#?}"))
-            .unwrap();
+        assert_eq!(
+            format!("{refusals:#?}"),
+            include_str!("../../../goldens/snapshots/task/budgets/tests/refused.snap")
+        );
     }
 }

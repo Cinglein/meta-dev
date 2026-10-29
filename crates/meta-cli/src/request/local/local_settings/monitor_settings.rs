@@ -70,13 +70,13 @@ impl MonitorSettings {
     pub fn merged(
         overrides: toml::Table,
         checkout: &Path,
-        worktrees: &Path,
+        worktrees: &[impl AsRef<Path>],
         home: &Path,
     ) -> Result<Self, toml::de::Error> {
         let mut merged: toml::Table = toml::from_str(Self::DEFAULTS).unwrap_or_default();
         merged.extend(overrides);
         let read: Self = toml::Value::Table(merged).try_into()?;
-        let declared = [AgentRoot::own(worktrees)].into_iter().chain(read.roots);
+        let declared = worktrees.iter().map(|root| AgentRoot::own(root.as_ref())).chain(read.roots);
         let declared: Option<Vec<AgentRoot>> = declared.map(|root| root.anchored(checkout, home)).collect();
         let declared = declared.ok_or_else(|| toml::de::Error::custom(Self::TOO_WIDE))?;
         (read.grace.duration() <= Self::GRACE_CEILING && read.probe.duration() <= Self::PROBE_CEILING)

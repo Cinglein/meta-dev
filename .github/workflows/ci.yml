@@ -23,8 +23,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            . -> target
-            examples/consumer -> target
+            . -> target.noindex
+            examples/consumer -> target.noindex
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny@0.20.2,cargo-semver-checks@0.51.0
@@ -59,7 +59,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: rustup toolchain install
-      - uses: Swatinem/rust-cache@v2
+      - &cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target.noindex
       - run: git --version
       - run: cargo xtask goldens
       - name: goldens match a fresh recording (run `cargo xtask goldens` and commit the diff)
@@ -74,7 +77,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: rustup toolchain install
-      - uses: Swatinem/rust-cache@v2
+      - *cache
       - run: cargo xtask stacked
         env:
           GH_TOKEN: ${{ github.token }}
@@ -97,6 +100,7 @@ jobs:
         uses: rui314/setup-mold@v1
       - uses: Swatinem/rust-cache@v2
         with:
+          workspaces: . -> target.noindex
           shared-key: mutants
           save-if: false
       - &mutants-tool
@@ -127,6 +131,7 @@ jobs:
       - *mutants-linker
       - uses: Swatinem/rust-cache@v2
         with:
+          workspaces: . -> target.noindex
           shared-key: mutants
       - *mutants-tool
       - run: cargo xtask mutants
@@ -136,7 +141,7 @@ jobs:
         if: always()
         with:
           name: mutants-${{ strategy.job-index }}
-          path: target/mutants
+          path: target.noindex/mutants
           retention-days: 30
 
   mutant-costs:
@@ -146,12 +151,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: rustup toolchain install
-      - uses: Swatinem/rust-cache@v2
+      - *cache
       - uses: actions/download-artifact@v4
         with:
           pattern: mutants-*
-          path: target/measured
-      - run: cargo xtask mutant-costs target/measured | tee -a "$GITHUB_STEP_SUMMARY"
+          path: target.noindex/measured
+      - run: cargo xtask mutant-costs target.noindex/measured | tee -a "$GITHUB_STEP_SUMMARY"
         shell: bash
 
   ci-gate:

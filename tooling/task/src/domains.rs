@@ -85,7 +85,6 @@ impl From<Domains> for BTreeMap<Division, Domain> {
 
 #[cfg(test)]
 mod tests {
-    use meta_golden::Golden;
     use meta_schema::{Division, TopDivision};
     use settings::EmbeddedDefaults;
     use strum::IntoEnumIterator;
@@ -128,9 +127,10 @@ mod tests {
                 (top, whole.collect::<Vec<ScopeKind>>())
             })
             .collect();
-        Golden::for_test(module_path!(), "declared")
-            .checked(&format!("{declared:#?}"))
-            .unwrap();
+        assert_eq!(
+            format!("{declared:#?}"),
+            include_str!("../../../goldens/snapshots/task/domains/tests/declared.snap")
+        );
     }
 
     #[test]
@@ -148,8 +148,9 @@ mod tests {
     fn domains_outside_their_parent_planning_code_unmeasurable_budgets_and_unordered_scales_are_refused()
      {
         let refusals = REFUSED.map(|added| Policy::with_added(added).err());
-        Golden::for_test(module_path!(), "refused")
-            .checked(&format!("{refusals:#?}"))
-            .unwrap();
+        assert_eq!(
+            format!("{refusals:#?}"),
+            include_str!("../../../goldens/snapshots/task/domains/tests/refused.snap")
+        );
     }
 }

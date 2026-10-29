@@ -30,6 +30,8 @@ const SECOND: usize = 1;
 const PAIR: usize = 2;
 const SINGLE: usize = 1;
 const PATIENT: Duration = Duration::from_secs(30);
+const ORIGIN_CONFIG_FILE: &str = "config";
+const ORIGIN_CONFIG: &str = "[core]\n\trepositoryformatversion = 0\n\tbare = true\n[maintenance]\n\tauto = false\n[receive]\n\tautogc = false\n";
 
 struct Port;
 
@@ -71,6 +73,7 @@ impl Fixture {
     fn new(clones: usize) -> Self {
         let origin = tempfile::tempdir().unwrap();
         Repository::created(origin.path(), Layout::Bare).unwrap();
+        std::fs::write(origin.path().join(ORIGIN_CONFIG_FILE), ORIGIN_CONFIG).unwrap();
         let url = origin.path().to_str().unwrap().to_owned();
         let clones = (0..clones)
             .map(|_| tempfile::tempdir().unwrap())
