@@ -6,11 +6,13 @@ use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
+#[path = "support/meta_command.rs"]
+mod meta_command;
 #[path = "support/skeleton.rs"]
 mod skeleton;
+use meta_command::MetaCommand;
 use skeleton::Skeleton;
 
-const META: &str = env!("CARGO_BIN_EXE_meta");
 const MERGED: &str = "task-00000000000000a1";
 const OPEN: &str = "task-00000000000000a2";
 const DIRTY: &str = "task-00000000000000a3";
@@ -254,9 +256,9 @@ impl Scene {
     }
 
     fn meta(&self, words: &[&str]) -> String {
-        let mut command = Command::new(META);
+        let mut command = MetaCommand::tagged(words);
         let searched = Searched(&self.clone.path().join("bin")).to_string();
-        command.current_dir(self.clone.path()).args(words).env("META_ACTOR", "gc-test").env("PATH", searched);
+        command.current_dir(self.clone.path()).env("META_ACTOR", "gc-test").env("PATH", searched);
         command.env("GIT_INDEX_FILE", self.trees.path().join("foreign-index"));
         let output = command.output().unwrap();
         [String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)].concat()

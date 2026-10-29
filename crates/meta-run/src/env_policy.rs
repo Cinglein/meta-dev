@@ -11,13 +11,16 @@ pub enum EnvPolicy {
 impl EnvPolicy {
     const REPO_VARS: [&'static str; 3] = ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"];
     const GIT_PREFIX: &'static str = "GIT_";
+    const TRACE_VARS: [&'static str; 2] = ["GIT_TRACE2_EVENT", "GIT_TRACE2_PARENT_SID"];
     const IDENTITY_VARS: [&'static str; 1] = ["EMAIL"];
 
     pub(crate) fn applied(self, inherited: Environment) -> Environment {
         match self {
             Self::Inherit => inherited,
             Self::NoRepoVars => inherited.without(Self::REPO_VARS),
-            Self::NoGitVars => inherited.without_prefix(Self::GIT_PREFIX).without(Self::IDENTITY_VARS),
+            Self::NoGitVars => {
+                inherited.without_prefix(Self::GIT_PREFIX, &Self::TRACE_VARS).without(Self::IDENTITY_VARS)
+            }
             Self::Only(kept) => inherited.only(kept),
         }
     }

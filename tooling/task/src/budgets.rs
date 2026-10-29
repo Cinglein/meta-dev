@@ -172,11 +172,13 @@ window = "per_change"
 source = "ci"
 warning = 50
 tolerance = 10
+overspend = "report"
 "#;
     const WINDOW: &str = "window = ";
     const MEASURED: &str = "measure = \"tangle_items\"\nsource = \"ci\"\nwindow = ";
     const PART: &str = "ci-tests";
     const WHOLE: &str = "ci";
+    const REPORTED: &str = "ci-lints";
     const OVER: Option<State> = Some(State::Over);
     const WARN: Option<State> = Some(State::Warn);
     const STANDING: &str = "\"standing\"";
@@ -196,13 +198,19 @@ tolerance = 10
     #[test]
     fn a_budget_reads_back_with_its_default_overspend_and_a_part_keeps_its_share() {
         let budgets: Budgets = toml::from_str(TREE).unwrap();
-        let [part, whole] = [PART, WHOLE].map(|id| budgets.budget(&id.parse().unwrap()).unwrap());
+        let [part, whole, reported] =
+            [PART, WHOLE, REPORTED].map(|id| budgets.budget(&id.parse().unwrap()).unwrap());
         let amount = budgets.amount(part).map(|amount| amount.to_string());
         let shown = format!("{}{PART}: {amount:?}\n", toml::to_string(&budgets).unwrap());
         Golden::for_test(module_path!(), "written")
             .checked(&shown)
             .unwrap();
-        assert!(part.blocks(OVER) && whole.blocks(OVER) && !whole.blocks(WARN));
+        assert!(
+            part.blocks(OVER)
+                && whole.blocks(OVER)
+                && !whole.blocks(WARN)
+                && !reported.blocks(OVER)
+        );
     }
 
     #[test]

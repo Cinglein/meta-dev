@@ -7,6 +7,7 @@ publish.workspace = true
 
 [dependencies]
 task = { path = "../task" }
+git_trace = { path = "../git_trace" }
 strum = { version = "0.28", features = ["derive"] }
 tempfile = { workspace = true }
 nix = { version = "0.31.3", default-features = false, features = ["resource"] }

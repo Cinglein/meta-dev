@@ -38,7 +38,7 @@ use meta_golden::Reach;
 use mutant_costs::MutantCosts;
 use mutation::{Mutants, Scope, ShardPlan, TriggerEvent};
 use stacked::Stacked;
-use test_time::{TestRunner, TestTime};
+use test_time::{GitCount, TestRunner, TestTime};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "kebab-case")]
@@ -167,8 +167,11 @@ impl Task {
             Task::Stacked => Ok(Stacked::run(&policy)?),
             Task::Surfaces => Surfaces::announce(workspace.root(), &policy, summary.as_deref()),
             Task::Test => Ok(Test::run(workspace, &selection, &policy)?),
-            Task::TestTime => Ok(TestTime::run(workspace, &selection, &policy, &mut ledger)
-                .and_then(|()| ledger.checked(&policy, &selection))?),
+            Task::TestTime => Ok(match env::var_os(GitCount::SWITCH) {
+                Some(_) => GitCount::run(workspace, &selection, &policy, &mut ledger),
+                None => TestTime::run(workspace, &selection, &policy, &mut ledger),
+            }
+            .and_then(|()| ledger.checked(&policy, &selection))?),
             lint => Ok(<&'static str>::from(lint).parse::<LintName>().map_or(Ok(()), |lint| {
                 let files = workspace.source_files()?;
                 lint.report(&files, &CrateGraph::graphs(&files), &policy).verdict()
