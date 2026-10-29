@@ -5,8 +5,8 @@ use syn::{
     ExprConst, ImplItemConst, ItemConst, ItemImpl, ItemMod, LitFloat, LitInt, Macro, TraitItemConst,
 };
 
-use task::LineNumber;
 use syn_rules::MacroExpressions;
+use task::LineNumber;
 use task::Policy;
 use task::Report;
 use task::Site;
