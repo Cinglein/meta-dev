@@ -1502,3 +1502,4 @@
 {"at":"2026-10-29T12:47:17.242177Z","actor":"claude-bugs2","kind":"TaskDone","task":"task-14b715cf045525f5"}
 {"at":"2026-10-29T13:12:53.180859Z","actor":"claude-lead","kind":"TaskOpened","task":"task-b345cd6a3924ee90","text":"B13 noise: leave out single-field methods on value/settings types; unresolved self calls must not link methods; duplicate accessor names flagged (review of #176: noise 32 of 43).","division":"architecture-and-planning"}
 {"at":"2026-10-29T13:19:03.277916Z","actor":"claude-cpucut2","kind":"TaskClaimed","task":"task-c64184a1bf9e8e77"}
+{"at":"2026-10-29T13:20:34.712350Z","actor":"claude-cpucut2","kind":"TaskLinked","task":"task-c64184a1bf9e8e77","pr":186}
