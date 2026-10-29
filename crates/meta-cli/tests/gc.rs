@@ -1,7 +1,6 @@
 #![allow(clippy::unwrap_used)]
 
 use std::fmt;
-use std::fs::File;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
@@ -130,14 +129,6 @@ impl fmt::Display for Created<'_> {
     }
 }
 
-struct Searched<'bin>(&'bin Path);
-
-impl fmt::Display for Searched<'_> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{}:{}", self.0.display(), std::env::var("PATH").unwrap_or_default())
-    }
-}
-
 struct Settings<'trees>(&'trees Path);
 
 impl fmt::Display for Settings<'_> {
@@ -221,13 +212,13 @@ impl Scene {
         std::fs::create_dir(scene.clone.path().join(".git/info")).unwrap();
         std::fs::write(scene.clone.path().join(".git/info/exclude"), EXCLUDED).unwrap();
         std::fs::write(scene.clone.path().join("meta.local.toml"), Settings(&scene.trees()).to_string()).unwrap();
-        std::fs::create_dir(scene.clone.path().join("bin")).unwrap();
-        std::fs::write(scene.clone.path().join("bin/gh"), FAKE_GH).unwrap();
-        std::fs::set_permissions(
-            scene.clone.path().join("bin/gh"),
-            std::fs::metadata("/bin/sh").unwrap().permissions(),
-        )
-        .unwrap();
+        let busy = format!("#!/bin/sh\necho n{}\n", scene.trees().join(BUSY).join(".git").display());
+        let (bin, mode) = (scene.clone.path().join("bin"), std::fs::metadata("/bin/sh").unwrap().permissions());
+        std::fs::create_dir(&bin).unwrap();
+        for (name, script) in [("gh", FAKE_GH), ("lsof", &busy)] {
+            std::fs::write(bin.join(name), script).unwrap();
+            std::fs::set_permissions(bin.join(name), mode.clone()).unwrap();
+        }
         Git::seeded(scene.origin.path(), scene.clone.path());
         Git::added(&scene);
         scene.planted();
@@ -255,7 +246,7 @@ impl Scene {
 
     fn meta(&self, words: &[&str]) -> String {
         let mut command = Command::new(META);
-        let searched = Searched(&self.clone.path().join("bin")).to_string();
+        let searched = format!("{}:{}", self.clone.path().join("bin").display(), std::env::var("PATH").unwrap());
         command.current_dir(self.clone.path()).args(words).env("META_ACTOR", "gc-test").env("PATH", searched);
         command.env("GIT_INDEX_FILE", self.trees.path().join("foreign-index"));
         let output = command.output().unwrap();
@@ -267,7 +258,6 @@ impl Scene {
 fn gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_with_reasons() {
     let scene = Scene::new();
     let trees = scene.trees();
-    let _held = File::open(trees.join(BUSY).join(".git")).unwrap();
     let shows = |shown: &str, lines: &[Line]| lines.iter().all(|line| shown.contains(&Shown(line, &trees).to_string()));
     let freed = Freed(&trees).to_string();
     let ticked = scene.meta(&GC_RUN);

@@ -6,6 +6,7 @@ use crate::request::local::local_clone::vetting::alternates::Alternates;
 use crate::request::local::local_clone::vetting::entry_kind::EntryKind;
 use crate::request::local::local_clone::vetting::found::Found;
 use crate::request::local::local_clone::vetting::inspection::Inspection;
+use crate::request::local::local_clone::vetting::kept::Kept;
 
 const FILE: &str = "file";
 const DIR: &str = "dir";
@@ -88,4 +89,6 @@ fn neighbours_are_sibling_alternates_and_a_failed_scan_keeps_everything() {
     assert!(neighbours.len() == expected.len() && expected.iter().all(|lender| neighbours.contains(lender)));
     let scanned = Host::default().occupancy(&[planted.located(MISSING)]).vacant(&planted.located(FILE));
     assert!(scanned.is_err_and(|kept| kept.to_string().starts_with(UNLISTED)));
+    let _held = std::fs::File::open(planted.located(INNER)).unwrap();
+    assert_eq!(Host::default().occupancy(&[planted.located(DIR)]).vacant(&planted.located(DIR)), Err(Kept::InUse));
 }
