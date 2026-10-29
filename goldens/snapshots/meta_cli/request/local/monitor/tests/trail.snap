@@ -1,5 +1,7 @@
 2026-10-27 12:05Z monitor: no agent marker under a root, pid 201 orphaned past its limit, target 201: bash -c while true; do :; done
 2026-10-27 12:05Z monitor: watched long enough, pid 504 cargo test: cpu 2700s rising, 2 ticks since 2026-10-27 12:00Z, last 2026-10-27 12:05Z
+2026-10-27 12:10Z monitor failed: liveness unread: tooling/policy.toml: unreadable
+2026-10-27 12:10Z monitor: silent task-00000000000000c0: no tool call for 4000s, limit 1800s
 2026-10-27 12:10Z monitor: watched long enough, pid 505 cargo test: cpu 2700s flat, 2 ticks since 2026-10-27 12:05Z, last 2026-10-27 12:10Z
 2026-10-27 13:01Z monitor: process table unreadable
 2026-10-27 13:02Z monitor failed: settings unreadable

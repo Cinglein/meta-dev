@@ -1,4 +1,5 @@
 mod entries;
+mod liveness;
 
 use std::collections::BTreeMap;
 
@@ -20,6 +21,7 @@ use crate::gate_env_name::GateEnvName;
 use crate::gate_status::GateStatus;
 use crate::percent::Percent;
 use entries::Entries;
+pub use liveness::Liveness;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -52,6 +54,8 @@ pub struct PolicyFile {
     budgets: BudgetDrafts,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     spec: Option<SpecSettings>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    liveness: Option<Liveness>,
     supply_chain: SupplyChain,
 }
 
@@ -81,6 +85,7 @@ impl PolicyFile {
             scales: policy.scales.clone(),
             budgets: BudgetDrafts::from(policy.budgets.clone()),
             spec: policy.spec.clone(),
+            liveness: policy.liveness,
             supply_chain: policy.supply_chain.clone(),
         }
     }
@@ -215,6 +220,7 @@ impl PolicyFile {
             budgets,
             deprecated,
             spec: self.spec,
+            liveness: self.liveness,
             supply_chain: self.supply_chain,
         })
     }
