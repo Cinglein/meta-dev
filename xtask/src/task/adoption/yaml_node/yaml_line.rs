@@ -53,14 +53,13 @@ impl YamlLine {
         let item = YamlNode::ITEM.to_owned();
         match key.strip_prefix(Self::ITEM) {
             _ if key.is_empty() || key.starts_with(Self::COMMENT) => Vec::new(),
-            Some(rest) if !rest.contains(Self::PAIR) && !rest.ends_with(':') => {
+            Some(rest) if !rest.contains(Self::PAIR) => {
                 vec![YamlLine { indent_len, key: item, value: rest.to_owned() }]
             }
             Some(rest) => {
                 let Ok(inner) = format!("{}{rest}", " ".repeat(indent_len + Self::ITEM.len())).parse::<YamlLine>();
                 Some(YamlLine { indent_len, key: item, value }).into_iter().chain(inner.entries()).collect()
             }
-            None if key == YamlNode::ITEM => vec![YamlLine { indent_len, key, value }],
             None => YamlLine { indent_len, key, value }.pair(),
         }
     }

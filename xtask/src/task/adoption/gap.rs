@@ -20,7 +20,11 @@ impl fmt::Display for Gap {
                 write!(formatter, "{tool}: no workflow step runs it in {directory}; fix: {}", tool.fix())
             }
             Gap::Skippable(tool, place, skip) => {
-                write!(formatter, "{tool}: {place} can skip it through {skip}; fix: remove that so it always runs")
+                let trigger = tool.trigger();
+                write!(
+                    formatter,
+                    "{tool}: {place} can skip it through {skip}; fix: drop that so it always runs on {trigger}"
+                )
             }
             Gap::TurnedOff(tool) => write!(formatter, "{tool}: tooling/policy.toml turns it off; fix: {}", tool.fix()),
         }

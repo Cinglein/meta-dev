@@ -195,6 +195,14 @@ jobs:
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          echo '${{ toJSON(needs) }}' | grep -qE '"result": "(failure|cancelled)"' && exit 1
-          echo "every job passed or was not needed"
+      - name: every job passed; only mutants jobs may skip, and only when the plan has no shards
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          SHARDS: ${{ needs.mutants-plan.outputs.shards }}
+        shell: bash
+        run: |
+          planned='[]'
+          if [ "$SHARDS" = '[]' ]; then planned='["mutants","mutant-costs"]'; fi
+          bad=$(jq -r --argjson planned "$planned" 'to_entries[] | select(.value.result != "success") | select(.value.result == "skipped" and (.key as $job | $planned | index($job)) | not) | "\(.key): \(.value.result)"' <<< "$NEEDS")
+          if [ -n "$bad" ]; then echo "$bad"; exit 1; fi
+          echo "every job passed; skipped only: $planned"

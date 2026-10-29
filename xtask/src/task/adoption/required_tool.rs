@@ -14,14 +14,10 @@ pub enum RequiredTool {
     DiffMutants,
     FullMutants,
     Stacked,
-    TestBudgets,
-    LintBaseline,
+    TestCpuTimeBudget,
 }
 
 impl RequiredTool {
-    const TEST_MEASURES: [Measure; 4] =
-        [Measure::TestWallTime, Measure::TestCpuTime, Measure::SlowestTest, Measure::TestLineShare];
-
     pub fn subcommand(self) -> Option<&'static str> {
         match self {
             RequiredTool::CargoDeny => Some("deny"),
@@ -51,10 +47,7 @@ impl RequiredTool {
         match self {
             RequiredTool::CargoSemverChecks => policy.supply_chain().semver().is_empty(),
             RequiredTool::FullMutants => policy.mutation().due(Some(FullRun::Weekly)).is_none(),
-            RequiredTool::TestBudgets => {
-                Self::TEST_MEASURES.iter().any(|measure| policy.budgets().whole(measure).is_none())
-            }
-            RequiredTool::LintBaseline => policy.budgets().whole(&Measure::LintFindings).is_none(),
+            RequiredTool::TestCpuTimeBudget => policy.budgets().whole(&Measure::TestCpuTime).is_none(),
             _ => false,
         }
         .then_some(Gap::TurnedOff(self))
@@ -80,11 +73,8 @@ impl RequiredTool {
             RequiredTool::Stacked => {
                 "add a step `run: cargo xtask stacked` with env GH_TOKEN and PULL_REQUEST (permissions: pull-requests: read) to a workflow on pull_request"
             }
-            RequiredTool::TestBudgets => {
-                "declare `[budgets.<id>]` with measure test_wall_time, test_cpu_time, slowest_test and test_line_share in tooling/policy.toml"
-            }
-            RequiredTool::LintBaseline => {
-                "declare `[budgets.<id>]` with measure = \"lint_findings\" and a baseline allowance in tooling/policy.toml"
+            RequiredTool::TestCpuTimeBudget => {
+                "copy this default into tooling/policy.toml:\n[budgets.test-cpu-time]\ndivision = \"performance-and-cost\"\nmeasure = \"test_cpu_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"ci\""
             }
         }
     }

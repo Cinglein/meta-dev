@@ -1,6 +1,11 @@
 adoption fails closed: every tool meta-dev requires must run on every change
-- ci: ci.yml job ci can skip it through a `||` fallback; fix: remove that so it always runs
+- ci: ci.yml job ci can skip it through a `||` fallback; fix: drop that so it always runs on pull_request
 - cargo-deny is not installed; fix: install it before `cargo xtask ci`: `uses: taiki-e/install-action@v2` with `tool: cargo-deny@0.20.2`
 - cargo-semver-checks is not installed; fix: install it before `cargo xtask ci` (`uses: taiki-e/install-action@v2` with `tool: cargo-semver-checks@0.51.0`) and list your library crates in `[supply_chain] semver`
-- full-mutants: no workflow step runs it in .; fix: add a step `run: cargo xtask mutants-full` (cargo-mutants@27.1.0 installed) to a workflow on push or schedule, and list "weekly" in `[mutation] full_run`
-- stacked: ci.yml job stacked can skip it through job `if: github.event_name == 'pull_request'`; fix: remove that so it always runs
+- full-mutants: ci.yml job full can skip it through its workflow does not run on push or schedule; fix: drop that so it always runs on push or schedule
+- stacked: ci.yml job stacked can skip it through job `if: github.event_name == 'pull_request'`; fix: drop that so it always runs on pull_request
+adoption fails closed: every tool meta-dev requires must run on every change
+- ci: ci.yml job ci can skip it through a pipe without `shell: bash`, so no pipefail; fix: drop that so it always runs on pull_request
+- cargo-deny is not installed; fix: install it before `cargo xtask ci`: `uses: taiki-e/install-action@v2` with `tool: cargo-deny@0.20.2`
+- cargo-semver-checks is not installed; fix: install it before `cargo xtask ci` (`uses: taiki-e/install-action@v2` with `tool: cargo-semver-checks@0.51.0`) and list your library crates in `[supply_chain] semver`
+- diff-mutants: lint.yml job lint can skip it through `continue-on-error`; fix: drop that so it always runs on pull_request
