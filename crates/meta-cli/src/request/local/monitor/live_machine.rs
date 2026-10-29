@@ -98,7 +98,7 @@ mod tests {
         let mut child =
             Command::new(SLEEP).arg(SECONDS).current_dir(root.path()).process_group(OWN_GROUP).spawn().unwrap();
         let [checkout, worktrees, home] = PLACES.map(Path::new);
-        let settings = MonitorSettings::merged(toml::Table::new(), checkout, worktrees, home).unwrap();
+        let settings = MonitorSettings::merged(toml::Table::new(), checkout, &[worktrees], home).unwrap();
         let (machine, pid) = (LiveMachine::new(&settings), Pid::from(child.id()));
         let table = machine.table().unwrap_or_default();
         let cwds = machine.cwds(&PidList::new(vec![pid])).unwrap_or_default();

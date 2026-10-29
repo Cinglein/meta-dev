@@ -1,2 +1,5 @@
 [alias]
 xtask = "run --quiet --package meta-xtask --"
+
+[build]
+target-dir = "target.noindex"

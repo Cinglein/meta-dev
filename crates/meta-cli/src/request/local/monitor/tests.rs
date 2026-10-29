@@ -63,7 +63,7 @@ impl Watch {
         let now = NOW.parse::<DateTime<Utc>>().unwrap() + offset;
         let checkout = [Path::new("/p"), Path::new("/p-worktrees"), Path::new("/h")];
         let settings =
-            MonitorSettings::merged(toml::from_str(overrides).unwrap(), checkout[0], checkout[1], checkout[2]);
+            MonitorSettings::merged(toml::from_str(overrides).unwrap(), checkout[0], &[checkout[1]], checkout[2]);
         let state = LocalFile::new(git_dir.join(STATE));
         state.text().unwrap().is_empty().then(|| state.replaced(MARKED).unwrap());
         Monitor::patrolled(git_dir, &Patrol::new(&settings.unwrap(), host), now).unwrap()
