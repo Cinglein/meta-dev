@@ -25,7 +25,7 @@ const EXPECTED: &str = ".git/meta-ci/expected";
 const AT_ONCE: &str = "0";
 const STALLED: &str = "expected_millis = 5\ntimeout_millis = 400\ngh_millis = 350\nstop_millis = 40\n";
 const SETTLE_POLL: Duration = Duration::from_millis(2);
-const SETTLE_LENGTH: usize = 3500;
+const SETTLE_LENGTH: usize = 1500;
 const SESSION: &str = "ABCDEF12-34";
 const SESSION_FILE: &str = "ABCDEF1234";
 const FAILURE: Answer =

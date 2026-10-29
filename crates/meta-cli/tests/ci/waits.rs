@@ -2,7 +2,7 @@ use std::path::Path;
 
 use super::{BLOCK, CI_WAIT, COMMIT, EXPECTED, NEXT_COMMIT, PASSED_EVENT, POST, Planted, Repo, STOP, SUCCESS};
 const NAMELESS: &str = "origin.git";
-const UNHURRIED: &str = "expected_millis = 0\n";
+const UNHURRIED: &str = "expected_millis = 0\ntimeout_millis = 2000\ngh_millis = 1000\n";
 const UNCHECKED_EVENT: &str = ": unchecked after";
 const UNCHECKED_STOP: &str = "couldn't check CI for your last push";
 const TASKLESS: &str = "then run `meta wait <task> --on ci` here";
