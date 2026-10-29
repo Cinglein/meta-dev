@@ -79,3 +79,7 @@ git = { call = "untracked-names" }
 [[step]]
 record = "emails-off-base"
 git = { call = "log-emails", operands = ["origin/main"] }
+
+[[step]]
+record = "tracked"
+git = { call = "tracked-names" }

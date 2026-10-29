@@ -6,6 +6,7 @@ mod run_kind;
 mod standing_log;
 mod step_times;
 mod stranding;
+mod tracked_build_output;
 mod tracked_work;
 mod untracked;
 
@@ -35,6 +36,7 @@ use task::Ledger;
 use task::Policy;
 use task::Selection;
 use task::Workspace;
+use tracked_build_output::TrackedBuildOutput;
 use tracked_work::TrackedWork;
 
 pub struct Ci {
@@ -65,6 +67,7 @@ impl Ci {
                 let tracked = BuildDirectory::read(workspace.root())
                     .and_then(|config| config.checked())
                     .map_err(Failure::from)
+                    .and_then(|()| TrackedBuildOutput::refuse(workspace.root()))
                     .and_then(|()| TrackedWork::refuse_untracked(&run, read));
                 let stepped = tracked
                     .is_ok()
