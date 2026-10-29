@@ -4,7 +4,7 @@ use std::fmt;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use meta_golden::{Goldens, Replay};
 
@@ -42,6 +42,14 @@ const WAIT_FAILED: &str = "CI failed\n";
 const EXPECTED: &str = ".git/meta-ci/expected";
 const LEARNED: &str = "432000";
 const NAMELESS: &str = "origin.git";
+const SESSION_DIR: &str = ".git/meta-ci/ABCDEF1234";
+const CONFIG_FILE: &str = "meta.toml";
+const STALLED: &str = "stop_millis = 40\n";
+const SLOW_REMOTE: [&str; 2] = ["remote.origin.uploadpack", "sleep 0.3; git-upload-pack"];
+const SLOW: Duration = Duration::from_millis(500);
+const NOT_WATCHED: &str = "CI not watched";
+const UNWRITABLE: &str = "CI state unwritable: ";
+const OUT_OF_TIME: &str = "couldn't check CI in time; run `meta ci-wait`";
 const UNCHECKED_EVENT: &str = ": unchecked after";
 const UNCHECKED_STOP: &str = "couldn't check CI for your last push";
 const TASKLESS: &str = "then run `meta wait <task> --on ci` here";
@@ -241,4 +249,23 @@ fn a_push_hook_watches_ci_wait_stop_and_log_report_a_failure_and_an_unreadable_r
     assert!(log.contains(LOGGED) && log.contains(BLOCKING) && !log.contains(COMPILING), "{log}");
     let shown = [unchecked.as_str(), stopped.as_str()].concat();
     assert!([UNCHECKED_EVENT, UNCHECKED_STOP, TASKLESS].iter().all(|told| shown.contains(told)), "{shown}");
+    let own = repo.clone.path().join(SESSION_DIR);
+    let open = Planted::locked(&own);
+    repo.git().committed(NEXT_COMMIT);
+    let shown = [repo.hook(POST, COMMIT), repo.hook(STOP, COMMIT)].concat();
+    std::fs::set_permissions(&own, open).unwrap();
+    std::fs::OpenOptions::new()
+        .append(true)
+        .open(repo.clone.path().join(CONFIG_FILE))
+        .unwrap()
+        .write_all(STALLED.as_bytes())
+        .unwrap();
+    let [key, value] = SLOW_REMOTE;
+    repo.git().configured(key, value);
+    let started = Instant::now();
+    let shown = [shown, repo.hook(STOP, COMMIT)].concat();
+    assert!(
+        started.elapsed() < SLOW && [NOT_WATCHED, UNWRITABLE, OUT_OF_TIME].iter().all(|told| shown.contains(told)),
+        "{shown}"
+    );
 }
