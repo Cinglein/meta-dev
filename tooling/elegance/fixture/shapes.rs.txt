@@ -38,7 +38,7 @@ pub trait Unit {
     fn symbol(&self) -> Symbol;
 }
 
-pub trait Solo {
+pub trait Solo<W> {
     fn solo(&self) -> Text;
 }
 
@@ -106,7 +106,7 @@ impl Unit for &Label {
     }
 }
 
-impl Solo for Lonely {
+impl<W: Unit> Solo<W> for Lonely {
     fn solo(&self) -> Text {
         Text
     }
