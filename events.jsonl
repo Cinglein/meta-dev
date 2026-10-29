@@ -1256,3 +1256,4 @@
 {"at":"2026-10-29T00:10:16.359083Z","actor":"claude-kill13","kind":"TaskLinked","task":"task-92b42baa1363a624","pr":144}
 {"at":"2026-10-29T00:10:17.837769Z","actor":"claude-kill13","kind":"TaskLinked","task":"task-9b5044dec582cb15","pr":145}
 {"at":"2026-10-29T00:10:19.355800Z","actor":"claude-kill13","kind":"TaskLinked","task":"task-1b963573ed0242a7","pr":146}
+{"at":"2026-10-29T00:11:53.417161Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-4ff173b8296dc3a2","text":"Main red: scaled test CPU 4043 ms over 4000; raw CPU 2.85 s was the lowest seen. A fast runner (reference 762 ms vs 1.08 s) inflated the scaling.","division":"performance-and-cost","severity":"critical"}
