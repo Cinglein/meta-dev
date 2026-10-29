@@ -1606,3 +1606,4 @@
 {"at":"2026-10-29T20:16:09.165990Z","actor":"claude-sv1","kind":"TaskLinked","task":"task-29901bc46d17bf0a","pr":217}
 {"at":"2026-10-29T20:19:16.597677Z","actor":"claude-qa","kind":"TaskLinked","task":"task-cce9360d23a2663e","pr":218}
 {"at":"2026-10-29T20:19:33.633692Z","actor":"claude-qc","kind":"TaskLinked","task":"task-1920ab52fb3805f8","pr":219}
+{"at":"2026-10-29T20:21:33.954693Z","actor":"claude-lead","kind":"TaskOpened","task":"task-11344664d21c1121","text":"meta queue add|show|run: typed sequential merge reconciler (update onto main, CI wait with deadline, merge, close-out as holder, close untracked PRs, stop with a typed reason for judgement). Replaces the scratch ops.sh stopgap and the hand-edited queue file; first slice of the GitHub service (owner 2026-10-29: everything managed by tooling).","division":"architecture-and-planning"}
