@@ -52,13 +52,13 @@ const REFUSED: [(&str, &str, &str, &str); 34] = [
         "budget a: its measure is not the measure of the budget it is part of",
     ),
     (
-        "meta", WINDOW, "window = \"standing\"\n", "open items take a standing window",
+        "meta", WINDOW, "window = \"standing\"\n", "effects take a standing window",
     ),
     (
         "meta",
         END,
         "\n[budgets.issues]\ndivision = \"features-and-maintenance\"\nmeasure = { open_items = { kind = \"task\" } }\nallowance = { count = 2 }\nwindow = \"per_change\"\n",
-        "open items take a standing window",
+        "effects take a standing window",
     ),
     (
         "meta",
