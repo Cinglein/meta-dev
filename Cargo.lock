@@ -651,7 +651,7 @@ dependencies = [
 
 [[package]]
 name = "meta-xtask"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "affected",
  "corpus_check",
@@ -679,6 +679,7 @@ dependencies = [
  "thiserror",
  "toml 0.9.12+spec-1.1.0",
  "toml_edit",
+ "waterfall",
 ]
 
 [[package]]
@@ -1421,6 +1422,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23f0c9c52aa7cd7d77769a4cfe2a9adb1b331f489a41d912ce14513d5ab995c6"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "waterfall"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "task",
 ]
 
 [[package]]
