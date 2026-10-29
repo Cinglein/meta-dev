@@ -11,7 +11,7 @@ pub(super) struct ChildrenCpu(Duration);
 impl ChildrenCpu {
     pub(super) fn now() -> Result<ChildrenCpu, Failure> {
         getrusage(UsageWho::RUSAGE_CHILDREN)
-            .map(|usage| Self::of(usage.user_time(), usage.system_time()))
+            .map(|usage| Self::summed(usage.user_time(), usage.system_time()))
             .map_err(|errno| Failure::Io {
                 site: Site::Workspace,
                 error: io::Error::from(errno),
@@ -22,7 +22,7 @@ impl ChildrenCpu {
         self.0.saturating_sub(earlier.0)
     }
 
-    fn of(user: TimeVal, system: TimeVal) -> ChildrenCpu {
+    fn summed(user: TimeVal, system: TimeVal) -> ChildrenCpu {
         ChildrenCpu(Self::spent(user) + Self::spent(system))
     }
 
@@ -44,7 +44,7 @@ mod tests {
         let spent = ChildrenCpu::now().unwrap().since(before);
         let slow = crate::reference_cpu::ReferenceCpu::new(spent + spent, spent);
         assert!(spent > before.since(before) && slow.scaled(spent + spent) == spent);
-        let system = ChildrenCpu::of(SPENT, SPENT).since(ChildrenCpu::of(SPENT, NONE));
+        let system = ChildrenCpu::summed(SPENT, SPENT).since(ChildrenCpu::summed(SPENT, NONE));
         assert!(slow.to_string().contains("against") && system == ChildrenCpu::spent(SPENT));
     }
 }
