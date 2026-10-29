@@ -67,4 +67,6 @@ pub enum Failure {
     Unbuilt(&'static str),
     #[error("git: {0}")]
     Git(Unread),
+    #[error("{skipped}: fails closed in CI: {failure}")]
+    Unreached { skipped: String, failure: Box<Failure> },
 }

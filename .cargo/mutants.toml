@@ -8,6 +8,7 @@ exclude_re = [
     "Stranding::refuse_stranded",
     "LocalGate::run",
     "Clippy::run",
+    "Supply::(alerts|deny|semver)",
     "Test::run",
     "TestTime::run",
     "TestRunner::run",

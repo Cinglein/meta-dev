@@ -1,0 +1,4 @@
+dependabot alerts: on, 2 open
+dependabot alerts: high cargo time GHSA-aaaa-bbbb-cccc https://example.invalid/1
+dependabot alerts: low actions checkout GHSA-dddd-eeee-ffff https://example.invalid/2
+dependabot alerts: on, 0 open
