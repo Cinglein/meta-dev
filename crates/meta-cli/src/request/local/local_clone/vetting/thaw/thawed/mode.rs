@@ -5,6 +5,12 @@ use serde::{Deserialize, Serialize};
 pub struct Mode(u32);
 
 impl Mode {
+    const OWNER_ALL: u32 = 0o700;
+
+    pub fn owner_writable(self) -> Self {
+        Self(self.0 | Self::OWNER_ALL)
+    }
+
     pub fn new(bits: u32) -> Self {
         Self(bits)
     }
