@@ -763,7 +763,7 @@ dependencies = [
 
 [[package]]
 name = "meta-xtask"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "affected",
  "build_time",
