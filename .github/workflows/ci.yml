@@ -9,6 +9,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  TMPDIR: /dev/shm
+
 jobs:
   ci:
     runs-on: ubuntu-latest
@@ -32,6 +35,8 @@ jobs:
         run: |
           df -T /tmp /dev/shm "$GITHUB_WORKSPACE"
           findmnt -no FSTYPE,OPTIONS /
+          findmnt -no FSTYPE,OPTIONS /dev/shm
+          echo "TMPDIR=$TMPDIR"
           sysctl vm.dirty_ratio vm.dirty_background_ratio vm.dirty_expire_centisecs vm.dirty_writeback_centisecs
           (while :; do echo "wb $(date -u +%H:%M:%S.%N | cut -c1-12) $(grep -E '^(Dirty|Writeback):' /proc/meminfo | tr -s ' ' | tr '\n' ' ') $(cat /proc/pressure/io | tr '\n' ' ')"; sleep 0.2; done | tee -a "$RUNNER_TEMP/wb.log" | grep -q never-printed) &
       - run: cargo xtask ci ${{ github.event_name == 'pull_request' && '--affected' || '' }}
