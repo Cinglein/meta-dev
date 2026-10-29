@@ -166,6 +166,8 @@ mod tests {
     const THROUGH: &str = "--no-fail-fast --tests --config target.'cfg(all())'.runner = [\"target/debug/x\\\"task\", \"test-runner\"]";
     const NAMES: [&str; 4] = ["target/debug/deps/bin-1a2b3c", "exact", "slow", "bulk"];
     const TICK: Duration = Duration::from_millis(1);
+    const FAST_RUNNER: Duration = Duration::from_millis(762);
+    const OBSERVED_CPU: Duration = Duration::from_millis(2850);
     const WHOLE_IN_UNITS: usize = 4;
     const REPORTED: [&str; 3] = ["slowest-test", "test-cpu-time", "test-time"];
     const NOTHING_TIMED: [&str; 1] = ["no tests were found to time"];
@@ -174,7 +176,10 @@ mod tests {
     impl TestTime {
         fn over_budget(timings: Vec<TestTiming>, policy: &Policy) -> Report {
             let mut ledger = Ledger::default();
-            let reference = ReferenceCpu::new(TICK, TICK);
+            let reference = ReferenceCpu::new(
+                FAST_RUNNER,
+                policy.interval(Interval::ReferenceCpu).duration(),
+            );
             let found = TestTime { timings, reference }.recorded(policy, &mut ledger);
             let verdict = ledger.statement(policy).verdict(&Selection::Workspace);
             Report::new(
@@ -189,6 +194,8 @@ mod tests {
         let policy = Policy::defaults();
         let limit = policy.interval(Interval::PerTest).duration();
         let [binary, exact, slow, bulk] = NAMES;
+        let fast = vec![TestTiming::new(Path::new(binary), slow, TICK, OBSERVED_CPU)];
+        assert!(TestTime::over_budget(fast, &policy).is_clean());
         let timing =
             |name: &str, elapsed| TestTiming::new(Path::new(binary), name, elapsed, elapsed);
         let exact = (0..WHOLE_IN_UNITS).map(|_| timing(exact, limit)).collect();
