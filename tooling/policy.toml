@@ -120,10 +120,9 @@ source = "ci"
 [budgets.git-processes]
 division = "performance-and-cost"
 measure = "git_processes"
-allowance = { count = 856 }
+allowance = { count = 652 }
 window = "per_change"
 source = "ci"
-overspend = "report"
 
 [budgets.git-starters]
 division = "performance-and-cost"
