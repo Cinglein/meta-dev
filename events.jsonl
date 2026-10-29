@@ -1525,3 +1525,4 @@
 {"at":"2026-10-29T14:50:23.611599Z","actor":"claude-fmpay","kind":"TaskLinked","task":"task-6fd44d9595d6d855","pr":193}
 {"at":"2026-10-29T14:51:34.118720Z","actor":"claude-cpucut2","kind":"TaskLinked","task":"task-c64184a1bf9e8e77","pr":194}
 {"at":"2026-10-29T15:21:17.353893Z","actor":"claude-lead","kind":"TaskOpened","task":"task-c51560e4891fa237","text":"meta link records owner/name#n (old bare numbers read as this repo); meta unlink as an append-only TaskUnlinked event; hook auto-link, status and goldens follow.","division":"features-and-maintenance","addresses":["concern-ba37a350f82c8bf5"]}
+{"at":"2026-10-29T15:21:20.157805Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-7ecc21803d9347a2","text":"macOS: inherited ignored signals undetected (no /proc; sigaction/sysctl need unsafe, workspace forbids it), so nohup or background meta dies on HUP/INT. Needs owner call: an unsafe-exempt crate or accept."}
