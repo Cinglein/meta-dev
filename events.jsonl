@@ -1268,3 +1268,4 @@
 {"at":"2026-10-29T00:40:21.929029Z","actor":"claude-cpucut","kind":"TaskClaimed","task":"task-bafed2692f095d5c"}
 {"at":"2026-10-29T00:43:10.542528Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-ae914e46858fa3fe","text":"Agent liveness: hooks stamp last tool call; monitor flags silence and wall-time overrun; asks carry reply deadlines; stop per policy."}
 {"at":"2026-10-29T00:43:15.360207Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-bafed2692f095d5c","text":"Cut raw test CPU to 3.0 s or less (main 3.99 s, line 4.0 s): profile per test, drop spawn-heavy and redundant work."}
+{"at":"2026-10-29T00:43:16.859138Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-c377794bb98d4c2d","text":"Meta-only CI gate: branch names a claimed task linked to this PR (open, or done by it); no exceptions; meta quick."}
