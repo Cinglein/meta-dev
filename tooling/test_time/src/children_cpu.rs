@@ -44,6 +44,6 @@ mod tests {
         let spent = ChildrenCpu::now().unwrap().since(before);
         assert!(spent > before.since(before));
         let system = ChildrenCpu::summed(SPENT, SPENT).since(ChildrenCpu::summed(SPENT, NONE));
-        assert!(system == ChildrenCpu::spent(SPENT));
+        assert_eq!(system, ChildrenCpu::spent(SPENT));
     }
 }
