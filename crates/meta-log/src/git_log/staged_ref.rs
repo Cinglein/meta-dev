@@ -22,6 +22,12 @@ impl StagedRef {
         Ok(moved.map(|()| Some(commit)).or_else(|failure| failure.ref_moved().map(|_| None))?)
     }
 
+    pub fn exhausted(repository: &Repository) -> LogFailure {
+        let lock = repository.git_dir().join(format!("{}.lock", Self::NAME));
+        let age = std::fs::metadata(&lock).and_then(|found| found.modified()).map(|made| made.elapsed());
+        age.ok().map_or(LogFailure::Contended, |age| LogFailure::StaleLock { lock, age: age.unwrap_or_default() })
+    }
+
     fn name() -> RefName {
         let Ok(name) = Self::NAME.parse();
         name
