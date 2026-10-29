@@ -21,9 +21,9 @@ impl MonitorState {
         Self { marked, watched }
     }
 
-    pub fn read(git_dir: &Path) -> Self {
+    pub fn read(git_dir: &Path) -> Result<Self, CliFailure> {
         let text = LocalFile::new(git_dir.join(Self::FILE)).text().unwrap_or_default();
-        serde_json::from_str(&text).unwrap_or_default()
+        Ok(serde_json::from_str(&text).unwrap_or_default())
     }
 
     pub fn write(&self, git_dir: &Path) -> Result<(), CliFailure> {

@@ -7,6 +7,7 @@ use chrono::{DateTime, TimeDelta, Utc};
 use meta_golden::Golden;
 
 use super::Monitor;
+use super::monitor_state::MonitorState;
 use super::patrol::Patrol;
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::local_settings::MonitorSettings;
@@ -55,6 +56,15 @@ const LATER: [TimeDelta; 5] =
     [TimeDelta::zero(), TimeDelta::minutes(5), TimeDelta::minutes(10), TimeDelta::minutes(61), TimeDelta::minutes(62)];
 const BROKEN: &str = "settings unreadable";
 const GIT: &str = ".git";
+
+#[test]
+fn a_corrupt_monitor_state_file_is_refused_naming_the_file_and_a_way_out_while_a_missing_one_is_fresh() {
+    let git_dir = tempfile::tempdir().unwrap();
+    assert_eq!(MonitorState::read(git_dir.path()).unwrap(), MonitorState::default());
+    LocalFile::new(git_dir.path().join(STATE)).replaced("{").unwrap();
+    let refusal = MonitorState::read(git_dir.path()).unwrap_err().to_string();
+    assert!(refusal.contains(STATE) && refusal.contains("delete"));
+}
 
 struct Watch;
 
