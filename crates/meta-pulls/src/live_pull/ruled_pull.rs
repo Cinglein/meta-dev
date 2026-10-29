@@ -52,10 +52,10 @@ impl<'pull> RuledPull<'pull> {
         match (pull.state, pull.merge, verdict.failing(), verdict.passed()) {
             (PullState::Merged | PullState::Closed, ..) => Head::Gone(Gone::new(number, pull.state)),
             (PullState::Open, MergeState::Dirty, ..) => Head::Conflicted(Conflicted::new(number)),
-            (PullState::Open, MergeState::Behind, ..) => Head::Behind(Behind::new(number)),
             (PullState::Open, _, Some(_), _) => {
                 Head::Red(Red::new(number, pull.rollup.as_ref().map(Rollup::failing).unwrap_or_default()))
             }
+            (PullState::Open, MergeState::Behind, None, _) => Head::Behind(Behind::new(number)),
             (PullState::Open, MergeState::Clean | MergeState::HasHooks, None, Some(())) => {
                 Head::Green(Green::new(number, pull.commit.clone()))
             }
