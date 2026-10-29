@@ -584,14 +584,13 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "git2",
- "libc",
- "libproc",
  "meta-gh",
  "meta-git",
  "meta-git-view",
  "meta-golden",
  "meta-listing",
  "meta-log",
+ "meta-process-table",
  "meta-pull-query",
  "meta-pulls",
  "meta-run",
@@ -668,6 +667,16 @@ dependencies = [
  "meta-schema",
  "serde",
  "serde_json",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "meta-process-table"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "libproc",
  "tempfile",
  "thiserror",
 ]

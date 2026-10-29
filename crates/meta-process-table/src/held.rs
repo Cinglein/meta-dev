@@ -1,8 +1,7 @@
 use std::path::PathBuf;
 
 use super::scan::Scan;
-use crate::request::local::local_clone::vetting::occupancy::Occupancy;
-use crate::request::local::local_clone::vetting::uninspected::Uninspected;
+use super::uninspected::Uninspected;
 
 #[derive(Debug, Default)]
 pub struct Held {
@@ -11,20 +10,21 @@ pub struct Held {
 }
 
 impl Held {
+    #[must_use]
     pub fn uninspected(&self) -> Uninspected {
         self.uninspected
     }
 
-    pub fn occupancy(self, scanned: &[PathBuf]) -> Occupancy {
-        let under = self.paths.into_iter().filter(|path| scanned.iter().any(|root| path.starts_with(root)));
-        Occupancy::Listed(under.collect())
+    #[must_use]
+    pub fn under(self, scanned: &[PathBuf]) -> Vec<PathBuf> {
+        self.paths.into_iter().filter(|path| scanned.iter().any(|root| path.starts_with(root))).collect()
     }
 
-    pub fn holding(self, paths: Vec<PathBuf>) -> Self {
+    pub(crate) fn holding(self, paths: Vec<PathBuf>) -> Self {
         Self { paths: [self.paths, paths].concat(), ..self }
     }
 
-    pub fn refused(self) -> Self {
+    pub(crate) fn refused(self) -> Self {
         Self { uninspected: self.uninspected.counted(), ..self }
     }
 }

@@ -14,7 +14,7 @@ wire_types = [
     "std::any::Any",
     "core::any::Any",
 ]
-bit_boundary = ["crates/meta-cli/src/request/local/local_clone/vetting/host/process_table"]
+bit_boundary = ["crates/meta-process-table/src"]
 gate = "local-gate"
 gate_wait = 600000
 surfaces = [

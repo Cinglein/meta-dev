@@ -8,13 +8,20 @@ const SLEEP: &str = "sleep";
 const SECONDS: &str = "30";
 const DIRS: [&str; 3] = ["cwd", "held", "cwd-sibling"];
 const FILE: &str = "open.log";
-const BUSY: [bool; 3] = [false, false, true];
-const EXITED: [bool; 3] = [true, false, true];
+const BUSY: [bool; 3] = [true, true, false];
+const EXITED: [bool; 3] = [false, true, false];
 const OPENED: [&str; 2] = ["/work/a", "/elsewhere/b"];
 const SCANNED: [&str; 2] = ["/work", "/else"];
 const UNINSPECTED: &str = "2 processes could not be inspected\n";
 
 struct Sleeper(Child);
+
+impl Sleeper {
+    fn occupied(dirs: &[PathBuf; 3]) -> [bool; 3] {
+        let under = ProcessTable::held().unwrap().under(dirs);
+        dirs.each_ref().map(|dir| under.iter().any(|path| path.starts_with(dir)))
+    }
+}
 
 impl Drop for Sleeper {
     fn drop(&mut self) {
@@ -31,12 +38,10 @@ fn a_child_cwd_or_an_open_file_under_a_dir_occupies_it_and_an_exited_child_does_
     let [cwd, held, _] = &dirs;
     let _open = File::create(held.join(FILE)).unwrap();
     let mut child = Sleeper(Command::new(SLEEP).arg(SECONDS).current_dir(cwd).spawn().unwrap());
-    let busy = ProcessTable::held().unwrap().occupancy(&dirs);
+    let busy = Sleeper::occupied(&dirs);
     child.0.kill().unwrap();
     child.0.wait().unwrap();
-    let exited = ProcessTable::held().unwrap().occupancy(&dirs);
-    assert_eq!(dirs.each_ref().map(|dir| busy.vacant(dir).is_ok()), BUSY, "{busy:?}");
-    assert_eq!(dirs.each_ref().map(|dir| exited.vacant(dir).is_ok()), EXITED, "{exited:?}");
+    assert_eq!((busy, Sleeper::occupied(&dirs)), (BUSY, EXITED));
 }
 
 #[test]
@@ -44,7 +49,6 @@ fn a_table_keeps_the_opened_paths_under_the_scanned_dirs_and_counts_each_uninspe
     let opened = Scan::Opened(OPENED.map(PathBuf::from).to_vec());
     let held: Held = [Scan::Uninspected, Scan::Skipped, opened, Scan::Uninspected].into_iter().collect();
     let shown = held.uninspected().to_string();
-    let occupancy = held.occupancy(&SCANNED.map(PathBuf::from));
-    let vacant = OPENED.map(|path| occupancy.vacant(&PathBuf::from(path)).is_ok());
-    assert_eq!((shown.as_str(), vacant), (UNINSPECTED, [false, true]));
+    let under = held.under(&SCANNED.map(PathBuf::from));
+    assert_eq!((shown.as_str(), under), (UNINSPECTED, vec![PathBuf::from(OPENED[0])]));
 }

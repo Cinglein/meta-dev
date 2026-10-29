@@ -7,9 +7,9 @@ use meta_status::{Ending, Lifetime};
 use super::{Census, Collection, Sweeper, Tracked};
 use crate::request::local::local_clone::vetting::EntryKind;
 use crate::request::local::local_clone::vetting::fake_host::{FakeHost, PATH, TASK};
-use crate::request::local::local_clone::vetting::uninspected::Uninspected;
 use crate::request::local::recorded_worktree::RecordedWorktree;
 use crate::request::local::sweep::Sweep;
+use meta_process_table::Uninspected;
 
 const ESCAPED: &str = "/elsewhere/task-00000000000000b1";
 const GONE: &str = "/trees/gone";

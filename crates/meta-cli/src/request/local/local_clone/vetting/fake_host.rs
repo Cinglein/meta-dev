@@ -17,13 +17,13 @@ use super::kept::Kept;
 use super::occupancy::Occupancy;
 use super::shared_node::SharedNode;
 use super::thaw::{Thaw, Thawed};
-use super::uninspected::Uninspected;
 use crate::request::local::byte_count::ByteCount;
 use crate::request::local::local_clone::quarantine::Stamp;
 use crate::request::local::recorded_worktree::RecordedWorktree;
 use crate::request::local::worktree_id::WorktreeId;
 use fake_batch::FakeBatch;
 use fake_roots::FakeRoots;
+use meta_process_table::Uninspected;
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
 
