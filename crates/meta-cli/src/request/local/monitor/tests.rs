@@ -7,10 +7,7 @@ use chrono::{DateTime, TimeDelta, Utc};
 use meta_golden::Golden;
 
 use super::Monitor;
-use super::identity::Identity;
 use super::patrol::Patrol;
-use super::process_row::Pid;
-use super::reused::Reused;
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::local_settings::MonitorSettings;
 use crate::request::local::{LocalClone, LocalFile};
@@ -59,23 +56,22 @@ const LATER: [TimeDelta; 5] =
 const BROKEN: &str = "settings unreadable";
 const GIT: &str = ".git";
 
-#[test]
-fn a_recorded_identity_is_refused_once_the_start_time_differs() {
-    let pid = Pid::from(100);
-    let recorded = Identity::observe(&FakeMachine::new(&[], "", ""), pid).unwrap();
-    let confirmed = |start| recorded.confirmed(&FakeMachine::new(&[], "", "").started_at(start, start));
-    assert_eq!(confirmed("t0"), Ok(()));
-    assert_eq!(confirmed("t1"), Err(Reused::new(pid)));
-    assert_eq!(confirmed(""), Err(Reused::new(pid)));
-}
+const CHANGED: &str = "Tue Oct 27 07:00:00 2026";
+const HOSTS: [(fn(FakeMachine<'static>) -> FakeMachine<'static>, &str, &str); 3] = [
+    (|host| host.started_at("100", CHANGED), "not signalled", "-TERM"),
+    (|host| host.started_at("100", ""), "already gone", "-TERM"),
+    (|host| host.started_after_term("100", CHANGED), "not signalled", "-KILL"),
+];
 
 #[test]
-fn a_survivor_whose_start_time_changed_during_the_grace_is_reported_and_never_killed() {
-    let git_dir = tempfile::tempdir().unwrap();
-    let host = FakeMachine::new(&[SCENE, AFTER], CWDS, UPTIME).started_at("t0", "t1");
-    let report = Watch::patrolled(&host, git_dir.path(), STOPPING, TimeDelta::zero()).to_string();
-    let acts = host.to_string();
-    assert!(report.contains("not signalled") && acts.contains("-TERM") && !acts.contains("-KILL"));
+fn a_culprit_is_signalled_only_while_it_is_the_process_first_listed_and_one_that_exited_is_reported_gone() {
+    let shown = HOSTS.map(|(arranged, expected, unsent)| {
+        let git_dir = tempfile::tempdir().unwrap();
+        let host = arranged(FakeMachine::new(&[SCENE, AFTER], CWDS, UPTIME));
+        let report = Watch::patrolled(&host, git_dir.path(), STOPPING, TimeDelta::zero()).to_string();
+        report.contains(expected) && !host.to_string().contains(unsent)
+    });
+    assert_eq!(shown, [true; 3]);
 }
 
 struct Watch;

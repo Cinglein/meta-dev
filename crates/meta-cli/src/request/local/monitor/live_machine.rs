@@ -18,7 +18,7 @@ pub struct LiveMachine<'settings> {
 
 impl<'settings> LiveMachine<'settings> {
     const PS: &'static str = "ps";
-    const LISTING: [&'static str; 3] = ["x", "-o", "pid=,ppid=,pgid=,etime=,time=,%cpu=,command="];
+    const LISTING: [&'static str; 3] = ["x", "-o", "pid=,ppid=,pgid=,lstart=,etime=,time=,%cpu=,command="];
     const START: [&'static str; 3] = ["-o", "lstart=", "-p"];
     const LSOF: &'static str = "lsof";
     const CWD: [&'static str; 6] = ["-a", "-d", "cwd", "-F", "n", "-p"];
