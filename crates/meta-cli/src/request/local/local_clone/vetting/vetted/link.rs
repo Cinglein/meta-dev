@@ -43,12 +43,11 @@ impl Link {
     const LOCKED: &'static str = "locked";
     const ALTERNATES: &'static str = "objects/info/alternates";
     const MODULES: &'static str = "modules";
-    const PAUSED_DIRS: [&'static str; 3] = ["rebase-merge", "rebase-apply", "sequencer"];
-    const MERGING: &'static str = "MERGE_HEAD";
-    const PAUSED_ROOTS: [&'static str; 6] = [
-        "for-each-ref",
-        "--include-root-refs",
-        "--format=%(refname)",
+    const PAUSED: [&'static str; 7] = [
+        "rebase-merge",
+        "rebase-apply",
+        "sequencer",
+        "MERGE_HEAD",
         "CHERRY_PICK_HEAD",
         "REVERT_HEAD",
         "REBASE_HEAD",
@@ -56,7 +55,6 @@ impl Link {
     const CONFIG: &'static str = "config.worktree";
     const REFTABLE: &'static str = "reftable";
     const RESOLVE: [&'static str; 2] = ["cat-file", "--batch-check=%(objectname)"];
-    const VERIFY: [&'static str; 3] = ["rev-parse", "--verify", "-q"];
     const HEAD: &'static str = "HEAD";
     const LINE_END: &'static str = "\n";
     const NO_HEAD: &'static str = "HEAD does not resolve";
@@ -171,23 +169,19 @@ impl Link {
     fn guarded(&self, replay: &Replay<'_>) -> Result<(), Halt> {
         let both = [self.git_dir.as_path(), self.common.as_path()];
         let own = [self.git_dir.as_path()];
+        // A pause is a file in the worktree's git dir (reftable is refused above), so a present
+        // MERGE_HEAD or *_HEAD keeps the worktree whatever it holds: no git process needed.
         let groups: [(&[&Path], &[&str]); 5] = [
             (&own, &[Self::LOCKED]),
             (&own, &[Self::REFTABLE]),
             (&both, &[Self::ALTERNATES]),
             (&both, &[Self::MODULES]),
-            (&own, &Self::PAUSED_DIRS),
+            (&own, &Self::PAUSED),
         ];
         let entries = groups.iter().flat_map(|(dirs, names)| {
             names.iter().flat_map(move |name| dirs.iter().map(move |dir| Look::Entry(dir.join(name))))
         });
-        let merging = Self::VERIFY.map(OsStr::new).into_iter().chain([OsStr::new(Self::MERGING)]).collect::<Vec<_>>();
-        let tail = [
-            Look::Git(self.call(Scope::Worktree, &merging)),
-            Look::Git(self.call(Scope::Worktree, &Self::PAUSED_ROOTS.map(OsStr::new))),
-            Look::Text(self.git_dir.join(Self::CONFIG)),
-        ];
-        let looks: Vec<Look> = entries.chain(tail).collect();
+        let looks: Vec<Look> = entries.chain([Look::Text(self.git_dir.join(Self::CONFIG))]).collect();
         let mut seen = replay.looked(looks)?.into_iter();
         let mut absent = |count: usize| -> Result<bool, Halt> {
             seen.by_ref().take(count).try_fold(true, |all, seen| Ok(all && seen.entry()? == EntryKind::Missing))
@@ -199,13 +193,8 @@ impl Link {
             found = found.or((!clear).then_some(kept));
         }
         found.map_or(Ok(()), Err)?;
-        let mut rest = seen;
-        let mut next = || rest.next().ok_or_else(Replay::diverged);
-        let merging = next()?.git()?.is_ok_and(|object| object.lines().next().is_some());
-        (!merging).then_some(()).ok_or(Kept::Paused)?;
-        let roots = next()?.git()??;
-        roots.lines().next().is_none().then_some(()).ok_or(Kept::Paused)?;
-        let Ok(config) = next()?.text()?.unwrap_or_default().parse::<WorktreeConfig>();
+        let config = seen.next().ok_or_else(Replay::diverged)?.text()?;
+        let Ok(config) = config.unwrap_or_default().parse::<WorktreeConfig>();
         Ok(config.unredirected()?)
     }
 
