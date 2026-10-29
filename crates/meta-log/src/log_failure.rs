@@ -34,7 +34,7 @@ pub enum LogFailure {
 impl LogFailure {
     #[must_use]
     pub fn gave_up(deadline: Instant) -> LogFailure {
-        if Instant::now() < deadline { LogFailure::Contended } else { LogFailure::Expired }
+        deadline.checked_duration_since(Instant::now()).map_or(LogFailure::Expired, |_| LogFailure::Contended)
     }
 }
 

@@ -32,7 +32,7 @@ impl Attempt {
         mut found: impl FnMut() -> Result<Option<Found>, Failure>,
     ) -> Option<Result<Found, Failure>> {
         let bounded = budget.within(deadline);
-        let attempts = Self::sequence().take_while(|_| Instant::now() < deadline);
+        let attempts = Self::sequence().take_while(|_| deadline.checked_duration_since(Instant::now()).is_some());
         attempts.into_iter().find_map(|attempt| attempt.settled(found(), &bounded))
     }
 
