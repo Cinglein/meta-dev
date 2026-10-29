@@ -1,3 +1,4 @@
+mod cargo_tag;
 mod claim_plan;
 mod claim_run;
 mod collection;
@@ -5,6 +6,7 @@ mod gc_lock;
 mod git;
 mod git_dir;
 mod quarantine;
+mod target_seed;
 mod vetting;
 mod worktree_listing;
 

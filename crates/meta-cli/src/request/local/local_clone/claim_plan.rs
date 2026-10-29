@@ -23,7 +23,7 @@ impl ClaimPlan {
         taken.map_or(Ok(()), |path| Err(ClaimRefusal::Taken(path.to_path_buf())))?;
         let written = (holding == Holding::Fresh).then_some(ClaimStep::Written);
         let steps = [ClaimStep::Pruned, ClaimStep::Configured].into_iter().chain(base.map(ClaimStep::Branched));
-        Ok(Self(steps.chain([ClaimStep::Added, ClaimStep::Settled]).chain(written).collect()))
+        Ok(Self(steps.chain([ClaimStep::Added, ClaimStep::Settled, ClaimStep::Seeded]).chain(written).collect()))
     }
 
     pub fn steps(&self) -> &[ClaimStep] {

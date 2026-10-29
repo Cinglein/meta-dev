@@ -8,6 +8,7 @@ use meta_run::GitArgv;
 use super::LocalClone;
 use super::claim_plan::{ClaimHands, ClaimPlan, ClaimStep};
 use super::git::Git;
+use super::target_seed::TargetSeed;
 use crate::request::ci::{SessionId, SessionStart};
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::local_settings::Identity;
@@ -84,6 +85,10 @@ impl<Write: Fn() -> Result<String, CliFailure>> ClaimHands for ClaimRun<'_, Writ
             .record()
             .map_err(CliFailure::raised::<Setup>)?;
         LocalTrail::append(self.clone.git_dir.as_ref(), &TrailEntry::Created(recorded))
+    }
+
+    fn seeded(&self) -> Result<(), CliFailure> {
+        TargetSeed::new(&self.clone.checkout, &self.created()?).sown()
     }
 
     fn written(&self) -> Result<String, CliFailure> {

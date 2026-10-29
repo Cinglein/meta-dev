@@ -10,6 +10,7 @@ pub enum ClaimStep {
     Branched(BranchName),
     Added,
     Settled,
+    Seeded,
     Written,
 }
 
@@ -19,7 +20,7 @@ impl ClaimStep {
             Self::Branched(_) => Some(Undo::BranchDeleted),
             Self::Added => Some(Undo::WorktreeRemoved),
             Self::Settled => Some(Undo::Untrailed),
-            Self::Pruned | Self::Configured | Self::Written => None,
+            Self::Pruned | Self::Configured | Self::Seeded | Self::Written => None,
         }
     }
 
@@ -31,6 +32,7 @@ impl ClaimStep {
             Self::Branched(base) => quiet(hands.branched(base)),
             Self::Added => quiet(hands.added()),
             Self::Settled => quiet(hands.settled()),
+            Self::Seeded => quiet(hands.seeded()),
             Self::Written => hands.written(),
         }
     }
