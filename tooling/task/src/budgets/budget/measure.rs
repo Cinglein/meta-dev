@@ -43,9 +43,7 @@ impl Measure {
             | Measure::SlowestTest
             | Measure::WorkflowWallTime(_) => Unit::Duration,
             Measure::MutantPrice | Measure::TestLineShare | Measure::EffectShare => Unit::Share,
-            Measure::TangleItems | Measure::OpenItems(_) | Measure::EffectDispersion => {
-                Unit::Count
-            }
+            Measure::TangleItems | Measure::OpenItems(_) | Measure::EffectDispersion => Unit::Count,
             Measure::LintFindings => Unit::Baseline,
         }
     }
