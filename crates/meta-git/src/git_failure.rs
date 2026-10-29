@@ -20,3 +20,12 @@ pub enum GitFailure {
     #[error("{0} moved since it was read; nothing done")]
     RefMoved(RefName),
 }
+
+impl GitFailure {
+    pub fn ref_moved(self) -> Result<RefName, GitFailure> {
+        match self {
+            Self::RefMoved(name) => Ok(name),
+            other => Err(other),
+        }
+    }
+}

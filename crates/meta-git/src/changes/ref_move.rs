@@ -32,10 +32,10 @@ impl Change for RefMove {
     type Applied = ();
 
     fn applied(&self, repository: &git2::Repository) -> Result<(), GitFailure> {
-        let (name, to) = (self.name.as_str(), self.to.oid());
+        let name = self.name.as_str();
         let moved = match self.from {
-            Some(from) => repository.reference_matching(name, to, true, from.oid(), Self::REASON),
-            None => repository.reference(name, to, false, Self::REASON),
+            Some(from) => repository.reference_matching(name, self.to.oid(), true, from.oid(), Self::REASON),
+            None => repository.reference(name, self.to.oid(), false, Self::REASON),
         };
         moved.map(drop).map_err(|error| self.refused(error))
     }

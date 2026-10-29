@@ -12,7 +12,7 @@ mod tip;
 pub use remote_heads::RemoteHeads;
 pub use sha::{NotCommitId, Sha};
 
-use meta_git::{FileCommit, Files, GitFailure, Identity, Reads, RefMove, RefName, RefTarget, RemoteName, Repository, Writes};
+use meta_git::{FileCommit, Files, Identity, Reads, RefMove, RefName, RefTarget, RemoteName, Repository, Writes};
 use meta_run::{Budget, Stderr};
 use meta_schema::Record;
 use std::cell::RefCell;
@@ -77,11 +77,8 @@ impl GitLog {
         let commit = self.repository.write(&made)?;
         let Ok(staged) = Self::STAGED.parse::<RefName>();
         let was = self.repository.read(&RefTarget::from(staged.clone()))?;
-        match self.repository.write(&RefMove::new(staged, was, commit)) {
-            Ok(()) => Ok(Some(Sha::from(commit))),
-            Err(GitFailure::RefMoved(_)) => Ok(None),
-            Err(failure) => Err(failure.into()),
-        }
+        let moved = self.repository.write(&RefMove::new(staged, was, commit)).map(|()| Some(Sha::from(commit)));
+        Ok(moved.or_else(|failure| failure.ref_moved().map(|_| None))?)
     }
 
     fn attempt<Failure: From<LogFailure>>(
@@ -92,16 +89,15 @@ impl GitLog {
         let before = known.map_or_else(|| self.fresh(Listing::Kept), Ok)?;
         let record = decide(&before.content().snapshot())?;
         let appended = before.content().appended(&record).map_err(LogFailure::from)?;
-        let Some(commit) = self.commit(before.tip(), &appended, &record)? else {
-            return Ok(Outcome::Raced);
-        };
-        match self.remote.push(&commit)? {
+        let committed = self.commit(before.tip(), &appended, &record)?;
+        let pushed = |commit: Sha| match self.remote.push(&commit)? {
             Ok(()) => {
                 self.known.replace(Some(Fetched::new(Some(commit), appended)));
                 Ok(Outcome::Appended(record))
             }
-            Err(stderr) => Ok(self.after_failed_push(&before, record, stderr)?),
-        }
+            Err(stderr) => self.after_failed_push(&before, record, stderr),
+        };
+        Ok(committed.map_or(Ok(Outcome::Raced), pushed)?)
     }
 
     fn fresh(&self, listing: Listing) -> Result<Fetched, LogFailure> {
