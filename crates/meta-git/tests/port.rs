@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 
 use meta_git::{
-    FileCommit, Files, FilesAt, FirstParents, GitFailure, Identity, Layout, ObjectId, Reads, RefMove, RefName,
+    FileCommit, Files, FilesAt, FirstParents, GitFailure, Head, Identity, Layout, ObjectId, Reads, RefMove, RefName,
     RefTarget, Repository, Writes,
 };
 
@@ -49,4 +49,19 @@ fn a_reftable_repository_fails_closed_with_a_clear_error() {
     std::fs::write(directory.path().join("config"), REFTABLE).unwrap();
     let refused = Repository::open(directory.path());
     assert!(matches!(refused, Err(GitFailure::Reftable(path)) if path == directory.path()));
+}
+
+#[test]
+fn head_reads_unborn_and_born_branches_and_fails_on_a_corrupt_ref() {
+    let directory = tempfile::tempdir().unwrap();
+    let repository = Repository::created(directory.path(), Layout::Bare).unwrap();
+    std::fs::write(directory.path().join("HEAD"), "ref: refs/heads/main\n").unwrap();
+    let unborn = repository.read(&Head).unwrap();
+    assert_eq!((unborn.commit(), unborn.branch().map(ToString::to_string)), (None, Some("refs/heads/main".to_owned())));
+    let tip = Commits::written(&repository, None, FILE);
+    let Ok(main) = "refs/heads/main".parse::<RefName>();
+    repository.write(&RefMove::new(main, tip)).unwrap();
+    assert_eq!(repository.read(&Head).unwrap().commit(), Some(tip));
+    std::fs::write(directory.path().join("refs/heads/main"), "garbage\n").unwrap();
+    assert!(repository.read(&Head).is_err());
 }
