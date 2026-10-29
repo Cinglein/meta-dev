@@ -55,7 +55,9 @@ impl Waterfall {
 
     fn critical_path(&self) -> Vec<&TimedUnit> {
         let mut path: Vec<&TimedUnit> =
-            iter::successors(self.last(), |unit| self.units.iter().find(|before| before.unblocked(unit))).collect();
+            iter::successors(self.last(), |unit| self.units.iter().find(|before| before.unblocked(unit)))
+                .take(self.units.len())
+                .collect();
         path.reverse();
         path
     }
@@ -98,15 +100,27 @@ impl fmt::Display for Waterfall {
 
 #[cfg(test)]
 mod tests {
+    use std::iter;
+    use std::path::Path;
+
     use super::Waterfall;
 
     const REPORT: &str = include_str!("report.html");
     const SHOWN: &str = include_str!("shown.txt");
+    const REPORT_FILE: &str = "src/report.html";
 
     #[test]
     fn a_cargo_timing_report_shows_its_critical_path_and_per_crate_times() {
         let shown = Waterfall::parse(REPORT).map(|waterfall| waterfall.to_string());
         assert_eq!(shown.ok().as_deref(), Some(SHOWN));
         assert!(Waterfall::parse(SHOWN).is_err());
+    }
+
+    #[test]
+    fn each_report_file_is_shown_in_turn_and_no_report_shows_nothing() {
+        let report = Path::new(env!("CARGO_MANIFEST_DIR")).join(REPORT_FILE);
+        let shown = Waterfall::shown([report.clone(), report].into_iter());
+        assert_eq!(shown.ok().flatten(), Some(SHOWN.repeat(2)));
+        assert!(matches!(Waterfall::shown(iter::empty()), Ok(None)));
     }
 }
