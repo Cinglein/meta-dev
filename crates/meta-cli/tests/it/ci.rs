@@ -39,6 +39,7 @@ const COMPILING: &str = "Compiling";
 const CI_WAIT: &str = "ci-wait";
 const CI_LOG: &str = "ci-log";
 const EVENT_PREFIX: &str = "CI ";
+const WAIT_FAILED: &str = "CI failed\n";
 const COMPLETIONS: [&str; 6] = [
     ": passed after",
     ": failed after",
@@ -225,5 +226,6 @@ fn a_push_hook_watches_ci_and_wait_stop_and_log_each_report_the_failure() {
     let log = repo.meta(&[CI_LOG]).0;
     assert!(watched.lines().all(|line| line.starts_with(EVENT_PREFIX)), "{watched}");
     assert!(watched.contains(STEP_LISTED) && !waited.1.success() && stop.contains(BLOCK_REASON), "{watched}");
+    assert!(waited.0.contains(STEP_LISTED) && waited.0.ends_with(WAIT_FAILED), "{}", waited.0);
     assert!(log.contains(LOGGED) && log.contains(BLOCKING) && !log.contains(COMPILING), "{log}");
 }
