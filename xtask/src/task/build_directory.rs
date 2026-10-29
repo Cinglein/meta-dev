@@ -93,7 +93,7 @@ mod tests {
         fs::create_dir_all(config.parent().unwrap()).unwrap();
         fs::write(&config, KEPT).unwrap();
         (0..2).for_each(|_| BuildDirectory::read(root.path()).unwrap().initialized().unwrap());
-        assert_eq!(fs::read_to_string(&config).unwrap(), MERGED);
+        assert!(fs::read_to_string(&config).unwrap() == MERGED && BuildDirectory::read(&config).is_err());
         fs::write(&config, FOREIGN).unwrap();
         let refused = BuildDirectory::read(root.path()).unwrap().initialized().unwrap_err().to_string();
         assert!(refused.contains("\"out\"") && fs::read_to_string(&config).unwrap() == FOREIGN);
