@@ -35,6 +35,7 @@ exclude_re = [
     "MutantsBuild::checked",
     "Adoption::checked",
     "Workflow::(all|read)",
+    "DependabotConfig::read",
     "RunEvent::ambient",
 ]
 minimum_test_timeout = 10.0

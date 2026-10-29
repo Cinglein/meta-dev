@@ -15,6 +15,8 @@ pub enum RequiredTool {
     FullMutants,
     Stacked,
     TestCpuTimeBudget,
+    DependabotUpdates,
+    DependabotAlerts,
 }
 
 impl RequiredTool {
@@ -72,6 +74,12 @@ impl RequiredTool {
             }
             RequiredTool::Stacked => {
                 "add a step `run: cargo xtask stacked` with env GH_TOKEN and PULL_REQUEST (permissions: pull-requests: read) to a workflow on pull_request"
+            }
+            RequiredTool::DependabotUpdates => {
+                "list this workspace in .github/dependabot.yml: an `updates` entry with `package-ecosystem: cargo`, `directory: /<workspace path>` and `schedule: interval: weekly`"
+            }
+            RequiredTool::DependabotAlerts => {
+                "turn on Dependabot alerts, give the step that runs `cargo xtask ci` env GH_TOKEN that can read them (for example `${{ secrets.DEPENDABOT_TOKEN || github.token }}` with `permissions: security-events: read`), and fix or dismiss every open alert"
             }
             RequiredTool::TestCpuTimeBudget => {
                 "copy this default into tooling/policy.toml:\n[budgets.test-cpu-time]\ndivision = \"performance-and-cost\"\nmeasure = \"test_cpu_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"ci\""

@@ -1,3 +1,4 @@
+mod dependabot_config;
 mod gap;
 mod gaps;
 mod required_tool;
@@ -11,11 +12,15 @@ mod yaml_node;
 
 pub use gaps::Gaps;
 
+use std::path::PathBuf;
+
 use strum::IntoEnumIterator;
 use task::{CommandLine, Policy, Program, Site, Stdout, Workspace};
 
 use crate::task::Task;
 use crate::task::failure::Failure;
+use crate::task::supply::Runner;
+use dependabot_config::DependabotConfig;
 use gap::Gap;
 use required_tool::RequiredTool;
 use step_run::StepRun;
@@ -25,23 +30,35 @@ use working_directory::WorkingDirectory;
 #[derive(Debug)]
 pub struct Adoption {
     cargo: CommandLine,
+    gh: CommandLine,
+    runner: Runner,
     workflows: Vec<Workflow>,
+    dependabot: DependabotConfig,
     directory: WorkingDirectory,
 }
 
 impl Adoption {
     const GIT: &str = ".git";
     const VERSION: &str = "--version";
+    const ALERTS: [&str; 4] =
+        ["api", "repos/{owner}/{repo}/dependabot/alerts?state=open&per_page=100", "--jq", "length"];
+    const NO_ALERTS: &str = "0";
+    const ALERTS_CHECK: &str = "dependabot alerts";
 
     pub fn checked(workspace: &Workspace, policy: &Policy) -> Result<(), Failure> {
         let root = workspace.root();
         let repository = root.ancestors().find(|directory| directory.join(Self::GIT).exists()).unwrap_or(root);
+        let io = |path: PathBuf| move |error| Failure::from(task::Failure::Io { site: Site::File(path), error });
         let directory = repository.join(Workflow::DIRECTORY);
-        let workflows = Workflow::all(&directory)
-            .map_err(|error| Failure::from(task::Failure::Io { site: Site::File(directory), error }))?;
+        let workflows = Workflow::all(&directory).map_err(io(directory))?;
+        let config = repository.join(DependabotConfig::FILE);
+        let dependabot = DependabotConfig::read(&config).map_err(io(config))?;
         let adoption = Adoption {
             cargo: workspace.line(Program::Cargo),
+            gh: workspace.line(Program::GitHub),
+            runner: Runner::ambient(),
             workflows,
+            dependabot,
             directory: WorkingDirectory::within(repository, root),
         };
         let gaps = adoption.gaps(policy);
@@ -59,10 +76,25 @@ impl Adoption {
                     let uninstalled = tool.subcommand().filter(|subcommand| !installed(subcommand));
                     let unrun = tool.task().and_then(|task| self.unrun(tool, task));
                     let gaps = uninstalled.map(|_| Gap::Uninstalled(tool)).into_iter().chain(unrun);
-                    gaps.chain(tool.turned_off(policy))
+                    let unlisted = (matches!(tool, RequiredTool::DependabotUpdates)
+                        && !self.dependabot.covers(&self.directory))
+                    .then(|| Gap::Unlisted(tool, self.directory.clone()));
+                    let alerted = matches!(tool, RequiredTool::DependabotAlerts).then(|| self.alerts(tool)).flatten();
+                    gaps.chain(tool.turned_off(policy)).chain(unlisted).chain(alerted)
                 })
                 .collect(),
         )
+    }
+
+    fn alerts(&self, tool: RequiredTool) -> Option<Gap> {
+        match self.gh.clone().arguments(Self::ALERTS).captured::<Stdout>() {
+            Ok(count) if count.lines().eq([Self::NO_ALERTS]) => None,
+            Ok(count) => Some(Gap::Alerted(tool, count)),
+            Err(failure) => {
+                let unread = self.runner.unreached(Failure::from(failure), Self::ALERTS_CHECK);
+                unread.err().map(|failure| Gap::Unreadable(tool, Box::new(failure)))
+            }
+        }
     }
 
     fn unrun(&self, tool: RequiredTool, task: Task) -> Option<Gap> {
@@ -84,7 +116,7 @@ mod tests {
 
     use strum::IntoEnumIterator;
 
-    use super::{Adoption, Gaps, RequiredTool, Workflow, WorkingDirectory};
+    use super::{Adoption, Gaps, RequiredTool, Runner, Workflow, WorkingDirectory};
 
     const CONSUMER: &str = include_str!("../../../../examples/consumer/tooling/policy.toml");
     const DROPPED: [&str; 3] = [
@@ -145,18 +177,29 @@ jobs:
       - run: cargo xtask mutants-full
         working-directory: other
 ";
-    const DIRECTORIES: [&str; 2] = [".", "other"];
+    const DEPENDABOT: &str = "version: 2
+updates:
+  - package-ecosystem: \"cargo\"
+    directories: [\"/\"]
+  - package-ecosystem: cargo
+    directory: /other/
+  - package-ecosystem: github-actions
+    directory: /unrun
+";
+    const DIRECTORIES: [(&str, &str); 3] = [(".", FAILING), ("other", "true"), ("unrun", FAILING)];
 
     #[test]
     fn missing_tools_steps_that_can_skip_and_absent_steps_are_gaps_with_their_fix() {
-        let gaps = DIRECTORIES.map(|directory| {
+        let gaps = DIRECTORIES.map(|(directory, gh)| {
             let Ok(directory) = directory.parse::<WorkingDirectory>();
             let workflows = [(FILE, WORKFLOW), (LINT_FILE, LINT), (MAIN_FILE, MAIN)].map(|(file, text)| {
                 let Ok(root) = text.parse();
                 Workflow::new(file.into(), root)
             });
-            let cargo = CommandLine::new(Program::Executable(FAILING.into()));
-            Adoption { cargo, workflows: workflows.into(), directory }.gaps(&Policy::defaults())
+            let [cargo, gh] = [FAILING, gh].map(|program| CommandLine::new(Program::Executable(program.into())));
+            let Ok(dependabot) = DEPENDABOT.parse();
+            let (runner, workflows) = (Runner::Ci, workflows.into());
+            Adoption { cargo, gh, runner, workflows, dependabot, directory }.gaps(&Policy::defaults())
         });
         assert!(Gaps::new(Vec::new()).is_empty() && !gaps.iter().any(Gaps::is_empty));
         Golden::for_test(module_path!(), "gaps").checked(&gaps.map(|gaps| gaps.to_string()).join("\n")).unwrap();
