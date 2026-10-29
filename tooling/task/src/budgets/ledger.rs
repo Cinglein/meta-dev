@@ -148,7 +148,6 @@ impl Ledger {
 mod tests {
     use std::collections::BTreeSet;
 
-    use meta_golden::Golden;
     use meta_schema::Record;
     use meta_state::State;
 
@@ -162,6 +161,8 @@ mod tests {
     const LOG: &str = include_str!("ledger/standing.jsonl");
     const STANDING: &str = include_str!("ledger/standing.toml");
     const BASE: &str = include_str!("ledger/base.toml");
+    const MERGE_BASE: &str =
+        include_str!("../../../../goldens/snapshots/task/budgets/ledger/tests/merge_base.snap");
     const ADDRESSING: &str = "8";
     const LINKS: [&str; 7] = [
         "", "7", "task-0000000000000004", ADDRESSING, "9", "10", "11",
@@ -248,9 +249,10 @@ mod tests {
             )
         });
         let unlinked = Ledger::default().shown(&policy);
-        Golden::for_test(module_path!(), "standing")
-            .checked(&format!("{}{unlinked}", shown.concat()))
-            .unwrap();
+        assert_eq!(
+            format!("{}{unlinked}", shown.concat()),
+            include_str!("../../../../goldens/snapshots/task/budgets/ledger/tests/standing.snap")
+        );
         assert!(policy.budgets().standing() && !Budgets::default().standing());
     }
 
@@ -273,9 +275,8 @@ mod tests {
             )
         });
         let fresh = Ledger::default().tangled(OVER_CAP).shown(&policy);
-        Golden::for_test(module_path!(), "merge_base")
-            .checked(&format!("{enforced}{reported}{}{fresh}", ends.concat()))
-            .unwrap();
+        let shown = [enforced, reported, ends.concat(), fresh].concat();
+        assert_eq!(shown, MERGE_BASE);
     }
 
     #[test]
@@ -284,9 +285,10 @@ mod tests {
         let ledger = Ledger::overspent(&policy);
         let linted = Ledger::default().tangled(TANGLED);
         let shown = format!("{}{}", ledger.shown(&policy), linted.shown(&policy));
-        Golden::for_test(module_path!(), "overspent")
-            .checked(&shown)
-            .unwrap();
+        assert_eq!(
+            shown,
+            include_str!("../../../../goldens/snapshots/task/budgets/ledger/tests/overspent.snap")
+        );
         assert!(ledger.checked(&policy, &Selection::Workspace).is_err());
     }
 }

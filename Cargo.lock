@@ -651,6 +651,7 @@ dependencies = [
  "affected",
  "corpus_check",
  "crate_graph",
+ "git2",
  "git_starters",
  "meta-golden",
  "meta-log",
@@ -1166,7 +1167,6 @@ version = "0.1.0"
 dependencies = [
  "derive_more",
  "enum-map",
- "meta-golden",
  "meta-schema",
  "meta-severity",
  "meta-state",
