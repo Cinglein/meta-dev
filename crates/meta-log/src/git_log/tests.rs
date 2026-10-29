@@ -157,16 +157,15 @@ fn refusals_write_nothing_and_rejected_or_offline_writes_fail() {
 }
 
 #[test]
-fn a_write_after_the_remote_rewound_retries_on_the_fresh_tip_and_brings_nothing_back() {
+fn a_write_after_the_remote_rewound_fast_forwards_and_restores_every_record_it_knew() {
     let fixture = Fixture::new(SINGLE);
     let log = fixture.log(FIRST);
     let appended = || log.append::<LogFailure>(&mut |_| Ok(Fixture::record())).unwrap();
-    let kept = appended();
-    appended();
+    let kept = vec![appended(), appended()];
     Git::run(fixture.origin.path(), &REWIND);
-    let written = appended();
+    let written = [kept.clone(), vec![appended()]].concat();
     let heads: RemoteHeads = Git::text(fixture.clones[FIRST].path(), &LIST_REMOTE).parse().unwrap();
     let [read, listed] =
         [fixture.log(FIRST).read(), log.read_listed(&heads)].map(|read| read.unwrap().records().to_vec());
-    assert_eq!((read, listed), (vec![kept.clone(), written.clone()], vec![kept, written]));
+    assert_eq!((read, listed), (written.clone(), written));
 }
