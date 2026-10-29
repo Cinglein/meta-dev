@@ -3,13 +3,16 @@
 use std::fmt;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus, Output, Stdio};
+use std::process::{Command, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
 
 use meta_golden::{Goldens, Replay};
 
+#[path = "support/fixture.rs"]
+mod fixture;
 #[path = "support/meta_command.rs"]
 mod meta_command;
+use fixture::{Fixture, Moment};
 use meta_command::MetaCommand;
 
 const REPLAY: Option<&str> = option_env!("CARGO_BIN_EXE_gh-replay");
@@ -28,11 +31,12 @@ const FAILURE: Answer =
     Answer { checks: "01-failed-test-time", logs: &["02-failed-test-time-ci-log", "03-failed-test-time-gate-log"] };
 const SUCCESS: Answer = Answer { checks: "04-passed", logs: &[] };
 const NOT_WATCHED: &str = "CI not watched for";
-const SLOW_REMOTE: [&str; 3] = ["config", "remote.origin.uploadpack", "sleep 0.3; git-upload-pack"];
+const SLOW_REMOTE: [&str; 2] = ["remote.origin.uploadpack", "sleep 0.3; git-upload-pack"];
 const SLOW: Duration = Duration::from_millis(500);
 const OUT_OF_TIME: &str = "couldn't check CI in time; run `meta ci-wait`";
 const PUSHED: &str = "feature";
-const NEXT_COMMIT: [&str; 5] = ["commit", "-q", "--allow-empty", "-m", "next"];
+const NEXT_COMMIT: &str = "next";
+const LONG_AGO: Moment = Moment::after_epoch(1_000_000_000);
 const POST: &str = "post-tool-use";
 const COMMIT: &str = "git commit -m change";
 const PRE: &str = "pre-tool-use";
@@ -104,47 +108,6 @@ impl Answer {
     }
 }
 
-struct Git;
-
-impl Git {
-    const IDENTITY: [&'static str; 8] = [
-        "-c",
-        "user.name=t",
-        "-c",
-        "user.email=t@meta.invalid",
-        "-c",
-        "init.defaultBranch=main",
-        "-c",
-        "maintenance.auto=false",
-    ];
-
-    const LONG_AGO: &'static str = "@1000000000 +0000";
-
-    fn run(dir: &Path, words: &[&str]) -> Output {
-        Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
-    }
-
-    fn run_at(dir: &Path, words: &[&str], date: &str) -> Output {
-        Command::new("git")
-            .arg("-C")
-            .arg(dir)
-            .args(Self::IDENTITY)
-            .args(words)
-            .env("GIT_COMMITTER_DATE", date)
-            .output()
-            .unwrap()
-    }
-
-    fn head(dir: &Path) -> String {
-        String::from_utf8(Self::run(dir, &["rev-parse", "HEAD"]).stdout).unwrap().trim().to_owned()
-    }
-
-    fn pushed(repo: &Repo, branch: &str) {
-        let refspec = format!("HEAD:refs/heads/{branch}");
-        assert!(Self::run(repo.clone.path(), &["push", "-q", "-f", "origin", &refspec]).status.success());
-    }
-}
-
 struct Waited(String, ExitStatus);
 
 struct StartFile;
@@ -178,7 +141,7 @@ impl Planted {
     }
 
     fn twin(repo: &Repo) -> std::process::Child {
-        let head = Git::head(repo.clone.path());
+        let head = repo.git().to_string();
         repo.command(&["ci-watch", SESSION, &head]).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().unwrap()
     }
 }
@@ -224,10 +187,8 @@ impl Repo {
         let sessions = tempfile::tempdir().unwrap();
         let origin = sessions.path().join(Self::ORIGIN);
         let clone = tempfile::tempdir().unwrap();
-        assert!(Git::run(sessions.path(), &["init", "-q", "--bare", "-b", PUSHED, Self::ORIGIN]).status.success());
-        Git::run(&origin, &["config", "receive.autogc", "false"]);
-        Git::run(sessions.path(), &["clone", "-q", Self::ORIGIN, clone.path().to_str().unwrap()]);
-        Git::run_at(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"], Git::LONG_AGO);
+        Fixture::bare(&origin, PUSHED);
+        Fixture::working(clone.path(), &origin, PUSHED).committed_at("change", &LONG_AGO);
         StartFile::plant(sessions.path(), SESSION_FILE, "0");
         std::fs::create_dir(sessions.path().join(Self::TRAIL)).unwrap();
         let repo = Self { origin, clone, sessions, answer };
@@ -237,7 +198,11 @@ impl Repo {
     }
 
     pub fn answered(&self) {
-        self.answer.given(&self.sessions.path().join(Self::REPLIES), &Git::head(self.clone.path()));
+        self.answer.given(&self.sessions.path().join(Self::REPLIES), &self.git().to_string());
+    }
+
+    fn git(&self) -> Fixture {
+        Fixture::opened(self.clone.path())
     }
 
     pub fn configured(&self, limits: &str) {
@@ -275,7 +240,7 @@ impl Repo {
 
     pub fn settled_past(&self, seen: &str) -> String {
         let events = self.clone.path().join(".git/meta-ci/ABCDEF1234/events");
-        let lock = self.sessions.path().join(Planted::LOCKS).join(Git::head(self.clone.path()));
+        let lock = self.sessions.path().join(Planted::LOCKS).join(self.git().to_string());
         let pauses = std::iter::successors(Some(Duration::ZERO), |_| Some(SETTLE_POLL)).take(SETTLE_LENGTH);
         pauses
             .map(std::thread::sleep)
@@ -305,9 +270,9 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_pus
     let shown = format!("{posted}{}{stop}{}", waited.0, repo.hook(PRE, COMMIT));
     let told = [&posted, &waited.0].iter().filter(|told| told.contains(JOB_FAILED)).count();
     assert!(told == 1 && !waited.1.success() && stop.contains(BLOCK_REASON) && shown.contains(STEP_LISTED));
-    Git::run(repo.clone.path(), &NEXT_COMMIT);
+    repo.git().committed(NEXT_COMMIT);
     let log = repo.meta(&[CI_LOG]).0;
-    Git::run(repo.clone.path(), &NEXT_COMMIT);
+    repo.git().committed(NEXT_COMMIT);
     let repo = repo.passing();
     std::fs::write(repo.clone.path().join(EXPECTED), AT_ONCE).unwrap();
     Planted::twin(&repo).wait().unwrap();
@@ -324,12 +289,13 @@ fn a_passing_push_lets_the_agent_stop_and_a_commit_whose_state_cannot_be_written
     let waited = repo.meta(&[CI_WAIT]);
     assert!(watched.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
     assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
-    Git::run(repo.clone.path(), &NEXT_COMMIT);
-    std::fs::create_dir_all(repo.sessions.path().join(Planted::STATES).join(Git::head(repo.clone.path()))).unwrap();
+    let next = repo.git().committed(NEXT_COMMIT);
+    std::fs::create_dir_all(repo.sessions.path().join(Planted::STATES).join(next)).unwrap();
     repo.hook(POST, COMMIT);
     let unwatched = repo.hook(STOP, COMMIT);
     repo.configured(STALLED);
-    Git::run(repo.clone.path(), &SLOW_REMOTE);
+    let [key, value] = SLOW_REMOTE;
+    repo.git().configured(key, value);
     let started = Instant::now();
     let slow = repo.hook(STOP, COMMIT);
     assert!(unwatched.contains(NOT_WATCHED) && slow.contains(OUT_OF_TIME) && started.elapsed() < SLOW);
