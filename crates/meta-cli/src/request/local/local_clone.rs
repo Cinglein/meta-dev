@@ -6,7 +6,6 @@ mod gc_lock;
 mod git;
 mod git_dir;
 mod quarantine;
-mod target_seed;
 mod vetting;
 mod worktree_listing;
 

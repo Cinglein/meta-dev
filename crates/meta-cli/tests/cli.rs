@@ -35,8 +35,10 @@ const STARTED: &str = "\"event\":\"start\"";
 const LISTING: &str = "\"hierarchy\":\"ls-remote\"";
 const READ_PROCESSES: [&str; 3] = ["ls-remote", "upload-pack", "cat-file"];
 const TARGET: &str = "target.noindex";
-const CARGO_TAG: [&str; 2] =
-    ["CACHEDIR.TAG", "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n"];
+const CARGO_TAG: [&str; 2] = [
+    "CACHEDIR.TAG",
+    "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n",
+];
 const PROFILES: [&str; 2] = ["debug", "release"];
 const LOCK: &str = ".cargo-lock";
 const ARTIFACT: [&str; 2] = ["deps/libx.rlib", "compiled"];
@@ -180,7 +182,7 @@ fn writes_go_to_the_remote_as_meta_actor_else_owner_listing_it_once_and_offline_
 }
 
 #[test]
-fn a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_seeded_worktree() {
+fn a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree() {
     let worktrees = tempfile::tempdir().unwrap();
     let project = Project::seeded(worktrees.path());
     let _building = Seed::built(&project.clone.path().join(TARGET));

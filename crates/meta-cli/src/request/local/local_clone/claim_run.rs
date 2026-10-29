@@ -1,3 +1,4 @@
+mod target_seed;
 mod worktree_identity;
 
 use std::path::PathBuf;
@@ -8,7 +9,6 @@ use meta_run::GitArgv;
 use super::LocalClone;
 use super::claim_plan::{ClaimHands, ClaimPlan, ClaimStep};
 use super::git::Git;
-use super::target_seed::TargetSeed;
 use crate::request::ci::{SessionId, SessionStart};
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::local_settings::Identity;
@@ -17,6 +17,7 @@ use crate::request::local::recorded_worktree::RecordedWorktree;
 use crate::request::local::trail_entry::TrailEntry;
 use crate::request::local::worktree_id::WorktreeId;
 use crate::request::project::BranchName;
+use target_seed::TargetSeed;
 use worktree_identity::WorktreeIdentity;
 
 pub struct ClaimRun<'claim, Write: Fn() -> Result<String, CliFailure>> {
