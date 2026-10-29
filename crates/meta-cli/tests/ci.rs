@@ -222,6 +222,7 @@ impl Repo {
         let origin = sessions.path().join(Self::ORIGIN);
         let clone = tempfile::tempdir().unwrap();
         assert!(Git::run(sessions.path(), &["init", "-q", "--bare", "-b", PUSHED, Self::ORIGIN]).status.success());
+        Git::run(&origin, &["config", "receive.autogc", "false"]);
         Git::run(sessions.path(), &["clone", "-q", Self::ORIGIN, clone.path().to_str().unwrap()]);
         Git::run_at(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"], Git::LONG_AGO);
         StartFile::plant(sessions.path(), SESSION_FILE, "0");
@@ -245,10 +246,6 @@ impl Repo {
         Session { repo: self, cwd: self.clone.path(), id: SESSION }.hook(event, command)
     }
 
-    fn session_command(&self, command: &str) -> Waited {
-        self.meta(&[command])
-    }
-
     pub fn passing(self) -> Self {
         let repo = Self { answer: SUCCESS, ..self };
         repo.answered();
@@ -260,7 +257,6 @@ impl Repo {
         command.args(words).current_dir(self.clone.path()).env("TMPDIR", self.sessions.path());
         let replies = self.sessions.path().join(Self::REPLIES);
         command.env(Replay::RECORDINGS, replies).env(Replay::TRAIL, self.sessions.path().join(Self::TRAIL));
-        command.env("GIT_TRACE", self.sessions.path().join("trace"));
         command
     }
 
@@ -298,66 +294,40 @@ impl fmt::Display for Repo {
 
 #[test]
 fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push() {
-    let t = Instant::now();
     let repo = Repo::new(FAILURE);
-    eprintln!("F new {:?}", t.elapsed());
     Planted::twin(&repo).wait().unwrap();
-    eprintln!("F twin {:?}", t.elapsed());
     let posted = repo.hook(POST, COMMIT);
-    eprintln!("F post {:?}", t.elapsed());
-    let waited = repo.session_command(CI_WAIT);
-    eprintln!("F wait {:?}", t.elapsed());
+    let waited = repo.meta(&[CI_WAIT]);
     let stop = repo.hook(STOP, COMMIT);
-    eprintln!("F stop {:?}", t.elapsed());
     let shown = format!("{posted}{}{stop}{}", waited.0, repo.hook(PRE, COMMIT));
-    eprintln!("F pre {:?}", t.elapsed());
     let told = [&posted, &waited.0].iter().filter(|told| told.contains(JOB_FAILED)).count();
     assert!(told == 1 && !waited.1.success() && stop.contains(BLOCK_REASON) && shown.contains(STEP_LISTED));
     Git::run(repo.clone.path(), &NEXT_COMMIT);
-    let log = repo.session_command(CI_LOG).0;
-    eprintln!("F log {:?}", t.elapsed());
+    let log = repo.meta(&[CI_LOG]).0;
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     let repo = repo.passing();
     std::fs::write(repo.clone.path().join(EXPECTED), AT_ONCE).unwrap();
-    eprintln!("F passing {:?}", t.elapsed());
     Planted::twin(&repo).wait().unwrap();
-    eprintln!("F twin2 {:?}", t.elapsed());
     repo.hook(POST, COMMIT);
-    eprintln!("F post2 {:?}", t.elapsed());
     let fixed = repo.hook(STOP, COMMIT);
-    eprintln!("F stop2 {:?}", t.elapsed());
-    eprintln!("{}", std::fs::read_to_string(repo.sessions.path().join("trace")).unwrap_or_default());
-    assert!(t.elapsed() < Duration::from_millis(1), "diagnostic F");
     assert!(log.contains(LOGGED) && !log.contains(COMPILING) && !fixed.contains(BLOCK), "{log}");
 }
 
 #[test]
 fn a_passing_push_lets_the_agent_stop_and_a_commit_whose_state_cannot_be_written_is_not_watched() {
-    let t = Instant::now();
     let repo = Repo::new(SUCCESS);
-    eprintln!("P new {:?}", t.elapsed());
     let watched = String::from_utf8(Planted::twin(&repo).wait_with_output().unwrap().stdout).unwrap();
-    eprintln!("P twin {:?}", t.elapsed());
     repo.hook(POST, COMMIT);
-    eprintln!("P post {:?}", t.elapsed());
-    let waited = repo.session_command(CI_WAIT);
-    eprintln!("P wait {:?}", t.elapsed());
+    let waited = repo.meta(&[CI_WAIT]);
     assert!(watched.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
-    eprintln!("P stop {:?}", t.elapsed());
     assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
-    eprintln!("P settled {:?}", t.elapsed());
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     std::fs::create_dir_all(repo.sessions.path().join(Planted::STATES).join(Git::head(repo.clone.path()))).unwrap();
     repo.hook(POST, COMMIT);
-    eprintln!("P post2 {:?}", t.elapsed());
     let unwatched = repo.hook(STOP, COMMIT);
-    eprintln!("P stop2 {:?}", t.elapsed());
     repo.configured(STALLED);
     Git::run(repo.clone.path(), &SLOW_REMOTE);
     let started = Instant::now();
     let slow = repo.hook(STOP, COMMIT);
-    eprintln!("P slow {:?}", t.elapsed());
-    eprintln!("{}", std::fs::read_to_string(repo.sessions.path().join("trace")).unwrap_or_default());
-    assert!(t.elapsed() < Duration::from_millis(1), "diagnostic P");
     assert!(unwatched.contains(NOT_WATCHED) && slow.contains(OUT_OF_TIME) && started.elapsed() < SLOW);
 }

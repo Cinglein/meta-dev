@@ -14,7 +14,7 @@ fn an_unreadable_remote_settles_the_hook_spawned_watch_unchecked_and_a_fixed_rem
     repo.hook(POST, COMMIT);
     let unchecked = repo.settled();
     let stopped = repo.hook(STOP, COMMIT);
-    let waited = repo.session_command(CI_WAIT).1;
+    let waited = repo.meta(&[CI_WAIT]).1;
     Git::run(repo.clone.path(), &["remote", "set-url", "origin", repo.origin.to_str().unwrap()]);
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     repo.answered();
