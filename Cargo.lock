@@ -475,7 +475,7 @@ dependencies = [
  "chrono",
  "git2",
  "meta-gh",
- "meta-git-view",
+ "meta-git",
  "meta-golden",
  "meta-listing",
  "meta-log",
@@ -512,15 +512,6 @@ dependencies = [
  "serde",
  "tempfile",
  "thiserror",
-]
-
-[[package]]
-name = "meta-git-view"
-version = "0.1.0"
-dependencies = [
- "meta-golden",
- "meta-run",
- "meta-schema",
 ]
 
 [[package]]
