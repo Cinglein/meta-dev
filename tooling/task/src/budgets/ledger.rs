@@ -19,6 +19,7 @@ use statement::Statement;
 #[derive(Debug, Default)]
 pub struct Ledger {
     spent: BTreeMap<Measure, Amount>,
+    based: BTreeMap<Measure, Amount>,
     standing: Option<Standing>,
     prior: Option<PriorStanding>,
     mode: Mode,
@@ -36,6 +37,7 @@ impl Ledger {
 
     pub fn enforce_from(&mut self, policy_text: Option<&str>) -> Result<(), toml::de::Error> {
         self.prior = Some(policy_text.map_or_else(|| Ok(PriorStanding::default()), str::parse)?);
+        self.mode = Mode::Enforcing;
         Ok(())
     }
 
@@ -50,6 +52,15 @@ impl Ledger {
 
     pub fn spend(&mut self, measure: Measure, amount: Amount) {
         self.spent.insert(measure, amount);
+    }
+
+    #[must_use]
+    pub fn spent(&self, measure: &Measure) -> Option<&Amount> {
+        self.spent.get(measure)
+    }
+
+    pub fn measured_at_base(&mut self, base: Ledger) {
+        self.based = base.spent;
     }
 
     pub fn count(&mut self, standing: Option<Standing>) {
@@ -70,16 +81,25 @@ impl Ledger {
 
     #[must_use]
     pub fn exposure_of(&self, budget: &Budget) -> Exposure {
-        match (
-            budget.measure().item_filter(),
-            self.mode,
-            self.standing.as_ref(),
-        ) {
+        let measure = budget.measure();
+        match (budget.standing_in(), self.mode, self.standing.as_ref()) {
             (None, ..) => Exposure::Diff,
             (Some(_), Mode::Reporting, _) => Exposure::Reported,
             (Some(_), Mode::Enforcing, None) => Exposure::Within,
-            (Some(filter), Mode::Enforcing, Some(standing)) => {
-                standing.exposure(filter, budget.division())
+            (Some(division), Mode::Enforcing, Some(standing)) => {
+                let ranked = measure
+                    .item_filter()
+                    .cloned()
+                    .or_else(|| standing.least_severe(division));
+                match (
+                    standing.exposure(ranked.as_ref(), division),
+                    measure.item_filter(),
+                ) {
+                    (Exposure::Within, None) => {
+                        Exposure::trend(self.based.get(measure), self.spent.get(measure))
+                    }
+                    (exposure, _) => exposure,
+                }
             }
         }
     }
@@ -132,7 +152,7 @@ mod tests {
     use meta_schema::Record;
     use meta_state::State;
 
-    use super::Ledger;
+    use super::{Ledger, Mode};
     use crate::budget::{Interval, Millis};
     use crate::budgets::{Amount, Budgets, ChangeLink, Measure, Standing};
     use crate::percent::Percent;
@@ -149,7 +169,22 @@ mod tests {
     const NESTED: &str = "\n[domains.\"performance-and-cost/unit\"]\ntests = [\"*\"]\n\n[budgets.unit-time]\ndivision = \"performance-and-cost/unit\"\nmeasure = \"test_wall_time\"\nallowance = { of = \"test-time\", percent = 50 }\nwindow = \"per_change\"\nsource = \"ci\"\n";
     const MILLI: Millis = Millis::new(1);
     const BASELINED_SHARE: usize = 25;
-    const BASELINED_TANGLE: usize = 64;
+    const TANGLED: Option<usize> = Some(64 * 2);
+    const CAPPED: &str = concat!(
+        include_str!("ledger/standing.toml"),
+        "\n[budgets.t-tangle]\ndivision = \"features-and-maintenance\"\nmeasure = \"tangle_items\"\nallowance = { count = 4 }\nwindow = \"standing\"\n",
+    );
+    const OVER_CAP: Option<usize> = Some(6);
+    const ENDS: [(&str, Option<usize>, Option<usize>); 8] = [
+        ("7", Some(6), Some(5)),
+        ("7", Some(5), Some(4)),
+        ("7", Some(5), Some(5)),
+        ("7", Some(5), Some(6)),
+        ("7", None, Some(5)),
+        ("7", Some(5), None),
+        (ADDRESSING, Some(5), Some(6)),
+        ("task-0000000000000004", Some(5), Some(6)),
+    ];
 
     impl Ledger {
         fn shown(&self, policy: &Policy) -> String {
@@ -174,15 +209,14 @@ mod tests {
                 Measure::TestLineShare,
                 Amount::Share(Percent::from(BASELINED_SHARE)),
             );
-            ledger.tangled();
-            ledger
+            ledger.tangled(TANGLED)
         }
 
-        fn tangled(&mut self) {
-            self.spend(
-                Measure::TangleItems,
-                Amount::Count(Most::from(BASELINED_TANGLE * 2)),
+        fn tangled(mut self, tangle: Option<usize>) -> Ledger {
+            self.spent.extend(
+                tangle.map(|tangle| (Measure::TangleItems, Amount::Count(Most::from(tangle)))),
             );
+            self
         }
 
         fn standing(link: &str, policy: &Policy) -> Ledger {
@@ -191,7 +225,10 @@ mod tests {
                 .map(|line| serde_json::from_str(line).unwrap())
                 .collect();
             let link = ChangeLink::new(link.parse().ok(), link.parse().ok());
-            let mut ledger = Ledger::default();
+            let mut ledger = Ledger {
+                mode: Mode::Enforcing,
+                ..Ledger::default()
+            };
             ledger.count(Some(Standing::read(
                 &State::fold(&records),
                 &link,
@@ -218,14 +255,26 @@ mod tests {
     }
 
     #[test]
-    fn standing_budgets_are_enforced_from_the_merge_base_and_a_new_cap_waits() {
-        let policy = Policy::with_added(STANDING).unwrap();
-        let mut ledger = Ledger::standing(ADDRESSING, &policy);
+    fn an_over_standing_measure_blocks_its_division_until_a_change_moves_it_toward_its_line() {
+        let waiting = Policy::with_added(STANDING).unwrap();
+        let mut ledger = Ledger::standing(ADDRESSING, &waiting);
         ledger.enforce_from(Some(BASE)).unwrap();
-        let enforced = ledger.shown(&policy);
+        let enforced = ledger.shown(&waiting);
         ledger.report_only();
+        let reported = ledger.shown(&waiting);
+        let policy = Policy::with_added(CAPPED).unwrap();
+        let ends = ENDS.map(|(link, base, head)| {
+            let mut ledger = Ledger::standing(link, &policy).tangled(head);
+            ledger.enforce_from(Some(BASE)).unwrap();
+            ledger.measured_at_base(Ledger::default().tangled(base));
+            format!(
+                "link {link:?} base {base:?} head {head:?}\n{}",
+                ledger.shown(&policy)
+            )
+        });
+        let fresh = Ledger::default().tangled(OVER_CAP).shown(&policy);
         Golden::for_test(module_path!(), "merge_base")
-            .checked(&format!("{enforced}{}", ledger.shown(&policy)))
+            .checked(&format!("{enforced}{reported}{}{fresh}", ends.concat()))
             .unwrap();
     }
 
@@ -233,8 +282,7 @@ mod tests {
     fn an_overspend_fails_a_change_within_reach_and_a_nested_part_is_measured() {
         let policy = Policy::with_added(NESTED).unwrap();
         let ledger = Ledger::overspent(&policy);
-        let mut linted = Ledger::default();
-        linted.tangled();
+        let linted = Ledger::default().tangled(TANGLED);
         let shown = format!("{}{}", ledger.shown(&policy), linted.shown(&policy));
         Golden::for_test(module_path!(), "overspent")
             .checked(&shown)

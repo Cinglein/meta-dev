@@ -105,7 +105,8 @@ impl LegacyKey {
             | Limit::LiteralsPerTest
             | Limit::LargestInteger
             | Limit::SlowestShown
-            | Limit::ReferenceSpawns => None,
+            | Limit::ReferenceSpawns
+            | Limit::TypesPerMethodShape => None,
         }
     }
 }
@@ -116,7 +117,8 @@ mod tests {
     use settings::EmbeddedDefaults;
 
     use crate::budget::{Interval, Millis};
-    use crate::policy::Policy;
+    use crate::percent::Percent;
+    use crate::policy::{Floor, Policy};
 
     const MILLIS: &str = "[millis]\n";
     const OLD: &str = "[millis]\ntotal = 8000\n";
@@ -145,8 +147,13 @@ mod tests {
             toml::from_str(&unbudgeted.replace(MILLIS, OLD).replace(FLOORS, OLD_FLOORS)).unwrap()
         }
 
-        fn timed_and_priced(&self) -> [Millis; 2] {
-            [self.interval(Interval::Total), self.tolerated(PRICED)]
+        fn timed_and_priced(&self) -> [Millis; 3] {
+            let floor = Percent::from(usize::from(self.floor(Floor::PriceTolerance)));
+            [
+                self.interval(Interval::Total),
+                self.tolerated(PRICED),
+                floor.portion_of(PRICED),
+            ]
         }
     }
 

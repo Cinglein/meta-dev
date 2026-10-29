@@ -40,6 +40,7 @@ impl Budgets {
     pub fn whole(&self, measure: &Measure) -> Option<&Budget> {
         self.0
             .values()
+            .filter(|budget| budget.standing_in().is_none())
             .find(|budget| budget.top_measure().as_ref() == Some(measure))
     }
 

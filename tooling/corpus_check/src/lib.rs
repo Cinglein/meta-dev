@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod corpus;
+mod enforcement;
 mod lint_name;
 
+pub use enforcement::Enforcement;
 pub use lint_name::LintName;
 
 #[cfg(test)]

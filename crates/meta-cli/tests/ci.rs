@@ -222,6 +222,7 @@ impl Repo {
         let origin = sessions.path().join(Self::ORIGIN);
         let clone = tempfile::tempdir().unwrap();
         assert!(Git::run(sessions.path(), &["init", "-q", "--bare", "-b", PUSHED, Self::ORIGIN]).status.success());
+        Git::run(&origin, &["config", "receive.autogc", "false"]);
         Git::run(sessions.path(), &["clone", "-q", Self::ORIGIN, clone.path().to_str().unwrap()]);
         Git::run_at(clone.path(), &["commit", "-q", "--allow-empty", "-m", "change"], Git::LONG_AGO);
         StartFile::plant(sessions.path(), SESSION_FILE, "0");
@@ -243,10 +244,6 @@ impl Repo {
 
     fn hook(&self, event: &str, command: &str) -> String {
         Session { repo: self, cwd: self.clone.path(), id: SESSION }.hook(event, command)
-    }
-
-    fn session_command(&self, command: &str) -> Waited {
-        self.meta(&[command])
     }
 
     pub fn passing(self) -> Self {
@@ -300,13 +297,13 @@ fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_pus
     let repo = Repo::new(FAILURE);
     Planted::twin(&repo).wait().unwrap();
     let posted = repo.hook(POST, COMMIT);
-    let waited = repo.session_command(CI_WAIT);
+    let waited = repo.meta(&[CI_WAIT]);
     let stop = repo.hook(STOP, COMMIT);
     let shown = format!("{posted}{}{stop}{}", waited.0, repo.hook(PRE, COMMIT));
     let told = [&posted, &waited.0].iter().filter(|told| told.contains(JOB_FAILED)).count();
     assert!(told == 1 && !waited.1.success() && stop.contains(BLOCK_REASON) && shown.contains(STEP_LISTED));
     Git::run(repo.clone.path(), &NEXT_COMMIT);
-    let log = repo.session_command(CI_LOG).0;
+    let log = repo.meta(&[CI_LOG]).0;
     Git::run(repo.clone.path(), &NEXT_COMMIT);
     let repo = repo.passing();
     std::fs::write(repo.clone.path().join(EXPECTED), AT_ONCE).unwrap();
@@ -321,7 +318,7 @@ fn a_passing_push_lets_the_agent_stop_and_a_commit_whose_state_cannot_be_written
     let repo = Repo::new(SUCCESS);
     let watched = String::from_utf8(Planted::twin(&repo).wait_with_output().unwrap().stdout).unwrap();
     repo.hook(POST, COMMIT);
-    let waited = repo.session_command(CI_WAIT);
+    let waited = repo.meta(&[CI_WAIT]);
     assert!(watched.contains(PASSED) && waited.1.success() && !repo.hook(STOP, COMMIT).contains(BLOCK));
     assert!(repo.settled().lines().all(|line| line.starts_with(EVENT_PREFIX) && line.contains(PASSED_EVENT)));
     Git::run(repo.clone.path(), &NEXT_COMMIT);
