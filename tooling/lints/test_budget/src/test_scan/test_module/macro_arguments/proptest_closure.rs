@@ -23,7 +23,9 @@ impl ProptestClosure {
     }
 
     fn strategies(parameters: ParseStream<'_>) -> syn::Result<Vec<Expr>> {
+        let most = parameters.cursor().token_stream().into_iter().count();
         iter::from_fn(|| (!parameters.is_empty()).then(|| Self::parameter(parameters)))
+            .take(most)
             .filter_map(Result::transpose)
             .collect()
     }

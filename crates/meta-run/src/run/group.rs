@@ -47,7 +47,8 @@ impl Group {
             std::thread::sleep(Self::STEP);
             drop(leader.try_wait());
             drop(begun.elapsed().checked_sub(patience).map(|_| GroupId::signalled([&group], Self::KILLING, deadline)));
-            Self::probed(group, deadline).map_or(ControlFlow::Break(()), ControlFlow::Continue)
+            let left = deadline.checked_duration_since(Instant::now());
+            left.and(Self::probed(group, deadline)).map_or(ControlFlow::Break(()), ControlFlow::Continue)
         });
         Run::alone(leader);
     }
@@ -79,8 +80,7 @@ impl Group {
 
     fn probed(group: GroupId, deadline: Instant) -> Option<()> {
         let probed = GroupId::signalled([&group], Self::PROBE, deadline);
-        let alive = probed.map_or(Some(()), |probed| probed.success().then_some(()));
-        deadline.checked_duration_since(Instant::now()).and(alive)
+        probed.map_or(Some(()), |probed| probed.success().then_some(()))
     }
 
     pub fn live() -> MutexGuard<'static, BTreeMap<GroupId, Duration>> {
