@@ -86,3 +86,27 @@ impl CiStatus {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::CiStatus::{self, Absent, Failed, Passed, Running, TimedOut, Unavailable, Unchecked};
+
+    const EVERY: [CiStatus; 7] = [Running, Passed, Failed, TimedOut, Unavailable, Absent, Unchecked];
+    const TOLD: [usize; 7] = [1, 0, 1, 1, 1, 1, 1];
+    const PUSH: &str = "your last push";
+
+    #[test]
+    fn a_failure_decides_several_runs_else_any_running_waits_else_the_first_unpassed_shows_and_each_unpassed_is_told_once()
+     {
+        let of = |statuses: &[Option<CiStatus>]| CiStatus::of_all(statuses.iter().copied());
+        let decided = [of(&[Some(Passed), Some(Failed), None]), of(&[Some(Passed), Some(Running)])];
+        let settled = [of(&[Some(Passed), Some(TimedOut), Some(Absent)]), of(&[Some(Passed), Some(Passed)])];
+        assert_eq!([decided, settled], [[Some(Failed), None], [Some(TimedOut), Some(Passed)]]);
+        let told = EVERY.map(|status| {
+            let stopped = status.stop_reason().map(|reason| reason.to_string());
+            let texts = stopped.into_iter().chain(status.unresolved().map(str::to_owned));
+            texts.filter(|text| text.contains(PUSH)).count()
+        });
+        assert_eq!(told, TOLD);
+    }
+}

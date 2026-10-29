@@ -1,6 +1,7 @@
 use std::time::Instant;
 
 use super::HookEvent;
+use super::reply::{Reply, Verdict};
 use crate::request::output::Listed;
 use crate::request::project::{CiSettings, Config};
 
@@ -9,6 +10,8 @@ const EVENTS: [HookEvent; 4] =
     [HookEvent::SessionStart, HookEvent::PreToolUse, HookEvent::PostToolUse, HookEvent::Stop];
 const REFUSED: [(HookEvent, &str); 2] =
     [(HookEvent::PreToolUse, "\"permissionDecision\":\"deny\""), (HookEvent::Stop, "\"decision\":\"block\"")];
+const REASON: &str = "remote unreadable";
+const TOLD: &str = "\"meta-development: remote unreadable\"";
 
 #[test]
 fn hook_timeouts_match_hooks_json_and_bound_every_git_deadline() {
@@ -20,7 +23,9 @@ fn hook_timeouts_match_hooks_json_and_bound_every_git_deadline() {
 }
 
 #[test]
-fn a_refused_project_denies_tool_use_and_blocks_stop_with_its_reason() {
-    let shown = REFUSED.map(|(event, _)| event.refused(Listed::new(REFUSED[0].1)).to_string());
-    assert!(shown.iter().zip(REFUSED).all(|(shown, (_, verdict))| shown.contains(verdict)), "{shown:?}");
+fn a_refused_project_denies_tool_use_and_blocks_stop_with_its_reason_and_a_quiet_allow_says_nothing() {
+    let shown = REFUSED.map(|(event, _)| event.refused(Listed::new(REASON)).to_string());
+    let told = |(shown, (_, verdict)): (&String, (HookEvent, &str))| shown.contains(verdict) && shown.contains(TOLD);
+    assert!(shown.iter().zip(REFUSED).all(told), "{shown:?}");
+    assert_eq!(Reply::new(HookEvent::PreToolUse, Verdict::Allow, None).to_string(), "");
 }
