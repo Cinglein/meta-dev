@@ -1258,3 +1258,4 @@
 {"at":"2026-10-29T00:10:19.355800Z","actor":"claude-kill13","kind":"TaskLinked","task":"task-1b963573ed0242a7","pr":146}
 {"at":"2026-10-29T00:11:53.417161Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-4ff173b8296dc3a2","text":"Main red: scaled test CPU 4043 ms over 4000; raw CPU 2.85 s was the lowest seen. A fast runner (reference 762 ms vs 1.08 s) inflated the scaling.","division":"performance-and-cost","severity":"critical"}
 {"at":"2026-10-29T00:17:58.171182Z","actor":"claude-supply","kind":"TaskLinked","task":"task-d478c45138efbbd2","pr":147}
+{"at":"2026-10-29T00:24:09.720744Z","actor":"claude-lead","kind":"TaskOpened","task":"task-cf3c579f6b332fce","text":"Test CPU gate: drop the division by a git-spawn reference (owner: a bug, not the real measure); gate raw CPU at the same 4000 ms line; report the reference as context only.","division":"performance-and-cost","addresses":["concern-4ff173b8296dc3a2"]}
