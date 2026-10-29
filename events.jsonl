@@ -1287,3 +1287,4 @@
 {"at":"2026-10-29T01:00:33.594527Z","actor":"claude-lead","kind":"TaskDone","task":"task-a9c7cdb7c21a29da"}
 {"at":"2026-10-29T01:01:36.471085Z","actor":"claude-noindex","kind":"TaskLinked","task":"task-80678aa5ae348607","pr":151}
 {"at":"2026-10-29T01:04:19.162603Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-0c1c2394fd4f1af5","text":"Agent file tree is unmanaged: clones, worktrees, scratch and build output scattered across home and /tmp, Spotlight-indexed, cleaned by hand.","division":"architecture-and-planning","severity":"minor"}
+{"at":"2026-10-29T01:04:24.015768Z","actor":"claude-lead","kind":"TaskOpened","task":"task-11b96c02cdedc22f","text":"File tree managed by meta: one per-project root (.noindex) holding clone, worktrees, scratch and build output; hooks refuse writes elsewhere; gc owns cleanup; meta init ships it.","division":"architecture-and-planning","addresses":["concern-0c1c2394fd4f1af5"]}
