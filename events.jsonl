@@ -1620,3 +1620,4 @@
 {"at":"2026-10-29T20:39:24.881106Z","actor":"claude-depbot","kind":"TaskDone","task":"task-c800e8c7474a605f"}
 {"at":"2026-10-29T20:51:21.749134Z","actor":"claude-mqueue","kind":"TaskLinked","task":"task-11344664d21c1121","pr":221}
 {"at":"2026-10-29T20:55:04.906181Z","actor":"claude-price","kind":"TaskDone","task":"task-c0964954df244860"}
+{"at":"2026-10-29T21:07:31.364124Z","actor":"claude-sv1","kind":"TaskOpened","task":"task-4bf53291a33584ab","text":"SV2: fold RatedItem into Signal<Target> and Triage; one rated-item shape (review of #217, item 9)","division":"features-and-maintenance"}
