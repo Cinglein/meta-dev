@@ -1,4 +1,4 @@
-types 957, traits declared 25, impls 1491
+types 961, traits declared 25, impls 1497
 catalog: 24 measures, report-only
   B1 unnamed concepts [trait graph, to zero]: 55
   B2 reducible traits [trait graph, to zero]: 2
@@ -53,12 +53,12 @@ B1 missing abstractions: maximal (types, signatures) concepts with at least 2 of
   8. 9 = 3 types x 3 attributes
     types: meta-schema::NewConcern, meta-schema::NewIssue, meta-schema::NewTask
     share: corrected(&self, Text) -> Self; fmt(&self, &mut Formatter) -> Result; placement(&self) -> &Placement
-  9. 8 = 2 types x 4 attributes
+  9. 8 = 4 types x 2 attributes
+    types: meta-cli::AgentRoot, meta-cli::RecordedWorktree, meta-xtask::RecordedTimes, task::TouchedFile
+    share: fmt(&self, &mut Formatter) -> Result; path(&self) -> &Path
+  10. 8 = 2 types x 4 attributes
     types: elegance::TraitKey, elegance::TypeKey
     share: fmt(&self, &mut Formatter) -> Result; foreign(&Ident) -> Self; local(&CrateName, &Ident) -> Self; places(&self, &Places) -> BTreeSet<SourcePath>
-  10. 6 = 3 types x 2 attributes
-    types: const_shape::ConstContexts, manual_iteration::Iterations, type_shape::TypeShapes
-    share: violation(&self, Span, &str) -> Violation; visit_item_mod(&mut self, &ItemMod)
   largest, named only by a composition of shared traits:
   1. 68 = 34 types x 2 attributes
     types: meta-cli::AuthorName, meta-cli::BranchName, meta-cli::Commit, meta-cli::CoreShare, meta-cli::ExpectedRun, meta-cli::GroupId, meta-cli::HookEvent, meta-cli::Line, meta-cli::LoadAverage, meta-cli::LogLine, meta-cli::NoreplyEmail, meta-cli::OptionName, meta-cli::Pid, meta-cli::ProcessRow, meta-cli::SessionId, meta-cli::StartMoment, meta-cli::WatchState, meta-golden::Argv, meta-golden::Status, meta-log::Sha, meta-pull-query::WorkflowName, meta-schema::Actor, meta-schema::Blocker, meta-schema::CommitId, meta-schema::DueTime, meta-schema::Entry, meta-schema::Id, meta-schema::PullRequest, meta-schema::RawId, meta-schema::Tag, meta-schema::Target, meta-schema::Text, meta-schema::Tokens, meta-xtask::LogSource
@@ -100,8 +100,8 @@ B3 signatures declared in more than one local trait
     words(&self, &RemoteName) -> Vec<OsString>: meta-git::RemoteChange, meta-git::RemoteQuery
 B4 leverage: distinct method names usable on a type / method bodies written for it
   usable = inherent names + the methods of each trait the type has; a local trait contributes its declared methods, a foreign trait the names seen in impls
-  n 871: min 0.66, q1 1.00, median 1.00, q3 1.00, max 53.00
-  types with no bodies: 86
+  n 876: min 0.66, q1 1.00, median 1.00, q3 1.00, max 53.00
+  types with no bodies: 85
   lowest:
     meta-cli::Cause 0.66 (2 usable / 3 written)
     meta-cli::Unmarked 0.66 (2 usable / 3 written)
@@ -175,7 +175,7 @@ B13 types whose method-field graph splits
     elegance::Resolution: 2 components [called] [fields]
 trait-graph shape
   graph edges: supertrait 3, blanket 0; depth 1
-  blanket share: 0 of 697 trait impls = 0.00
+  blanket share: 0 of 698 trait impls = 0.00
   single-implementor traits: 11
     elegance::FactSource -> elegance::SynSource
     meta-cli::ClaimHands -> meta-cli::ClaimRun
@@ -188,7 +188,7 @@ trait-graph shape
     meta-schema::EventVisitor -> meta-state::Applying
     task::Stream -> task::Stdout
     task::Tool -> task::CargoTool
-  traits implemented directly, per implementing type: n 515: min 1, q1 1, median 1, q3 1, max 5
+  traits implemented directly, per implementing type: n 516: min 1, q1 1, median 1, q3 1, max 5
   types with at least N = 2 traits (q3, at least 2) and no edge among them: 117
     corpus_check::AnnotatedLine: Display, FromStr
     corpus_check::AnnotatedSource: Display, FromStr
