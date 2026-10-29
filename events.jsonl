@@ -1404,3 +1404,4 @@
 {"at":"2026-10-29T09:55:32.457591Z","actor":"claude-cifix","kind":"TaskLinked","task":"task-0f6f7f01bb639ebf","pr":164}
 {"at":"2026-10-29T09:57:30.918007Z","actor":"claude-cifix","kind":"TaskLinked","task":"task-b1ac7e634ea12732","pr":165}
 {"at":"2026-10-29T09:58:09.110924Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-aa78a864a1100142","text":"Build time is unmeasured and unbudgeted: no compile waterfall, no per-crate times, no clean or incremental build budget; builds dominate agent and CI wall time.","division":"performance-and-cost","severity":"major"}
+{"at":"2026-10-29T10:01:11.596328Z","actor":"claude-buildtime","kind":"TaskOpened","task":"task-8f28750069421696","text":"Build-time waterfall and raw measures","division":"performance-and-cost","addresses":["concern-aa78a864a1100142"]}
