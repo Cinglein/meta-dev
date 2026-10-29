@@ -1342,3 +1342,4 @@
 {"at":"2026-10-29T04:02:00.396247Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-80678aa5ae348607"}
 {"at":"2026-10-29T04:02:02.405814Z","actor":"claude-lead","kind":"TaskDone","task":"task-80678aa5ae348607"}
 {"at":"2026-10-29T04:13:33.197544Z","actor":"claude-fixture","kind":"TaskLinked","task":"task-8a23d965a574aea2","pr":158}
+{"at":"2026-10-29T04:14:22.609759Z","actor":"claude-fixture","kind":"TaskOpened","task":"task-4b66c5ccb5ca6026","text":"task drops its meta-golden dev-dependency so meta-run changes stop retesting the 38 crates that use task","division":"performance-and-cost","addresses":["concern-7c8ca24df2ec76b0"]}
