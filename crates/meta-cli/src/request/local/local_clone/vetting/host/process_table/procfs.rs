@@ -20,7 +20,8 @@ impl Procfs {
     pub fn held() -> Result<Vec<PathBuf>, Cause> {
         let own = Self { own: fs::metadata(Self::SELF).map_err(Cause::new)?.uid() };
         let entries = fs::read_dir(Self::ROOT).and_then(Iterator::collect::<io::Result<Vec<DirEntry>>>);
-        let processes = entries.map_err(Cause::new)?.iter().map(DirEntry::path).filter(|path| Self::numbered(path));
+        let processes = entries.map_err(Cause::new)?.into_iter().map(|entry| entry.path());
+        let processes = processes.filter(|path| Self::numbered(path));
         let held = processes.map(|process| own.scanned(&process)).collect::<Result<Vec<_>, Cause>>()?;
         Ok(held.concat())
     }
