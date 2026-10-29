@@ -31,6 +31,7 @@ use crate::task::surfaces::Surfaces;
 use crate::task::test::Test;
 use crate::task::usage::Usage;
 use affected::{Affected, Changes};
+use build_time::BuildTime;
 pub use ci::CiStep;
 use ci::{Ci, LocalGate};
 use corpus_check::LintName;
@@ -51,6 +52,7 @@ pub enum Task {
     Affected,
     Baseline,
     Ci,
+    BuildTime,
     Clippy,
     ConstShape,
     CrateGraph,
@@ -147,6 +149,8 @@ impl Task {
                 coverage.log().clone(),
             )
             .run(workspace, &selection, &policy),
+            Task::BuildTime => Ok(BuildTime::run(workspace, &policy, &mut ledger)
+                .and_then(|()| ledger.checked(&policy, &Selection::Workspace))?),
             Task::Clippy => Ok(Clippy::run(workspace, &selection, &policy)?),
             Task::Deny => Supply::deny(workspace, &policy),
             Task::Semver => Supply::semver(workspace, &selection, &policy),

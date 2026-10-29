@@ -54,6 +54,8 @@ pub enum Failure {
     Underpriced(String),
     #[error("refused: another mutants run holds {}", .0.display())]
     LockHeld(PathBuf),
+    #[error("refused: {} holds an earlier build; remove it for a clean build", .0.display())]
+    EarlierBuild(PathBuf),
     #[error("refused: {0} is already running")]
     AlreadyRunning(&'static str),
     #[error("refused: {available} free, {granted} granted")]

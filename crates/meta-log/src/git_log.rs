@@ -7,12 +7,13 @@ mod pacing;
 mod remote;
 mod remote_heads;
 mod sha;
+mod staged_ref;
 mod tip;
 
 pub use remote_heads::RemoteHeads;
 pub use sha::{NotCommitId, Sha};
 
-use meta_git::{FileCommit, Files, Identity, RefMove, RemoteName, Repository, Writes};
+use meta_git::{FileCommit, Files, Identity, RemoteName, Repository, Writes};
 use meta_run::{Budget, Stderr};
 use meta_schema::Record;
 use std::cell::RefCell;
@@ -29,6 +30,7 @@ use listing::Listing;
 use outcome::Outcome;
 use pacing::Pacing;
 use remote::Remote;
+use staged_ref::StagedRef;
 use tip::Tip;
 
 #[derive(Clone, Debug)]
@@ -41,7 +43,6 @@ pub struct GitLog {
 }
 
 impl GitLog {
-    const STAGED: &'static str = "refs/meta-log/staged";
     const EMAIL_DOMAIN: &'static str = "@meta.invalid";
 
     pub fn new(repo: PathBuf, remote: RemoteName, budget: Budget) -> Result<Self, LogFailure> {
@@ -74,28 +75,27 @@ impl GitLog {
         let files: Files = [(Remote::FILE.to_owned(), Some(content.to_string()))].into_iter().collect();
         let parent = tip.map(Sha::object_id).transpose()?;
         let made = FileCommit::new(parent, files, author, format!("{actor}: {}", record.event()));
-        let commit = self.repository.write(&made)?;
-        let Ok(staged) = Self::STAGED.parse();
-        self.repository.write(&RefMove::new(staged, commit))?;
-        Ok(Sha::from(commit))
+        Ok(Sha::from(self.repository.write(&made)?))
     }
 
     fn attempt<Failure: From<LogFailure>>(
         &self,
         decide: &mut dyn FnMut(&Snapshot) -> Result<Record, Failure>,
     ) -> Result<Outcome, Failure> {
+        let staged = StagedRef::read(self.repository.clone())?;
         let known = self.known.borrow().clone();
         let before = known.map_or_else(|| self.fresh(Listing::Kept), Ok)?;
         let record = decide(&before.content().snapshot())?;
         let appended = before.content().appended(&record).map_err(LogFailure::from)?;
-        let commit = self.commit(before.tip(), &appended, &record)?;
-        match self.remote.push(&commit)? {
+        let committed = staged.moved(self.commit(before.tip(), &appended, &record)?)?;
+        let pushed = |commit: Sha| match self.remote.push(&commit)? {
             Ok(()) => {
                 self.known.replace(Some(Fetched::new(Some(commit), appended)));
                 Ok(Outcome::Appended(record))
             }
-            Err(stderr) => Ok(self.after_failed_push(&before, record, stderr)?),
-        }
+            Err(stderr) => self.after_failed_push(&before, record, stderr),
+        };
+        Ok(committed.map_or(Ok(Outcome::Raced), pushed)?)
     }
 
     fn fresh(&self, listing: Listing) -> Result<Fetched, LogFailure> {
