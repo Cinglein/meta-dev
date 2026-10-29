@@ -1284,3 +1284,4 @@
 {"at":"2026-10-29T00:58:52.118136Z","actor":"claude-cpucut","kind":"TaskClaimed","task":"task-fbb266cd1cdbb2ce"}
 {"at":"2026-10-29T01:00:21.166805Z","actor":"claude-cpucut","kind":"TaskLinked","task":"task-fbb266cd1cdbb2ce","pr":150}
 {"at":"2026-10-29T01:00:32.030276Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-a9c7cdb7c21a29da"}
+{"at":"2026-10-29T01:00:33.594527Z","actor":"claude-lead","kind":"TaskDone","task":"task-a9c7cdb7c21a29da"}
