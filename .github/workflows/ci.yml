@@ -65,6 +65,18 @@ jobs:
           META_GIT_COUNT: "1"
           PULL_REQUEST: ${{ github.event.pull_request.number }}
 
+  macos:
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
+        with:
+          workspaces: . -> target.noindex
+      - run: cargo test -p meta-cli
+
   goldens:
     runs-on: ubuntu-latest
     permissions:
