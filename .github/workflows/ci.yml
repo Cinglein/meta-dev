@@ -19,9 +19,7 @@ jobs:
         with:
           fetch-depth: 0
       - run: git remote set-head origin --auto
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
+      - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
@@ -44,7 +42,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
       - run: git --version
       - run: cargo xtask goldens
@@ -59,7 +57,7 @@ jobs:
       pull-requests: read
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
       - run: cargo xtask stacked
         env:
@@ -78,7 +76,7 @@ jobs:
         with:
           fetch-depth: 0
       - &mutants-toolchain
-        uses: dtolnay/rust-toolchain@stable
+        run: rustup toolchain install
       - &mutants-linker
         uses: rui314/setup-mold@v1
       - uses: Swatinem/rust-cache@v2
@@ -88,7 +86,7 @@ jobs:
       - &mutants-tool
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-mutants
+          tool: cargo-mutants@27.1.0
       - id: plan
         run: |
           shards=$(cargo xtask mutants-diff-plan)
@@ -131,7 +129,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
       - uses: actions/download-artifact@v4
         with:
