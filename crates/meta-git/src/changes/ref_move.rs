@@ -17,13 +17,26 @@ impl RefMove {
     pub fn new(name: RefName, from: Option<ObjectId>, to: ObjectId) -> RefMove {
         RefMove { name, from, to }
     }
+
+    fn refused(&self, error: git2::Error) -> GitFailure {
+        match error.code() {
+            git2::ErrorCode::Modified | git2::ErrorCode::Exists | git2::ErrorCode::NotFound => {
+                GitFailure::RefMoved(self.name.clone())
+            }
+            _ => GitFailure::Library(error),
+        }
+    }
 }
 
 impl Change for RefMove {
     type Applied = ();
 
     fn applied(&self, repository: &git2::Repository) -> Result<(), GitFailure> {
-        repository.reference(self.name.as_str(), self.to.oid(), true, Self::REASON)?;
-        Ok(())
+        let (name, to) = (self.name.as_str(), self.to.oid());
+        let moved = match self.from {
+            Some(from) => repository.reference_matching(name, to, true, from.oid(), Self::REASON),
+            None => repository.reference(name, to, false, Self::REASON),
+        };
+        moved.map(drop).map_err(|error| self.refused(error))
     }
 }

@@ -12,7 +12,7 @@ mod tip;
 pub use remote_heads::RemoteHeads;
 pub use sha::{NotCommitId, Sha};
 
-use meta_git::{FileCommit, Files, Identity, Reads, RefMove, RefName, RefTarget, RemoteName, Repository, Writes};
+use meta_git::{FileCommit, Files, GitFailure, Identity, Reads, RefMove, RefName, RefTarget, RemoteName, Repository, Writes};
 use meta_run::{Budget, Stderr};
 use meta_schema::Record;
 use std::cell::RefCell;
@@ -68,7 +68,7 @@ impl GitLog {
         Ok(self.remote.content_listed(heads)?.snapshot())
     }
 
-    fn commit(&self, tip: Option<&Sha>, content: &Content, record: &Record) -> Result<Sha, LogFailure> {
+    fn commit(&self, tip: Option<&Sha>, content: &Content, record: &Record) -> Result<Option<Sha>, LogFailure> {
         let actor = record.actor().to_string();
         let author = Identity::new(actor.clone(), format!("{actor}{}", Self::EMAIL_DOMAIN));
         let files: Files = [(Remote::FILE.to_owned(), Some(content.to_string()))].into_iter().collect();
@@ -77,8 +77,11 @@ impl GitLog {
         let commit = self.repository.write(&made)?;
         let Ok(staged) = Self::STAGED.parse::<RefName>();
         let was = self.repository.read(&RefTarget::from(staged.clone()))?;
-        self.repository.write(&RefMove::new(staged, was, commit))?;
-        Ok(Sha::from(commit))
+        match self.repository.write(&RefMove::new(staged, was, commit)) {
+            Ok(()) => Ok(Some(Sha::from(commit))),
+            Err(GitFailure::RefMoved(_)) => Ok(None),
+            Err(failure) => Err(failure.into()),
+        }
     }
 
     fn attempt<Failure: From<LogFailure>>(
@@ -89,7 +92,9 @@ impl GitLog {
         let before = known.map_or_else(|| self.fresh(Listing::Kept), Ok)?;
         let record = decide(&before.content().snapshot())?;
         let appended = before.content().appended(&record).map_err(LogFailure::from)?;
-        let commit = self.commit(before.tip(), &appended, &record)?;
+        let Some(commit) = self.commit(before.tip(), &appended, &record)? else {
+            return Ok(Outcome::Raced);
+        };
         match self.remote.push(&commit)? {
             Ok(()) => {
                 self.known.replace(Some(Fetched::new(Some(commit), appended)));
