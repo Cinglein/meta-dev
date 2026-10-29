@@ -84,7 +84,7 @@ mod tests {
     use crate::task::fixture::Fixture;
     use crate::task::ratchet::{Baseline, Drift};
     use crate::task::revision::ForeignEmails;
-    use task::{Ledger, Policy, Report, Site, Violation};
+    use task::{Ledger, Policy, Report, Site, SourceFile, Violation};
 
     const LINT_FINDINGS: &str = "lint-findings";
     const MEASURED_OK: &str = "-                     - ok";
@@ -93,6 +93,12 @@ mod tests {
     const ALLOWED: &str = "no-comments = 1";
     const SHOWN: &str = "no-comments: 1 found, baseline 0\ncomments go:\nworkspace: a comment\n";
     const BASELINE: &str = "self/lint-baseline.toml";
+    const LISTED: &str = "repeated-methods";
+    const REPEATED: [(&str, &str); 3] = [
+        ("crates/ant/src/lib.rs", "pub struct Ant; impl Ant { pub fn walk(&self) {} }"),
+        ("crates/bee/src/lib.rs", "pub struct Bee; impl Bee { pub fn walk(&self) {} }"),
+        ("crates/cow/src/lib.rs", "pub struct Cow; impl Cow { pub fn walk(&self) {} }"),
+    ];
     const NOREPLY: &str = "1+someone@users.noreply.github.com\nnoreply@github.com\n";
     const EMAILS: &str =
         "1+someone@users.noreply.github.com\nnoreply@github.com\ncommitter@example.com\nauthor@example.com\n";
@@ -106,6 +112,9 @@ mod tests {
         assert_eq!(refused.err().as_deref(), Some(SHOWN));
         let allowed: Baseline = toml::from_str(ALLOWED).unwrap();
         assert!(Lint::default().ratchet(&allowed, Drift::grew).is_ok());
+        let triple = REPEATED.map(|(path, text)| SourceFile::parse(path, text.to_owned()).unwrap());
+        let gathered = Lint::gathered(&triple, &Policy::defaults(), None);
+        assert!(gathered.listed.len() == 1 && !gathered.reports.contains_key(LISTED));
     }
 
     #[test]
