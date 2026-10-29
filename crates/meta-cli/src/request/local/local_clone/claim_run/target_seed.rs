@@ -1,7 +1,6 @@
 use std::fs::{self, DirEntry, File};
 use std::io;
 use std::path::Path;
-use std::process::Command;
 
 use crate::request::local::local_clone::cargo_tag::CargoTag;
 
@@ -13,22 +12,17 @@ pub struct TargetSeed<'seed> {
 
 impl<'seed> TargetSeed<'seed> {
     const LOCK: &'static str = ".cargo-lock";
-    #[cfg(target_os = "macos")]
-    const CLONE: [&'static str; 1] = ["-c"];
-    #[cfg(not(target_os = "macos"))]
-    const CLONE: [&'static str; 1] = ["--reflink=always"];
+    const COPY_ON_WRITE: bool = cfg!(target_os = "macos");
 
     pub fn new(clone: &'seed Path, worktree: &'seed Path) -> Self {
         Self { clone, worktree }
     }
 
     pub fn sown(self) {
-        match self.attempted() {
-            Ok(()) => {}
-            Err(cause) if cause.kind() == io::ErrorKind::Unsupported => {
-                eprintln!("meta: warning: target seed skipped, no copy-on-write clone here: {cause}");
-            }
-            Err(cause) => eprintln!("meta: warning: target seed failed, cargo will rebuild: {cause}"),
+        if !Self::COPY_ON_WRITE {
+            eprintln!("meta: warning: target seed skipped, copy-on-write seeding is macOS only");
+        } else if let Err(cause) = self.attempted() {
+            eprintln!("meta: warning: target seed failed, cargo will rebuild: {cause}");
         }
     }
 
@@ -46,20 +40,9 @@ impl<'seed> TargetSeed<'seed> {
             return Ok(());
         }
         fs::create_dir_all(&into)?;
-        Self::cloneable(&target.path(), &into).and_then(|()| Self::profiles(target, &into)).inspect_err(|_| {
+        Self::profiles(target, &into).inspect_err(|_| {
             drop(fs::remove_dir_all(&into));
         })
-    }
-
-    fn cloneable(from: &Path, into: &Path) -> io::Result<()> {
-        let probe = Command::new("cp").args(Self::CLONE).arg(from.join(CargoTag::FILE)).arg(into).output();
-        match probe {
-            Ok(done) if done.status.success() => Ok(()),
-            Ok(done) => {
-                Err(io::Error::new(io::ErrorKind::Unsupported, String::from_utf8_lossy(&done.stderr).trim().to_owned()))
-            }
-            Err(cause) => Err(io::Error::new(io::ErrorKind::Unsupported, cause)),
-        }
     }
 
     fn profiles(target: &DirEntry, into: &Path) -> io::Result<()> {
