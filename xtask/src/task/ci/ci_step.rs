@@ -7,6 +7,7 @@ use crate::task::clippy::Clippy;
 use crate::task::failure::Failure;
 use crate::task::lint::Lint;
 use crate::task::supply::Supply;
+use task::FailureSet;
 use task::Ledger;
 use task::Policy;
 use task::Selection;
@@ -34,6 +35,7 @@ impl CiStep {
         selection: &Selection,
         policy: &Policy,
         ledger: &mut Ledger,
+        captured: &mut FailureSet,
     ) -> Result<Duration, Failure> {
         let started = Instant::now();
         let outcome = match self {
@@ -46,7 +48,7 @@ impl CiStep {
                 .run()
                 .map_err(Failure::from),
             CiStep::Clippy => Clippy::run(workspace, selection, policy).map_err(Failure::from),
-            CiStep::Test => TestTime::run(workspace, selection, policy, ledger).map_err(Failure::from),
+            CiStep::Test => TestTime::run(workspace, selection, policy, ledger, captured).map_err(Failure::from),
             CiStep::Lint => workspace
                 .source_files()
                 .map_err(Failure::from)

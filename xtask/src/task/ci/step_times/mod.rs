@@ -62,7 +62,7 @@ mod tests {
         let (fixture, mut times) = (Fixture::new(), StepTimes::default());
         assert!(times.record(CiStep::Fmt, Ok(SECOND)).is_ok());
         assert!(times.failing(CiStep::Clippy).is_err());
-        Ci::new(None, None, Some(fixture.path(TIMES)), LogSource::Origin).recorded(&times).unwrap();
+        Ci::new(None, None, Some(fixture.path(TIMES)), None, LogSource::Origin).recorded(&times).unwrap();
         assert_eq!(fs::read_to_string(fixture.path(TIMES)).ok().as_deref(), Some(SHOWN));
     }
 }

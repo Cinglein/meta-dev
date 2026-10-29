@@ -1,3 +1,4 @@
+mod attribution;
 mod ci_step;
 mod head_branch;
 mod local_gate;
@@ -25,6 +26,7 @@ use crate::task::BuildDirectory;
 use crate::task::failure::Failure;
 use crate::task::prior_policy::PriorPolicy;
 use crate::task::surfaces::Surfaces;
+use attribution::Attribution;
 pub use ci_step::CiStep;
 use run_kind::RunKind;
 use standing_log::StandingLog;
@@ -32,6 +34,8 @@ use step_times::StepTimes;
 use stranding::Stranding;
 use task::Branch;
 use task::CommandLine;
+use task::FailureSet;
+use task::JobName;
 use task::Ledger;
 use task::Policy;
 use task::Selection;
@@ -43,12 +47,23 @@ pub struct Ci {
     summary: Option<PathBuf>,
     gate: Option<LocalGate>,
     record: Option<PathBuf>,
+    failures: Option<PathBuf>,
     log: LogSource,
 }
 
 impl Ci {
-    pub fn new(summary: Option<PathBuf>, gate: Option<LocalGate>, record: Option<PathBuf>, log: LogSource) -> Ci {
-        Ci { summary, gate, record, log }
+    pub const FAILURES: &str = "META_CI_FAILURES";
+    const PREFLIGHT: &str = "preflight";
+    const STANDING: &str = "standing";
+
+    pub fn new(
+        summary: Option<PathBuf>,
+        gate: Option<LocalGate>,
+        record: Option<PathBuf>,
+        failures: Option<PathBuf>,
+        log: LogSource,
+    ) -> Ci {
+        Ci { summary, gate, record, failures, log }
     }
 
     pub fn run(&self, workspace: &Workspace, selection: &Selection, policy: &Policy) -> Result<(), Failure> {
@@ -69,12 +84,15 @@ impl Ci {
                     .map_err(Failure::from)
                     .and_then(|()| TrackedBuildOutput::refuse(workspace.root()))
                     .and_then(|()| TrackedWork::refuse_untracked(&run, read));
-                let stepped = tracked
-                    .is_ok()
-                    .then(CiStep::iter)
-                    .into_iter()
-                    .flatten()
-                    .try_for_each(|step| times.record(step, step.timed(workspace, selection, policy, &mut ledger)));
+                let mut collected = FailureSet::default();
+                let mut job = JobName::from(Self::PREFLIGHT);
+                let stepped = tracked.is_ok().then(CiStep::iter).into_iter().flatten().try_for_each(|step| {
+                    job = step.to_string().into();
+                    times.record(step, step.timed(workspace, selection, policy, &mut ledger, &mut collected))
+                });
+                if tracked.is_ok() && stepped.is_ok() {
+                    job = JobName::from(Self::STANDING);
+                }
                 let outcome = tracked
                     .and(stepped)
                     .and_then(|()| StandingLog::enforcing(&run, &mut ledger, prior))
@@ -83,12 +101,22 @@ impl Ci {
                     .and_then(|()| Stranding::refuse_stranded(workspace.root(), policy, read));
                 println!("ci: total {:.1?}", started.elapsed());
                 self.recorded(&times)?;
+                self.attributed(outcome.as_ref().err(), &job, collected)?;
                 Surfaces::announce(workspace.root(), policy, self.summary.as_deref())
                     .unwrap_or_else(|failure| eprintln!("surfaces: {failure}"));
                 outcome
             },
             |gate| gate.run(policy, self.summary.as_deref()),
         )
+    }
+
+    fn attributed(&self, failure: Option<&Failure>, job: &JobName, collected: FailureSet) -> Result<(), Failure> {
+        self.failures
+            .as_ref()
+            .map_or(Ok(()), |path| {
+                failure.map_or_else(FailureSet::default, |failure| Attribution::of(failure, job, collected)).write(path)
+            })
+            .map_err(Failure::Failures)
     }
 
     fn recorded(&self, times: &StepTimes) -> Result<(), Failure> {

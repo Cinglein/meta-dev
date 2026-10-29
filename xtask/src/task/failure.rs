@@ -27,6 +27,8 @@ pub enum Failure {
     Written(#[from] toml::ser::Error),
     #[error("step summary: {0}")]
     Summary(io::Error),
+    #[error("failures file: {0}")]
+    Failures(io::Error),
     #[error("gate not posted: {0}")]
     Unready(#[from] Unready),
     #[error("{0}")]

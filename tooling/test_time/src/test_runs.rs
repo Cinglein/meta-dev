@@ -4,12 +4,12 @@ use std::str::FromStr;
 
 use super::test_run::TestRun;
 use super::test_timing::TestTiming;
-use task::Failure;
+use task::{Failure, FailureSet};
 
 #[derive(Debug, Default)]
 pub(super) struct TestRuns {
     passed: Vec<TestTiming>,
-    failed: Vec<String>,
+    failed: Vec<TestTiming>,
     unlisted: Vec<PathBuf>,
 }
 
@@ -18,8 +18,15 @@ impl TestRuns {
         if self.failed.is_empty() && self.unlisted.is_empty() {
             Ok(self.passed)
         } else {
-            Err(Failure::Tests(self.to_string()))
+            Err(Failure::Found {
+                shown: self.to_string(),
+                found: self.failures(),
+            })
         }
+    }
+
+    fn failures(&self) -> FailureSet {
+        FailureSet::default()
     }
 
     pub(super) fn passing(mut self, timing: TestTiming) -> TestRuns {
@@ -27,8 +34,8 @@ impl TestRuns {
         self
     }
 
-    pub(super) fn failing(mut self, test: &str) -> TestRuns {
-        self.failed.push(test.to_owned());
+    pub(super) fn failing(mut self, timing: TestTiming) -> TestRuns {
+        self.failed.push(timing);
         self
     }
 
@@ -77,7 +84,18 @@ mod tests {
     use std::time::Duration;
 
     use super::TestRun::{Failed, Passed};
-    use super::{TestRun, TestRuns, TestTiming};
+    use super::{Failure, TestRun, TestRuns, TestTiming};
+
+    const FAILING: &str = include_str!("../fixtures/failing-test.tsv");
+    const FAILING_GOLDEN: &str = include_str!("../fixtures/failing-test.golden.json");
+
+    #[test]
+    fn a_failing_test_is_recorded_with_its_crate_and_name() {
+        let found = FAILING.parse::<TestRuns>().and_then(TestRuns::passed);
+        assert!(
+            matches!(found, Err(Failure::Found { found, .. }) if found.to_string() == FAILING_GOLDEN)
+        );
+    }
 
     const BINARY: &str = "target/debug/deps/bin-1a2b3c";
     const NAMES: [&str; 2] = ["passes", "fails"];

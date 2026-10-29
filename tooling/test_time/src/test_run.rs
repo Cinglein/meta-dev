@@ -24,7 +24,7 @@ impl TestRun {
     pub(super) fn filed(self, runs: TestRuns) -> TestRuns {
         match self {
             TestRun::Passed(timing) => runs.passing(timing),
-            TestRun::Failed(timing) => runs.failing(timing.test()),
+            TestRun::Failed(timing) => runs.failing(timing),
             TestRun::Unlisted(binary) => runs.unlisting(binary),
         }
     }

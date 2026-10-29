@@ -29,6 +29,7 @@ use test_runs::TestRuns;
 use test_timing::TestTiming;
 
 use task::Failure;
+use task::FailureSet;
 use task::Program;
 use task::Report;
 use task::Selection;
@@ -66,6 +67,7 @@ impl TestTime {
         selection: &Selection,
         policy: &Policy,
         ledger: &mut Ledger,
+        captured: &mut FailureSet,
     ) -> Result<(), Failure> {
         selection.reaching().map_or_else(
             || {
@@ -76,11 +78,16 @@ impl TestTime {
                 Self::examples(workspace, selection, policy)?;
                 let reference = ReferenceCpu::measured(policy)?;
                 let timings = Self::timings(workspace, selection, policy, &Execution::Timed)?;
+                captured.extend(Self::overruns(&timings, policy));
                 TestTime { timings, reference }
                     .recorded(policy, ledger)
                     .verdict()
             },
         )
+    }
+
+    fn overruns(_timings: &[TestTiming], _policy: &Policy) -> FailureSet {
+        FailureSet::default()
     }
 
     pub(crate) fn examples(
@@ -175,7 +182,9 @@ impl TestTime {
 
 #[cfg(test)]
 mod tests {
-    use super::{CargoBuild, CargoTest, ReferenceCpu, RunnerConfig, TestTime, TestTiming};
+    use super::{
+        CargoBuild, CargoTest, ReferenceCpu, RunnerConfig, TestRuns, TestTime, TestTiming,
+    };
     use settings::EmbeddedDefaults;
     use std::path::{Path, PathBuf};
     use std::time::Duration;
@@ -194,6 +203,8 @@ mod tests {
     const REPORTED: [&str; 3] = ["slowest-test", "test-cpu-time", "test-time"];
     const NOTHING_TIMED: [&str; 1] = ["no tests were found to time"];
     const HEADLINE: &str = "timed";
+    const OVERRUN: &str = include_str!("../fixtures/budget-overrun.tsv");
+    const OVERRUN_GOLDEN: &str = include_str!("../fixtures/budget-overrun.golden.json");
 
     impl TestTime {
         fn over_budget(timings: Vec<TestTiming>, policy: &Policy) -> Report {
@@ -226,6 +237,15 @@ mod tests {
         let ok = |run| TestTime::over_budget(run, &policy).is_clean();
         assert!(ok(exact) && ok(fast) && over.lists_exactly(&REPORTED));
         assert!(TestTime::over_budget(Vec::new(), &policy).lists_exactly(&NOTHING_TIMED));
+    }
+
+    #[test]
+    fn a_test_over_its_wall_allowance_is_recorded_with_its_cpu() {
+        let found = OVERRUN
+            .parse::<TestRuns>()
+            .and_then(TestRuns::passed)
+            .map(|timings| TestTime::overruns(&timings, &Policy::defaults()));
+        assert!(found.is_ok_and(|set| set.to_string() == OVERRUN_GOLDEN));
     }
 
     #[test]

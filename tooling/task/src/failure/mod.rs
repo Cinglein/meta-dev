@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 use crate::budget::AvailableGib;
+use crate::failure_set::FailureSet;
 use crate::report::Report;
 use crate::site::Site;
 
@@ -31,8 +32,8 @@ pub enum Failure {
     Command(String),
     #[error("{command} failed:\n{printed}")]
     Printed { command: String, printed: String },
-    #[error("{0}")]
-    Tests(String),
+    #[error("{shown}")]
+    Found { shown: String, found: FailureSet },
     #[error("{0}")]
     Runs(FailedRuns),
     #[error("gh failed: {0}")]

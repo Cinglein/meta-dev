@@ -20,7 +20,7 @@ use std::env;
 use std::path::PathBuf;
 
 use strum::{EnumString, IntoStaticStr, VariantNames};
-use task::{Branch, Ledger, Policy, Program, Selection, Workspace};
+use task::{Branch, FailureSet, Ledger, Policy, Program, Selection, Workspace};
 
 use crate::task::adoption::Adoption;
 use crate::task::build_directory::{BuildDirectory, Misplaced, TrackedBuildFiles};
@@ -150,6 +150,7 @@ impl Task {
                 summary,
                 coverage.gate(workspace.root(), &policy)?,
                 env::var_os(LocalGate::TIMES).map(PathBuf::from),
+                env::var_os(Ci::FAILURES).map(PathBuf::from),
                 coverage.log().clone(),
             )
             .run(workspace, &selection, &policy),
@@ -192,7 +193,7 @@ impl Task {
             Task::Test => Ok(Test::run(workspace, &selection, &policy)?),
             Task::TestTime => Ok(match env::var_os(GitCount::SWITCH) {
                 Some(_) => GitCount::run(workspace, &selection, &policy, &mut ledger),
-                None => TestTime::run(workspace, &selection, &policy, &mut ledger),
+                None => TestTime::run(workspace, &selection, &policy, &mut ledger, &mut FailureSet::default()),
             }
             .and_then(|()| ledger.checked(&policy, &selection))?),
             lint => Ok(<&'static str>::from(lint).parse::<LintName>().map_or(Ok(()), |lint| {

@@ -1,0 +1,10 @@
+{
+  "failures": [
+    {
+      "kind": "compile",
+      "paths": [
+        "src/lib.rs"
+      ]
+    }
+  ]
+}

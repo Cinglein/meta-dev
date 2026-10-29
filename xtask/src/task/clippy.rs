@@ -1,3 +1,5 @@
+mod diagnostics;
+
 use task::Failure;
 use task::Policy;
 use task::Workspace;
@@ -28,5 +30,18 @@ impl Clippy {
                     .run()
             },
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::diagnostics::Diagnostics;
+
+    const PRINTED: &str = include_str!("../../fixtures/compile-error.jsonl");
+    const GOLDEN: &str = include_str!("../../fixtures/compile-error.golden.json");
+
+    #[test]
+    fn a_compile_error_is_recorded_with_its_path() {
+        assert_eq!(Diagnostics::parse(PRINTED).found().to_string(), GOLDEN);
     }
 }
