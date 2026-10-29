@@ -1592,3 +1592,4 @@
 {"at":"2026-10-29T20:04:03.440278Z","actor":"claude-lead","kind":"TaskOpened","task":"task-cce9360d23a2663e","text":"Merge queue PR A: Changes::Between(Trusted, head) trust rule with an In(c) oracle property; design.md section 4","division":"architecture-and-planning"}
 {"at":"2026-10-29T20:04:05.343907Z","actor":"claude-lead","kind":"TaskOpened","task":"task-52c15c8597db7e3c","text":"Merge queue PR B: xtask ci writes a typed failures.json (Compile, Lint, Test, Budget, Golden, Infra); design.md section 5","division":"architecture-and-planning"}
 {"at":"2026-10-29T20:04:07.080832Z","actor":"claude-lead","kind":"TaskOpened","task":"task-1920ab52fb3805f8","text":"Merge queue PR C: Footprint and overlap (meets) plus deterministic grouping, pure; design.md section 2","division":"architecture-and-planning"}
+{"at":"2026-10-29T20:06:03.841661Z","actor":"claude-qc","kind":"TaskClaimed","task":"task-1920ab52fb3805f8"}
