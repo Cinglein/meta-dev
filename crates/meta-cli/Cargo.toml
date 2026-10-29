@@ -38,6 +38,10 @@ strum.workspace = true
 thiserror.workspace = true
 toml.workspace = true
 
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2.191"
+libproc = "0.14.11"
+
 [dev-dependencies]
 git2 = { version = "=0.21.0", default-features = false, features = ["vendored-libgit2"] }
 meta-golden.workspace = true

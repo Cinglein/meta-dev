@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env: &tests-on-tmpfs
+      TMPDIR: /dev/shm
     steps:
       - uses: actions/checkout@v5
         with:
@@ -40,6 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env: *tests-on-tmpfs
     steps:
       - uses: actions/checkout@v5
         with:
@@ -56,6 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env: *tests-on-tmpfs
     steps:
       - uses: actions/checkout@v5
       - run: rustup toolchain install
@@ -72,13 +76,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    env:
-      CARGO_TARGET_DIR: target.noindex/build-time
     steps:
       - uses: actions/checkout@v5
       - run: rustup toolchain install
-      - run: cargo build --workspace --all-targets --timings
-      - run: cargo xtask waterfall "$CARGO_TARGET_DIR/cargo-timings/cargo-timing.html" | tee -a "$GITHUB_STEP_SUMMARY"
+      - run: cargo xtask build-time | tee -a "$GITHUB_STEP_SUMMARY"
+        shell: bash
+      # build-time runs the clean --timings build first, then the edit builds; the oldest report is the clean one.
+      - run: |
+          set -- target.noindex/build-time/cargo-timings/cargo-timing-*.html
+          cargo xtask waterfall "$1" | tee -a "$GITHUB_STEP_SUMMARY"
         shell: bash
       - uses: actions/upload-artifact@v4
         if: always()

@@ -7,6 +7,7 @@ use super::machine::Machine;
 use super::pid_list::PidList;
 use super::process_row::Pid;
 use super::signal::Signal;
+use super::start_time::StartTime;
 use super::target::Target;
 use crate::request::local::local_settings::MonitorSettings;
 
@@ -17,7 +18,8 @@ pub struct LiveMachine<'settings> {
 
 impl<'settings> LiveMachine<'settings> {
     const PS: &'static str = "ps";
-    const LISTING: [&'static str; 3] = ["x", "-o", "pid=,ppid=,pgid=,etime=,time=,%cpu=,command="];
+    const LISTING: [&'static str; 3] = ["x", "-o", "pid=,ppid=,pgid=,lstart=,etime=,time=,%cpu=,command="];
+    const START: [&'static str; 3] = ["-o", "lstart=", "-p"];
     const LSOF: &'static str = "lsof";
     const CWD: [&'static str; 6] = ["-a", "-d", "cwd", "-F", "n", "-p"];
     const UPTIME: &'static str = "uptime";
@@ -52,6 +54,11 @@ impl Machine for LiveMachine<'_> {
 
     fn uptime(&self) -> Option<String> {
         self.timed(Self::probe(Self::UPTIME)).and_then(Ran::succeeded).ok()
+    }
+
+    fn started(&self, pid: Pid) -> Option<StartTime> {
+        let started = pid.appended(Self::probe(Self::PS).args(Self::START));
+        self.timed(started).and_then(Ran::succeeded).ok()?.parse().ok()
     }
 
     fn signal(&self, signal: Signal, targets: &BTreeSet<Target>) {
@@ -102,7 +109,7 @@ mod tests {
         let (machine, pid) = (LiveMachine::new(&settings), Pid::from(child.id()));
         let table = machine.table().unwrap_or_default();
         let cwds = machine.cwds(&PidList::new(vec![pid])).unwrap_or_default();
-        let load = machine.uptime().and_then(|uptime| uptime.parse::<LoadAverage>().ok());
+        let load = machine.uptime().and_then(|uptime| uptime.parse::<LoadAverage>().ok()).zip(machine.started(pid));
         let started = Instant::now();
         machine.pause(GRACE);
         let paused = started.elapsed();

@@ -28,7 +28,7 @@ pub use git_failure::GitFailure;
 pub use identity::Identity;
 pub use layout::Layout;
 pub use object_id::ObjectId;
-pub use queries::{FilesAt, FirstParents, Heads, Ignored, RefTarget, Revision, Setting};
+pub use queries::{FilesAt, FirstParents, Heads, Ignored, RefTarget, RemoteUrl, Revision, Setting};
 pub use query::Query;
 pub use reads::Reads;
 pub use ref_name::RefName;

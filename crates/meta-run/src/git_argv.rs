@@ -25,7 +25,6 @@ pub enum GitArgv {
     Unpushed,
     IndependentTips,
     GitPath,
-    RemoteUrl,
 }
 
 impl Tool for GitArgv {
@@ -63,7 +62,6 @@ impl Tool for GitArgv {
             Self::Unpushed => &["rev-list", "--ignore-missing"],
             Self::IndependentTips => &["merge-base", "--independent"],
             Self::GitPath => &["rev-parse", "--git-path"],
-            Self::RemoteUrl => &["remote", "get-url"],
         }
     }
 }
