@@ -1,4 +1,4 @@
-types 947, traits declared 25, impls 1472
+types 957, traits declared 25, impls 1491
 catalog: 24 measures, report-only
   B1 unnamed concepts [trait graph, to zero]: 55
   B2 reducible traits [trait graph, to zero]: 2
@@ -12,7 +12,7 @@ catalog: 24 measures, report-only
   B10 typestate share of transitions [transition graph, higher]: not implemented
   B11 transition graph simplicity [transition graph, lower]: not implemented
   B12 unnamed field concepts [types, to zero]: 24
-  B13 types with LCOM4 above 1 [types, to zero]: 42
+  B13 types with LCOM4 above 1 [types, to zero]: 43
   B14 behavioural inherent methods [types, lower]: not implemented
   B15 bodies identical up to types [code, to zero]: not implemented
   B16 same-job paths per external effect [effects, lower]: measured by lint git_starters (partial)
@@ -25,8 +25,8 @@ catalog: 24 measures, report-only
   B23 repeated meta starts per command and scene [tests, lower]: not implemented
   B24 test lines per caught mutant [tests, lower]: not implemented
 B1 missing abstractions: maximal (types, signatures) concepts with at least 2 of each
-  concepts 111: named by one trait 35, by a composition only 21, unnamed 55
-  missing, one trait must name it: 76
+  concepts 112: named by one trait 35, by a composition only 22, unnamed 55
+  missing, one trait must name it: 77
   missing, a composition may name it: 55
   largest, unnamed:
   1. 18 = 2 types x 9 attributes
@@ -79,14 +79,14 @@ B1 missing abstractions: maximal (types, signatures) concepts with at least 2 of
     types: meta-git::RefName, meta-git::RemoteName, meta-spec::Unconverted, meta-xtask::HeadBranch, meta-xtask::ProseWords, task::BranchName
     share: fmt(&self, &mut Formatter) -> Result; from_str(&str) -> Result<Self, Infallible>
   7. 8 = 4 types x 2 attributes
+    types: crate_graph::ItemCount, elegance::Tally, meta-xtask::ViolationCount, waterfall::Seconds
+    share: add(self, Self) -> Self; fmt(&self, &mut Formatter) -> Result
+  8. 8 = 4 types x 2 attributes
     types: meta-cli::BranchName, meta-git::RemoteName, meta-xtask::Commit, task::BranchName
     share: as_ref(&self) -> &OsStr; fmt(&self, &mut Formatter) -> Result
-  8. 6 = 3 types x 2 attributes
+  9. 6 = 3 types x 2 attributes
     types: corpus_check::AnnotatedLine, corpus_check::AnnotatedSource, corpus_check::Annotation
     share: fmt(&self, &mut Formatter) -> Result; from_str(&str) -> Result<Self, CorpusError>
-  9. 6 = 3 types x 2 attributes
-    types: crate_graph::ItemCount, elegance::Tally, meta-xtask::ViolationCount
-    share: add(self, Self) -> Self; fmt(&self, &mut Formatter) -> Result
   10. 6 = 3 types x 2 attributes
     types: crate_graph::ItemCount, meta-cli::ByteCount, meta-xtask::ViolationCount
     share: fmt(&self, &mut Formatter) -> Result; sum(Counts) -> Self
@@ -100,8 +100,8 @@ B3 signatures declared in more than one local trait
     words(&self, &RemoteName) -> Vec<OsString>: meta-git::RemoteChange, meta-git::RemoteQuery
 B4 leverage: distinct method names usable on a type / method bodies written for it
   usable = inherent names + the methods of each trait the type has; a local trait contributes its declared methods, a foreign trait the names seen in impls
-  n 862: min 0.66, q1 1.00, median 1.00, q3 1.00, max 53.00
-  types with no bodies: 85
+  n 871: min 0.66, q1 1.00, median 1.00, q3 1.00, max 53.00
+  types with no bodies: 86
   lowest:
     meta-cli::Cause 0.66 (2 usable / 3 written)
     meta-cli::Unmarked 0.66 (2 usable / 3 written)
@@ -162,7 +162,7 @@ B12 field concepts: maximal (types, named fields) concepts with at least 2 of ea
 B13 types whose method-field graph splits
   rule: LCOM4 per type with fields, over its self methods keyed by trait and name; nodes are those methods and the fields; edges join a method to each field it reads or writes, to each self method it calls, and to the field of each accessor it calls; an accessor (body is self.f, &self.f or self.f = value) is not a node; a bare use of self joins every field; a method that touches nothing is left out
   limits: syntactic: fields reached through helpers or locals and trait default bodies are not seen; a call is resolved by name to every method of the type with that name
-  found 42
+  found 43
     meta-cli::MonitorSettings: 7 components [cause, near] [mark_fresh, paced] [probe_deadline] [promotes] [shows] [start_slack] [stops]
     meta-cli::CiSettings: 4 components [budget] [gh_limit, remaining] [remote_deadline] [run_overdue]
     task::Package: 4 components [directory] [doctested, example] [local_dependencies] [publish]
@@ -175,7 +175,7 @@ B13 types whose method-field graph splits
     elegance::Resolution: 2 components [called] [fields]
 trait-graph shape
   graph edges: supertrait 3, blanket 0; depth 1
-  blanket share: 0 of 687 trait impls = 0.00
+  blanket share: 0 of 697 trait impls = 0.00
   single-implementor traits: 11
     elegance::FactSource -> elegance::SynSource
     meta-cli::ClaimHands -> meta-cli::ClaimRun
@@ -188,8 +188,8 @@ trait-graph shape
     meta-schema::EventVisitor -> meta-state::Applying
     task::Stream -> task::Stdout
     task::Tool -> task::CargoTool
-  traits implemented directly, per implementing type: n 509: min 1, q1 1, median 1, q3 1, max 5
-  types with at least N = 2 traits (q3, at least 2) and no edge among them: 115
+  traits implemented directly, per implementing type: n 515: min 1, q1 1, median 1, q3 1, max 5
+  types with at least N = 2 traits (q3, at least 2) and no edge among them: 117
     corpus_check::AnnotatedLine: Display, FromStr
     corpus_check::AnnotatedSource: Display, FromStr
     corpus_check::Annotation: Display, FromStr
@@ -206,4 +206,4 @@ smell inventory scoring, informational: a finding flags an entry when a type or 
   B3 signatures declared in more than one trait [trait graph, to zero]: recall 0 of 2 tagged orthogonality []; other entries flagged 0 []; noise 1 of 1 findings
   B9 hidden state fields [transition graph, to zero]: recall 2 of 4 tagged hidden-state [ledger-mode, step-times-failed]; other entries flagged 0 []; noise 4 of 8 findings
   B12 unnamed field concepts [types, to zero]: recall 1 of 1 tagged field-concepts [new-concern-issue-task]; other entries flagged 7 [lint-report-family, option-unit-as-bool, record-new-clock, repeats-three-times, test-module-skip-per-lint, two-policy-toml-readers, use-tree-walkers]; noise 12 of 24 findings
-  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 4 tagged lcom4 [inspection-reads-and-writes]; other entries flagged 16 [fake-machine, fixture-repos, git-argv-vocabulary-scattered, git-start-paths, gitdir-link-parsers, id-generators-random, kill-and-lsof-twice, local-journals, new-concern-issue-task, oncelock-caches-with-args, quarantine-stamp-string, ref-line-strings, session-seen-counter, stored-file-family, two-undo-mechanisms, type-name-reuse]; noise 30 of 42 findings
+  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 4 tagged lcom4 [inspection-reads-and-writes]; other entries flagged 15 [fake-machine, git-argv-vocabulary-scattered, git-start-paths, gitdir-link-parsers, id-generators-random, kill-and-lsof-twice, local-journals, new-concern-issue-task, oncelock-caches-with-args, quarantine-stamp-string, ref-line-strings, session-seen-counter, stored-file-family, two-undo-mechanisms, type-name-reuse]; noise 32 of 43 findings
