@@ -30,9 +30,9 @@ impl<'scene> FakeMachine<'scene> {
         Self { tables: RefCell::new(tables.to_vec()), cwds, uptime, acts, starts, later_starts: BTreeMap::new() }
     }
 
-    pub fn started_after_term(self, pid: &str, start: &'scene str) -> Self {
+    pub fn started_after_term(self, pid: Pid, start: &'scene str) -> Self {
         let mut later_starts = self.later_starts;
-        later_starts.insert(pid.parse().unwrap(), start);
+        later_starts.insert(pid, start);
         Self { later_starts, ..self }
     }
 
@@ -44,11 +44,15 @@ impl<'scene> FakeMachine<'scene> {
 
     pub fn listed(table: &str) -> String {
         let place = |line: &str| {
-            let mut words = line.split_whitespace();
-            let (pid, parent, group) = (words.next()?, words.next()?, words.next()?);
-            Some(format!("{pid} {parent} {group} {LISTED_START} {}", words.collect::<Vec<_>>().join(" ")))
+            let words: Vec<&str> = line.split_whitespace().collect();
+            match words.as_slice() {
+                [pid, parent, group, rest @ ..] => {
+                    format!("{pid} {parent} {group} {LISTED_START} {}\n", rest.join(" "))
+                }
+                _ => format!("{line}\n"),
+            }
         };
-        table.lines().map(|line| place(line).unwrap_or_else(|| line.to_owned()) + "\n").collect()
+        table.lines().map(place).collect()
     }
 }
 
@@ -68,8 +72,8 @@ impl Machine for FakeMachine<'_> {
     }
 
     fn started(&self, pid: Pid) -> Option<StartTime> {
-        let termed = self.acts.borrow().iter().any(|act| act.starts_with("-TERM"));
-        let later = self.later_starts.get(&pid).filter(|_| termed);
+        let later =
+            self.later_starts.get(&pid).filter(|_| self.acts.borrow().iter().any(|act| act.starts_with("-TERM")));
         later.or(self.starts.get(&pid)).copied().unwrap_or(LISTED_START).parse().ok()
     }
 

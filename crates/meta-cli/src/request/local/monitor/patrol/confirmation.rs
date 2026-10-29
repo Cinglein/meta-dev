@@ -1,7 +1,10 @@
+mod reused;
+
 use super::super::culprit::Culprit;
 use super::super::fault::Fault;
 use super::super::finding::Finding;
-use super::super::reused::Reused;
+use super::super::standing::Standing;
+use reused::Reused;
 
 #[derive(Debug, Default)]
 pub struct Confirmation {
@@ -11,11 +14,14 @@ pub struct Confirmation {
 
 impl Confirmation {
     #[must_use]
-    pub fn judged(self, culprit: Culprit, outcome: Result<(), Reused>) -> Self {
-        match outcome {
-            Ok(()) => Self { kept: self.kept.into_iter().chain([culprit]).collect(), ..self },
-            Err(reused) => {
-                let refusal = Finding::Failed(Fault::shown(reused));
+    pub fn judged(self, culprit: Culprit, standing: Standing) -> Self {
+        match standing {
+            Standing::Same => Self { kept: self.kept.into_iter().chain([culprit]).collect(), ..self },
+            Standing::Gone => {
+                Self { refused: self.refused.into_iter().chain([Finding::Gone(culprit)]).collect(), ..self }
+            }
+            Standing::Changed => {
+                let refusal = Finding::Failed(Fault::shown(Reused::new(culprit.pid())));
                 Self { refused: self.refused.into_iter().chain([refusal]).collect(), ..self }
             }
         }

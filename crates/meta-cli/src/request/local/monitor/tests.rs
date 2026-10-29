@@ -7,8 +7,14 @@ use chrono::{DateTime, TimeDelta, Utc};
 use meta_golden::Golden;
 
 use super::Monitor;
+use super::culprit::Culprit;
 use super::patrol::Patrol;
+use super::process_row::{GroupId, Pid, ProcessRow};
+use super::standing::Standing;
+use super::starts::Starts;
+use super::target::Target;
 use crate::request::cli_failure::{CliFailure, Setup};
+use crate::request::local::local_settings::Cause;
 use crate::request::local::local_settings::MonitorSettings;
 use crate::request::local::{LocalClone, LocalFile};
 use crate::request::output::{Listed, Output};
@@ -57,11 +63,29 @@ const BROKEN: &str = "settings unreadable";
 const GIT: &str = ".git";
 
 const CHANGED: &str = "Tue Oct 27 07:00:00 2026";
-const HOSTS: [(fn(FakeMachine<'static>) -> FakeMachine<'static>, &str, &str); 3] = [
+type Arranged = fn(FakeMachine<'static>) -> FakeMachine<'static>;
+const HOSTS: [(Arranged, &str, &str); 3] = [
     (|host| host.started_at("100", CHANGED), "not signalled", "-TERM"),
     (|host| host.started_at("100", ""), "already gone", "-TERM"),
-    (|host| host.started_after_term("100", CHANGED), "not signalled", "-KILL"),
+    (|host| host.started_after_term("100".parse().unwrap(), CHANGED), "not signalled", "-KILL"),
 ];
+
+const LEADED: &str = "  900     1   900 18:00:00 0:01.00 0.0 sleep 1000
+  901     1   900 18:00:00 0:01.00 0.0 sleep 9
+";
+
+#[test]
+fn a_group_target_also_needs_its_leader_unchanged_while_an_exited_leader_does_not_block() {
+    let rows: Vec<ProcessRow> = FakeMachine::listed(LEADED).lines().map(|line| line.parse().unwrap()).collect();
+    let starts = Starts::listed(&rows);
+    let leader: Pid = "900".parse().unwrap();
+    let target = Target::Group(GroupId::from(leader));
+    let culprit = Culprit::new("901".parse().unwrap(), "sleep 9".parse().unwrap(), Cause::Orphaned, target);
+    let standing = |host: FakeMachine| culprit.standing(&host, &starts);
+    let host = || FakeMachine::new(&[], "", "");
+    let shown = [standing(host()), standing(host().started_at("900", CHANGED)), standing(host().started_at("900", ""))];
+    assert_eq!(shown, [Standing::Same, Standing::Changed, Standing::Same]);
+}
 
 #[test]
 fn a_culprit_is_signalled_only_while_it_is_the_process_first_listed_and_one_that_exited_is_reported_gone() {
