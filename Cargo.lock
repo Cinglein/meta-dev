@@ -588,7 +588,6 @@ dependencies = [
  "libproc",
  "meta-gh",
  "meta-git",
- "meta-git-view",
  "meta-golden",
  "meta-listing",
  "meta-log",
@@ -626,15 +625,6 @@ dependencies = [
  "serde",
  "tempfile",
  "thiserror",
-]
-
-[[package]]
-name = "meta-git-view"
-version = "0.1.0"
-dependencies = [
- "meta-golden",
- "meta-run",
- "meta-schema",
 ]
 
 [[package]]
@@ -677,6 +667,7 @@ dependencies = [
 name = "meta-pull-query"
 version = "0.1.0"
 dependencies = [
+ "meta-gh",
  "meta-pulls",
  "meta-schema",
  "serde",

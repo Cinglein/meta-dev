@@ -26,6 +26,7 @@ impl SessionDir {
     const EVENTS: &'static str = "events";
     const SEEN: &'static str = "seen";
     const STATES: &'static str = "states";
+    const DETAILS: &'static str = "details";
     const PARTIAL: &'static str = "partial";
     const LOCKS: &'static str = "locks";
     const PROBE: &'static str = "probe";
@@ -70,6 +71,16 @@ impl SessionDir {
         std::fs::rename(&temp, target)
     }
 
+    pub fn detail(&self, commit: &Commit, line: &str) -> std::io::Result<()> {
+        let folder = self.shared.join(Self::DETAILS);
+        std::fs::create_dir_all(&folder)?;
+        std::fs::write(folder.join(commit.argument()), line)
+    }
+
+    pub fn detail_of(&self, commit: &Commit) -> Option<String> {
+        std::fs::read_to_string(self.shared.join(Self::DETAILS).join(commit.argument())).ok()
+    }
+
     pub fn status_of(&self, commit: &Commit) -> Option<CiStatus> {
         let text = std::fs::read_to_string(self.shared.join(Self::STATES).join(commit.argument())).ok()?;
         let state: WatchState = text.parse().ok()?;
@@ -110,6 +121,7 @@ mod tests {
     const OWN: &str = "session";
     const SHA: &str = "f2e83b47f04f1aadaaf72b9d15074e933a513dc6";
     const TOOK: Duration = Duration::from_millis(64);
+    const FAILED: &str = "ci failed after 1m: lint; run `meta ci-log`";
 
     #[test]
     fn a_watched_commit_reads_as_running_and_a_learned_run_length_is_expected_next_time() {
@@ -120,5 +132,15 @@ mod tests {
         dir.watch(&commit).and_then(|()| dir.learn(TOOK)).unwrap();
         assert_eq!(before, (None, None));
         assert_eq!((dir.status_of(&commit), dir.expected()), (Some(CiStatus::Running), Some(TOOK)));
+    }
+
+    #[test]
+    fn a_second_session_reads_the_detail_the_first_sessions_watcher_left_for_the_commit() {
+        let root = tempfile::tempdir().unwrap();
+        let session = |name: &str| SessionDir { own: root.path().join(name), shared: root.path().to_path_buf() };
+        let [watcher, waiter] = ["watcher", "waiter"].map(session);
+        let Ok(commit) = SHA.parse::<Commit>();
+        watcher.detail(&commit, FAILED).unwrap();
+        assert_eq!((waiter.news().is_none(), waiter.detail_of(&commit)), (true, Some(FAILED.to_owned())));
     }
 }
