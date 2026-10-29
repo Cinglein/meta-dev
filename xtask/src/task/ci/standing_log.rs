@@ -19,14 +19,15 @@ impl StandingLog {
     const GIT_ENTRY: &str = ".git";
     const GIT_LIMIT: Duration = Duration::from_secs(30);
 
-    pub fn git(root: &Path) -> GitLog {
+    pub fn git(root: &Path) -> Result<GitLog, meta_log::LogFailure> {
         let Ok(remote) = Self::REMOTE.parse();
         let repository = root.ancestors().find(|dir| dir.join(Self::GIT_ENTRY).exists()).unwrap_or(root);
         GitLog::new(repository.to_path_buf(), remote, Budget::new(Self::GIT_LIMIT))
     }
 
     pub fn prefetched(root: &Path) -> Result<LogSource, Failure> {
-        Self::git(root).fetched_tip().map_err(Failure::GateFetch)?.map(LogSource::Prefetched).ok_or(Failure::GateNoLog)
+        let tip = Self::git(root).and_then(|log| log.fetched_tip()).map_err(Failure::GateFetch)?;
+        tip.map(LogSource::Prefetched).ok_or(Failure::GateNoLog)
     }
 
     pub fn state(snapshot: Result<Snapshot, Failure>) -> Result<State, Failure> {
@@ -124,12 +125,13 @@ mod tests {
     fn the_isolated_run_reads_exactly_the_fetched_tip_and_an_unreachable_or_unfetched_log_fails_closed() {
         let [writer, reader] = [Fixture::new(), Fixture::new()];
         writer.shared_origin(reader.write(UNREACHABLE, TOP));
-        let append = || StandingLog::git(writer.root()).append::<LogFailure>(&mut |_| Ok(Stranding::rated(TOP, MINOR)));
+        let append =
+            || StandingLog::git(writer.root()).unwrap().append::<LogFailure>(&mut |_| Ok(Stranding::rated(TOP, MINOR)));
         let empty = StandingLog::prefetched(reader.root()).map(drop);
         assert!(StandingLog::closed(&[empty], GATE_EMPTY));
         append().unwrap();
         let fetched = StandingLog::prefetched(reader.root()).unwrap();
-        let log = StandingLog::git(reader.root());
+        let log = StandingLog::git(reader.root()).unwrap();
         append().and_then(|_| log.read()).unwrap();
         reader.pointed(&reader.path(UNREACHABLE));
         let read = |source: &LogSource| source.snapshot(&log).map(|snapshot| snapshot.records().len());

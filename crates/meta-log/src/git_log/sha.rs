@@ -3,17 +3,23 @@ mod not_commit_id;
 use std::fmt;
 use std::str::FromStr;
 
+use meta_git::{GitFailure, ObjectId};
 pub use not_commit_id::NotCommitId;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Sha(String);
 
 impl Sha {
-    const HEX_LENGTH_PER_BYTE: usize = 2;
     const HEX_LENGTH: usize = 40;
 
-    pub(crate) fn digest_length(&self) -> usize {
-        self.0.len() / Self::HEX_LENGTH_PER_BYTE
+    pub(crate) fn object_id(&self) -> Result<ObjectId, GitFailure> {
+        self.0.parse()
+    }
+}
+
+impl From<ObjectId> for Sha {
+    fn from(id: ObjectId) -> Self {
+        Self(id.to_string())
     }
 }
 
