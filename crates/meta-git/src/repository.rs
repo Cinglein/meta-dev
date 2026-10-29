@@ -42,6 +42,11 @@ impl Repository {
         Self::open(path)
     }
 
+    #[must_use]
+    pub fn git_dir(&self) -> PathBuf {
+        self.locked().path().to_path_buf()
+    }
+
     fn locked(&self) -> MutexGuard<'_, git2::Repository> {
         self.opened.lock().unwrap_or_else(PoisonError::into_inner)
     }

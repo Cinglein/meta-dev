@@ -3,6 +3,7 @@ use std::fmt;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use meta_git::ObjectId;
 use meta_schema::CommitId;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -31,6 +32,12 @@ impl FromStr for Commit {
 
     fn from_str(sha: &str) -> Result<Self, Self::Err> {
         Ok(Self(sha.split_whitespace().next().unwrap_or_default().to_owned()))
+    }
+}
+
+impl From<ObjectId> for Commit {
+    fn from(id: ObjectId) -> Self {
+        Self(id.to_string())
     }
 }
 

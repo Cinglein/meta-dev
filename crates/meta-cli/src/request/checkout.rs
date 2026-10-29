@@ -1,3 +1,5 @@
+use meta_git::CheckedOut;
+
 use crate::request::ci::Commit;
 use crate::request::project::BranchName;
 
@@ -8,17 +10,8 @@ pub struct Checkout {
 }
 
 impl Checkout {
-    const HEADS: &'static str = "refs/heads/";
-    const DETACHED: &'static str = "HEAD";
-    const ATTACHED: &'static str = "HEAD -> ";
-    const DECORATIONS: &'static str = ", ";
-
-    pub fn decorated(head: &Commit, decorations: &str) -> Option<Self> {
-        let named = decorations.split(Self::DECORATIONS).find_map(|decoration| {
-            (decoration == Self::DETACHED).then_some(decoration).or_else(|| decoration.strip_prefix(Self::ATTACHED))
-        })?;
-        let branch = named.strip_prefix(Self::HEADS).and_then(|name| name.parse().ok());
-        Some(Self { head: Some(head.clone()), branch })
+    pub fn new(head: Option<Commit>, branch: Option<BranchName>) -> Self {
+        Self { head, branch }
     }
 
     pub fn head(&self) -> Option<&Commit> {
@@ -27,5 +20,12 @@ impl Checkout {
 
     pub fn branch(&self) -> Option<&BranchName> {
         self.branch.as_ref()
+    }
+}
+
+impl From<&CheckedOut> for Checkout {
+    fn from(checked_out: &CheckedOut) -> Self {
+        let branch = checked_out.branch().and_then(|name| BranchName::try_from(name).ok());
+        Self { head: checked_out.commit().map(Commit::from), branch }
     }
 }
