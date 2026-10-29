@@ -4,6 +4,7 @@ use std::fmt;
 use std::time::Duration;
 
 use super::gh::Observation;
+use crate::request::ci::Commit;
 use crate::request::ci::ci_status::CiStatus;
 use elapsed::Elapsed;
 
@@ -32,7 +33,8 @@ impl Note {
         )
     }
 
-    pub fn concluded(current: Option<CiStatus>, last: Option<&Observation>, elapsed: Duration) -> Self {
+    pub fn concluded(current: Option<CiStatus>, last: Option<&Observation>, elapsed: Duration) -> Option<Self> {
+        let unchecked = current.filter(|status| *status == CiStatus::Unchecked);
         let failed = current.filter(|status| *status == CiStatus::Failed);
         let absent = current.filter(|status| *status == CiStatus::Absent);
         let status = failed.or(last.and_then(Observation::finished)).or(absent).unwrap_or(CiStatus::TimedOut);
@@ -42,7 +44,11 @@ impl Note {
             .filter(|joined| !joined.is_empty())
             .map(|joined| format!(": {joined}; run `meta ci-log`"));
         let line = format!("{status} after {}{}{}", Elapsed::new(elapsed), status.detail(), failed.unwrap_or_default());
-        Self { line, status }
+        unchecked.is_none().then_some(Self { line, status })
+    }
+
+    pub fn entry(&self, commit: &Commit) -> String {
+        format!("CI {commit}: {self}")
     }
 
     pub fn unchecked(elapsed: Duration, reason: impl fmt::Display) -> Self {

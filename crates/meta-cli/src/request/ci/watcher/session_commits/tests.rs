@@ -73,7 +73,12 @@ fn commits_the_remote_holds_on_any_branch_count_as_pushed_and_only_independent_t
     assert_eq!(pushed, [Recorded::commits(&CREATED[5..]), Recorded::commits(&PUSHED_BY_HEADS)]);
     let asked = [Reach::Remote, Reach::Tracking].map(|reach| reach.asks_remote(&created));
     assert_eq!((heads.tips::<Commit>(), asked), (Recorded::commits(&TIPS), [Some(()), None]));
-    let tipped: Vec<_> =
-        tipped.map(|seen| (seen.unpushed_head().cloned(), seen.pushed().to_vec(), seen.heads().clone())).collect();
-    assert_eq!(tipped, [(created.first().cloned(), Recorded::commits(&INDEPENDENT), heads)]);
+    let tipped: Vec<_> = tipped
+        .map(|seen| {
+            (seen.unpushed_head().cloned(), seen.pushed().to_vec(), seen.heads().clone(), seen.checkout().clone())
+        })
+        .collect();
+    assert_eq!(tipped, [(created.first().cloned(), Recorded::commits(&INDEPENDENT), heads, checkout)]);
+    let known = [Some(created.clone()), None].map(|created| SessionCommits::known(created).ok());
+    assert_eq!(known, [Some(created), None]);
 }

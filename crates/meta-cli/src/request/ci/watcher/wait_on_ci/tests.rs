@@ -57,10 +57,12 @@ fn a_wait_covers_only_its_own_head_says_resume_or_reopen_for_a_branch_task_and_r
     let ready = Board::claimed();
     assert_eq!([waiting.judged(OLD, None), waiting.judged(HEAD, None)], [WaitOnCi::Recorded, WaitOnCi::Taskless]);
     assert_eq!(ready.judged(HEAD, Some(ready.task)), WaitOnCi::Unrecorded(ready.task));
-    let timed_out = [Watched::new(OLD.parse().unwrap(), Some(CiStatus::TimedOut))];
+    let [timed_out, passed] =
+        [CiStatus::TimedOut, CiStatus::Passed].map(|at| [Watched::new(OLD.parse().unwrap(), Some(at))]);
     let states = [&waiting, &ready].map(|board| Ok(State::fold(&board.records)));
-    let blocked = states.map(|state| WaitOnCi::verdict(&state, &timed_out, OLD.parse().ok().as_ref(), None).is_some());
-    assert_eq!(blocked, [false, true]);
+    let blocked = states.map(|state| WaitOnCi::stop_reason(&timed_out, OLD.parse().ok().as_ref(), None, || state));
+    let unread = WaitOnCi::stop_reason(&passed, None, None, || Err(CliFailure::raised::<Invalid>(BROKEN)));
+    assert_eq!((blocked.map(|reason| reason.is_some()), unread), ([false, true], None));
     let done = Board::claimed().then(|task| Event::TaskDone(TaskRef::new(task)));
     let shown =
         [waiting.judged(HEAD, Some(waiting.task)), done.judged(HEAD, Some(done.task))].map(|wait| wait.to_string());
