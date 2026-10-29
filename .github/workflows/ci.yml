@@ -14,7 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: read
     steps:
       - uses: actions/checkout@v5
         with:
@@ -29,12 +28,12 @@ jobs:
       - run: cargo xtask ci ${{ github.event_name == 'pull_request' && '--affected' || '' }}
         env:
           PULL_REQUEST: ${{ github.event.pull_request.number }}
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.DEPENDABOT_ALERTS_TOKEN || github.token }}
       - run: cargo xtask ci
         working-directory: examples/consumer
         env:
           PULL_REQUEST: ${{ github.event.pull_request.number }}
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.DEPENDABOT_ALERTS_TOKEN || github.token }}
 
   goldens:
     runs-on: ubuntu-latest
