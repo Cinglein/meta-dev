@@ -74,17 +74,22 @@ mod tests {
     use super::TargetSeed;
 
     const TAG: &str = "Signature: 8a477f597d28d172789f06886806bc55\n# created by cargo\n";
-    const FILES: [&str; 4] = ["t/CACHEDIR.TAG", "t/debug/.cargo-lock", "t/debug/deps/libx.rlib", "t/doc/page"];
+    const FILES: [&str; 5] =
+        ["t/CACHEDIR.TAG", "t/debug/.cargo-lock", "t/debug/deps/libx.rlib", "t/doc/page", "u/page"];
+    const LINK: &str = "t/debug/link";
+    const SEEDED: [bool; 6] = [true, true, true, false, false, false];
 
     #[test]
-    fn a_seed_copies_the_tag_and_locked_profiles_and_skips_unlocked_ones() {
+    fn a_seed_copies_the_tag_and_locked_profiles_and_skips_unlocked_untagged_and_links() {
         let clone = tempfile::tempdir().unwrap();
         let worktree = tempfile::tempdir().unwrap();
         for path in FILES.map(|file| clone.path().join(file)) {
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             std::fs::write(path, TAG).unwrap();
         }
+        std::os::unix::fs::symlink(clone.path().join(FILES[0]), clone.path().join(LINK)).unwrap();
         TargetSeed::new(clone.path(), worktree.path()).attempted().unwrap();
-        assert_eq!(FILES.map(|path| worktree.path().join(path).exists()), [true, true, true, false]);
+        let shown = FILES.iter().chain([&LINK]).map(|path| worktree.path().join(path).exists());
+        assert_eq!(shown.collect::<Vec<_>>(), SEEDED);
     }
 }
