@@ -1,10 +1,12 @@
 use std::process::ExitCode;
 
-use meta_cli::Request;
+use meta_cli::{Request, TraceRecord};
 use meta_run::Run;
 
 fn main() -> ExitCode {
-    Run::exit(match Request::try_from(std::env::args().collect::<Vec<_>>()).and_then(Request::answer) {
+    let args: Vec<String> = std::env::args().collect();
+    let trace = TraceRecord::started(&args);
+    let code = match Request::try_from(args).and_then(Request::answer) {
         Ok(output) => {
             print!("{output}");
             output.exit_code()
@@ -13,5 +15,7 @@ fn main() -> ExitCode {
             eprintln!("meta: {failure}");
             ExitCode::FAILURE
         }
-    })
+    };
+    trace.kept();
+    Run::exit(code)
 }

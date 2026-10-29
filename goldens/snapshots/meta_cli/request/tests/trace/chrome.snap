@@ -1,0 +1,33 @@
+(
+    Listed(
+        "[{\"name\":\"command status\",\"ph\":\"X\",\"ts\":0,\"dur\":10000,\"pid\":1,\"tid\":0},{\"name\":\"network gh\",\"ph\":\"X\",\"ts\":1000,\"dur\":5000,\"pid\":1,\"tid\":0},{\"name\":\"spawn git\",\"ph\":\"X\",\"ts\":500,\"dur\":1000,\"pid\":1,\"tid\":0},{\"name\":\"fs\",\"ph\":\"X\",\"ts\":6500,\"dur\":500,\"pid\":1,\"tid\":0},{\"name\":\"spawn meta\",\"ph\":\"X\",\"ts\":7000,\"dur\":2500,\"pid\":1,\"tid\":0},{\"name\":\"command heartbeat\",\"ph\":\"X\",\"ts\":7000,\"dur\":2500,\"pid\":2,\"tid\":0},{\"name\":\"spawn git\",\"ph\":\"X\",\"ts\":7300,\"dur\":700,\"pid\":2,\"tid\":0}]\n",
+    ),
+    [
+        Some(
+            Last(
+                None,
+            ),
+        ),
+        Some(
+            Chrome(
+                Some(
+                    Status,
+                ),
+            ),
+        ),
+        None,
+        None,
+    ],
+    [
+        Some(
+            None,
+        ),
+        Some(
+            Some(
+                Status,
+            ),
+        ),
+        None,
+        None,
+    ],
+)
