@@ -1,6 +1,8 @@
+mod addition;
 mod asks;
 mod change;
 mod changes;
+mod file_line;
 mod files;
 mod git_failure;
 mod identity;
@@ -17,18 +19,23 @@ mod remote_name;
 mod remote_query;
 mod repository;
 mod sends;
+mod signer_emails;
 mod worktrees;
 mod writes;
 
+pub use addition::Addition;
 pub use asks::Asks;
 pub use change::Change;
 pub use changes::{BranchCreate, BranchDelete, ConfigFlag, FastForward, Fetch, FileCommit, RefMove};
+pub use file_line::FileLine;
 pub use files::Files;
 pub use git_failure::GitFailure;
 pub use identity::Identity;
 pub use layout::Layout;
 pub use object_id::ObjectId;
-pub use queries::{FilesAt, FirstParents, Heads, Ignored, RefTarget, RemoteUrl, Revision, Setting};
+pub use queries::{
+    FilesAt, FirstAddition, FirstParents, Heads, Ignored, RefTarget, RemoteUrl, Revision, Setting, Signers,
+};
 pub use query::Query;
 pub use reads::Reads;
 pub use ref_name::RefName;
@@ -39,5 +46,6 @@ pub use remote_name::RemoteName;
 pub use remote_query::RemoteQuery;
 pub use repository::Repository;
 pub use sends::Sends;
+pub use signer_emails::SignerEmails;
 pub use worktrees::{WorktreeAdd, WorktreePrune, WorktreeRemove};
 pub use writes::Writes;

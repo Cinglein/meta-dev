@@ -1,4 +1,5 @@
 mod files_at;
+mod first_addition;
 mod first_parents;
 mod heads;
 mod ignored;
@@ -6,8 +7,10 @@ mod ref_target;
 mod remote_url;
 mod revision;
 mod setting;
+mod signers;
 
 pub use files_at::FilesAt;
+pub use first_addition::FirstAddition;
 pub use first_parents::FirstParents;
 pub use heads::Heads;
 pub use ignored::Ignored;
@@ -15,3 +18,4 @@ pub use ref_target::RefTarget;
 pub use remote_url::RemoteUrl;
 pub use revision::Revision;
 pub use setting::Setting;
+pub use signers::Signers;

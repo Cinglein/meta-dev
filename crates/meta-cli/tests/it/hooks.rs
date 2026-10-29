@@ -95,6 +95,8 @@ impl Repo {
         Fixture::bare(origin.path(), "main");
         let cloned = Fixture::working(clone.path(), origin.path(), "main");
         std::fs::write(clone.path().join("meta.toml"), CONFIG).unwrap();
+        std::fs::create_dir_all(clone.path().join("tooling")).unwrap();
+        std::fs::write(clone.path().join("tooling/policy.toml"), "").unwrap();
         cloned.committed("start");
         Self { origin, clone }
     }
