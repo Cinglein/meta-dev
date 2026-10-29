@@ -68,6 +68,7 @@ mod tests {
     const KEPT: &str = include_str!("../../../../.cargo/mutants.toml");
     const SH: (&str, &str) = ("sh", "-c");
     const PASSING: &str = "true";
+    const UNJUDGED: &str = "exit 1";
     const SLOW: &str = "exec sleep 1";
     const ORPHAN: &str = "meta-orphan";
     const ORPHANING: &str = "case \"$*\" in *--no-run*) ;; *) set -m; sleep 5 & echo $! > \"${TMPDIR:-/tmp}/meta-orphan.$PPID\"; exec sleep 1;; esac";
@@ -86,7 +87,8 @@ mod tests {
         let timeout = policy.interval(Interval::DiscoverEvery);
         let build = |script, kept| MutantsBuild::sharing(sh.clone().argument(script), kept, timeout, timeout);
         let passes = |build: &MutantsBuild, share| {
-            let run = MutantsRun::new(sh.clone(), PathBuf::new()).baselined(Some(build.line(CargoArgument::Test)));
+            let run = MutantsRun::new(sh.clone().argument(UNJUDGED), PathBuf::new())
+                .baselined(Some(build.line(CargoArgument::Test)));
             run.accepted(build, policy.memory(share), &policy)
         };
         let failed = FAILING.map(|(script, kept)| build(script, kept).and_then(|made| passes(&made, GRANTED)).is_err());
