@@ -1454,3 +1454,4 @@
 {"at":"2026-10-29T10:58:22.391900Z","actor":"claude-lead","kind":"TaskOpened","task":"task-55a16bb51d281cfc","text":"Build time: merge meta-cli's integration-test binaries into one (a leaf edit rebuilds 5 test binaries); same in other crates.","division":"performance-and-cost","addresses":["concern-aa78a864a1100142"]}
 {"at":"2026-10-29T10:59:32.161737Z","actor":"claude-sharedtarget","kind":"TaskClaimed","task":"task-91243509355af29b"}
 {"at":"2026-10-29T10:59:35.298544Z","actor":"claude-onebin","kind":"TaskClaimed","task":"task-55a16bb51d281cfc"}
+{"at":"2026-10-29T11:00:34.431561Z","actor":"claude-elegcat","kind":"TaskLinked","task":"task-3d193b38d85522f9","pr":176}
