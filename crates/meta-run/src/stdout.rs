@@ -19,8 +19,4 @@ impl Stdout {
             Err(unreadable) => String::from_utf8_lossy(unreadable.as_bytes()),
         }
     }
-
-    pub fn into_text(self) -> Result<String, FromUtf8Error> {
-        self.0
-    }
 }

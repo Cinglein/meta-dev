@@ -28,3 +28,16 @@ impl fmt::Display for ReferenceCpu {
         write!(formatter, "runner reference {} ms", self.0.as_millis())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::ReferenceCpu;
+    use std::time::Duration;
+    const MEASURED: Duration = Duration::from_millis(42);
+    const SHOWN: &str = "runner reference 42 ms";
+
+    #[test]
+    fn a_reference_shows_its_milliseconds() {
+        assert_eq!(ReferenceCpu::new(MEASURED).to_string(), SHOWN);
+    }
+}
