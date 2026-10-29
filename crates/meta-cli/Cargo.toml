@@ -22,6 +22,7 @@ meta-golden = { workspace = true, optional = true }
 meta-schema.workspace = true
 meta-log.workspace = true
 meta-run.workspace = true
+meta-git.workspace = true
 meta-git-view.workspace = true
 meta-listing.workspace = true
 meta-status.workspace = true
