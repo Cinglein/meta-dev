@@ -1354,3 +1354,4 @@
 {"at":"2026-10-29T04:29:05.749327Z","actor":"claude-fixture","kind":"TaskOpened","task":"task-3dc9777c489aa9d9","text":"xtask test fixture writes commits through libgit2 instead of git fast-import, add and commit","division":"performance-and-cost","addresses":["concern-7c8ca24df2ec76b0"]}
 {"at":"2026-10-29T04:29:13.211912Z","actor":"claude-fixture","kind":"TaskClaimed","task":"task-3dc9777c489aa9d9"}
 {"at":"2026-10-29T04:31:46.748709Z","actor":"claude-fixture","kind":"TaskLinked","task":"task-3dc9777c489aa9d9","pr":162}
+{"at":"2026-10-29T05:15:30.401875Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-fcf61c60d0f57c4d","text":"meta ci-wait never returned after #160's CI passed; meta ci-log drops the failing lines (agents fall back to gh api).","division":"features-and-maintenance","severity":"minor"}
