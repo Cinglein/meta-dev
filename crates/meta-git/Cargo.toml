@@ -1,0 +1,19 @@
+[package]
+name = "meta-git"
+description = "The one git port: reads, ref updates and commits in process through libgit2; the git CLI only for ls-remote, fetch and push."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+git2 = { version = "=0.21.0", default-features = false, features = ["vendored-libgit2"] }
+meta-run.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

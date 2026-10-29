@@ -144,7 +144,7 @@ impl FakeHost {
 
     pub fn context(&self) -> Context {
         let [root, checkout, common] = self.places.clone();
-        Context::new(checkout, common, root, "origin".parse().unwrap())
+        Context::new(checkout, common, vec![root], "origin".parse().unwrap())
     }
 
     pub fn entry_is(&mut self, path: &str, kind: EntryKind) {

@@ -2,15 +2,16 @@
 
 use std::fmt;
 use std::fs::File;
-use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
 
-#[path = "support/skeleton.rs"]
-mod skeleton;
-use skeleton::Skeleton;
+#[allow(dead_code)]
+#[path = "support/fixture.rs"]
+mod fixture;
+#[path = "support/meta_command.rs"]
+mod meta_command;
+use fixture::{Fixture, Moment};
+use meta_command::MetaCommand;
 
-const META: &str = env!("CARGO_BIN_EXE_meta");
 const MERGED: &str = "task-00000000000000a1";
 const OPEN: &str = "task-00000000000000a2";
 const DIRTY: &str = "task-00000000000000a3";
@@ -26,23 +27,12 @@ const DANGLING: &str = "1111111111111111111111111111111111111111\n";
 const RECORDED: [&str; 9] = [MERGED, OPEN, DIRTY, BUSY, GONE, PAUSED, PICKED, REVERTED, REBASED];
 const ADDED: [&str; 8] = [MERGED, OPEN, DIRTY, BUSY, PAUSED, PICKED, REVERTED, REBASED];
 const STRAY: &str = "stray";
-const SEED: &str = "commit refs/heads/main
-committer t <t@meta.invalid> 1700000000 +0000
-data 4
-seed
-M 100644 inline meta.toml
-data <<END
-remote = \"origin\"
-END
-
-";
-const LOG: &str = r#"commit refs/heads/meta/log
-committer t <t@meta.invalid> 1700000000 +0000
-data 4
-seed
-M 100644 inline events.jsonl
-data <<END
-{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"SchemaVersion","version":2}
+const SEEDED: Moment = Moment::after_epoch(1_700_000_000);
+const MAIN: &str = "refs/heads/main";
+const HEADS: &str = "refs/heads/";
+const TRACKING: &str = "refs/remotes/origin/";
+const LOG: &str = "refs/heads/meta/log";
+const EVENTS: &str = r#"{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"SchemaVersion","version":2}
 {"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskOpened","task":"task-00000000000000a1","text":"x","division":"features-and-maintenance"}
 {"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskOpened","task":"task-00000000000000a2","text":"x","division":"features-and-maintenance"}
 {"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskOpened","task":"task-00000000000000a3","text":"x","division":"features-and-maintenance"}
@@ -60,8 +50,6 @@ data <<END
 {"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskLinked","task":"task-00000000000000a8","pr":5}
 {"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskOpened","task":"task-00000000000000a9","text":"x","division":"features-and-maintenance"}
 {"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskLinked","task":"task-00000000000000a9","pr":5}
-END
-
 "#;
 const FAKE_GH: &str = r#"#!/bin/sh
 case "$1 $2" in
@@ -146,53 +134,22 @@ impl fmt::Display for Settings<'_> {
     }
 }
 
-struct Git;
+struct Seeded;
 
-impl Git {
-    const IDENTITY: [&'static str; 8] = [
-        "-c",
-        "user.name=test",
-        "-c",
-        "user.email=test@meta.invalid",
-        "-c",
-        "init.defaultBranch=main",
-        "-c",
-        "maintenance.auto=false",
-    ];
-
-    fn run(dir: &Path, words: &[&str]) -> Output {
-        Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
+impl Seeded {
+    fn origin(dir: &Path) {
+        let origin = Fixture::bare(dir, "main");
+        let seed = origin.written(MAIN, "meta.toml", CONFIG, &SEEDED);
+        origin.branched(HEADS, &ADDED, seed);
+        origin.written(LOG, "events.jsonl", EVENTS, &SEEDED);
     }
 
-    fn imported(repo: &Path, stream: &str) {
-        let mut command = Command::new("git");
-        let piped = command.arg("-C").arg(repo).args(["fast-import", "--quiet"]).stdin(Stdio::piped());
-        let mut child = piped.spawn().unwrap();
-        child.stdin.take().unwrap().write_all(stream.as_bytes()).unwrap();
-        assert!(child.wait().unwrap().success());
-    }
-
-    fn seeded(origin: &Path, clone: &Path) {
-        let branches = |prefix: &str, names: &[&str]| -> String {
-            names.iter().flat_map(|name| ["reset ", prefix, name, "\nfrom refs/heads/main\n\n"]).collect()
-        };
-        let heads = branches("refs/heads/", &ADDED);
-        let tracking = branches("refs/remotes/origin/", &[["main"].as_slice(), &ADDED].concat());
-        std::thread::scope(|scope| {
-            scope.spawn(|| Self::imported(origin, &[SEED, &heads, LOG].concat()));
-            Self::imported(clone, &[SEED, &heads, &tracking].concat());
-        });
-    }
-
-    fn added(scene: &Scene) {
-        let clone = scene.clone.path();
-        let trees = scene.trees();
-        let added: Vec<Output> = ADDED
-            .iter()
-            .map(|task| Self::run(clone, &["worktree", "add", "-q", trees.join(task).to_str().unwrap(), task]))
-            .collect();
-        assert!(added.iter().all(|output| output.status.success()));
-        Self::run(clone, &["worktree", "add", "-q", "--detach", trees.join(STRAY).to_str().unwrap()]);
+    fn clone(scene: &Scene) {
+        let clone = Fixture::working(scene.clone.path(), scene.origin.path(), "main");
+        let seed = clone.written(MAIN, "meta.toml", CONFIG, &SEEDED);
+        clone.branched(HEADS, &ADDED, seed);
+        clone.branched(TRACKING, &[["main"].as_slice(), &ADDED].concat(), seed);
+        clone.worktrees(&scene.trees(), &ADDED, STRAY);
     }
 }
 
@@ -209,16 +166,10 @@ impl Scene {
             clone: tempfile::tempdir().unwrap(),
             trees: tempfile::tempdir().unwrap(),
         };
-        Skeleton::Bare.lay(scene.origin.path(), "main");
-        Skeleton::Working.lay(scene.clone.path(), "main");
-        let remote = format!(
-            "[remote \"origin\"]\n\turl = {}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n",
-            scene.origin.path().display()
-        );
-        let config = scene.clone.path().join(".git/config");
-        std::fs::write(&config, [std::fs::read_to_string(&config).unwrap(), remote].concat()).unwrap();
+        Seeded::origin(scene.origin.path());
+        Seeded::clone(&scene);
         std::fs::write(scene.clone.path().join("meta.toml"), CONFIG).unwrap();
-        std::fs::create_dir(scene.clone.path().join(".git/info")).unwrap();
+        std::fs::create_dir_all(scene.clone.path().join(".git/info")).unwrap();
         std::fs::write(scene.clone.path().join(".git/info/exclude"), EXCLUDED).unwrap();
         std::fs::write(scene.clone.path().join("meta.local.toml"), Settings(&scene.trees()).to_string()).unwrap();
         std::fs::create_dir(scene.clone.path().join("bin")).unwrap();
@@ -228,8 +179,6 @@ impl Scene {
             std::fs::metadata("/bin/sh").unwrap().permissions(),
         )
         .unwrap();
-        Git::seeded(scene.origin.path(), scene.clone.path());
-        Git::added(&scene);
         scene.planted();
         scene
     }
@@ -239,10 +188,9 @@ impl Scene {
         std::fs::create_dir_all(trees.join(MERGED).join("target/debug")).unwrap();
         std::fs::write(trees.join(MERGED).join("target/debug/.cargo-lock"), "").unwrap();
         std::fs::write(trees.join(MERGED).join("target/CACHEDIR.TAG"), CARGO_TAG).unwrap();
-        Git::run(&trees.join(DIRTY), &["commit", "-q", "--allow-empty", "-m", "precious"]);
-        Git::run(&trees.join(DIRTY), &["update-ref", "WIP", "HEAD"]);
-        Git::run(&trees.join(DIRTY), &["reset", "-q", "--hard", "HEAD~1"]);
-        Git::run(&trees.join(DIRTY), &["update-ref", "-d", "ORIG_HEAD"]);
+        let dirty = Fixture::opened(&trees.join(DIRTY));
+        dirty.committed("precious");
+        dirty.rewound();
         let linked = self.clone.path().join(".git/worktrees");
         PAUSES.iter().try_for_each(|[task, pause]| std::fs::write(linked.join(task).join(pause), DANGLING)).unwrap();
         std::fs::create_dir_all(self.clone.path().join(".git/meta-local")).unwrap();
@@ -254,9 +202,9 @@ impl Scene {
     }
 
     fn meta(&self, words: &[&str]) -> String {
-        let mut command = Command::new(META);
+        let mut command = MetaCommand::tagged(words);
         let searched = Searched(&self.clone.path().join("bin")).to_string();
-        command.current_dir(self.clone.path()).args(words).env("META_ACTOR", "gc-test").env("PATH", searched);
+        command.current_dir(self.clone.path()).env("META_ACTOR", "gc-test").env("PATH", searched);
         command.env("GIT_INDEX_FILE", self.trees.path().join("foreign-index"));
         let output = command.output().unwrap();
         [String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)].concat()
@@ -275,9 +223,9 @@ fn gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_wit
     std::fs::write(scene.clone.path().join(TRAIL), Created(&trees, &RECORDED).to_string()).unwrap();
     let swept = scene.meta(&GC);
     let trail = std::fs::read_to_string(scene.clone.path().join(TRAIL)).unwrap();
-    let branch = Git::run(scene.clone.path(), &["branch", "--list", MERGED]).stdout;
+    let clone = Fixture::opened(scene.clone.path());
     assert!(
-        shows(&swept, &SWEPT) && swept.contains(&freed) && !trees.join(MERGED).exists() && branch.is_empty(),
+        shows(&swept, &SWEPT) && swept.contains(&freed) && !trees.join(MERGED).exists() && !clone.has_branch(MERGED),
         "{swept}"
     );
     assert!(

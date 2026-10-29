@@ -20,6 +20,8 @@ jobs:
       - uses: actions/checkout@v5
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target.noindex
       - run: gh --version
       - run: cargo xtask goldens-online
         env:

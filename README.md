@@ -55,6 +55,11 @@ Do these steps at the root of your workspace.
    xtask = "run --quiet --package xtask --"
    ```
 
+   Then run `cargo xtask init`.
+   It adds `target-dir = "target.noindex"` to the `[build]` table of `.cargo/config.toml` and keeps your other keys.
+   The `.noindex` suffix is the documented macOS convention that tells Spotlight not to index a folder.
+   If you set a different `target-dir`, init stops and shows the error. `cargo xtask ci` fails until the key is correct.
+
 5. Write `tooling/policy.toml`.
    Copy `examples/consumer/tooling/policy.toml` from this repository.
    Then change the values for your project.

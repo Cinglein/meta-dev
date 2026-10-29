@@ -27,7 +27,7 @@ impl Home<'_> {
     }
 
     fn placed(&self, text: &str, worktrees: &Path) -> Option<MonitorSettings> {
-        MonitorSettings::merged(toml::from_str(text).unwrap(), &self.0.join(CHECKOUT), worktrees, self.0).ok()
+        MonitorSettings::merged(toml::from_str(text).unwrap(), &self.0.join(CHECKOUT), &[worktrees], self.0).ok()
     }
 }
 

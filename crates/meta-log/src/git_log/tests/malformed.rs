@@ -1,7 +1,6 @@
-use std::io::Write as _;
-use std::process::{Command, Stdio};
+use meta_git::{FileCommit, Files, Identity, RefMove, Repository, Writes};
 
-use super::{FIRST, Fixture};
+use super::{BRANCH, FIRST, Fixture};
 use crate::LogStore;
 use crate::log_failure::LogFailure;
 
@@ -11,18 +10,11 @@ const REFUSED: &str = "meta/log on origin must hold only events.jsonl; nothing w
 
 impl Fixture {
     fn publish(&self, files: &[&str]) -> Option<LogFailure> {
-        let mut import = Command::new("git")
-            .arg("-C")
-            .arg(self.origin.path())
-            .args(["fast-import", "--quiet", "--force", "--date-format=now"])
-            .stdin(Stdio::piped())
-            .spawn()
-            .unwrap();
-        let input = import.stdin.as_mut().unwrap();
-        write!(input, "commit refs/heads/meta/log\ncommitter t <t@meta.invalid> now\ndata {}\n{EXTRA}\n", EXTRA.len())
-            .unwrap();
-        files.iter().try_for_each(|file| write!(input, "M 100644 inline {file}\ndata 0\n")).unwrap();
-        import.wait().unwrap();
+        let origin = Repository::open(self.origin.path()).unwrap();
+        let files: Files = files.iter().map(|file| ((*file).to_owned(), Some(String::new()))).collect();
+        let author = Identity::new(EXTRA.to_owned(), EXTRA.to_owned());
+        let commit = origin.write(&FileCommit::new(None, files, author, EXTRA.to_owned())).unwrap();
+        origin.write(&RefMove::new(BRANCH.parse().unwrap(), commit)).unwrap();
         self.log(FIRST).read().err()
     }
 }

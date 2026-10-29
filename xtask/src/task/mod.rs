@@ -1,3 +1,4 @@
+mod build_directory;
 mod ci;
 mod clippy;
 mod coverage;
@@ -20,6 +21,7 @@ use std::path::PathBuf;
 use strum::{EnumString, IntoStaticStr, VariantNames};
 use task::{Branch, Ledger, Policy, Program, Selection, Workspace};
 
+use crate::task::build_directory::{BuildDirectory, Misplaced};
 use crate::task::clippy::Clippy;
 use crate::task::coverage::Coverage;
 use crate::task::golden_refresh::GoldenRefresh;
@@ -40,7 +42,7 @@ use mutant_costs::MutantCosts;
 use mutation::{Mutants, Scope, ShardPlan, TriggerEvent};
 use settings::EmbeddedDefaults;
 use stacked::Stacked;
-use test_time::{TestRunner, TestTime};
+use test_time::{GitCount, TestRunner, TestTime};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "kebab-case")]
@@ -60,6 +62,7 @@ pub enum Task {
     Goldens,
     GoldensOnline,
     Graph,
+    Init,
     Lint,
     LiteralNames,
     ManualIteration,
@@ -103,6 +106,7 @@ impl Task {
     pub fn run(self, flags: impl Iterator<Item = String>) -> Result<(), Failure> {
         match self {
             Task::TestRunner => Ok(TestRunner::run(flags)?),
+            Task::Init => Ok(BuildDirectory::read(Workspace::locate()?.root())?.initialized()?),
             task => task.run_in_workspace(&Workspace::locate()?, flags),
         }
     }
@@ -173,8 +177,11 @@ impl Task {
             Task::Stacked => Ok(Stacked::run(&policy)?),
             Task::Surfaces => Surfaces::announce(workspace.root(), &policy, summary.as_deref()),
             Task::Test => Ok(Test::run(workspace, &selection, &policy)?),
-            Task::TestTime => Ok(TestTime::run(workspace, &selection, &policy, &mut ledger)
-                .and_then(|()| ledger.checked(&policy, &selection))?),
+            Task::TestTime => Ok(match env::var_os(GitCount::SWITCH) {
+                Some(_) => GitCount::run(workspace, &selection, &policy, &mut ledger),
+                None => TestTime::run(workspace, &selection, &policy, &mut ledger),
+            }
+            .and_then(|()| ledger.checked(&policy, &selection))?),
             lint => Ok(<&'static str>::from(lint).parse::<LintName>().map_or(Ok(()), |lint| {
                 let files = workspace.source_files()?;
                 lint.report(&files, &CrateGraph::graphs(&files), &policy).verdict()

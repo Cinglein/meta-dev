@@ -1,12 +1,12 @@
 use std::cell::Cell;
-use std::io::Write as _;
 use std::path::Path;
-use std::process::{Command, Output};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use meta_git::{FirstParents, Layout, ObjectId, Reads, RefMove, RefName, RefTarget, Repository, Writes};
 use meta_schema::{Event, NewTask, Record};
 
+mod fast_forward;
 mod malformed;
 
 use super::pacing::Pacing;
@@ -17,52 +17,45 @@ use crate::log_failure::LogFailure;
 const ORIGIN: &str = "origin";
 const WRITER: &str = "writer";
 const DIVISION: &str = "features-and-maintenance";
-const OFFLINE: [&str; 4] = ["remote", "set-url", ORIGIN, "/nonexistent/origin.git"];
+const NOWHERE: &str = "/nonexistent/origin.git";
 const OFFLINE_PREFIX: &str = "offline: cannot fetch meta/log from origin: \"fatal: ";
 const SHOWN: &str = "meta/log on origin";
 const REJECTED_PREFIX: &str = "meta/log push rejected";
 const REFUSE_PUSHES: [&str; 2] = ["/usr/bin/false", "hooks/pre-receive"];
-const STATUS: [&str; 3] = ["status", "--porcelain", "--branch"];
-const COUNT: [&str; 3] = ["rev-list", "--count", "meta/log"];
-const REWIND: [&str; 3] = ["update-ref", "refs/heads/meta/log", "refs/heads/meta/log~1"];
-const LIST_REMOTE: [&str; 2] = ["ls-remote", ORIGIN];
+const BRANCH: &str = "refs/heads/meta/log";
+const HEAD: &str = "HEAD";
+const INDEX: &str = ".git/index";
 const FIRST: usize = 0;
 const SECOND: usize = 1;
 const PAIR: usize = 2;
 const SINGLE: usize = 1;
 const PATIENT: Duration = Duration::from_secs(30);
+const ORIGIN_CONFIG_FILE: &str = "config";
+const ORIGIN_CONFIG: &str = "[core]\n\trepositoryformatversion = 0\n\tbare = true\n[maintenance]\n\tauto = false\n[receive]\n\tautogc = false\n";
 
-struct Git;
+struct Port;
 
-impl Git {
-    const IDENTITY: [&'static str; 6] =
-        ["-c", "user.name=test", "-c", "user.email=test@meta.invalid", "-c", "init.defaultBranch=main"];
-
-    fn run(dir: &Path, words: &[&str]) -> Output {
-        Command::new("git").arg("-C").arg(dir).args(Self::IDENTITY).args(words).output().unwrap()
+impl Port {
+    fn linked(dir: &Path, url: &str) {
+        let config = format!(
+            "[core]\n\trepositoryformatversion = 0\n\tbare = false\n[maintenance]\n\tauto = false\n[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
+        );
+        std::fs::write(dir.join(".git/config"), config).unwrap();
     }
 
-    fn laid(dir: &Path, bare: bool) {
-        let git_dir = if bare { dir.to_path_buf() } else { dir.join(".git") };
-        std::fs::create_dir_all(git_dir.join("objects")).unwrap();
-        std::fs::create_dir_all(git_dir.join("refs")).unwrap();
-        std::fs::write(git_dir.join("HEAD"), "ref: refs/heads/main\n").unwrap();
-        let config = format!("[core]\n\trepositoryformatversion = 0\n\tbare = {bare}\n[maintenance]\n\tauto = false\n");
-        std::fs::write(git_dir.join("config"), config).unwrap();
+    fn target(dir: &Path, name: &str) -> Option<ObjectId> {
+        let Ok(name) = name.parse::<RefName>();
+        Repository::open(dir).unwrap().read(&RefTarget::from(name)).unwrap()
     }
 
-    fn link_origin(dir: &Path, url: &str) {
-        let remote = format!("[remote \"origin\"]\n\turl = {url}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
-        std::fs::OpenOptions::new()
-            .append(true)
-            .open(dir.join(".git/config"))
-            .unwrap()
-            .write_all(remote.as_bytes())
-            .unwrap();
+    fn history(dir: &Path) -> Vec<ObjectId> {
+        Self::target(dir, BRANCH)
+            .map(|tip| Repository::open(dir).unwrap().read(&FirstParents::from(tip)).unwrap())
+            .unwrap_or_default()
     }
 
-    fn text(dir: &Path, words: &[&str]) -> String {
-        String::from_utf8_lossy(&Self::run(dir, words).stdout).trim().to_owned()
+    fn untouched(dir: &Path) -> bool {
+        Self::target(dir, HEAD).is_none() && !dir.join(INDEX).exists()
     }
 }
 
@@ -79,22 +72,24 @@ struct Fixture {
 impl Fixture {
     fn new(clones: usize) -> Self {
         let origin = tempfile::tempdir().unwrap();
-        Git::laid(origin.path(), true);
+        Repository::created(origin.path(), Layout::Bare).unwrap();
+        std::fs::write(origin.path().join(ORIGIN_CONFIG_FILE), ORIGIN_CONFIG).unwrap();
         let url = origin.path().to_str().unwrap().to_owned();
         let clones = (0..clones)
             .map(|_| tempfile::tempdir().unwrap())
             .inspect(|dir| {
-                Git::laid(dir.path(), false);
-                Git::link_origin(dir.path(), &url);
+                Repository::created(dir.path(), Layout::Working).unwrap();
+                Port::linked(dir.path(), &url);
             })
             .collect();
         Self { origin, clones }
     }
 
     fn log(&self, clone: usize) -> GitLog {
+        let budget = Budget::new(PATIENT);
         GitLog {
             pacing: Pacing::Immediate,
-            ..GitLog::new(self.clones[clone].path().to_owned(), ORIGIN.parse().unwrap(), Budget::new(PATIENT))
+            ..GitLog::new(self.clones[clone].path().to_owned(), ORIGIN.parse().unwrap(), budget).unwrap()
         }
     }
 
@@ -116,7 +111,6 @@ impl Fixture {
 #[test]
 fn writers_on_any_clone_race_and_each_lands_right_after_what_it_validated_without_touching_checkouts() {
     let fixture = Arc::new(Fixture::new(PAIR));
-    let before = Git::text(fixture.clones[FIRST].path(), &STATUS);
     let seen: Arc<Mutex<Vec<Observation>>> = Arc::default();
     let writers: Vec<_> = (0..fixture.clones.len())
         .map(|clone| (Arc::clone(&fixture), Arc::clone(&seen), clone))
@@ -125,10 +119,10 @@ fn writers_on_any_clone_race_and_each_lands_right_after_what_it_validated_withou
     writers.into_iter().try_for_each(std::thread::JoinHandle::join).unwrap();
     let records = fixture.log(SECOND).read().unwrap().records().to_vec();
     assert!(seen.lock().unwrap().iter().all(|seen| records.get(seen.validated) == Some(&seen.record)));
-    assert_eq!(Git::text(fixture.origin.path(), &COUNT), records.len().to_string());
+    assert_eq!(Port::history(fixture.origin.path()).len(), records.len());
     assert_eq!(
-        (Git::text(fixture.clones[FIRST].path(), &STATUS), fixture.log(FIRST).to_string()),
-        (before, SHOWN.to_owned())
+        (Port::untouched(fixture.clones[FIRST].path()), fixture.log(FIRST).to_string()),
+        (true, SHOWN.to_owned())
     );
 }
 
@@ -151,21 +145,23 @@ fn refusals_write_nothing_and_rejected_or_offline_writes_fail() {
     std::fs::create_dir_all(fixture.origin.path().join("hooks")).unwrap();
     std::os::unix::fs::symlink(false_program, fixture.origin.path().join(hook)).unwrap();
     assert!(failure().starts_with(REJECTED_PREFIX));
-    Git::run(fixture.clones[FIRST].path(), &OFFLINE);
+    Port::linked(fixture.clones[FIRST].path(), NOWHERE);
     assert!(failure().starts_with(OFFLINE_PREFIX));
 }
 
 #[test]
-fn a_write_after_the_remote_rewound_retries_on_the_fresh_tip_and_brings_nothing_back() {
+fn a_write_after_the_remote_rewound_fast_forwards_and_restores_every_record_it_knew() {
     let fixture = Fixture::new(SINGLE);
     let log = fixture.log(FIRST);
     let appended = || log.append::<LogFailure>(&mut |_| Ok(Fixture::record())).unwrap();
-    let kept = appended();
-    appended();
-    Git::run(fixture.origin.path(), &REWIND);
-    let written = appended();
-    let heads: RemoteHeads = Git::text(fixture.clones[FIRST].path(), &LIST_REMOTE).parse().unwrap();
+    let kept = vec![appended(), appended()];
+    let earlier = Port::history(fixture.origin.path())[SECOND];
+    let origin = Repository::open(fixture.origin.path()).unwrap();
+    origin.write(&RefMove::new(BRANCH.parse().unwrap(), earlier)).unwrap();
+    let written = [kept.clone(), vec![appended()]].concat();
+    let tip = Port::target(fixture.origin.path(), BRANCH).unwrap();
+    let heads: RemoteHeads = format!("{tip}\t{BRANCH}\n").parse().unwrap();
     let [read, listed] =
         [fixture.log(FIRST).read(), log.read_listed(&heads)].map(|read| read.unwrap().records().to_vec());
-    assert_eq!((read, listed), (vec![kept.clone(), written.clone()], vec![kept, written]));
+    assert_eq!((read, listed), (written.clone(), written));
 }
