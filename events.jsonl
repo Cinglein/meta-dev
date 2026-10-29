@@ -1431,3 +1431,4 @@
 {"at":"2026-10-29T10:29:55.042490Z","actor":"claude-lead","kind":"TaskOpened","task":"task-aaabd0206db8a650","text":"Explicit, clean transition graph: declared transitions, lint hidden state (mode flags, late options), raw simplicity measures (cyclomatic, hubs, treewidth bound).","division":"architecture-and-planning"}
 {"at":"2026-10-29T10:29:56.721742Z","actor":"claude-lead","kind":"TaskOpened","task":"task-964761a88176d17f","text":"Type internals: field concept analysis for nested-type candidates; LCOM4 cohesion to split types; type distance after factoring.","division":"architecture-and-planning"}
 {"at":"2026-10-29T10:29:58.333446Z","actor":"claude-lead","kind":"TaskOpened","task":"task-8f98b1dd2624aea9","text":"Smell inventory as data (file:line, category, why), used to score lint ideas by recall and noise.","division":"architecture-and-planning"}
+{"at":"2026-10-29T10:30:37.816132Z","actor":"claude-lead","kind":"TaskDone","task":"task-0f6f7f01bb639ebf"}
