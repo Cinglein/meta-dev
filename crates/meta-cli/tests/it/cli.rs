@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used)]
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Output;
 
 const OWNER: &str = "owner";
@@ -34,6 +34,17 @@ const TRACE: &str = "GIT_TRACE2_EVENT";
 const STARTED: &str = "\"event\":\"start\"";
 const LISTING: &str = "\"hierarchy\":\"ls-remote\"";
 const READ_PROCESSES: [&str; 3] = ["ls-remote", "upload-pack", "cat-file"];
+const TARGET: &str = "target.noindex";
+const CARGO_TAG: [&str; 2] = [
+    "CACHEDIR.TAG",
+    "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n",
+];
+const PROFILES: [&str; 2] = ["debug", "release"];
+const SKIPPED: &str = "target seed skipped";
+const SEED_WARNING: &str = "meta: warning: target seed ";
+const LOCK: &str = ".cargo-lock";
+const LINK: &str = "linked";
+const ARTIFACT: [&str; 2] = ["deps/libx.rlib", "compiled"];
 
 use crate::fixture::{Fixture, Moment};
 use crate::meta_command::MetaCommand;
@@ -53,6 +64,34 @@ impl Seed {
         let [author, committer] = FOREIGN_IDENTITY;
         cloned.configured("author.email", author);
         cloned.configured("committer.email", committer);
+    }
+
+    fn built(target: &Path) -> std::fs::File {
+        let [tag, signature] = CARGO_TAG;
+        let [artifact, compiled] = ARTIFACT;
+        std::fs::create_dir_all(target).unwrap();
+        std::fs::write(target.join(tag), signature).unwrap();
+        PROFILES.iter().map(|profile| target.join(profile)).for_each(|profile| {
+            std::fs::create_dir_all(profile.join(artifact).parent().unwrap()).unwrap();
+            std::fs::write(profile.join(LOCK), "").unwrap();
+            std::fs::write(profile.join(artifact), compiled).unwrap();
+            std::os::unix::fs::symlink(artifact, profile.join(LINK)).unwrap();
+        });
+        let building = std::fs::File::open(target.join(PROFILES[1]).join(LOCK)).unwrap();
+        building.lock().unwrap();
+        building
+    }
+
+    fn copied(worktree: &Path) -> bool {
+        let [tag, signature] = CARGO_TAG;
+        let [artifact, compiled] = ARTIFACT;
+        let target = worktree.join(TARGET);
+        let read = |path: PathBuf| std::fs::read_to_string(path).unwrap_or_default();
+        let [debug, release] = PROFILES.map(|profile| target.join(profile));
+        read(target.join(tag)) == signature
+            && read(debug.join(artifact)) == compiled
+            && !release.exists()
+            && debug.join(LINK).symlink_metadata().is_err()
     }
 }
 
@@ -145,19 +184,39 @@ fn writes_go_to_the_remote_as_meta_actor_else_owner_listing_it_once_and_offline_
 }
 
 #[test]
+fn a_target_seed_that_cannot_copy_warns_on_one_line_and_leaves_no_target_but_the_claim_succeeds() {
+    use std::os::unix::fs::PermissionsExt;
+    let worktrees = tempfile::tempdir().unwrap();
+    let project = Project::seeded(worktrees.path());
+    let target = project.clone.path().join(TARGET);
+    let _building = Seed::built(&target);
+    let unreadable = target.join(PROFILES[0]).join(ARTIFACT[0]);
+    std::fs::set_permissions(&unreadable, std::fs::Permissions::from_mode(0o0)).unwrap();
+    let run = project.meta(OWNER, &[CLAIM, TASK, WORKTREE]);
+    let warned = run.complaint().0.lines().filter(|line| line.starts_with(SEED_WARNING)).count();
+    let claimed = run.to_string();
+    let created = Path::new(claimed.lines().last().unwrap_or_default());
+    assert!(claimed.contains(CLAIMED) && warned == 1 && !created.join(TARGET).exists());
+}
+
+#[test]
 fn a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree() {
     let worktrees = tempfile::tempdir().unwrap();
     let project = Project::seeded(worktrees.path());
+    let _building = Seed::built(&project.clone.path().join(TARGET));
     let claim = || project.meta(OWNER, &[CLAIM, TASK, WORKTREE]);
     std::fs::write(project.clone.path().join(RECORD_DIR), "").unwrap();
     let failed = claim().complaint().0;
     std::fs::remove_file(project.clone.path().join(RECORD_DIR)).unwrap();
     assert!(failed.contains(RECORD_DIR) && Fixture::opened(project.origin.path()).history_len(LOG) == SEEDED_LEN);
-    let claimed = claim().to_string();
-    let worktree = Fixture::opened(Path::new(claimed.lines().last().unwrap_or_default()));
+    let run = claim();
+    let claimed = run.to_string();
+    let created = Path::new(claimed.lines().last().unwrap_or_default());
+    let worktree = Fixture::opened(created);
     let shown = SHOWN_BY_GIT.map(|key| worktree.setting(key));
     let expected = [NOREPLY, NOREPLY, AGENT].map(|value| Some(value.to_owned()));
     assert!(claimed.contains(CLAIMED) && shown == expected && worktree.branch_name() == TASK);
+    assert_eq!(Seed::copied(created), !run.complaint().0.contains(SKIPPED));
     let stray = worktrees.path().join(AGENT);
     Fixture::opened(project.clone.path()).worktrees(worktrees.path(), &[], AGENT);
     let listed = project.meta(OWNER, &WORKTREES).to_string();
