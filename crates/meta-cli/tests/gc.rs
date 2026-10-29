@@ -1,4 +1,4 @@
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::fmt;
 use std::fs::File;
@@ -9,8 +9,11 @@ use std::path::{Path, PathBuf};
 mod fixture;
 #[path = "support/meta_command.rs"]
 mod meta_command;
+#[path = "support/recorded_gh.rs"]
+mod recorded_gh;
 use fixture::{Fixture, Moment};
 use meta_command::MetaCommand;
+use recorded_gh::RecordedGh;
 
 const MERGED: &str = "task-00000000000000a1";
 const OPEN: &str = "task-00000000000000a2";
@@ -51,12 +54,18 @@ const EVENTS: &str = r#"{"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"Sch
 {"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskOpened","task":"task-00000000000000a9","text":"x","division":"features-and-maintenance"}
 {"at":"2026-10-26T00:00:00Z","actor":"owner","kind":"TaskLinked","task":"task-00000000000000a9","pr":5}
 "#;
-const FAKE_GH: &str = r#"#!/bin/sh
-case "$1 $2" in
-"api graphql") echo '{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[{"number":2,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}]}},"linked":{"pr1":{"number":1,"state":"MERGED","baseRefName":"main","statusCheckRollup":null},"pr2":{"number":2,"state":"OPEN","baseRefName":"main","statusCheckRollup":null},"pr3":{"number":3,"state":"CLOSED","baseRefName":"main","statusCheckRollup":null},"pr4":{"number":4,"state":"MERGED","baseRefName":"main","statusCheckRollup":null},"pr5":{"number":5,"state":"MERGED","baseRefName":"main","statusCheckRollup":null}}}}' ;;
-"api repos/{owner}/{repo}/rules/branches/main"|"api repos/{owner}/{repo}/branches/main") echo '[]' ;;
-esac
+const LINKED: [&str; 5] = ["1", "2", "3", "4", "5"];
+const OPEN_AND_LINKED: &str = r#"{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[{"number":2,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}]}},"linked":{"pr1":{"number":1,"state":"MERGED","baseRefName":"main","statusCheckRollup":null},"pr2":{"number":2,"state":"OPEN","baseRefName":"main","statusCheckRollup":null},"pr3":{"number":3,"state":"CLOSED","baseRefName":"main","statusCheckRollup":null},"pr4":{"number":4,"state":"MERGED","baseRefName":"main","statusCheckRollup":null},"pr5":{"number":5,"state":"MERGED","baseRefName":"main","statusCheckRollup":null}}}}
 "#;
+const RULES: [&str; 4] = [
+    "api",
+    "repos/{owner}/{repo}/rules/branches/main",
+    "--jq",
+    "[.[] | select(.type == \"required_status_checks\") | .parameters.required_status_checks[].context]",
+];
+const CLASSIC: [&str; 4] =
+    ["api", "repos/{owner}/{repo}/branches/main", "--jq", "[.protection.required_status_checks.checks[]?.context]"];
+const NONE_REQUIRED: &str = "[]\n";
 const EXCLUDED: &str = "/meta.local.toml\n/bin\ntarget/\n";
 const CARGO_TAG: &str =
     "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n";
@@ -118,14 +127,6 @@ impl fmt::Display for Created<'_> {
     }
 }
 
-struct Searched<'bin>(&'bin Path);
-
-impl fmt::Display for Searched<'_> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{}:{}", self.0.display(), std::env::var("PATH").unwrap_or_default())
-    }
-}
-
 struct Settings<'trees>(&'trees Path);
 
 impl fmt::Display for Settings<'_> {
@@ -157,6 +158,7 @@ struct Scene {
     origin: tempfile::TempDir,
     clone: tempfile::TempDir,
     trees: tempfile::TempDir,
+    gh: RecordedGh,
 }
 
 impl Scene {
@@ -165,20 +167,21 @@ impl Scene {
             origin: tempfile::tempdir().unwrap(),
             clone: tempfile::tempdir().unwrap(),
             trees: tempfile::tempdir().unwrap(),
+            gh: RecordedGh::new(),
         };
         Seeded::origin(scene.origin.path());
         Seeded::clone(&scene);
-        std::fs::write(scene.clone.path().join("meta.toml"), CONFIG).unwrap();
+        let program = RecordedGh::program();
+        std::fs::write(scene.clone.path().join("meta.toml"), format!("{CONFIG}[ci]\nprogram = {program:?}\n")).unwrap();
         std::fs::create_dir_all(scene.clone.path().join(".git/info")).unwrap();
         std::fs::write(scene.clone.path().join(".git/info/exclude"), EXCLUDED).unwrap();
         std::fs::write(scene.clone.path().join("meta.local.toml"), Settings(&scene.trees()).to_string()).unwrap();
-        std::fs::create_dir(scene.clone.path().join("bin")).unwrap();
-        std::fs::write(scene.clone.path().join("bin/gh"), FAKE_GH).unwrap();
-        std::fs::set_permissions(
-            scene.clone.path().join("bin/gh"),
-            std::fs::metadata("/bin/sh").unwrap().permissions(),
-        )
-        .unwrap();
+        scene.gh.graphql("01-first-linked", &LINKED[..1], OPEN_AND_LINKED).graphql(
+            "02-linked",
+            &LINKED,
+            OPEN_AND_LINKED,
+        );
+        scene.gh.answered("03-rules", &RULES, NONE_REQUIRED).answered("04-classic", &CLASSIC, NONE_REQUIRED);
         scene.planted();
         scene
     }
@@ -203,10 +206,9 @@ impl Scene {
 
     fn meta(&self, words: &[&str]) -> String {
         let mut command = MetaCommand::tagged(words);
-        let searched = Searched(&self.clone.path().join("bin")).to_string();
-        command.current_dir(self.clone.path()).env("META_ACTOR", "gc-test").env("PATH", searched);
+        command.current_dir(self.clone.path()).env("META_ACTOR", "gc-test");
         command.env("GIT_INDEX_FILE", self.trees.path().join("foreign-index"));
-        let output = command.output().unwrap();
+        let output = self.gh.on(&mut command).output().unwrap();
         [String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)].concat()
     }
 }

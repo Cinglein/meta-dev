@@ -51,11 +51,11 @@ impl Fake {
     fn new(scenario: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let replies = Self::replies(scenario);
-        replies.iter().for_each(|reply| Self::recorded(dir.path(), reply));
+        replies.iter().try_for_each(|reply| Self::recorded(dir.path(), reply)).unwrap();
         let tests = std::env::current_exe().unwrap();
         let replay = tests.parent().and_then(Path::parent).map(|built| built.join(PROGRAM));
         let replay = replay.filter(|built| built.exists()).expect(UNBUILT);
-        let config: Config = toml::from_str(&format!("[ci]\nprogram = {replay:?}")).unwrap();
+        let config: Config = toml::from_str(&format!("[ci]\nprogram = \"{}\"", replay.display())).unwrap();
         let program = CiSettings::try_from(&config).unwrap().program().clone();
         let workflows = WORKFLOWS.map(|name| name.parse().unwrap()).to_vec();
         let github = LiveGithub::new(program, dir.path().into(), Instant::now() + DEADLINE, workflows)
@@ -107,11 +107,11 @@ impl Fake {
         serde_json::to_string(&[PROGRAM.to_string()].into_iter().chain(words).collect::<Vec<_>>()).unwrap()
     }
 
-    fn recorded(dir: &Path, [name, argv, out, err, status]: &[String; 5]) {
+    fn recorded(dir: &Path, [name, argv, out, err, status]: &[String; 5]) -> std::io::Result<()> {
         let stem = dir.join(name);
         [("argv", argv), ("out", out), ("err", err), ("status", status)]
             .iter()
-            .for_each(|(extension, text)| std::fs::write(stem.with_extension(extension), text).unwrap());
+            .try_for_each(|(extension, text)| std::fs::write(stem.with_extension(extension), text))
     }
 
     fn unclaimed(&self) -> Vec<String> {
