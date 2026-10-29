@@ -109,7 +109,7 @@ mod tests {
 
     const OWN: &str = "session";
     const SHA: &str = "f2e83b47f04f1aadaaf72b9d15074e933a513dc6";
-    const TOOK: Duration = Duration::from_millis(1500);
+    const TOOK: Duration = Duration::from_millis(64);
 
     #[test]
     fn a_watched_commit_reads_as_running_and_a_learned_run_length_is_expected_next_time() {
