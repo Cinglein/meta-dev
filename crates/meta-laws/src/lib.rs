@@ -13,6 +13,7 @@ macro_rules! laws {
                     cases: $crate::Laws::cases().unwrap().get(),
                     source_file: Some(file!()),
                     test_name: Some(stringify!($test)),
+                    failure_persistence: None,
                     ..Config::default()
                 };
                 let rng = TestRng::deterministic_rng(config.rng_algorithm);
