@@ -10,6 +10,8 @@ use libproc::file_info::{ListFDs, ProcFDType};
 use libproc::proc_pid::{listpidinfo, pidinfo, pidpath};
 use libproc::processes::{ProcFilter, pids_by_type};
 
+use super::held::Held;
+use super::scan::Scan;
 use crate::request::local::local_clone::vetting::cause::Cause;
 use fd_vnode::FdVnode;
 use probe_failure::ProbeFailure;
@@ -23,12 +25,11 @@ pub struct Darwin {
 impl Darwin {
     const WHOLE: u64 = 0;
 
-    pub fn held() -> Result<Vec<PathBuf>, Cause> {
+    pub fn held() -> Result<Held, Cause> {
         let own = i32::try_from(std::process::id()).map_err(Cause::new)?;
         let uid = pidinfo::<BSDInfo>(own, Self::WHOLE).map_err(Cause::new)?.pbi_uid;
         let owned = Self::listed(ProcFilter::ByUID { uid })?;
-        let held = Self::listed(ProcFilter::All)?.into_iter().map(|pid| Self { pid }.scanned(&owned));
-        Ok(held.collect::<Result<Vec<_>, Cause>>()?.concat())
+        Self::listed(ProcFilter::All)?.into_iter().map(|pid| Self { pid }.scanned(&owned)).collect()
     }
 
     fn listed(filter: ProcFilter) -> Result<Vec<i32>, Cause> {
@@ -36,10 +37,10 @@ impl Darwin {
         Ok(pids.into_iter().filter_map(|pid| i32::try_from(pid).ok()).collect())
     }
 
-    fn scanned(&self, owned: &[i32]) -> Result<Vec<PathBuf>, Cause> {
-        self.opened().or_else(|failure| match failure.unexplained() {
+    fn scanned(&self, owned: &[i32]) -> Result<Scan, Cause> {
+        self.opened().map(Scan::Opened).or_else(|failure| match failure.unexplained() {
             Some(cause) if owned.contains(&self.pid) && self.alive()? => Err(cause),
-            Some(_) | None => Ok(Vec::new()),
+            Some(_) | None => Ok(Scan::Skipped),
         })
     }
 

@@ -5,8 +5,8 @@ use meta_golden::Golden;
 use meta_status::{Ending, Lifetime};
 
 use super::{Census, Collection, Sweeper, Tracked};
-use crate::request::local::local_clone::vetting::EntryKind;
 use crate::request::local::local_clone::vetting::fake_host::{FakeHost, PATH, TASK};
+use crate::request::local::local_clone::vetting::{EntryKind, Uninspected};
 use crate::request::local::recorded_worktree::RecordedWorktree;
 use crate::request::local::sweep::Sweep;
 
@@ -23,6 +23,8 @@ const REMOVALS: [&str; 2] =
     ["worktree remove /trees/.gc-task-00000000000000b1-1x0", "update-ref -d refs/heads/task-00000000000000b1 c1"];
 const REMOTE_REFS: &str = "ls-remote";
 const SWEEP_AND_RECHECK_LISTINGS: usize = 2;
+const UNINSPECTED: [&str; 2] =
+    ["left alone\n1 process could not be inspected\n", "left alone\n2 processes could not be inspected\n"];
 
 struct Scene {
     host: FakeHost,
@@ -85,4 +87,15 @@ fn a_failed_removal_keeps_the_worktree_and_no_candidate_means_no_scan() {
     failing.host.fails("remove");
     let shown = format!("{}{}", failing.shown(Sweep::Done), Scene::new(&[LIVE]).shown(Sweep::Done));
     Golden::for_test(module_path!(), "kept").checked(&shown).unwrap();
+}
+
+#[test]
+fn processes_that_could_not_be_inspected_are_counted_after_the_verdicts() {
+    let one = Uninspected::default().counted();
+    let shown = [one, one.counted()].map(|uninspected| {
+        let mut scene = Scene::new(&[LIVE]);
+        scene.host.uninspected_are(uninspected);
+        scene.swept(Sweep::Planned).to_string()
+    });
+    assert!(shown[0].ends_with(UNINSPECTED[0]) && shown[1].ends_with(UNINSPECTED[1]), "{shown:?}");
 }

@@ -22,23 +22,31 @@ use super::inspection::Inspection;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
 use super::thaw::{Thaw, Thawed};
+use super::uninspected::Uninspected;
 use crate::request::local::LocalFile;
 use crate::request::local::local_clone::quarantine::Stamp;
 use crate::request::project::CiSettings;
-use process_table::ProcessTable;
+use process_table::{Held, ProcessTable};
 use walker::Walker;
 
 #[derive(Debug)]
 pub struct Host {
     lenders: Mutex<HashMap<PathBuf, Vec<Alternates>>>,
     settings: CiSettings,
+    uninspected: Mutex<Uninspected>,
 }
 
 impl Host {
     const NOT_A_DIR: &'static str = "not a directory:";
 
     pub fn new(settings: CiSettings) -> Self {
-        Self { lenders: Mutex::default(), settings }
+        Self { lenders: Mutex::default(), settings, uninspected: Mutex::default() }
+    }
+
+    fn noted(&self, held: Held, paths: &[PathBuf]) -> Occupancy {
+        let mut seen = self.uninspected.lock().unwrap_or_else(PoisonError::into_inner);
+        *seen = (*seen).max(held.uninspected());
+        held.occupancy(paths)
     }
 
     fn lenders(&self, root: &Path) -> Vec<Alternates> {
@@ -96,8 +104,12 @@ impl Inspection for Host {
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
         match paths.iter().find(|path| self.entry(path) != EntryKind::Dir) {
             Some(absent) => Occupancy::Unlisted(Cause::new(format_args!("{} {}", Self::NOT_A_DIR, absent.display()))),
-            None => ProcessTable::occupancy(paths),
+            None => ProcessTable::held().map_or_else(Occupancy::Unlisted, |held| self.noted(held, paths)),
         }
+    }
+
+    fn uninspected(&self) -> Uninspected {
+        *self.uninspected.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
     fn frozen(&self, quarantine: &Path, plan: Thaw) -> Result<Thaw, Kept> {
