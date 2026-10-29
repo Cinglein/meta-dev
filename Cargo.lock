@@ -243,6 +243,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e9c71c2167ca323c882b99918929403426e2373ea17242ff5653e0d5e1058be"
 
 [[package]]
+name = "elegance"
+version = "0.1.0"
+dependencies = [
+ "meta-golden",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "settings",
+ "syn 2.0.119",
+ "task",
+ "toml 0.9.12+spec-1.1.0",
+]
+
+[[package]]
 name = "enum-map"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -737,11 +751,12 @@ dependencies = [
 
 [[package]]
 name = "meta-xtask"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "affected",
  "corpus_check",
  "crate_graph",
+ "elegance",
  "git2",
  "git_starters",
  "meta-golden",

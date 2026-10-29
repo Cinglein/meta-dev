@@ -1,0 +1,2 @@
+# concept enumeration stops, and says so in the report, once this many distinct intents are held
+max_intents = 5000
