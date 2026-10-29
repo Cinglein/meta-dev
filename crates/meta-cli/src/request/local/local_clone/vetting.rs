@@ -11,6 +11,7 @@ mod kept;
 mod occupancy;
 mod shared_node;
 mod thaw;
+pub mod uninspected;
 mod vetted;
 
 pub use context::Context;

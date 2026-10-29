@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env: &tests-on-tmpfs
+      TMPDIR: /dev/shm
     steps:
       - uses: actions/checkout@v5
         with:
@@ -40,6 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env: *tests-on-tmpfs
     steps:
       - uses: actions/checkout@v5
         with:
@@ -56,6 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env: *tests-on-tmpfs
     steps:
       - uses: actions/checkout@v5
       - run: rustup toolchain install
