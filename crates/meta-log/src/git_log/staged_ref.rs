@@ -11,6 +11,7 @@ pub struct StagedRef {
 
 impl StagedRef {
     pub const NAME: &'static str = "refs/meta-log/staged";
+    pub const LOCK_EXTENSION: &'static str = "lock";
 
     pub fn read(repository: Repository) -> Result<Self, LogFailure> {
         let decided_on = repository.read(&RefTarget::from(Self::name()))?;
@@ -23,7 +24,7 @@ impl StagedRef {
     }
 
     pub fn exhausted(repository: &Repository) -> LogFailure {
-        let lock = repository.git_dir().join(format!("{}.lock", Self::NAME));
+        let lock = repository.git_dir().join(Self::NAME).with_extension(Self::LOCK_EXTENSION);
         let age = std::fs::metadata(&lock).and_then(|found| found.modified()).map(|made| made.elapsed());
         age.ok().map_or(LogFailure::Contended, |age| LogFailure::StaleLock { lock, age: age.unwrap_or_default() })
     }

@@ -11,13 +11,13 @@ use crate::log_failure::LogFailure;
 fn a_stale_staged_lock_fails_the_append_naming_the_lock_and_the_way_out() {
     let fixture = Fixture::new(SINGLE);
     let log = fixture.log(FIRST);
-    let lock = fixture.clones[FIRST].path().join(".git").join(format!("{}.lock", StagedRef::NAME));
+    let lock =
+        fixture.clones[FIRST].path().join(".git").join(StagedRef::NAME).with_extension(StagedRef::LOCK_EXTENSION);
     std::fs::create_dir_all(lock.parent().unwrap()).unwrap();
     std::fs::write(&lock, "").unwrap();
-    let refused = log.append::<LogFailure>(&mut |_| Ok(Fixture::record())).unwrap_err().to_string();
+    let refused = log.append::<LogFailure>(&mut |_| Ok(Fixture::record())).unwrap_err();
     assert!(
-        refused.contains(&format!("{}.lock", StagedRef::NAME)) && refused.contains("no meta process is running"),
-        "{refused}"
+        matches!(&refused, LogFailure::StaleLock { lock: named, .. } if named.ends_with(lock.strip_prefix(fixture.clones[FIRST].path().join(".git")).unwrap()))
     );
 }
 
