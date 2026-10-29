@@ -3,7 +3,7 @@ mod entries;
 use std::collections::BTreeMap;
 
 use enum_map::EnumMap;
-use meta_severity::Scales;
+use meta_severity::{ActionLevels, PromoteAfter, Scales};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
@@ -37,6 +37,7 @@ pub struct PolicyFile {
     gate_wait: Option<Millis>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     gate_env: Vec<GateEnvName>,
+    promote_after: PromoteAfter,
     limits: Entries<Limit, Most>,
     floors: Entries<Floor, Least>,
     shares: Entries<Share, Percent>,
@@ -44,6 +45,7 @@ pub struct PolicyFile {
     millis: Entries<Interval, Millis>,
     mutant_millis: MutantMillis,
     mutation: MutationCadence,
+    act: ActionLevels,
     #[serde(default)]
     domains: Domains,
     #[serde(default)]
@@ -68,6 +70,7 @@ impl PolicyFile {
             gate: policy.gate.clone(),
             gate_wait: policy.gate_wait,
             gate_env: policy.gate_env.clone(),
+            promote_after: policy.promote_after,
             limits: Entries::without(&policy.limits, |limit| LegacyKey::of_limit(limit).is_some()),
             floors: Entries::without(&policy.floors, |floor| LegacyKey::of_floor(floor).is_some()),
             shares: Entries::without(&policy.shares, |share| LegacyKey::of_share(share).is_some()),
@@ -77,6 +80,7 @@ impl PolicyFile {
             }),
             mutant_millis: policy.mutant_millis.clone(),
             mutation: policy.mutation.clone(),
+            act: policy.act.clone(),
             domains: policy.domains.clone(),
             scales: policy.scales.clone(),
             budgets: BudgetDrafts::from(policy.budgets.clone()),
@@ -145,6 +149,7 @@ impl PolicyFile {
             .collect();
         budgets.measurable(&self.domains)?;
         budgets.leveled(&self.scales)?;
+        self.act.leveled(&self.scales)?;
         let amount =
             |key: Option<LegacyKey>| key.and_then(|key| budgets.blocking_line(&key.measure()));
         let baseline = budgets
@@ -172,6 +177,7 @@ impl PolicyFile {
             gate: self.gate,
             gate_wait: self.gate_wait,
             gate_env: self.gate_env,
+            promote_after: self.promote_after,
             limits: self
                 .limits
                 .completed(|limit| {
@@ -210,6 +216,7 @@ impl PolicyFile {
                 .map_err(|key| PolicyFailure::MissingKey(Self::MILLIS, key))?,
             mutant_millis: self.mutant_millis,
             mutation: self.mutation,
+            act: self.act,
             domains: self.domains,
             scales: self.scales,
             budgets,

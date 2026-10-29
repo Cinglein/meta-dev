@@ -39,7 +39,7 @@ use crate::percent::Percent;
 use bit_boundary::BitBoundary;
 use enum_map::EnumMap;
 use least::Least;
-use meta_severity::Scales;
+use meta_severity::{ActionLevels, PromoteAfter, Scales};
 use policy_failure::PolicyFailure;
 use policy_file::PolicyFile;
 use serde::{Deserialize, Serialize, Serializer};
@@ -71,6 +71,7 @@ pub struct Policy {
     gate: Option<GateStatus>,
     gate_wait: Option<Millis>,
     gate_env: Vec<GateEnvName>,
+    promote_after: PromoteAfter,
     limits: EnumMap<Limit, Most>,
     floors: EnumMap<Floor, Least>,
     shares: EnumMap<Share, Percent>,
@@ -78,6 +79,7 @@ pub struct Policy {
     millis: EnumMap<Interval, Millis>,
     mutant_millis: MutantMillis,
     mutation: MutationCadence,
+    act: ActionLevels,
     domains: Domains,
     scales: Scales,
     budgets: Budgets,
@@ -197,6 +199,16 @@ impl Policy {
     #[must_use]
     pub fn scales(&self) -> &Scales {
         &self.scales
+    }
+
+    #[must_use]
+    pub fn promote_after(&self) -> PromoteAfter {
+        self.promote_after
+    }
+
+    #[must_use]
+    pub fn act(&self) -> &ActionLevels {
+        &self.act
     }
 
     #[must_use]

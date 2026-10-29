@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use meta_schema::{Change, Division, LevelName, Rating, Scenario};
 use serde::{Deserialize, Serialize};
 
+use crate::evidence::Evidence;
 use crate::level::Level;
 use crate::rating_failure::RatingFailure;
 use crate::scale_failure::ScaleFailure;
@@ -61,6 +62,34 @@ impl Scale {
                 .map(|scenario| Change::Raised { from: from.clone(), level, scenario })
                 .ok_or(RatingFailure::RaisedWithoutScenario(from)),
         }
+    }
+
+    pub fn moved(
+        &self,
+        from: Option<&LevelName>,
+        to: Option<&LevelName>,
+        evidence: &Evidence,
+    ) -> Result<(), RatingFailure> {
+        let rank = |level: &LevelName| self.index_of(level).ok_or_else(|| RatingFailure::UnknownLevel(level.clone()));
+        let ranks = from.zip(to).map(|(from, to)| Ok::<_, RatingFailure>((from, rank(from)?, rank(to)?)));
+        match ranks.transpose()? {
+            Some((from, old, new)) if new > old && !evidence.supports_raise() => {
+                Err(RatingFailure::RaisedWithoutEvidence(from.clone()))
+            }
+            _ => Ok(()),
+        }
+    }
+
+    #[must_use]
+    pub fn worse(&self, level: &LevelName) -> Option<&LevelName> {
+        let above = self.index_of(level)?.checked_sub(1)?;
+        self.0.get(above).map(Level::name)
+    }
+
+    #[must_use]
+    pub fn reaches(&self, level: Option<&LevelName>, line: &LevelName) -> bool {
+        let ranks = level.and_then(|level| self.index_of(level)).zip(self.index_of(line));
+        ranks.is_some_and(|(found, line)| found >= line)
     }
 
     fn parent_index(&self, level: &Level) -> Option<usize> {

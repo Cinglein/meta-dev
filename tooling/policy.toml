@@ -17,6 +17,7 @@ wire_types = [
 bit_boundary = ["crates/meta-cli/src/request/local/local_clone/vetting/host/process_table"]
 gate = "local-gate"
 gate_wait = 600000
+promote_after = 3
 surfaces = [
     "xtask",
     ".cargo",
@@ -94,6 +95,11 @@ job_setup = 90000
 
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]
+
+[act]
+features-and-maintenance = "major"
+performance-and-cost = "major"
+architecture-and-planning = "major"
 
 [domains.features-and-maintenance]
 crates = ["*"]

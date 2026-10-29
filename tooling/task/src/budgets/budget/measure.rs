@@ -1,10 +1,10 @@
 mod build_start;
 mod enforcer;
 mod item_filter;
-mod item_kind;
 mod mutation_job;
 mod unit;
 
+pub use meta_schema::ItemKind;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
@@ -13,7 +13,6 @@ use crate::domains::ScopeKind;
 pub use build_start::BuildStart;
 pub use enforcer::Enforcer;
 pub use item_filter::ItemFilter;
-pub use item_kind::ItemKind;
 pub use mutation_job::MutationJob;
 pub use unit::Unit;
 

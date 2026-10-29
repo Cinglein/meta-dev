@@ -1,5 +1,6 @@
 mod default_budget;
 
+use meta_severity::RatingFailure;
 use thiserror::Error;
 
 use super::key_name::KeyName;
@@ -10,6 +11,8 @@ use default_budget::DefaultBudget;
 pub enum PolicyFailure {
     #[error(transparent)]
     Tree(#[from] TreeFailure),
+    #[error("[act]: {0}")]
+    Act(#[from] RatingFailure),
     #[error("{0}: also set as a budget; drop the old key")]
     Twice(LegacyKey),
     #[error("{0}: not set; declare it as a budget, for example copy this default into tooling/policy.toml:\n{default}", default = DefaultBudget::from(*.0))]
