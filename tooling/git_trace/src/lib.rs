@@ -16,6 +16,8 @@ pub struct GitProcesses(BTreeMap<Starter, Most>);
 
 impl GitProcesses {
     pub const TARGET: &'static str = "GIT_TRACE2_EVENT";
+    pub const LEAN: [(&'static str, &'static str); 2] =
+        [("GIT_TRACE2_EVENT_BRIEF", "true"), ("GIT_TRACE2_EVENT_NESTING", "1")];
 
     pub fn traced(directory: &Path) -> Result<GitProcesses, Failure> {
         let failed = |error| Failure::Io { site: Site::File(directory.to_path_buf()), error };

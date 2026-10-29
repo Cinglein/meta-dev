@@ -92,6 +92,7 @@ impl TestTime {
                     .environment(GitProcesses::TARGET, traces.path());
                 let ran = Self::GIT_SETTINGS
                     .into_iter()
+                    .chain(GitProcesses::LEAN)
                     .fold(line, |line, (name, value)| line.environment(name, value))
                     .run();
                 let documented = selection.within(workspace.packages().doctested());

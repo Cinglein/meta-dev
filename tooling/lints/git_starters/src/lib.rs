@@ -48,13 +48,14 @@ mod tests {
 
     const PORTED: &str = "crates/meta-git/src/lib.rs";
     const ELSEWHERE: &str = "crates/meta-log/src/git.rs";
-    const SOURCE: &str = "const GIT: &str = \"git\";\nfn f() { Command::new(\"git\"); assert!(run(\"git\")); }\nfn g(w: &str) -> bool { w == \"git\" || \"gh\" != w }\n#[cfg(test)]\nmod tests { fn t() { Command::new(\"git\"); } }\n";
-    const FLAGGED: [&str; 4] = [":1", ":2", ":2", ":5"];
+    const SOURCE: &str = "const GIT: &str = \"git\";\nfn f() { Command::new(\"git\"); assert!(run(\"git\")); }\nfn g(w: &str) -> bool { w == \"git\" || run(\"git\") }\n#[cfg(test)]\nmod tests { fn t() { Command::new(\"git\"); } }\n";
+    const PORT_SOURCE: &str = "fn p() { Command::new(\"git\"); }\n";
+    const FLAGGED: [&str; 5] = [":1", ":2", ":2", ":3", ":5"];
 
     #[test]
     fn every_literal_naming_git_outside_meta_git_is_a_starter_and_a_comparison_is_not() {
-        let file = |path: &str| SourceFile::parse(path, SOURCE.to_owned()).unwrap();
-        let report = GitStarters::report(&[file(PORTED), file(ELSEWHERE)]);
-        assert!(report.lists_exactly(&FLAGGED) && GitStarters::amount(&report).to_string() == "4");
+        let file = |path: &str, source: &str| SourceFile::parse(path, source.to_owned()).unwrap();
+        let report = GitStarters::report(&[file(PORTED, PORT_SOURCE), file(ELSEWHERE, SOURCE)]);
+        assert!(report.lists_exactly(&FLAGGED) && GitStarters::amount(&report).to_string() == "5");
     }
 }
