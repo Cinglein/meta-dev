@@ -6,6 +6,15 @@ pub struct Fixture(git2::Repository);
 
 pub struct Moment(i64);
 
+pub enum WorkStep<'text> {
+    Branch(&'text str),
+    StageAll,
+    Commit(&'text str),
+    CommitTracked(&'text str),
+    Amend(&'text str),
+    Rewind,
+}
+
 impl Moment {
     pub const fn after_epoch(seconds: i64) -> Moment {
         Moment(seconds)
@@ -22,9 +31,13 @@ impl Fixture {
     const EVERY_HEAD: [&'static str; 0] = [];
     const LINKED: &'static str = "worktrees";
     const LINK: &'static str = ".git";
+    const BACK: &'static str = "gitdir";
     const WIP: &'static str = "WIP";
     const ORIG_HEAD: &'static str = "ORIG_HEAD";
     const SEED: &'static str = "seed";
+    const HEADS: &'static str = "refs/heads/";
+    const EVERY: &'static str = "*";
+    const AMENDED: &'static str = "commit (amend): ";
 
     pub fn bare(dir: &Path, head: &str) -> Fixture {
         Self::laid(dir, head, true)
@@ -71,15 +84,29 @@ impl Fixture {
 
     pub fn committed(&self, message: &str) -> String {
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().cast_signed();
-        self.committed_at(message, &Moment::after_epoch(now))
+        self.committed_at(message, &Moment::after_epoch(now)).to_string()
     }
 
-    pub fn committed_at(&self, message: &str, at: &Moment) -> String {
+    pub fn committed_at(&self, message: &str, at: &Moment) -> git2::Oid {
         let parent = self.0.head().and_then(|head| head.peel_to_commit()).ok();
         let tree = parent
             .as_ref()
             .map_or_else(|| self.0.find_tree(self.0.treebuilder(None).unwrap().write().unwrap()), git2::Commit::tree);
-        self.commit_on(Self::HEAD, &tree.unwrap(), message, at).to_string()
+        self.commit_on(Self::HEAD, &tree.unwrap(), message, at)
+    }
+
+    pub fn history_len(&self, reference: &str) -> usize {
+        let mut walk = self.0.revwalk().unwrap();
+        walk.push_ref(reference).unwrap();
+        walk.count()
+    }
+
+    pub fn setting(&self, key: &str) -> Option<String> {
+        self.0.config().unwrap().snapshot().unwrap().get_string(key).ok()
+    }
+
+    pub fn branch_name(&self) -> String {
+        self.0.head().unwrap().shorthand().unwrap().to_owned()
     }
 
     pub fn written(&self, reference: &str, name: &str, text: &str, at: &Moment) -> git2::Oid {
@@ -95,8 +122,8 @@ impl Fixture {
         let made = self.0.commit(Some(reference), &signature, &signature, message, tree, &Vec::from_iter(&parent));
         let made = made.unwrap();
         let resolved = self.0.find_reference(reference).unwrap().resolve().unwrap().name().unwrap().to_owned();
-        self.relogged(reference, made, &signature);
-        self.relogged(&resolved, made, &signature);
+        self.relogged(reference, made, &signature, None);
+        self.relogged(&resolved, made, &signature, None);
         made
     }
 
@@ -117,6 +144,8 @@ impl Fixture {
         self.0.worktree(name, path, Some(git2::WorktreeAddOptions::new().reference(reference.as_ref())))?;
         let admin = std::fs::canonicalize(self.0.path().join(Self::LINKED).join(name)).unwrap();
         std::fs::write(path.join(Self::LINK), format!("gitdir: {}\n", admin.display())).unwrap();
+        let link = std::fs::canonicalize(path).unwrap().join(Self::LINK);
+        std::fs::write(admin.join(Self::BACK), format!("{}\n", link.display())).unwrap();
         let detached = || {
             let tree = Fixture::opened(path);
             tree.0.set_head_detached(tree.0.head()?.target().unwrap())?;
@@ -136,10 +165,53 @@ impl Fixture {
         self.0.find_branch(name, git2::BranchType::Local).is_ok()
     }
 
-    fn relogged(&self, name: &str, made: git2::Oid, signature: &git2::Signature<'_>) {
+    pub fn stepped(&self, step: &WorkStep<'_>) {
+        let mut index = self.0.index().unwrap();
+        index.read(false).unwrap();
+        let head = self.0.head().unwrap().peel_to_commit().unwrap();
+        let now = git2::Signature::now(Self::NAME, Self::EMAIL).unwrap();
+        match step {
+            WorkStep::Branch(name) => {
+                self.0.branch(name, &head, false).unwrap();
+                self.0.set_head(&[Self::HEADS, name].concat()).unwrap();
+            }
+            WorkStep::StageAll => {
+                index.add_all([Self::EVERY], git2::IndexAddOption::DEFAULT, None).unwrap();
+                index.write().unwrap();
+            }
+            WorkStep::Commit(message) | WorkStep::CommitTracked(message) => {
+                let tracked = matches!(step, WorkStep::CommitTracked(_)).then(|| index.update_all([Self::EVERY], None));
+                tracked.transpose().and_then(|_| index.write()).unwrap();
+                let tree = self.0.find_tree(index.write_tree().unwrap()).unwrap();
+                self.commit_on(Self::HEAD, &tree, message, &Moment::after_epoch(now.when().seconds()));
+            }
+            WorkStep::Amend(message) => {
+                let tree = self.0.find_tree(index.write_tree().unwrap()).unwrap();
+                let made = head.amend(Some(Self::HEAD), None, Some(&now), None, Some(message), Some(&tree)).unwrap();
+                let shown = [Self::AMENDED, message].concat();
+                self.relogged(Self::HEAD, made, &now, Some(&shown));
+                self.relogged(self.0.head().unwrap().name().unwrap(), made, &now, Some(&shown));
+            }
+            WorkStep::Rewind => {
+                let back = head.parent(0).unwrap().parent(0).unwrap();
+                self.0.reset(back.as_object(), git2::ResetType::Soft, None).unwrap();
+            }
+        }
+    }
+
+    pub fn tip(&self, reference: &str) -> Option<git2::Oid> {
+        self.0.revparse_single(reference).ok().map(|found| found.id())
+    }
+
+    pub fn refs_len(&self) -> usize {
+        self.0.references().unwrap().count()
+    }
+
+    fn relogged(&self, name: &str, made: git2::Oid, signature: &git2::Signature<'_>, shown: Option<&str>) {
         let mut log = self.0.reflog(name).unwrap();
         let newest = log.get(0).filter(|entry| entry.id_new() == made);
         let message = newest.and_then(|entry| entry.message().unwrap().map(str::to_owned));
+        let message = message.map(|message| shown.map_or(message, str::to_owned));
         let rewritten = message.map_or(Ok(()), |message| {
             log.remove(0, false)?;
             log.append(made, signature, Some(&message))?;
