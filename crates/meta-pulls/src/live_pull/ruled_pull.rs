@@ -51,27 +51,30 @@ impl<'pull> RuledPull<'pull> {
     pub fn head(self, trunk: &Trunk) -> Head {
         let pull = self.pull;
         let number = pull.number;
-        match (pull.state, trunk.barred(number, &pull.base), pull.merging.as_ref()) {
-            (PullState::Merged | PullState::Closed, ..) => Head::Gone(Gone::new(number, pull.state)),
-            (PullState::Open, Some(stop), _) => Head::Barred(Barred::new(stop)),
-            (PullState::Open, None, None) => Head::Barred(Barred::new(Stop::Incomplete(number))),
-            (PullState::Open, None, Some(merging)) => self.open_head(merging),
+        let off_trunk = trunk.off_trunk(number, &pull.base);
+        match (pull.state, off_trunk, trunk.unguarded(), pull.merging.as_ref()) {
+            (PullState::Closed, ..) | (PullState::Merged, None, ..) => Head::Gone(Gone::new(number, pull.state)),
+            (PullState::Merged | PullState::Open, Some(stop), ..) | (PullState::Open, None, Some(stop), _) => {
+                Head::Barred(Barred::new(stop))
+            }
+            (PullState::Open, None, None, None) => Head::Barred(Barred::new(Stop::Incomplete(number))),
+            (PullState::Open, None, None, Some(merging)) => self.open_head(merging),
         }
     }
 
     fn open_head(self, merging: &Merging) -> Head {
         let number = self.pull.number;
         let verdict = self.required.map_or(Verdict::Pending, |required| self.checks(required).verdict());
-        match (merging.state(), verdict.failing(), verdict.passed()) {
+        let failing = self.pull.rollup.as_ref().map(Rollup::failing).unwrap_or_default();
+        let red = verdict.failing().map(|_| ()).or_else(|| failing.any());
+        match (merging.state(), red, verdict.passed()) {
             (MergeState::Dirty, ..) => Head::Conflicted(Conflicted::new(number)),
-            (_, Some(_), _) => {
-                Head::Red(Red::new(number, self.pull.rollup.as_ref().map(Rollup::failing).unwrap_or_default()))
-            }
+            (_, Some(()), _) => Head::Red(Red::new(number, failing)),
             (MergeState::Behind, None, _) => Head::Behind(Behind::new(number)),
-            (MergeState::Clean | MergeState::HasHooks, None, Some(())) => {
+            (MergeState::Clean | MergeState::HasHooks | MergeState::Unstable, None, Some(())) => {
                 Head::Green(Green::new(number, merging.commit().clone()))
             }
-            (MergeState::Blocked | MergeState::Draft | MergeState::Unstable, None, Some(())) => {
+            (MergeState::Blocked | MergeState::Draft, None, Some(())) => {
                 Head::Unmergeable(Unmergeable::new(number, merging.state()))
             }
             (_, None, _) => Head::Checking(Checking::new(number)),

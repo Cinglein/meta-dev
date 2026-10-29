@@ -16,8 +16,11 @@ impl Trunk {
         Self { default, strictness }
     }
 
-    pub(crate) fn barred(&self, pull_request: PullRequest, base: &BaseBranch) -> Option<Stop> {
-        let off = (*base != self.default).then(|| Stop::OffTrunk { pull_request, base: base.clone() });
-        off.or_else(|| self.strictness.loose().map(|()| Stop::Unguarded(self.default.clone())))
+    pub(crate) fn off_trunk(&self, pull_request: PullRequest, base: &BaseBranch) -> Option<Stop> {
+        (*base != self.default).then(|| Stop::OffTrunk { pull_request, base: base.clone() })
+    }
+
+    pub(crate) fn unguarded(&self) -> Option<Stop> {
+        self.strictness.loose().map(|()| Stop::Unguarded(self.default.clone()))
     }
 }

@@ -1,6 +1,6 @@
 stop: #105 targets main, not the default branch
 stop: #187 targets main, not the default branch
-#196 merged: next
+stop: #196 targets main, not the default branch
 stop: #200 targets main, not the default branch
 stop: #203 targets main, not the default branch
 #214 closed: next

@@ -46,11 +46,9 @@ impl<'run> HeadWatch<'run> {
         ended.unwrap_or(Ok(Watched::Stopped(Stop::ChecksTimeout(self.pull_request))))
     }
 
-    pub fn acted(&self, action: Action) -> Option<Watched> {
+    pub fn acted(&self, action: Action) -> Result<Option<Watched>, CliFailure> {
         let called = action.call().map(|call| GhCalls::new(self.project).called(call, action.operands()));
-        called
-            .and_then(Result::err)
-            .map_or_else(|| self.paced(), |refusal| Some(Watched::Stopped(Stop::Refused { action, refusal })))
+        called.and_then(Result::err).map_or_else(|| Ok(self.paced()), |refusal| self.rechecked(action, refusal))
     }
 
     pub fn closed(&self, close_out: CloseOut) -> Result<Listed, CliFailure> {
@@ -63,18 +61,26 @@ impl<'run> HeadWatch<'run> {
     }
 
     fn polled(&self) -> Result<Option<Watched>, CliFailure> {
+        let patience = self.project.ci_settings().queue_patience(self.started.elapsed());
+        self.turned()?.map_or_else(
+            |refusal| Ok(Some(Watched::Stopped(Stop::Unread { pull_request: self.pull_request, refusal }))),
+            |turn| turn.taken(patience),
+        )
+    }
+
+    fn rechecked(&self, action: Action, refusal: GhRefusal) -> Result<Option<Watched>, CliFailure> {
+        let patience = self.project.ci_settings().queue_patience(self.started.elapsed());
+        let landed = self.turned()?.ok().and_then(|turn| turn.landed(patience)).transpose()?;
+        Ok(landed.flatten().or(Some(Watched::Stopped(Stop::Refused { action, refusal }))))
+    }
+
+    fn turned(&self) -> Result<Result<Turn<'_>, GhRefusal>, CliFailure> {
         let settings = self.project.ci_settings();
         let state = State::fold(self.project.log(settings.budget(CiSettings::ROUTINE))?.read()?.records());
         let task = state.tasks().iter().find(|task| task.pull_requests().contains(&self.pull_request));
         let linked = task.map(|task| task.pull_requests().to_vec()).unwrap_or_default();
         let query = LiveQuery::new(linked.into_iter().chain([self.pull_request]).collect());
-        let patience = settings.queue_patience(self.started.elapsed());
-        LiveGithub::for_project(self.project).live(&query).map_or_else(
-            |failure| {
-                let refusal = GhRefusal::new(failure);
-                Ok(Some(Watched::Stopped(Stop::Unread { pull_request: self.pull_request, refusal })))
-            },
-            |live| Turn::new(self, state, live).taken(patience),
-        )
+        let live = LiveGithub::for_project(self.project).live(&query);
+        Ok(live.map(|live| Turn::new(self, state, live)).map_err(GhRefusal::new))
     }
 }

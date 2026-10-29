@@ -4,6 +4,8 @@ mod working_directory;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use meta_schema::Actor;
+
 use crate::request::output::Listed;
 use crate::request::project::Config;
 use git_call::GitCall;
@@ -19,25 +21,29 @@ impl ShellCommand {
     const PR_CREATE: &'static [&'static str] = &["gh", "pr", "create"];
     const META: &'static str = "meta";
     const QUEUE_RUN: [&'static str; 2] = ["queue", "run"];
-    const LANDING: &'static str = "meta queue run lands PRs: the owner's or the lead's job";
+    const LANDING: &'static str = "meta queue run lands PRs: only the owner or claude-lead runs it";
+    const LANDERS: [&'static str; 2] = ["owner", "claude-lead"];
     const PUBLISHING: &'static [&'static str] = &["push", "commit"];
     const WRITING: &'static [&'static str] =
         &["commit", "merge", "rebase", "cherry-pick", "revert", "pull", "am", "push"];
 
-    pub fn refusal(&self, config: &Config) -> Option<Listed> {
+    pub fn refusal(&self, config: &Config, actor: &Actor) -> Option<Listed> {
         self.invokes(Self::PR_MERGE)
             .map(|()| Listed::new("gh pr merge is the owner's job"))
-            .or_else(|| self.landing())
+            .or_else(|| self.landing(actor))
             .or_else(|| self.segments().filter_map(GitCall::parse).find_map(|call| call.push_refusal(config)))
     }
 
-    fn landing(&self) -> Option<Listed> {
+    fn landing(&self, actor: &Actor) -> Option<Listed> {
         let meta = |word: &String| Path::new(word).file_name().is_some_and(|name| name == Self::META);
         let queue_run = |window: &[String]| {
             window.split_first().is_some_and(|(program, rest)| meta(program) && rest == Self::QUEUE_RUN)
         };
         let lands = |segment: &&[String]| segment.windows(Self::QUEUE_RUN.len() + 1).any(queue_run);
-        self.segments().find(lands).map(|_| Listed::new(Self::LANDING))
+        self.segments()
+            .find(lands)
+            .filter(|_| !Self::LANDERS.contains(&actor.to_string().as_str()))
+            .map(|_| Listed::new(Self::LANDING))
     }
 
     pub fn invokes(&self, words: &[&str]) -> Option<()> {
@@ -155,12 +161,17 @@ mod tests {
     const LEASE: &str = "lease";
     const NEAR_LOG: &str = "git push origin meta/logs";
     const OPEN_PR: &str = "open a PR";
+    const AGENT: &str = "claude-mqueue";
+    const LEAD: &str = "claude-lead";
+    const LANDS: &str = "meta queue run 1";
 
     #[test]
     fn merges_force_pushes_and_protected_pushes_are_refused_and_nothing_else() {
         let config: Config = toml::from_str(CONFIG).unwrap();
-        let refusal =
-            |command: &str| command.parse::<ShellCommand>().unwrap().refusal(&config).map(|why| why.to_string());
+        let agent = AGENT.parse().unwrap();
+        let refusal = |command: &str| {
+            command.parse::<ShellCommand>().unwrap().refusal(&config, &agent).map(|why| why.to_string())
+        };
         assert!(MERGES.iter().all(|command| refusal(command).is_some()));
         assert!(PUSHES.iter().all(|command| refusal(command).is_some_and(|why| why.starts_with(PUSH_REASON))));
         assert!(ALLOWED.iter().all(|command| refusal(command).is_none()));
@@ -169,8 +180,10 @@ mod tests {
     #[test]
     fn a_log_push_names_meta_and_a_force_push_names_no_lease() {
         let config: Config = toml::from_str(LOG_CONFIG).unwrap();
-        let refusal = |command: &str| command.parse::<ShellCommand>().unwrap().refusal(&config).unwrap().to_string();
+        let lead = LEAD.parse().unwrap();
+        let refused = |command: &str| command.parse::<ShellCommand>().unwrap().refusal(&config, &lead);
+        let refusal = |command: &str| refused(command).unwrap().to_string();
         assert!(refusal(LOG_PUSH).ends_with(ONLY_META) && refusal(NEAR_LOG).ends_with(OPEN_PR));
-        assert!(!refusal(FORCED).contains(LEASE));
+        assert!(!refusal(FORCED).contains(LEASE) && refused(LANDS).is_none());
     }
 }

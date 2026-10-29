@@ -5,6 +5,12 @@ use crate::check_name::CheckName;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct FailingChecks(Vec<CheckName>);
 
+impl FailingChecks {
+    pub fn any(&self) -> Option<()> {
+        self.0.first().map(|_| ())
+    }
+}
+
 impl FromIterator<CheckName> for FailingChecks {
     fn from_iter<Names: IntoIterator<Item = CheckName>>(names: Names) -> Self {
         Self(names.into_iter().collect())

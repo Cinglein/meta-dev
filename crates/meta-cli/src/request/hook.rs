@@ -120,7 +120,9 @@ impl HookEvent {
                 self,
                 input
                     .command()
-                    .and_then(|command| command.refusal(project.config()))
+                    .and_then(|command| {
+                        command.refusal(project.config(), &input.announced_actor().unwrap_or_else(Actor::owner))
+                    })
                     .or_else(|| input.refusal())
                     .or_else(|| input.unpushable(project, Self::PUSH))
                     .map(Denial::from)

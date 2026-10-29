@@ -3,6 +3,10 @@ use meta_pulls::{Action, Departure, Patience, Stop, TransitionVisitor};
 use meta_schema::PullRequest;
 use meta_state::State;
 
+mod departed;
+
+use departed::Departed;
+
 use super::HeadWatch;
 use super::watched::Watched;
 use crate::request::cli_failure::CliFailure;
@@ -26,13 +30,20 @@ impl<'watch> Turn<'watch> {
         let head = self.live.pull(pull_request).map(|ruled| ruled.head(self.watch.trunk()));
         head.map_or(Ok(Some(Watched::Stopped(Stop::Missing(pull_request)))), |head| head.step(patience).visit(self))
     }
+
+    pub fn landed(self, patience: Patience) -> Option<Result<Option<Watched>, CliFailure>> {
+        let head = self.live.pull(self.watch.pull_request())?.head(self.watch.trunk());
+        let departure = head.step(patience).visit(Departed)?;
+        departure.landed()?;
+        Some(self.left(departure))
+    }
 }
 
 impl TransitionVisitor for Turn<'_> {
     type Output = Result<Option<Watched>, CliFailure>;
 
     fn act(self, action: Action) -> Self::Output {
-        Ok(self.watch.acted(action))
+        self.watch.acted(action)
     }
 
     fn conflict(self, pull_request: PullRequest) -> Self::Output {
