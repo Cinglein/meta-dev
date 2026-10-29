@@ -1576,3 +1576,4 @@
 {"at":"2026-10-29T19:10:19.787551Z","actor":"claude-fmpay","kind":"TaskDone","task":"task-ad95ca1ffd2d23c6"}
 {"at":"2026-10-29T19:11:39.796598Z","actor":"claude-price","kind":"TaskClaimed","task":"task-c0964954df244860"}
 {"at":"2026-10-29T19:13:02.523042Z","actor":"claude-price","kind":"TaskLinked","task":"task-c0964954df244860","pr":203}
+{"at":"2026-10-29T19:14:52.077124Z","actor":"claude-lead","kind":"TaskOpened","task":"task-40973b33378bb1be","text":"GitHub service deliverable 1: CI watching plus a batch merge queue. Agents stop at push; the service watches CI and wakes a fresh agent only on red. Batches group PRs by disjoint footprint and land as one batch PR; failures are attributed from the failure's location, then searched by risk in parallel; only overlapping footprints rerun (owner 2026-10-29).","division":"architecture-and-planning"}
