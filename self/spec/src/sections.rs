@@ -696,7 +696,7 @@ pub const SECTIONS: &[Section] = &[
                         "the_query_asks_for_open_pull_requests_and_each_linked_one_once",
                     ),
                     &[Enforcer::new(
-                        "crates/meta-cli/src/request/live_github/tests.rs",
+                        "crates/meta-cli/src/request/live_github/replayed_tests.rs",
                         "one_graphql_call_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_its_own_pull_requests",
                     )],
                 ),

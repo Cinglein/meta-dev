@@ -126,7 +126,7 @@ impl Fake {
 }
 
 #[test]
-fn one_graphql_call_per_page_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_its_own_pull_requests() {
+fn one_graphql_call_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_its_own_pull_requests() {
     let fake = Fake::new("partial");
     let read = fake.github.read(&LiveQuery::new(vec![]));
     let pulls = fake.github.pulls_from(&"feature".parse().unwrap());
