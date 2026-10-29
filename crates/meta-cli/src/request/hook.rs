@@ -139,7 +139,7 @@ impl HookEvent {
     fn outside_projects(self, input: &HookInput) -> Option<Reply> {
         let budget = CiSettings::try_from(&Config::default()).map(|settings| self.budget(&settings));
         let linked = budget.as_ref().ok().filter(|_| self == Self::PostToolUse);
-        let linked = linked.and_then(|budget| Linking::after(input, None, *budget));
+        let linked = linked.and_then(|budget| Linking::after(input, *budget));
         let linking = linked.map(|linked| Reply::new(self, Verdict::Allow, Some(linked)));
         let refusal = (self == Self::PreToolUse).then(|| {
             budget.map_or_else(|failure| Some(Listed::new(failure)), |budget| input.refusal(budget.deadline()))
@@ -150,7 +150,7 @@ impl HookEvent {
 
     fn after_tool_use(project: &Project, input: &HookInput, budget: Budget) -> Reply {
         let (pushed, linked) = std::thread::scope(|scope| {
-            let linked = scope.spawn(|| Linking::after(input, Some(project), budget));
+            let linked = scope.spawn(|| Linking::after(input, budget));
             (Self::after_push(project, input, budget), linked.join())
         });
         let linked = linked.unwrap_or_else(|panic| resume_unwind(panic));

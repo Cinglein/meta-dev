@@ -65,7 +65,9 @@ impl LocalClone {
 
     pub fn claimed(&self, project: &Project, claim: Claim, actor: Actor) -> Result<Output, CliFailure> {
         let settings = self.settings()?;
-        let identity = settings.identity()?;
+        let git = Git::from(self);
+        let configured = |key: &str| git.output(GitArgv::ConfigValue, &[OsStr::new(key)]).ok();
+        let identity = settings.identity(configured("user.name").as_deref(), configured("user.email").as_deref())?;
         let log = project.log(project.ci_settings().budget(CiSettings::ROUTINE))?;
         let task = claim.task();
         let record = Record::new(actor, Event::TaskClaimed(claim));
@@ -79,7 +81,7 @@ impl LocalClone {
             let writing = Writing::new(&log, record.actor().clone(), record.event().clone());
             writing.entered().map(|written| written.to_string())
         };
-        let run = ClaimRun::new(self, worktree.clone(), identity, written);
+        let run = ClaimRun::new(self, worktree.clone(), &identity, written);
         let shown = run.ran(&plan)?;
         Ok(Output::Listed(Listed::new(format!("{shown}{}\n", run.created()?.display()))))
     }
