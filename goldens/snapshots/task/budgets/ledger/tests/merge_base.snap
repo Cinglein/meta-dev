@@ -11,7 +11,7 @@ features-and-maintenance-critical features-and-maintenance   open_items critical
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
 features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
-git-processes      performance-and-cost       git_processes                        -        513        856 -
+git-processes      performance-and-cost       git_processes                        -        391        652 -
 git-starters       performance-and-cost       git_starters                         -         11         19 -
 lint-findings      features-and-maintenance   lint_findings                        -                     - -
 mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
@@ -57,7 +57,7 @@ features-and-maintenance-critical features-and-maintenance   open_items critical
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
 features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
-git-processes      performance-and-cost       git_processes                        -        513        856 -
+git-processes      performance-and-cost       git_processes                        -        391        652 -
 git-starters       performance-and-cost       git_starters                         -         11         19 -
 lint-findings      features-and-maintenance   lint_findings                        -                     - -
 mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
@@ -100,7 +100,7 @@ features-and-maintenance-critical features-and-maintenance   open_items critical
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
 features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
-git-processes      performance-and-cost       git_processes                        -        513        856 -
+git-processes      performance-and-cost       git_processes                        -        391        652 -
 git-starters       performance-and-cost       git_starters                         -         11         19 -
 lint-findings      features-and-maintenance   lint_findings                        -                     - -
 mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
@@ -147,7 +147,7 @@ features-and-maintenance-critical features-and-maintenance   open_items critical
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
 features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
-git-processes      performance-and-cost       git_processes                        -        513        856 -
+git-processes      performance-and-cost       git_processes                        -        391        652 -
 git-starters       performance-and-cost       git_starters                         -         11         19 -
 lint-findings      features-and-maintenance   lint_findings                        -                     - -
 mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
@@ -194,7 +194,7 @@ features-and-maintenance-critical features-and-maintenance   open_items critical
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
 features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
-git-processes      performance-and-cost       git_processes                        -        513        856 -
+git-processes      performance-and-cost       git_processes                        -        391        652 -
 git-starters       performance-and-cost       git_starters                         -         11         19 -
 lint-findings      features-and-maintenance   lint_findings                        -                     - -
 mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
@@ -242,7 +242,7 @@ features-and-maintenance-critical features-and-maintenance   open_items critical
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
 features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
-git-processes      performance-and-cost       git_processes                        -        513        856 -
+git-processes      performance-and-cost       git_processes                        -        391        652 -
 git-starters       performance-and-cost       git_starters                         -         11         19 -
 lint-findings      features-and-maintenance   lint_findings                        -                     - -
 mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
@@ -291,7 +291,7 @@ features-and-maintenance-critical features-and-maintenance   open_items critical
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
 features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
-git-processes      performance-and-cost       git_processes                        -        513        856 -
+git-processes      performance-and-cost       git_processes                        -        391        652 -
 git-starters       performance-and-cost       git_starters                         -         11         19 -
 lint-findings      features-and-maintenance   lint_findings                        -                     - -
 mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
@@ -340,7 +340,7 @@ features-and-maintenance-critical features-and-maintenance   open_items critical
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
 features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
-git-processes      performance-and-cost       git_processes                        -        513        856 -
+git-processes      performance-and-cost       git_processes                        -        391        652 -
 git-starters       performance-and-cost       git_starters                         -         11         19 -
 lint-findings      features-and-maintenance   lint_findings                        -                     - -
 mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
@@ -389,7 +389,7 @@ features-and-maintenance-critical features-and-maintenance   open_items critical
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
 features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
-git-processes      performance-and-cost       git_processes                        -        513        856 -
+git-processes      performance-and-cost       git_processes                        -        391        652 -
 git-starters       performance-and-cost       git_starters                         -         11         19 -
 lint-findings      features-and-maintenance   lint_findings                        -                     - -
 mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
@@ -436,7 +436,7 @@ features-and-maintenance-critical features-and-maintenance   open_items critical
 features-and-maintenance-major features-and-maintenance   open_items major                     1          2          4 ok
 features-and-maintenance-minor features-and-maintenance   open_items minor                     0          4          8 ok
 features-and-maintenance-unrated features-and-maintenance   open_items unrated                   0          1          2 ok
-git-processes      performance-and-cost       git_processes                        -        513        856 -
+git-processes      performance-and-cost       git_processes                        -        391        652 -
 git-starters       performance-and-cost       git_starters                         -         11         19 -
 lint-findings      features-and-maintenance   lint_findings                        -                     - -
 mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
@@ -478,7 +478,7 @@ features-and-maintenance-critical features-and-maintenance   open_items critical
 features-and-maintenance-major features-and-maintenance   open_items major                     -          2          4 -
 features-and-maintenance-minor features-and-maintenance   open_items minor                     -          4          8 -
 features-and-maintenance-unrated features-and-maintenance   open_items unrated                   -          1          2 -
-git-processes      performance-and-cost       git_processes                        -        513        856 -
+git-processes      performance-and-cost       git_processes                        -        391        652 -
 git-starters       performance-and-cost       git_starters                         -         11         19 -
 lint-findings      features-and-maintenance   lint_findings                        -                     - -
 mutant-price       performance-and-cost       mutant_price                         -        60%       125% -
