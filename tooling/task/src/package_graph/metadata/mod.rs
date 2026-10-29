@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use crate::crate_name::CrateName;
-pub use package::Package;
+pub use package::{Dependency, Package};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]

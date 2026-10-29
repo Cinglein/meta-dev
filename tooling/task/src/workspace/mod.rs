@@ -44,10 +44,14 @@ impl Workspace {
             .argument(CargoArgument::FormatVersionOne)
             .argument(CargoArgument::NoDeps)
             .captured::<Stdout>()?;
+        Self::read(root, &metadata)
+    }
+
+    pub fn read(root: PathBuf, metadata: &str) -> Result<Workspace, Failure> {
         Ok(Workspace {
             root,
-            target: TargetDirectory::from_metadata(&metadata)?,
-            packages: PackageGraph::from_metadata(&metadata)?,
+            target: TargetDirectory::from_metadata(metadata)?,
+            packages: PackageGraph::from_metadata(metadata)?,
         })
     }
 
@@ -127,7 +131,7 @@ impl Workspace {
 
 #[cfg(test)]
 mod tests {
-    use super::{PackageGraph, TargetDirectory, Workspace};
+    use super::Workspace;
     use std::fs;
     const TREE: [&str; 4] = ["a/src/a.rs", "b/b.rs", "target/skipped.rs", "a/notes.txt"];
     const FOUND: [&str; 2] = ["a:a/src/a.rs", "b:b/b.rs"];
@@ -146,13 +150,7 @@ mod tests {
             fs::write(&path, TEXT).unwrap();
         });
         let metadata = METADATA.replace(ROOT_MARK, &root.display().to_string());
-        let packages = PackageGraph::from_metadata(&metadata).unwrap();
-        let target = TargetDirectory::from_metadata(&metadata).unwrap();
-        let workspace = Workspace {
-            root,
-            target,
-            packages,
-        };
+        let workspace = Workspace::read(root, &metadata).unwrap();
         let files = workspace.source_files().unwrap();
         let found = files
             .iter()

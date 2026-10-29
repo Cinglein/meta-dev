@@ -1,0 +1,35 @@
+{"workspace_root": "/w", "packages": [
+  {"name": "meta-schema", "manifest_path": "/w/crates/meta-schema/Cargo.toml", "dependencies": [
+    {"name": "serde", "path": null, "kind": null},
+    {"name": "syn", "path": null, "kind": null},
+    {"name": "chrono", "path": null, "kind": null},
+    {"name": "nix", "path": null, "kind": null},
+    {"name": "meta-log", "path": "/w/crates/meta-log", "kind": null},
+    {"name": "meta-golden", "path": "/w/crates/meta-golden", "kind": "dev"},
+    {"name": "meta-run", "path": "/w/crates/meta-run", "kind": "dev"},
+    {"name": "git2", "path": null, "kind": "dev"}
+  ]},
+  {"name": "meta-git", "manifest_path": "/w/crates/meta-git/Cargo.toml", "dependencies": [
+    {"name": "git2", "path": null, "kind": null},
+    {"name": "chrono", "path": null, "kind": "build"},
+    {"name": "meta-run", "path": "/w/crates/meta-run", "kind": null}
+  ]},
+  {"name": "meta-run", "manifest_path": "/w/crates/meta-run/Cargo.toml", "dependencies": [
+    {"name": "chrono", "path": null, "kind": null},
+    {"name": "tempfile", "path": null, "kind": "dev"}
+  ]},
+  {"name": "meta-cli", "manifest_path": "/w/crates/meta-cli/Cargo.toml", "dependencies": [
+    {"name": "syn", "path": null, "kind": null},
+    {"name": "meta-log", "path": "/w/crates/meta-log", "kind": null},
+    {"name": "meta-golden", "path": "/w/crates/meta-golden", "kind": null}
+  ]},
+  {"name": "meta-golden", "manifest_path": "/w/crates/meta-golden/Cargo.toml", "dependencies": [
+    {"name": "meta-xtask", "path": "/w/xtask", "kind": null}
+  ]},
+  {"name": "task", "manifest_path": "/w/tooling/task/Cargo.toml", "dependencies": [
+    {"name": "settings", "path": "/w/tooling/settings", "kind": "dev"}
+  ]},
+  {"name": "stranger", "manifest_path": "/w/crates/stranger/Cargo.toml", "dependencies": [
+    {"name": "chrono", "path": null, "kind": null}
+  ]}
+]}

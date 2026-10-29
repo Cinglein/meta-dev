@@ -113,3 +113,8 @@ default = 2100
 
 [mutant_millis.crates]
 greeting = 500
+
+[crate_policy.categories]
+greeting = "core"
+xtask = "tooling"
+meta-xtask = "tooling"

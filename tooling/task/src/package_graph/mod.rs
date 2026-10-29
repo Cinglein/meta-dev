@@ -3,15 +3,17 @@ mod metadata;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+pub use metadata::Dependency;
 use metadata::Metadata;
 
 use crate::crate_name::CrateName;
 use crate::failure::Failure;
 use crate::selection::Selection;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct PackageGraph {
     directories: BTreeMap<CrateName, PathBuf>,
+    declared: BTreeMap<CrateName, Vec<Dependency>>,
     dependents: BTreeMap<CrateName, BTreeSet<CrateName>>,
     doctested: BTreeSet<CrateName>,
     with_examples: BTreeSet<CrateName>,
@@ -38,6 +40,11 @@ impl PackageGraph {
         Ok(PackageGraph {
             doctested: metadata.names_where(metadata::Package::doctested),
             with_examples: metadata.names_where(|package| package.example().is_some()),
+            declared: metadata
+                .packages()
+                .iter()
+                .map(|package| (package.name().clone(), package.dependencies().to_vec()))
+                .collect(),
             published: metadata.names_where(|package| {
                 package
                     .publish()
@@ -82,6 +89,11 @@ impl PackageGraph {
     #[must_use]
     pub fn published_in(&self, selection: &Selection, listed: &[CrateName]) -> Selection {
         selection.within(self.published.iter().chain(listed))
+    }
+
+    #[must_use]
+    pub fn declared(&self) -> &BTreeMap<CrateName, Vec<Dependency>> {
+        &self.declared
     }
 
     #[must_use]

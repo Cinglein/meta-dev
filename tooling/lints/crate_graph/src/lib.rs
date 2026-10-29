@@ -1,3 +1,4 @@
+mod crate_dependencies;
 mod crate_summary;
 mod effect;
 mod graph_report;
@@ -8,7 +9,7 @@ mod test_files;
 use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};
 
-use task::SourceFile;
+use task::{PackageGraph, SourceFile};
 
 use crate_summary::CrateSummary;
 pub use graph_report::GraphReport;
@@ -22,7 +23,7 @@ impl CrateGraph {
     const SOURCES: &str = "src";
 
     #[must_use]
-    pub fn graphs(files: &[SourceFile]) -> GraphReport {
+    pub fn graphs(files: &[SourceFile], packages: &PackageGraph) -> GraphReport {
         let tests = TestFiles::collect(files);
         let summaries = files
             .iter()
@@ -38,7 +39,7 @@ impl CrateGraph {
             .into_iter()
             .map(|(root, files)| CrateSummary::of_graph(root, &ItemGraph::of_files(&files)))
             .collect();
-        GraphReport::new(summaries)
+        GraphReport::new(summaries, packages.clone())
     }
 
     fn crate_of(path: &Path) -> Option<PathBuf> {
@@ -53,7 +54,7 @@ impl CrateGraph {
 #[cfg(test)]
 mod tests {
     use super::CrateGraph;
-    use task::SourceFile;
+    use task::{PackageGraph, SourceFile};
     const FILES: [(&str, &str); 2] = [
         (
             "crates/one/src/lib.rs",
@@ -67,7 +68,7 @@ mod tests {
     #[test]
     fn the_graph_shows_each_crate_with_its_cycles_and_best_cut() {
         let files = FILES.map(|(path, text)| SourceFile::parse(path, text.to_owned()).unwrap());
-        let graphs = CrateGraph::graphs(&files);
+        let graphs = CrateGraph::graphs(&files, &PackageGraph::default());
         assert_eq!(graphs.to_string(), REPORT);
         assert_eq!(graphs.largest_tangle().to_string(), LARGEST);
     }
@@ -123,14 +124,15 @@ mod tests {
     fn a_unit_performs_an_effect_by_calling_a_listed_function_not_by_naming_a_type() {
         let files = MENTIONS_AND_CALLS
             .map(|(path, text)| SourceFile::parse(path, text.to_owned()).unwrap());
-        assert_eq!(CrateGraph::graphs(&files).to_string(), ONLY_CALLS);
+        let graphs = CrateGraph::graphs(&files, &PackageGraph::default());
+        assert_eq!(graphs.to_string(), ONLY_CALLS);
     }
 
     #[test]
     fn effects_count_the_raw_share_of_units_per_crate_and_the_widest_family() {
         let files =
             EFFECT_FILES.map(|(path, text)| SourceFile::parse(path, text.to_owned()).unwrap());
-        let graphs = CrateGraph::graphs(&files);
+        let graphs = CrateGraph::graphs(&files, &PackageGraph::default());
         let widest = [
             graphs.effect_share().to_string(),
             graphs.effect_dispersion().to_string(),

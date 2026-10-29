@@ -1,5 +1,6 @@
 mod baseline_file;
 mod bit_boundary;
+mod crate_policy;
 mod floor;
 mod key_name;
 mod least;
@@ -20,6 +21,7 @@ mod wire_type;
 use crate::gate_env_name::GateEnvName;
 use crate::gate_status::GateStatus;
 pub use baseline_file::BaselineFile;
+pub use crate_policy::{CrateCategory, CratePolicy, DomainName, ExternalClass};
 pub use floor::Floor;
 pub use limit::Limit;
 
@@ -84,6 +86,7 @@ pub struct Policy {
     deprecated: Vec<LegacyKey>,
     spec: Option<SpecSettings>,
     supply_chain: SupplyChain,
+    crates: CratePolicy,
 }
 
 #[cfg(any(test, feature = "test-policy"))]
@@ -217,6 +220,11 @@ impl Policy {
     #[must_use]
     pub fn supply_chain(&self) -> &SupplyChain {
         &self.supply_chain
+    }
+
+    #[must_use]
+    pub fn crate_policy(&self) -> &CratePolicy {
+        &self.crates
     }
 
     #[must_use]

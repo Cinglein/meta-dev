@@ -1,13 +1,12 @@
 mod spec_prose;
 
 use std::collections::BTreeMap;
-use std::path::Path;
 
 use corpus_check::{Enforcement, LintName};
 use crate_graph::{CrateGraph, GraphReport};
 use git_starters::GitStarters;
 use strum::IntoEnumIterator;
-use task::{Amount, Branch, Ledger, Measure, Most, Policy, Report, SourceFile};
+use task::{Amount, Branch, Ledger, Measure, Most, PackageGraph, Policy, Report, SourceFile, Workspace};
 use test_budget::TestBudget;
 
 use crate::task::failure::Failure;
@@ -23,12 +22,14 @@ pub struct Lint {
 }
 
 impl Lint {
-    pub fn run(root: &Path, files: &[SourceFile], policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
+    pub fn run(workspace: &Workspace, policy: &Policy, ledger: &mut Ledger) -> Result<(), Failure> {
+        let root = workspace.root();
         Revision::noreply_off(root, policy.branch(Branch::Base))?;
+        let files = workspace.source_files()?;
         let allowed = Baseline::admitted(root, policy.baseline(), policy.branch(Branch::Base))?;
         let base = || Revision::merge_base(root, policy.branch(Branch::Base));
         let spec = policy.spec().map(|spec| base().and_then(|base| SpecProse::since(root, spec, &base))).transpose()?;
-        Self::gathered(files, policy, spec).checked(files, &allowed, policy, ledger)
+        Self::gathered(&files, workspace.packages(), policy, spec).checked(&files, &allowed, policy, ledger)
     }
 
     fn checked(
@@ -54,15 +55,17 @@ impl Lint {
         Ok(())
     }
 
-    pub fn shrink(root: &Path, files: &[SourceFile], policy: &Policy) -> Result<Baseline, Failure> {
-        let path = policy.baseline().within(root);
-        let observed = Self::gathered(files, policy, None).ratchet(&Baseline::read(&path)?, Drift::grew)?;
+    pub fn shrink(workspace: &Workspace, policy: &Policy) -> Result<Baseline, Failure> {
+        let path = policy.baseline().within(workspace.root());
+        let files = workspace.source_files()?;
+        let observed =
+            Self::gathered(&files, workspace.packages(), policy, None).ratchet(&Baseline::read(&path)?, Drift::grew)?;
         observed.write(&path)?;
         Ok(observed)
     }
 
-    fn gathered(files: &[SourceFile], policy: &Policy, spec: Option<Report>) -> Lint {
-        let graphs = CrateGraph::graphs(files);
+    fn gathered(files: &[SourceFile], packages: &PackageGraph, policy: &Policy, spec: Option<Report>) -> Lint {
+        let graphs = CrateGraph::graphs(files, packages);
         let enforced =
             |enforcement: Enforcement| LintName::iter().filter(move |lint| lint.enforcement() == enforcement);
         Lint {
@@ -93,7 +96,7 @@ mod tests {
     use crate::task::fixture::Fixture;
     use crate::task::ratchet::{Baseline, Drift};
     use crate::task::revision::ForeignEmails;
-    use task::{Ledger, Measure, Policy, Report, Site, SourceFile, Violation};
+    use task::{Ledger, Measure, PackageGraph, Policy, Report, Site, SourceFile, Violation, Workspace};
 
     const LINT_FINDINGS: &str = "lint-findings";
     const MEASURED_OK: &str = "-                     - ok";
@@ -102,6 +105,7 @@ mod tests {
     const ALLOWED: &str = "no-comments = 1";
     const SHOWN: &str = "no-comments: 1 found, baseline 0\ncomments go:\nworkspace: a comment\n";
     const BASELINE: &str = "self/lint-baseline.toml";
+    const EMPTY: &str = r#"{"workspace_root": "/", "target_directory": "/t", "packages": []}"#;
     const LISTED: &str = "repeated-methods";
     const REPEATED: [(&str, &str); 3] = [
         ("crates/ant/src/lib.rs", "pub struct Ant; impl Ant { pub fn walk(&self) {} }"),
@@ -128,7 +132,7 @@ mod tests {
         let allowed: Baseline = toml::from_str(ALLOWED).unwrap();
         assert!(Lint::default().ratchet(&allowed, Drift::grew).is_ok());
         let triple = REPEATED.map(|(path, text)| SourceFile::parse(path, text.to_owned()).unwrap());
-        let gathered = Lint::gathered(&triple, &Policy::defaults(), None);
+        let gathered = Lint::gathered(&triple, &PackageGraph::default(), &Policy::defaults(), None);
         assert!(gathered.listed.len() == 1 && !gathered.reports.contains_key(LISTED));
     }
 
@@ -140,9 +144,10 @@ mod tests {
         let files = REPEATED.map(|(path, text)| SourceFile::parse(path, text.to_owned()).unwrap());
         let checked = |ledger: &mut Ledger| {
             let allowed = Baseline::read(&fixture.path(BASELINE))?;
-            Lint::gathered(&files, &policy, None).checked(&files, &allowed, &policy, ledger)
+            Lint::gathered(&files, &PackageGraph::default(), &policy, None).checked(&files, &allowed, &policy, ledger)
         };
-        assert!(checked(&mut ledger).is_err() && Lint::shrink(fixture.root(), &files, &policy).is_ok());
+        let workspace = Workspace::read(fixture.root().to_path_buf(), EMPTY).unwrap();
+        assert!(checked(&mut ledger).is_err() && Lint::shrink(&workspace, &policy).is_ok());
         let passed = checked(&mut ledger).is_ok()
             && fs::read_to_string(fixture.path(BASELINE)).is_ok_and(|text| text.is_empty());
         let statement = ledger.statement(&policy).to_string();

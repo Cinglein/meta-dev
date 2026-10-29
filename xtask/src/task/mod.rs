@@ -55,6 +55,7 @@ pub enum Task {
     BuildTime,
     Clippy,
     ConstShape,
+    CrateDependencies,
     CrateGraph,
     Deny,
     DistinctSignatures,
@@ -140,8 +141,9 @@ impl Task {
         match self {
             Task::Affected => Ok(Affected::selection(workspace, Changes::SinceMain, policy.branch(Branch::Base))
                 .map(|reached| println!("{reached}"))?),
-            Task::Baseline => Lint::shrink(workspace.root(), &workspace.source_files()?, &policy)
-                .map(|kept| println!("baseline: {} violations", kept.total())),
+            Task::Baseline => {
+                Lint::shrink(workspace, &policy).map(|kept| println!("baseline: {} violations", kept.total()))
+            }
             Task::Ci => Ci::new(
                 summary,
                 coverage.gate(workspace.root(), &policy)?,
@@ -156,12 +158,15 @@ impl Task {
             Task::Semver => Supply::semver(workspace, &selection, &policy),
             Task::Goldens => GoldenRefresh::run(workspace, Reach::Offline),
             Task::GoldensOnline => GoldenRefresh::run(workspace, Reach::Online),
-            Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
+            Task::Graph => Ok(workspace
+                .source_files()
+                .map(|files| print!("{}", CrateGraph::graphs(&files, workspace.packages())))?),
             Task::Elegance => Ok(workspace.source_files().map(|files| {
                 print!("{}", Measures::measured(&SynSource::new(&files), &EleganceSettings::defaults()));
             })?),
-            Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy, &mut ledger)
-                .and_then(|()| Ok(ledger.checked(&policy, &selection)?)),
+            Task::Lint => {
+                Lint::run(workspace, &policy, &mut ledger).and_then(|()| Ok(ledger.checked(&policy, &selection)?))
+            }
             Task::MutantCosts => Ok(MutantCosts::measure(
                 &Some(flags.map(PathBuf::from).collect::<Vec<PathBuf>>())
                     .filter(|runs| !runs.is_empty())
@@ -193,7 +198,7 @@ impl Task {
             .and_then(|()| ledger.checked(&policy, &selection))?),
             lint => Ok(<&'static str>::from(lint).parse::<LintName>().map_or(Ok(()), |lint| {
                 let files = workspace.source_files()?;
-                lint.report(&files, &CrateGraph::graphs(&files), &policy).verdict()
+                lint.report(&files, &CrateGraph::graphs(&files, workspace.packages()), &policy).verdict()
             })?),
         }
     }

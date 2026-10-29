@@ -79,11 +79,10 @@ mod tests {
     use super::{Commit, ForeignEmails, GitPaths, GitReads, Revision};
     use crate::task::failure::Failure;
     use crate::task::fixture::Fixture;
-    use crate::task::lint::Lint;
     use crate::task::prior_policy::PriorPolicy;
     use crate::task::ratchet::Baseline;
     use crate::task::surfaces::Surfaces;
-    use task::{BaselineFile, Branch, Ledger, Policy};
+    use task::{BaselineFile, Branch, Policy};
 
     const PARENT_POLICY: &str = "tooling/policy.toml";
     const PARENT_BASELINE: &str = "lint-baseline.toml";
@@ -139,7 +138,7 @@ mod tests {
         let announced = Surfaces::announce(&root, &policy, Some(&summary)).map(|()| fs::read_to_string(&summary));
         assert!(announced.is_ok_and(|listed| listed.is_ok_and(|listed| listed.ends_with(LISTED))));
         assert!(admitted(&root, PARENT_BASELINE).is_err() && admitted(fixture.root(), PARENT_BASELINE).is_ok());
-        let linted = Lint::run(&root, &[], &policy, &mut Ledger::default());
+        let linted = Revision::noreply_off(&root, policy.branch(Branch::Base));
         let prior = PriorPolicy::text_at_merge_base(fixture.root(), policy.branch(Branch::Base));
         assert!(matches!(linted, Err(Failure::Identity(_))) && prior.ok().flatten().as_deref() == Some(PARENT_TEXT));
     }
