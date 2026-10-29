@@ -14,7 +14,7 @@ wire_types = [
     "std::any::Any",
     "core::any::Any",
 ]
-bit_boundary = []
+bit_boundary = ["crates/meta-cli/src/request/local/local_clone/vetting/host/process_table"]
 gate = "local-gate"
 gate_wait = 600000
 surfaces = [
@@ -45,7 +45,7 @@ default = "main"
 base = "origin/main"
 
 [supply_chain]
-licenses = ["Apache-2.0", "MIT", "Unicode-3.0"]
+licenses = ["Apache-2.0", "BSD-3-Clause", "ISC", "MIT", "Unicode-3.0"]
 registries = ["https://github.com/rust-lang/crates.io-index"]
 git = []
 ignored_advisories = []
