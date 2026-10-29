@@ -1312,3 +1312,4 @@
 {"at":"2026-10-29T02:06:58.361874Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-4155849b1ac2396b"}
 {"at":"2026-10-29T02:06:59.886817Z","actor":"claude-lead","kind":"TaskDone","task":"task-4155849b1ac2396b"}
 {"at":"2026-10-29T02:11:40.647776Z","actor":"claude-gitport","kind":"TaskLinked","task":"task-5cda04657fbc8ba5","pr":154}
+{"at":"2026-10-29T02:21:29.793110Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-e5312cd0db46a99a","text":"gc: a worktree remove that fails partway leaves its remains in quarantine (hidden by FakeHost; found by the gc prototypes).","division":"features-and-maintenance","severity":"minor"}
