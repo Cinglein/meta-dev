@@ -82,7 +82,6 @@ discover_every = 100
 per_crate = 21000
 test_timeout = 30000
 job_setup = 90000
-reference_cpu = 1080
 
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]
