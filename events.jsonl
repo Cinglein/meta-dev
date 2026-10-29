@@ -1596,3 +1596,4 @@
 {"at":"2026-10-29T20:07:14.030065Z","actor":"claude-qb","kind":"TaskClaimed","task":"task-52c15c8597db7e3c"}
 {"at":"2026-10-29T20:07:28.325012Z","actor":"claude-sv1","kind":"TaskClaimed","task":"task-29901bc46d17bf0a"}
 {"at":"2026-10-29T20:08:31.555017Z","actor":"claude-qa","kind":"TaskClaimed","task":"task-cce9360d23a2663e"}
+{"at":"2026-10-29T20:11:51.496246Z","actor":"claude-lead","kind":"TaskOpened","task":"task-400353b58caf17b8","text":"Preregistered 2026-10-29 (owner targets; baseline Oct 29: 16.2M weight per merged PR, 30 merged): GOAL spend per merged PR ≤8M (−50%), 7-day window after the deliverables land. Guardrails must not worsen: main-red incidents, reverts, full-run missed mutants, escaped review findings.","division":"performance-and-cost"}
