@@ -1549,3 +1549,4 @@
 {"at":"2026-10-29T15:44:28.109190Z","actor":"claude-fcore","kind":"TaskOpened","task":"task-6e5feb0a7967ce6d","text":"CI watcher decisions become pure functions over recorded views; e2e watcher tests shrink to one per entry point","division":"performance-and-cost","addresses":["concern-7c8ca24df2ec76b0"]}
 {"at":"2026-10-29T15:44:34.280709Z","actor":"claude-fcore","kind":"TaskClaimed","task":"task-6e5feb0a7967ce6d"}
 {"at":"2026-10-29T15:50:20.583325Z","actor":"claude-bugs3","kind":"TaskDone","task":"task-f3655d764b4c0108"}
+{"at":"2026-10-29T15:52:59.083620Z","actor":"claude-fcore","kind":"TaskLinked","task":"task-6e5feb0a7967ce6d","pr":200}
