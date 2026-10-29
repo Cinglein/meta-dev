@@ -5,6 +5,7 @@ use std::path::Path;
 
 use corpus_check::LintName;
 use crate_graph::CrateGraph;
+use git_starters::GitStarters;
 use strum::IntoEnumIterator;
 use task::{Amount, Branch, Ledger, Measure, Policy, Report, SourceFile};
 use test_budget::TestBudget;
@@ -40,6 +41,9 @@ impl Lint {
         ledger.spend(Measure::LintFindings, Amount::Baseline(policy.baseline().clone()));
         ledger.spend(Measure::TestLineShare, TestBudget::line_share(files, policy));
         ledger.spend(Measure::TangleItems, CrateGraph::largest_tangle(files));
+        let starters = GitStarters::report(files);
+        print!("{starters}");
+        ledger.spend(Measure::GitStarters, GitStarters::amount(&starters));
         Ok(())
     }
 

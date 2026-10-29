@@ -4,7 +4,6 @@ use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
-const META: &str = env!("CARGO_BIN_EXE_meta");
 const OWNER: &str = "owner";
 const WRITER: &str = "writer";
 const NOWHERE: [&str; 4] = ["remote", "set-url", "origin", "/nonexistent/origin.git"];
@@ -38,8 +37,11 @@ const STARTED: &str = "\"event\":\"start\"";
 const LISTING: &str = "\"hierarchy\":\"ls-remote\"";
 const READ_PROCESSES: [&str; 3] = ["ls-remote", "upload-pack", "cat-file"];
 
+#[path = "support/meta_command.rs"]
+mod meta_command;
 #[path = "support/seeded_log.rs"]
 mod seeded_log;
+use meta_command::MetaCommand;
 #[path = "support/skeleton.rs"]
 mod skeleton;
 use seeded_log::{SeededLog, TASK};
@@ -111,8 +113,8 @@ struct Traced(Run, String);
 impl Traced {
     fn run(project: &Project, words: &[&str]) -> Self {
         let trace = tempfile::NamedTempFile::new().unwrap();
-        let mut command = Command::new(META);
-        command.current_dir(project.clone.path()).args(words).env_remove("META_ACTOR").env("USER", LOCAL_NAME);
+        let mut command = MetaCommand::tagged(words);
+        command.current_dir(project.clone.path()).env_remove("META_ACTOR").env("USER", LOCAL_NAME);
         command.env(TRACE, trace.path());
         Self(Run(command.output().unwrap()), std::fs::read_to_string(trace.path()).unwrap())
     }
@@ -170,7 +172,7 @@ impl Project {
     }
 
     fn meta(&self, actor: &str, words: &[&str]) -> Run {
-        Run(Command::new(META).current_dir(self.clone.path()).args(words).env("META_ACTOR", actor).output().unwrap())
+        Run(MetaCommand::tagged(words).current_dir(self.clone.path()).env("META_ACTOR", actor).output().unwrap())
     }
 }
 

@@ -18,7 +18,7 @@ window = "per_change"
 source = "ci"
 warning = 50
 tolerance = 10
-overspend = "block"
+overspend = "report"
 
 [ci-lints.allowance]
 of = "ci"

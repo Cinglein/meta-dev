@@ -296,6 +296,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "git_starters"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "syn 2.0.119",
+ "task",
+]
+
+[[package]]
+name = "git_trace"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "task",
+ "tempfile",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -569,6 +588,7 @@ dependencies = [
  "affected",
  "corpus_check",
  "crate_graph",
+ "git_starters",
  "meta-golden",
  "meta-log",
  "meta-run",
@@ -1109,6 +1129,7 @@ dependencies = [
 name = "test_time"
 version = "0.1.0"
 dependencies = [
+ "git_trace",
  "nix",
  "settings",
  "strum",

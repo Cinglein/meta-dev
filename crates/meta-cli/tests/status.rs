@@ -1,16 +1,18 @@
 #![allow(clippy::unwrap_used)]
 
 use std::io::Write as _;
-use std::process::{Command, Output, Stdio};
+use std::process::{Output, Stdio};
 
+#[path = "support/meta_command.rs"]
+mod meta_command;
 #[path = "support/seeded_log.rs"]
 mod seeded_log;
 #[path = "support/skeleton.rs"]
 mod skeleton;
+use meta_command::MetaCommand;
 use seeded_log::{SeededLog, TASK};
 use skeleton::Skeleton;
 
-const META: &str = env!("CARGO_BIN_EXE_meta");
 const OWNER: &str = "owner";
 const CLAIMED: &str = "TaskClaimed";
 const STATUS_FLAGS: [&str; 2] = ["status", "--flags"];
@@ -53,8 +55,8 @@ impl Project {
     }
 
     fn meta(&self, words: &[&str], stdin: &str) -> Output {
-        let mut command = Command::new(META);
-        command.current_dir(self.clone.path()).args(words).env("META_ACTOR", OWNER).env("PATH", self.path());
+        let mut command = MetaCommand::tagged(words);
+        command.current_dir(self.clone.path()).env("META_ACTOR", OWNER).env("PATH", self.path());
         let mut child = command.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
         child.stdin.take().unwrap().write_all(stdin.as_bytes()).unwrap();
         child.wait_with_output().unwrap()

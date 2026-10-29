@@ -16,8 +16,10 @@ impl Environment {
         self
     }
 
-    pub(crate) fn without_prefix(mut self, prefix: &str) -> Self {
-        self.0.retain(|name, _| !name.as_encoded_bytes().starts_with(prefix.as_bytes()));
+    pub(crate) fn without_prefix(mut self, prefix: &str, kept: &[&str]) -> Self {
+        self.0.retain(|name, _| {
+            !name.as_encoded_bytes().starts_with(prefix.as_bytes()) || kept.iter().any(|kept| name == *kept)
+        });
         self
     }
 

@@ -32,13 +32,22 @@ const STALLS: &str = "waiting for terminal input";
 const PS: [&str; 4] = ["ps", "-o", "stat=", "-p"];
 const POLL: Duration = Duration::from_millis(2);
 const NO_PROMPT: &str = "\"GIT_TERMINAL_PROMPT\": Some(\"0\")";
-const INHERITED: [(&str, &str); 5] =
-    [("EMAIL", "e"), ("GIT_DIR", "d"), ("GIT_SSH_COMMAND", "s"), ("LANG", "C"), ("PATH", "/bin")];
+const INHERITED: [(&str, &str); 6] = [
+    ("EMAIL", "e"),
+    ("GIT_DIR", "d"),
+    ("GIT_SSH_COMMAND", "s"),
+    ("GIT_TRACE2_EVENT", "t"),
+    ("LANG", "C"),
+    ("PATH", "/bin"),
+];
 const DROPPED: [(EnvPolicy, &str); 4] = [
     (EnvPolicy::Inherit, ""),
     (EnvPolicy::NoRepoVars, "\"GIT_DIR\": None"),
     (EnvPolicy::NoGitVars, "\"EMAIL\": None, \"GIT_DIR\": None, \"GIT_SSH_COMMAND\": None"),
-    (EnvPolicy::Only(&["LANG"]), "\"EMAIL\": None, \"GIT_DIR\": None, \"GIT_SSH_COMMAND\": None, \"PATH\": None"),
+    (
+        EnvPolicy::Only(&["LANG"]),
+        "\"EMAIL\": None, \"GIT_DIR\": None, \"GIT_SSH_COMMAND\": None, \"GIT_TRACE2_EVENT\": None, \"PATH\": None",
+    ),
 ];
 
 struct Scripted;

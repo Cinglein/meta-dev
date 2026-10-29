@@ -22,12 +22,14 @@ pub enum Measure {
     TestWallTime,
     TestCpuTime,
     SlowestTest,
+    GitProcesses,
     #[strum(to_string = "workflow_wall_time {0}")]
     WorkflowWallTime(MutationJob),
     MutantPrice,
     LintFindings,
     TestLineShare,
     TangleItems,
+    GitStarters,
     #[strum(to_string = "open_items {0}")]
     OpenItems(ItemFilter),
 }
@@ -41,7 +43,10 @@ impl Measure {
             | Measure::SlowestTest
             | Measure::WorkflowWallTime(_) => Unit::Duration,
             Measure::MutantPrice | Measure::TestLineShare => Unit::Share,
-            Measure::TangleItems | Measure::OpenItems(_) => Unit::Count,
+            Measure::TangleItems
+            | Measure::OpenItems(_)
+            | Measure::GitProcesses
+            | Measure::GitStarters => Unit::Count,
             Measure::LintFindings => Unit::Baseline,
         }
     }
@@ -49,13 +54,14 @@ impl Measure {
     #[must_use]
     pub const fn scope(&self) -> Option<ScopeKind> {
         match self {
-            Measure::TestWallTime | Measure::TestCpuTime | Measure::SlowestTest => {
-                Some(ScopeKind::Tests)
-            }
+            Measure::TestWallTime
+            | Measure::TestCpuTime
+            | Measure::SlowestTest
+            | Measure::GitProcesses => Some(ScopeKind::Tests),
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Some(ScopeKind::Workflows),
             Measure::TangleItems => Some(ScopeKind::Crates),
             Measure::LintFindings | Measure::TestLineShare => Some(ScopeKind::Paths),
-            Measure::OpenItems(_) => None,
+            Measure::OpenItems(_) | Measure::GitStarters => None,
         }
     }
 
@@ -65,6 +71,8 @@ impl Measure {
             Measure::TestWallTime
             | Measure::TestCpuTime
             | Measure::SlowestTest
+            | Measure::GitProcesses
+            | Measure::GitStarters
             | Measure::OpenItems(_) => Enforcer::Checker,
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Enforcer::MutationJobs,
             Measure::LintFindings | Measure::TestLineShare | Measure::TangleItems => Enforcer::Lint,
@@ -78,11 +86,13 @@ impl Measure {
             Measure::TestWallTime
             | Measure::TestCpuTime
             | Measure::SlowestTest
+            | Measure::GitProcesses
             | Measure::WorkflowWallTime(_)
             | Measure::MutantPrice
             | Measure::LintFindings
             | Measure::TestLineShare
-            | Measure::TangleItems => None,
+            | Measure::TangleItems
+            | Measure::GitStarters => None,
         }
     }
 
@@ -90,7 +100,10 @@ impl Measure {
     pub const fn window(&self) -> Option<Window> {
         match self {
             Measure::OpenItems(_) => Some(Window::Standing),
-            Measure::TestLineShare | Measure::TangleItems => None,
+            Measure::TestLineShare
+            | Measure::TangleItems
+            | Measure::GitProcesses
+            | Measure::GitStarters => None,
             Measure::TestWallTime
             | Measure::TestCpuTime
             | Measure::SlowestTest

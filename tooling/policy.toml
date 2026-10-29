@@ -116,6 +116,21 @@ allowance = { duration = 8000 }
 window = "per_change"
 source = "ci"
 
+[budgets.git-processes]
+division = "performance-and-cost"
+measure = "git_processes"
+allowance = { count = 856 }
+window = "per_change"
+source = "ci"
+overspend = "report"
+
+[budgets.git-starters]
+division = "performance-and-cost"
+measure = "git_starters"
+allowance = { count = 19 }
+window = "per_change"
+source = "ci"
+
 [budgets.slowest-test]
 division = "performance-and-cost"
 measure = "slowest_test"

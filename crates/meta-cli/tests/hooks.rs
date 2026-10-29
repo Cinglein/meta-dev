@@ -8,6 +8,7 @@ use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
 const META: &str = env!("CARGO_BIN_EXE_meta");
+const HOOK: &str = "hook";
 const CONFIG: &str = "remote = \"origin\"\nprotected = [\"main\"]\n";
 const MERGE: &str = "gh pr merge 1";
 const PUSH: &str = "git push --force origin feature";
@@ -73,8 +74,11 @@ const HELPERS: &str = r#"[remote "origin"]
 	uploadpack = "sh -c 'test -e ROOT/hold && echo $$ >> ROOT/pids && sleep 5 || exec git upload-pack \"$1\"' x"
 "#;
 
+#[path = "support/meta_command.rs"]
+mod meta_command;
 #[path = "support/skeleton.rs"]
 mod skeleton;
+use meta_command::MetaCommand;
 use skeleton::Skeleton;
 
 struct Git;
@@ -133,7 +137,7 @@ impl Repo {
     }
 
     fn hook(&self, event: &str, command: &str, cwd: &Path) -> String {
-        let child = self.started(event, command, cwd, &mut Command::new(META));
+        let child = self.started(event, command, cwd, &mut MetaCommand::tagged(&[HOOK, event]));
         String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
     }
 
@@ -144,10 +148,7 @@ impl Repo {
             serde_json::to_string(cwd).unwrap(),
             serde_json::to_string(&command.replace(ELSEWHERE, &self.origin.path().display().to_string())).unwrap()
         );
-        let meta = meta
-            .args(["hook", event])
-            .env_remove("META_ACTOR")
-            .env("CLAUDE_ENV_FILE", self.clone.path().join(ENV_FILE));
+        let meta = meta.env_remove("META_ACTOR").env("CLAUDE_ENV_FILE", self.clone.path().join(ENV_FILE));
         let piped = meta.env("TMPDIR", self.clone.path()).stdin(Stdio::piped()).stdout(Stdio::piped());
         let mut child = piped.spawn().unwrap();
         child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();

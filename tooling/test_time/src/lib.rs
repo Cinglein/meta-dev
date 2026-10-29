@@ -17,6 +17,7 @@ use std::time::Duration;
 use cargo_build::CargoBuild;
 use cargo_test::CargoTest;
 use clock::Clock;
+use git_trace::GitProcesses;
 use no_tests::NoTests;
 use reference_cpu::ReferenceCpu;
 use runner_config::RunnerConfig;
@@ -38,6 +39,7 @@ use task::{Limit, Policy};
 pub struct TestTime {
     timings: Vec<TestTiming>,
     reference: ReferenceCpu,
+    git: GitProcesses,
 }
 
 impl TestTime {
@@ -69,10 +71,12 @@ impl TestTime {
                 Ok(())
             },
             |selection| {
-                let runs = tempfile::NamedTempFile::new().map_err(|error| Failure::Io {
+                let unmade = |error| Failure::Io {
                     site: Site::Workspace,
                     error,
-                })?;
+                };
+                let runs = tempfile::NamedTempFile::new().map_err(unmade)?;
+                let traces = tempfile::tempdir().map_err(unmade)?;
                 let line = || workspace.line(Program::Cargo);
                 selection
                     .within(workspace.packages().with_examples())
@@ -84,7 +88,8 @@ impl TestTime {
                 let cargo = |selection| CargoTest::new(line(), selection, policy);
                 let line = cargo(selection)
                     .through(&RunnerConfig::current()?)
-                    .environment(TestRunner::RUNS, runs.path());
+                    .environment(TestRunner::RUNS, runs.path())
+                    .environment(GitProcesses::TARGET, traces.path());
                 let ran = Self::GIT_SETTINGS
                     .into_iter()
                     .fold(line, |line, (name, value)| line.environment(name, value))
@@ -101,9 +106,14 @@ impl TestTime {
                     .parse::<TestRuns>()?
                     .passed()?;
                 ran.and(documented_ran)?;
-                TestTime { timings, reference }
-                    .recorded(policy, ledger)
-                    .verdict()
+                let git = GitProcesses::traced(traces.path())?;
+                TestTime {
+                    timings,
+                    reference,
+                    git,
+                }
+                .recorded(policy, ledger)
+                .verdict()
             },
         )
     }
@@ -122,6 +132,8 @@ impl TestTime {
             .iter()
             .take(policy.limit(Limit::SlowestShown).count())
             .for_each(|timing| println!("  {timing}"));
+        println!("{}", self.git);
+        ledger.spend(Measure::GitProcesses, self.git.amount());
         let slowest = self
             .timings
             .first()
@@ -152,7 +164,9 @@ impl TestTime {
 
 #[cfg(test)]
 mod tests {
-    use super::{CargoBuild, CargoTest, ReferenceCpu, RunnerConfig, TestTime, TestTiming};
+    use super::{
+        CargoBuild, CargoTest, GitProcesses, ReferenceCpu, RunnerConfig, TestTime, TestTiming,
+    };
     use settings::EmbeddedDefaults;
     use std::path::{Path, PathBuf};
     use std::time::Duration;
@@ -176,7 +190,13 @@ mod tests {
         fn over_budget(timings: Vec<TestTiming>, policy: &Policy) -> Report {
             let mut ledger = Ledger::default();
             let reference = ReferenceCpu::new(Duration::from_secs_f64(FAST_RUNNER_SECS));
-            let found = TestTime { timings, reference }.recorded(policy, &mut ledger);
+            let git = GitProcesses::default();
+            let found = TestTime {
+                timings,
+                reference,
+                git,
+            }
+            .recorded(policy, &mut ledger);
             let verdict = ledger.statement(policy).verdict(&Selection::Workspace);
             Report::new(
                 HEADLINE,
