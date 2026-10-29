@@ -11,6 +11,7 @@ use super::watch_item::WatchItem;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Finding {
     Signalled(Signal, Culprit),
+    Gone(Culprit),
     OverLimit(Culprit),
     Unknown(Culprit),
     Watched(WatchItem),
@@ -38,6 +39,7 @@ impl fmt::Display for Finding {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Signalled(signal, culprit) => writeln!(formatter, "monitor sent {signal} to {culprit}"),
+            Self::Gone(culprit) => writeln!(formatter, "monitor: already gone, not signalled: {culprit}"),
             Self::OverLimit(culprit) => writeln!(formatter, "monitor: agent work {culprit}"),
             Self::Unknown(culprit) => writeln!(formatter, "monitor: no agent marker under a root, {culprit}"),
             Self::Watched(item) => writeln!(formatter, "monitor: watched long enough, {item}"),

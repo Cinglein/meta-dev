@@ -1,3 +1,4 @@
+mod confirmation;
 mod cwd_listing;
 mod judged_rows;
 mod process_table;
@@ -18,9 +19,11 @@ use super::pid_list::PidList;
 use super::process_row::ProcessRow;
 use super::signal::Signal;
 use super::silence::Silence;
+use super::starts::Starts;
 use super::target::Target;
 use super::watch_item::WatchItem;
 use crate::request::local::local_settings::MonitorSettings;
+use confirmation::Confirmation;
 use cwd_listing::CwdListing;
 use judged_rows::JudgedRows;
 use process_table::ProcessTable;
@@ -48,6 +51,7 @@ impl<'patrol, Host: Machine> Patrol<'patrol, Host> {
         self.rows().map_or_else(
             || MonitorReport::new(now, load, before.clone()).found(blind, Vec::new()),
             |rows| {
+                let starts = Starts::listed(&rows);
                 let table = ProcessTable::new(rows, self.settings, self.host.own_pid());
                 let marked = table.marked(before.marked(), now);
                 let judged = table.judged(&marked);
@@ -59,7 +63,7 @@ impl<'patrol, Host: Machine> Patrol<'patrol, Host> {
                 let watched = self.watched(&judged, before, now);
                 let promoted = watched.iter().filter(|item| self.settings.promotes(item.ticks()).is_some());
                 let promoted = promoted.cloned().map(Finding::Watched);
-                let findings = self.stopped(&stopped, &marked).into_iter();
+                let findings = self.stopped(&stopped, &marked, &starts).into_iter();
                 let findings = findings.chain(silent).chain(over.into_iter().map(Finding::OverLimit));
                 let findings: Vec<Finding> = findings.chain(unknown).chain(promoted).collect();
                 MonitorReport::new(now, load, MonitorState::new(marked, watched)).found(findings, judged.shown())
@@ -84,18 +88,30 @@ impl<'patrol, Host: Machine> Patrol<'patrol, Host> {
             .collect()
     }
 
-    fn stopped(&self, culprits: &[Culprit], marked: &MarkedGroups) -> Vec<Finding> {
-        let targets: BTreeSet<Target> = culprits.iter().map(Culprit::target).collect();
+    fn stopped(&self, culprits: &[Culprit], marked: &MarkedGroups, starts: &Starts) -> Vec<Finding> {
+        let first = self.confirmed(culprits.to_vec(), starts);
+        let targets: BTreeSet<Target> = first.kept().iter().map(Culprit::target).collect();
         let after = (!targets.is_empty()).then(|| {
             self.host.signal(Signal::Term, &targets);
             self.host.pause(self.settings.grace().duration());
             let rows = self.rows().unwrap_or_default();
             ProcessTable::new(rows, self.settings, self.host.own_pid()).judged(marked)
         });
-        let survivors = after.unwrap_or_default().survivors(culprits);
-        let killed: BTreeSet<Target> = survivors.iter().map(Culprit::target).collect();
+        let survivors = after.unwrap_or_default().survivors(first.kept());
+        let late = self.confirmed(survivors, starts);
+        let killed: BTreeSet<Target> = late.kept().iter().map(Culprit::target).collect();
         (!killed.is_empty()).then(|| self.host.signal(Signal::Kill, &killed));
-        let terminated = culprits.iter().cloned().map(|culprit| Finding::Signalled(Signal::Term, culprit));
-        terminated.chain(survivors.into_iter().map(|culprit| Finding::Signalled(Signal::Kill, culprit))).collect()
+        let terminated = first.kept().iter().cloned().map(|culprit| Finding::Signalled(Signal::Term, culprit));
+        let killing = late.kept().iter().cloned().map(|culprit| Finding::Signalled(Signal::Kill, culprit));
+        let refused = first.refused().iter().chain(late.refused()).cloned();
+        terminated.chain(killing).chain(refused).collect()
+    }
+
+    fn confirmed(&self, culprits: Vec<Culprit>, starts: &Starts) -> Confirmation {
+        let judge = |sofar: Confirmation, culprit: Culprit| {
+            let standing = culprit.standing(self.host, starts);
+            sofar.judged(culprit, standing)
+        };
+        culprits.into_iter().fold(Confirmation::default(), judge)
     }
 }

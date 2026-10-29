@@ -1,6 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
+use meta_run::Run;
 use serde::{Deserialize, Serialize};
 
 use super::super::unreadable::Unreadable;
@@ -12,6 +13,10 @@ pub struct Pid(u32);
 
 impl Pid {
     pub const INIT: Self = Self(1);
+
+    pub fn appended(self, run: Run) -> Run {
+        run.arg(self.to_string())
+    }
 
     pub fn ancestry(self, rows: &[ProcessRow]) -> Vec<Self> {
         let parent = |pid: &Self| rows.iter().find_map(|row| row.parent_of(*pid));

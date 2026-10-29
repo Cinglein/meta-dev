@@ -3,7 +3,10 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use super::command_summary::CommandSummary;
+use super::machine::Machine;
 use super::process_row::{CommandLine, Pid};
+use super::standing::Standing;
+use super::starts::Starts;
 use super::target::Target;
 use crate::request::local::local_settings::Cause;
 
@@ -20,6 +23,16 @@ pub struct Culprit {
 impl Culprit {
     pub fn new(pid: Pid, command: CommandLine, cause: Cause, target: Target) -> Self {
         Self { pid, summary: CommandSummary::from(&command), command, cause, target }
+    }
+
+    pub fn pid(&self) -> Pid {
+        self.pid
+    }
+
+    pub fn standing(&self, host: &impl Machine, starts: &Starts) -> Standing {
+        let own = starts.identity(self.pid).standing(host);
+        let leader = self.target.leader().map_or(Standing::Same, |leader| starts.identity(leader).standing(host));
+        own.joined(leader)
     }
 
     pub fn target(&self) -> Target {

@@ -7,9 +7,15 @@ use chrono::{DateTime, TimeDelta, Utc};
 use meta_golden::Golden;
 
 use super::Monitor;
+use super::culprit::Culprit;
 use super::patrol::Patrol;
+use super::process_row::{GroupId, Pid, ProcessRow};
 use super::silence::Silence;
+use super::standing::Standing;
+use super::starts::Starts;
+use super::target::Target;
 use crate::request::cli_failure::{CliFailure, Setup};
+use crate::request::local::local_settings::Cause;
 use crate::request::local::local_settings::MonitorSettings;
 use crate::request::local::{LocalClone, LocalFile};
 use crate::request::output::{Listed, Output};
@@ -46,7 +52,8 @@ const CWDS: &str =
 p100\nn/p-worktrees/t\np101\nn/p-worktrees/t\np105\nn/p-worktrees/t\np106\nn/other\np110\nn/p-worktrees/t\np120\nn/other
 p130\nn/p\np140\nn/p\np200\nn/p\np201\nn/p\np300\nn/other\np102\nn/other\np60\nn/p\n";
 const UPTIME: &str = "12:00  up 26 days, 19:01, 1 user, load averages: 1.00 2.00 3.01\n";
-const STOPPING: &str = "stop = [\"orphaned\", \"cpu-time\", \"wall-time\", \"silent\"]\nspared = []";
+const STOPPING: &str = "stop = [\"orphaned\", \"cpu-time\", \"wall-time\"]\nspared = []";
+const SILENCING: &str = "stop = [\"orphaned\", \"cpu-time\", \"wall-time\", \"silent\"]\nspared = []";
 const SILENT: &str = r#"{"task":"task-00000000000000c0","worktree":"/p-worktrees/t",
 "quiet":{"secs":4000,"nanos":0},"limit":{"secs":1800,"nanos":0}}"#;
 const PROMOTING: &str = "watch_ticks = 2\nkept_entries = 6";
@@ -58,6 +65,42 @@ const LATER: [TimeDelta; 5] =
     [TimeDelta::zero(), TimeDelta::minutes(5), TimeDelta::minutes(10), TimeDelta::minutes(61), TimeDelta::minutes(62)];
 const BROKEN: &str = "settings unreadable";
 const GIT: &str = ".git";
+
+const CHANGED: &str = "Tue Oct 27 07:00:00 2026";
+type Arranged = fn(FakeMachine<'static>) -> FakeMachine<'static>;
+const HOSTS: [(Arranged, &str, &str); 3] = [
+    (|host| host.started_at("100", CHANGED), "not signalled", "-TERM"),
+    (|host| host.started_at("100", ""), "already gone", "-TERM"),
+    (|host| host.started_after_term("100".parse().unwrap(), CHANGED), "not signalled", "-KILL"),
+];
+
+const LEADED: &str = "  900     1   900 18:00:00 0:01.00 0.0 sleep 1000
+  901     1   900 18:00:00 0:01.00 0.0 sleep 9
+";
+
+#[test]
+fn a_group_target_also_needs_its_leader_unchanged_while_an_exited_leader_does_not_block() {
+    let rows: Vec<ProcessRow> = FakeMachine::listed(LEADED).lines().map(|line| line.parse().unwrap()).collect();
+    let starts = Starts::listed(&rows);
+    let leader: Pid = "900".parse().unwrap();
+    let target = Target::Group(GroupId::from(leader));
+    let culprit = Culprit::new("901".parse().unwrap(), "sleep 9".parse().unwrap(), Cause::Orphaned, target);
+    let standing = |host: FakeMachine| culprit.standing(&host, &starts);
+    let host = || FakeMachine::new(&[], "", "");
+    let shown = [standing(host()), standing(host().started_at("900", CHANGED)), standing(host().started_at("900", ""))];
+    assert_eq!(shown, [Standing::Same, Standing::Changed, Standing::Same]);
+}
+
+#[test]
+fn a_culprit_is_signalled_only_while_it_is_the_process_first_listed_and_one_that_exited_is_reported_gone() {
+    let shown = HOSTS.map(|(arranged, expected, unsent)| {
+        let git_dir = tempfile::tempdir().unwrap();
+        let host = arranged(FakeMachine::new(&[SCENE, AFTER], CWDS, UPTIME));
+        let report = Watch::patrolled(&host, git_dir.path(), STOPPING, TimeDelta::zero()).to_string();
+        report.contains(expected) && !host.to_string().contains(unsent)
+    });
+    assert_eq!(shown, [true; 3]);
+}
 
 struct Watch;
 
@@ -92,7 +135,7 @@ fn by_default_the_monitor_signals_nothing_and_reports_this_projects_processes_in
 
 #[test]
 fn opted_in_stopping_spares_the_owner_shell_claude_its_children_other_projects_and_a_mixed_group() {
-    Golden::for_test(module_path!(), "stopping").checked(&Watch::reported(STOPPING)).unwrap();
+    Golden::for_test(module_path!(), "stopping").checked(&Watch::reported(SILENCING)).unwrap();
 }
 
 #[test]
