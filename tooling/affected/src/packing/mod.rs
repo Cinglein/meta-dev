@@ -72,9 +72,6 @@ mod tests {
     ];
     const SHARDS: [&str; 4] = ["a/0/2", "a/1/2", "b", "c+d"];
     const OVERHEAD_PRICED: usize = 27;
-    const UNPRICED: &str = "no-entry-in-the-table";
-    const UNPRICED_MUTANTS: usize = 300;
-
     #[test]
     fn crates_costlier_than_a_shard_are_sliced_and_the_rest_are_packed_largest_first() {
         let policy = Policy::defaults();
@@ -91,21 +88,6 @@ mod tests {
             .map(ToString::to_string)
             .collect();
         assert_eq!(shards, SHARDS);
-    }
-
-    #[test]
-    fn a_crate_with_no_price_is_not_split_into_more_shards_than_a_priced_crate_of_the_same_size() {
-        let policy = Policy::defaults();
-        let shards = |name: &str| {
-            let load = CrateLoad::priced(
-                name.parse().unwrap(),
-                MutantCount::from(UNPRICED_MUTANTS),
-                &policy,
-                Interval::DiffJob,
-            );
-            Packing::shards(&[load], &policy, Interval::DiffJob).len()
-        };
-        assert!(shards(UNPRICED) <= shards(PR_SEVEN_CRATE));
     }
 
     #[test]

@@ -39,11 +39,11 @@ impl CrateLoad {
         job: Interval,
     ) -> CrateLoad {
         let each = policy.mutant_price(&name, job);
-        if !policy.mutant_millis().is_priced(&name) {
-            eprintln!(
-                "mutants: {name} is unpriced in [mutant_millis]; planned at the table median, {each} ms per mutant; `cargo xtask mutant-costs` will measure it"
-            );
-        }
+        policy
+            .mutant_millis()
+            .unpriced_note(&name)
+            .iter()
+            .for_each(|note| eprintln!("{note}"));
         CrateLoad::new(name, mutants, each, policy)
     }
 
@@ -79,5 +79,31 @@ impl CrateLoad {
         NonZeroUsize::new(usize::from(self.mutants).div_ceil(per_slice))
             .filter(|count| count.get() > 1)
             .map(SliceCount::from)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CrateLoad;
+    use crate::packing::Packing;
+    use settings::EmbeddedDefaults;
+    use task::{Interval, MutantCount, Policy};
+    const UNPRICED: &str = "no-entry-in-the-table";
+    const COSTLIEST: &str = "meta-severity";
+    const MUTANTS: usize = 30;
+
+    #[test]
+    fn a_crate_with_no_price_is_not_split_into_more_shards_than_a_priced_crate_of_the_same_size() {
+        let policy = Policy::defaults();
+        let shards = |name: &str| {
+            let load = CrateLoad::priced(
+                name.parse().unwrap(),
+                MutantCount::from(MUTANTS),
+                &policy,
+                Interval::DiffJob,
+            );
+            Packing::shards(&[load], &policy, Interval::DiffJob).len()
+        };
+        assert!(shards(UNPRICED) < shards(COSTLIEST));
     }
 }

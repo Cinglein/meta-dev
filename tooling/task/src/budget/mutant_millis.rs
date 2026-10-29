@@ -25,18 +25,20 @@ impl MutantMillis {
     }
 
     #[must_use]
-    pub fn is_priced(&self, name: &CrateName) -> bool {
-        self.crates.contains_key(name)
+    pub fn unpriced_note(&self, name: &CrateName) -> Option<String> {
+        (!self.crates.contains_key(name)).then(|| {
+            format!(
+                "mutants: {name} is unpriced in [mutant_millis]; planned at the table median, {} ms per mutant; `cargo xtask mutant-costs` will measure it",
+                self.median()
+            )
+        })
     }
 
-    /// The typical measured price: the upper median of the table, so an unpriced
-    /// crate is neither the costliest nor the cheapest. `default` only stands in
-    /// for an empty table.
     fn median(&self) -> Millis {
         let mut prices: Vec<Millis> = self.crates.values().copied().collect();
         prices.sort_unstable();
         prices
-            .get(prices.len() / 2)
+            .get(prices.len() >> 1)
             .copied()
             .unwrap_or(self.default)
     }
@@ -48,6 +50,7 @@ mod tests {
     const TABLE: &str = "default = 5\n\n[crates]\nlisted = 20\nlow = 1\nmid = 9\n";
     const LISTED: &str = "listed";
     const UNLISTED: &str = "unlisted";
+    const NOTE: &str = "mutants: unlisted is unpriced in [mutant_millis]; planned at the table median, 9 ms per mutant; `cargo xtask mutant-costs` will measure it";
     const COSTS: [Millis; 2] = [Millis::new(20), Millis::new(9)];
 
     #[test]
@@ -55,5 +58,12 @@ mod tests {
         let table: MutantMillis = toml::from_str(TABLE).unwrap();
         let costs = [LISTED, UNLISTED].map(|name| table.for_crate(&name.parse().unwrap()));
         assert_eq!(costs, COSTS);
+    }
+
+    #[test]
+    fn only_an_unlisted_crate_gets_a_note_naming_it_its_price_and_the_command_that_measures_it() {
+        let table: MutantMillis = toml::from_str(TABLE).unwrap();
+        let notes = [LISTED, UNLISTED].map(|name| table.unpriced_note(&name.parse().unwrap()));
+        assert_eq!(notes, [None, Some(NOTE.to_owned())]);
     }
 }
