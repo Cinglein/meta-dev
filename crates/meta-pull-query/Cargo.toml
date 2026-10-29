@@ -12,6 +12,7 @@ meta-pulls.workspace = true
 serde.workspace = true
 
 [dev-dependencies]
+meta-gh.workspace = true
 serde_json.workspace = true
 
 [lints]
