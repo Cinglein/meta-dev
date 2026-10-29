@@ -46,6 +46,7 @@ fn every_member_of_a_tree_is_killed_and_the_host_reports_free_memory_and_no_abse
     tree.sampled(Instant::now(), Duration::ZERO);
     let killed: Vec<u32> = tree.all_killed().iter().map(|victim| victim.pid().as_u32()).collect();
     assert!(child.ended_by(&killed));
-    let own = Victim::current().unwrap().name().to_string_lossy().into_owned();
-    assert!(Host::available().count() > 0 && !Host::runs(ABSENT) && Host::runs(&own));
+    let own = Victim::current().unwrap();
+    let name = own.name().to_string_lossy().into_owned();
+    assert!(Host::available().count() > 0 && !Host::runs(ABSENT) && Host::runs(&name) && own.bytes().count() > 0);
 }
