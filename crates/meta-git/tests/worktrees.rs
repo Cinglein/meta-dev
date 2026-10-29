@@ -32,7 +32,7 @@ impl Scene {
         let files: Files = [(FILE.to_owned(), Some(FILE.to_owned()))].into_iter().collect();
         let author = Identity::new(NAME.to_owned(), EMAIL.to_owned());
         let tip = repository.write(&FileCommit::new(None, files, author, FILE.to_owned())).unwrap();
-        repository.write(&RefMove::new(MAIN.parse().unwrap(), tip)).unwrap();
+        repository.write(&RefMove::new(MAIN.parse().unwrap(), None, tip)).unwrap();
         repository.write(&ConfigFlag::from(WORKTREE_CONFIG.to_owned())).unwrap();
         Scene { repository, tip }
     }
