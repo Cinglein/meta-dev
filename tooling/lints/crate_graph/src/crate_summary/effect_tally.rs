@@ -14,8 +14,6 @@ pub struct EffectTally {
 }
 
 impl EffectTally {
-    const ADAPTER_UNITS: ItemCount = ItemCount::of_len(1);
-
     pub fn of_units(units: &[BTreeSet<Effect>]) -> EffectTally {
         let families = units
             .iter()
@@ -33,12 +31,7 @@ impl EffectTally {
     }
 
     pub fn share(&self) -> Percent {
-        Percent::rounded_up(
-            self.touching
-                .count()
-                .saturating_sub(Self::ADAPTER_UNITS.count()),
-            self.units.count(),
-        )
+        Percent::rounded_up(self.touching.count(), self.units.count())
     }
 
     pub fn dispersion(&self) -> ItemCount {

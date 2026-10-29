@@ -169,9 +169,10 @@ impl Task {
             Task::Test => Ok(Test::run(workspace, &selection, &policy)?),
             Task::TestTime => Ok(TestTime::run(workspace, &selection, &policy, &mut ledger)
                 .and_then(|()| ledger.checked(&policy, &selection))?),
-            lint => Ok(<&'static str>::from(lint)
-                .parse::<LintName>()
-                .map_or(Ok(()), |lint| lint.report(&workspace.source_files()?, &policy).verdict())?),
+            lint => Ok(<&'static str>::from(lint).parse::<LintName>().map_or(Ok(()), |lint| {
+                let files = workspace.source_files()?;
+                lint.report(&files, &CrateGraph::graphs(&files), &policy).verdict()
+            })?),
         }
     }
 }

@@ -4,9 +4,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use corpus_check::{Enforcement, LintName};
-use crate_graph::CrateGraph;
+use crate_graph::{CrateGraph, GraphReport};
 use strum::IntoEnumIterator;
-use task::{Amount, Branch, Ledger, Measure, Policy, Report, SourceFile};
+use task::{Amount, Branch, Ledger, Measure, Most, Policy, Report, SourceFile};
 use test_budget::TestBudget;
 
 use crate::task::failure::Failure;
@@ -17,7 +17,8 @@ pub use spec_prose::SpecProse;
 #[derive(Debug, Default)]
 pub struct Lint {
     reports: BTreeMap<&'static str, Report>,
-    listed: Vec<Report>,
+    listed: BTreeMap<LintName, Report>,
+    graphs: GraphReport,
 }
 
 impl Lint {
@@ -36,14 +37,16 @@ impl Lint {
         policy: &Policy,
         ledger: &mut Ledger,
     ) -> Result<(), Failure> {
-        self.listed.iter().for_each(|report| print!("{report}"));
+        self.listed.values().for_each(|report| print!("{report}"));
+        let repeated = self.listed.get(&LintName::RepeatedMethods).map(|report| report.violations().len());
+        ledger.spend(Measure::TangleItems, self.graphs.largest_tangle());
+        ledger.spend(Measure::EffectShare, Amount::Share(self.graphs.effect_share()));
+        ledger.spend(Measure::EffectDispersion, Amount::Count(self.graphs.effect_dispersion()));
+        ledger.spend(Measure::RepeatedShapes, Amount::Count(Most::from(repeated.unwrap_or_default())));
         let observed = self.ratchet(allowed, |_| true)?;
         println!("lint: {} rust files, {} baselined violations", files.len(), observed.total());
         ledger.spend(Measure::LintFindings, Amount::Baseline(policy.baseline().clone()));
         ledger.spend(Measure::TestLineShare, TestBudget::line_share(files, policy));
-        ledger.spend(Measure::TangleItems, CrateGraph::largest_tangle(files));
-        ledger.spend(Measure::EffectShare, Amount::Share(CrateGraph::effect_share(files)));
-        ledger.spend(Measure::EffectDispersion, Amount::Count(CrateGraph::effect_dispersion(files)));
         Ok(())
     }
 
@@ -55,14 +58,16 @@ impl Lint {
     }
 
     fn gathered(files: &[SourceFile], policy: &Policy, spec: Option<Report>) -> Lint {
+        let graphs = CrateGraph::graphs(files);
         let enforced =
             |enforcement: Enforcement| LintName::iter().filter(move |lint| lint.enforcement() == enforcement);
         Lint {
             reports: enforced(Enforcement::Ratchet)
-                .map(|lint| (<&'static str>::from(lint), lint.report(files, policy)))
+                .map(|lint| (<&'static str>::from(lint), lint.report(files, &graphs, policy)))
                 .chain(spec.map(|spec| (SpecProse::LINT, spec)))
                 .collect(),
-            listed: enforced(Enforcement::Listed).map(|lint| lint.report(files, policy)).collect(),
+            listed: enforced(Enforcement::Listed).map(|lint| (lint, lint.report(files, &graphs, policy))).collect(),
+            graphs,
         }
     }
 
@@ -124,27 +129,20 @@ mod tests {
     }
 
     #[test]
-    fn a_baseline_above_the_findings_fails_until_shrunk_to_them() {
+    fn a_baseline_above_the_findings_fails_until_shrunk_to_them_and_every_lint_measure_is_recorded() {
         let fixture = Fixture::new();
         fixture.write(BASELINE, ALLOWED);
         let (policy, mut ledger) = (Policy::defaults(), Ledger::default());
+        let files = REPEATED.map(|(path, text)| SourceFile::parse(path, text.to_owned()).unwrap());
         let checked = |ledger: &mut Ledger| {
             let allowed = Baseline::read(&fixture.path(BASELINE))?;
-            Lint::gathered(&[], &policy, None).checked(&[], &allowed, &policy, ledger)
+            Lint::gathered(&files, &policy, None).checked(&files, &allowed, &policy, ledger)
         };
-        assert!(checked(&mut ledger).is_err() && Lint::shrink(fixture.root(), &[], &policy).is_ok());
+        assert!(checked(&mut ledger).is_err() && Lint::shrink(fixture.root(), &files, &policy).is_ok());
         let passed = checked(&mut ledger).is_ok()
             && fs::read_to_string(fixture.path(BASELINE)).is_ok_and(|text| text.is_empty());
         let statement = ledger.statement(&policy).to_string();
         assert!(passed && statement.lines().any(|row| row.starts_with(LINT_FINDINGS) && row.ends_with(MEASURED_OK)));
-    }
-
-    #[test]
-    fn the_lint_step_records_every_elegance_measure_in_the_ledger() {
-        let (policy, mut ledger) = (Policy::defaults(), Ledger::default());
-        let files = REPEATED.map(|(path, text)| SourceFile::parse(path, text.to_owned()).unwrap());
-        let allowed = Lint::gathered(&files, &policy, None).ratchet(&Baseline::default(), |_| false).unwrap();
-        assert!(Lint::gathered(&files, &policy, None).checked(&files, &allowed, &policy, &mut ledger).is_ok());
         let recorded = RECORDED.map(|(measure, _)| ledger.spent(&measure).map(ToString::to_string));
         assert_eq!(recorded, RECORDED.map(|(_, amount)| Some(amount.to_owned())));
     }

@@ -2,7 +2,7 @@ use strum::{Display, EnumIter, EnumString, IntoStaticStr};
 
 use crate::enforcement::Enforcement;
 use const_shape::ConstShape;
-use crate_graph::CrateGraph;
+use crate_graph::GraphReport;
 use distinct_signatures::DistinctSignatures;
 use enum_predicates::EnumPredicates;
 use expression_flow::ExpressionFlow;
@@ -97,10 +97,10 @@ impl LintName {
     }
 
     #[must_use]
-    pub fn report(self, files: &[SourceFile], policy: &Policy) -> Report {
+    pub fn report(self, files: &[SourceFile], graphs: &GraphReport, policy: &Policy) -> Report {
         match self {
             LintName::ConstShape => ConstShape::report(files, policy),
-            LintName::CrateGraph => CrateGraph::report(files, policy),
+            LintName::CrateGraph => graphs.report(policy),
             LintName::DistinctSignatures => DistinctSignatures::report(files),
             LintName::EnumPredicates => EnumPredicates::report(files),
             LintName::ExpressionFlow => ExpressionFlow::report(files),
