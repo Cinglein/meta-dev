@@ -41,6 +41,7 @@ const CARGO_TAG: [&str; 2] = [
 ];
 const PROFILES: [&str; 2] = ["debug", "release"];
 const LOCK: &str = ".cargo-lock";
+const LINK: &str = "linked";
 const ARTIFACT: [&str; 2] = ["deps/libx.rlib", "compiled"];
 
 #[allow(dead_code)]
@@ -79,6 +80,7 @@ impl Seed {
             std::fs::create_dir_all(profile.join(artifact).parent().unwrap()).unwrap();
             std::fs::write(profile.join(LOCK), "").unwrap();
             std::fs::write(profile.join(artifact), compiled).unwrap();
+            std::os::unix::fs::symlink(artifact, profile.join(LINK)).unwrap();
         });
         let building = std::fs::File::open(target.join(PROFILES[1]).join(LOCK)).unwrap();
         building.lock().unwrap();
@@ -91,7 +93,10 @@ impl Seed {
         let target = worktree.join(TARGET);
         let read = |path: PathBuf| std::fs::read_to_string(path).unwrap_or_default();
         let [debug, release] = PROFILES.map(|profile| target.join(profile));
-        read(target.join(tag)) == signature && read(debug.join(artifact)) == compiled && !release.exists()
+        read(target.join(tag)) == signature
+            && read(debug.join(artifact)) == compiled
+            && !release.exists()
+            && debug.join(LINK).symlink_metadata().is_err()
     }
 }
 
