@@ -83,6 +83,7 @@ pub struct Policy {
     budgets: Budgets,
     deprecated: Vec<LegacyKey>,
     spec: Option<SpecSettings>,
+    liveness: Option<policy_file::Liveness>,
     supply_chain: SupplyChain,
 }
 
