@@ -1500,3 +1500,4 @@
 {"at":"2026-10-29T12:43:45.800327Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-fc63d82b2add624c","text":"meta move works on tasks: never-blocked log write recording the old division; status, caps and listings follow (owner 2026-10-27)."}
 {"at":"2026-10-29T12:43:47.446216Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-815fbe6dfa1dde21","text":"claim --worktree and link refuse architecture-and-planning tasks until moved to a code division; the message names meta move (owner 2026-10-27)."}
 {"at":"2026-10-29T12:47:17.242177Z","actor":"claude-bugs2","kind":"TaskDone","task":"task-14b715cf045525f5"}
+{"at":"2026-10-29T13:12:53.180859Z","actor":"claude-lead","kind":"TaskOpened","task":"task-b345cd6a3924ee90","text":"B13 noise: leave out single-field methods on value/settings types; unresolved self calls must not link methods; duplicate accessor names flagged (review of #176: noise 32 of 43).","division":"architecture-and-planning"}
