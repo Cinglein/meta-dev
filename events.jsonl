@@ -1529,3 +1529,4 @@
 {"at":"2026-10-29T15:22:21.397563Z","actor":"claude-fmpay","kind":"TaskOpened","task":"task-ad95ca1ffd2d23c6","text":"A second session's ci-wait shows the failure detail","division":"features-and-maintenance","addresses":["concern-c685168fe3255843"]}
 {"at":"2026-10-29T15:22:27.422458Z","actor":"claude-fmpay","kind":"TaskClaimed","task":"task-ad95ca1ffd2d23c6"}
 {"at":"2026-10-29T15:22:50.061794Z","actor":"claude-fmpay","kind":"TaskLinked","task":"task-ad95ca1ffd2d23c6","pr":195}
+{"at":"2026-10-29T15:23:43.542097Z","actor":"claude-lead","kind":"TaskOpened","task":"task-acb2acbea5a26451","text":"Defer with Blacksmith and GitHub management: Basho CI billing block (Actions minutes; jobs not started since Oct 27).","division":"architecture-and-planning"}
