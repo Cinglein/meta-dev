@@ -1,6 +1,6 @@
-types 38, traits declared 16, impls 70
+types 40, traits declared 16, impls 74
 catalog: 24 measures, report-only
-  B1 unnamed concepts [trait graph, to zero]: 22
+  B1 unnamed concepts [trait graph, to zero]: 23
   B2 reducible traits [trait graph, to zero]: 2
   B3 signatures declared in more than one trait [trait graph, to zero]: 1
   B4 leverage: usable methods / written bodies [trait graph, higher]: median 1.00
@@ -8,11 +8,11 @@ catalog: 24 measures, report-only
   B6 label reuse: transitions per label [transition graph, higher]: not implemented
   B7 bisimilar type pairs [transition graph, to zero]: not implemented
   B8 domain transitions touching primitives [transition graph, to zero]: measured by lint primitive_boundary (partial)
-  B9 hidden state fields [transition graph, to zero]: 5
+  B9 hidden state fields [transition graph, to zero]: 6
   B10 typestate share of transitions [transition graph, higher]: not implemented
   B11 transition graph simplicity [transition graph, lower]: not implemented
   B12 unnamed field concepts [types, to zero]: 3
-  B13 types with LCOM4 above 1 [types, to zero]: 18
+  B13 types with LCOM4 above 1 [types, to zero]: 2
   B14 behavioural inherent methods [types, lower]: not implemented
   B15 bodies identical up to types [code, to zero]: not implemented
   B16 same-job paths per external effect [effects, lower]: measured by lint git_starters (partial)
@@ -25,9 +25,9 @@ catalog: 24 measures, report-only
   B23 repeated meta starts per command and scene [tests, lower]: not implemented
   B24 test lines per caught mutant [tests, lower]: not implemented
 B1 missing abstractions: maximal (types, signatures) concepts with at least 2 of each
-  concepts 25: named by one trait 2, by a composition only 1, unnamed 22
-  missing, one trait must name it: 23
-  missing, a composition may name it: 22
+  concepts 26: named by one trait 2, by a composition only 1, unnamed 23
+  missing, one trait must name it: 24
+  missing, a composition may name it: 23
   largest, unnamed:
   1. 6 = 3 types x 2 attributes
     types: fixture::Axe, fixture::Bow, fixture::Cup
@@ -73,23 +73,24 @@ B3 signatures declared in more than one local trait
     open(&self) -> Door: fixture::Lock, fixture::Swing
 B4 leverage: distinct method names usable on a type / method bodies written for it
   usable = inherent names + the methods of each trait the type has; a local trait contributes its declared methods, a foreign trait the names seen in impls
-  n 26: min 1.00, q1 1.00, median 1.00, q3 1.50, max 2.50
+  n 28: min 1.00, q1 1.00, median 1.00, q3 1.33, max 2.50
   types with no bodies: 12
   lowest:
     fixture::Gate 1.00 (9 usable / 9 written)
     fixture::Latch 1.00 (7 usable / 7 written)
+    fixture::Dial 1.00 (5 usable / 5 written)
     fixture::Axe 1.00 (4 usable / 4 written)
     fixture::Bow 1.00 (4 usable / 4 written)
     fixture::Cup 1.00 (4 usable / 4 written)
     fixture::Den 1.00 (4 usable / 4 written)
     fixture::Elm 1.00 (4 usable / 4 written)
+    fixture::Phase 1.00 (4 usable / 4 written)
     fixture::Lonely 1.00 (3 usable / 3 written)
-    fixture::Badge 1.00 (2 usable / 2 written)
-    fixture::Phase 1.00 (2 usable / 2 written)
 B9 hidden state
   rule: a bool or local-enum field assigned (= or op=), or an Option field assigned or filled (insert, replace, take, get_or_insert, get_or_insert_with), inside a &mut self method of the same type
   limits: syntactic: misses writes through aliases (let f = &mut self.f), mem::replace or swap, helper fns, other types' methods, type aliases of bool or Option, and enums from other crates
-  found 5
+  found 6
+    fixture::Dial.dirty: bool (bool): mark
     fixture::Gate.key: Option<Key> (Option): fit
     fixture::Gate.phase: Phase (local enum): melt
     fixture::Gate.shut: bool (bool): toggle
@@ -109,30 +110,23 @@ B12 field concepts: maximal (types, named fields) concepts with at least 2 of ea
     types: fixture::Hatch, fixture::Vault
     share: hinge: Hinge; name: Name; size: Size
 B13 types whose method-field graph splits
-  rule: LCOM4 per type, over its self methods that are not accessors (an accessor touches exactly one field and nothing else): nodes are those methods (all impl blocks) and the fields; edges join a method to each field it reads or writes and to each self method it calls; a bare use of self joins every field
-  limits: a method that touches no field and calls no self method is its own component; trait default bodies and fields reached through helpers are not seen
-  found 18
-    fixture::Axe: 4 components [east] [south] [up] [west]
-    fixture::Bow: 4 components [east] [north] [up] [west]
-    fixture::Cup: 4 components [north] [south] [up] [west]
-    fixture::Den: 4 components [east] [north] [south] [up]
-    fixture::Elm: 4 components [east] [north] [south] [west]
-    fixture::Circle: 3 components [area] [perimeter] [scale]
-    fixture::Gate: 3 components [label] [open] [ready, sealed]
-    fixture::Label: 3 components [height] [symbol] [width]
-    fixture::Badge: 2 components [height] [width]
-    fixture::Celsius: 2 components [symbol] [value]
+  rule: LCOM4 per type with fields, over its self methods keyed by trait and name; nodes are those methods and the fields; edges join a method to each field it reads or writes, to each self method it calls, and to the field of each accessor it calls; an accessor (body is self.f, &self.f or self.f = value) is not a node; a bare use of self joins every field; a method that touches nothing is left out
+  limits: syntactic: fields reached through helpers or locals and trait default bodies are not seen; a call is resolved by name to every method of the type with that name
+  found 2
+    fixture::Duo: 2 components [Debug::fmt] [Display::fmt]
+    fixture::Gate: 2 components [fit, ready, sealed] [label]
 trait-graph shape
   graph edges: supertrait 1, blanket 4; depth 2
-  blanket share: 8 of 54 trait impls = 0.14
+  blanket share: 8 of 56 trait impls = 0.14
   single-implementor traits: 4
     fixture::Gauge -> fixture::Meter
     fixture::Lock -> fixture::Gate
     fixture::Scaled -> fixture::Circle
     fixture::Solo -> fixture::Lonely
-  traits implemented directly, per implementing type: n 26: min 1, q1 1, median 2, q3 2, max 3
-  types with at least N = 2 traits (q3, at least 2) and no edge among them: 16
+  traits implemented directly, per implementing type: n 27: min 1, q1 1, median 2, q3 2, max 3
+  types with at least N = 2 traits (q3, at least 2) and no edge among them: 17
     fixture::Celsius: fixture::Reading, fixture::Unit
+    fixture::Duo: Debug, Display
     fixture::Gate: fixture::Bolt, fixture::Lock, fixture::Swing
     fixture::Hatch: fixture::Seal, fixture::Shut, fixture::Swing
     fixture::Kelvin: fixture::Reading, fixture::Unit
@@ -141,11 +135,10 @@ trait-graph shape
     fixture::U03: fixture::Reading, fixture::Unit
     fixture::U04: fixture::Reading, fixture::Unit
     fixture::U05: fixture::Reading, fixture::Unit
-    fixture::U06: fixture::Reading, fixture::Unit
 smell inventory scoring, informational: a finding flags an entry when a type or trait it names is declared in a file the entry lists
-  B1 unnamed concepts [trait graph, to zero]: recall 0 of 0 tagged naming-completeness []; other entries flagged 2 [gate-modes, split-gadget]; noise 0 of 22 findings
-  B2 reducible traits [trait graph, to zero]: recall 0 of 0 tagged reducible-traits []; other entries flagged 1 [gate-modes]; noise 0 of 2 findings
-  B3 signatures declared in more than one trait [trait graph, to zero]: recall 0 of 0 tagged orthogonality []; other entries flagged 1 [gate-modes]; noise 0 of 1 findings
-  B9 hidden state fields [transition graph, to zero]: recall 1 of 1 tagged hidden-state [gate-modes]; other entries flagged 0 []; noise 0 of 5 findings
-  B12 unnamed field concepts [types, to zero]: recall 0 of 0 tagged field-concepts []; other entries flagged 1 [gate-modes]; noise 0 of 3 findings
-  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 2 tagged lcom4 [split-gadget]; other entries flagged 1 [gate-modes]; noise 0 of 18 findings
+  B1 unnamed concepts [trait graph, to zero]: recall 1 of 1 tagged naming-completeness [remote-signal]; other entries flagged 1 [split-duo]; noise 0 of 23 findings
+  B2 reducible traits [trait graph, to zero]: recall 0 of 0 tagged reducible-traits []; other entries flagged 1 [split-duo]; noise 0 of 2 findings
+  B3 signatures declared in more than one trait [trait graph, to zero]: recall 0 of 0 tagged orthogonality []; other entries flagged 1 [split-duo]; noise 0 of 1 findings
+  B9 hidden state fields [transition graph, to zero]: recall 0 of 0 tagged hidden-state []; other entries flagged 1 [split-duo]; noise 0 of 6 findings
+  B12 unnamed field concepts [types, to zero]: recall 0 of 0 tagged field-concepts []; other entries flagged 1 [split-duo]; noise 0 of 3 findings
+  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 2 tagged lcom4 [split-duo]; other entries flagged 0 []; noise 0 of 2 findings

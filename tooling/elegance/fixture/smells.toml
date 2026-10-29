@@ -1,8 +1,8 @@
 [[smell]]
-id = "split-gadget"
+id = "split-duo"
 category = "low-cohesion"
-locations = ["remote/src/lib.rs:3"]
-why = "Gadget splits into two components."
+locations = ["fixture/src/lib.rs:470"]
+why = "Duo formats one field for Display and the other for Debug."
 confidence = "clear"
 measure = "lcom4"
 
@@ -15,9 +15,9 @@ confidence = "likely"
 measure = "lcom4"
 
 [[smell]]
-id = "gate-modes"
-category = "hidden-state"
-locations = ["fixture/src/lib.rs:400"]
-why = "Gate flips shut, phase and key."
+id = "remote-signal"
+category = "missing-trait"
+locations = ["remote/src/lib.rs:9"]
+why = "Signal and Phase share go and stop with no trait."
 confidence = "clear"
-measure = "hidden-state"
+measure = "naming-completeness"

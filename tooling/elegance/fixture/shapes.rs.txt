@@ -490,6 +490,55 @@ impl Latch {
     }
 }
 
+pub struct Dial {
+    level: Level,
+    dirty: bool,
+}
+
+impl Dial {
+    pub fn level(&self) -> Level {
+        self.level
+    }
+    pub fn set_level(&mut self, level: Level) {
+        self.level = level;
+    }
+    pub fn raise(&mut self) -> Level {
+        self.level()
+    }
+    pub fn report(&self) -> Text {
+        Text::from(self.level)
+    }
+    pub fn mark(self: &mut Self) {
+        self.dirty = !self.dirty;
+    }
+}
+
+impl Phase {
+    pub fn go(&self) -> Go {
+        Go
+    }
+    pub fn stop(&self) -> Stop {
+        Stop
+    }
+}
+
+pub struct Duo {
+    first: First,
+    second: Second,
+}
+
+impl Display for Duo {
+    fn fmt(&self, formatter: &mut Formatter) -> Result {
+        write!(formatter, "{}", self.first)
+    }
+}
+
+impl Debug for Duo {
+    fn fmt(&self, formatter: &mut Formatter) -> Result {
+        write!(formatter, "{}", self.second)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     pub struct Probe;
