@@ -1561,3 +1561,4 @@
 {"at":"2026-10-29T18:32:37.726459Z","actor":"claude-gitbudget","kind":"TaskOpened","task":"task-b68ef3acd718b9fd","text":"git-processes budget blocks at today's count 652 (owner 2026-10-29)","division":"performance-and-cost"}
 {"at":"2026-10-29T18:32:44.082544Z","actor":"claude-gitbudget","kind":"TaskClaimed","task":"task-b68ef3acd718b9fd"}
 {"at":"2026-10-29T18:33:24.593873Z","actor":"claude-lead","kind":"EntryRetired","entry":"concern-7ecc21803d9347a2","text":"won't fix (owner 2026-10-29): marginal; the periodic monitor pass checking each agent's work covers anything wild"}
+{"at":"2026-10-29T18:33:30.071418Z","actor":"claude-gitbudget","kind":"TaskLinked","task":"task-b68ef3acd718b9fd","pr":202}
