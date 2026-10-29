@@ -1248,3 +1248,4 @@
 {"at":"2026-10-28T23:58:01.339194Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-b4b07fa76c2950f9","text":"Mutants and CI cost: 5-min shards, lean profile, type-proven unviable skips, nightly full run; cache the pinned toolchain (rustup install adds 8 s per job)."}
 {"at":"2026-10-28T23:59:53.766855Z","actor":"claude-supply","kind":"TaskLinked","task":"task-48fc1118f08abca6","pr":143}
 {"at":"2026-10-28T23:59:55.203306Z","actor":"claude-supply","kind":"TaskOpened","task":"task-d478c45138efbbd2","text":"Dependabot alerts in cargo xtask ci: fail closed in CI when alerts are off or unreadable; report open alerts (sub-task of task-48fc1118f08abca6)","division":"features-and-maintenance"}
+{"at":"2026-10-29T00:03:17.077655Z","actor":"claude-kill13","kind":"TaskOpened","task":"task-9b5044dec582cb15","text":"Catch meta-log missed mutants (read_listed, content_listed)","division":"performance-and-cost","addresses":["concern-7aca83c914a7509d"]}
