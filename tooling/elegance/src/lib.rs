@@ -87,6 +87,8 @@ impl fmt::Display for Measures {
 #[cfg(test)]
 mod tests {
     use super::{EleganceSettings, Measures, SynSource};
+    use std::sync::OnceLock;
+
     use meta_golden::Golden;
     use settings::EmbeddedDefaults;
     use task::SourceFile;
@@ -102,27 +104,31 @@ mod tests {
     struct Fixture;
 
     impl Fixture {
-        fn measured(settings: EleganceSettings) -> String {
+        fn measured(settings: &EleganceSettings) -> String {
             let files: Vec<SourceFile> = CRATES
                 .iter()
                 .map(|[owner, path, text]| {
                     SourceFile::parse(*path, (*text).to_owned()).unwrap().in_crate(owner.parse().unwrap())
                 })
                 .collect();
-            Measures::measured(&SynSource::new(&files), &settings).to_string()
+            Measures::measured(&SynSource::new(&files), settings).to_string()
+        }
+
+        fn by_default() -> &'static str {
+            static MEASURED: OnceLock<String> = OnceLock::new();
+            MEASURED.get_or_init(|| Self::measured(&EleganceSettings::defaults()))
         }
     }
 
     #[test]
     fn the_fixture_measures_match_the_golden() {
-        let measured = Fixture::measured(EleganceSettings::defaults());
-        Golden::for_test(module_path!(), SNAPSHOT).checked(&measured).unwrap();
+        Golden::for_test(module_path!(), SNAPSHOT).checked(Fixture::by_default()).unwrap();
     }
 
     #[test]
     fn a_hit_intent_cap_is_reported_loudly_and_the_default_cap_is_not_hit() {
         let capped: EleganceSettings = toml::from_str(SMALL_CAP).unwrap();
-        let (hit, spared) = (Fixture::measured(capped), Fixture::measured(EleganceSettings::defaults()));
+        let (hit, spared) = (Fixture::measured(&capped), Fixture::by_default());
         assert!(hit.contains(INCOMPLETE) && !spared.contains(INCOMPLETE), "{hit}");
     }
 }
