@@ -8,13 +8,8 @@ use std::time::{Duration, Instant};
 
 use meta_golden::{Goldens, Replay};
 
-#[allow(dead_code)]
-#[path = "support/fixture.rs"]
-mod fixture;
-#[path = "support/meta_command.rs"]
-mod meta_command;
-use fixture::{Fixture, Moment};
-use meta_command::MetaCommand;
+use crate::fixture::{Fixture, Moment};
+use crate::meta_command::MetaCommand;
 
 const REPLAY: Option<&str> = option_env!("CARGO_BIN_EXE_gh-replay");
 const UNBUILT: &str = "gh-replay is built with feature `replay`; run the tests with --all-features";
