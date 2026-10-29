@@ -42,12 +42,15 @@ impl Clippy {
 mod tests {
     use super::diagnostics::Diagnostics;
 
+    const SHOWN: &str = "cannot find value";
     const PRINTED: &str = include_str!("../../fixtures/compile-error.jsonl");
     const GOLDEN: &str = include_str!("../../fixtures/compile-error.golden.json");
 
     #[test]
     fn a_compile_error_is_recorded_with_its_path() {
-        let read = Diagnostics::reading(PRINTED).map(|failure| failure.found().to_string());
-        assert_eq!(read.as_deref(), Some(GOLDEN));
+        let read = Diagnostics::reading(PRINTED);
+        let found = read.as_ref().map(|failure| failure.found().to_string());
+        assert_eq!(found.as_deref(), Some(GOLDEN));
+        assert!(read.is_some_and(|failure| failure.to_string().contains(SHOWN)));
     }
 }
