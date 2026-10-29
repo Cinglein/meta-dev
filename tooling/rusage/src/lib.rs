@@ -3,22 +3,19 @@ use std::time::Duration;
 
 use nix::sys::resource::{UsageWho, getrusage};
 use nix::sys::time::{TimeVal, TimeValLike};
-use task::{Failure, Site};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct ChildrenCpu(Duration);
+pub struct ChildrenCpu(Duration);
 
 impl ChildrenCpu {
-    pub(super) fn now() -> Result<ChildrenCpu, Failure> {
+    pub fn now() -> io::Result<ChildrenCpu> {
         getrusage(UsageWho::RUSAGE_CHILDREN)
             .map(|usage| Self::summed(usage.user_time(), usage.system_time()))
-            .map_err(|errno| Failure::Io {
-                site: Site::Workspace,
-                error: io::Error::from(errno),
-            })
+            .map_err(io::Error::from)
     }
 
-    pub(super) fn since(self, earlier: ChildrenCpu) -> Duration {
+    #[must_use]
+    pub fn since(self, earlier: ChildrenCpu) -> Duration {
         self.0.saturating_sub(earlier.0)
     }
 

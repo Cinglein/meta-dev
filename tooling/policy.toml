@@ -95,6 +95,11 @@ job_setup = 90000
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]
 
+[liveness]
+silent_after = 1800000
+long_call_after = 3600000
+reply_within = 3600000
+
 [domains.features-and-maintenance]
 crates = ["*"]
 paths = ["*"]
@@ -120,10 +125,9 @@ source = "ci"
 [budgets.git-processes]
 division = "performance-and-cost"
 measure = "git_processes"
-allowance = { count = 856 }
+allowance = { count = 652 }
 window = "per_change"
 source = "ci"
-overspend = "report"
 
 [budgets.git-starters]
 division = "performance-and-cost"
