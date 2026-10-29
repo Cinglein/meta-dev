@@ -17,14 +17,12 @@ mod remote_name;
 mod remote_query;
 mod repository;
 mod sends;
+mod worktrees;
 mod writes;
 
 pub use asks::Asks;
 pub use change::Change;
-pub use changes::{
-    BranchCreate, BranchDelete, ConfigFlag, FastForward, Fetch, FileCommit, RefMove, WorktreeAdd, WorktreePrune,
-    WorktreeRemove,
-};
+pub use changes::{BranchCreate, BranchDelete, ConfigFlag, FastForward, Fetch, FileCommit, RefMove};
 pub use files::Files;
 pub use git_failure::GitFailure;
 pub use identity::Identity;
@@ -41,4 +39,5 @@ pub use remote_name::RemoteName;
 pub use remote_query::RemoteQuery;
 pub use repository::Repository;
 pub use sends::Sends;
+pub use worktrees::{WorktreeAdd, WorktreePrune, WorktreeRemove};
 pub use writes::Writes;

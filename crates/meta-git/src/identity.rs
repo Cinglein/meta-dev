@@ -9,13 +9,14 @@ pub struct Identity {
 }
 
 impl Identity {
-    const SECTIONS: [&'static str; 3] = ["user", "author", "committer"];
+    const KEYS: [[&'static str; 2]; 3] =
+        [["user.name", "user.email"], ["author.name", "author.email"], ["committer.name", "committer.email"]];
 
     pub(crate) fn pinned(&self, file: &Path) -> Result<(), GitFailure> {
         let mut config = git2::Config::open(file)?;
-        Self::SECTIONS.iter().try_for_each(|section| {
-            config.set_str(&format!("{section}.name"), &self.name)?;
-            config.set_str(&format!("{section}.email"), &self.email)
+        Self::KEYS.iter().try_for_each(|[name, email]| {
+            config.set_str(name, &self.name)?;
+            config.set_str(email, &self.email)
         })?;
         Ok(())
     }

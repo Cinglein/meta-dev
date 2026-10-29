@@ -82,7 +82,7 @@ impl LocalClone {
             let writing = Writing::new(&log, record.actor().clone(), record.event().clone());
             writing.entered().map(|written| written.to_string())
         };
-        let run = ClaimRun::new(self, &checkout, worktree.clone(), &identity, written);
+        let run = ClaimRun::new(self, worktree.clone(), &identity, written)?;
         let shown = run.ran(&plan)?;
         Ok(Output::Listed(Listed::new(format!("{shown}{}\n", run.created()?.display()))))
     }

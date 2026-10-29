@@ -8,7 +8,7 @@ use meta_git::{
 };
 
 use super::LocalClone;
-use super::claim_plan::{ClaimHands, ClaimPlan, ClaimStep};
+use super::claim_plan::{ClaimHands, ClaimPlan, ClaimRefusal, ClaimStep};
 use crate::request::ci::{SessionId, SessionStart};
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::local_settings::Identity;
@@ -20,7 +20,7 @@ use crate::request::project::BranchName;
 
 pub struct ClaimRun<'claim, Write: Fn() -> Result<String, CliFailure>> {
     clone: &'claim LocalClone,
-    checkout: &'claim Repository,
+    checkout: Repository,
     worktree: RecordedWorktree,
     identity: &'claim Identity,
     write: Write,
@@ -31,12 +31,11 @@ impl<'claim, Write: Fn() -> Result<String, CliFailure>> ClaimRun<'claim, Write> 
 
     pub fn new(
         clone: &'claim LocalClone,
-        checkout: &'claim Repository,
         worktree: RecordedWorktree,
         identity: &'claim Identity,
         write: Write,
-    ) -> Self {
-        Self { clone, checkout, worktree, identity, write }
+    ) -> Result<Self, CliFailure> {
+        Ok(Self { clone, checkout: clone.repository()?, worktree, identity, write })
     }
 
     pub fn ran(&self, plan: &ClaimPlan) -> Result<String, CliFailure> {
@@ -60,8 +59,8 @@ impl<'claim, Write: Fn() -> Result<String, CliFailure>> ClaimRun<'claim, Write> 
         self.worktree.path().file_name().map(OsStr::to_string_lossy).unwrap_or_default().into_owned()
     }
 
-    fn branch(&self) -> String {
-        self.worktree.branch().to_string()
+    fn branch(name: &BranchName) -> String {
+        AsRef::<OsStr>::as_ref(name).to_string_lossy().into_owned()
     }
 }
 
@@ -75,14 +74,16 @@ impl<Write: Fn() -> Result<String, CliFailure>> ClaimHands for ClaimRun<'_, Writ
     }
 
     fn branched(&self, base: &BranchName) -> Result<(), CliFailure> {
-        let found = self.checkout.read(&Revision::from(base.to_string())).map_err(CliFailure::raised::<Setup>)?;
-        let at = found.ok_or_else(|| CliFailure::raised::<Setup>(format!("{base}: no such commit")))?;
-        self.checkout.write(&BranchCreate::new(self.branch(), at)).map_err(CliFailure::raised::<Setup>)
+        let found = self.checkout.read(&Revision::from(Self::branch(base))).map_err(CliFailure::raised::<Setup>)?;
+        let at = found.ok_or_else(|| CliFailure::raised::<Setup>(ClaimRefusal::NoBase(base.clone())))?;
+        let created = BranchCreate::new(Self::branch(self.worktree.branch()), at);
+        self.checkout.write(&created).map_err(CliFailure::raised::<Setup>)
     }
 
     fn added(&self) -> Result<(), CliFailure> {
-        let identity = meta_git::Identity::new(self.identity.name().to_string(), self.identity.email().to_string());
-        let added = WorktreeAdd::new(self.name(), self.worktree.path().to_path_buf(), self.branch(), identity);
+        let identity = self.identity.name().signing(self.identity.email());
+        let path = self.worktree.path().to_path_buf();
+        let added = WorktreeAdd::new(self.name(), path, Self::branch(self.worktree.branch()), identity);
         self.checkout.write(&added).map_err(CliFailure::raised::<Setup>)
     }
 
@@ -110,13 +111,13 @@ impl<Write: Fn() -> Result<String, CliFailure>> ClaimHands for ClaimRun<'_, Writ
     }
 
     fn deleted(&self) {
-        self.checkout.write(&BranchDelete::from(self.branch())).ok();
+        self.checkout.write(&BranchDelete::from(Self::branch(self.worktree.branch()))).ok();
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     use meta_git::{Layout, Repository};
     use meta_schema::Id;
@@ -128,23 +129,33 @@ mod tests {
     use crate::request::project::{BranchName, CiSettings, Config};
 
     const NOWHERE: &str = "/nonexistent/clone";
+    const GIT_DIR: &str = ".git";
+    const BASE: &str = "base";
     const SHOWN: &str = "base: no such commit";
     const AGENT: Option<&str> = Some("a");
     const NOREPLY: Option<&str> = Some("1+a@users.noreply.github.com");
 
+    struct Scene;
+
+    impl Scene {
+        fn clone(checkout: &Path) -> LocalClone {
+            Repository::created(checkout, Layout::Working).unwrap();
+            let settings = CiSettings::try_from(&Config::default()).unwrap();
+            LocalClone::new(checkout.to_path_buf(), checkout.join(GIT_DIR), settings)
+        }
+    }
+
     #[test]
     fn an_untrailed_worktree_leaves_the_trail_and_an_unknown_base_is_named() {
         let checkout = tempfile::tempdir().unwrap();
-        let repository = Repository::created(checkout.path(), Layout::Working).unwrap();
-        let git_dir = checkout.path().join(".git");
-        let settings = CiSettings::try_from(&Config::default()).unwrap();
-        let clone = LocalClone::new(checkout.path().to_path_buf(), git_dir.clone(), settings);
+        let clone = Scene::clone(checkout.path());
+        let git_dir = checkout.path().join(GIT_DIR);
         let worktree = RecordedWorktree::new(PathBuf::from(NOWHERE), Id::generate());
         LocalTrail::append(&git_dir, &TrailEntry::Created(worktree.clone())).unwrap();
         let identity = Identity::from_git(AGENT, NOREPLY).unwrap();
-        let run = ClaimRun::new(&clone, &repository, worktree, &identity, || Ok(String::new()));
+        let run = ClaimRun::new(&clone, worktree, &identity, || Ok(String::new())).unwrap();
         let untrailed = run.untrailed().is_ok() && LocalTrail::read(&git_dir).unwrap().current().is_empty();
-        let base: BranchName = "base".parse().unwrap();
+        let base: BranchName = BASE.parse().unwrap();
         let shown = run.branched(&base).unwrap_err().to_string();
         assert!(run.pruned().is_ok() && untrailed && shown.contains(SHOWN), "{shown}");
     }

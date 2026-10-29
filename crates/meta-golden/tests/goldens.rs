@@ -19,8 +19,7 @@ const PROGRAMS: [&str; 2] = ["git", "gh"];
 const CEILING: &str = "GIT_CEILING_DIRECTORIES";
 const LINE_END: &str = "\n";
 const TOPLEVEL: [&str; 2] = ["rev-parse", "--show-toplevel"];
-const NO_REMOTE: [&str; 3] = ["remote", "get-url", "none"];
-const NO_REMOTE_STATUS: i32 = 2;
+const NO_OBJECT: [&str; 3] = ["cat-file", "blob", "none"];
 const SCENARIO_FILE: &str = "toml";
 const SCENARIOS: [&str; 4] = [
     "snapshot",
@@ -90,7 +89,7 @@ fn the_replayer_answers_each_call_with_the_next_recording_and_refuses_once_they_
         replay.env(Replay::RECORDINGS, Goldens::workspace().dir().join(scenario)).output().unwrap()
     };
     let [author, noreply, exhausted] = [ASKED, ASKED, ASKED].map(|asked| replayed(SCENARIO, git, &asked));
-    let [inside, no_remote] = [&TOPLEVEL[..], &NO_REMOTE].map(|asked| replayed(SCENARIO, git, asked));
+    let [inside, no_object] = [&TOPLEVEL[..], &NO_OBJECT].map(|asked| replayed(SCENARIO, git, asked));
     let [foreign, noreply_email, unanswered, ran_out] = REPLAYED;
     let shown = |answer: &Output| String::from_utf8_lossy(&answer.stdout).into_owned();
     let root_line = [root.path().canonicalize().unwrap().as_os_str().as_bytes(), LINE_END.as_bytes()].concat();
@@ -102,7 +101,7 @@ fn the_replayer_answers_each_call_with_the_next_recording_and_refuses_once_they_
         outside.status.code() == real.status.code()
             && real.status.code() != Some(1)
             && [&author, &noreply, &inside].iter().all(|answer| answer.status.success())
-            && no_remote.status.code() == Some(NO_REMOTE_STATUS)
+            && !no_object.status.success()
             && [&exhausted, &other_program].iter().all(|answer| answer.status.code() == Some(1))
     );
     let mut untrailed = Command::new(env!("CARGO_BIN_EXE_meta-replay"));
