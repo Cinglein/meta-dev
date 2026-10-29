@@ -26,7 +26,7 @@ impl SessionCommits {
         let remote = reach.asks_remote(&created).map(|()| project.remote_heads(deadline));
         let heads = remote.transpose()?.unwrap_or_default();
         let unpushed = project.unpushed(&created, &heads.tips(), deadline);
-        let seen = Self::new(&created, unpushed, project.checkout(deadline).clone(), heads);
+        let seen = Self::new(&created, unpushed, project.checkout().clone(), heads);
         let independent = project.independent_tips(seen.pushed(), deadline);
         Ok(seen.tipped(independent))
     }
