@@ -7,12 +7,13 @@ mod pacing;
 mod remote;
 mod remote_heads;
 mod sha;
+mod staged_ref;
 mod tip;
 
 pub use remote_heads::RemoteHeads;
 pub use sha::{NotCommitId, Sha};
 
-use meta_git::{FileCommit, Files, Identity, Reads, RefMove, RefName, RefTarget, RemoteName, Repository, Writes};
+use meta_git::{FileCommit, Files, Identity, RemoteName, Repository, Writes};
 use meta_run::{Budget, Stderr};
 use meta_schema::Record;
 use std::cell::RefCell;
@@ -29,6 +30,7 @@ use listing::Listing;
 use outcome::Outcome;
 use pacing::Pacing;
 use remote::Remote;
+use staged_ref::StagedRef;
 use tip::Tip;
 
 #[derive(Clone, Debug)]
@@ -41,7 +43,6 @@ pub struct GitLog {
 }
 
 impl GitLog {
-    const STAGED: &'static str = "refs/meta-log/staged";
     const EMAIL_DOMAIN: &'static str = "@meta.invalid";
 
     pub fn new(repo: PathBuf, remote: RemoteName, budget: Budget) -> Result<Self, LogFailure> {
@@ -68,28 +69,25 @@ impl GitLog {
         Ok(self.remote.content_listed(heads)?.snapshot())
     }
 
-    fn commit(&self, tip: Option<&Sha>, content: &Content, record: &Record) -> Result<Option<Sha>, LogFailure> {
+    fn commit(&self, tip: Option<&Sha>, content: &Content, record: &Record) -> Result<Sha, LogFailure> {
         let actor = record.actor().to_string();
         let author = Identity::new(actor.clone(), format!("{actor}{}", Self::EMAIL_DOMAIN));
         let files: Files = [(Remote::FILE.to_owned(), Some(content.to_string()))].into_iter().collect();
         let parent = tip.map(Sha::object_id).transpose()?;
         let made = FileCommit::new(parent, files, author, format!("{actor}: {}", record.event()));
-        let commit = self.repository.write(&made)?;
-        let Ok(staged) = Self::STAGED.parse::<RefName>();
-        let was = self.repository.read(&RefTarget::from(staged.clone()))?;
-        let moved = self.repository.write(&RefMove::new(staged, was, commit)).map(|()| Some(Sha::from(commit)));
-        Ok(moved.or_else(|failure| failure.ref_moved().map(|_| None))?)
+        Ok(Sha::from(self.repository.write(&made)?))
     }
 
     fn attempt<Failure: From<LogFailure>>(
         &self,
         decide: &mut dyn FnMut(&Snapshot) -> Result<Record, Failure>,
     ) -> Result<Outcome, Failure> {
+        let staged = StagedRef::read(self.repository.clone())?;
         let known = self.known.borrow().clone();
         let before = known.map_or_else(|| self.fresh(Listing::Kept), Ok)?;
         let record = decide(&before.content().snapshot())?;
         let appended = before.content().appended(&record).map_err(LogFailure::from)?;
-        let committed = self.commit(before.tip(), &appended, &record)?;
+        let committed = staged.moved(self.commit(before.tip(), &appended, &record)?)?;
         let pushed = |commit: Sha| match self.remote.push(&commit)? {
             Ok(()) => {
                 self.known.replace(Some(Fetched::new(Some(commit), appended)));

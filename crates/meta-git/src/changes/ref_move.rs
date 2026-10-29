@@ -20,9 +20,10 @@ impl RefMove {
 
     fn refused(&self, error: git2::Error) -> GitFailure {
         match error.code() {
-            git2::ErrorCode::Modified | git2::ErrorCode::Exists | git2::ErrorCode::NotFound => {
-                GitFailure::RefMoved(self.name.clone())
-            }
+            git2::ErrorCode::Modified
+            | git2::ErrorCode::Exists
+            | git2::ErrorCode::NotFound
+            | git2::ErrorCode::Locked => GitFailure::RefMoved(self.name.clone()),
             _ => GitFailure::Library(error),
         }
     }
