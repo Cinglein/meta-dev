@@ -1,0 +1,11 @@
+brief for task-0123456789abcdef as claude-fixture
+task: Print a brief @features-and-maintenance
+setup, in order:
+1. gh repo clone Cinglein/fixture /scratch/task-0123456789abcdef
+2. in the clone: nice -n 19 env CARGO_BUILD_JOBS=2 cargo build --release -p meta-cli
+3. in the clone: META_ACTOR=claude-fixture target.noindex/release/meta claim task-0123456789abcdef --worktree
+4. work in the worktree path it prints
+rules (self/agent-rules.md):
+version: 7
+- first rule
+- second rule

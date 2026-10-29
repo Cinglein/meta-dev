@@ -1,0 +1,12 @@
+version: 1
+- set the git identity: user.name Cinglein, user.email 64114772+Cinglein@users.noreply.github.com; never any other email
+- commit with `git commit -m`, ending with the trailer `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`; push after each commit; end PR bodies with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`
+- every cargo command runs as `nice -n 19` with `CARGO_BUILD_JOBS=2`, one at a time; run `cargo xtask ci --affected` before each push, ignoring local timing budgets
+- never push to main or force-push; never edit PR bases; no Docker, installs or new crates.io dependencies without owner approval
+- never rm, mv, python, sed, awk, perl, heredocs, shell redirection or `git stash`
+- NEVER re-run CI or a failed job; NEVER change a budget number
+- every wait has a deadline; `gh run watch` uses `--interval 60`; after an HTTP 403 wait 2 minutes; no unbounded loops
+- don't spawn subagents; don't run `meta done`
+- push and stop: report once CI has started; never wait for CI
+- red first; keep test lines minimal; test through the library
+- state the kernel concepts used and any new one, with why
