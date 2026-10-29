@@ -213,12 +213,15 @@ impl Scene {
         std::fs::write(scene.clone.path().join(".git/info/exclude"), EXCLUDED).unwrap();
         std::fs::write(scene.clone.path().join("meta.local.toml"), Settings(&scene.trees()).to_string()).unwrap();
         let busy = format!("#!/bin/sh\necho n{}\n", scene.trees().join(BUSY).join(".git").display());
-        let (bin, mode) = (scene.clone.path().join("bin"), std::fs::metadata("/bin/sh").unwrap().permissions());
-        std::fs::create_dir(&bin).unwrap();
-        for (name, script) in [("gh", FAKE_GH), ("lsof", &busy)] {
-            std::fs::write(bin.join(name), script).unwrap();
-            std::fs::set_permissions(bin.join(name), mode.clone()).unwrap();
-        }
+        std::fs::create_dir(scene.clone.path().join("bin")).unwrap();
+        let faked = |name: &str, script: &str| {
+            std::fs::write(scene.clone.path().join("bin").join(name), script)?;
+            std::fs::set_permissions(
+                scene.clone.path().join("bin").join(name),
+                std::fs::metadata("/bin/sh")?.permissions(),
+            )
+        };
+        [("gh", FAKE_GH), ("lsof", &busy)].iter().try_for_each(|(name, script)| faked(name, script)).unwrap();
         Git::seeded(scene.origin.path(), scene.clone.path());
         Git::added(&scene);
         scene.planted();
