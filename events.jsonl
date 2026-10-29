@@ -1335,3 +1335,4 @@
 {"at":"2026-10-29T03:43:06.711604Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-11b96c02cdedc22f","text":"File tree managed by meta: one .noindex root per project for clone, worktrees, scratch, build; hooks refuse writes elsewhere; gc cleans; init ships it."}
 {"at":"2026-10-29T03:51:24.129497Z","actor":"claude-fixture","kind":"TaskClaimed","task":"task-285e45b014d47746"}
 {"at":"2026-10-29T03:52:59.355695Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-f0294fa2ab4cf158"}
+{"at":"2026-10-29T03:53:01.017653Z","actor":"claude-lead","kind":"TaskDone","task":"task-f0294fa2ab4cf158"}
