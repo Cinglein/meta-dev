@@ -17,7 +17,6 @@ mod patrol;
 mod pid_list;
 mod process_row;
 mod signal;
-mod state_corrupt;
 mod target;
 mod unreadable;
 mod watch_item;
