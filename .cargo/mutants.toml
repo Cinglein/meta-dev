@@ -1,6 +1,7 @@
 exclude_globs = ["xtask/src/main.rs", "self/spec/src/main.rs"]
 exclude_re = [
     "MutantCosts::measure",
+    "BuildTime::",
     "Task::run",
     "GoldenRefresh::run",
     "CiStep::timed",
