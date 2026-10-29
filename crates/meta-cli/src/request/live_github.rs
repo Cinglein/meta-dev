@@ -95,6 +95,8 @@ impl LiveGithub {
     }
 }
 
+#[cfg(all(test, feature = "replay"))]
+mod replayed_tests;
 #[cfg(test)]
 mod tests;
 mod unanswered;
