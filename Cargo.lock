@@ -475,6 +475,7 @@ dependencies = [
  "chrono",
  "git2",
  "meta-gh",
+ "meta-git",
  "meta-git-view",
  "meta-golden",
  "meta-listing",
