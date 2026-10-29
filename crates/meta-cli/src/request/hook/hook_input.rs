@@ -89,15 +89,15 @@ mod tests {
     const GIT: &str = ".git";
 
     #[test]
-    fn a_tool_call_that_touches_a_task_worktree_stamps_that_task_and_any_other_call_stamps_nothing() {
+    fn only_a_session_working_in_a_task_worktree_stamps_that_task_whatever_paths_others_touch() {
         let root = tempfile::tempdir().unwrap();
         let worktree = root.path().join(TASK);
         std::fs::create_dir_all(worktree.join(GIT)).unwrap();
         let stamp = |input: serde_json::Value| serde_json::from_value::<HookInput>(input).unwrap().stamp(Utc::now());
         let edit = json!({ "cwd": root.path(), "tool_input": { "file_path": worktree.join("a.rs") } });
         let shell = json!({ "cwd": root.path(), "tool_input": { "command": format!("cd {TASK} && cargo build") } });
-        let elsewhere = json!({ "cwd": root.path(), "tool_input": { "command": "ls" } });
-        assert_eq!([edit, shell, elsewhere].map(stamp), [Some(()), Some(()), None]);
+        let own = json!({ "cwd": worktree, "tool_input": { "command": "ls" } });
+        assert_eq!([edit, shell, own].map(stamp), [None, None, Some(())]);
         let stamps = SessionDir::stamps(&worktree.join(GIT).canonicalize().unwrap());
         let tasks: Vec<String> = stamps.iter().map(|stamp| stamp.worktree().task().to_string()).collect();
         assert_eq!(tasks, [TASK]);
