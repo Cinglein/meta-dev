@@ -73,7 +73,7 @@ impl Scale {
         let rank = |level: &LevelName| self.index_of(level).ok_or_else(|| RatingFailure::UnknownLevel(level.clone()));
         let ranks = from.zip(to).map(|(from, to)| Ok::<_, RatingFailure>((from, rank(from)?, rank(to)?)));
         match ranks.transpose()? {
-            Some((from, old, new)) if new > old && !evidence.supports_raise() => {
+            Some((from, old, new)) if new < old && !evidence.supports_raise() => {
                 Err(RatingFailure::RaisedWithoutEvidence(from.clone()))
             }
             _ => Ok(()),
@@ -89,7 +89,7 @@ impl Scale {
     #[must_use]
     pub fn reaches(&self, level: Option<&LevelName>, line: &LevelName) -> bool {
         let ranks = level.and_then(|level| self.index_of(level)).zip(self.index_of(line));
-        ranks.is_some_and(|(found, line)| found >= line)
+        ranks.is_none_or(|(found, line)| found <= line)
     }
 
     fn parent_index(&self, level: &Level) -> Option<usize> {

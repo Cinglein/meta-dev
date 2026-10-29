@@ -16,6 +16,6 @@ impl<Measure: PartialOrd> Thresholds<Measure> {
 
     #[must_use]
     pub fn rate(&self, measure: &Measure) -> Option<&LevelName> {
-        self.0.iter().find(|(line, _)| measure < line).map(|(_, level)| level)
+        self.0.iter().find(|(line, _)| measure > line).map(|(_, level)| level)
     }
 }
