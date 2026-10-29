@@ -1586,3 +1586,4 @@
 {"at":"2026-10-29T19:34:03.423469Z","actor":"claude-depbot","kind":"TaskLinked","task":"task-c800e8c7474a605f","pr":215}
 {"at":"2026-10-29T19:50:58.409293Z","actor":"claude-hookport","kind":"TaskDone","task":"task-3d5d573ce464fb03"}
 {"at":"2026-10-29T19:50:59.970608Z","actor":"claude-fcore","kind":"TaskDone","task":"task-213dbf51281b7c23"}
+{"at":"2026-10-29T19:55:40.941691Z","actor":"claude-lead","kind":"TaskOpened","task":"task-a30a271531e8b236","text":"Unify severity, escalation and triage: one Level, one Signal (any producer: budgets, CI, monitor, review, liveness, caps), one rating rule, one triage and escalation path driven by policy data; every consumer reads levels only. The elegance lint flags parallel level vocabularies (owner 2026-10-29).","division":"architecture-and-planning"}
