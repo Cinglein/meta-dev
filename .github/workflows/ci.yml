@@ -36,6 +36,20 @@ jobs:
         env:
           PULL_REQUEST: ${{ github.event.pull_request.number }}
 
+  scenarios:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target.noindex
+      - run: cargo test --package meta-cli --all-features --test scenarios --no-run
+      - run: cargo test --package meta-cli --all-features --test scenarios
+        timeout-minutes: 1
+
   git-count:
     runs-on: ubuntu-latest
     permissions:
@@ -181,7 +195,7 @@ jobs:
         shell: bash
 
   ci-gate:
-    needs: [ci, git-count, goldens, build-time, stacked, mutants-plan, mutants, mutant-costs]
+    needs: [ci, scenarios, git-count, goldens, build-time, stacked, mutants-plan, mutants, mutant-costs]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
