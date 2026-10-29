@@ -1,3 +1,4 @@
+mod process_table;
 mod walker;
 
 #[cfg(test)]
@@ -6,12 +7,12 @@ mod freeze_tests;
 mod tests;
 
 use std::collections::HashMap;
-use std::ffi::OsStr;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 
-use meta_run::{EnvPolicy, Environment, Run};
+use meta_run::Environment;
+use meta_trace::SpanKind;
 
 use super::alternates::Alternates;
 use super::cause::Cause;
@@ -22,24 +23,30 @@ use super::inspection::Inspection;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
 use super::thaw::{Thaw, Thawed};
+use super::uninspected::Uninspected;
 use crate::request::local::LocalFile;
 use crate::request::local::local_clone::quarantine::Stamp;
 use crate::request::project::CiSettings;
+use process_table::{Held, ProcessTable};
 use walker::Walker;
 
 #[derive(Debug)]
 pub struct Host {
     lenders: Mutex<HashMap<PathBuf, Vec<Alternates>>>,
     settings: CiSettings,
+    uninspected: Mutex<Uninspected>,
 }
 
 impl Host {
-    const LSOF: &'static str = "lsof";
-    const LISTING: [&'static str; 3] = ["-w", "-F", "n"];
-    const RECURSIVE: &'static str = "+D";
+    const NOT_A_DIR: &'static str = "not a directory:";
 
     pub fn new(settings: CiSettings) -> Self {
-        Self { lenders: Mutex::default(), settings }
+        Self { lenders: Mutex::default(), settings, uninspected: Mutex::default() }
+    }
+
+    fn noted(&self, held: Held, paths: &[PathBuf]) -> Occupancy {
+        self.uninspected.lock().unwrap_or_else(PoisonError::into_inner).raise(held.uninspected());
+        held.occupancy(paths)
     }
 
     fn lenders(&self, root: &Path) -> Vec<Alternates> {
@@ -86,6 +93,7 @@ impl Inspection for Host {
     }
 
     fn walked(&self, path: &Path) -> Vec<Found> {
+        let _walk = SpanKind::Fs.entered();
         Walker::new(path).descended(Path::new(""))
     }
 
@@ -95,16 +103,14 @@ impl Inspection for Host {
     }
 
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
-        let scanned = paths.iter().flat_map(|path| [OsStr::new(Self::RECURSIVE), path.as_os_str()]);
-        let listing = Run::new(Self::LSOF, EnvPolicy::Inherit).args(Self::LISTING).args(scanned);
-        match listing.ran(self.settings.budget(CiSettings::ROUTINE).deadline()) {
-            Ok(listed) if listed.stderr().first_line().is_none() => {
-                let Ok(occupancy) = listed.stdout().text().parse();
-                occupancy
-            }
-            Ok(listed) => Occupancy::Unlisted(Cause::new(listed.stderr())),
-            Err(failure) => Occupancy::Unlisted(Cause::new(failure)),
+        match paths.iter().find(|path| self.entry(path) != EntryKind::Dir) {
+            Some(absent) => Occupancy::Unlisted(Cause::new(format_args!("{} {}", Self::NOT_A_DIR, absent.display()))),
+            None => ProcessTable::held().map_or_else(Occupancy::Unlisted, |held| self.noted(held, paths)),
         }
+    }
+
+    fn uninspected(&self) -> Uninspected {
+        *self.uninspected.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
     fn frozen(&self, quarantine: &Path, plan: Thaw) -> Result<Thaw, Kept> {

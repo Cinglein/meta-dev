@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::time::Duration;
 
@@ -7,9 +7,11 @@ use super::super::machine::Machine;
 use super::super::pid_list::PidList;
 use super::super::process_row::Pid;
 use super::super::signal::Signal;
+use super::super::start_time::StartTime;
 use super::super::target::Target;
 
 const ME: &str = "60";
+const LISTED_START: &str = "Mon Oct 26 06:00:00 2026";
 
 #[derive(Debug)]
 pub struct FakeMachine<'scene> {
@@ -17,18 +19,47 @@ pub struct FakeMachine<'scene> {
     cwds: &'scene str,
     uptime: &'scene str,
     acts: RefCell<Vec<String>>,
+    starts: BTreeMap<Pid, &'scene str>,
+    later_starts: BTreeMap<Pid, &'scene str>,
 }
 
 impl<'scene> FakeMachine<'scene> {
     pub fn new(tables: &[&'scene str], cwds: &'scene str, uptime: &'scene str) -> Self {
-        Self { tables: RefCell::new(tables.to_vec()), cwds, uptime, acts: RefCell::default() }
+        let acts = RefCell::default();
+        let starts = BTreeMap::new();
+        Self { tables: RefCell::new(tables.to_vec()), cwds, uptime, acts, starts, later_starts: BTreeMap::new() }
+    }
+
+    pub fn started_after_term(self, pid: Pid, start: &'scene str) -> Self {
+        let mut later_starts = self.later_starts;
+        later_starts.insert(pid, start);
+        Self { later_starts, ..self }
+    }
+
+    pub fn started_at(self, pid: &str, start: &'scene str) -> Self {
+        let mut starts = self.starts;
+        starts.insert(pid.parse().unwrap(), start);
+        Self { starts, ..self }
+    }
+
+    pub fn listed(table: &str) -> String {
+        let place = |line: &str| {
+            let words: Vec<&str> = line.split_whitespace().collect();
+            match words.as_slice() {
+                [pid, parent, group, rest @ ..] => {
+                    format!("{pid} {parent} {group} {LISTED_START} {}\n", rest.join(" "))
+                }
+                _ => format!("{line}\n"),
+            }
+        };
+        table.lines().map(place).collect()
     }
 }
 
 impl Machine for FakeMachine<'_> {
     fn table(&self) -> Option<String> {
         let mut tables = self.tables.borrow_mut();
-        (!tables.is_empty()).then(|| tables.remove(0).to_owned())
+        (!tables.is_empty()).then(|| Self::listed(tables.remove(0)))
     }
 
     fn cwds(&self, pids: &PidList) -> Option<String> {
@@ -38,6 +69,12 @@ impl Machine for FakeMachine<'_> {
 
     fn uptime(&self) -> Option<String> {
         Some(self.uptime.to_owned())
+    }
+
+    fn started(&self, pid: Pid) -> Option<StartTime> {
+        let later =
+            self.later_starts.get(&pid).filter(|_| self.acts.borrow().iter().any(|act| act.starts_with("-TERM")));
+        later.or(self.starts.get(&pid)).copied().unwrap_or(LISTED_START).parse().ok()
     }
 
     fn signal(&self, signal: Signal, targets: &BTreeSet<Target>) {

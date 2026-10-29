@@ -7,6 +7,7 @@ pub trait ClaimHands {
     fn branched(&self, base: &BranchName) -> Result<(), CliFailure>;
     fn added(&self) -> Result<(), CliFailure>;
     fn settled(&self) -> Result<(), CliFailure>;
+    fn seeded(&self);
     fn written(&self) -> Result<String, CliFailure>;
     fn untrailed(&self) -> Result<(), CliFailure>;
     fn removed(&self);
