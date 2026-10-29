@@ -76,7 +76,7 @@ impl Scale {
 
     #[must_use]
     pub fn worse(&self, reading: &Reading) -> Option<Reading> {
-        let above = reading.index_on(self).ok().flatten()?.checked_sub(1)?;
+        let above = self.index_of(reading.rated()?)?.checked_sub(1)?;
         self.0.get(above).map(|level| Reading::from(Rating::Rated(level.name().clone())))
     }
 

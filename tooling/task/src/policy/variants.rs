@@ -190,18 +190,18 @@ const REFUSED: [(&str, &str, &str, &str); 37] = [
         "[act]: performance-and-cost has no level in [act] of tooling/policy.toml",
     ),
     (
-        "meta", "cost = \"major\"", "cost = \"majr\"",
+        "meta", "performance-and-cost = \"major\"", "performance-and-cost = \"majr\"",
         "[act]: majr is not a level of the division's scale",
     ),
     (
         "meta",
-        "cost = \"major\"",
-        "cost = \"major\"\n\"performance-and-cost/x\" = \"major\"",
-        "[act]: performance-and-cost/x is not a division in tooling/policy.toml",
+        "performance-and-cost = \"major\"",
+        "performance-and-cost = \"major\"\n\"performance-and-cost/x\" = \"major\"",
+        "[act]: performance-and-cost/x is not a division; declare it in [domains] or [scales] of tooling/policy.toml",
     ),
 ];
 
-const ACCEPTED: [(&str, &str, &str); 7] = [
+const ACCEPTED: [(&str, &str, &str); 8] = [
     (
         "meta",
         END,
@@ -218,6 +218,11 @@ const ACCEPTED: [(&str, &str, &str); 7] = [
     ("meta", CI, "source = \"ci\"\nwarning = 0\n"),
     (
         "meta", TIMED, "allowance = { duration = 4000 }\ntolerance = 10\n",
+    ),
+    (
+        "meta",
+        "[act]\n",
+        "[domains.\"performance-and-cost/x\"]\ntests = [\"*\"]\n\n[act]\n\"performance-and-cost/x\" = \"minor\"\n",
     ),
 ];
 
@@ -301,7 +306,7 @@ fn the_kept_forms_are_read_and_the_table_shows_the_line_each_check_enforces() {
     let read = variants
         .each_ref()
         .map(|variant| variant.as_ref().err().map(ToString::to_string));
-    assert_eq!(read, [None, None, None, None, None, None, None]);
+    assert_eq!(read, ACCEPTED.map(|_| None));
     let disagreements: Vec<String> = variants
         .iter()
         .flatten()

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use meta_schema::{Division, Rating};
+use meta_schema::{Division, LevelName, Rating};
 
 use crate::rating_failure::RatingFailure;
 use crate::scale::Scale;
@@ -35,6 +35,14 @@ impl Reading {
         match self {
             Self::Clear => Some(self),
             Self::Rating(rating) => rating.level().map(|_| self),
+        }
+    }
+
+    #[must_use]
+    pub fn rated(&self) -> Option<&LevelName> {
+        match self {
+            Self::Clear => None,
+            Self::Rating(rating) => rating.level(),
         }
     }
 }

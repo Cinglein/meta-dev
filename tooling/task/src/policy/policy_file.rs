@@ -1,4 +1,5 @@
 mod entries;
+mod owner_defaults;
 
 use std::collections::BTreeMap;
 
@@ -20,6 +21,7 @@ use crate::gate_env_name::GateEnvName;
 use crate::gate_status::GateStatus;
 use crate::percent::Percent;
 use entries::Entries;
+use owner_defaults::OwnerDefaults;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -38,7 +40,7 @@ pub struct PolicyFile {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     gate_env: Vec<GateEnvName>,
     #[serde(default)]
-    promote_after: PromoteAfter,
+    promote_after: Option<PromoteAfter>,
     limits: Entries<Limit, Most>,
     floors: Entries<Floor, Least>,
     shares: Entries<Share, Percent>,
@@ -47,7 +49,7 @@ pub struct PolicyFile {
     mutant_millis: MutantMillis,
     mutation: MutationCadence,
     #[serde(default)]
-    act: ActionLevels,
+    act: Option<ActionLevels>,
     #[serde(default)]
     domains: Domains,
     #[serde(default)]
@@ -72,7 +74,7 @@ impl PolicyFile {
             gate: policy.gate.clone(),
             gate_wait: policy.gate_wait,
             gate_env: policy.gate_env.clone(),
-            promote_after: policy.promote_after,
+            promote_after: Some(policy.promote_after),
             limits: Entries::without(&policy.limits, |limit| LegacyKey::of_limit(limit).is_some()),
             floors: Entries::without(&policy.floors, |floor| LegacyKey::of_floor(floor).is_some()),
             shares: Entries::without(&policy.shares, |share| LegacyKey::of_share(share).is_some()),
@@ -82,7 +84,7 @@ impl PolicyFile {
             }),
             mutant_millis: policy.mutant_millis.clone(),
             mutation: policy.mutation.clone(),
-            act: policy.act.clone(),
+            act: Some(policy.act.clone()),
             domains: policy.domains.clone(),
             scales: policy.scales.clone(),
             budgets: BudgetDrafts::from(policy.budgets.clone()),
@@ -151,7 +153,13 @@ impl PolicyFile {
             .collect();
         budgets.measurable(&self.domains)?;
         budgets.leveled(&self.scales)?;
-        self.act.leveled(&self.scales)?;
+        let defaults =
+            OwnerDefaults::embedded().ok_or(PolicyFailure::Missing(Self::OWNER_DEFAULTS))?;
+        let promote_after = self.promote_after.unwrap_or(defaults.promote_after());
+        let act = self.act.unwrap_or_else(|| defaults.act());
+        act.leveled(&self.scales, |division| {
+            self.domains.domain(division).is_some()
+        })?;
         let amount =
             |key: Option<LegacyKey>| key.and_then(|key| budgets.blocking_line(&key.measure()));
         let baseline = budgets
@@ -179,7 +187,7 @@ impl PolicyFile {
             gate: self.gate,
             gate_wait: self.gate_wait,
             gate_env: self.gate_env,
-            promote_after: self.promote_after,
+            promote_after,
             limits: self
                 .limits
                 .completed(|limit| {
@@ -218,7 +226,7 @@ impl PolicyFile {
                 .map_err(|key| PolicyFailure::MissingKey(Self::MILLIS, key))?,
             mutant_millis: self.mutant_millis,
             mutation: self.mutation,
-            act: self.act,
+            act,
             domains: self.domains,
             scales: self.scales,
             budgets,
@@ -229,6 +237,7 @@ impl PolicyFile {
     }
 
     const BASELINE: &str = "baseline";
+    const OWNER_DEFAULTS: &str = "act";
     const PRICE: &str = "budgets.mutant-price";
     const LIMITS: &str = "limits";
     const FLOORS: &str = "floors";

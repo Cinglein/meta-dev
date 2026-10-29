@@ -16,8 +16,6 @@ use crate::signal::Signal;
 pub struct PromoteAfter(NonZeroUsize);
 
 impl PromoteAfter {
-    const OWNER_SET_RUN_LENGTH: usize = 3;
-
     pub fn promote<About: PartialEq, Since>(
         self,
         scale: &Scale,
@@ -39,11 +37,5 @@ impl PromoteAfter {
             .flatten();
             Ok(Promoted::new(stepped.unwrap_or_else(|| latest.reading().clone())))
         })
-    }
-}
-
-impl Default for PromoteAfter {
-    fn default() -> PromoteAfter {
-        PromoteAfter(NonZeroUsize::new(Self::OWNER_SET_RUN_LENGTH).unwrap_or(NonZeroUsize::MIN))
     }
 }

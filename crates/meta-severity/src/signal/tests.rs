@@ -10,14 +10,18 @@ const LINES: [(&str, usize); 3] = [("minor", 2), ("critical", 10), ("major", 5)]
 const AT_LINES: [&str; 3] = ["clear", "major", "minor"];
 const ODD: [&str; 3] =
     ["unrated", "bogus is not a level of the division's scale", "major needs a line above the next lower level's line"];
-const RAISE: &str = "raising from minor needs --scenario <reproduction or failure scenario>";
-const HISTORIES: [(&[Observed], &str); 14] = [
+const RAISE: &str =
+    "raising from minor needs --scenario <reproduction or failure scenario>, a measurement, or a failed remedy";
+const HISTORIES: [(&[Observed], &str); 17] = [
+    (&[("a", "clear", "measured"), ("a", "clear", "measured"), ("a", "clear", "measured")], "clear"),
+    (&[("a", "clear", "measured"), ("a", "clear", "failed")], "clear"),
+    (&[("a", "critical", "measured"), ("a", "minor", "failed")], "major"),
     (&[("a", "minor", "measured"), ("a", "critical", "absent")], RAISE),
     (&[("a", "minor", "measured"), ("a", "-", "absent"), ("a", "critical", "absent")], RAISE),
     (&[("a", "minor", "measured"), ("b", "critical", "measured"), ("a", "critical", "absent")], RAISE),
     (
         &[("a", "clear", "measured"), ("a", "minor", "absent")],
-        "raising from clear needs --scenario <reproduction or failure scenario>",
+        "raising from clear needs --scenario <reproduction or failure scenario>, a measurement, or a failed remedy",
     ),
     (&[("a", "minor", "measured"), ("a", "critical", "measured")], "critical"),
     (&[("a", "minor", "measured"), ("a", "critical", "scenario")], "critical"),
@@ -36,7 +40,8 @@ const FLAT: [(&str, usize); 2] = [("major", 1), ("minor", 1)];
 const READINGS: [&str; 3] = ["-", "clear", "minor"];
 const REACHED: [[bool; 3]; 3] = [[true, true, true], [false, false, false], [false, false, true]];
 const NESTED_DIVISION: &str = "performance-and-cost/x";
-const NESTED: [bool; 3] = [true, false, false];
+const NESTED: [bool; 3] = [true, false, true];
+const OVERRIDES: [(&str, &str); 2] = [("performance-and-cost", "major"), (NESTED_DIVISION, "minor")];
 const TRIAGED: Observed = ("a", "minor", "measured");
 
 impl Subject for &str {
@@ -102,10 +107,11 @@ fn a_rating_never_falls_as_the_measure_grows_a_measure_at_a_line_stays_below_it_
 #[test]
 fn a_raise_needs_evidence_over_gaps_and_other_subjects_and_a_run_or_a_failed_remedy_promotes_one_step() {
     let scales = Scales::default();
+    let after: PromoteAfter = serde_json::from_str("3").unwrap();
     let promoted = HISTORIES.map(|(history, _)| {
         let signals: Vec<_> =
             history.iter().map(|(subject, reading, evidence)| Signal::observed(subject, reading, evidence)).collect();
-        let level = PromoteAfter::default().promote(scales.top(), &signals);
+        let level = after.promote(scales.top(), &signals);
         level.map_or_else(|failure| failure.to_string(), |level| level.to_string())
     });
     assert_eq!(promoted, HISTORIES.map(|(_, expected)| expected.to_owned()));
@@ -116,17 +122,21 @@ fn a_raise_needs_evidence_over_gaps_and_other_subjects_and_a_run_or_a_failed_rem
 fn missing_data_reaches_every_action_level_clear_reaches_none_and_a_nested_division_acts_at_its_top() {
     let scales = Scales::default();
     let readings = READINGS.map(|name| Promoted::new(Reading::named(name)));
-    let acting = |line: &LevelName| -> ActionLevels {
-        serde_json::from_value(serde_json::to_value(BTreeMap::from([(Scales::costs(), line)])).unwrap()).unwrap()
+    let acting = |lines: &[(&str, &str)]| -> ActionLevels {
+        serde_json::from_value(serde_json::to_value(lines.iter().copied().collect::<BTreeMap<_, _>>()).unwrap())
+            .unwrap()
     };
-    let lines: Vec<ActionLevels> = scales.top().levels().iter().map(|line| acting(line.name())).collect();
+    let named: Vec<String> = scales.top().levels().iter().map(|line| line.name().to_string()).collect();
+    let lines: Vec<ActionLevels> = named.iter().map(|line| acting(&[(OVERRIDES[0].0, line.as_str())])).collect();
     let reached = readings.iter().map(|reading| lines.iter().map(|at| at.acts(&scales, &Scales::costs(), reading)));
     assert_eq!(reached.map(Iterator::collect::<Vec<bool>>).collect::<Vec<_>>(), REACHED);
     let nested: Division = NESTED_DIVISION.parse().unwrap();
-    assert_eq!(readings.map(|reading| ActionLevels::default().acts(&scales, &nested, &reading)), NESTED);
-    let triage = Signal::observed(TRIAGED.0, TRIAGED.1, TRIAGED.2).triage();
+    let overridden = acting(&OVERRIDES);
+    assert_eq!(readings.map(|reading| overridden.acts(&scales, &nested, &reading)), NESTED);
+    let promoted = Promoted::new(Reading::named(TRIAGED.1));
+    let triage = Signal::observed(TRIAGED.0, TRIAGED.1, TRIAGED.2).triage(promoted.clone());
     assert_eq!(
-        (triage.placement().division(), triage.kind(), triage.reading()),
-        (Some(&Scales::costs()), ItemKind::Issue, &Reading::named(TRIAGED.1))
+        (triage.placement().division(), triage.kind(), triage.promoted()),
+        (Some(&Scales::costs()), ItemKind::Issue, &promoted)
     );
 }

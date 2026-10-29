@@ -11,8 +11,10 @@ pub enum RatingFailure {
     UnknownLevel(LevelName),
     #[error("the item is already {0}")]
     Unchanged(LevelName),
-    #[error("raising from {0} needs --scenario <reproduction or failure scenario>")]
+    #[error("raising from {0} needs --scenario <reproduction or failure scenario>, a measurement, or a failed remedy")]
     RaisedWithoutEvidence(Reading),
+    #[error("{0} is not a division; declare it in [domains] or [scales] of tooling/policy.toml")]
+    NoSuchDivision(Division),
     #[error("{0} has no level in [act] of tooling/policy.toml")]
     Unacted(Division),
     #[error("{0} needs a line above the next lower level's line")]

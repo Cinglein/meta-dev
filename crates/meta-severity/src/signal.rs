@@ -1,4 +1,5 @@
 use crate::evidence::Evidence;
+use crate::promoted::Promoted;
 use crate::reading::Reading;
 use crate::subject::Subject;
 use crate::triage::Triage;
@@ -40,8 +41,8 @@ impl<About, Since> Signal<About, Since> {
 
 impl<About: Subject, Since> Signal<About, Since> {
     #[must_use]
-    pub fn triage(&self) -> Triage {
-        Triage::new(self.subject.placement(), self.subject.kind(), self.reading.clone())
+    pub fn triage(&self, promoted: Promoted) -> Triage {
+        Triage::new(self.subject.placement(), self.subject.kind(), promoted)
     }
 }
 

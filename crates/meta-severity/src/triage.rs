@@ -1,18 +1,18 @@
 use meta_schema::{ItemKind, Placement};
 
-use crate::reading::Reading;
+use crate::promoted::Promoted;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Triage {
     placement: Placement,
     kind: ItemKind,
-    reading: Reading,
+    promoted: Promoted,
 }
 
 impl Triage {
     #[must_use]
-    pub fn new(placement: Placement, kind: ItemKind, reading: Reading) -> Triage {
-        Triage { placement, kind, reading }
+    pub fn new(placement: Placement, kind: ItemKind, promoted: Promoted) -> Triage {
+        Triage { placement, kind, promoted }
     }
 
     #[must_use]
@@ -26,7 +26,7 @@ impl Triage {
     }
 
     #[must_use]
-    pub fn reading(&self) -> &Reading {
-        &self.reading
+    pub fn promoted(&self) -> &Promoted {
+        &self.promoted
     }
 }
