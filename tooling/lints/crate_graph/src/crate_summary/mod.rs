@@ -1,4 +1,5 @@
 mod cut;
+mod effect_tally;
 mod tangle;
 
 use std::fmt;
@@ -9,6 +10,7 @@ use task::{Floor, Limit, Policy, Share, Site, Violation};
 use crate::item_count::ItemCount;
 use crate::item_graph::ItemGraph;
 use cut::Cut;
+use effect_tally::EffectTally;
 use tangle::Tangle;
 
 #[derive(Clone, Debug)]
@@ -18,6 +20,7 @@ pub struct CrateSummary {
     edges: ItemCount,
     tangles: Vec<Tangle>,
     cut: Option<Cut>,
+    effects: EffectTally,
 }
 
 impl CrateSummary {
@@ -42,7 +45,12 @@ impl CrateSummary {
             edges: ItemCount::of_len(graph.edges().len()),
             tangles,
             cut: Cut::best(graph, &members),
+            effects: EffectTally::of_units(graph.effects()),
         }
+    }
+
+    pub fn effects(&self) -> &EffectTally {
+        &self.effects
     }
 
     pub fn largest_tangle(&self) -> ItemCount {
@@ -92,6 +100,9 @@ impl fmt::Display for CrateSummary {
             .try_for_each(|tangle| writeln!(formatter, "  {tangle}"))?;
         self.cut
             .iter()
-            .try_for_each(|cut| writeln!(formatter, "  best cut: {cut}"))
+            .try_for_each(|cut| writeln!(formatter, "  best cut: {cut}"))?;
+        self.effects.touched().map_or(Ok(()), |effects| {
+            writeln!(formatter, "  effects: {effects}")
+        })
     }
 }
