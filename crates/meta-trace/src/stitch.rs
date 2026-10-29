@@ -42,7 +42,8 @@ impl FromStr for Stitch {
 
     fn from_str(text: &str) -> Result<Self, ()> {
         let (trace, parent) = text.split_once(Self::JOINER).ok_or(())?;
-        Ok(Self { trace: trace.parse().map_err(drop)?, parent: parent.parse()? })
+        let trace = trace.parse().ok().filter(|trace| *trace <= TraceId::new()).ok_or(())?;
+        Ok(Self { trace, parent: parent.parse()? })
     }
 }
 

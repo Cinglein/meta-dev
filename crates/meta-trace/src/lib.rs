@@ -1,5 +1,7 @@
+mod dropped;
 mod kind_code;
 mod kind_tag;
+mod lane;
 mod micros;
 mod program;
 mod recorder;

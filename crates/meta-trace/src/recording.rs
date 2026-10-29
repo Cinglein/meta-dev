@@ -7,7 +7,6 @@ use crate::recorder::Recorder;
 use crate::retention::Retention;
 use crate::span_kind::SpanKind;
 use crate::stitch::Stitch;
-use crate::trace::Trace;
 use crate::trace_dir::TraceDir;
 use crate::trace_id::TraceId;
 use crate::verb::Verb;
@@ -31,6 +30,6 @@ impl Recording {
 
     pub fn kept(self, dir: &TraceDir, retention: Retention) -> io::Result<()> {
         drop(self.command);
-        dir.kept(self.trace, &Trace::new(self.recorder.taken()), retention)
+        dir.kept(self.trace, &self.recorder.taken(), retention)
     }
 }

@@ -11,7 +11,7 @@ use super::worktrees::Worktrees;
 
 const CHECKOUT: &str = "/work/clone";
 const SIBLING: &str = "/work/clone-worktrees";
-const RELATIVE: &str = "worktree_root = \"trees\"\n[trace]\nfiles = 1";
+const RELATIVE: &str = "worktree_root = \"trees\"\n[trace]\ntraces = 1";
 const NESTED: &str = "/work/clone/trees";
 const NOWHERE: &str = "/nonexistent/clone";
 const NOT_A_DIRECTORY: &str = "/dev/null";

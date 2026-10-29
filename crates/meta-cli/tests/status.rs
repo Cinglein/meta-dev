@@ -21,6 +21,8 @@ const UNTRACED: [&str; VAR_LEN] = ["META_TRACE", "off"];
 const LIST: [&str; 1] = ["list"];
 const TRACE_LAST: [&str; 2] = ["trace", "last"];
 const STITCHED: [&str; 2] = ["command hook ", ", 2 processes,"];
+const TRACED: [&str; VAR_LEN] = ["META_TRACE", "on"];
+const BROKEN: [(&str, &str); 2] = [(".git/meta-local/traces", ""), ("meta.local.toml", "[trace]\nfiles = \"x\"\n")];
 const FAKE_GH: &str = r#"#!/bin/sh
 case "$1 $2" in
 "pr list") echo 7 ;;
@@ -88,4 +90,17 @@ fn opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_
     project.meta(&LIST, "", UNTRACED);
     let traced = String::from_utf8(project.meta(&TRACE_LAST, "", UNTRACED).stdout).unwrap();
     assert!(traced.starts_with(STITCHED[0]) && traced.contains(STITCHED[1]), "{traced}");
+}
+
+#[test]
+fn a_trace_that_cannot_be_kept_leaves_the_commands_exit_code_and_output_alone() {
+    let project = Project::new();
+    SeededLog::through(CLAIMED).plant(project.origin.path());
+    let ran = BROKEN.map(|(path, contents)| {
+        let path = project.clone.path().join(path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, contents).unwrap();
+        [UNTRACED, TRACED].map(|var| project.meta(&LIST, "", var)).map(|ran| (ran.status, ran.stdout))
+    });
+    assert!(ran.iter().all(|[untraced, traced]| untraced == traced && !untraced.1.is_empty()), "{ran:?}");
 }

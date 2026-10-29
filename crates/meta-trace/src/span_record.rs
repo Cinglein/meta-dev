@@ -3,6 +3,7 @@ use std::ops::Range;
 use serde::ser::{Serialize, SerializeStruct as _, Serializer};
 
 use crate::kind_code::KindCode;
+use crate::lane::Lane;
 use crate::micros::Micros;
 use crate::span_id::SpanId;
 use crate::span_kind::SpanKind;
@@ -14,22 +15,27 @@ pub struct SpanRecord {
     kind: SpanKind,
     start: Micros,
     end: Micros,
+    lane: Lane,
 }
 
 impl SpanRecord {
-    pub const LEN: usize = 34;
+    pub const LEN: usize = 36;
     const EVENT: &'static str = "event";
     const FIELDS_LEN: usize = 6;
     const COMPLETE: &'static str = "X";
 
     #[must_use]
     pub fn new(id: SpanId, parent: Option<SpanId>, kind: SpanKind, start: Micros) -> Self {
-        Self { id, parent, kind, start, end: start }
+        Self { id, parent, kind, start, end: start, lane: Lane::default() }
     }
 
     #[must_use]
     pub fn ended(self, end: Micros) -> Self {
         Self { end, ..self }
+    }
+
+    pub(crate) fn on_lane(self, lane: Lane) -> Self {
+        Self { lane, ..self }
     }
 
     #[must_use]
@@ -61,8 +67,12 @@ impl SpanRecord {
 impl From<&SpanRecord> for Vec<u8> {
     fn from(span: &SpanRecord) -> Self {
         let words = [span.id.word(), span.parent.map_or(0, SpanId::word), span.start.micros(), span.end.micros()];
-        let code = KindCode::from(span.kind).word().to_le_bytes();
-        words.iter().flat_map(|word| word.to_le_bytes()).chain(code).collect()
+        let halves = [KindCode::from(span.kind).word(), span.lane.word()];
+        words
+            .iter()
+            .flat_map(|word| word.to_le_bytes())
+            .chain(halves.iter().flat_map(|half| half.to_le_bytes()))
+            .collect()
     }
 }
 
@@ -77,10 +87,13 @@ impl TryFrom<&[u8; SpanRecord::LEN]> for SpanRecord {
         let (parent, rest) = word(rest)?;
         let (start, rest) = word(rest)?;
         let (end, rest) = word(rest)?;
-        let code = rest.first_chunk().map(|code| KindCode::from(u16::from_le_bytes(*code))).ok_or(())?;
-        let span =
-            Self::new(SpanId::read(id).ok_or(())?, SpanId::read(parent), SpanKind::try_from(code)?, Micros::new(start));
-        Ok(span.ended(Micros::new(end)))
+        let half =
+            |bytes| <[u8]>::split_first_chunk(bytes).map(|(half, rest)| (u16::from_le_bytes(*half), rest)).ok_or(());
+        let (code, rest) = half(rest)?;
+        let (lane, _) = half(rest)?;
+        let kind = SpanKind::try_from(KindCode::from(code))?;
+        let span = Self::new(SpanId::read(id).ok_or(())?, SpanId::read(parent), kind, Micros::new(start));
+        Ok(span.ended(Micros::new(end)).on_lane(Lane::new(lane)))
     }
 }
 
@@ -92,7 +105,7 @@ impl Serialize for SpanRecord {
         event.serialize_field("ts", &self.start.micros())?;
         event.serialize_field("dur", &self.duration().micros())?;
         event.serialize_field("pid", &self.id.pid())?;
-        event.serialize_field("tid", &self.id.pid())?;
+        event.serialize_field("tid", &self.lane.word())?;
         event.end()
     }
 }

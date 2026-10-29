@@ -1,3 +1,6 @@
+mod kept;
+mod overflow;
+
 use std::ffi::OsString;
 use std::process::Command;
 use std::time::Duration;
@@ -21,7 +24,7 @@ const STITCH: &str = "00000000000000ab-500000001";
 const TRACES: [&str; 4] = ["0000000000000001", "0000000000000002", "0000000000000003", "0000000000000004"];
 const VERBS: [Verb; 4] = [Verb::Status, Verb::Hook, Verb::Gc, Verb::Status];
 const LAST: usize = 3;
-const RETAINED: [&str; 2] = [r#"{"files": 2}"#, r#"{"bytes": 76}"#];
+const RETAINED: [&str; 2] = [r#"{"traces": 2}"#, r#"{"bytes": 96}"#];
 const PAUSE: Duration = Duration::from_millis(1);
 const UNTRACED: &str = "ms spawn meta\n";
 const WALKED: &str = "ms fs\n";

@@ -1,6 +1,8 @@
 mod group;
 mod interrupts;
 mod placement;
+#[cfg(test)]
+mod tests;
 
 use std::ffi::{OsStr, OsString};
 use std::io::{Read, Write as _};
