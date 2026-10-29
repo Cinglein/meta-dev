@@ -1351,3 +1351,4 @@
 {"at":"2026-10-29T04:27:34.042696Z","actor":"claude-fixture","kind":"TaskOpened","task":"task-17313bb7093c2f5e","text":"meta-log test origins set receive.autogc=false so pushes stop starting git maintenance","division":"performance-and-cost","addresses":["concern-7c8ca24df2ec76b0"]}
 {"at":"2026-10-29T04:27:41.956699Z","actor":"claude-fixture","kind":"TaskClaimed","task":"task-17313bb7093c2f5e"}
 {"at":"2026-10-29T04:28:25.593602Z","actor":"claude-fixture","kind":"TaskLinked","task":"task-17313bb7093c2f5e","pr":161}
+{"at":"2026-10-29T04:29:05.749327Z","actor":"claude-fixture","kind":"TaskOpened","task":"task-3dc9777c489aa9d9","text":"xtask test fixture writes commits through libgit2 instead of git fast-import, add and commit","division":"performance-and-cost","addresses":["concern-7c8ca24df2ec76b0"]}
