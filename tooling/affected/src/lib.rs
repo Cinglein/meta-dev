@@ -27,7 +27,7 @@ impl Affected {
         changes: Changes,
         base: &BranchName,
     ) -> Result<Selection, Failure> {
-        Ok(Self::reached(
+        Ok(Trusted::tested(
             workspace.packages(),
             &changes.reaches(workspace, base)?,
         ))

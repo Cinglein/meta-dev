@@ -43,7 +43,7 @@ impl Coverage {
     }
 
     pub fn changes(&self) -> Changes {
-        self.changes
+        self.changes.clone()
     }
 
     pub fn log(&self) -> &LogSource {

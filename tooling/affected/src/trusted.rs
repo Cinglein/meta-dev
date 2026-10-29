@@ -2,6 +2,7 @@ use task::BranchName;
 use task::PackageGraph;
 use task::Selection;
 
+use crate::Affected;
 use crate::reach::Reach;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -18,8 +19,14 @@ impl Trusted {
     }
 
     #[must_use]
-    pub fn tested(_graph: &PackageGraph, _reaches: &[Vec<Reach>]) -> Selection {
-        Selection::Crates(std::collections::BTreeSet::new())
+    pub fn tested(graph: &PackageGraph, reaches: &[Vec<Reach>]) -> Selection {
+        reaches
+            .iter()
+            .map(|diff| Affected::reached(graph, diff))
+            .fold(Selection::Workspace, |tested, demanded| match demanded {
+                Selection::Workspace => tested,
+                Selection::Crates(crates) => tested.within(crates.iter()),
+            })
     }
 }
 
