@@ -103,8 +103,9 @@ impl TryFrom<Vec<String>> for Request {
                 Ok(Self::Write(Event::TaskOpened(parsed.due().into_iter().fold(sized, NewTask::due_by))))
             }
             "wait" => {
-                let parsed = parsed.allowing(&[OptionName::On])?;
-                Ok(Self::Wait(Block::new(parsed.task()?, parsed.blocker()?)))
+                let parsed = parsed.allowing(&[OptionName::On, OptionName::Due])?;
+                let block = Block::new(parsed.task()?, parsed.blocker()?);
+                Ok(Self::Wait(parsed.due().into_iter().fold(block, Block::reply_by)))
             }
             "resume" => Ok(Self::Write(Event::TaskUnblocked(task()?))),
             "link" => Ok(Self::Write(Event::TaskLinked(parsed.allowing(&[])?.task_link()?))),
