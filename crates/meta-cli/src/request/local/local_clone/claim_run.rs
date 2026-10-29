@@ -146,7 +146,7 @@ mod tests {
             Repository::created(checkout, Layout::Working).unwrap();
             let stale = checkout.join(GIT_DIR).join(STALE);
             std::fs::create_dir_all(&stale).unwrap();
-            STALE_FILES.iter().for_each(|[file, text]| std::fs::write(stale.join(file), text).unwrap());
+            STALE_FILES.iter().try_for_each(|[file, text]| std::fs::write(stale.join(file), text)).unwrap();
             let settings = CiSettings::try_from(&Config::default()).unwrap();
             LocalClone::new(checkout.to_path_buf(), checkout.join(GIT_DIR), settings)
         }
