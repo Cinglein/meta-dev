@@ -1,0 +1,9 @@
+cargo-semver-checks: tooling/policy.toml turns it off; fix: install it before `cargo xtask ci` (`uses: taiki-e/install-action@v2` with `tool: cargo-semver-checks@0.51.0`) and list your library crates in `[supply_chain] semver`
+full-mutants: tooling/policy.toml turns it off; fix: add a step `run: cargo xtask mutants-full` (cargo-mutants@27.1.0 installed) to a workflow on push or schedule, and list "weekly" in `[mutation] full_run`
+test-cpu-time-budget: tooling/policy.toml turns it off; fix: copy this default into tooling/policy.toml:
+[budgets.test-cpu-time]
+division = "performance-and-cost"
+measure = "test_cpu_time"
+allowance = { duration = 4000 }
+window = "per_change"
+source = "ci"

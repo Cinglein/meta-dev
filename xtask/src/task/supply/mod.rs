@@ -7,7 +7,7 @@ use task::{Branch, CargoTool, Policy, Program, Selection, Workspace};
 use crate::task::failure::Failure;
 use crate::task::revision::Revision;
 use deny_config::DenyConfig;
-use runner::Runner;
+pub use runner::Runner;
 use supply_argument::SupplyArgument;
 
 #[derive(Debug)]

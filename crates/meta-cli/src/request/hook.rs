@@ -90,7 +90,7 @@ impl HookEvent {
             Ok(None) => self.outside_projects(&input),
             Err(failure) => Some(self.refused(Listed::new(failure))),
         };
-        let opened = (self == Self::SessionStart).then(|| input.open_session()).and_then(Result::err);
+        let opened = self.opens_session().and_then(|()| input.open_session().err());
         let reply = reply.map(|reply| reply.with_news(opened));
         let reply = reply.or_else(|| unstamped.as_ref().map(|_| Reply::new(self, Verdict::Allow, None)));
         let reply = reply.map(|reply| reply.with_news(unstamped));
@@ -103,6 +103,10 @@ impl HookEvent {
             Self::PostToolUse => Some(CallPhase::Finished),
             Self::SessionStart | Self::Stop => None,
         }
+    }
+
+    pub fn opens_session(self) -> Option<()> {
+        (self == Self::SessionStart).then_some(())
     }
 
     pub fn refused(self, reason: Listed) -> Reply {
@@ -131,8 +135,8 @@ impl HookEvent {
                 input
                     .command()
                     .and_then(|command| command.refusal(project.config()))
-                    .or_else(|| input.refusal(budget.deadline()))
-                    .or_else(|| input.unpushable(project, Self::PUSH, budget.deadline()))
+                    .or_else(|| input.refusal())
+                    .or_else(|| input.unpushable(project, Self::PUSH))
                     .map(Denial::from)
                     .map_or(Verdict::Allow, Verdict::Deny),
                 None,
@@ -155,9 +159,8 @@ impl HookEvent {
         let linked = budget.as_ref().ok().filter(|_| self == Self::PostToolUse);
         let linked = linked.and_then(|budget| Linking::after(input, *budget));
         let linking = linked.map(|linked| Reply::new(self, Verdict::Allow, Some(linked)));
-        let refusal = (self == Self::PreToolUse).then(|| {
-            budget.map_or_else(|failure| Some(Listed::new(failure)), |budget| input.refusal(budget.deadline()))
-        });
+        let refusal = (self == Self::PreToolUse)
+            .then(|| budget.map_or_else(|failure| Some(Listed::new(failure)), |_| input.refusal()));
         let refusal = refusal.flatten();
         refusal.map(|refusal| Reply::new(self, Verdict::Deny(Denial::from(refusal)), None)).or(linking)
     }
@@ -173,9 +176,9 @@ impl HookEvent {
 
     fn after_push(project: &Project, input: &HookInput, budget: Budget) -> Option<Listed> {
         let command = input.command()?;
-        let failure = command.runs(Self::COMMIT).and_then(|()| {
-            input.unpushable(project, Self::COMMIT, budget.deadline()).or_else(|| project.push_failure(budget))
-        });
+        let failure = command
+            .runs(Self::COMMIT)
+            .and_then(|()| input.unpushable(project, Self::COMMIT).or_else(|| project.push_failure(budget)));
         failure.or(input.session().and_then(|session| Watcher::watch_all(project, session, budget).err()))
     }
 }

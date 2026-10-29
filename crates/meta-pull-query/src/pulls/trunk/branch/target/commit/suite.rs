@@ -1,11 +1,9 @@
-mod conclusion;
 mod workflow_run;
 
+use meta_gh::{Conclusion, Outcome};
 use serde::Deserialize;
 
-use crate::trunk_verdict::TrunkVerdict;
 use crate::workflow_name::WorkflowName;
-use conclusion::Conclusion;
 use workflow_run::WorkflowRun;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -18,8 +16,15 @@ pub struct Suite {
 }
 
 impl Suite {
-    pub fn verdict(&self, workflow: &WorkflowName) -> Option<TrunkVerdict> {
-        self.run.as_ref().filter(|run| *run == workflow)?;
-        self.conclusion?.verdict()
+    pub fn run_of(&self, workflow: &WorkflowName) -> Option<&Self> {
+        self.run.as_ref().filter(|run| *run == workflow).map(|_| self)
+    }
+
+    pub fn outcome(&self) -> Outcome {
+        self.conclusion.map_or(Outcome::Undecided, Conclusion::outcome)
+    }
+
+    pub fn behind_a_newer_run(&self) -> Option<Conclusion> {
+        self.conclusion.and_then(Conclusion::behind_a_newer_run)
     }
 }
