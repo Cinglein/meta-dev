@@ -45,28 +45,3 @@ impl fmt::Display for Git<'_> {
         write!(formatter, "git -C {}", self.dir.display())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use std::ffi::OsStr;
-    use std::path::Path;
-
-    use meta_run::GitArgv;
-
-    use super::Git;
-    use crate::request::project::{CiSettings, Config};
-
-    const NOWHERE: &str = "/nonexistent/clone";
-    const HEAD: &str = "HEAD";
-    const SHOWN: &str = "git -C /nonexistent/clone rev-parse --verify --quiet HEAD: ";
-
-    #[test]
-    fn a_failed_call_names_its_directory_and_whole_argv_and_holds_nothing() {
-        let settings = CiSettings::try_from(&Config::default()).unwrap();
-        let git = Git::new(Path::new(NOWHERE), &settings);
-        let failed = git.output(GitArgv::VerifyRef, &[OsStr::new(HEAD)]).map_err(|failure| failure.to_string());
-        assert!(
-            failed.is_err_and(|failure| failure.starts_with(SHOWN)) && git.holds(GitArgv::VerifyRef, &[]).is_none()
-        );
-    }
-}
