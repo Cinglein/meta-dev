@@ -44,6 +44,16 @@ impl Selection {
     }
 
     #[must_use]
+    pub fn common(&self, other: &Selection) -> Option<Selection> {
+        match (self, other) {
+            (Selection::Crates(ours), Selection::Crates(theirs)) => Some(ours & theirs)
+                .filter(|shared| !shared.is_empty())
+                .map(Selection::Crates),
+            (Selection::Workspace, kept) | (kept, Selection::Workspace) => Some(kept.clone()),
+        }
+    }
+
+    #[must_use]
     pub fn reaching(&self) -> Option<&Selection> {
         match self {
             Selection::Crates(crates) if crates.is_empty() => None,

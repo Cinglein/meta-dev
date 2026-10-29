@@ -94,6 +94,10 @@ job_setup = 90000
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]
 
+[queue]
+hot = ["Cargo.lock"]
+members = 4
+
 [budgets.test-cpu-time]
 division = "performance-and-cost"
 measure = "test_cpu_time"

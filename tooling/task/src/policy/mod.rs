@@ -1,8 +1,6 @@
 mod baseline_file;
-mod batch_size;
 mod bit_boundary;
 mod floor;
-mod hot_path;
 mod key_name;
 mod least;
 mod limit;
@@ -23,12 +21,11 @@ mod wire_type;
 use crate::gate_env_name::GateEnvName;
 use crate::gate_status::GateStatus;
 pub use baseline_file::BaselineFile;
-pub use batch_size::BatchSize;
 pub use floor::Floor;
 pub use limit::Limit;
 
 pub use most::Most;
-pub use queue_settings::QueueSettings;
+use queue_settings::QueueSettings;
 pub use share::Share;
 pub use spec_settings::SpecSettings;
 pub use surface::Surface;

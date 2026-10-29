@@ -1,23 +1,20 @@
-mod batching;
 mod changes;
 mod crate_load;
-mod footprint;
 mod packing;
 mod reach;
 mod tested_crates;
 
-pub use batching::Batching;
 pub use changes::Changes;
 pub use crate_load::CrateLoad;
-pub use footprint::Footprint;
 pub use packing::Packing;
 pub use tested_crates::TestedCrates;
 
 use reach::Reach;
 use task::BranchName;
 use task::Failure;
+use task::Footprint;
 use task::PackageGraph;
-use task::QueueSettings;
+use task::Policy;
 use task::Selection;
 use task::Workspace;
 
@@ -40,14 +37,14 @@ impl Affected {
         workspace: &Workspace,
         changes: Changes,
         base: &BranchName,
-        queue: &QueueSettings,
+        policy: &Policy,
     ) -> Result<Footprint, Failure> {
         let paths = changes.paths(workspace, base)?;
         let reaches = changes.reaching(workspace, &paths)?;
         Ok(Footprint::new(
             Self::reached(workspace.packages(), &reaches),
             paths.into_iter().collect(),
-            queue,
+            policy,
         ))
     }
 

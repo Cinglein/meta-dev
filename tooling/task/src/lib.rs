@@ -6,6 +6,7 @@ mod command_line;
 mod crate_name;
 mod domains;
 mod failure;
+mod footprint;
 mod gate_env_name;
 mod gate_status;
 mod line_number;
@@ -36,6 +37,7 @@ pub use budgets::{Amount, ChangeLink, Ledger, Measure, Standing};
 pub use command_line::{CargoArgument, CommandLine, GitArgument, MutantsArgument, Program, Stdout};
 pub use crate_name::CrateName;
 pub use failure::{FailedRuns, Failure, KilledProcess, KilledProcesses};
+pub use footprint::Footprint;
 pub use gate_env_name::GateEnvName;
 pub use gate_status::GateStatus;
 pub use line_number::LineNumber;
@@ -46,8 +48,7 @@ pub use nesting_depth::NestingDepth;
 pub use package_graph::PackageGraph;
 pub use percent::Percent;
 pub use policy::{
-    BaselineFile, BatchSize, Floor, Limit, Most, Policy, QueueSettings, Share, SpecSettings,
-    Surface, WireType,
+    BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface, WireType,
 };
 pub use reexport_count::ReexportCount;
 pub use report::Report;

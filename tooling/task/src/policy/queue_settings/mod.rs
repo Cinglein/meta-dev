@@ -1,16 +1,17 @@
+mod hot_path;
+
 use std::collections::BTreeSet;
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
+use hot_path::HotPath;
 use serde::{Deserialize, Serialize};
-
-use super::batch_size::BatchSize;
-use super::hot_path::HotPath;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct QueueSettings {
     hot: Vec<HotPath>,
-    members: BatchSize,
+    members: NonZeroUsize,
 }
 
 impl QueueSettings {
@@ -26,7 +27,7 @@ impl QueueSettings {
     }
 
     #[must_use]
-    pub fn members(&self) -> BatchSize {
-        self.members
+    pub fn admits<T>(&self, members: &[T]) -> bool {
+        members.len() < self.members.get()
     }
 }
