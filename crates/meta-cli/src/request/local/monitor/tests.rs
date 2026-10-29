@@ -8,6 +8,7 @@ use meta_golden::Golden;
 
 use super::Monitor;
 use super::culprit::Culprit;
+use super::monitor_state::MonitorState;
 use super::patrol::Patrol;
 use super::process_row::{GroupId, Pid, ProcessRow};
 use super::standing::Standing;
@@ -61,6 +62,21 @@ const LATER: [TimeDelta; 5] =
     [TimeDelta::zero(), TimeDelta::minutes(5), TimeDelta::minutes(10), TimeDelta::minutes(61), TimeDelta::minutes(62)];
 const BROKEN: &str = "settings unreadable";
 const GIT: &str = ".git";
+
+#[test]
+fn a_corrupt_monitor_state_is_kept_aside_with_one_notice_naming_both_files_and_the_patrol_goes_on() {
+    let git_dir = tempfile::tempdir().unwrap();
+    let now = NOW.parse::<DateTime<Utc>>().unwrap();
+    assert!(MonitorState::read(git_dir.path(), now).unwrap().notice().is_none());
+    LocalFile::new(git_dir.path().join(STATE)).replaced("{").unwrap();
+    let host = FakeMachine::new(&[SCENE], CWDS, UPTIME);
+    let report = Watch::patrolled(&host, git_dir.path(), "", TimeDelta::zero()).to_string();
+    let aside = std::fs::read_dir(git_dir.path().join("meta-local")).unwrap().map(|entry| entry.unwrap().file_name());
+    let aside: Vec<String> = aside.map(|name| name.to_string_lossy().into_owned()).collect();
+    let kept = aside.iter().find(|name| name.ends_with(".corrupt")).unwrap();
+    assert!(report.contains(STATE) && report.contains(kept) && report.contains("obvious:"));
+    assert_eq!(std::fs::read_to_string(git_dir.path().join("meta-local").join(kept)).unwrap(), "{");
+}
 
 const CHANGED: &str = "Tue Oct 27 07:00:00 2026";
 type Arranged = fn(FakeMachine<'static>) -> FakeMachine<'static>;

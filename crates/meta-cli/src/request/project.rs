@@ -6,6 +6,7 @@ use std::str::FromStr;
 use std::sync::OnceLock;
 use std::time::Instant;
 
+use meta_git::Reads as _;
 use meta_log::{GitLog, RemoteHeads};
 use meta_run::{Budget, GitArgv, Port, Run};
 
@@ -46,9 +47,12 @@ impl Project {
     }
 
     pub fn found(dir: &Path) -> Result<Option<Self>, CliFailure> {
+        Self::located(dir).map(Self::loaded).transpose()
+    }
+
+    pub fn located(dir: &Path) -> Option<PathBuf> {
         let root = dir.ancestors().find(|ancestor| ancestor.join(Self::GIT_ENTRY).exists()).map(Path::to_path_buf);
-        let configured = root.filter(|root| root.join(Self::CONFIG_FILE).exists());
-        configured.map(Self::loaded).transpose()
+        root.filter(|root| root.join(Self::CONFIG_FILE).exists())
     }
 
     pub fn ci_settings(&self) -> &CiSettings {
@@ -103,10 +107,10 @@ impl Project {
     }
 
     pub fn repository(&self) -> Result<Repository, RemoteFailure> {
-        let deadline = self.ci.remote_deadline();
         let remote = self.config.remote().map_err(|failure| RemoteFailure::NotGithub(Listed::new(failure)))?;
-        let url = Port::new(&self.root).reported(GitArgv::RemoteUrl, [remote.to_string()], deadline);
-        let url = url.map(|url| url.text().into_owned()).map_err(|failure| {
+        let read = meta_git::Repository::open(&self.root)
+            .and_then(|repository| repository.read(&meta_git::RemoteUrl::from(remote.clone())));
+        let url = read.map(Option::unwrap_or_default).map_err(|failure| {
             RemoteFailure::GitFailed(Listed::new(format!("git failed reading the remote URL: {failure}")))
         })?;
         let named = format!("remote URL `{}` names no GitHub owner and repository", url.trim());
