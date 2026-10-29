@@ -1295,3 +1295,4 @@
 {"at":"2026-10-29T01:17:27.375409Z","actor":"claude-scen","kind":"TaskClaimed","task":"task-c64184a1bf9e8e77"}
 {"at":"2026-10-29T01:29:27.287664Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-0309b25196a17ba7"}
 {"at":"2026-10-29T01:29:28.864297Z","actor":"claude-lead","kind":"TaskDone","task":"task-0309b25196a17ba7"}
+{"at":"2026-10-29T01:30:05.880806Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-a775503901873325","text":"Closed #135: laws on string parsers cost lines; laws move to algebraic code (rollups, folds)."}
