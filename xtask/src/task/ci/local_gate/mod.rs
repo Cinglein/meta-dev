@@ -202,12 +202,13 @@ mod tests {
     const RECORDED: &str = ".git/fake-gh.args";
     const SCRIPT: &str = "printf '%s\\n' \"$@\" > \"$0.args\"\n";
     const TIMED: &str = "fmt 1.0s";
-    const POSTED: &str = "-f\nstate=success\n-f\ncontext=local-gate/consumer\n-f\ndescription=meta-dev local on 1.90-x86_64-unknown-linux-gnu: ";
-    const TOOLCHAIN: &str = "1.90-x86_64-unknown-linux-gnu";
+    const POSTED: &str =
+        "-f\nstate=success\n-f\ncontext=local-gate/consumer\n-f\ndescription=meta-dev local on 1.90-linux: ";
+    const TOOLCHAIN: &str = "1.90-linux";
     const ALL_FEATURES: &str = "--all-features";
     const FAILED: &str = "state=failure";
     const SURFACED: &str = "; surfaces changed\n";
-    const TIMED_ALL: &str = ": fmt 1.0s, clippy 1.0s,";
+    const TIMED_ALL: &str = ": adoption 1.0s, fmt 1.0s,";
     const ONE_OPEN: &str = "7\n";
     const SEVERAL_OPEN: &str = "7\n8\n";
     const NONE_OPEN: &str = "";

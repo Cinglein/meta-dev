@@ -1,5 +1,7 @@
 use meta_git::{GitFailure, RemoteName};
 use meta_run::Stderr;
+use std::path::PathBuf;
+use std::time::Duration;
 use thiserror::Error;
 
 use crate::git_log::{NotCommitId, Sha};
@@ -21,6 +23,8 @@ pub enum LogFailure {
     Rejected(Stderr),
     #[error("meta/log kept moving; gave up")]
     Contended,
+    #[error("meta/log kept moving; gave up; {} is {}s old; delete it if no meta process is running", .lock.display(), .age.as_secs())]
+    StaleLock { lock: PathBuf, age: Duration },
     #[error("{0}")]
     NotCommit(#[from] NotCommitId),
     #[error("{0}")]
