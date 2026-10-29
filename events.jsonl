@@ -1459,3 +1459,4 @@
 {"at":"2026-10-29T11:02:27.254098Z","actor":"claude-bugs2","kind":"TaskOpened","task":"task-e2a46f54b4e5f54d","text":"One CI conclusion type; cancelled fails closed","division":"features-and-maintenance","addresses":["concern-881ea1629fc9234e"]}
 {"at":"2026-10-29T11:02:31.331933Z","actor":"claude-bugs2","kind":"TaskClaimed","task":"task-14b715cf045525f5"}
 {"at":"2026-10-29T11:02:33.463345Z","actor":"claude-bugs2","kind":"TaskClaimed","task":"task-e2a46f54b4e5f54d"}
+{"at":"2026-10-29T11:03:59.632114Z","actor":"claude-bugs2","kind":"TaskLinked","task":"task-14b715cf045525f5","pr":177}
