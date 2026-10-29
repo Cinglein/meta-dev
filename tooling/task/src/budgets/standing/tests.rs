@@ -34,7 +34,7 @@ fn a_cap_reaches_only_its_own_divisions_tasks_and_a_fix_pays_down_its_level_or_a
         let link = ChangeLink::new(pull_request.parse().ok(), None);
         let filter = ItemFilter::Severity(SeverityFilter::AtLevel(level.parse().unwrap()));
         let exposure = Standing::read(&state, &link, policy.scales())
-            .exposure(&filter, &division.parse().unwrap());
+            .exposure(Some(&filter), &division.parse().unwrap());
         (exposure, exposure.exposed(&Selection::Workspace).is_some())
     });
     let blocked = |exposure: Exposure| exposure == Exposure::Within;
