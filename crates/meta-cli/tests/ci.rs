@@ -263,6 +263,46 @@ impl fmt::Display for Repo {
 }
 
 #[test]
+fn a_aa_diagnostic_step_timings() {
+    let rounds: Vec<String> = (0..12)
+        .map(|_| {
+            let started = Instant::now();
+            let mut marks = Vec::new();
+            let mut mark = |name: &str| marks.push(format!("{name}={}", started.elapsed().as_millis()));
+            let repo = Repo::new(FAILURE);
+            mark("new");
+            Planted::twin(&repo).wait().unwrap();
+            mark("twin");
+            repo.hook(POST, COMMIT);
+            mark("post");
+            repo.meta(&[CI_WAIT]);
+            mark("wait");
+            repo.hook(STOP, COMMIT);
+            mark("stop");
+            repo.hook(PRE, COMMIT);
+            mark("pre");
+            repo.git().committed(NEXT_COMMIT);
+            mark("commit");
+            repo.meta(&[CI_LOG]);
+            mark("log");
+            repo.git().committed(NEXT_COMMIT);
+            let repo = repo.passing();
+            mark("passing");
+            std::fs::write(repo.clone.path().join(EXPECTED), AT_ONCE).unwrap();
+            Planted::twin(&repo).wait().unwrap();
+            mark("twin2");
+            repo.hook(POST, COMMIT);
+            mark("post2");
+            repo.hook(STOP, COMMIT);
+            mark("stop2");
+            let events = std::fs::read_to_string(repo.clone.path().join(".git/meta-ci/ABCDEF1234/events"));
+            format!("{} | {}", marks.join(" "), events.unwrap_or_default().replace('\n', " / "))
+        })
+        .collect();
+    panic!("DIAG\n{}", rounds.join("\n"));
+}
+
+#[test]
 fn ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push() {
     let repo = Repo::new(FAILURE);
     Planted::twin(&repo).wait().unwrap();
