@@ -33,9 +33,9 @@ pub use git_failure::GitFailure;
 pub use identity::Identity;
 pub use layout::Layout;
 pub use object_id::ObjectId;
-pub use queries::{
-    FilesAt, FirstAddition, FirstParents, Heads, Ignored, RefTarget, RemoteUrl, Revision, Setting, Signers,
-};
+pub use queries::config::{Ignored, Setting};
+pub use queries::history::{FilesAt, FirstAddition, FirstParents, Signers};
+pub use queries::refs::{Heads, RefTarget, RemoteUrl, Revision};
 pub use query::Query;
 pub use reads::Reads;
 pub use ref_name::RefName;
