@@ -1530,3 +1530,4 @@
 {"at":"2026-10-29T15:22:27.422458Z","actor":"claude-fmpay","kind":"TaskClaimed","task":"task-ad95ca1ffd2d23c6"}
 {"at":"2026-10-29T15:22:50.061794Z","actor":"claude-fmpay","kind":"TaskLinked","task":"task-ad95ca1ffd2d23c6","pr":195}
 {"at":"2026-10-29T15:23:43.542097Z","actor":"claude-lead","kind":"TaskOpened","task":"task-acb2acbea5a26451","text":"Defer with Blacksmith and GitHub management: Basho CI billing block (Actions minutes; jobs not started since Oct 27).","division":"architecture-and-planning"}
+{"at":"2026-10-29T15:23:45.128241Z","actor":"claude-lead","kind":"TaskOpened","task":"task-5d64e0889b046e92","text":"Consumers onto the adoption gate (Basho: unpin meta-xtask, budgets, tools, Dependabot; chess: depend on meta-xtask, drop continue-on-error). Wait until meta is more stable (owner 2026-10-29).","division":"features-and-maintenance"}
