@@ -1605,3 +1605,4 @@
 {"at":"2026-10-29T20:15:17.215695Z","actor":"claude-lead","kind":"EntryCorrected","entry":"issue-a00a1debe260b3a5","text":"macOS: our meta-process-table code (meta gc's in-process open-file check, #172) fails its vetting/host/process_table tests locally with 'No such file or directory' (two agents, separate branches). Linux CI never compiles the darwin path (concern-b5d30ec3). Our bug, untested on CI."}
 {"at":"2026-10-29T20:16:09.165990Z","actor":"claude-sv1","kind":"TaskLinked","task":"task-29901bc46d17bf0a","pr":217}
 {"at":"2026-10-29T20:19:16.597677Z","actor":"claude-qa","kind":"TaskLinked","task":"task-cce9360d23a2663e","pr":218}
+{"at":"2026-10-29T20:19:33.633692Z","actor":"claude-qc","kind":"TaskLinked","task":"task-1920ab52fb3805f8","pr":219}
