@@ -79,7 +79,7 @@ impl RequiredTool {
                 "list this workspace in .github/dependabot.yml: an `updates` entry with `package-ecosystem: cargo`, `directory: /<workspace path>` and `schedule: interval: weekly`"
             }
             RequiredTool::DependabotAlerts => {
-                "turn on Dependabot alerts, give the step that runs `cargo xtask ci` env GH_TOKEN that can read them (for example `${{ secrets.DEPENDABOT_TOKEN || github.token }}` with `permissions: security-events: read`), and fix or dismiss every open alert"
+                "turn on Dependabot alerts, store a fine-grained token with repository permission \"Dependabot alerts: read\" as secret DEPENDABOT_TOKEN, pass it as env `GH_TOKEN: ${{ secrets.DEPENDABOT_TOKEN }}` to the step that runs `cargo xtask ci` (github.token cannot read alerts), and fix or dismiss every open alert"
             }
             RequiredTool::TestCpuTimeBudget => {
                 "copy this default into tooling/policy.toml:\n[budgets.test-cpu-time]\ndivision = \"performance-and-cost\"\nmeasure = \"test_cpu_time\"\nallowance = { duration = 4000 }\nwindow = \"per_change\"\nsource = \"ci\""

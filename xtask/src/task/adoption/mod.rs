@@ -186,7 +186,8 @@ updates:
   - package-ecosystem: github-actions
     directory: /unrun
 ";
-    const DIRECTORIES: [(&str, &str); 3] = [(".", FAILING), ("other", "true"), ("unrun", FAILING)];
+    const DIRECTORIES: [(&str, &[&str]); 3] =
+        [(".", &[FAILING]), ("other", &["true"]), ("unrun", &["sh", "-c", "echo 0"])];
 
     #[test]
     fn missing_tools_steps_that_can_skip_and_absent_steps_are_gaps_with_their_fix() {
@@ -196,7 +197,10 @@ updates:
                 let Ok(root) = text.parse();
                 Workflow::new(file.into(), root)
             });
-            let [cargo, gh] = [FAILING, gh].map(|program| CommandLine::new(Program::Executable(program.into())));
+            let [cargo, gh] = [&[FAILING], gh].map(|line: &[&str]| {
+                let (program, arguments) = line.split_first().unwrap();
+                CommandLine::new(Program::Executable(program.into())).arguments(arguments)
+            });
             let Ok(dependabot) = DEPENDABOT.parse();
             let (runner, workflows) = (Runner::Ci, workflows.into());
             Adoption { cargo, gh, runner, workflows, dependabot, directory }.gaps(&Policy::defaults())
