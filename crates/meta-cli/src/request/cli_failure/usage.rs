@@ -18,7 +18,7 @@ impl fmt::Display for Usage {
              \x20 gc restore <quarantine>   (puts a stranded quarantine's file modes back, unlocks it and moves it home)\n\
              \x20 release <task-id>   (unassigns you)\n\
              \x20 done|reopen <task-id>\n\
-             \x20 wait <task-id> --on <issue-id|task-id|review|ci|merge> | resume <task-id>\n\
+             \x20 wait <task-id> --on <issue-id|task-id|review|ci|merge> [--due <rfc3339>] | resume <task-id>   (reply due: --due, else now + [liveness] reply_within in tooling/policy.toml)\n\
              \x20 link <task-id> <pr-number>\n\
              \x20 retire <id> <reason>   (won't do; keeps the entry)\n\
              \x20 correct <id> <text>   (replaces the entry's text)\n\
@@ -28,7 +28,7 @@ impl fmt::Display for Usage {
              \x20 monitor tick|report   (tick: reports this project's processes, obvious and watch tiers, into the local record, exit 1 if anything is obvious; stops nothing unless meta.local.toml [monitor] stop lists a class; also runs on heartbeat tick | report: the latest report)\n\
              \x20 trace last|chrome [<command>]   (latest recorded run, or the latest of <command>: last: critical path by span kind and untraced time | chrome: Chrome trace JSON; every run records to .git/meta-local/traces, META_TRACE=off skips it, meta.local.toml [trace] traces and bytes cap what stays, newest written first)\n\
              \x20 hook session-start|pre-tool-use|post-tool-use|stop   (Claude Code hook JSON on stdin)\n\
-             \x20 queue run <pr-number>...   (lands each PR in order: updates it onto main, waits for checks, squash-merges it when green and clean, marks its task done as the holder once every linked PR merged; skips a conflicting PR and goes on; stops with a reason: off the default branch, base not strict, red, checks timeout, not mergeable, gh failure; exit 1 on a stop or a skip; up to about an hour per PR, so run it in the background; the hook refuses it to any actor but owner and claude-lead)\n\
+             \x20 queue run <pr-number>...   (lands each PR in order: updates it onto main, waits for checks, squash-merges it when green and clean, marks its task done as the holder once every linked PR merged; skips a conflicting PR and goes on; stops with a reason: off the default branch, base not strict, red, checks timeout, not mergeable, gh failure; exit 1 on a stop or a skip; up to about an hour per PR, so run it in the background; the hook allows it only when META_ACTOR names an actor in tooling/policy.toml [queue] landers)\n\
              \x20 ci-wait | ci-log   (this session's CI: wait for failure or completion | failed step output)\n\
              actor: $META_ACTOR, else owner",
         )

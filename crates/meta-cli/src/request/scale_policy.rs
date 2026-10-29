@@ -9,9 +9,13 @@ use serde::de::IgnoredAny;
 
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::LocalFile;
+pub use liveness::Liveness;
 pub use policy_millis::PolicyMillis;
+pub use queue_policy::QueuePolicy;
 
+mod liveness;
 mod policy_millis;
+mod queue_policy;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct ScalePolicy {
@@ -21,6 +25,10 @@ pub struct ScalePolicy {
     domains: BTreeMap<Division, Option<IgnoredAny>>,
     #[serde(default)]
     millis: PolicyMillis,
+    #[serde(default)]
+    liveness: Liveness,
+    #[serde(default)]
+    queue: QueuePolicy,
 }
 
 impl ScalePolicy {
@@ -41,8 +49,16 @@ impl ScalePolicy {
         self.millis
     }
 
+    pub fn queue(&self) -> &QueuePolicy {
+        &self.queue
+    }
+
     pub fn scales(&self) -> &Scales {
         &self.scales
+    }
+
+    pub fn liveness(&self) -> Liveness {
+        self.liveness
     }
 
     pub fn known(&self, division: &Division) -> Result<(), RatingFailure> {
@@ -54,7 +70,7 @@ impl ScalePolicy {
 
 impl From<Scales> for ScalePolicy {
     fn from(scales: Scales) -> ScalePolicy {
-        ScalePolicy { scales, domains: BTreeMap::new(), millis: PolicyMillis::default() }
+        ScalePolicy { scales, ..ScalePolicy::default() }
     }
 }
 

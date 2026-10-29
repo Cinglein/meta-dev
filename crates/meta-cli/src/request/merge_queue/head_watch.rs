@@ -71,7 +71,8 @@ impl<'run> HeadWatch<'run> {
     fn rechecked(&self, action: Action, refusal: GhRefusal) -> Result<Option<Watched>, CliFailure> {
         let patience = self.project.ci_settings().queue_patience(self.started.elapsed());
         let landed = self.turned()?.ok().and_then(|turn| turn.landed(patience)).transpose()?;
-        Ok(landed.flatten().or(Some(Watched::Stopped(Stop::Refused { action, refusal }))))
+        let noted = landed.flatten().map(|watched| watched.noted(&refusal));
+        Ok(noted.or(Some(Watched::Stopped(Stop::Refused { action, refusal }))))
     }
 
     fn turned(&self) -> Result<Result<Turn<'_>, GhRefusal>, CliFailure> {

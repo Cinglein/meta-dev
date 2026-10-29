@@ -110,8 +110,9 @@ impl TryFrom<Vec<String>> for Request {
                 Ok(Self::Write(Event::TaskOpened(parsed.due().into_iter().fold(sized, NewTask::due_by))))
             }
             "wait" => {
-                let parsed = parsed.allowing(&[OptionName::On])?;
-                Ok(Self::Wait(Block::new(parsed.task()?, parsed.blocker()?)))
+                let parsed = parsed.allowing(&[OptionName::On, OptionName::Due])?;
+                let block = Block::new(parsed.task()?, parsed.blocker()?);
+                Ok(Self::Wait(parsed.due().into_iter().fold(block, Block::reply_by)))
             }
             "resume" => Ok(Self::Write(Event::TaskUnblocked(task()?))),
             "link" => Ok(Self::Write(Event::TaskLinked(parsed.allowing(&[])?.task_link()?))),
@@ -184,8 +185,11 @@ impl Request {
                 )?;
                 Ok(answered.raised_with(local))
             }
-            Self::Monitor(command) => command
-                .answer(&LocalClone::try_from(project)?, &project::HeartbeatSettings::try_from(project.config())?),
+            Self::Monitor(command) => command.answer(
+                project,
+                &LocalClone::try_from(project)?,
+                &project::HeartbeatSettings::try_from(project.config())?,
+            ),
             Self::ClaimWorktree(claim) => LocalClone::try_from(project)?.claimed(project, claim, Self::actor()?),
             Self::Worktrees => LocalClone::try_from(project)?.worktrees(project),
             Self::Gc(sweep) => LocalClone::try_from(project)?.collected(project, sweep),
@@ -197,7 +201,9 @@ impl Request {
             ),
             Self::Wait(block) => {
                 let head = project.head().and_then(|head| head.commit_id());
-                Self::Write(Event::TaskBlocked(head.into_iter().fold(block, Block::at_head))).answer_in(project)
+                let block = head.into_iter().fold(block, Block::at_head);
+                let asked = ScalePolicy::read(project.root())?.liveness().asked(block, Utc::now());
+                Self::Write(Event::TaskBlocked(asked)).answer_in(project)
             }
         }
     }
