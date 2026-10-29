@@ -2,7 +2,7 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::process::{Child, Command};
 
-use super::{Held, ProcessTable, Scan};
+use super::{Held, ProcessTable, Scan, TableFailure};
 
 const SLEEP: &str = "sleep";
 const SECONDS: &str = "30";
@@ -12,6 +12,7 @@ const BUSY: [bool; 3] = [true, true, false];
 const EXITED: [bool; 3] = [false, true, false];
 const OPENED: [&str; 2] = ["/work/a", "/elsewhere/b"];
 const SCANNED: [&str; 2] = ["/work", "/else"];
+const REFUSED: &str = "refused by the kernel";
 const UNINSPECTED: &str = "2 processes could not be inspected\n";
 
 struct Sleeper(Child);
@@ -51,4 +52,5 @@ fn a_table_keeps_the_opened_paths_under_the_scanned_dirs_and_counts_each_uninspe
     let shown = held.uninspected().to_string();
     let under = held.under(&SCANNED.map(PathBuf::from));
     assert_eq!((shown.as_str(), under), (UNINSPECTED, vec![PathBuf::from(OPENED[0])]));
+    assert_eq!(TableFailure::new(REFUSED).to_string(), REFUSED);
 }
