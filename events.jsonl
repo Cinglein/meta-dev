@@ -1389,3 +1389,4 @@
 {"at":"2026-10-29T09:43:23.735992Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-96162816d53c4068","text":"Network-call budgets: count calls per operation (tests via shim, real runs via traces); CI fails over allowance; ratchet once under. Detail in entry history."}
 {"at":"2026-10-29T09:43:25.457646Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-54d4acc03dfdc35c","text":"Acceptance list: encode the 26 Basho-postmortem seeds as typed entries in self/spec, met (with enforcer) or pending (with concern). Detail in entry history."}
 {"at":"2026-10-29T09:50:59.121308Z","actor":"claude-claimport","kind":"TaskOpened","task":"task-0ff17d17778b9b34","text":"Claim and heartbeat on the meta-git port","division":"performance-and-cost","addresses":["concern-7c8ca24df2ec76b0"]}
+{"at":"2026-10-29T09:51:03.149852Z","actor":"claude-claimport","kind":"TaskClaimed","task":"task-0ff17d17778b9b34"}
