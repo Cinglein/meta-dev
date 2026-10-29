@@ -1318,3 +1318,4 @@
 {"at":"2026-10-29T02:30:58.722919Z","actor":"claude-slow2","kind":"TaskClaimed","task":"task-06bb10344144700a"}
 {"at":"2026-10-29T02:37:21.530783Z","actor":"claude-slow2","kind":"TaskLinked","task":"task-06bb10344144700a","pr":155}
 {"at":"2026-10-29T02:43:20.263589Z","actor":"claude-lead","kind":"TaskClaimed","task":"task-06bb10344144700a"}
+{"at":"2026-10-29T02:43:21.887275Z","actor":"claude-lead","kind":"TaskDone","task":"task-06bb10344144700a"}
