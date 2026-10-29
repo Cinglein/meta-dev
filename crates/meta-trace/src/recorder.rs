@@ -24,14 +24,20 @@ pub struct Recorder {
     dropped: AtomicU64,
     first: SpanId,
     parent: Option<SpanId>,
+    capacity: usize,
 }
 
 impl Recorder {
-    pub(crate) const CAPACITY: usize = 4096;
+    const CAPACITY: usize = 4096;
 
     pub fn new(parent: Option<SpanId>) -> Self {
-        let spans = Mutex::new(Vec::with_capacity(Self::CAPACITY));
-        Self { spans, dropped: AtomicU64::default(), first: SpanId::new(std::process::id(), 0), parent }
+        Self::of_capacity(parent, Self::CAPACITY)
+    }
+
+    pub(crate) fn of_capacity(parent: Option<SpanId>, capacity: usize) -> Self {
+        let spans = Mutex::new(Vec::with_capacity(capacity));
+        let first = SpanId::new(std::process::id(), 0);
+        Self { spans, dropped: AtomicU64::default(), first, parent, capacity }
     }
 
     pub fn current() -> Option<SpanId> {
@@ -58,8 +64,8 @@ impl Subscriber for Recorder {
         attributes.record(&mut code);
         let mut spans = self.locked();
         let parent = CURRENT.get().or_else(|| spans.first().map(SpanRecord::span_id)).or(self.parent);
-        let kind = SpanKind::try_from(code).ok().filter(|_| spans.len() < Self::CAPACITY);
-        let id = self.first.indexed(kind.map_or(Self::CAPACITY, |_| spans.len()));
+        let kind = SpanKind::try_from(code).ok().filter(|_| spans.len() < self.capacity);
+        let id = self.first.indexed(kind.map_or(self.capacity, |_| spans.len()));
         self.dropped.fetch_add(u64::from(kind.is_none()), Ordering::Relaxed);
         spans.extend(kind.map(|kind| SpanRecord::new(id, parent, kind, Micros::now()).on_lane(Lane::current())));
         id.into()
@@ -73,7 +79,7 @@ impl Subscriber for Recorder {
 
     fn enter(&self, span: &Id) {
         let span = SpanId::from(span);
-        CURRENT.set(Some(span).filter(|span| span.index() < Self::CAPACITY).or(CURRENT.get()));
+        CURRENT.set(Some(span).filter(|span| span.index() < self.capacity).or(CURRENT.get()));
     }
 
     fn exit(&self, span: &Id) {

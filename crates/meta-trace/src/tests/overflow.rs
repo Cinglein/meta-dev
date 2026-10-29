@@ -7,16 +7,17 @@ use crate::lane::Lane;
 use crate::recorder::Recorder;
 use crate::{Micros, SpanId, SpanRecord, Trace, Verb};
 
-const SHOWN: &str = "processes, 4096 spans\n1 spans dropped\n";
+const CAPACITY: usize = 4;
+const SHOWN: &str = "processes, 4 spans\n1 spans dropped\n";
 const LANE: Lane = Lane::new(2);
 const TID: &str = r#""tid":2"#;
 
 #[test]
 fn a_full_recorder_counts_its_drops_keeps_the_parent_chain_and_ignores_a_foreign_exit() {
-    let recorder = Arc::new(Recorder::new(None));
+    let recorder = Arc::new(Recorder::of_capacity(None, CAPACITY));
     let current = tracing::subscriber::with_default(Arc::clone(&recorder), || {
         let _command = Command(Verb::Status).entered();
-        (1..Recorder::CAPACITY).for_each(|_| drop(Fs.entered()));
+        (1..CAPACITY).for_each(|_| drop(Fs.entered()));
         let _dropped = Fs.entered();
         recorder.exit(&Id::from(SpanId::new(0, 0)));
         Recorder::current()

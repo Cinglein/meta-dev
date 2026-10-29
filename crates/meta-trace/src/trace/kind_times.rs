@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::collections::btree_map::IntoIter;
 use std::fmt;
 
 use crate::micros::Micros;
@@ -16,15 +15,6 @@ impl FromIterator<(SpanKind, Micros)> for KindTimes {
             *total = *total + time;
         });
         Self(totals)
-    }
-}
-
-impl IntoIterator for KindTimes {
-    type Item = (SpanKind, Micros);
-    type IntoIter = IntoIter<SpanKind, Micros>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
     }
 }
 
