@@ -2,6 +2,7 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::str::FromStr;
 
+use meta_git::RefName;
 use meta_schema::{Id, Task};
 use serde::{Deserialize, Serialize};
 
@@ -35,6 +36,14 @@ impl TryFrom<String> for BranchName {
 
     fn try_from(name: String) -> Result<Self, Self::Error> {
         Some(name).filter(|name| !name.is_empty()).map(Self).ok_or(Self::EMPTY)
+    }
+}
+
+impl TryFrom<&RefName> for BranchName {
+    type Error = &'static str;
+
+    fn try_from(name: &RefName) -> Result<Self, Self::Error> {
+        name.to_string().parse()
     }
 }
 

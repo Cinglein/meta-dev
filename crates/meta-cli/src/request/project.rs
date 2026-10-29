@@ -6,6 +6,7 @@ use std::str::FromStr;
 use std::sync::OnceLock;
 use std::time::Instant;
 
+use meta_git::{Head, Reads as _, RemoteUrl};
 use meta_log::{GitLog, RemoteHeads};
 use meta_run::{Budget, GitArgv, Port, Run};
 
@@ -57,7 +58,7 @@ impl Project {
 
     pub fn push_failure(&self, budget: Budget) -> Option<Listed> {
         let remote = self.config.remote().ok()?.to_string();
-        let unprotected = self.unprotected_branch(budget.deadline())?;
+        let unprotected = self.unprotected_branch()?;
         let push = self.git(["push", "--quiet", "-u", &remote, &unprotected.to_string()]);
         match push.ran(budget.remaining_deadline()) {
             Ok(ran) if ran.success() => None,
@@ -103,14 +104,14 @@ impl Project {
     }
 
     pub fn repository(&self) -> Result<Repository, RemoteFailure> {
-        let deadline = self.ci.remote_deadline();
         let remote = self.config.remote().map_err(|failure| RemoteFailure::NotGithub(Listed::new(failure)))?;
-        let url = Port::new(&self.root).reported(GitArgv::RemoteUrl, [remote.to_string()], deadline);
-        let url = url.map(|url| url.text().into_owned()).map_err(|failure| {
+        let url = meta_git::Repository::open(&self.root)
+            .and_then(|repository| repository.read(&RemoteUrl::from(remote.clone())));
+        let url = url.map_err(|failure| {
             RemoteFailure::GitFailed(Listed::new(format!("git failed reading the remote URL: {failure}")))
         })?;
-        let named = format!("remote URL `{}` names no GitHub owner and repository", url.trim());
-        url.lines().next().unwrap_or_default().parse().map_err(|()| RemoteFailure::NotGithub(Listed::new(named)))
+        let named = format!("remote URL `{url}` names no GitHub owner and repository");
+        url.parse().map_err(|()| RemoteFailure::NotGithub(Listed::new(named)))
     }
 
     fn loaded(root: PathBuf) -> Result<Self, CliFailure> {
@@ -143,18 +144,15 @@ impl Project {
         reported.is_ok_and(|git_path| start.born_after(&git_path.text(), modified))
     }
 
-    pub fn checkout(&self, deadline: Instant) -> &Checkout {
+    pub fn checkout(&self) -> &Checkout {
         self.checkout.get_or_init(|| {
-            let decorated = self.reflog(deadline).and_then(|entries| entries.iter().find_map(ReflogEntry::checkout));
-            decorated.cloned().unwrap_or_default()
+            let head = meta_git::Repository::open(&self.root).and_then(|repository| repository.read(&Head));
+            head.map(|head| Checkout::from(&head)).unwrap_or_default()
         })
     }
 
-    pub fn unprotected_branch(&self, deadline: Instant) -> Option<BranchName> {
-        let checkout = self.checkout(deadline);
-        let unborn = || self.git(["branch", "--show-current"]).stdout(deadline).ok()?.trim().parse().ok();
-        let branch: BranchName = checkout.head().map_or_else(unborn, |_| checkout.branch().cloned())?;
-        Some(branch).filter(|branch| self.config.protects(branch).is_none())
+    pub fn unprotected_branch(&self) -> Option<BranchName> {
+        self.checkout().branch().filter(|branch| self.config.protects(branch).is_none()).cloned()
     }
 }
 
