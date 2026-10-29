@@ -7,6 +7,7 @@ publish.workspace = true
 license.workspace = true
 
 [dependencies]
+meta-run.workspace = true
 meta-schema.workspace = true
 serde.workspace = true
 

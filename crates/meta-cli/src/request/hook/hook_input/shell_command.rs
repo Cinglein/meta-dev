@@ -17,6 +17,9 @@ impl ShellCommand {
     const QUOTES: &'static [char] = &['\'', '"'];
     const PR_MERGE: &'static [&'static str] = &["gh", "pr", "merge"];
     const PR_CREATE: &'static [&'static str] = &["gh", "pr", "create"];
+    const META: &'static str = "meta";
+    const QUEUE_RUN: [&'static str; 2] = ["queue", "run"];
+    const LANDING: &'static str = "meta queue run lands PRs: the owner's or the lead's job";
     const PUBLISHING: &'static [&'static str] = &["push", "commit"];
     const WRITING: &'static [&'static str] =
         &["commit", "merge", "rebase", "cherry-pick", "revert", "pull", "am", "push"];
@@ -24,7 +27,17 @@ impl ShellCommand {
     pub fn refusal(&self, config: &Config) -> Option<Listed> {
         self.invokes(Self::PR_MERGE)
             .map(|()| Listed::new("gh pr merge is the owner's job"))
+            .or_else(|| self.landing())
             .or_else(|| self.segments().filter_map(GitCall::parse).find_map(|call| call.push_refusal(config)))
+    }
+
+    fn landing(&self) -> Option<Listed> {
+        let meta = |word: &String| Path::new(word).file_name().is_some_and(|name| name == Self::META);
+        let queue_run = |window: &[String]| {
+            window.split_first().is_some_and(|(program, rest)| meta(program) && rest == Self::QUEUE_RUN)
+        };
+        let lands = |segment: &&[String]| segment.windows(Self::QUEUE_RUN.len() + 1).any(queue_run);
+        self.segments().find(lands).map(|_| Listed::new(Self::LANDING))
     }
 
     pub fn invokes(&self, words: &[&str]) -> Option<()> {
@@ -114,7 +127,12 @@ mod tests {
     }
 
     const CONFIG: &str = "protected = [\"main\"]\n";
-    const MERGES: [&str; 2] = ["gh pr merge 1", "cd x && gh pr merge 1 --squash"];
+    const MERGES: [&str; 4] = [
+        "gh pr merge 1",
+        "cd x && gh pr merge 1 --squash",
+        "meta queue run 1",
+        "cd x && target/release/meta queue run 1 2",
+    ];
     const PUSHES: [&str; 6] = [
         "git push --force origin feature",
         "git push -uf origin feature",

@@ -63,7 +63,7 @@ impl Gh {
     pub fn deadline_of(&self, call: GhArgv, now: Instant) -> Instant {
         match call {
             GhArgv::CommitChecks => self.deadline.min(now + self.limit),
-            GhArgv::FailedLog | GhArgv::UpdateBranch | GhArgv::SquashMerge => self.deadline,
+            GhArgv::FailedLog => self.deadline,
         }
     }
 

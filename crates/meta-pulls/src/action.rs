@@ -1,6 +1,7 @@
 use std::ffi::OsString;
 use std::fmt;
 
+use meta_run::PullArgv;
 use meta_schema::PullRequest;
 
 use crate::live_pull::HeadCommit;
@@ -14,10 +15,11 @@ pub enum Action {
 
 impl Action {
     #[must_use]
-    pub fn waits(&self) -> Option<()> {
+    pub fn call(&self) -> Option<PullArgv> {
         match self {
-            Self::Wait(_) => Some(()),
-            Self::CatchUp(_) | Self::Merge(..) => None,
+            Self::CatchUp(_) => Some(PullArgv::UpdateBranch),
+            Self::Merge(..) => Some(PullArgv::SquashMerge),
+            Self::Wait(_) => None,
         }
     }
 
@@ -28,14 +30,6 @@ impl Action {
             Self::Merge(pull_request, tested) => {
                 vec![OsString::from(tested.as_ref()), OsString::from(pull_request.to_string())]
             }
-        }
-    }
-
-    #[must_use]
-    pub fn tested(&self) -> Option<&HeadCommit> {
-        match self {
-            Self::Merge(_, tested) => Some(tested),
-            Self::CatchUp(_) | Self::Wait(_) => None,
         }
     }
 }

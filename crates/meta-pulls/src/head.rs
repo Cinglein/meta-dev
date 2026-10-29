@@ -1,3 +1,4 @@
+mod barred;
 mod behind;
 mod checking;
 mod conflicted;
@@ -10,6 +11,7 @@ use std::fmt;
 
 use crate::patience::Patience;
 use crate::transition::Transition;
+pub use barred::Barred;
 pub use behind::Behind;
 pub use checking::Checking;
 pub use conflicted::Conflicted;
@@ -21,6 +23,7 @@ pub use unmergeable::Unmergeable;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Head {
     Gone(Gone),
+    Barred(Barred),
     Conflicted(Conflicted),
     Red(Red),
     Behind(Behind),
@@ -34,7 +37,8 @@ impl Head {
     pub fn step(self, patience: Patience) -> Transition {
         match self {
             Self::Gone(gone) => gone.left(),
-            Self::Conflicted(conflicted) => conflicted.detoured(),
+            Self::Barred(barred) => barred.stopped(),
+            Self::Conflicted(conflicted) => conflicted.skipped(),
             Self::Red(red) => red.stopped(),
             Self::Behind(behind) => behind.caught_up(),
             Self::Green(green) => green.merged(),
@@ -46,14 +50,15 @@ impl Head {
 
 impl fmt::Display for Head {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Gone(_) => formatter.write_str("gone"),
-            Self::Conflicted(_) => formatter.write_str("conflicted"),
-            Self::Red(_) => formatter.write_str("red"),
-            Self::Behind(_) => formatter.write_str("behind"),
-            Self::Green(_) => formatter.write_str("green"),
-            Self::Unmergeable(_) => formatter.write_str("unmergeable"),
-            Self::Checking(_) => formatter.write_str("checking"),
-        }
+        formatter.write_str(match self {
+            Self::Gone(_) => "gone",
+            Self::Barred(_) => "barred",
+            Self::Conflicted(_) => "conflicted",
+            Self::Red(_) => "red",
+            Self::Behind(_) => "behind",
+            Self::Green(_) => "green",
+            Self::Unmergeable(_) => "unmergeable",
+            Self::Checking(_) => "checking",
+        })
     }
 }

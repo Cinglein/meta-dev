@@ -1,13 +1,16 @@
 mod close_out;
+mod gh_calls;
 mod head_watch;
 mod queue_run;
-mod watched;
 
 use meta_schema::PullRequest;
 
 use crate::request::cli_failure::{CliFailure, Misuse};
 use crate::request::output::Output;
 use crate::request::project::Project;
+use crate::request::scale_policy::ScalePolicy;
+use gh_calls::GhCalls;
+use head_watch::HeadWatch;
 use queue_run::QueueRun;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -24,8 +27,16 @@ impl MergeQueue {
     }
 
     pub fn run(self, project: &Project) -> Result<Output, CliFailure> {
-        let ran = self.pulls.iter().try_fold(QueueRun::new(), |ran, pull_request| ran.next(project, *pull_request));
-        ran.map(QueueRun::output)
+        let pace = project.ci_settings().queue_pace(ScalePolicy::read(project.root())?.millis().queue_floor()?)?;
+        GhCalls::new(project).trunk().map_or_else(
+            |stop| Ok(QueueRun::new().halted(&stop).output()),
+            |trunk| {
+                let watch = |pull_request: &PullRequest| HeadWatch::new(project, &trunk, pace, *pull_request);
+                let ran =
+                    self.pulls.iter().try_fold(QueueRun::new(), |ran, pull_request| ran.next(watch(pull_request)));
+                ran.map(QueueRun::output)
+            },
+        )
     }
 }
 

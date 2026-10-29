@@ -1,8 +1,9 @@
-conflicted: #105 conflicts with main: needs conflict fix
-gone: #196 merged: next
-conflicted: #200 conflicts with main: needs conflict fix
-behind: #203 behind main: update branch
-gone: #214 closed: next
-checking: #215 checks pending: wait
-behind: #216 behind main: update branch
-red: stop: #218 red: mutants (task), mutants (affected+meta-xtask), ci-gate
+#105 conflicts with main: needs conflict fix
+stop: #187 green but not mergeable: unstable
+#196 merged: next
+#200 conflicts with main: needs conflict fix
+#203 behind main: update branch => gh pr update-branch #203
+#214 closed: next
+#215 checks pending: wait
+#216 behind main: update branch => gh pr update-branch #216
+stop: #218 red: mutants (task), mutants (affected+meta-xtask), ci-gate

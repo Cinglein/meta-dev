@@ -9,6 +9,9 @@ use serde::de::IgnoredAny;
 
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::LocalFile;
+pub use policy_millis::PolicyMillis;
+
+mod policy_millis;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct ScalePolicy {
@@ -16,6 +19,8 @@ pub struct ScalePolicy {
     scales: Scales,
     #[serde(default)]
     domains: BTreeMap<Division, Option<IgnoredAny>>,
+    #[serde(default)]
+    millis: PolicyMillis,
 }
 
 impl ScalePolicy {
@@ -32,6 +37,10 @@ impl ScalePolicy {
         toml::from_str(&text).map_err(CliFailure::raised::<Setup>)
     }
 
+    pub fn millis(&self) -> PolicyMillis {
+        self.millis
+    }
+
     pub fn scales(&self) -> &Scales {
         &self.scales
     }
@@ -45,7 +54,7 @@ impl ScalePolicy {
 
 impl From<Scales> for ScalePolicy {
     fn from(scales: Scales) -> ScalePolicy {
-        ScalePolicy { scales, domains: BTreeMap::new() }
+        ScalePolicy { scales, domains: BTreeMap::new(), millis: PolicyMillis::default() }
     }
 }
 

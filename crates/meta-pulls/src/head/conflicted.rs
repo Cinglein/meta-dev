@@ -1,6 +1,5 @@
 use meta_schema::PullRequest;
 
-use crate::detour::Detour;
 use crate::transition::Transition;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -14,7 +13,7 @@ impl Conflicted {
     }
 
     #[must_use]
-    pub fn detoured(self) -> Transition {
-        Transition::Detour(Detour::Conflict(self.pull_request))
+    pub fn skipped(self) -> Transition {
+        Transition::Conflict(self.pull_request)
     }
 }

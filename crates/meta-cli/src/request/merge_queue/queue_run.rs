@@ -1,27 +1,26 @@
-use meta_pulls::{Detour, Stop};
+use meta_pulls::Stop;
 use meta_schema::PullRequest;
 
 use super::head_watch::HeadWatch;
 use crate::request::cli_failure::CliFailure;
 use crate::request::output::{Listed, Output};
-use crate::request::project::Project;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct QueueRun {
     shown: Listed,
-    detours: Option<Listed>,
+    flagged: Option<Listed>,
     halted: Option<()>,
 }
 
 impl QueueRun {
     pub fn new() -> Self {
-        Self { shown: Listed::new(""), detours: None, halted: None }
+        Self { shown: Listed::new(""), flagged: None, halted: None }
     }
 
-    pub fn next(self, project: &Project, pull_request: PullRequest) -> Result<Self, CliFailure> {
+    pub fn next(self, watch: HeadWatch<'_>) -> Result<Self, CliFailure> {
         match self.halted {
             Some(()) => Ok(self),
-            None => HeadWatch::new(project, pull_request).watched().map(|watched| watched.folded(self)),
+            None => watch.watched().map(|watched| watched.folded(self)),
         }
     }
 
@@ -29,13 +28,12 @@ impl QueueRun {
         Self { shown: self.shown.then(shown), ..self }
     }
 
-    pub fn detoured(self, detour: Detour) -> Self {
-        let pull_request = detour.pull_request();
-        let detours = self.detours.map_or_else(
-            || Listed::new(format_args!("skipped, needs a fix: {pull_request}")),
-            |detours| detours.then(format_args!(", {pull_request}")),
+    pub fn flagged(self, shown: Listed, pull_request: PullRequest) -> Self {
+        let flagged = self.flagged.map_or_else(
+            || Listed::new(format_args!("needs attention: {pull_request}")),
+            |flagged| flagged.then(format_args!(", {pull_request}")),
         );
-        Self { shown: self.shown.then(format_args!("{detour}\n")), detours: Some(detours), ..self }
+        Self { shown: self.shown.then(shown), flagged: Some(flagged), ..self }
     }
 
     pub fn halted(self, stop: &Stop) -> Self {
@@ -43,10 +41,10 @@ impl QueueRun {
     }
 
     pub fn output(self) -> Output {
-        match (self.halted, self.detours) {
+        match (self.halted, self.flagged) {
             (None, None) => Output::Listed(self.shown),
             (Some(()), None) => Output::Flagged(self.shown),
-            (_, Some(detours)) => Output::Flagged(self.shown.then(detours).then("\n")),
+            (_, Some(flagged)) => Output::Flagged(self.shown.then(flagged).then("\n")),
         }
     }
 }

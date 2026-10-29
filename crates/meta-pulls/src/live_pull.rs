@@ -3,6 +3,7 @@ mod checks;
 mod head_branch;
 mod head_commit;
 mod merge_state;
+mod merging;
 mod origin;
 mod pull_state;
 mod rollup;
@@ -16,6 +17,7 @@ pub use base_branch::BaseBranch;
 use head_branch::HeadBranch;
 pub use head_commit::HeadCommit;
 pub use merge_state::MergeState;
+use merging::Merging;
 use origin::Origin;
 pub use pull_state::PullState;
 use rollup::Rollup;
@@ -34,10 +36,8 @@ pub struct LivePull {
     origin: Origin,
     #[serde(default, rename = "statusCheckRollup")]
     rollup: Option<Rollup>,
-    #[serde(default, rename = "mergeStateStatus")]
-    merge: MergeState,
-    #[serde(default, rename = "headRefOid")]
-    commit: HeadCommit,
+    #[serde(flatten)]
+    merging: Option<Merging>,
 }
 
 impl LivePull {

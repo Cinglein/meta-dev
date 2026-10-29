@@ -3,7 +3,6 @@ mod log_window;
 mod millis;
 mod poll_schedule;
 mod program_name;
-mod queue_pace;
 mod stop_limit;
 
 use std::time::{Duration, Instant};
@@ -19,7 +18,6 @@ pub use log_window::LogWindow;
 pub use millis::Millis;
 use poll_schedule::PollSchedule;
 pub use program_name::ProgramName;
-pub use queue_pace::QueuePace;
 use stop_limit::StopLimit;
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
@@ -33,7 +31,7 @@ pub struct CiSettings {
     claim_millis: Millis,
     gh_millis: Millis,
     stop_millis: StopLimit,
-    queue_poll_millis: QueuePace,
+    queue_poll_millis: Millis,
     queue_checks_millis: Millis,
     #[serde(flatten)]
     poll_schedule: PollSchedule,
@@ -45,6 +43,8 @@ impl CiSettings {
     pub const DEFAULTS: &'static str = include_str!("ci_settings/ci_defaults.toml");
     pub const ROUTINE: GitWork = GitWork::Routine;
     pub const CLAIM: GitWork = GitWork::Claim;
+    const UNDER_FLOOR: &'static str =
+        "meta.toml [ci] queue_poll_millis is under tooling/policy.toml [millis] queue_pace";
 
     pub fn program(&self) -> &ProgramName {
         &self.program
@@ -82,12 +82,13 @@ impl CiSettings {
         self.stop_millis
     }
 
-    pub fn queue_pace(&self) -> QueuePace {
-        self.queue_poll_millis
+    pub fn queue_pace(&self, floor: Duration) -> Result<Duration, CliFailure> {
+        let pace = self.queue_poll_millis.duration();
+        (pace >= floor).then_some(pace).ok_or_else(|| CliFailure::raised::<Setup>(Self::UNDER_FLOOR))
     }
 
-    pub fn queue_turns(&self) -> impl Iterator<Item = ()> {
-        let polls = self.queue_checks_millis.duration().as_millis() / self.queue_poll_millis.duration().as_millis();
+    pub fn queue_turns(&self, pace: Duration) -> impl Iterator<Item = ()> {
+        let polls = self.queue_checks_millis.duration().as_millis() / pace.as_millis().max(1);
         std::iter::repeat_n((), usize::try_from(polls).unwrap_or(usize::MAX).saturating_add(1))
     }
 

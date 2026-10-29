@@ -3,10 +3,13 @@ use std::fmt;
 use super::LivePull;
 use super::checks::Checks;
 use super::merge_state::MergeState;
+use super::merging::Merging;
 use super::pull_state::PullState;
 use super::rollup::Rollup;
-use crate::head::{Behind, Checking, Conflicted, Gone, Green, Head, Red, Unmergeable};
+use crate::head::{Barred, Behind, Checking, Conflicted, Gone, Green, Head, Red, Unmergeable};
 use crate::required_checks::RequiredChecks;
+use crate::stop::Stop;
+use crate::trunk::Trunk;
 use crate::verdict::Verdict;
 
 #[derive(Clone, Copy, Debug)]
@@ -45,24 +48,33 @@ impl<'pull> RuledPull<'pull> {
     }
 
     #[must_use]
-    pub fn head(self) -> Head {
+    pub fn head(self, trunk: &Trunk) -> Head {
         let pull = self.pull;
         let number = pull.number;
-        let verdict = self.required.map_or(Verdict::Pending, |required| self.checks(required).verdict());
-        match (pull.state, pull.merge, verdict.failing(), verdict.passed()) {
+        match (pull.state, trunk.barred(number, &pull.base), pull.merging.as_ref()) {
             (PullState::Merged | PullState::Closed, ..) => Head::Gone(Gone::new(number, pull.state)),
-            (PullState::Open, MergeState::Dirty, ..) => Head::Conflicted(Conflicted::new(number)),
-            (PullState::Open, _, Some(_), _) => {
-                Head::Red(Red::new(number, pull.rollup.as_ref().map(Rollup::failing).unwrap_or_default()))
+            (PullState::Open, Some(stop), _) => Head::Barred(Barred::new(stop)),
+            (PullState::Open, None, None) => Head::Barred(Barred::new(Stop::Incomplete(number))),
+            (PullState::Open, None, Some(merging)) => self.open_head(merging),
+        }
+    }
+
+    fn open_head(self, merging: &Merging) -> Head {
+        let number = self.pull.number;
+        let verdict = self.required.map_or(Verdict::Pending, |required| self.checks(required).verdict());
+        match (merging.state(), verdict.failing(), verdict.passed()) {
+            (MergeState::Dirty, ..) => Head::Conflicted(Conflicted::new(number)),
+            (_, Some(_), _) => {
+                Head::Red(Red::new(number, self.pull.rollup.as_ref().map(Rollup::failing).unwrap_or_default()))
             }
-            (PullState::Open, MergeState::Behind, None, _) => Head::Behind(Behind::new(number)),
-            (PullState::Open, MergeState::Clean | MergeState::HasHooks, None, Some(())) => {
-                Head::Green(Green::new(number, pull.commit.clone()))
+            (MergeState::Behind, None, _) => Head::Behind(Behind::new(number)),
+            (MergeState::Clean | MergeState::HasHooks, None, Some(())) => {
+                Head::Green(Green::new(number, merging.commit().clone()))
             }
-            (PullState::Open, MergeState::Blocked | MergeState::Draft | MergeState::Unstable, None, Some(())) => {
-                Head::Unmergeable(Unmergeable::new(number, pull.merge))
+            (MergeState::Blocked | MergeState::Draft | MergeState::Unstable, None, Some(())) => {
+                Head::Unmergeable(Unmergeable::new(number, merging.state()))
             }
-            (PullState::Open, _, None, _) => Head::Checking(Checking::new(number)),
+            (_, None, _) => Head::Checking(Checking::new(number)),
         }
     }
 
