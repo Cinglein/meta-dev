@@ -57,8 +57,8 @@ impl Machine for LiveMachine<'_> {
     }
 
     fn started(&self, pid: Pid) -> Option<StartTime> {
-        let started = Self::probe(Self::PS).args(Self::START).arg(pid.to_string());
-        StartTime::read(&self.timed(started).and_then(Ran::succeeded).ok()?)
+        let started = pid.appended(Self::probe(Self::PS).args(Self::START));
+        self.timed(started).and_then(Ran::succeeded).ok()?.parse().ok()
     }
 
     fn signal(&self, signal: Signal, targets: &BTreeSet<Target>) {
@@ -109,7 +109,7 @@ mod tests {
         let (machine, pid) = (LiveMachine::new(&settings), Pid::from(child.id()));
         let table = machine.table().unwrap_or_default();
         let cwds = machine.cwds(&PidList::new(vec![pid])).unwrap_or_default();
-        let load = machine.uptime().and_then(|uptime| uptime.parse::<LoadAverage>().ok());
+        let load = machine.uptime().and_then(|uptime| uptime.parse::<LoadAverage>().ok()).zip(machine.started(pid));
         let started = Instant::now();
         machine.pause(GRACE);
         let paused = started.elapsed();

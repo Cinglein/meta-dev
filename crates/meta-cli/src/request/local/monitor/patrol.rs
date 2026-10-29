@@ -1,13 +1,13 @@
+mod confirmation;
 mod cwd_listing;
 mod judged_rows;
 mod process_table;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::{DateTime, Utc};
 
 use super::culprit::Culprit;
-use super::fault::Fault;
 use super::finding::Finding;
 use super::identity::Identity;
 use super::load_average::LoadAverage;
@@ -17,12 +17,13 @@ use super::monitor_report::MonitorReport;
 use super::monitor_state::MonitorState;
 use super::ownership::Ownership;
 use super::pid_list::PidList;
-use super::process_row::ProcessRow;
+use super::process_row::{Pid, ProcessRow};
 use super::reused::Reused;
 use super::signal::Signal;
 use super::target::Target;
 use super::watch_item::WatchItem;
 use crate::request::local::local_settings::MonitorSettings;
+use confirmation::Confirmation;
 use cwd_listing::CwdListing;
 use judged_rows::JudgedRows;
 use process_table::ProcessTable;
@@ -84,36 +85,32 @@ impl<'patrol, Host: Machine> Patrol<'patrol, Host> {
     }
 
     fn stopped(&self, culprits: &[Culprit], marked: &MarkedGroups) -> Vec<Finding> {
-        let known: Vec<Identity> =
-            culprits.iter().filter_map(|culprit| Identity::observe(self.host, culprit.pid())).collect();
-        let (live, refused) = self.confirmed(culprits.to_vec(), &known);
-        let targets: BTreeSet<Target> = live.iter().map(Culprit::target).collect();
+        let seen =
+            culprits.iter().filter_map(|culprit| Some((culprit.pid(), Identity::observe(self.host, culprit.pid())?)));
+        let known: BTreeMap<Pid, Identity> = seen.collect();
+        let first = self.confirmed(culprits.to_vec(), &known);
+        let targets: BTreeSet<Target> = first.kept().iter().map(Culprit::target).collect();
         let after = (!targets.is_empty()).then(|| {
             self.host.signal(Signal::Term, &targets);
             self.host.pause(self.settings.grace().duration());
             let rows = self.rows().unwrap_or_default();
             ProcessTable::new(rows, self.settings, self.host.own_pid()).judged(marked)
         });
-        let survivors = after.unwrap_or_default().survivors(&live);
-        let (doomed, refused_late) = self.confirmed(survivors, &known);
-        let killed: BTreeSet<Target> = doomed.iter().map(Culprit::target).collect();
+        let survivors = after.unwrap_or_default().survivors(first.kept());
+        let late = self.confirmed(survivors, &known);
+        let killed: BTreeSet<Target> = late.kept().iter().map(Culprit::target).collect();
         (!killed.is_empty()).then(|| self.host.signal(Signal::Kill, &killed));
-        let terminated = live.into_iter().map(|culprit| Finding::Signalled(Signal::Term, culprit));
-        let killing = doomed.into_iter().map(|culprit| Finding::Signalled(Signal::Kill, culprit));
-        terminated.chain(killing).chain(refused).chain(refused_late).collect()
+        let terminated = first.kept().iter().cloned().map(|culprit| Finding::Signalled(Signal::Term, culprit));
+        let killing = late.kept().iter().cloned().map(|culprit| Finding::Signalled(Signal::Kill, culprit));
+        let refused = first.refused().iter().chain(late.refused()).cloned();
+        terminated.chain(killing).chain(refused).collect()
     }
 
-    fn confirmed(&self, culprits: Vec<Culprit>, known: &[Identity]) -> (Vec<Culprit>, Vec<Finding>) {
-        let checked = culprits.into_iter().map(|culprit| {
-            let seen = known.iter().find(|identity| identity.of(culprit.pid()).is_some());
-            let outcome = seen.ok_or(Reused(culprit.pid())).and_then(|identity| identity.confirmed(self.host));
-            (culprit, outcome)
-        });
-        let (kept, refused): (Vec<_>, Vec<_>) = checked.partition(|(_, outcome)| outcome.is_ok());
-        let refusals = refused.into_iter().filter_map(|(_, outcome)| outcome.err());
-        (
-            kept.into_iter().map(|(culprit, _)| culprit).collect(),
-            refusals.map(|reused| Finding::Failed(Fault::shown(reused))).collect(),
-        )
+    fn confirmed(&self, culprits: Vec<Culprit>, known: &BTreeMap<Pid, Identity>) -> Confirmation {
+        culprits.into_iter().fold(Confirmation::default(), |sofar, culprit| {
+            let seen = known.get(&culprit.pid()).ok_or(Reused::new(culprit.pid()));
+            let outcome = seen.and_then(|identity| identity.confirmed(self.host));
+            sofar.judged(culprit, outcome)
+        })
     }
 }

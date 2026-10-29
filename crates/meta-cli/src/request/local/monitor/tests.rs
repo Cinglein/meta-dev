@@ -65,8 +65,8 @@ fn a_recorded_identity_is_refused_once_the_start_time_differs() {
     let recorded = Identity::observe(&FakeMachine::new(&[], "", "").started_at("t0"), pid).unwrap();
     let confirmed = |start| recorded.confirmed(&FakeMachine::new(&[], "", "").started_at(start));
     assert_eq!(confirmed("t0"), Ok(()));
-    assert_eq!(confirmed("t1"), Err(Reused(pid)));
-    assert_eq!(confirmed(""), Err(Reused(pid)));
+    assert_eq!(confirmed("t1"), Err(Reused::new(pid)));
+    assert_eq!(confirmed(""), Err(Reused::new(pid)));
 }
 
 struct Watch;

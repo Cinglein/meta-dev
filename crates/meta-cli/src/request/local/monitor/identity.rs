@@ -14,11 +14,7 @@ impl Identity {
         host.started(pid).map(|started| Self { pid, started })
     }
 
-    pub fn of(&self, pid: Pid) -> Option<()> {
-        (self.pid == pid).then_some(())
-    }
-
     pub fn confirmed(&self, host: &impl Machine) -> Result<(), Reused> {
-        (host.started(self.pid).as_ref() == Some(&self.started)).then_some(()).ok_or(Reused(self.pid))
+        (host.started(self.pid).as_ref() == Some(&self.started)).then_some(()).ok_or(Reused::new(self.pid))
     }
 }

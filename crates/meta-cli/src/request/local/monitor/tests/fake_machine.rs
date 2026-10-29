@@ -47,7 +47,7 @@ impl Machine for FakeMachine<'_> {
     }
 
     fn started(&self, _pid: Pid) -> Option<StartTime> {
-        StartTime::read(self.start)
+        self.start.parse().ok()
     }
 
     fn signal(&self, signal: Signal, targets: &BTreeSet<Target>) {
