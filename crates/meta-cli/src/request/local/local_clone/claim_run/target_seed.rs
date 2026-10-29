@@ -68,3 +68,23 @@ impl<'seed> TargetSeed<'seed> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::TargetSeed;
+
+    const TAG: &str = "Signature: 8a477f597d28d172789f06886806bc55\n# created by cargo\n";
+    const FILES: [&str; 4] = ["t/CACHEDIR.TAG", "t/debug/.cargo-lock", "t/debug/deps/libx.rlib", "t/doc/page"];
+
+    #[test]
+    fn a_seed_copies_the_tag_and_locked_profiles_and_skips_unlocked_ones() {
+        let clone = tempfile::tempdir().unwrap();
+        let worktree = tempfile::tempdir().unwrap();
+        for path in FILES.map(|file| clone.path().join(file)) {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, TAG).unwrap();
+        }
+        TargetSeed::new(clone.path(), worktree.path()).attempted().unwrap();
+        assert_eq!(FILES.map(|path| worktree.path().join(path).exists()), [true, true, true, false]);
+    }
+}
