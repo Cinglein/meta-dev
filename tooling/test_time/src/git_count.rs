@@ -7,6 +7,8 @@ use super::execution::Execution;
 pub struct GitCount;
 
 impl GitCount {
+    pub const SWITCH: &'static str = "META_GIT_COUNT";
+
     pub fn run(
         workspace: &Workspace,
         selection: &Selection,

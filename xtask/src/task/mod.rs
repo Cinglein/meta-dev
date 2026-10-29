@@ -54,7 +54,6 @@ pub enum Task {
     EnumPredicates,
     ExpressionFlow,
     FnShape,
-    GitCount,
     Goldens,
     GoldensOnline,
     Graph,
@@ -139,8 +138,6 @@ impl Task {
             Task::Clippy => Ok(Clippy::run(workspace, &selection, &policy)?),
             Task::Deny => Supply::deny(workspace, &policy),
             Task::Semver => Supply::semver(workspace, &selection, &policy),
-            Task::GitCount => Ok(GitCount::run(workspace, &selection, &policy, &mut ledger)
-                .and_then(|()| ledger.checked(&policy, &selection))?),
             Task::Goldens => GoldenRefresh::run(workspace, Reach::Offline),
             Task::GoldensOnline => GoldenRefresh::run(workspace, Reach::Online),
             Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
@@ -170,8 +167,11 @@ impl Task {
             Task::Stacked => Ok(Stacked::run(&policy)?),
             Task::Surfaces => Surfaces::announce(workspace.root(), &policy, summary.as_deref()),
             Task::Test => Ok(Test::run(workspace, &selection, &policy)?),
-            Task::TestTime => Ok(TestTime::run(workspace, &selection, &policy, &mut ledger)
-                .and_then(|()| ledger.checked(&policy, &selection))?),
+            Task::TestTime => Ok(match env::var_os(GitCount::SWITCH) {
+                Some(_) => GitCount::run(workspace, &selection, &policy, &mut ledger),
+                None => TestTime::run(workspace, &selection, &policy, &mut ledger),
+            }
+            .and_then(|()| ledger.checked(&policy, &selection))?),
             lint => Ok(<&'static str>::from(lint).parse::<LintName>().map_or(Ok(()), |lint| {
                 let files = workspace.source_files()?;
                 lint.report(&files, &CrateGraph::graphs(&files), &policy).verdict()
