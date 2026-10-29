@@ -22,7 +22,6 @@ const SESSION: &str = "ABCDEF12-34";
 const SESSION_FILE: &str = "ABCDEF1234";
 const FAILURE: Answer =
     Answer { checks: "01-failed-test-time", logs: &["02-failed-test-time-ci-log", "03-failed-test-time-gate-log"] };
-const SUCCESS: Answer = Answer { checks: "04-passed", logs: &[] };
 const PUSHED: &str = "feature";
 const NEXT_COMMIT: &str = "next";
 const LONG_AGO: Moment = Moment::after_epoch(1_000_000_000);
@@ -45,6 +44,19 @@ const NAMELESS: &str = "origin.git";
 const SESSION_DIR: &str = ".git/meta-ci/ABCDEF1234";
 const CONFIG_FILE: &str = "meta.toml";
 const STALLED: &str = "stop_millis = 40\n";
+const STUCK: &str = "STUCK9";
+const START_DIR: &str = "meta-sessions/STUCK9";
+const TOLD: [&str; 9] = [
+    UNCHECKED_EVENT,
+    UNCHECKED_STOP,
+    TASKLESS,
+    "\"permissionDecision\":\"deny\"",
+    START_DIR,
+    NOT_WATCHED,
+    UNWRITABLE,
+    OUT_OF_TIME,
+    "\"decision\":\"block\"",
+];
 const SLOW_REMOTE: [&str; 2] = ["remote.origin.uploadpack", "sleep 0.3; git-upload-pack"];
 const SLOW: Duration = Duration::from_millis(500);
 const NOT_WATCHED: &str = "CI not watched";
@@ -61,9 +73,6 @@ const COMPLETIONS: [&str; 6] = [
     ": absent after",
     ": unchecked after",
 ];
-
-#[path = "ci/pushes.rs"]
-mod pushes;
 
 #[derive(Clone, Copy)]
 struct Answer {
@@ -247,25 +256,18 @@ fn a_push_hook_watches_ci_wait_stop_and_log_report_a_failure_and_an_unreadable_r
     assert!(watched.contains(STEP_LISTED) && !waited.1.success() && stop.contains(BLOCK_REASON), "{watched}");
     assert!(waited.0.contains(STEP_LISTED) && waited.0.ends_with(WAIT_FAILED), "{}", waited.0);
     assert!(log.contains(LOGGED) && log.contains(BLOCKING) && !log.contains(COMPILING), "{log}");
-    let shown = [unchecked.as_str(), stopped.as_str()].concat();
-    assert!([UNCHECKED_EVENT, UNCHECKED_STOP, TASKLESS].iter().all(|told| shown.contains(told)), "{shown}");
-    let own = repo.clone.path().join(SESSION_DIR);
-    let open = Planted::locked(&own);
+    let [own, start] = [repo.clone.path().join(SESSION_DIR), repo.sessions.path().join(START_DIR)];
+    std::fs::create_dir_all(&start).unwrap();
+    let open = [&own, &start].map(|dir| Planted::locked(dir));
     repo.git().committed(NEXT_COMMIT);
-    let shown = [repo.hook(POST, COMMIT), repo.hook(STOP, COMMIT)].concat();
-    std::fs::set_permissions(&own, open).unwrap();
-    std::fs::OpenOptions::new()
-        .append(true)
-        .open(repo.clone.path().join(CONFIG_FILE))
-        .unwrap()
-        .write_all(STALLED.as_bytes())
-        .unwrap();
+    let stuck = Session { repo: &repo, cwd: repo.clone.path(), id: STUCK }.hook(PRE, COMMIT);
+    let shown = [unchecked, stopped, stuck, repo.hook(POST, COMMIT), repo.hook(STOP, COMMIT)].concat();
+    [own, start].iter().zip(open).for_each(|(dir, open)| std::fs::set_permissions(dir, open).unwrap());
+    let config = repo.clone.path().join(CONFIG_FILE);
+    std::fs::write(&config, std::fs::read_to_string(&config).unwrap() + STALLED).unwrap();
     let [key, value] = SLOW_REMOTE;
     repo.git().configured(key, value);
     let started = Instant::now();
     let shown = [shown, repo.hook(STOP, COMMIT)].concat();
-    assert!(
-        started.elapsed() < SLOW && [NOT_WATCHED, UNWRITABLE, OUT_OF_TIME].iter().all(|told| shown.contains(told)),
-        "{shown}"
-    );
+    assert!(started.elapsed() < SLOW && TOLD.iter().all(|told| shown.contains(told)), "{shown}");
 }
