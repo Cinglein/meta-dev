@@ -2,6 +2,7 @@ use std::time::{Duration, Instant};
 
 use strum::{Display, EnumIter, EnumString};
 
+use crate::task::adoption::Adoption;
 use crate::task::clippy::Clippy;
 use crate::task::failure::Failure;
 use crate::task::lint::Lint;
@@ -17,6 +18,7 @@ use test_time::TestTime;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumIter, EnumString)]
 #[strum(serialize_all = "kebab-case")]
 pub enum CiStep {
+    Adoption,
     Fmt,
     Clippy,
     Test,
@@ -35,6 +37,7 @@ impl CiStep {
     ) -> Result<Duration, Failure> {
         let started = Instant::now();
         let outcome = match self {
+            CiStep::Adoption => Adoption::checked(workspace, policy),
             CiStep::Fmt => workspace
                 .line(Program::Cargo)
                 .argument(CargoArgument::Fmt)
@@ -77,7 +80,7 @@ mod tests {
     use crate::task::Task;
     use test_time::TestRunner;
 
-    const STEPS: [&str; 6] = ["fmt", "clippy", "test", "lint", "spec", "supply"];
+    const STEPS: [&str; 7] = ["adoption", "fmt", "clippy", "test", "lint", "spec", "supply"];
 
     #[test]
     fn the_suite_runs_once_in_the_one_step_that_also_times_it_through_the_runner_task() {

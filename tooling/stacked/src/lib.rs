@@ -2,6 +2,7 @@ mod gh_argument;
 mod gh_field;
 mod gh_key;
 mod repository;
+mod run_event;
 mod stack_answer;
 
 use std::env;
@@ -11,6 +12,7 @@ use gh_argument::GhArgument;
 use gh_field::GhField;
 use gh_key::GhKey;
 use repository::Repository;
+use run_event::RunEvent;
 use stack_answer::StackAnswer;
 
 use task::Failure;
@@ -21,7 +23,6 @@ use task::{CommandLine, Program, Stdout};
 pub struct Stacked;
 
 impl Stacked {
-    const NUMBER: &str = "PULL_REQUEST";
     const REPOSITORY: &str = "GITHUB_REPOSITORY";
     const BASE: &str = "GITHUB_BASE_REF";
     const WAITS: [Duration; 3] = [Duration::from_secs(2); 3];
@@ -29,14 +30,17 @@ impl Stacked {
     const BASE_AND_STACK: &str = r#".data.repository.pullRequest | "\(.baseRefName) \(.stack.number // "none")""#;
 
     pub fn run(policy: &Policy) -> Result<(), Failure> {
-        let number = Self::required(Self::NUMBER)?;
+        RunEvent::ambient().number()?.map_or(Ok(()), |number| Self::pulled(&number, policy))
+    }
+
+    fn pulled(number: &str, policy: &Policy) -> Result<(), Failure> {
         let default = policy.branch(Branch::Default);
         let on_default = env::var(Self::BASE).ok().and_then(|base| base.parse().ok());
         let answer = match on_default.and_then(|base| StackAnswer::on_default_branch(base, default)) {
             Some(answer) => answer,
-            None => Self::asked(&number, default)?,
+            None => Self::asked(number, default)?,
         };
-        println!("{}", answer.verdict(&number, default)?);
+        println!("{}", answer.verdict(number, default)?);
         Ok(())
     }
 

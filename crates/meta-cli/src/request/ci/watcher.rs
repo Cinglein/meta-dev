@@ -146,7 +146,9 @@ impl Watcher {
                 std::thread::sleep(pause);
                 CiStatus::of_all(pushed.iter().map(|commit| dir.status_of(commit)))
             });
-        let news = dir.news().map(|news| news.to_string()).unwrap_or_default();
+        let own = dir.news().map(|news| news.to_string());
+        let shared: Vec<String> = pushed.iter().filter_map(|commit| dir.detail_of(commit)).collect();
+        let news = own.unwrap_or_else(|| shared.join("\n"));
         match settled {
             Some(CiStatus::Passed) => Ok(Output::Listed(Listed::new(format!("{news}\n")))),
             Some(status) => Err(CliFailure::raised::<Invalid>(format!("{news}\nCI {status}"))),
@@ -179,6 +181,7 @@ impl Watcher {
 
     fn note(&self, note: &Note) {
         self.dir.record(format!("{self}: {note}")).ok();
+        self.dir.detail(&self.commit, &format!("{self}: {note}")).ok();
         self.dir.settle(&self.commit, note.status()).ok();
     }
 }

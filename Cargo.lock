@@ -588,7 +588,6 @@ dependencies = [
  "libproc",
  "meta-gh",
  "meta-git",
- "meta-git-view",
  "meta-golden",
  "meta-listing",
  "meta-log",
@@ -629,15 +628,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "meta-git-view"
-version = "0.1.0"
-dependencies = [
- "meta-golden",
- "meta-run",
- "meta-schema",
-]
-
-[[package]]
 name = "meta-golden"
 version = "0.1.0"
 dependencies = [
@@ -663,7 +653,6 @@ dependencies = [
 name = "meta-log"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "meta-git",
  "meta-run",
  "meta-schema",
@@ -677,6 +666,7 @@ dependencies = [
 name = "meta-pull-query"
 version = "0.1.0"
 dependencies = [
+ "meta-gh",
  "meta-pulls",
  "meta-schema",
  "serde",
@@ -772,7 +762,7 @@ dependencies = [
 
 [[package]]
 name = "meta-xtask"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "affected",
  "build_time",

@@ -29,9 +29,22 @@ impl Repository {
         Ok(Repository { path: path.to_path_buf(), opened: Arc::new(Mutex::new(opened)) })
     }
 
+    pub fn discovered(path: &Path) -> Result<Option<Repository>, GitFailure> {
+        match git2::Repository::discover_path(path, std::iter::empty::<&Path>()) {
+            Ok(found) => Self::open(&found).map(Some),
+            Err(error) if error.code() == git2::ErrorCode::NotFound => Ok(None),
+            Err(error) => Err(GitFailure::from(error)),
+        }
+    }
+
     pub fn created(path: &Path, layout: Layout) -> Result<Repository, GitFailure> {
         git2::Repository::init_opts(path, &layout.options())?;
         Self::open(path)
+    }
+
+    #[must_use]
+    pub fn git_dir(&self) -> PathBuf {
+        self.locked().path().to_path_buf()
     }
 
     fn locked(&self) -> MutexGuard<'_, git2::Repository> {

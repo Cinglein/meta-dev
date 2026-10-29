@@ -49,7 +49,7 @@ fn a_clones_reflog_names_its_branch_and_new_commits_which_push_and_list_on_the_r
     let head = project.head().unwrap();
     let unpushed = project.unpushed(std::slice::from_ref(&head), &[], deadline).unwrap_or_default();
     let tips = project.independent_tips(&created, deadline).unwrap_or_default();
-    let named = project.checkout(deadline).branch().map(ToString::to_string);
+    let named = project.checkout().branch().map(ToString::to_string);
     assert!(
         [created.len(), unpushed.len()] == [COMMITS; 2] && tips == [head.clone()] && named.as_deref() == Some(BRANCH)
     );
