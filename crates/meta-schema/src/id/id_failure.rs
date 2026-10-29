@@ -2,7 +2,7 @@ use thiserror::Error;
 
 use crate::unparsed::Unparsed;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum IdFailure {
     #[error("expected a {expected} id, found `{found}`")]
     WrongKind { expected: &'static str, found: Unparsed },

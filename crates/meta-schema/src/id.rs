@@ -55,3 +55,26 @@ impl<'de, Kind: Entity> Deserialize<'de> for Id<Kind> {
         String::deserialize(deserializer)?.parse().map_err(In::Error::custom)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use meta_laws::Laws;
+
+    use super::{Id, IdFailure};
+    use crate::entity::{Entity, Task};
+
+    const ACCEPTED: [(&str, &str); 1] = [("task-00000000000000a1", "task-00000000000000a1")];
+    const WRONG_KIND: [&str; 2] = ["task", "concern-0000000000000001"];
+    const MALFORMED: [&str; 4] =
+        ["task-123", "task-0123456789ABCDEF", "task-+123456789abcdef", "task-000000000000000g"];
+
+    #[test]
+    fn an_id_is_its_kind_then_sixteen_lowercase_hex_digits() {
+        let wrong = |text: &str| IdFailure::WrongKind { expected: Task::PREFIX, found: text.into() };
+        let misread = [
+            Laws::misread::<Id<Task>>(&ACCEPTED, &WRONG_KIND, wrong),
+            Laws::misread::<Id<Task>>(&[], &MALFORMED, |_| IdFailure::Malformed),
+        ];
+        assert_eq!(misread.concat(), [""; 0]);
+    }
+}

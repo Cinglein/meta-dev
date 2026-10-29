@@ -78,3 +78,32 @@ impl fmt::Display for Division {
         self.below.iter().try_for_each(|name| write!(formatter, "/{name}"))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use meta_laws::Laws;
+
+    use super::{Division, DivisionFailure};
+
+    const ACCEPTED: [(&str, &str); 2] = [
+        ("performance-and-cost/ci/tests", "performance-and-cost/ci/tests"),
+        ("performance-and-cost/ci2-fast/9", "performance-and-cost/ci2-fast/9"),
+    ];
+    const REFUSED: [&str; 9] = [
+        "performance",
+        "performance-and-cost//ci",
+        "features-and-maintenance/",
+        "performance-and-cost/Ci",
+        "performance-and-cost/c i",
+        "performance-and-cost/ci_tests",
+        "performance-and-cost/é",
+        "performance-and-cost/-",
+        "performance-and-cost/ci/--",
+    ];
+
+    #[test]
+    fn a_division_is_a_top_division_then_slash_separated_lowercase_names() {
+        let misread = Laws::misread::<Division>(&ACCEPTED, &REFUSED, |id| DivisionFailure::Unplaced(id.into()));
+        assert_eq!(misread, [""; 0]);
+    }
+}

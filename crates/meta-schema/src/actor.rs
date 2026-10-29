@@ -52,3 +52,19 @@ impl<'de> Deserialize<'de> for Actor {
         String::deserialize(deserializer)?.parse().map_err(In::Error::custom)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use meta_laws::Laws;
+
+    use super::{Actor, ActorFailure};
+
+    const ACCEPTED: [(&str, &str); 3] = [("owner", "owner"), ("claude-1a2b", "claude-1a2b"), ("a.b_c", "a.b_c")];
+    const REFUSED: [&str; 4] = ["", "Owner", "-x", "a/b"];
+
+    #[test]
+    fn actor_names_are_lowercase_slugs() {
+        let misread = Laws::misread::<Actor>(&ACCEPTED, &REFUSED, |name| ActorFailure::NotASlug(name.into()));
+        assert_eq!(misread, [""; 0]);
+    }
+}

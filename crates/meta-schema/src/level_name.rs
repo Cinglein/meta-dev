@@ -42,3 +42,19 @@ impl fmt::Display for LevelName {
         formatter.write_str(&self.0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use meta_laws::Laws;
+
+    use super::{LevelName, LevelNameFailure};
+
+    const ACCEPTED: [(&str, &str); 3] = [("minor", "minor"), ("p1", "p1"), ("wrong-turn", "wrong-turn")];
+    const REFUSED: [&str; 5] = ["", "12", "Major", "wrong_turn", "-"];
+
+    #[test]
+    fn a_level_name_is_lowercase_letters_digits_and_hyphens_with_a_letter() {
+        let misread = Laws::misread::<LevelName>(&ACCEPTED, &REFUSED, |name| LevelNameFailure::Misspelled(name.into()));
+        assert_eq!(misread, [""; 0]);
+    }
+}

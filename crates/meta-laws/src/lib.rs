@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod dev_only;
 mod laws;
 
 pub use laws::Laws;
@@ -10,7 +12,7 @@ macro_rules! laws {
             fn $test() {
                 use ::proptest::test_runner::{Config, TestRng, TestRunner};
                 let config = Config {
-                    cases: $crate::Laws::cases().unwrap().get(),
+                    cases: $crate::Laws::cases(::std::path::Path::new(env!("CARGO_MANIFEST_DIR"))).unwrap().get(),
                     source_file: Some(file!()),
                     test_name: Some(stringify!($test)),
                     failure_persistence: None,

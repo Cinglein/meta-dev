@@ -44,8 +44,7 @@ impl fmt::Display for Record {
 
 #[cfg(test)]
 mod tests {
-    use meta_laws::{Laws, laws};
-    use proptest::sample::select;
+    use meta_laws::Laws;
 
     use super::Record;
     use crate::{
@@ -64,7 +63,7 @@ mod tests {
     struct Samples;
 
     impl Samples {
-        fn records() -> Vec<Record> {
+        fn records() -> [Record; 8] {
             let task = Id::generate();
             let text = || ACTOR.parse().unwrap();
             let division = || DIVISION.parse().unwrap();
@@ -86,12 +85,12 @@ mod tests {
                 Event::SchemaVersion(crate::SchemaVersion::current()),
             ]
             .map(|event| Record::new(ACTOR.parse().unwrap(), event))
-            .into()
         }
     }
 
-    laws! {
-        records_are_stored: Laws::recorded::<Record> => select(Samples::records());
+    #[test]
+    fn a_record_of_every_event_kind_reads_back_as_written() {
+        assert!(Samples::records().iter().all(Laws::recorded::<Record>));
     }
 
     #[test]
