@@ -1483,3 +1483,4 @@
 {"at":"2026-10-29T11:47:24.647727Z","actor":"claude-iowait","kind":"TaskClaimed","task":"task-6beed807cceeb66a"}
 {"at":"2026-10-29T11:56:24.000606Z","actor":"claude-iowait","kind":"TaskLinked","task":"task-6beed807cceeb66a","pr":185}
 {"at":"2026-10-29T12:05:34.935797Z","actor":"claude-buildtime","kind":"TaskDone","task":"task-8f28750069421696"}
+{"at":"2026-10-29T12:08:24.095956Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-cc5fd053a5e7e829","text":"A stale refs/meta-log/staged.lock left by a crashed writer makes appends retry until Contended, with no error naming the lock or a way out (after #177).","division":"features-and-maintenance","severity":"minor"}
