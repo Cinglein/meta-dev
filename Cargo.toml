@@ -27,7 +27,7 @@ chrono = { version = "0.4.44", default-features = false, features = ["std", "clo
 serde_json = "1.0.149"
 signal-hook = "0.3.18"
 serde = { version = "1.0.228", features = ["derive"] }
-toml = { version = "0.8.23", default-features = false, features = ["parse"] }
+toml = { version = "0.9.12", default-features = false, features = ["parse"] }
 proc-macro2 = { version = "1.0.107", features = ["span-locations"] }
 quote = "1.0.47"
 rustc_lexer = { package = "ra-ap-rustc_lexer", version = "0.174.0" }
