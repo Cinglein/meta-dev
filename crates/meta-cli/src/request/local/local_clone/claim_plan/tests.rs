@@ -55,7 +55,7 @@ fn the_holder_resumes_a_newcomer_claims_afresh_and_the_base_is_the_local_then_re
 fn a_plan_branches_only_from_a_base_writes_only_a_fresh_claim_and_refuses_a_taken_path() {
     let refs = Refs::new();
     let [local, branch, _] = &refs.2;
-    let resumed = [ClaimStep::Pruned, ClaimStep::Configured, ClaimStep::Added, ClaimStep::Settled];
+    let resumed = [ClaimStep::Pruned, ClaimStep::Configured, ClaimStep::Added, ClaimStep::Settled, ClaimStep::Seeded];
     let mut fresh = resumed.to_vec();
     fresh.insert(2, ClaimStep::Branched(branch.parse().unwrap()));
     fresh.push(ClaimStep::Written);
