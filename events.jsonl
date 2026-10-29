@@ -1249,3 +1249,4 @@
 {"at":"2026-10-28T23:59:53.766855Z","actor":"claude-supply","kind":"TaskLinked","task":"task-48fc1118f08abca6","pr":143}
 {"at":"2026-10-28T23:59:55.203306Z","actor":"claude-supply","kind":"TaskOpened","task":"task-d478c45138efbbd2","text":"Dependabot alerts in cargo xtask ci: fail closed in CI when alerts are off or unreadable; report open alerts (sub-task of task-48fc1118f08abca6)","division":"features-and-maintenance"}
 {"at":"2026-10-29T00:03:17.077655Z","actor":"claude-kill13","kind":"TaskOpened","task":"task-9b5044dec582cb15","text":"Catch meta-log missed mutants (read_listed, content_listed)","division":"performance-and-cost","addresses":["concern-7aca83c914a7509d"]}
+{"at":"2026-10-29T00:03:18.685549Z","actor":"claude-kill13","kind":"TaskOpened","task":"task-1b963573ed0242a7","text":"Catch tooling missed mutants (tolerance, surfaces, children cpu)","division":"performance-and-cost","addresses":["concern-7aca83c914a7509d"]}
