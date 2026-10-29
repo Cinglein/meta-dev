@@ -645,7 +645,7 @@ dependencies = [
 
 [[package]]
 name = "meta-xtask"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "affected",
  "corpus_check",
