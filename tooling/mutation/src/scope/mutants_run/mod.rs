@@ -38,6 +38,10 @@ impl MutantsRun {
         self.baseline.iter().try_for_each(|tests| build.passes(tests, budget, policy))?;
         let mut child = self.line.spawn()?;
         let status = MemoryWatch::over(&child, budget, policy).guard(&mut child, None)?;
-        MutantsExit::judged(status).map_or(Ok(false), |exit| Ok(MissedList::none_in(&self.output)? && exit.clean()))
+        MutantsExit::judged(status).map_or(Ok(false), |exit| {
+            let uncaught = MissedList::uncaught_in(&self.output)?;
+            eprint!("{}", uncaught.iter().map(|list| list.to_string() + "\n").collect::<String>());
+            Ok(uncaught.is_empty() && exit.clean())
+        })
     }
 }

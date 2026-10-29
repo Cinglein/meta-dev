@@ -14,13 +14,10 @@ pub struct MissedList {
 }
 
 impl MissedList {
-    pub fn none_in(output: &Path) -> Result<bool, Failure> {
-        let listed = Uncaught::ALL
-            .into_iter()
-            .map(|uncaught| MissedList::in_output(output, uncaught))
-            .collect::<Result<Vec<MissedList>, Failure>>()?;
-        listed.iter().filter(|list| !list.is_empty()).for_each(|list| eprintln!("{list}"));
-        Ok(listed.iter().all(MissedList::is_empty))
+    pub fn uncaught_in(output: &Path) -> Result<Vec<MissedList>, Failure> {
+        let listed = Uncaught::ALL.into_iter().map(|uncaught| MissedList::in_output(output, uncaught));
+        let listed = listed.collect::<Result<Vec<MissedList>, Failure>>()?;
+        Ok(listed.into_iter().filter(|list| !list.is_empty()).collect())
     }
 
     fn in_output(output: &Path, uncaught: Uncaught) -> Result<MissedList, Failure> {
@@ -48,24 +45,26 @@ impl fmt::Display for MissedList {
 
 #[cfg(test)]
 mod tests {
-    use super::{MissedList, Uncaught};
+    use super::MissedList;
+    const FILES: [&str; 2] = ["mutants.out/missed.txt", "mutants.out/timeout.txt"];
     const BLANK: &str = " \n\n";
     const TIMED_OUT: &str = "a.rs:1:1: delete x\n\nb.rs:2:2: replace y with 0\n";
-    const SHOWN: &str = "2 mutants timed out, never judged: make the tests that cover each faster; if they are fast, the --timeout guard is too tight\n  a.rs:1:1: delete x\n  b.rs:2:2: replace y with 0";
+    const SHOWN: [&str; 1] = [
+        "2 mutants timed out, never judged: make the tests that cover each faster; if they are fast, the --timeout guard is too tight\n  a.rs:1:1: delete x\n  b.rs:2:2: replace y with 0",
+    ];
 
     #[test]
-    fn a_missing_list_fails_closed_and_a_written_one_names_each_mutant_with_its_way_out() {
+    fn a_missing_list_fails_closed_and_only_written_ones_name_each_mutant_with_its_way_out() {
         let output = std::env::temp_dir().join(format!("meta-missed-{}", std::process::id()));
-        let absent = MissedList::none_in(&output).is_err();
-        let [missed, timed_out] = Uncaught::ALL.map(|uncaught| output.join(uncaught.file()));
+        let absent = MissedList::uncaught_in(&output).is_err();
+        let [missed, timed_out] = FILES.map(|file| output.join(file));
         std::fs::create_dir_all(missed.parent().unwrap()).unwrap();
         let written = [&missed, &timed_out].into_iter().all(|file| std::fs::write(file, BLANK).is_ok());
-        let clean = MissedList::none_in(&output).unwrap();
+        let clean = MissedList::uncaught_in(&output).unwrap().is_empty();
         std::fs::write(&timed_out, TIMED_OUT).unwrap();
-        let unjudged = MissedList::none_in(&output).unwrap();
-        let present = MissedList::parsed(TIMED_OUT, Uncaught::TimedOut);
+        let shown: Vec<String> = MissedList::uncaught_in(&output).unwrap().iter().map(ToString::to_string).collect();
         std::fs::remove_dir_all(&output).unwrap();
-        assert!(absent && written && clean && !unjudged);
-        assert_eq!(present.to_string(), SHOWN);
+        assert!(absent && written && clean);
+        assert_eq!(shown, SHOWN);
     }
 }
