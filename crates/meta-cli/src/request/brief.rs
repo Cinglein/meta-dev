@@ -10,6 +10,9 @@ pub use brief_request::BriefRequest;
 pub use options::BriefOptions;
 pub use rules::Rules;
 
+const REMOTE: &str = "origin";
+const LOG_BRANCH: &str = "meta/log";
+
 #[derive(Debug)]
 pub struct Brief {
     task: NewTask,
@@ -30,11 +33,16 @@ impl fmt::Display for Brief {
         let (repository, scratch) = (self.options.repository(), self.options.scratch());
         writeln!(formatter, "brief for {id} as {actor}")?;
         writeln!(formatter, "task: {}{}", self.task.text(), self.task.placement())?;
+        let addresses: Vec<String> = self.task.addresses().iter().map(ToString::to_string).collect();
+        (!addresses.is_empty()).then(|| writeln!(formatter, "addresses: {}", addresses.join(" "))).transpose()?;
+        self.task.effort_allowance().map(|effort| writeln!(formatter, "effort: {effort}")).transpose()?;
+        self.task.due_time().map(|due| writeln!(formatter, "due: {due}")).transpose()?;
         writeln!(formatter, "setup, in order:")?;
         writeln!(formatter, "1. gh repo clone {repository} {scratch}/{id}")?;
-        writeln!(formatter, "2. in the clone: nice -n 19 env CARGO_BUILD_JOBS=2 cargo build --release -p meta-cli")?;
-        writeln!(formatter, "3. in the clone: META_ACTOR={actor} target.noindex/release/meta claim {id} --worktree")?;
-        writeln!(formatter, "4. work in the worktree path it prints")?;
+        writeln!(formatter, "2. in the clone: git fetch {REMOTE} {LOG_BRANCH}")?;
+        writeln!(formatter, "3. in the clone: cargo build --release -p meta-cli (cargo rules below apply)")?;
+        writeln!(formatter, "4. in the clone: META_ACTOR={actor} target.noindex/release/meta claim {id} --worktree")?;
+        writeln!(formatter, "5. work in the worktree path it prints")?;
         writeln!(formatter, "rules ({}):", Rules::FILE)?;
         writeln!(formatter, "{}", self.rules)
     }

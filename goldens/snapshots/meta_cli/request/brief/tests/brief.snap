@@ -1,10 +1,14 @@
 brief for task-0123456789abcdef as claude-fixture
 task: Print a brief @features-and-maintenance
+addresses: concern-0123456789abcdef
+effort: 5000 tokens
+due: 2026-11-01 00:00Z
 setup, in order:
 1. gh repo clone Cinglein/fixture /scratch/task-0123456789abcdef
-2. in the clone: nice -n 19 env CARGO_BUILD_JOBS=2 cargo build --release -p meta-cli
-3. in the clone: META_ACTOR=claude-fixture target.noindex/release/meta claim task-0123456789abcdef --worktree
-4. work in the worktree path it prints
+2. in the clone: git fetch origin meta/log
+3. in the clone: cargo build --release -p meta-cli (cargo rules below apply)
+4. in the clone: META_ACTOR=claude-fixture target.noindex/release/meta claim task-0123456789abcdef --worktree
+5. work in the worktree path it prints
 rules (self/agent-rules.md):
 version: 7
 - first rule

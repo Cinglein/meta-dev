@@ -1,12 +1,20 @@
-version: 1
-- set the git identity: user.name Cinglein, user.email 64114772+Cinglein@users.noreply.github.com; never any other email
-- commit with `git commit -m`, ending with the trailer `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`; push after each commit; end PR bodies with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`
-- every cargo command runs as `nice -n 19` with `CARGO_BUILD_JOBS=2`, one at a time; run `cargo xtask ci --affected` before each push, ignoring local timing budgets
+version: 2
+- CLAUDE.md still applies; where it differs, this file wins
+- work in the worktree `meta claim <task> --worktree` creates (branch task-<id>); one task, one small PR off main
+- set the git identity before the first commit: user.name Cinglein, user.email 64114772+Cinglein@users.noreply.github.com; never any other email; never derive the actor from user or machine
+- commit as `git commit -m "<subject>" -m "<trailer>"`; end every commit with the Co-Authored-By trailer your harness's attribution instruction gives you; push after each commit
+- end PR bodies with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`; open the PR with `gh pr create`, then `meta link <task> <pr>`
+- every cargo command runs as `nice -n 19` with `CARGO_BUILD_JOBS=2`, one at a time
+- local gate: `cargo xtask ci --affected` green before every push, ignoring local timing budgets; then push and stop
+- CI: never watch it, never wait on it, never re-run it or a failed job; if it later goes red, the lead or a fresh agent handles it
+- red first: the first commit only tightens the check; push it; implement the fix locally; before pushing the fix, check the red run once with `gh run list`; if it has not concluded, wait for it (the one allowed CI wait: poll every 60 s, deadline 30 min) so the push does not cancel it; link the red run in the PR body
+- never merge or approve; never run `meta done` (the lead marks done after merge)
 - never push to main or force-push; never edit PR bases; no Docker, installs or new crates.io dependencies without owner approval
 - never rm, mv, python, sed, awk, perl, heredocs, shell redirection or `git stash`
-- NEVER re-run CI or a failed job; NEVER change a budget number
-- every wait has a deadline; `gh run watch` uses `--interval 60`; after an HTTP 403 wait 2 minutes; no unbounded loops
-- don't spawn subagents; don't run `meta done`
-- push and stop: report once CI has started; never wait for CI
-- red first; keep test lines minimal; test through the library
-- state the kernel concepts used and any new one, with why
+- NEVER change a budget number
+- every wait has a deadline; after an HTTP 403 wait 2 minutes; no unbounded loops
+- don't spawn subagents
+- no comments in code; no personal or machine details in files; send no email; web requests use the fixed project User-Agent
+- report surprises with `meta issue`
+- test through the library: tests call the crates' public API and production codepaths, no test-only helpers; keep test lines minimal
+- the PR body states the kernel concepts used and any new one, with why

@@ -1,11 +1,12 @@
 use meta_log::LogStore;
 use meta_schema::{Actor, Id, Task, Text};
-use meta_state::State;
+use meta_state::{State, TaskStatus};
 
 use super::{Brief, BriefOptions, Rules};
 use crate::request::cli_failure::{CliFailure, Invalid, Setup};
 use crate::request::output::{Listed, Output};
 use crate::request::project::{CiSettings, Project};
+use crate::request::repository::Repository;
 
 #[derive(Debug)]
 pub struct BriefRequest {
@@ -27,15 +28,30 @@ impl BriefRequest {
     ) -> Result<Output, CliFailure> {
         let log = project.log(project.ci_settings().budget(CiSettings::ROUTINE))?;
         let state = State::fold(log.read()?.records());
+        let rules = std::fs::read_to_string(project.root().join(Rules::FILE));
+        let repository = project.repository().map_err(|reason| CliFailure::raised::<Setup>(reason.into_listed()))?;
+        let actor = self.actor.clone().map_or_else(default_actor, Ok)?;
+        self.briefed(&state, rules, actor, repository).map(|brief| Output::Listed(Listed::new(brief)))
+    }
+
+    pub fn briefed(
+        self,
+        state: &State,
+        rules: std::io::Result<String>,
+        actor: Actor,
+        repository: Repository,
+    ) -> Result<Brief, CliFailure> {
         let held = state.tasks().iter().find(|held| held.new_task().task() == self.task);
         let task = held.ok_or_else(|| CliFailure::raised::<Invalid>(format!("unknown task {}", self.task)))?;
-        let file = project.root().join(Rules::FILE);
+        match state.status_of(task) {
+            status @ (TaskStatus::Done(_) | TaskStatus::Retired) => {
+                Err(CliFailure::raised::<Invalid>(format!("task {} is {status}; a brief needs a live task", self.task)))
+            }
+            _ => Ok(()),
+        }?;
         let failed = |reason: &dyn std::fmt::Display| CliFailure::raised::<Setup>(format!("{}: {reason}", Rules::FILE));
-        let text = std::fs::read_to_string(&file).map_err(|reason| failed(&reason))?;
+        let text = rules.map_err(|reason| failed(&reason))?;
         let rules = text.parse::<Rules>().map_err(|reason| failed(&reason))?;
-        let repository = project.repository().map_err(|reason| CliFailure::raised::<Setup>(reason.into_listed()))?;
-        let actor = self.actor.map_or_else(default_actor, Ok)?;
-        let options = BriefOptions::new(actor, self.scratch, repository);
-        Ok(Output::Listed(Listed::new(Brief::new(task.new_task().clone(), rules, options))))
+        Ok(Brief::new(task.new_task().clone(), rules, BriefOptions::new(actor, self.scratch, repository)))
     }
 }
