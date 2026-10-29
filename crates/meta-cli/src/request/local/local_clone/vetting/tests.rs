@@ -270,7 +270,10 @@ impl Bench {
 
     fn moves(change: &Change, to: &Path) -> bool {
         match change {
-            Change::Destroy(call) => call.words().last().is_some_and(|last| Path::new(last) == to),
+            Change::Destroy(call) => {
+                call.words().get(1).is_some_and(|word| word == "move")
+                    && call.words().last().is_some_and(|last| Path::new(last) == to)
+            }
             Change::Git(_) | Change::Freeze(..) | Change::Thaw(_) => false,
         }
     }
