@@ -24,7 +24,7 @@ impl From<Usage> for Failure {
 mod tests {
     use super::Task;
 
-    const SHOWN: &str = "usage: cargo xtask <affected|baseline|ci|";
+    const SHOWN: &str = "usage: cargo xtask <adoption|affected|baseline|ci|";
 
     #[test]
     fn usage_lists_the_tasks() {

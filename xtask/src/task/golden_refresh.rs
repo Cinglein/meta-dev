@@ -12,13 +12,8 @@ impl GoldenRefresh {
     const META_PACKAGE: &'static str = "meta-cli";
     const META: &'static str = "meta";
     const MESSAGES: &'static str = "--message-format=json";
-    const VIEWS: [&'static [&'static str]; 5] = [
-        &["meta-git-view", "--test", "goldens"],
-        &["meta-cli", "--lib"],
-        &["meta-xtask", "--lib"],
-        &["task", "--lib"],
-        &["elegance", "--lib"],
-    ];
+    const VIEWS: [&'static [&'static str]; 4] =
+        [&["meta-cli", "--lib"], &["meta-xtask", "--lib"], &["task", "--lib"], &["elegance", "--lib"]];
     const BLESSED: &'static str = "1";
     const CI: &'static str = "CI";
 
