@@ -69,3 +69,32 @@ impl fmt::Display for Concept {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::cmp::Ordering;
+    use std::collections::BTreeSet;
+
+    use super::Concept;
+    use crate::facts::Facts;
+    use crate::implementations::Implementations;
+    use crate::signature::Signature;
+    use crate::trait_catalog::TraitCatalog;
+    use crate::type_key::TypeKey;
+
+    const EXTENT: [&str; 2] = ["A", "B"];
+    const INTENTS: [[&str; 2]; 2] = [["fn a()", "fn b()"], ["fn a()", "fn c()"]];
+
+    #[test]
+    fn concepts_equal_in_area_and_extent_are_ordered_by_their_intent() {
+        let facts = Facts::default();
+        let (catalog, implementations) = (TraitCatalog::cataloged(&facts), Implementations::closed(&facts));
+        let extent: BTreeSet<TypeKey> =
+            EXTENT.iter().map(|name| TypeKey::foreign(&syn::parse_str(name).unwrap())).collect();
+        let signature = |text: &&str| Signature::abstracted(&syn::parse_str::<syn::Signature>(text).unwrap(), None);
+        let [first, second] = INTENTS
+            .map(|texts| Concept::named(extent.clone(), texts.iter().map(signature).collect(), &catalog, &implementations));
+        assert_eq!(first.larger_first(&second), Ordering::Less);
+        assert_eq!(second.larger_first(&first), Ordering::Greater);
+    }
+}

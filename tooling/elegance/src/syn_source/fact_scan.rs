@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use syn::visit::Visit;
 use syn::{
-    Ident, ImplItem, ItemFn, ItemImpl, ItemMod, ItemTrait, TraitBoundModifier, TraitItem, Type, TypeParamBound,
-    WherePredicate,
+    GenericArgument, Ident, ImplItem, ItemFn, ItemImpl, ItemMod, ItemTrait, PathArguments, PathSegment,
+    TraitBoundModifier, TraitItem, Type, TypeParamBound, TypePath, WherePredicate,
 };
 use task::{CrateName, SourceFile, Walk};
 
@@ -48,9 +48,36 @@ impl<'declared> FactScan<'declared> {
     }
 
     #[must_use]
-    pub fn blanket_parameter(item: &ItemImpl) -> Option<&Ident> {
-        match &*item.self_ty {
-            Type::Path(path) => path.path.get_ident().filter(|ident| Self::generic(item, ident)),
+    pub fn blanket_parameter<'item>(&self, item: &'item ItemImpl, ty: &'item Type) -> Option<&'item Ident> {
+        match ty {
+            Type::Path(path) => self.path_parameter(item, path),
+            Type::Reference(reference) => self.blanket_parameter(item, &reference.elem),
+            Type::Paren(parenthesized) => self.blanket_parameter(item, &parenthesized.elem),
+            Type::Group(grouped) => self.blanket_parameter(item, &grouped.elem),
+            _ => None,
+        }
+    }
+
+    fn path_parameter<'item>(&self, item: &'item ItemImpl, path: &'item TypePath) -> Option<&'item Ident> {
+        path.path
+            .get_ident()
+            .filter(|ident| Self::generic(item, ident))
+            .or_else(|| path.path.segments.last().and_then(|segment| self.wrapped(item, segment)))
+    }
+
+    fn wrapped<'item>(&self, item: &'item ItemImpl, segment: &'item PathSegment) -> Option<&'item Ident> {
+        let angled = match &segment.arguments {
+            PathArguments::AngleBracketed(angled) => Some(angled),
+            _ => None,
+        };
+        angled
+            .filter(|_| !self.declarations.declares_type(&segment.ident))
+            .and_then(|angled| angled.args.iter().find_map(|argument| self.argument_parameter(item, argument)))
+    }
+
+    fn argument_parameter<'item>(&self, item: &'item ItemImpl, argument: &'item GenericArgument) -> Option<&'item Ident> {
+        match argument {
+            GenericArgument::Type(inner) => self.blanket_parameter(item, inner),
             _ => None,
         }
     }
@@ -105,7 +132,7 @@ impl<'declared> FactScan<'declared> {
             .map(|segment| self.declarations.trait_key(owner, &segment.ident));
         let target = Self::named(&item.self_ty)
             .map_or_else(|| TypeKey::shaped(&item.self_ty), |ident| self.declarations.type_key(owner, ident));
-        match (implemented, Self::blanket_parameter(item)) {
+        match (implemented, self.blanket_parameter(item, &item.self_ty)) {
             (None, _) => Some(ImplKind::Inherent(target)),
             (Some(implemented), Some(parameter)) => {
                 Some(ImplKind::Blanket { bounds: self.bounds(owner, item, parameter), implemented })
@@ -117,7 +144,7 @@ impl<'declared> FactScan<'declared> {
 
     #[must_use]
     pub fn fact(&self, owner: &CrateName, item: &ItemImpl) -> Option<ImplFact> {
-        let own = Self::blanket_parameter(item).or_else(|| Self::named(&item.self_ty));
+        let own = self.blanket_parameter(item, &item.self_ty).or_else(|| Self::named(&item.self_ty));
         self.kind(owner, item).map(|kind| ImplFact::new(kind, Self::bodies(item, own)))
     }
 

@@ -7,12 +7,15 @@ publish.workspace = true
 
 [dependencies]
 task = { path = "../task" }
+settings = { path = "../settings" }
+serde = { version = "1", features = ["derive"] }
 syn = { version = "2", features = ["full", "parsing", "visit", "visit-mut"] }
 quote = "1"
 proc-macro2 = "1"
 
 [dev-dependencies]
 meta-golden = { path = "../../crates/meta-golden" }
+toml = "0.9"
 
 [lints]
 workspace = true

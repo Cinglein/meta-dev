@@ -1,9 +1,12 @@
+mod depths;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use crate::facts::Facts;
 use crate::tally::Tally;
 use crate::trait_key::TraitKey;
+use depths::Depths;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitGraph {
@@ -38,31 +41,40 @@ impl TraitGraph {
     }
 
     #[must_use]
-    pub fn depth_from(&self, key: &TraitKey, visiting: &BTreeSet<&TraitKey>) -> Tally {
-        let path: BTreeSet<&TraitKey> = visiting.iter().copied().chain(std::iter::once(key)).collect();
-        self.rests_on(key)
-            .into_iter()
-            .filter(|base| !path.contains(base))
-            .map(|base| Tally::ONE + self.depth_from(base, &path))
-            .max()
-            .unwrap_or_default()
+    pub fn depth(&self) -> Tally {
+        let keys: BTreeSet<&TraitKey> = self.supertraits.keys().chain(self.blankets.keys()).collect();
+        let depths = keys.iter().fold(Depths::default(), |depths, key| self.settled(key, &BTreeSet::new(), depths));
+        keys.iter().filter_map(|key| depths.settled_depth(key)).max().unwrap_or_default()
+    }
+
+    fn settled<'graph>(
+        &'graph self,
+        key: &'graph TraitKey,
+        path: &BTreeSet<&'graph TraitKey>,
+        depths: Depths<'graph>,
+    ) -> Depths<'graph> {
+        if depths.settled_depth(key).is_some() {
+            depths
+        } else {
+            let below: BTreeSet<&TraitKey> = path.iter().copied().chain(std::iter::once(key)).collect();
+            let bases: Vec<&TraitKey> =
+                self.rests_on(key).into_iter().filter(|base| !below.contains(base)).collect();
+            let depths = bases.iter().fold(depths, |depths, base| self.settled(base, &below, depths));
+            let deepest =
+                bases.iter().filter_map(|base| depths.settled_depth(base)).map(|depth| Tally::ONE + depth).max();
+            depths.settle(key, deepest.unwrap_or_default())
+        }
     }
 }
 
 impl fmt::Display for TraitGraph {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let depth = self
-            .supertraits
-            .keys()
-            .chain(self.blankets.keys())
-            .map(|key| self.depth_from(key, &BTreeSet::new()))
-            .max()
-            .unwrap_or_default();
         write!(
             formatter,
-            "graph edges: supertrait {}, blanket {}; depth {depth}",
+            "graph edges: supertrait {}, blanket {}; depth {}",
             self.supertraits.values().map(Tally::counting).sum::<Tally>(),
-            self.blankets.values().map(Tally::counting).sum::<Tally>()
+            self.blankets.values().map(Tally::counting).sum::<Tally>(),
+            self.depth()
         )
     }
 }

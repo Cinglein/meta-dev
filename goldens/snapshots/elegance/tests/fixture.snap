@@ -1,42 +1,74 @@
-types 15, traits declared 8, impls 21
+types 32, traits declared 11, impls 55
 missing abstractions: maximal (types, signatures) concepts with at least 2 of each
-  concepts 5: named by one trait 2, by a composition only 1, unnamed 2
-  missing, one trait must name it: 3
-  missing, a composition may name it: 2
+  concepts 25: named by one trait 2, by a composition only 1, unnamed 22
+  missing, one trait must name it: 23
+  missing, a composition may name it: 22
   largest, unnamed:
   1. 6 = 3 types x 2 signatures
+    types: fixture::Axe, fixture::Bow, fixture::Cup
+    share: up(&self) -> Bearing; west(&self) -> Bearing
+  2. 6 = 3 types x 2 signatures
+    types: fixture::Axe, fixture::Bow, fixture::Den
+    share: east(&self) -> Bearing; up(&self) -> Bearing
+  3. 6 = 3 types x 2 signatures
+    types: fixture::Axe, fixture::Bow, fixture::Elm
+    share: east(&self) -> Bearing; west(&self) -> Bearing
+  4. 6 = 3 types x 2 signatures
+    types: fixture::Axe, fixture::Cup, fixture::Den
+    share: south(&self) -> Bearing; up(&self) -> Bearing
+  5. 6 = 3 types x 2 signatures
+    types: fixture::Axe, fixture::Cup, fixture::Elm
+    share: south(&self) -> Bearing; west(&self) -> Bearing
+  6. 6 = 3 types x 2 signatures
+    types: fixture::Axe, fixture::Den, fixture::Elm
+    share: east(&self) -> Bearing; south(&self) -> Bearing
+  7. 6 = 3 types x 2 signatures
     types: fixture::Badge, fixture::Label, remote::Gadget
     share: height(&self) -> Height; width(&self) -> Width
-  2. 4 = 2 types x 2 signatures
-    types: fixture::Lonely, fixture::Phase
-    share: new() -> Self; rendered(&self, &mut Formatter, &Cow<str>) -> Result<Self, Error>
+  8. 6 = 3 types x 2 signatures
+    types: fixture::Bow, fixture::Cup, fixture::Den
+    share: north(&self) -> Bearing; up(&self) -> Bearing
+  9. 6 = 3 types x 2 signatures
+    types: fixture::Bow, fixture::Cup, fixture::Elm
+    share: north(&self) -> Bearing; west(&self) -> Bearing
+  10. 6 = 3 types x 2 signatures
+    types: fixture::Bow, fixture::Den, fixture::Elm
+    share: east(&self) -> Bearing; north(&self) -> Bearing
   largest, named only by a composition of shared traits:
   1. 4 = 2 types x 2 signatures
     types: fixture::Celsius, fixture::Kelvin
     share: symbol(&self) -> Symbol; value(&self) -> Degrees
 leverage: distinct method names usable on a type / method bodies written for it
   usable = inherent names + the methods of each trait the type has; a local trait contributes its declared methods, a foreign trait the names seen in impls
-  n 14: min 1.00, q1 1.00, median 1.00, q3 1.66, max 2.50
-  types with no bodies: 1
+  n 20: min 1.00, q1 1.00, median 1.00, q3 1.50, max 2.50
+  types with no bodies: 12
   lowest:
-    fixture::Label 1.00 (3 usable / 3 written)
+    fixture::Axe 1.00 (4 usable / 4 written)
+    fixture::Bow 1.00 (4 usable / 4 written)
+    fixture::Cup 1.00 (4 usable / 4 written)
+    fixture::Den 1.00 (4 usable / 4 written)
+    fixture::Elm 1.00 (4 usable / 4 written)
     fixture::Lonely 1.00 (3 usable / 3 written)
     fixture::Badge 1.00 (2 usable / 2 written)
-    fixture::Celsius 1.00 (2 usable / 2 written)
-    fixture::Kelvin 1.00 (2 usable / 2 written)
     fixture::Phase 1.00 (2 usable / 2 written)
     remote::Gadget 1.00 (2 usable / 2 written)
     fixture::Ember 1.00 (1 usable / 1 written)
-    fixture::Flint 1.00 (1 usable / 1 written)
-    fixture::Square 1.50 (3 usable / 2 written)
 trait-graph shape
-  graph edges: supertrait 1, blanket 1; depth 2
-  blanket share: 1 of 15 trait impls = 0.06
+  graph edges: supertrait 1, blanket 4; depth 2
+  blanket share: 7 of 43 trait impls = 0.16
   single-implementor traits: 3
     fixture::Gauge -> fixture::Meter
     fixture::Scaled -> fixture::Circle
     fixture::Solo -> fixture::Lonely
-  traits implemented directly, per implementing type: n 11: min 1, q1 1, median 1, q3 2, max 2
-  types with at least N = 2 traits (q3, at least 2) and no edge among them: 2
+  traits implemented directly, per implementing type: n 22: min 1, q1 1, median 2, q3 2, max 2
+  types with at least N = 2 traits (q3, at least 2) and no edge among them: 13
     fixture::Celsius: fixture::Reading, fixture::Unit
     fixture::Kelvin: fixture::Reading, fixture::Unit
+    fixture::U01: fixture::Reading, fixture::Unit
+    fixture::U02: fixture::Reading, fixture::Unit
+    fixture::U03: fixture::Reading, fixture::Unit
+    fixture::U04: fixture::Reading, fixture::Unit
+    fixture::U05: fixture::Reading, fixture::Unit
+    fixture::U06: fixture::Reading, fixture::Unit
+    fixture::U07: fixture::Reading, fixture::Unit
+    fixture::U08: fixture::Reading, fixture::Unit

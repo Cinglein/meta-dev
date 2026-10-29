@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use declared::Declared;
 use syn::visit::Visit;
-use syn::{Ident, ItemEnum, ItemFn, ItemMod, ItemStruct, ItemTrait, ItemUnion};
+use syn::{Ident, ItemEnum, ItemFn, ItemImpl, ItemMod, ItemStruct, ItemTrait, ItemUnion};
 use task::{CrateName, SourceFile, Walk};
 
 use crate::trait_key::TraitKey;
@@ -42,6 +42,11 @@ impl Declarations {
     }
 
     #[must_use]
+    pub fn declares_type(&self, ident: &Ident) -> bool {
+        self.types.contains_key(ident)
+    }
+
+    #[must_use]
     pub fn local_types(&self) -> BTreeSet<TypeKey> {
         self.types
             .iter()
@@ -76,6 +81,8 @@ impl<'ast> Visit<'ast> for Declarations {
     }
 
     fn visit_item_fn(&mut self, _: &'ast ItemFn) {}
+
+    fn visit_item_impl(&mut self, _: &'ast ItemImpl) {}
 
     fn visit_item_struct(&mut self, item: &'ast ItemStruct) {
         self.declare(&item.ident, Declared::Type);

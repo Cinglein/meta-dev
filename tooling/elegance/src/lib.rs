@@ -1,6 +1,7 @@
 mod concept;
 mod concept_report;
 mod distribution;
+mod elegance_settings;
 mod fact_source;
 mod facts;
 mod formal_context;
@@ -8,6 +9,7 @@ mod hundredths;
 mod impl_fact;
 mod impl_kind;
 mod implementations;
+mod intent_cap;
 mod leverage;
 mod leverage_report;
 mod method_name;
@@ -25,6 +27,7 @@ mod type_key;
 use std::fmt;
 
 use concept_report::ConceptReport;
+pub use elegance_settings::EleganceSettings;
 use fact_source::FactSource;
 use formal_context::FormalContext;
 use implementations::Implementations;
@@ -49,7 +52,7 @@ pub struct Measures {
 
 impl Measures {
     #[must_use]
-    pub fn measured(source: &impl FactSource) -> Measures {
+    pub fn measured(source: &impl FactSource, settings: &EleganceSettings) -> Measures {
         let facts = source.facts();
         let catalog = TraitCatalog::cataloged(&facts);
         let implementations = Implementations::closed(&facts);
@@ -58,7 +61,7 @@ impl Measures {
             types: Tally::counting(facts.types()),
             traits: Tally::counting(facts.traits()),
             impls: Tally::counting(facts.impls()),
-            concepts: ConceptReport::new(FormalContext::incidence(&facts).concepts(&catalog, &implementations)),
+            concepts: FormalContext::incidence(&facts).concepts(&catalog, &implementations, settings.max_intents()),
             leverage: LeverageReport::new(
                 facts
                     .types()
@@ -83,24 +86,43 @@ impl fmt::Display for Measures {
 
 #[cfg(test)]
 mod tests {
-    use super::{Measures, SynSource};
+    use super::{EleganceSettings, Measures, SynSource};
     use meta_golden::Golden;
+    use settings::EmbeddedDefaults;
     use task::SourceFile;
 
     const CRATES: [[&str; 3]; 2] = [
         ["fixture", "fixture/src/lib.rs", include_str!("../fixture/shapes.rs.txt")],
         ["remote", "remote/src/lib.rs", include_str!("../fixture/remote.rs.txt")],
     ];
+    const SMALL_CAP: &str = "max_intents = 4";
+    const INCOMPLETE: &str = "INCOMPLETE: more than 4 distinct intents";
+    const SNAPSHOT: &str = "fixture";
+
+    struct Fixture;
+
+    impl Fixture {
+        fn measured(settings: EleganceSettings) -> String {
+            let files: Vec<SourceFile> = CRATES
+                .iter()
+                .map(|[owner, path, text]| {
+                    SourceFile::parse(*path, (*text).to_owned()).unwrap().in_crate(owner.parse().unwrap())
+                })
+                .collect();
+            Measures::measured(&SynSource::new(&files), &settings).to_string()
+        }
+    }
 
     #[test]
     fn the_fixture_measures_match_the_golden() {
-        let files: Vec<SourceFile> = CRATES
-            .iter()
-            .map(|[owner, path, text]| {
-                SourceFile::parse(*path, (*text).to_owned()).unwrap().in_crate(owner.parse().unwrap())
-            })
-            .collect();
-        let measured = Measures::measured(&SynSource::new(&files)).to_string();
-        Golden::for_test(module_path!(), "fixture").checked(&measured).unwrap();
+        let measured = Fixture::measured(EleganceSettings::defaults());
+        Golden::for_test(module_path!(), SNAPSHOT).checked(&measured).unwrap();
+    }
+
+    #[test]
+    fn a_hit_intent_cap_is_reported_loudly_and_the_default_cap_is_not_hit() {
+        let capped: EleganceSettings = toml::from_str(SMALL_CAP).unwrap();
+        let (hit, spared) = (Fixture::measured(capped), Fixture::measured(EleganceSettings::defaults()));
+        assert!(hit.contains(INCOMPLETE) && !spared.contains(INCOMPLETE), "{hit}");
     }
 }

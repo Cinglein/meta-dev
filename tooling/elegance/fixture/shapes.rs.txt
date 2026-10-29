@@ -193,6 +193,133 @@ impl Pair for Port {
     }
 }
 
+pub trait Tag {
+    fn tag(&self) -> Text;
+}
+
+impl<T: Unit> Tag for &T {
+    fn tag(&self) -> Text {
+        Text
+    }
+}
+
+impl<T: Unit> Tag for &mut T {
+    fn tag(&self) -> Text {
+        Text
+    }
+}
+
+impl<T: Unit> Tag for Box<T> {
+    fn tag(&self) -> Text {
+        Text
+    }
+}
+
+impl<T: Unit> Tag for Option<T> {
+    fn tag(&self) -> Text {
+        Text
+    }
+}
+
+pub trait Ping {}
+pub trait Pong {}
+
+impl<T: Pong> Ping for T {}
+impl<T: Ping> Pong for T {}
+
+pub struct Host;
+
+impl Host {
+    pub fn open(&self) -> Door {
+        struct Hidden;
+        impl Hidden {
+            pub fn latch(&self) -> Latch {
+                Latch
+            }
+            pub fn knob(&self) -> Knob {
+                Knob
+            }
+        }
+        Door
+    }
+}
+
+pub struct Axe;
+pub struct Bow;
+pub struct Cup;
+pub struct Den;
+pub struct Elm;
+
+impl Axe {
+    pub fn south(&self) -> Bearing { Bearing }
+    pub fn east(&self) -> Bearing { Bearing }
+    pub fn west(&self) -> Bearing { Bearing }
+    pub fn up(&self) -> Bearing { Bearing }
+}
+
+impl Bow {
+    pub fn north(&self) -> Bearing { Bearing }
+    pub fn east(&self) -> Bearing { Bearing }
+    pub fn west(&self) -> Bearing { Bearing }
+    pub fn up(&self) -> Bearing { Bearing }
+}
+
+impl Cup {
+    pub fn north(&self) -> Bearing { Bearing }
+    pub fn south(&self) -> Bearing { Bearing }
+    pub fn west(&self) -> Bearing { Bearing }
+    pub fn up(&self) -> Bearing { Bearing }
+}
+
+impl Den {
+    pub fn north(&self) -> Bearing { Bearing }
+    pub fn south(&self) -> Bearing { Bearing }
+    pub fn east(&self) -> Bearing { Bearing }
+    pub fn up(&self) -> Bearing { Bearing }
+}
+
+impl Elm {
+    pub fn north(&self) -> Bearing { Bearing }
+    pub fn south(&self) -> Bearing { Bearing }
+    pub fn east(&self) -> Bearing { Bearing }
+    pub fn west(&self) -> Bearing { Bearing }
+}
+
+pub struct U01;
+pub struct U02;
+pub struct U03;
+pub struct U04;
+pub struct U05;
+pub struct U06;
+pub struct U07;
+pub struct U08;
+pub struct U09;
+pub struct U10;
+pub struct U11;
+
+impl Reading for U01 {}
+impl Unit for U01 {}
+impl Reading for U02 {}
+impl Unit for U02 {}
+impl Reading for U03 {}
+impl Unit for U03 {}
+impl Reading for U04 {}
+impl Unit for U04 {}
+impl Reading for U05 {}
+impl Unit for U05 {}
+impl Reading for U06 {}
+impl Unit for U06 {}
+impl Reading for U07 {}
+impl Unit for U07 {}
+impl Reading for U08 {}
+impl Unit for U08 {}
+impl Reading for U09 {}
+impl Unit for U09 {}
+impl Reading for U10 {}
+impl Unit for U10 {}
+impl Reading for U11 {}
+impl Unit for U11 {}
+
 pub struct Ember;
 pub struct Flint;
 
