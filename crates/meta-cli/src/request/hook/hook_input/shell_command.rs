@@ -105,8 +105,9 @@ mod tests {
         let directories = |command: &str| command.parse::<ShellCommand>().unwrap().commit_directories(Path::new(CWD));
         let expected =
             |paths: &[&str]| paths.iter().map(|path| PathBuf::from(path.replacen('~', &home, 1))).collect::<Vec<_>>();
-        assert!(WRITERS.iter().all(|command| directories(command).len() == 1));
-        assert!(NOT_WRITERS.iter().all(|command| directories(command).is_empty()));
+        let writes = |command: &str| command.parse::<ShellCommand>().unwrap().writes();
+        assert!(WRITERS.iter().all(|command| directories(command).len() == 1) && writes(WRITERS[1]).is_some());
+        assert!(NOT_WRITERS.iter().all(|command| directories(command).is_empty()) && writes(NOT_WRITERS[2]).is_none());
         assert!(CHAINS.iter().all(|(command, paths)| directories(command) == expected(paths)));
     }
 
