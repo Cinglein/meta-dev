@@ -1,96 +1,110 @@
-use std::collections::BTreeMap;
-use std::ffi::{OsStr, OsString};
-use std::path::{Path, PathBuf};
+use std::fs::File;
+use std::path::Path;
+use std::time::Duration;
 
-use meta_run::{CommandLine, Environment};
+use meta_run::{Budget, CommandLine, Environment};
 
 use super::deletable::Deletable;
-use super::entry_kind::EntryKind;
-use super::fake_host::{FakeHost, PATH, TASK};
-use super::git_call::GitCall;
-use super::vetted::Vetted;
+use super::repo::Repo;
+use super::scene::{Real, Recorded, TASK};
+use super::vet_argv::VetArgv;
+use super::vetted::{Pass, Vetted};
+use super::world::World;
+use crate::request::local::local_clone::quarantine::{Quarantine, Stamp};
 use crate::request::local::recorded_worktree::RecordedWorktree;
 
 const LATE: &str = "late.log";
-const RACES: [[&str; 2]; 2] = [["status", "?? late.log\0"], ["rev-parse", "c5\n"]];
 const RACED: [&str; 2] = ["untracked files", "changed during checks"];
-const QUARANTINE: &str = "/trees/.gc-task-00000000000000b1-1x0";
-const MOVED_OUT: &str = "worktree move /trees/task-00000000000000b1 /trees/.gc-task-00000000000000b1";
-const MOVED_BACK: &str = "worktree move /trees/.gc-task-00000000000000b1";
-const RESTORED: &str = " /trees/task-00000000000000b1";
-const REMOVE: &str = "worktree remove";
-const FROZEN: &str = "frozen /trees/.gc-task-00000000000000b1-1x0";
-const THAWED: &str = "thawed /trees/.gc-task-00000000000000b1-1x0";
-const INHERITED: [(&str, &str); 3] = [("GIT_DIR", "d"), ("HOME", "h"), ("GIT_INDEX_FILE", "i")];
-const ISOLATED: [(&str, Option<&str>); 6] = [
-    ("GIT_CONFIG_GLOBAL", Some("/dev/null")),
-    ("GIT_CONFIG_NOSYSTEM", Some("1")),
-    ("GIT_CONFIG_SYSTEM", Some("/dev/null")),
-    ("GIT_DIR", None),
-    ("GIT_INDEX_FILE", None),
-    ("GIT_TERMINAL_PROMPT", Some("0")),
+const LATE_IN_THE_WORKTREE: [&str; 2] = ["untracked files", "branch differs from the remote"];
+const STAMP: &str = "1x0";
+const ISOLATED: [(&str, &str); 6] = [
+    ("GIT_CONFIG_GLOBAL", "/dev/null"),
+    ("GIT_CONFIG_NOSYSTEM", "1"),
+    ("GIT_CONFIG_SYSTEM", "/dev/null"),
+    ("GIT_NO_REPLACE_OBJECTS", "1"),
+    ("GIT_DIR", "/clone/.git"),
+    ("GIT_TERMINAL_PROMPT", "0"),
 ];
-const STAT_PINS: [&str; 2] = ["core.trustctime=true", "core.checkStat=default"];
-const REFUSALS: [&str; 4] = ["no recorded worktree id", "changed during checks", "in use", "in use"];
-
-struct Sweep(FakeHost);
-
-impl Sweep {
-    fn refusal(&self) -> Option<String> {
-        let vet = || Vetted::proved(&FakeHost::worktree(), &self.0.context(), &self.0);
-        let deletable = Deletable::confirmed(vet().unwrap(), vet());
-        let removed =
-            deletable.and_then(|deletable| deletable.removed(&FakeHost::worktree(), &self.0.context(), &self.0));
-        removed.err().map(|kept| kept.to_string())
-    }
-}
+const STAT_PINS: [&str; 2] = ["core.trustctime", "core.checkStat"];
+const REFUSALS: [&str; 3] = ["no recorded worktree id", "changed during checks", "in use"];
+const PATIENT: Duration = Duration::from_secs(10);
+const WORDS: [&str; 5] = ["git", "ls-files", "-s", "-v", "-z"];
 
 #[test]
-fn a_file_or_commit_made_after_the_vet_is_caught_in_quarantine_and_the_worktree_moves_back() {
-    let sweeps = RACES.map(|race| {
-        let mut host = FakeHost::clean();
-        host.races(race);
-        Sweep(host)
+fn the_re_read_in_quarantine_catches_a_late_file_or_commit() {
+    let first = Recorded::clean().judged().unwrap();
+    let mut late_file = Recorded::clean();
+    late_file.status = "?? late.log\0";
+    let mut late_commit = Recorded::clean();
+    late_commit.survey.local = Ok(Recorded::local(super::scene::REFS, "c5"));
+    let rechecked = [late_file, late_commit].map(|scene| {
+        let refs = scene.survey.local.clone();
+        first.rechecked(&scene.settled(), refs).err().map(|kept| kept.to_string()).unwrap_or_default()
     });
-    assert_eq!(sweeps.each_ref().map(Sweep::refusal), RACED.map(|reason| Some(reason.to_owned())));
-    let calls: Vec<Vec<String>> = sweeps.iter().map(|sweep| sweep.0.calls()).collect();
-    assert!(
-        calls.iter().all(|calls| {
-            calls.iter().any(|call| call.contains(MOVED_OUT))
-                && calls.last().is_some_and(|call| call.contains(MOVED_BACK) && call.ends_with(RESTORED))
-                && !calls.iter().any(|call| call.contains(REMOVE))
-                && [FROZEN, THAWED].iter().all(|step| calls.iter().any(|call| call == step))
-        }),
-        "{calls:?}"
-    );
+    assert_eq!(rechecked, RACED);
 }
 
 #[test]
-fn vetting_git_ignores_inherited_git_variables_and_global_and_system_config_and_pins_stat_checks() {
-    let call = GitCall::common(Path::new(QUARANTINE), &[OsStr::new(LATE)]);
-    let inherited = INHERITED.map(|(name, value)| (OsString::from(name), Some(OsString::from(value))));
-    let run = call.run(Environment::from(BTreeMap::from(inherited)));
-    let isolated = ISOLATED.map(|(name, value)| (OsString::from(name), value.map(OsString::from)));
-    assert_eq!(Environment::from(&run), Environment::from(BTreeMap::from(isolated)));
-    let line = CommandLine::from(&run).to_string();
-    assert!(STAT_PINS.iter().all(|pin| line.split(' ').any(|argument| argument == *pin)));
+fn a_late_file_or_commit_after_the_sweep_is_caught_by_the_fresh_re_read_before_any_move() {
+    let real = Real::new(&[TASK]);
+    let context = real.context();
+    let worktree = real.worktree(TASK);
+    let swept = || Vetted::proved(&worktree, &context, Pass::Swept).unwrap();
+    let late_file = swept();
+    std::fs::write(worktree.path().join(LATE), LATE).unwrap();
+    let file_refusal = Deletable::confirmed(late_file, Vetted::proved(&worktree, &context, Pass::Fresh));
+    std::fs::remove_file(worktree.path().join(LATE)).unwrap();
+    let late_commit = swept();
+    World::run(worktree.path(), &["commit", "-q", "--allow-empty", "-m", "late"]);
+    let commit_refusal = Deletable::confirmed(late_commit, Vetted::proved(&worktree, &context, Pass::Fresh));
+    let shown = [file_refusal, commit_refusal].map(|refused| refused.err().map(|kept| kept.to_string()).unwrap_or_default());
+    assert_eq!(shown, LATE_IN_THE_WORKTREE);
+    assert!(worktree.path().exists() && real.branch(TASK));
 }
 
 #[test]
-fn an_unidentified_record_or_an_occupied_quarantine_keeps_the_worktree() {
-    let host = FakeHost::clean();
-    let unidentified = RecordedWorktree::new(PathBuf::from(PATH), TASK.parse().unwrap());
-    let refused = Vetted::proved(&unidentified, &host.context(), &host).err().map(|kept| kept.to_string());
-    let mut occupied = FakeHost::clean();
-    occupied.entry_is(QUARANTINE, EntryKind::Dir);
-    let mut followed = FakeHost::clean();
-    followed.opens(PathBuf::from(QUARANTINE).join(LATE));
-    let followed = Sweep(followed);
-    let mut busy = FakeHost::clean();
-    busy.opens(PathBuf::from(PATH).join(LATE));
-    let busy = Sweep(busy);
-    let refusals = [refused, Sweep(occupied).refusal(), followed.refusal(), busy.refusal()];
-    assert_eq!(refusals, REFUSALS.map(|reason| Some(reason.to_owned())));
-    assert!(followed.0.calls().last().is_some_and(|call| call.contains(MOVED_BACK) && call.ends_with(RESTORED)));
-    assert!(!busy.0.calls().iter().any(|call| call.contains(MOVED_OUT)));
+fn a_vetted_worktree_moves_to_quarantine_and_is_removed_with_its_branch() {
+    let real = Real::new(&[TASK]);
+    let context = real.context();
+    let worktree = real.worktree(TASK);
+    let vetted = Vetted::proved(&worktree, &context, Pass::Fresh).unwrap();
+    let stamp: Stamp = STAMP.parse().unwrap();
+    let freed = Deletable::confirmed(vetted.clone(), Ok(vetted)).and_then(|it| it.removed(&worktree, &context, &stamp));
+    let quarantine = Quarantine::named(worktree.path(), &stamp);
+    assert!(freed.is_ok(), "{freed:?}");
+    assert!(!worktree.path().exists() && !quarantine.exists() && !real.branch(TASK));
+}
+
+#[test]
+fn an_unidentified_record_an_occupied_quarantine_or_an_open_file_keeps_the_worktree() {
+    let real = Real::new(&[TASK]);
+    let context = real.context();
+    let worktree = real.worktree(TASK);
+    let unidentified = RecordedWorktree::new(worktree.path().to_path_buf(), TASK.parse().unwrap());
+    let refused = Vetted::proved(&unidentified, &context, Pass::Fresh).err();
+    let stamp: Stamp = STAMP.parse().unwrap();
+    let quarantine = Quarantine::named(worktree.path(), &stamp);
+    let removal = || {
+        let vetted = Vetted::proved(&worktree, &context, Pass::Fresh).unwrap();
+        Deletable::confirmed(vetted.clone(), Ok(vetted)).and_then(|it| it.removed(&worktree, &context, &stamp)).err()
+    };
+    std::fs::create_dir(&quarantine).unwrap();
+    let occupied = removal();
+    std::fs::remove_dir(&quarantine).unwrap();
+    let _held = File::open(worktree.path().join("meta.toml")).unwrap();
+    let busy = removal();
+    let refusals = [refused, occupied, busy].map(|kept| kept.map(|kept| kept.to_string()).unwrap_or_default());
+    assert_eq!(refusals, REFUSALS);
+    assert!(worktree.path().exists() && !quarantine.exists() && real.branch(TASK));
+}
+
+#[test]
+fn vetting_git_sets_its_own_repository_ignores_global_and_system_config_and_pins_stat_checks() {
+    let run = Repo::common(Path::new("/clone/.git"), Budget::new(PATIENT)).run(VetArgv::Index, Vec::new());
+    let set = Environment::from(&run);
+    let shown = format!("{set:?}");
+    let isolated = ISOLATED.iter().all(|(name, value)| shown.contains(&format!("{name:?}: Some({value:?})")));
+    let pinned = STAT_PINS.iter().all(|pin| shown.contains(pin));
+    let line = CommandLine::from(&run);
+    assert!(isolated && pinned && line.words() == WORDS, "{shown}");
 }

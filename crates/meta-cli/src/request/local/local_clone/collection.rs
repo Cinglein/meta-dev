@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 
-use crate::request::local::local_clone::vetting::Inspection;
+use crate::request::local::local_clone::vetting::Disk;
 use crate::request::local::trail_entry::TrailEntry;
 use assessed::Assessed;
 pub use census::Census;
@@ -24,12 +24,12 @@ use verdict::Verdict;
 pub struct Collection(Vec<Verdict>);
 
 impl Collection {
-    pub fn swept<Host: Inspection + Sync>(sweeper: &Sweeper<'_, Host>, census: &Census) -> Self {
+    pub fn swept(sweeper: &Sweeper<'_>, census: &Census) -> Self {
         let width = std::thread::available_parallelism().map_or(1, NonZeroUsize::get);
         let assessed: Vec<Assessed<'_>> =
             census.tracked().chunks(width).flat_map(|chunk| sweeper.assessed_together(chunk, census)).collect();
         let candidates: Vec<PathBuf> = assessed.iter().filter_map(Assessed::candidate).map(Path::to_path_buf).collect();
-        let occupancy = LazyCell::new(|| sweeper.host().occupancy(&candidates));
+        let occupancy = LazyCell::new(|| Disk::occupancy(&candidates, sweeper.context().budget()));
         let finished =
             assessed.into_iter().map(|assessed| assessed.verdict(|candidate| sweeper.freed(candidate, &occupancy)));
         let unrecorded = census.unrecorded().map(|path| sweeper.unrecorded(path));

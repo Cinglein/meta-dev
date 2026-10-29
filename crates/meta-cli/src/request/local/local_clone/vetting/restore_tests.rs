@@ -1,37 +1,33 @@
-use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
+use std::time::Duration;
+
+use meta_run::Budget;
 
 use super::deletable::Deletable;
-use super::fake_host::{FakeHost, PATH};
-use super::thaw::{Thaw, Thawed};
+use super::disk::Disk;
+use super::scene::{Real, TASK};
+use super::thaw::Thaw;
+use super::world::World;
+use crate::request::local::local_clone::quarantine::Quarantine;
 
-const QUARANTINE: &str = "/trees/.gc-task-00000000000000b1-1x0";
-const COMMON: &str = "/clone/.git";
-const LEDGER: &str = "/clone/.git/meta-local/quarantine/.gc-task-00000000000000b1-1x0.json";
-const FILE: &str = "/trees/.gc-task-00000000000000b1-1x0/meta.toml";
-const WRITABLE: u32 = 0o644;
-const STEPS: [&str; 3] = [
-    "thawed /trees/.gc-task-00000000000000b1-1x0/meta.toml",
-    "worktree unlock /trees/.gc-task-00000000000000b1-1x0",
-    "worktree move /trees/.gc-task-00000000000000b1-1x0 /trees/task-00000000000000b1",
-];
+const STAMP: &str = "1x0";
+const WRITABLE: u32 = 0o200;
+const PATIENT: Duration = Duration::from_secs(10);
 
 #[test]
 fn a_stranded_quarantine_is_restored_from_its_ledger_and_without_one_nothing_moves() {
-    let thaw = Thaw::planned(Path::new(PATH), Thaw::ledger_of(Path::new(QUARANTINE), Path::new(COMMON)))
-        .holding(vec![Thawed::new(PathBuf::from(FILE), &Permissions::from_mode(WRITABLE))]);
-    let mut host = FakeHost::clean();
-    host.text_is(LEDGER, &serde_json::to_string(&thaw).unwrap());
-    let restored = Deletable::unstranded(Path::new(QUARANTINE), Path::new(COMMON), &host);
-    let calls = host.calls();
-    assert!(restored.is_ok_and(|origin| origin == Path::new(PATH)) && thaw.ledger() == Path::new(LEDGER));
-    assert!(
-        STEPS.iter().zip(calls.iter()).all(|(step, call)| call.ends_with(step)) && calls.len() == STEPS.len(),
-        "{calls:?}"
-    );
-    let empty = FakeHost::clean();
-    assert!(
-        Deletable::unstranded(Path::new(QUARANTINE), Path::new(COMMON), &empty).is_err() && empty.calls().is_empty()
-    );
+    let real = Real::new(&[TASK]);
+    let origin = real.world.trees().join(TASK);
+    let quarantine = Quarantine::named(&origin, &STAMP.parse().unwrap());
+    let common = real.world.common();
+    let budget = Budget::new(PATIENT);
+    let unledgered = Deletable::unstranded(&quarantine, &common, budget);
+    real.world.git(&["worktree", "move", origin.to_str().unwrap(), quarantine.to_str().unwrap()]);
+    World::run(&common, &["worktree", "lock", quarantine.to_str().unwrap()]);
+    let plan = Thaw::planned(&origin, Thaw::ledger_of(&quarantine, &common));
+    Disk::frozen(&quarantine, plan).unwrap();
+    let restored = Deletable::unstranded(&quarantine, &common, budget);
+    let mode = std::fs::metadata(origin.join("meta.toml")).unwrap().permissions().mode();
+    assert!(unledgered.is_err() && restored.is_ok_and(|back| back == origin), "{origin:?}");
+    assert!(!quarantine.exists() && mode & WRITABLE != 0 && !Thaw::ledger_of(&quarantine, &common).exists());
 }

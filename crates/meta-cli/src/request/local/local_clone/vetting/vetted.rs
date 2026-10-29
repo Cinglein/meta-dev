@@ -1,30 +1,34 @@
 mod checkouts;
 mod index;
 mod link;
+mod local_refs;
+mod pass;
+mod placed;
 mod porcelain;
 mod ref_line;
 mod ref_list;
+mod settled;
 mod survey;
 mod tree;
 
-use std::ffi::OsStr;
-use std::path::Path;
-
+use super::asked::Beyond;
 use super::context::Context;
-use super::entry_kind::EntryKind;
-use super::inspection::Inspection;
 use super::kept::Kept;
 use crate::request::local::byte_count::ByteCount;
 use crate::request::local::recorded_worktree::RecordedWorktree;
 pub use checkouts::Checkouts;
-use index::Index;
-use link::Scope;
-pub use link::{Link, Step};
-use porcelain::Porcelain;
-use ref_line::RefLine;
+pub use index::Index;
+pub use link::{Guard, Link, Pointers, Resolved, Scope, Step};
+pub use local_refs::LocalRefs;
+pub use pass::Pass;
+pub use placed::Placed;
+pub use porcelain::Porcelain;
+pub use ref_line::RefLine;
 pub use ref_list::RefList;
-use survey::Survey;
-use tree::Tree;
+pub use settled::Settled;
+pub use survey::Survey;
+#[cfg(test)]
+pub use tree::Tree;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Vetted {
@@ -35,54 +39,43 @@ pub struct Vetted {
 }
 
 impl Vetted {
-    const INDEX: [&'static str; 4] = ["ls-files", "-s", "-v", "-z"];
-    const STATUS: [&'static str; 7] = [
-        "status",
-        "--porcelain",
-        "-z",
-        "--untracked-files=all",
-        "--ignored=matching",
-        "--ignore-submodules=none",
-        "--no-renames",
-    ];
-    const BEYOND: [&'static str; 3] = ["rev-list", "--max-count=1", "--ignore-missing"];
-    const NOT: &'static str = "--not";
-    const MODULES: &'static str = ".gitmodules";
-    const TAG: &'static str = "CACHEDIR.TAG";
-
-    pub fn proved(worktree: &RecordedWorktree, context: &Context, host: &impl Inspection) -> Result<Self, Kept> {
-        Self::judged(worktree, context, host, Survey::Fresh)
+    pub fn new(link: Link, refs: RefList, branch: RefLine, bytes: ByteCount) -> Self {
+        Self { link, refs, branch, bytes }
     }
 
-    pub fn proved_among(
-        worktree: &RecordedWorktree,
-        context: &Context,
-        host: &impl Inspection,
-        checkouts: &Result<Checkouts, Kept>,
-    ) -> Result<Self, Kept> {
-        Self::judged(worktree, context, host, Survey::Swept(checkouts))
-    }
-
-    fn judged(
-        worktree: &RecordedWorktree,
-        context: &Context,
-        host: &impl Inspection,
-        survey: Survey<'_>,
-    ) -> Result<Self, Kept> {
+    pub fn proved(worktree: &RecordedWorktree, context: &Context, pass: Pass) -> Result<Self, Kept> {
         let path = worktree.path();
-        Self::placed(path, context, host)?;
-        let link = Link::proved(path, worktree.worktree(), context, host)?;
+        let budget = context.budget();
+        let placed = Placed::observed(path);
+        placed.judged(path, context)?;
+        let pointers = Pointers::observed(path);
+        let link = pointers.proved(path, worktree.worktree(), context.common())?;
+        let guard = Guard::observed(&link, budget);
+        guard.judged()?;
         let branch = worktree.branch().qualified();
-        survey.held(&link, &branch, host)?;
-        let refs = Self::pushed(&link, &branch, || survey.remote_refs(context, host), host)?;
-        let bytes = Self::settled(&link, host)?;
-        Ok(Self { branch: refs.named(&branch).cloned().ok_or(Kept::NoBranch)?, refs, link, bytes })
+        let checkouts = match pass {
+            Pass::Swept => context.checkouts(),
+            Pass::Fresh => context.checkouts_now(),
+        };
+        checkouts.clone()?.held(&branch, link.path())?;
+        let local = LocalRefs::observed(&link, &branch, budget);
+        let refs = local.clone()?.refs()?;
+        let remote = match pass {
+            Pass::Swept => context.remote_refs(),
+            Pass::Fresh => context.remote_refs_now(),
+        };
+        refs.matched(&remote.clone()?)?;
+        let beyond = Beyond::new(refs.objects(), remote.clone()?.objects());
+        let beyond = link.repo(Scope::Common, budget).observe(&beyond);
+        beyond.clone()?;
+        let again = (pass == Pass::Fresh).then(|| LocalRefs::observed(&link, &branch, budget));
+        let settled = Settled::observed(&link, budget);
+        let survey = Survey { placed, pointers, guard, checkouts, local, remote, beyond, again, settled };
+        survey.judged(worktree, context)
     }
 
-    pub fn rechecked(&self, held: &Link, host: &impl Inspection) -> Result<(), Kept> {
-        (Self::settled(held, host)? == self.bytes && held.refs(host, self.branch.name())? == self.refs)
-            .then_some(())
-            .ok_or(Kept::Changed)
+    pub fn rechecked(&self, settled: &Settled, refs: Result<LocalRefs, Kept>) -> Result<(), Kept> {
+        (settled.judged()? == self.bytes && refs?.refs()? == self.refs).then_some(()).ok_or(Kept::Changed)
     }
 
     pub fn link(&self) -> &Link {
@@ -95,46 +88,5 @@ impl Vetted {
 
     pub fn bytes(&self) -> ByteCount {
         self.bytes
-    }
-
-    fn placed(path: &Path, context: &Context, host: &impl Inspection) -> Result<(), Kept> {
-        match host.entry(path) {
-            EntryKind::Dir => Ok(()),
-            EntryKind::Symlink => Err(Kept::Symlink),
-            EntryKind::Missing => Err(Kept::NotFound),
-            EntryKind::Unreadable | EntryKind::File => Err(Kept::Unreadable),
-        }?;
-        let canonical = host.canonical(path).filter(|canonical| canonical == path);
-        canonical.and_then(|path| context.enclosed(&path)).ok_or(Kept::Escaped)?;
-        let lent = context.lenders(host).iter().find_map(|alternates| alternates.lends_into(path));
-        lent.map_or(Ok(()), |()| Err(Kept::Borrowed))
-    }
-
-    fn settled(link: &Link, host: &impl Inspection) -> Result<ByteCount, Kept> {
-        let path = link.path();
-        let tree = Tree::new(host.walked(path));
-        let index: Index = link.git(host, Scope::Worktree, &Self::INDEX.map(OsStr::new))?.parse()?;
-        tree.settled(index.links())?;
-        (host.entry(&path.join(Self::MODULES)) == EntryKind::Missing).then_some(()).ok_or(Kept::Submodules)?;
-        let Ok(status) = link.git(host, Scope::Worktree, &Self::STATUS.map(OsStr::new))?.parse::<Porcelain>();
-        status.ignored()?.iter().try_for_each(|ignored| {
-            tree.cargo_target(ignored, host.text(&path.join(ignored).join(Self::TAG)).as_deref())
-        })?;
-        Ok(tree.bytes())
-    }
-
-    fn pushed(
-        link: &Link,
-        branch: &str,
-        remote: impl FnOnce() -> Result<RefList, Kept>,
-        host: &impl Inspection,
-    ) -> Result<RefList, Kept> {
-        let local = link.refs(host, branch)?;
-        let remote = remote()?;
-        local.matched(&remote)?;
-        let beyond = Self::BEYOND.map(OsStr::new).into_iter().chain(local.objects()).chain([OsStr::new(Self::NOT)]);
-        let words: Vec<&OsStr> = beyond.chain(remote.objects()).collect();
-        link.git(host, Scope::Common, &words)?.lines().next().is_none().then_some(()).ok_or(Kept::Unpushed)?;
-        (link.refs(host, branch)? == local).then_some(local).ok_or(Kept::Changed)
     }
 }

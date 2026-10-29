@@ -2,8 +2,7 @@ use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use super::Host;
-use crate::request::local::local_clone::vetting::inspection::Inspection;
+use super::Disk;
 use crate::request::local::local_clone::vetting::thaw::Thaw;
 
 const FILE: &str = "tree/dir/file";
@@ -45,10 +44,10 @@ impl Planted {
 fn freezing_records_the_old_modes_first_skips_hard_links_and_thawing_restores_and_forgets_them() {
     let planted = Planted::new();
     let plan = Thaw::planned(Path::new(TREE), Thaw::ledger_of(&planted.located(TREE), &planted.located(COMMON)));
-    let thaw = Host::default().frozen(&planted.located(TREE), plan).unwrap();
+    let thaw = Disk::frozen(&planted.located(TREE), plan).unwrap();
     let ledger = std::fs::read_to_string(thaw.ledger()).unwrap();
     let frozen = [planted.mode(FILE), planted.mode(LINKED)];
-    Host::default().thawed(&thaw);
+    Disk::thawed(&thaw);
     assert!(ledger.contains(FILE) && !ledger.contains(LINKED) && !thaw.ledger().exists(), "{ledger}");
     assert_eq!([frozen, [planted.mode(FILE), planted.mode(LINKED)]], [[FROZEN, WRITABLE], [WRITABLE, WRITABLE]]);
 }

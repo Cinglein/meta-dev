@@ -1,28 +1,16 @@
-use std::ffi::OsStr;
 use std::path::Path;
 use std::str::FromStr;
 
-use super::link::{Link, Scope};
-use crate::request::local::local_clone::vetting::inspection::Inspection;
 use crate::request::local::local_clone::vetting::kept::Kept;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Checkouts(Vec<String>);
 
 impl Checkouts {
-    const ON_BRANCH: [&'static str; 3] = ["symbolic-ref", "-q", "HEAD"];
-    pub const LIST: [&'static str; 3] = ["worktree", "list", "--porcelain"];
     const BLOCKS: &'static str = "\n\n";
     const WORKTREE: &'static str = "worktree ";
     const BRANCH: &'static str = "branch ";
     const SEPARATOR: &'static str = "\0";
-
-    pub fn held_now(link: &Link, branch: &str, host: &impl Inspection) -> Result<(), Kept> {
-        let head = link.git(host, Scope::Worktree, &Self::ON_BRANCH.map(OsStr::new)).ok();
-        head.filter(|head| head.lines().next() == Some(branch)).ok_or(Kept::OffBranch)?;
-        let Ok(checkouts) = link.git(host, Scope::Common, &Self::LIST.map(OsStr::new))?.parse::<Self>();
-        checkouts.unshared(branch, Self::entry(branch, link.path()).as_ref())
-    }
 
     pub fn held(&self, branch: &str, path: &Path) -> Result<(), Kept> {
         let ours = Self::entry(branch, path);

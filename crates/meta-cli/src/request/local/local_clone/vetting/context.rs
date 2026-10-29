@@ -1,63 +1,88 @@
-use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use meta_log::RemoteName;
+use meta_run::Budget;
 
 use super::alternates::Alternates;
-use super::git_call::GitCall;
-use super::inspection::Inspection;
+use super::asked::{RemoteRefs, WorktreeList};
+use super::disk::Disk;
 use super::kept::Kept;
+use super::repo::Repo;
 use super::vetted::{Checkouts, RefList};
 use crate::request::local::local_clone::worktree_listing::WorktreeListing;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Context {
     checkout: PathBuf,
     common: PathBuf,
     root: PathBuf,
     remote: RemoteName,
-    worktrees: OnceLock<Result<WorktreeListing, Kept>>,
-    checkouts: OnceLock<Result<Checkouts, Kept>>,
+    budget: Budget,
+    listing: Result<WorktreeListing, Kept>,
     remote_refs: OnceLock<Result<RefList, Kept>>,
+    lenders: OnceLock<Vec<Alternates>>,
 }
 
 impl Context {
     const LINKED: &'static str = "worktrees";
-    const REMOTE_REFS: &'static str = "ls-remote";
 
-    pub fn new(checkout: PathBuf, common: PathBuf, root: PathBuf, remote: RemoteName) -> Self {
+    pub fn observed(checkout: PathBuf, common: PathBuf, root: PathBuf, remote: RemoteName, budget: Budget) -> Self {
+        let listing = Repo::common(&common, budget).observe(&WorktreeList);
+        Self::new([checkout, common, root], remote, budget, listing)
+    }
+
+    pub fn new(
+        places: [PathBuf; 3],
+        remote: RemoteName,
+        budget: Budget,
+        listing: Result<WorktreeListing, Kept>,
+    ) -> Self {
+        let [checkout, common, root] = places;
         Self {
             checkout,
             common,
             root,
             remote,
-            worktrees: OnceLock::new(),
-            checkouts: OnceLock::new(),
+            budget,
+            listing,
             remote_refs: OnceLock::new(),
+            lenders: OnceLock::new(),
         }
     }
 
-    pub fn worktrees(&self, host: &impl Inspection) -> &Result<WorktreeListing, Kept> {
-        self.worktrees.get_or_init(|| {
-            host.git(&GitCall::common(&self.common, &Checkouts::LIST.map(OsStr::new))).map(WorktreeListing::from)
-        })
+    #[cfg(test)]
+    pub fn seen(self, remote_refs: Result<RefList, Kept>, lenders: Vec<Alternates>) -> Self {
+        let context = Self { remote_refs: OnceLock::from(remote_refs), ..self };
+        Self { lenders: OnceLock::from(lenders), ..context }
     }
 
-    pub fn checkouts(&self, host: &impl Inspection) -> &Result<Checkouts, Kept> {
-        self.checkouts.get_or_init(|| {
-            let Ok(checkouts) = self.worktrees(host).as_ref().map_err(Kept::clone)?.as_ref().parse();
-            Ok(checkouts)
-        })
+    pub fn listing(&self) -> &Result<WorktreeListing, Kept> {
+        &self.listing
     }
 
-    pub fn remote_refs_now(&self, host: &impl Inspection) -> Result<RefList, Kept> {
-        let listed = host.git(&GitCall::common(&self.common, &[OsStr::new(Self::REMOTE_REFS), self.remote.as_ref()]));
-        listed.map_err(|kept| kept.recast(Kept::Unreachable))?.parse()
+    pub fn checkouts(&self) -> Result<Checkouts, Kept> {
+        let Ok(checkouts) = self.listing.as_ref().map_err(Kept::clone)?.as_ref().parse();
+        Ok(checkouts)
     }
 
-    pub fn remote_refs(&self, host: &impl Inspection) -> &Result<RefList, Kept> {
-        self.remote_refs.get_or_init(|| self.remote_refs_now(host))
+    pub fn checkouts_now(&self) -> Result<Checkouts, Kept> {
+        let listing = self.repo().observe(&WorktreeList)?;
+        let Ok(checkouts) = listing.as_ref().parse();
+        Ok(checkouts)
+    }
+
+    pub fn remote_refs_now(&self) -> Result<RefList, Kept> {
+        let listed = self.repo().observe(&RemoteRefs::new(self.remote.clone()));
+        listed.map_err(|kept| kept.recast(Kept::Unreachable))
+    }
+
+    pub fn remote_refs(&self) -> Result<RefList, Kept> {
+        self.remote_refs.get_or_init(|| self.remote_refs_now()).clone()
+    }
+
+    pub fn lenders(&self) -> &[Alternates] {
+        self.lenders.get_or_init(|| [Disk::lenders(&self.root), Disk::lenders(&self.common.join(Self::LINKED))].concat())
     }
 
     pub fn enclosed(&self, path: &Path) -> Option<()> {
@@ -68,11 +93,15 @@ impl Context {
         .then_some(())
     }
 
-    pub fn lenders(&self, host: &impl Inspection) -> Vec<Alternates> {
-        [host.neighbours(&self.root), host.neighbours(&self.common.join(Self::LINKED))].concat()
+    pub fn repo(&self) -> Repo {
+        Repo::common(&self.common, self.budget)
     }
 
     pub fn common(&self) -> &Path {
         &self.common
+    }
+
+    pub fn budget(&self) -> Budget {
+        self.budget
     }
 }

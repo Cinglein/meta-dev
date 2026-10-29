@@ -1,11 +1,13 @@
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
-use super::Host;
+use meta_run::Budget;
+
+use super::Disk;
 use crate::request::local::byte_count::ByteCount;
 use crate::request::local::local_clone::vetting::alternates::Alternates;
 use crate::request::local::local_clone::vetting::entry_kind::EntryKind;
 use crate::request::local::local_clone::vetting::found::Found;
-use crate::request::local::local_clone::vetting::inspection::Inspection;
 
 const FILE: &str = "file";
 const DIR: &str = "dir";
@@ -33,6 +35,7 @@ const KINDS: [(&str, EntryKind); 5] = [
     (LINK_TARGET, EntryKind::Unreadable),
 ];
 const UNLISTED: &str = "cannot inspect: ";
+const PATIENT: Duration = Duration::from_secs(5);
 
 struct Planted(tempfile::TempDir);
 
@@ -62,30 +65,30 @@ impl Planted {
 #[test]
 fn a_walk_lists_every_entry_without_following_links_and_marks_what_it_cannot_read() {
     let planted = Planted::new();
-    let mut walked = Host::default().walked(&planted.located(""));
+    let mut walked = Disk::walked(&planted.located(""));
     walked.retain(|found| WALKED.iter().any(|(path, ..)| found.path() == Path::new(path)));
     walked.sort_by(|left, right| left.path().cmp(right.path()));
     let expected = WALKED.map(|(path, kind, bytes)| Found::new(PathBuf::from(path), kind, ByteCount::new(bytes)));
     assert_eq!(walked, expected);
     let unreadable = [Found::new(PathBuf::new(), EntryKind::Unreadable, ByteCount::default())];
-    assert_eq!(Host::default().walked(&planted.located(MISSING)), unreadable);
+    assert_eq!(Disk::walked(&planted.located(MISSING)), unreadable);
 }
 
 #[test]
 fn entries_texts_and_canonical_paths_never_follow_a_link() {
     let planted = Planted::new();
-    let kinds = KINDS.map(|(name, _)| Host::default().entry(&planted.located(name)));
+    let kinds = KINDS.map(|(name, _)| Disk::entry(&planted.located(name)));
     assert_eq!(kinds, KINDS.map(|(_, kind)| kind));
-    let texts = [LINK, FILE].map(|name| Host::default().text(&planted.located(name)));
-    assert!(texts == [None, Some(TEXT.to_owned())] && Host::default().canonical(&planted.located(MISSING)).is_none());
+    let texts = [LINK, FILE].map(|name| Disk::text(&planted.located(name)));
+    assert!(texts == [None, Some(TEXT.to_owned())] && Disk::canonical(&planted.located(MISSING)).is_none());
 }
 
 #[test]
-fn neighbours_are_sibling_alternates_and_a_failed_scan_keeps_everything() {
+fn lenders_are_sibling_alternates_and_a_failed_scan_keeps_everything() {
     let planted = Planted::new();
-    let neighbours = Host::default().neighbours(&planted.located(""));
+    let lenders = Disk::lenders(&planted.located(""));
     let expected = LENDERS.map(|(objects, listed)| Alternates::new(planted.located(objects), listed));
-    assert!(neighbours.len() == expected.len() && expected.iter().all(|lender| neighbours.contains(lender)));
-    let scanned = Host::default().occupancy(&[planted.located(MISSING)]).vacant(&planted.located(FILE));
+    assert!(lenders.len() == expected.len() && expected.iter().all(|lender| lenders.contains(lender)));
+    let scanned = Disk::occupancy(&[planted.located(MISSING)], Budget::new(PATIENT)).vacant(&planted.located(FILE));
     assert!(scanned.is_err_and(|kept| kept.to_string().starts_with(UNLISTED)));
 }

@@ -1,4 +1,3 @@
-use std::cell::LazyCell;
 use std::panic::resume_unwind;
 use std::path::Path;
 use std::thread::{Scope, ScopedJoinHandle};
@@ -8,24 +7,23 @@ use super::candidate::Candidate;
 use super::census::Census;
 use super::tracked::Tracked;
 use super::verdict::Verdict;
-use crate::request::local::local_clone::quarantine::Quarantine;
-use crate::request::local::local_clone::vetting::{Context, Deletable, EntryKind, Inspection, Occupancy, Vetted};
+use crate::request::local::local_clone::quarantine::{Quarantine, Stamp};
+use crate::request::local::local_clone::vetting::{Context, Deletable, Disk, EntryKind, Occupancy, Pass, Vetted};
 use crate::request::local::sweep::Sweep;
 
 #[derive(Debug)]
-pub struct Sweeper<'run, Host: Inspection> {
+pub struct Sweeper<'run> {
     sweep: Sweep,
     context: &'run Context,
-    host: &'run Host,
 }
 
-impl<'run, Host: Inspection> Sweeper<'run, Host> {
-    pub fn new(sweep: Sweep, context: &'run Context, host: &'run Host) -> Self {
-        Self { sweep, context, host }
+impl<'run> Sweeper<'run> {
+    pub fn new(sweep: Sweep, context: &'run Context) -> Self {
+        Self { sweep, context }
     }
 
-    pub fn host(&self) -> &Host {
-        self.host
+    pub fn context(&self) -> &Context {
+        self.context
     }
 
     pub fn unrecorded(&self, path: &Path) -> Verdict {
@@ -43,7 +41,7 @@ impl<'run, Host: Inspection> Sweeper<'run, Host> {
         let path = worktree.path().to_path_buf();
         let stranded =
             |path: &Path, record| Assessed::Settled(Verdict::Stranded { sweep, path: path.to_path_buf(), record });
-        match (Quarantine::holds(&path), self.host.entry(&path), tracked.lifetime().ending()) {
+        match (Quarantine::holds(&path), Disk::entry(&path), tracked.lifetime().ending()) {
             (true, _, _) => stranded(&path, None),
             (false, EntryKind::Missing, _) => census
                 .quarantine_of(&path)
@@ -51,19 +49,14 @@ impl<'run, Host: Inspection> Sweeper<'run, Host> {
                     stranded(quarantine, Some(path.clone()))
                 }),
             (false, _, None) => Assessed::Settled(Verdict::Live { path, lifetime: tracked.lifetime() }),
-            (false, _, Some(ending)) => {
-                match Vetted::proved_among(worktree, self.context, self.host, self.context.checkouts(self.host)) {
-                    Ok(vetted) => Assessed::Vetted(Box::new(Candidate::new(tracked, vetted, ending))),
-                    Err(kept) => Assessed::Settled(Verdict::Refused { sweep, path, kept, ending }),
-                }
-            }
+            (false, _, Some(ending)) => match Vetted::proved(worktree, self.context, Pass::Swept) {
+                Ok(vetted) => Assessed::Vetted(Box::new(Candidate::new(tracked, vetted, ending))),
+                Err(kept) => Assessed::Settled(Verdict::Refused { sweep, path, kept, ending }),
+            },
         }
     }
 
-    pub fn assessed_together<'census>(&self, chunk: &'census [Tracked], census: &Census) -> Vec<Assessed<'census>>
-    where
-        Host: Sync,
-    {
+    pub fn assessed_together<'census>(&self, chunk: &'census [Tracked], census: &Census) -> Vec<Assessed<'census>> {
         std::thread::scope(|scope| {
             let running: Vec<_> = chunk.iter().map(|tracked| self.started(scope, tracked, census)).collect();
             running.into_iter().map(Self::joined).collect()
@@ -77,7 +70,6 @@ impl<'run, Host: Inspection> Sweeper<'run, Host> {
         census: &'scope Census,
     ) -> ScopedJoinHandle<'scope, Assessed<'census>>
     where
-        Host: Sync,
         'census: 'scope,
     {
         scope.spawn(move || self.assessed(tracked, census))
@@ -87,22 +79,19 @@ impl<'run, Host: Inspection> Sweeper<'run, Host> {
         run.join().unwrap_or_else(|panic| resume_unwind(panic))
     }
 
-    pub fn freed(
-        &self,
-        candidate: Candidate<'_>,
-        occupancy: &LazyCell<Occupancy, impl FnOnce() -> Occupancy>,
-    ) -> Verdict {
+    pub fn freed(&self, candidate: Candidate<'_>, occupancy: &Occupancy) -> Verdict {
         let sweep = self.sweep;
         let ending = candidate.ending();
         let path = candidate.vetted().link().path().to_path_buf();
+        let vacant = occupancy.vacant(&path);
         let freed = match sweep {
-            Sweep::Planned => occupancy.vacant(&path).map(|()| candidate.vetted().bytes()),
-            Sweep::Done => {
+            Sweep::Planned => vacant.map(|()| candidate.vetted().bytes()),
+            Sweep::Done => vacant.and_then(|()| {
                 let worktree = candidate.tracked().worktree();
-                let again = Vetted::proved(worktree, self.context, self.host);
+                let again = Vetted::proved(worktree, self.context, Pass::Fresh);
                 Deletable::confirmed(candidate.into_vetted(), again)
-                    .and_then(|deletable| deletable.removed(worktree, self.context, self.host))
-            }
+                    .and_then(|deletable| deletable.removed(worktree, self.context, &Stamp::current()))
+            }),
         };
         match freed {
             Ok(bytes) => Verdict::Free { sweep, path, bytes, ending },
