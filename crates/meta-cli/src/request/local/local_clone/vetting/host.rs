@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 
 use meta_run::{EnvPolicy, Environment, Run};
+use meta_trace::SpanKind;
 
 use super::alternates::Alternates;
 use super::cause::Cause;
@@ -86,6 +87,7 @@ impl Inspection for Host {
     }
 
     fn walked(&self, path: &Path) -> Vec<Found> {
+        let _walk = SpanKind::Fs.entered();
         Walker::new(path).descended(Path::new(""))
     }
 

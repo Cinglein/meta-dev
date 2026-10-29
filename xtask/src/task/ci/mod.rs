@@ -56,7 +56,10 @@ impl Ci {
                 let started = Instant::now();
                 let mut times = StepTimes::default();
                 let mut ledger = Ledger::default();
-                let read = || self.log.snapshot(&StandingLog::git(workspace.root()));
+                let read = || {
+                    let log = StandingLog::git(workspace.root()).map_err(Failure::StandingLog)?;
+                    self.log.snapshot(&log)
+                };
                 let prior = || PriorPolicy::text_at_merge_base(workspace.root(), policy.branch(Branch::Base));
                 let run = RunKind::from_ambient(&CommandLine::ambient());
                 let tracked = BuildDirectory::read(workspace.root())

@@ -34,7 +34,7 @@ impl Project {
     const CONFIG_FILE: &'static str = "meta.toml";
     const GIT_ENTRY: &'static str = ".git";
     pub fn log(&self, budget: Budget) -> Result<GitLog, CliFailure> {
-        self.config.remote().map(|remote| GitLog::new(self.root.clone(), remote.clone(), budget))
+        self.config.remote().and_then(|remote| Ok(GitLog::new(self.root.clone(), remote.clone(), budget)?))
     }
 
     pub fn root(&self) -> &Path {
@@ -46,9 +46,12 @@ impl Project {
     }
 
     pub fn found(dir: &Path) -> Result<Option<Self>, CliFailure> {
+        Self::located(dir).map(Self::loaded).transpose()
+    }
+
+    pub fn located(dir: &Path) -> Option<PathBuf> {
         let root = dir.ancestors().find(|ancestor| ancestor.join(Self::GIT_ENTRY).exists()).map(Path::to_path_buf);
-        let configured = root.filter(|root| root.join(Self::CONFIG_FILE).exists());
-        configured.map(Self::loaded).transpose()
+        root.filter(|root| root.join(Self::CONFIG_FILE).exists())
     }
 
     pub fn ci_settings(&self) -> &CiSettings {

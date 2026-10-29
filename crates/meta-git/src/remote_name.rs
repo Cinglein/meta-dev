@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+use std::ffi::OsStr;
 use std::fmt;
 use std::str::FromStr;
 
@@ -8,16 +10,16 @@ use serde::Deserialize;
 pub struct RemoteName(String);
 
 impl FromStr for RemoteName {
-    type Err = std::convert::Infallible;
+    type Err = Infallible;
 
-    fn from_str(name: &str) -> Result<Self, Self::Err> {
-        Ok(Self(name.to_owned()))
+    fn from_str(name: &str) -> Result<RemoteName, Infallible> {
+        Ok(RemoteName(name.to_owned()))
     }
 }
 
-impl AsRef<std::ffi::OsStr> for RemoteName {
-    fn as_ref(&self) -> &std::ffi::OsStr {
-        std::ffi::OsStr::new(&self.0)
+impl AsRef<OsStr> for RemoteName {
+    fn as_ref(&self) -> &OsStr {
+        OsStr::new(&self.0)
     }
 }
 
