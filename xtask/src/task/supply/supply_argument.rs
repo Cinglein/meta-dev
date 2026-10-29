@@ -27,4 +27,12 @@ pub enum SupplyArgument {
     SemverChecks,
     #[strum(serialize = "--baseline-rev")]
     BaselineRevision,
+    #[strum(serialize = "git")]
+    History,
+    #[strum(serialize = "--redact")]
+    Redact,
+    #[strum(serialize = "--no-banner")]
+    NoBanner,
+    #[strum(serialize = "--log-level=warn")]
+    Quiet,
 }

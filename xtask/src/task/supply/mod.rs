@@ -2,7 +2,7 @@ mod deny_config;
 mod runner;
 mod supply_argument;
 
-use task::{Branch, CargoTool, Policy, Program, Selection, Workspace};
+use task::{Branch, CargoTool, CommandLine, Policy, Program, Selection, Workspace};
 
 use crate::task::failure::Failure;
 use crate::task::revision::Revision;
@@ -21,6 +21,18 @@ impl Supply {
         [SupplyArgument::Bans, SupplyArgument::Licenses, SupplyArgument::Sources];
     const DENY_TOOL: &str = "cargo-deny 0.20.2";
     const SEMVER_TOOL: &str = "cargo-semver-checks 0.51.0";
+    const SECRETS_TOOL: &str = "gitleaks 8.30.1";
+    const SECRETS_PROGRAM: &str = "gitleaks";
+    const SECRETS_SCAN: [SupplyArgument; 4] =
+        [SupplyArgument::History, SupplyArgument::Redact, SupplyArgument::NoBanner, SupplyArgument::Quiet];
+
+    pub fn secrets(workspace: &Workspace) -> Result<(), Failure> {
+        CommandLine::new(Program::Executable(Self::SECRETS_PROGRAM.into()))
+            .arguments(Self::SECRETS_SCAN)
+            .argument(workspace.root().display())
+            .run()
+            .map_err(|failure| Failure::Supply { tool: Self::SECRETS_TOOL, failure: Box::new(failure) })
+    }
 
     pub fn deny(workspace: &Workspace, policy: &Policy) -> Result<(), Failure> {
         let config = DenyConfig::written(workspace, policy)?;

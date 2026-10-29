@@ -15,7 +15,7 @@ exclude_re = [
     "Stranding::refuse_stranded",
     "LocalGate::run",
     "Clippy::run",
-    "Supply::(deny|semver)",
+    "Supply::(deny|semver|secrets)",
     "Test::run",
     "TestTime::(run|examples|timings)",
     "GitCount::run",

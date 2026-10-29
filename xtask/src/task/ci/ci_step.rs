@@ -59,9 +59,9 @@ impl CiStep {
                     .run()
                     .map_err(Failure::from)
             }),
-            CiStep::Supply => {
-                Supply::deny(workspace, policy).and_then(|()| Supply::semver(workspace, selection, policy))
-            }
+            CiStep::Supply => Supply::deny(workspace, policy)
+                .and_then(|()| Supply::semver(workspace, selection, policy))
+                .and_then(|()| Supply::secrets(workspace)),
         };
         let elapsed = started.elapsed();
         println!("ci: {self} {elapsed:.1?}");
