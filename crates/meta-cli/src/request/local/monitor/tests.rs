@@ -58,12 +58,18 @@ const BROKEN: &str = "settings unreadable";
 const GIT: &str = ".git";
 
 #[test]
-fn a_corrupt_monitor_state_file_is_refused_naming_the_file_and_a_way_out_while_a_missing_one_is_fresh() {
+fn a_corrupt_monitor_state_is_kept_aside_with_one_notice_naming_both_files_and_the_patrol_goes_on() {
     let git_dir = tempfile::tempdir().unwrap();
-    assert_eq!(MonitorState::read(git_dir.path()).unwrap(), MonitorState::default());
+    let now = NOW.parse::<DateTime<Utc>>().unwrap();
+    assert!(MonitorState::read(git_dir.path(), now).unwrap().notice().is_none());
     LocalFile::new(git_dir.path().join(STATE)).replaced("{").unwrap();
-    let refusal = MonitorState::read(git_dir.path()).unwrap_err().to_string();
-    assert!(refusal.contains(STATE) && refusal.contains("delete"));
+    let host = FakeMachine::new(&[SCENE], CWDS, UPTIME);
+    let report = Watch::patrolled(&host, git_dir.path(), "", TimeDelta::zero()).to_string();
+    let aside = std::fs::read_dir(git_dir.path().join("meta-local")).unwrap().map(|entry| entry.unwrap().file_name());
+    let aside: Vec<String> = aside.map(|name| name.to_string_lossy().into_owned()).collect();
+    let kept = aside.iter().find(|name| name.ends_with(".corrupt")).unwrap();
+    assert!(report.contains(STATE) && report.contains(kept) && report.contains("obvious:"));
+    assert_eq!(std::fs::read_to_string(git_dir.path().join("meta-local").join(kept)).unwrap(), "{");
 }
 
 struct Watch;

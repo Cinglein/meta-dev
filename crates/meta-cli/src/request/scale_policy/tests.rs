@@ -11,7 +11,7 @@ const UNMAPPED: &str = "maps onto no level";
 fn scales_and_known_divisions_are_read_from_policy_and_a_missing_one_is_refused() {
     let dir = tempfile::tempdir().unwrap();
     let missing = ScalePolicy::read(dir.path()).unwrap_err().to_string();
-    assert!(missing.contains(MISSING) && missing.contains("restore"));
+    assert!(missing.contains(MISSING) && missing.contains("copy meta-dev's tooling/policy.toml"));
     std::fs::create_dir(dir.path().join("tooling")).unwrap();
     std::fs::write(dir.path().join(ScalePolicy::FILE), POLICY).unwrap();
     let nav = NAV.parse().unwrap();

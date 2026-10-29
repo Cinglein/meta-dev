@@ -1,9 +1,11 @@
 use std::fmt;
 use std::path::Path;
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use super::marked_groups::MarkedGroups;
+use super::restored::Restored;
 use super::watch_item::WatchItem;
 use crate::request::cli_failure::CliFailure;
 use crate::request::local::LocalFile;
@@ -22,13 +24,17 @@ impl MonitorState {
         Self { marked, watched }
     }
 
-    pub fn read(git_dir: &Path) -> Result<Self, CliFailure> {
+    pub fn read(git_dir: &Path, _now: DateTime<Utc>) -> Result<Restored, CliFailure> {
         let file = LocalFile::new(git_dir.join(Self::FILE));
         let text = file.text()?;
         let present = Some(text.trim()).filter(|text| !text.is_empty());
         present.map_or_else(
-            || Ok(Self::default()),
-            |text| serde_json::from_str(text).map_err(|cause| file.failure(format!("{cause}; {}", Self::RESET))),
+            || Ok(Restored::intact(Self::default())),
+            |text| {
+                serde_json::from_str(text)
+                    .map(Restored::intact)
+                    .map_err(|cause| file.failure(format!("{cause}; {}", Self::RESET)))
+            },
         )
     }
 
