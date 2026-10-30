@@ -20,10 +20,10 @@ const TASK: &str = "task";
 const QUEUE_WORDS: [&[&str]; 3] =
     [&["meta", "queue", "run", "7"], &["meta", "queue", "run"], &["meta", "queue", "stop", "7"]];
 
-pub(crate) struct Recorded;
+struct Recorded;
 
 impl Recorded {
-    pub(crate) fn live() -> Result<LiveData, GithubFailure> {
+    fn live() -> Result<LiveData, GithubFailure> {
         let open = r#"{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[]}}"#;
         let reply = format!(r#"{{"data":{{"open":{open},"linked":{LINKED}}}}}"#);
         let pulls = serde_json::from_str::<LiveReply>(&reply).unwrap().answered().unwrap();
