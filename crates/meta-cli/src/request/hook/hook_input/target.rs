@@ -3,6 +3,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use super::shell_command::{Pin, ShellCommand};
+use crate::request::cli_failure::CliFailure;
 use crate::request::project::{Config, Project};
 use crate::request::repository::Repository;
 
@@ -46,7 +47,7 @@ impl Target {
         &self.projects
     }
 
-    pub fn strictest(&self) -> Option<&'static Config> {
+    pub fn strictest(&self) -> Option<Result<Config, CliFailure>> {
         Some(&self.unresolved).filter(|unresolved| !unresolved.is_empty()).map(|_| Config::strictest())
     }
 

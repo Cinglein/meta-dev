@@ -20,6 +20,10 @@ impl Segment {
         self.kinds.get(position.index()..).unwrap_or_default()
     }
 
+    pub fn expansion(&self) -> Option<Kind> {
+        self.kinds.iter().copied().find(|kind| *kind == Kind::Expanded)
+    }
+
     pub fn is_empty(&self) -> bool {
         self.words.is_empty()
     }

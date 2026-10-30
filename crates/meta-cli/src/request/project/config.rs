@@ -2,8 +2,6 @@ mod branch_name;
 mod ci_settings;
 mod heartbeat_settings;
 
-use std::sync::OnceLock;
-
 use meta_log::RemoteName;
 use meta_pull_query::WorkflowName;
 use serde::Deserialize;
@@ -29,16 +27,11 @@ pub struct Config {
     heartbeat: toml::Table,
 }
 
-static STRICTEST: OnceLock<Config> = OnceLock::new();
-
 impl Config {
-    const STRICT_BRANCHES: [&'static str; 2] = ["main", "master"];
+    const EMBEDDED: &'static str = include_str!("../../../../../meta.toml");
 
-    pub fn strictest() -> &'static Self {
-        STRICTEST.get_or_init(|| Self {
-            protected: Self::STRICT_BRANCHES.iter().filter_map(|branch| branch.parse().ok()).collect(),
-            ..Self::default()
-        })
+    pub fn strictest() -> Result<Self, CliFailure> {
+        toml::from_str(Self::EMBEDDED).map_err(CliFailure::raised::<Setup>)
     }
 
     pub fn remote(&self) -> Result<&RemoteName, CliFailure> {

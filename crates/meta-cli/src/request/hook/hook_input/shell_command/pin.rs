@@ -1,6 +1,10 @@
+mod redirect;
+
 use std::path::{Path, PathBuf};
 
-use super::git_call::GitCall;
+use redirect::Redirect;
+
+use super::tokens::Segment;
 use super::working_directory::WorkingDirectory;
 
 pub type GhRepositories = fn(&[String]) -> Option<Vec<Option<String>>>;
@@ -13,22 +17,19 @@ pub enum Pin {
 }
 
 impl Pin {
-    const DIRECTORY_CHANGERS: &'static [&'static str] = &["cd", "pushd", "popd"];
-    const FOLLOWED: &'static str = "cd";
-    const HOMES: &'static [&'static str] = &["$HOME", "$PWD"];
-    const UNFOLLOWABLE: &'static [char] = &['$', '*', '?', '[', '`', '{', '\\', '!'];
-
-    pub fn of_calls(segments: &[&[String]], cwd: &Path, gh_repositories: GhRepositories) -> Vec<Pin> {
-        let lost = segments.iter().position(|words| Self::unfollowable(words).is_some());
-        let calls = |words: &[String]| GitCall::parse(words).map(|_| ()).or(gh_repositories(words).map(|_| ()));
+    pub fn of_calls(parts: &[&Segment], cwd: &Path, gh_repositories: GhRepositories) -> Vec<Pin> {
+        let first_lost = parts
+            .iter()
+            .position(|part| Redirect::unfollowable(part).or_else(|| Redirect::inherited(part.words())).is_some());
+        let any_command = |_: &[String]| Some(());
         let mut shell = WorkingDirectory::new(cwd);
-        segments
+        parts
             .iter()
             .enumerate()
-            .filter_map(|(index, words)| {
-                let directory = shell.follow(words, calls)?;
-                let lost = lost.filter(|lost| index >= *lost).map(|_| ());
-                Some(Self::pins(gh_repositories(words), directory, lost))
+            .filter_map(|(index, part)| {
+                let directory = shell.follow(part.words(), any_command)?;
+                let lost = first_lost.filter(|first| index >= *first).map(|_| ()).or_else(|| Redirect::local(part));
+                Some(Self::pins(gh_repositories(part.words()), directory, lost))
             })
             .flatten()
             .collect()
@@ -54,21 +55,6 @@ impl Pin {
             (Some(named), _) => named.into_iter().map(|name| name.map_or(Pin::Unpinned, Pin::Repository)).collect(),
             (None, Some(())) => vec![Pin::Unpinned],
             (None, None) => vec![Pin::Directory(directory)],
-        }
-    }
-
-    fn unfollowable(words: &[String]) -> Option<&String> {
-        let changer = words.iter().find(|word| Self::DIRECTORY_CHANGERS.contains(&word.as_str()))?;
-        Self::plain_target(words).is_none().then_some(changer)
-    }
-
-    fn plain_target(words: &[String]) -> Option<&str> {
-        match words {
-            [cd, target] if cd == Self::FOLLOWED => {
-                let bare = Self::HOMES.iter().find_map(|home| target.strip_prefix(home)).unwrap_or(target);
-                Some(target.as_str()).filter(|target| !target.starts_with('-') && !bare.contains(Self::UNFOLLOWABLE))
-            }
-            _ => None,
         }
     }
 }

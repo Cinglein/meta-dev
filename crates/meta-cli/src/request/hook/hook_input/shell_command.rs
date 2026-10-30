@@ -68,11 +68,7 @@ impl ShellCommand {
     }
 
     pub fn pins(&self, cwd: &Path) -> Vec<Pin> {
-        Pin::of_calls(&self.0.segments().collect::<Vec<_>>(), cwd, Self::gh_repositories)
-    }
-
-    fn gh_repositories(words: &[String]) -> Option<Vec<Option<String>>> {
-        GhCall::parse(words).map(|call| call.repositories().to_vec())
+        Pin::of_calls(&self.0.parts().collect::<Vec<_>>(), cwd, GhCall::repositories_in)
     }
 
     pub fn publishing_directory(&self, cwd: &Path) -> Option<PathBuf> {

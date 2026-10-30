@@ -32,7 +32,11 @@ impl<'call> Refusals<'call> {
     fn targeted(&self, command: &ShellCommand) -> Option<Listed> {
         let target = Target::resolved_from(command, &self.input.cwd(), self.project);
         let named = target.projects().iter().find_map(|named| Self::local(self.input, Some(named)));
-        named.or_else(|| target.strictest().and_then(|config| Self::guarded(self.input, config, self.project)))
+        let strict = target.strictest().and_then(|config| match config {
+            Ok(config) => Self::guarded(self.input, &config, self.project),
+            Err(failure) => Some(Listed::new(failure)),
+        });
+        named.or(strict)
     }
 
     fn modal(input: &HookInput) -> Option<Listed> {

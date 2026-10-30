@@ -25,8 +25,8 @@ impl GhCall {
         Some(Self { repositories: environment.chain(flagged).chain(urls).collect() })
     }
 
-    pub fn repositories(&self) -> &[Option<String>] {
-        &self.repositories
+    pub fn repositories_in(words: &[String]) -> Option<Vec<Option<String>>> {
+        Self::parse(words).map(|call| call.repositories)
     }
 
     fn flagged(word: &str, next: Option<&String>) -> Vec<Option<String>> {

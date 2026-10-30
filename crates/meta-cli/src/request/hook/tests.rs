@@ -13,7 +13,7 @@ const OUTSIDE: &str = r#"{"cwd":"/nonexistent-meta-dir","tool_input":{"command":
 const UNRESOLVED: &str = "cannot resolve the commit directory";
 const ORIGIN: &str = "[remote \"origin\"]\n\turl = https://github.com/o/r\n";
 const DENIED: &str = "permissionDecision";
-const FROM_OUTSIDE: [(&str, bool); 45] = [
+const FROM_OUTSIDE: [(&str, bool); 46] = [
     ("env -C /tmp git push origin main", true),
     ("env --chdir=/tmp git push origin main", true),
     ("sudo -D /tmp git push origin main", true),
