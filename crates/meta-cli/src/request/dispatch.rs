@@ -27,6 +27,9 @@ pub struct Dispatch {
 }
 
 impl Dispatch {
+    const ACTOR: &'static str = "META_ACTOR";
+    const UNANNOUNCED: &'static str =
+        "claim --agent needs META_ACTOR set to a [dispatch] issuer; it never defaults to owner";
     const UNISSUED: &'static str = "only an actor in [dispatch] issuers of tooling/policy.toml may run claim --agent";
 
     pub fn new(claim: Claim, agent: Actor) -> Self {
@@ -36,6 +39,12 @@ impl Dispatch {
     #[must_use]
     pub fn rooted(self, root: &Path) -> Self {
         Self { project: Some(root.to_path_buf()), ..self }
+    }
+
+    pub fn announced() -> Result<Actor, CliFailure> {
+        let named = std::env::var(Self::ACTOR).ok().filter(|name| !name.is_empty());
+        let named = named.ok_or_else(|| CliFailure::raised::<Setup>(Self::UNANNOUNCED))?;
+        named.parse().map_err(CliFailure::raised::<Invalid>)
     }
 
     pub fn answer(self, log: &impl LogStore, actor: Actor) -> Result<Output, CliFailure> {

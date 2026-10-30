@@ -1,10 +1,11 @@
 use std::fmt;
 use std::str::FromStr;
 
-use meta_schema::{Id, Lease, Task};
+use meta_schema::{Id, Lease, LeaseGrant, Task};
 use meta_state::State;
 
 use crate::request::output::Listed;
+use crate::request::scale_policy::DispatchPolicy;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LeaseLine {
@@ -19,8 +20,10 @@ impl LeaseLine {
         Self { task, lease }
     }
 
-    pub fn live_in(&self, state: &State) -> Result<(), Listed> {
-        let live = state.leases(self.task).into_iter().find(|leased| leased.lease() == self.lease);
+    pub fn live_in(&self, state: &State, issuers: &DispatchPolicy) -> Result<(), Listed> {
+        let issued =
+            |grant: &LeaseGrant| grant.lease() == self.lease && issuers.issuer(grant.issuer().clone()).is_some();
+        let live = state.leases(self.task).into_iter().find(|leased| issued(leased.grant()));
         live.map(|_| ()).ok_or_else(|| Listed::new(format!("{} is not a live lease on {}", self.lease, self.task)))
     }
 }

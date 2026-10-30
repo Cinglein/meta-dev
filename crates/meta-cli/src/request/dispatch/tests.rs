@@ -1,7 +1,9 @@
 use meta_log::MemoryLog;
+use meta_schema::{Claim, Event, Id, LeaseGrant};
 
 use super::{LeaseLine, Prompt};
 use crate::request::cli_failure::{CliFailure, Invalid};
+use crate::request::writing::Writing;
 use crate::request::{Request, ScalePolicy};
 
 const OPEN: [&str; 5] = ["meta", "open", "--division", "features-and-maintenance", "x"];
@@ -66,8 +68,13 @@ fn only_a_lease_line_naming_the_live_lease_of_its_open_task_admits_an_agent() {
 }
 
 #[test]
-fn only_a_dispatch_issuer_may_lease_a_task_to_an_agent() {
+fn only_a_dispatch_issuer_may_lease_a_task_and_only_a_lease_it_issued_admits_an_agent() {
     let meta = Meta::default();
     let task = meta.run(OWNER, &OPEN).split_whitespace().nth(ID_INDEX).unwrap_or_default().to_owned();
     assert!(meta.run(AGENT, &["meta", CLAIM, &task, "--agent", AGENT]).contains(UNISSUED));
+    let id = task.parse().unwrap();
+    let lease = Id::generate();
+    let claim = Claim::new(id, None).leased(LeaseGrant::new(lease, AGENT.parse().unwrap()));
+    Writing::new(&meta.0, AGENT.parse().unwrap(), Event::TaskClaimed(claim)).entered().unwrap();
+    assert!(!meta.admitted(&LeaseLine::new(id, lease).to_string()));
 }

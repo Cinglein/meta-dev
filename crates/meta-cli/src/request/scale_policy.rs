@@ -37,9 +37,9 @@ pub struct ScalePolicy {
     #[serde(default)]
     queue: QueuePolicy,
     #[serde(default)]
-    tools: ToolPolicy,
+    tools: Option<ToolPolicy>,
     #[serde(default)]
-    dispatch: DispatchPolicy,
+    dispatch: Option<DispatchPolicy>,
 }
 
 impl ScalePolicy {
@@ -65,8 +65,8 @@ impl ScalePolicy {
         &self.queue
     }
 
-    pub fn dispatch(&self) -> &DispatchPolicy {
-        &self.dispatch
+    pub fn dispatch(&self) -> Option<&DispatchPolicy> {
+        self.dispatch.as_ref()
     }
 
     pub fn embedded() -> Result<&'static ScalePolicy, EmbeddedFailure> {
@@ -75,13 +75,13 @@ impl ScalePolicy {
     }
 
     pub fn embedded_section<Section>(
-        section: impl FnOnce(&'static ScalePolicy) -> &'static Section,
+        section: impl FnOnce(&'static ScalePolicy) -> Option<&'static Section>,
     ) -> Result<&'static Section, EmbeddedFailure> {
-        Self::embedded().map(section)
+        Self::embedded().and_then(|policy| section(policy).ok_or(EmbeddedFailure::Missing))
     }
 
-    pub fn tools(&self) -> &ToolPolicy {
-        &self.tools
+    pub fn tools(&self) -> Option<&ToolPolicy> {
+        self.tools.as_ref()
     }
 
     pub fn scales(&self) -> &Scales {

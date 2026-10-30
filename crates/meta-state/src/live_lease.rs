@@ -1,17 +1,17 @@
 use std::fmt;
 
-use meta_schema::{Actor, Id, Lease};
+use meta_schema::{Actor, LeaseGrant};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LiveLease {
     holder: Actor,
-    lease: Id<Lease>,
+    grant: LeaseGrant,
 }
 
 impl LiveLease {
     #[must_use]
-    pub fn new(holder: Actor, lease: Id<Lease>) -> Self {
-        Self { holder, lease }
+    pub fn new(holder: Actor, grant: LeaseGrant) -> Self {
+        Self { holder, grant }
     }
 
     #[must_use]
@@ -20,8 +20,8 @@ impl LiveLease {
     }
 
     #[must_use]
-    pub fn lease(&self) -> Id<Lease> {
-        self.lease
+    pub fn grant(&self) -> &LeaseGrant {
+        &self.grant
     }
 }
 

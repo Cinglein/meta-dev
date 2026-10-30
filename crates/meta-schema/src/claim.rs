@@ -3,7 +3,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use crate::actor::Actor;
-use crate::entity::{Lease, Task};
+use crate::entity::Task;
 use crate::id::Id;
 use crate::lease_grant::LeaseGrant;
 
@@ -38,8 +38,8 @@ impl Claim {
     }
 
     #[must_use]
-    pub fn lease(&self) -> Option<Id<Lease>> {
-        self.lease.as_ref().map(LeaseGrant::lease)
+    pub fn grant(&self) -> Option<&LeaseGrant> {
+        self.lease.as_ref()
     }
 }
 

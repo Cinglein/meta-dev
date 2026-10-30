@@ -108,6 +108,26 @@ The budget table marks a new cap as "enforced from the next change".
 A run that is not a pull request, such as a push to the main branch, shows the standing budgets and marks the rows that are over.
 That run does not fail because of them.
 
+## Start an agent
+
+The hook refuses each Agent call that does not have a live lease.
+
+1. Set `META_ACTOR` to an actor in `[dispatch] issuers` of `tooling/policy.toml`. If `META_ACTOR` is not set, `meta claim` does not make a lease.
+2. In the meta clone, run `meta claim <task> --agent <name>`.
+3. Start the agent from the main session. Use all of the output of step 2 as the prompt.
+
+An agent cannot start an agent.
+The lease stops when the agent releases the task, or when the task is done or retired.
+If the main session works outside every meta clone, the hook reads the `project:` line of the prompt.
+The hook accepts that line only if it is an absolute path to a clone root in `~/.config/meta/projects.toml`
+(`$XDG_CONFIG_HOME/meta/projects.toml` if `XDG_CONFIG_HOME` is set). Put each clone root in that file:
+
+```toml
+roots = ["/absolute/path/to/the/clone"]
+```
+
+If the file is missing or does not parse, the hook refuses the call.
+
 ## Versions
 
 - All crates have the same version. The version is in `[workspace.package]` in `Cargo.toml`.

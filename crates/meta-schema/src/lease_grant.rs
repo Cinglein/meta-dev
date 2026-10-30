@@ -22,6 +22,11 @@ impl LeaseGrant {
     pub fn lease(&self) -> Id<Lease> {
         self.id
     }
+
+    #[must_use]
+    pub fn issuer(&self) -> &Actor {
+        &self.issuer
+    }
 }
 
 impl fmt::Display for LeaseGrant {

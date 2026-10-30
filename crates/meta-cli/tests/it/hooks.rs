@@ -67,6 +67,7 @@ const UNLEASED: &str = "work on it";
 const HOW_TO_START: &str = "meta claim <task> --agent <name>";
 const ID_INDEX: usize = 4;
 const LEAD: &str = "claude-lead";
+const LEASE_LINE: &str = "lease:";
 const NOT_TEXT: &str = "[\"not text\"]";
 const INTERRUPTED: &str = "SIGINT";
 const HELPERS: &str = r#"[remote "origin"]
@@ -133,7 +134,7 @@ impl Repo {
     fn started(&self, event: &str, command: &str, cwd: &Path, meta: &mut Command) -> Child {
         let session = if event == SESSION_START { SESSION_FIELD } else { "" };
         let input = format!(
-            r#"{{{session}"cwd":{},"tool_input":{{"command":{}}}}}"#,
+            r#"{{{session}"cwd":{},"tool_name":"Bash","tool_input":{{"command":{}}}}}"#,
             serde_json::to_string(cwd).unwrap(),
             serde_json::to_string(&command.replace(ELSEWHERE, &self.origin.path().display().to_string())).unwrap()
         );
@@ -249,8 +250,8 @@ fn session_start_shows_state_and_names_the_session_actor() {
 struct Lead<'repo>(&'repo Path);
 
 impl Lead<'_> {
-    fn meta(&self, words: &[&str]) -> String {
-        let run = MetaCommand::tagged(words).current_dir(self.0).env("META_ACTOR", LEAD).output();
+    fn meta(&self, actor: &str, words: &[&str]) -> String {
+        let run = MetaCommand::tagged(words).current_dir(self.0).env("META_ACTOR", actor).output();
         String::from_utf8_lossy(&run.unwrap().stdout).into_owned()
     }
 
@@ -267,9 +268,11 @@ impl Lead<'_> {
 fn pre_tool_use_starts_an_agent_only_with_the_lease_meta_claim_gave_it() {
     let repo = Repo::new();
     let lead = Lead(repo.clone.path());
-    let opened = lead.meta(&OPEN);
+    let opened = lead.meta(LEAD, &OPEN);
     let task = opened.split_whitespace().nth(ID_INDEX).unwrap();
-    let brief = lead.meta(&[&["claim", task][..], &DISPATCH].concat());
+    let claim = [&["claim", task][..], &DISPATCH].concat();
+    assert!(!lead.meta("", &claim).contains(LEASE_LINE));
+    let brief = lead.meta(LEAD, &claim);
     let elsewhere = format!("project: {}\n{brief}", repo.origin.path().display());
     let quoted = |text: &str| serde_json::to_string(text).unwrap();
     let refused = [quoted(UNLEASED), quoted(&elsewhere)].map(|prompt| lead.agent(&prompt));

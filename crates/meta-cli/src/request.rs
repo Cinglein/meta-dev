@@ -206,7 +206,7 @@ impl Request {
             Self::ClaimWorktree(claim) => LocalClone::try_from(project)?.claimed(project, claim, Self::actor()?),
             Self::Dispatch(dispatch) => dispatch
                 .rooted(project.root())
-                .answer(&project.log(project.ci_settings().budget(CiSettings::ROUTINE))?, Self::actor()?),
+                .answer(&project.log(project.ci_settings().budget(CiSettings::ROUTINE))?, Dispatch::announced()?),
             Self::Worktrees => LocalClone::try_from(project)?.worktrees(project),
             Self::Gc(sweep) => LocalClone::try_from(project)?.collected(project, sweep),
             Self::GcRestore(quarantine) => LocalClone::try_from(project)?.unstranded(&quarantine),

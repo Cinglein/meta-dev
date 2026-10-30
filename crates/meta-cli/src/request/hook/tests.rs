@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use super::refusals::Refusals;
 use super::{HookEvent, HookInput};
 use crate::request::output::Listed;
 use crate::request::project::{CiSettings, Config};
@@ -8,7 +9,14 @@ use crate::request::scale_policy::ScalePolicy;
 const HOOKS: &str = include_str!("../../../../../plugin/hooks/hooks.json");
 const EVENTS: [HookEvent; 4] =
     [HookEvent::SessionStart, HookEvent::PreToolUse, HookEvent::PostToolUse, HookEvent::Stop];
-const OUTSIDE: &str = r#"{"cwd":"/nonexistent-meta-dir","tool_input":{"command":"git commit -m x"}}"#;
+const OUTSIDE: &str =
+    r#"{"cwd":"/nonexistent-meta-dir","tool_name":"Bash","tool_input":{"command":"git commit -m x"}}"#;
+const GATE_ROWS: [&str; 3] = [
+    r#"{"agent_id":"a1","tool_name":"Agent","tool_input":{"prompt":"lease: x y"}}"#,
+    r#"{"tool_name":"Agent","tool_input":{}}"#,
+    r#"{"tool_input":{"command":"ls"}}"#,
+];
+const NESTED: &str = "an agent may not start agents";
 const UNRESOLVED: &str = "cannot resolve the commit directory";
 const REFUSED: [(HookEvent, &str); 2] =
     [(HookEvent::PreToolUse, "\"permissionDecision\":\"deny\""), (HookEvent::Stop, "\"decision\":\"block\"")];
@@ -29,6 +37,15 @@ fn a_tool_listed_as_modal_in_policy_is_refused_with_or_without_an_agent_and_othe
     assert!(refusal(MODAL_ROWS[0].0).unwrap().to_string().contains("discussion in your reply"));
     let outside = serde_json::from_str::<HookInput>(OUTSIDE_ASK).unwrap();
     assert!(HookEvent::PreToolUse.outside_projects(&outside).is_some_and(|reply| reply.to_string().contains("deny")));
+}
+
+#[test]
+fn an_agent_started_by_an_agent_or_without_a_prompt_and_a_call_naming_no_tool_are_refused() {
+    let refused = GATE_ROWS.map(|input| {
+        let input = serde_json::from_str::<HookInput>(input).unwrap();
+        Refusals::new(&input, None).first().map(|refusal| refusal.to_string()).unwrap_or_default()
+    });
+    assert!(refused[0].contains(NESTED) && refused.iter().all(|refusal| !refusal.is_empty()), "{refused:?}");
 }
 
 #[test]

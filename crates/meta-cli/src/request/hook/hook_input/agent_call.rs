@@ -1,3 +1,4 @@
+mod known_projects;
 mod unleased;
 
 use std::path::PathBuf;
@@ -8,21 +9,24 @@ use crate::request::dispatch::Prompt;
 use crate::request::hook::HookEvent;
 use crate::request::output::Listed;
 use crate::request::project::Project;
+use known_projects::KnownProjects;
 use unleased::Unleased;
 
 #[derive(Debug)]
 pub struct AgentCall<'input> {
     cwd: PathBuf,
     prompt: Option<&'input Prompt>,
+    nested: Option<()>,
 }
 
 impl<'input> AgentCall<'input> {
-    pub fn new(cwd: PathBuf, prompt: Option<&'input Prompt>) -> Self {
-        Self { cwd, prompt }
+    pub fn new(cwd: PathBuf, prompt: Option<&'input Prompt>, nested: Option<()>) -> Self {
+        Self { cwd, prompt, nested }
     }
 
     pub fn refusal(&self, here: Option<&Project>) -> Option<Listed> {
-        let prompt = self.prompt.ok_or(Unleased::NoPrompt);
+        let prompt = self.nested.map_or(Ok(self.prompt), |()| Err(Unleased::Nested));
+        let prompt = prompt.and_then(|prompt| prompt.ok_or(Unleased::NoPrompt));
         let admitted =
             prompt.and_then(|prompt| prompt.admitted(&self.authority(here, prompt)?).map_err(Unleased::Refused));
         admitted.err().map(Listed::new)
@@ -45,12 +49,11 @@ impl<'input> AgentCall<'input> {
     }
 
     fn named(named: PathBuf) -> Result<Project, Unleased> {
-        let found = named.is_absolute().then(|| Project::found(&named));
-        match found {
-            Some(found) => {
-                found.map_err(|failure| Unleased::Refused(Listed::new(failure)))?.ok_or(Unleased::NoProject(named))
-            }
-            None => Err(Unleased::Relative(named)),
-        }
+        let absolute = Some(named.clone()).filter(|path| path.is_absolute()).ok_or(Unleased::Relative(named))?;
+        KnownProjects::read(&KnownProjects::file())?
+            .admits(&absolute)
+            .ok_or_else(|| Unleased::Unknown(absolute.clone()))?;
+        let found = Project::found(&absolute).map_err(|failure| Unleased::Refused(Listed::new(failure)))?;
+        found.ok_or(Unleased::NoProject(absolute))
     }
 }

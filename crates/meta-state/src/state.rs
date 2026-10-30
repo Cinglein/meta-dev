@@ -97,7 +97,7 @@ impl State {
         let live = self.retirement(Entry::Task(task)).map_or_else(|| self.task(task), |_| None);
         let held = live.map(|task| task.progress().assignments()).unwrap_or_default();
         held.iter()
-            .filter_map(|stamp| stamp.lease().map(|lease| LiveLease::new(stamp.actor().clone(), lease)))
+            .filter_map(|stamp| stamp.lease().map(|lease| LiveLease::new(stamp.actor().clone(), lease.clone())))
             .collect()
     }
 
