@@ -33,6 +33,7 @@ mod tests {
 
     use super::Scope;
 
+    const REASON: &str = "elegance tool";
     const ROWS: [(&str, Scope); 4] = [
         ("tooling/elegance/src/cohesion.rs", Scope::Compared),
         ("tooling/elegance/goldens/meta-dev.txt", Scope::Compared),
@@ -44,7 +45,7 @@ mod tests {
     fn the_golden_is_compared_only_when_the_elegance_tool_changes() {
         let wrong: Vec<&str> = ROWS
             .iter()
-            .filter(|(path, scope)| Scope::judged(&[PathBuf::from(path)]) != *scope)
+            .filter(|(path, scope)| Scope::judged(&[PathBuf::from(path)]) != *scope || !scope.reason().contains(REASON))
             .map(|(path, _)| *path)
             .collect();
         assert!(wrong.is_empty(), "{wrong:?}");
