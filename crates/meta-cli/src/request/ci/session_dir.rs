@@ -12,6 +12,7 @@ use super::commit::Commit;
 use super::session_id::SessionId;
 use super::task_worktree::TaskWorktree;
 use crate::request::cli_failure::{CliFailure, Setup};
+use crate::request::environment::Environment;
 use crate::request::git_link::GitLink;
 use crate::request::hook::CallPhase;
 use crate::request::local::LocalFile;
@@ -47,17 +48,22 @@ impl SessionDir {
     const UNSTAMPED: &'static str = "tool-call stamp not written; liveness reads this task as unstamped: ";
 
     pub fn for_session(project: &Project, session: &SessionId) -> Option<Self> {
-        Self::within(project.root(), session)
+        Self::within(project.root(), session, project.environment())
     }
 
-    pub fn within(root: &Path, session: &SessionId) -> Option<Self> {
+    pub fn within(root: &Path, session: &SessionId, environment: &Environment) -> Option<Self> {
         let own = GitLink::common_dir(root)?.join(Self::ROOT).join(session.file_name());
-        Some(Self { own, shared: std::env::temp_dir().join(Self::ROOT) })
+        Some(Self { own, shared: environment.temporary().join(Self::ROOT) })
     }
 
-    pub fn stamped(cwd: &Path, call: CallPhase, at: DateTime<Utc>) -> Option<Result<(), Listed>> {
+    pub fn stamped(
+        cwd: &Path,
+        call: CallPhase,
+        at: DateTime<Utc>,
+        environment: &Environment,
+    ) -> Option<Result<(), Listed>> {
         let worktree = TaskWorktree::enclosing(cwd)?.canonical();
-        let session = Self::within(worktree.path(), &SessionId::of_task(worktree.task()));
+        let session = Self::within(worktree.path(), &SessionId::of_task(worktree.task()), environment);
         let stamped = session
             .ok_or_else(|| CliFailure::raised::<Setup>(Self::NO_GIT))
             .and_then(|session| session.stamp(&ToolStamp::new(worktree, at, call)));

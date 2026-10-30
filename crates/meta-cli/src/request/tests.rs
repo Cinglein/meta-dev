@@ -1,4 +1,5 @@
 mod fetches;
+mod follow_ups;
 mod gc_restore;
 mod heartbeat;
 #[cfg(test)]

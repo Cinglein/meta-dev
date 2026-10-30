@@ -12,6 +12,7 @@ use meta_run::{Budget, Run};
 use crate::request::checkout::Checkout;
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
 use crate::request::cli_failure::{CliFailure, Setup};
+use crate::request::environment::Environment;
 use crate::request::output::Listed;
 use crate::request::remote_failure::RemoteFailure;
 use crate::request::repository::Repository;
@@ -24,6 +25,7 @@ pub struct Project {
     root: PathBuf,
     config: Config,
     ci: CiSettings,
+    environment: Environment,
     checkout: OnceLock<Checkout>,
     reflog: OnceLock<Option<Vec<ReflogEntry>>>,
 }
@@ -31,6 +33,7 @@ pub struct Project {
 impl Project {
     const CONFIG_FILE: &'static str = "meta.toml";
     const GIT_ENTRY: &'static str = ".git";
+    const OUTSIDE: &'static str = "not inside a git repository with a meta.toml";
     pub fn log(&self, budget: Budget) -> Result<GitLog, CliFailure> {
         self.config.remote().and_then(|remote| Ok(GitLog::new(self.root.clone(), remote.clone(), budget)?))
     }
@@ -43,8 +46,16 @@ impl Project {
         &self.config
     }
 
-    pub fn found(dir: &Path) -> Result<Option<Self>, CliFailure> {
-        Self::located(dir).map(Self::loaded).transpose()
+    pub fn found(dir: &Path, environment: &Environment) -> Result<Option<Self>, CliFailure> {
+        Self::located(dir).map(|root| Self::loaded(root, environment.clone())).transpose()
+    }
+
+    pub fn within(environment: &Environment) -> Result<Self, CliFailure> {
+        Self::found(environment.directory(), environment)?.ok_or_else(|| CliFailure::raised::<Setup>(Self::OUTSIDE))
+    }
+
+    pub fn environment(&self) -> &Environment {
+        &self.environment
     }
 
     pub fn located(dir: &Path) -> Option<PathBuf> {
@@ -119,14 +130,14 @@ impl Project {
         url.lines().next().unwrap_or_default().parse().map_err(|()| RemoteFailure::NotGithub(Listed::new(named)))
     }
 
-    fn loaded(root: PathBuf) -> Result<Self, CliFailure> {
+    fn loaded(root: PathBuf, environment: Environment) -> Result<Self, CliFailure> {
         let path = root.join(Self::CONFIG_FILE);
         let refused =
             |failure: &dyn std::fmt::Display| CliFailure::raised::<Setup>(format!("{}: {failure}", path.display()));
         let text = std::fs::read_to_string(&path).map_err(|failure| refused(&failure))?;
         let config = toml::from_str(&text).map_err(|failure| refused(&failure))?;
         let ci = CiSettings::try_from(&config)?;
-        Ok(Self { root, config, ci, checkout: OnceLock::new(), reflog: OnceLock::new() })
+        Ok(Self { root, config, ci, environment, checkout: OnceLock::new(), reflog: OnceLock::new() })
     }
 
     fn git<Word: AsRef<OsStr>>(&self, words: impl IntoIterator<Item = Word>) -> Run {
@@ -159,6 +170,6 @@ impl TryFrom<&Path> for Project {
     type Error = CliFailure;
 
     fn try_from(dir: &Path) -> Result<Self, Self::Error> {
-        Self::found(dir)?.ok_or_else(|| CliFailure::raised::<Setup>("not inside a git repository with a meta.toml"))
+        Self::within(&Environment::default().moved_to(dir.to_path_buf()))
     }
 }

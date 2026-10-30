@@ -1,0 +1,22 @@
+[
+    Call {
+        words: [
+            "ci-watch",
+            "SESSION",
+            "abc123",
+        ],
+        environment: Environment {
+            directory: "/work/clone",
+            program: "meta",
+            variables: {
+                "HOME": "/home/agent",
+                "META_TRACE": "off",
+            },
+            then: Mutex {
+                data: [],
+                poisoned: false,
+                ..
+            },
+        },
+    },
+]

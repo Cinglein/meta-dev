@@ -27,6 +27,7 @@ use super::recorded_worktree::RecordedWorktree;
 use super::sweep::Sweep;
 use super::worktrees::Worktrees;
 use crate::request::cli_failure::{CliFailure, Setup};
+use crate::request::environment::Environment;
 use crate::request::git_link::GitLink;
 use crate::request::live_github::LiveGithub;
 use crate::request::output::{Listed, Output};
@@ -46,11 +47,21 @@ pub struct LocalClone {
     checkout: PathBuf,
     git_dir: GitDir,
     settings: CiSettings,
+    environment: Environment,
 }
 
 impl LocalClone {
     pub fn new(checkout: PathBuf, git_dir: PathBuf, settings: CiSettings) -> Self {
-        Self { checkout, git_dir: GitDir::new(git_dir), settings }
+        Self { checkout, git_dir: GitDir::new(git_dir), settings, environment: Environment::default() }
+    }
+
+    #[must_use]
+    pub fn in_environment(self, environment: Environment) -> Self {
+        Self { environment, ..self }
+    }
+
+    pub fn environment(&self) -> &Environment {
+        &self.environment
     }
 
     pub fn checkout(&self) -> &Path {
@@ -62,7 +73,7 @@ impl LocalClone {
     }
 
     pub fn monitor_settings(&self) -> Result<MonitorSettings, CliFailure> {
-        self.settings()?.monitor(&self.checkout)
+        self.settings()?.monitor(&self.checkout, self.environment.home().as_deref())
     }
 
     pub fn claimed(&self, project: &Project, claim: Claim, actor: Actor) -> Result<Output, CliFailure> {
@@ -171,6 +182,6 @@ impl TryFrom<&Project> for LocalClone {
             GitLink::common_dir(project.root()).ok_or_else(|| CliFailure::raised::<Setup>("no git directory"))?;
         let checkout =
             git_dir.parent().map(Path::to_path_buf).ok_or_else(|| CliFailure::raised::<Setup>("no checkout"))?;
-        Ok(Self::new(checkout, git_dir, project.ci_settings().clone()))
+        Ok(Self::new(checkout, git_dir, project.ci_settings().clone()).in_environment(project.environment().clone()))
     }
 }

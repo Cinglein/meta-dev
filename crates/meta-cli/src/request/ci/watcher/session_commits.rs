@@ -20,7 +20,7 @@ impl SessionCommits {
     const REFLOG_OFF: &'static str = "reflog is off or unreadable here, so this session's commits are unknown: set core.logAllRefUpdates=true; or ask the owner";
 
     pub fn judged(project: &Project, session: &SessionId, reach: Reach, deadline: Instant) -> Result<Self, Listed> {
-        let start = SessionStart::for_session(session).read();
+        let start = SessionStart::for_session(session, project.environment()).read();
         let created = start.map_or(Some(Vec::new()), |start| project.created_after(&start));
         let created = Self::known(created)?;
         let remote = reach.asks_remote(&created).map(|()| project.remote_heads(deadline));

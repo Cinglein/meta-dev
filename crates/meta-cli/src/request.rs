@@ -1,7 +1,11 @@
+mod answer;
 mod brief;
+mod call;
 mod checkout;
 mod ci;
 mod cli_failure;
+mod environment;
+mod follow_up;
 mod git_link;
 mod heartbeat;
 mod hook;
@@ -20,6 +24,7 @@ mod status_view;
 mod trace_view;
 mod writing;
 
+use std::io::Read;
 use std::path::PathBuf;
 
 use chrono::Utc;
@@ -27,9 +32,13 @@ use meta_listing::{Kind, Scope};
 use meta_log::LogStore;
 use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, TaskRef};
 
+pub use answer::Answer;
 use brief::BriefRequest;
+pub use call::Call;
 use ci::{Commit, FailureLog, SessionId, Watcher};
 use cli_failure::{CliFailure, Invalid, Misuse, Setup};
+pub use environment::Environment;
+pub use follow_up::FollowUp;
 use heartbeat::Heartbeat;
 use hook::HookEvent;
 use live_github::LiveGithub;
@@ -62,8 +71,8 @@ pub enum Request {
     Heartbeat(Heartbeat),
     Monitor(Monitor),
     WatchCi(SessionId, Commit),
-    WaitCi(SessionId),
-    CiLog(SessionId),
+    WaitCi,
+    CiLog,
     Trace(TraceView),
     Brief(BriefRequest),
     Queue(MergeQueue),
@@ -152,8 +161,8 @@ impl TryFrom<Vec<String>> for Request {
             "heartbeat" => Ok(Self::Heartbeat(parsed.allowing(&[])?.text()?.to_string().parse()?)),
             "monitor" => Ok(Self::Monitor(parsed.allowing(&[])?.text()?.to_string().parse()?)),
             "ci-watch" => parsed.allowing(&[])?.session_and_commit(Self::WatchCi),
-            "ci-wait" => Self::session().map(Self::WaitCi),
-            "ci-log" => Self::session().map(Self::CiLog),
+            "ci-wait" => Ok(Self::WaitCi),
+            "ci-log" => Ok(Self::CiLog),
             "trace" => Ok(Self::Trace(parsed.allowing(&[])?.text()?.to_string().parse()?)),
             "queue" => parsed.allowing(&[])?.queue().map(Self::Queue),
             other => Err(CliFailure::raised::<Misuse>(format!("unknown command `{other}`"))),
@@ -162,23 +171,24 @@ impl TryFrom<Vec<String>> for Request {
 }
 
 impl Request {
-    pub fn answer(self) -> Result<Output, CliFailure> {
+    const ACTOR: &'static str = "META_ACTOR";
+
+    pub fn answer(self, environment: &Environment, input: Box<dyn Read + '_>) -> Result<Output, CliFailure> {
         match self {
-            Self::Hook(event) => event.respond(),
-            other => other.answer_in(&Project::try_from(
-                std::env::current_dir().map_err(CliFailure::raised::<Setup>)?.as_path(),
-            )?),
+            Self::Hook(event) => event.respond(environment, input),
+            other => other.answer_in(&Project::within(environment)?),
         }
     }
 
     pub fn answer_in(self, project: &Project) -> Result<Output, CliFailure> {
+        let actor = || Self::actor(project.environment());
         match self {
-            Self::Hook(event) => event.respond(),
+            Self::Hook(event) => event.respond(project.environment(), Box::new(std::io::empty())),
             Self::Heartbeat(command) => command.answer(project),
             Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
-            Self::WaitCi(session) => Watcher::wait(project, &session),
-            Self::CiLog(session) => FailureLog::excerpt(project, &session),
-            Self::Brief(request) => request.answer(project, Self::actor),
+            Self::WaitCi => Watcher::wait(project, &Self::session(project.environment())?),
+            Self::CiLog => FailureLog::excerpt(project, &Self::session(project.environment())?),
+            Self::Brief(request) => request.answer(project, actor),
             Self::Trace(view) => TraceRecord::shown(&LocalClone::try_from(project)?, view),
             Self::Queue(queue) => queue.run(project),
             Self::Status(view) => {
@@ -198,14 +208,14 @@ impl Request {
                 &LocalClone::try_from(project)?,
                 &project::HeartbeatSettings::try_from(project.config())?,
             ),
-            Self::ClaimWorktree(claim) => LocalClone::try_from(project)?.claimed(project, claim, Self::actor()?),
+            Self::ClaimWorktree(claim) => LocalClone::try_from(project)?.claimed(project, claim, actor()?),
             Self::Worktrees => LocalClone::try_from(project)?.worktrees(project),
             Self::Gc(sweep) => LocalClone::try_from(project)?.collected(project, sweep),
             Self::GcRestore(quarantine) => LocalClone::try_from(project)?.unstranded(&quarantine),
             logged @ (Self::List(..) | Self::Write(_) | Self::Rate(_) | Self::Move(_)) => logged.answer_from(
                 &project.log(project.ci_settings().budget(CiSettings::ROUTINE))?,
                 &ScalePolicy::read(project.root())?,
-                Self::actor,
+                actor,
             ),
             Self::Wait(block) => {
                 let head = project.head().and_then(|head| head.commit_id());
@@ -235,8 +245,8 @@ impl Request {
             | Self::Heartbeat(_)
             | Self::Monitor(_)
             | Self::WatchCi(..)
-            | Self::WaitCi(_)
-            | Self::CiLog(_)
+            | Self::WaitCi
+            | Self::CiLog
             | Self::Trace(_)
             | Self::Brief(_)
             | Self::Queue(_)
@@ -248,9 +258,8 @@ impl Request {
         }
     }
 
-    fn session() -> Result<SessionId, CliFailure> {
-        let directory = std::env::current_dir().map_err(CliFailure::raised::<Setup>)?;
-        SessionId::chosen(std::env::var(SessionId::VARIABLE).ok(), &directory).ok_or_else(|| {
+    fn session(environment: &Environment) -> Result<SessionId, CliFailure> {
+        SessionId::chosen(environment.text(SessionId::VARIABLE), environment.directory()).ok_or_else(|| {
             CliFailure::raised::<Setup>(format!(
                 "{} is not set and this directory is not a claimed task worktree; run `meta claim <task> --worktree` and work in its path, or set {}",
                 SessionId::VARIABLE,
@@ -259,9 +268,9 @@ impl Request {
         })
     }
 
-    fn actor() -> Result<Actor, CliFailure> {
-        std::env::var("META_ACTOR")
-            .ok()
+    fn actor(environment: &Environment) -> Result<Actor, CliFailure> {
+        environment
+            .text(Self::ACTOR)
             .filter(|name| !name.is_empty())
             .map_or_else(|| Ok(Actor::owner()), |name| name.parse().map_err(CliFailure::raised::<Invalid>))
     }

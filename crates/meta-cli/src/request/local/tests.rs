@@ -69,7 +69,8 @@ fn settings_default_to_a_sibling_root_resolve_relative_roots_and_refuse_foreign_
 #[test]
 fn worktrees_join_the_current_trail_to_task_status_and_flag_missing_and_unrecorded_paths() {
     let Fixture { state, task } = Fixture::assigned();
-    let here = std::env::temp_dir();
+    let held = tempfile::tempdir().unwrap();
+    let here = held.path().to_path_buf();
     let gone = RecordedWorktree::new(PathBuf::from(GONE), Id::generate());
     let trail = Fixture::trail(&[
         TrailEntry::Created(RecordedWorktree::new(here.clone(), task)),

@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use super::session_id::SessionId;
 use super::start_moment::StartMoment;
+use crate::request::environment::Environment;
 use crate::request::output::Listed;
 
 #[derive(Debug)]
@@ -12,8 +13,8 @@ impl SessionStart {
     const STARTED: &'static str = "started";
     const WRITES: &'static str = "writes";
 
-    pub fn for_session(session: &SessionId) -> Self {
-        Self(std::env::temp_dir().join(Self::ROOT).join(session.file_name()))
+    pub fn for_session(session: &SessionId, environment: &Environment) -> Self {
+        Self(environment.temporary().join(Self::ROOT).join(session.file_name()))
     }
 
     pub fn open(&self) -> std::io::Result<()> {

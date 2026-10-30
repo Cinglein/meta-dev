@@ -94,7 +94,7 @@ impl<Write: Fn() -> Result<String, CliFailure>> ClaimHands for ClaimRun<'_, Writ
         let name = self.name();
         let id = WorktreeId::parsed(Path::new(&name)).ok_or_else(|| CliFailure::raised::<Setup>("no worktree id"))?;
         let recorded = self.worktree.clone().relocated(&self.created()?).identified(id);
-        SessionStart::for_session(&SessionId::of_task(self.worktree.task()))
+        SessionStart::for_session(&SessionId::of_task(self.worktree.task()), self.clone.environment())
             .record()
             .map_err(CliFailure::raised::<Setup>)?;
         LocalTrail::append(self.clone.git_dir.as_ref(), &TrailEntry::Created(recorded))

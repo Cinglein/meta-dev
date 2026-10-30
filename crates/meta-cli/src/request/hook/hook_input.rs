@@ -4,7 +4,7 @@ mod shell_command;
 mod tool_input;
 mod unreadable;
 
-use std::io::Read as _;
+use std::io::Read;
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
@@ -13,6 +13,7 @@ use serde::Deserialize;
 
 use super::CallPhase;
 use crate::request::ci::{SessionDir, SessionId, SessionStart};
+use crate::request::environment::Environment;
 use crate::request::output::Listed;
 use crate::request::project::Project;
 use crate::request::scale_policy::ToolPolicy;
@@ -33,17 +34,26 @@ pub struct HookInput {
     tool_input: Option<ToolInput>,
     #[serde(default)]
     tool_name: Option<ToolName>,
+    #[serde(skip)]
+    environment: Environment,
 }
 
 impl HookInput {
-    pub fn from_stdin() -> Result<HookInput, Unreadable> {
+    const ACTOR: &'static str = "META_ACTOR";
+
+    pub fn read(mut input: Box<dyn Read + '_>, environment: &Environment) -> Result<HookInput, Unreadable> {
         let mut bytes = Vec::new();
-        std::io::stdin().read_to_end(&mut bytes)?;
-        Ok(serde_json::from_slice(&bytes)?)
+        input.read_to_end(&mut bytes)?;
+        let read: HookInput = serde_json::from_slice(&bytes)?;
+        Ok(HookInput { environment: environment.clone(), ..read })
+    }
+
+    pub fn environment(&self) -> &Environment {
+        &self.environment
     }
 
     pub fn cwd(&self) -> PathBuf {
-        self.cwd.clone().or_else(|| std::env::current_dir().ok()).unwrap_or_default()
+        self.cwd.clone().unwrap_or_else(|| self.environment.directory().to_path_buf())
     }
 
     pub fn command(&self) -> Option<ShellCommand> {
@@ -51,7 +61,8 @@ impl HookInput {
     }
 
     pub fn open_session(&self) -> Result<(), Listed> {
-        self.session().map_or(Ok(()), |session| SessionStart::for_session(session).open().map_err(Listed::new))
+        let start = |session| SessionStart::for_session(session, &self.environment);
+        self.session().map_or(Ok(()), |session| start(session).open().map_err(Listed::new))
     }
 
     pub fn modal(&self, policy: &ToolPolicy) -> Option<Listed> {
@@ -60,10 +71,11 @@ impl HookInput {
 
     pub fn refusal(&self) -> Option<Listed> {
         let command = self.command()?;
-        let directories = command.commit_directories(&self.cwd());
+        let directories = command.commit_directories(&self.cwd(), self.environment.home().as_deref());
         let foreign = directories.iter().find_map(|directory| Identity::refusal_in(directory));
         let writing = self.session().zip(command.writes());
-        let unrecorded = writing.and_then(|(session, ())| SessionStart::for_session(session).record().err());
+        let start = |session| SessionStart::for_session(session, &self.environment);
+        let unrecorded = writing.and_then(|(session, ())| start(session).record().err());
         unrecorded.or(foreign)
     }
 
@@ -73,11 +85,11 @@ impl HookInput {
     }
 
     pub fn publishing(&self) -> Option<PathBuf> {
-        self.command()?.publishing_directory(&self.cwd())
+        self.command()?.publishing_directory(&self.cwd(), self.environment.home().as_deref())
     }
 
     pub fn stamp(&self, call: CallPhase, at: DateTime<Utc>) -> Option<Result<(), Listed>> {
-        SessionDir::stamped(&self.cwd(), call, at)
+        SessionDir::stamped(&self.cwd(), call, at, &self.environment)
     }
 
     pub fn session(&self) -> Option<&SessionId> {
@@ -85,8 +97,10 @@ impl HookInput {
     }
 
     pub fn announced_actor(&self) -> Option<Actor> {
-        let configured = std::env::var("META_ACTOR").ok().and_then(|name| name.parse().ok());
-        self.session_id.as_ref().map_or(configured.clone(), |session| session.announce(configured.clone()))
+        let configured = self.environment.text(Self::ACTOR).and_then(|name| name.parse().ok());
+        self.session_id
+            .as_ref()
+            .map_or(configured.clone(), |session| session.announce(configured.clone(), &self.environment))
     }
 }
 
@@ -96,7 +110,7 @@ mod tests {
     use serde_json::json;
 
     use super::super::HookEvent;
-    use super::{CallPhase, HookInput};
+    use super::{CallPhase, Environment, HookInput};
     use crate::request::ci::SessionDir;
 
     const TASK: &str = "task-00000000000000c0";
@@ -126,7 +140,7 @@ mod tests {
         let own = json!({ "cwd": worktree, "tool_input": { "command": LISTING } });
         assert_eq!([edit, shell, own].map(stamp), STAMPED);
         let kept = [DateTime::<Utc>::MIN_UTC, at].map(|when| {
-            SessionDir::stamped(&worktree, STARTED, when).unwrap().unwrap();
+            SessionDir::stamped(&worktree, STARTED, when, &Environment::default()).unwrap().unwrap();
             let read = SessionDir::stamp_of(&worktree.join(GIT).canonicalize().unwrap(), TASK.parse().unwrap());
             read.unwrap().map(|stamp| stamp.call())
         });

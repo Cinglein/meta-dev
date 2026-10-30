@@ -29,7 +29,7 @@ impl LocalSettings {
     pub const FILE: &'static str = "meta.local.toml";
     const SIBLING_SUFFIX: &'static str = "-worktrees.noindex";
     const LEGACY_SUFFIX: &'static str = "-worktrees";
-    const HOME: &'static str = "HOME";
+    const NO_HOME: &'static str = "monitor: $HOME is unset";
 
     pub fn read(checkout: &Path) -> Result<Self, CliFailure> {
         let file = LocalFile::new(checkout.join(Self::FILE));
@@ -61,11 +61,9 @@ impl LocalSettings {
         checkout.with_file_name(format!("{name}{suffix}"))
     }
 
-    pub fn monitor(&self, checkout: &Path) -> Result<MonitorSettings, CliFailure> {
-        let home = std::env::var_os(Self::HOME)
-            .map(PathBuf::from)
-            .ok_or_else(|| CliFailure::raised::<Setup>("monitor: $HOME is unset"))?;
-        MonitorSettings::merged(self.monitor.clone(), checkout, &self.worktree_roots(checkout), &home)
+    pub fn monitor(&self, checkout: &Path, home: Option<&Path>) -> Result<MonitorSettings, CliFailure> {
+        let home = home.ok_or_else(|| CliFailure::raised::<Setup>(Self::NO_HOME))?;
+        MonitorSettings::merged(self.monitor.clone(), checkout, &self.worktree_roots(checkout), home)
             .map_err(|failure| CliFailure::raised::<Setup>(format!("{} [monitor]: {failure}", Self::FILE)))
     }
 

@@ -1,6 +1,7 @@
 use strum::{Display, EnumIter, EnumString, IntoStaticStr};
 
 use crate::enforcement::Enforcement;
+use ambient_reads::AmbientReads;
 use const_shape::ConstShape;
 use crate_graph::GraphReport;
 use distinct_signatures::DistinctSignatures;
@@ -35,6 +36,7 @@ use vec_out_params::VecOutParams;
 #[strum(serialize_all = "kebab-case")]
 #[repr(u8)]
 pub enum LintName {
+    AmbientReads,
     ConstShape,
     CrateGraph,
     DistinctSignatures,
@@ -68,7 +70,8 @@ impl LintName {
     pub const fn enforcement(self) -> Enforcement {
         match self {
             LintName::RepeatedMethods => Enforcement::Listed,
-            LintName::ConstShape
+            LintName::AmbientReads
+            | LintName::ConstShape
             | LintName::CrateGraph
             | LintName::DistinctSignatures
             | LintName::EnumPredicates
@@ -99,6 +102,7 @@ impl LintName {
     #[must_use]
     pub fn report(self, files: &[SourceFile], graphs: &GraphReport, policy: &Policy) -> Report {
         match self {
+            LintName::AmbientReads => AmbientReads::report(files),
             LintName::ConstShape => ConstShape::report(files, policy),
             LintName::CrateGraph => graphs.report(policy),
             LintName::DistinctSignatures => DistinctSignatures::report(files),

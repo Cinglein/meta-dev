@@ -7,6 +7,7 @@ mod reply;
 mod tests;
 
 use std::fmt;
+use std::io::Read;
 use std::panic::resume_unwind;
 use std::str::FromStr;
 use std::time::{Duration, Instant};
@@ -18,6 +19,7 @@ use meta_schema::Actor;
 
 use crate::request::ci::{SessionDir, Watcher};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
+use crate::request::environment::Environment;
 use crate::request::output::{Listed, Output};
 use crate::request::project::{CiSettings, Config, Project};
 pub use call_phase::CallPhase;
@@ -77,8 +79,9 @@ impl HookEvent {
         settings.budget(CiSettings::ROUTINE).within(Instant::now() + self.timeout().saturating_sub(Self::MARGIN))
     }
 
-    pub fn respond(self) -> Result<Output, CliFailure> {
-        HookInput::from_stdin().map_or_else(|unreadable| self.unanswered(unreadable), |input| Ok(self.answer(&input)))
+    pub fn respond(self, environment: &Environment, input: Box<dyn Read + '_>) -> Result<Output, CliFailure> {
+        let read = HookInput::read(input, environment);
+        read.map_or_else(|unreadable| self.unanswered(unreadable), |input| Ok(self.answer(&input)))
     }
 
     pub fn unanswered(self, unreadable: Unreadable) -> Result<Output, CliFailure> {
@@ -90,7 +93,7 @@ impl HookEvent {
 
     pub fn answer(self, input: &HookInput) -> Output {
         let unstamped = self.phase().and_then(|call| input.stamp(call, Utc::now())).and_then(Result::err);
-        let reply = match Project::found(input.cwd().as_path()) {
+        let reply = match Project::found(input.cwd().as_path(), input.environment()) {
             Ok(Some(project)) => {
                 let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
                 let budget = self.budget(project.ci_settings());

@@ -15,14 +15,14 @@ pub struct Linking;
 
 impl Linking {
     pub fn after(input: &HookInput, budget: Budget) -> Option<Listed> {
-        let project = Project::try_from(input.publishing()?.as_path()).ok()?;
+        let project = Project::found(input.publishing()?.as_path(), input.environment()).ok()??;
         let branch = project.unprotected_branch()?;
         let task = branch.task()?;
         let pulls = LiveGithub::for_project(&project).within(budget.deadline()).pulls_from(&branch);
         pulls.first()?;
         let log = project.log(budget).ok()?;
         let links = State::fold(log.read().ok()?.records()).unlinked(task, &pulls);
-        let actor = Request::actor().ok()?;
+        let actor = Request::actor(input.environment()).ok()?;
         let written = links.into_iter().map(|link| {
             let writing = Writing::new(&log, actor.clone(), Event::TaskLinked(link)).entered();
             writing.map_or_else(Listed::new, Listed::new)

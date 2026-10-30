@@ -1,7 +1,9 @@
 mod fake_machine;
 mod stale_marks;
 
-use std::path::Path;
+use std::collections::BTreeMap;
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, TimeDelta, Utc};
 use meta_golden::Golden;
@@ -18,6 +20,7 @@ use super::standing::Standing;
 use super::starts::Starts;
 use super::target::Target;
 use crate::request::cli_failure::{CliFailure, Setup};
+use crate::request::environment::Environment;
 use crate::request::local::local_settings::Cause;
 use crate::request::local::local_settings::MonitorSettings;
 use crate::request::local::{LocalClone, LocalFile};
@@ -26,6 +29,7 @@ use crate::request::project::{CiSettings, Config};
 use fake_machine::FakeMachine;
 
 const NOW: &str = "2026-10-27T12:00:00Z";
+const HOME: &str = "HOME";
 const STATE: &str = "meta-local/monitor-state.json";
 const MARKED: &str = r#"{"marked":{"100":{"started":"2026-10-26T18:00:00Z","seen":"2026-10-27T12:00:00Z"},
 "110":{"started":"2026-10-27T11:50:00Z","seen":"2026-10-27T12:00:00Z"}},"watched":[]}"#;
@@ -161,7 +165,10 @@ fn opted_in_stopping_spares_the_owner_shell_claude_its_children_other_projects_a
 fn watch_items_persist_into_obvious_and_the_trail_keeps_no_repeats_failures_or_blind_ticks_within_its_cap() {
     let checkout = tempfile::tempdir().unwrap();
     let settings = CiSettings::try_from(&Config::default()).unwrap();
-    let clone = LocalClone::new(checkout.path().to_path_buf(), checkout.path().join(GIT), settings);
+    let home = BTreeMap::from([(OsString::from(HOME), checkout.path().as_os_str().to_owned())]);
+    let environment = Environment::new(checkout.path().to_path_buf(), PathBuf::new(), home);
+    let clone =
+        LocalClone::new(checkout.path().to_path_buf(), checkout.path().join(GIT), settings).in_environment(environment);
     let git_dir = clone.git_dir().as_ref();
     let later = SCENE.replace(LOOP[0], LOOP[1]).replace(JOINED[0], JOINED[1]).replace(RISING[0], RISING[1]);
     let scenes = [Some(SCENE), Some(later.as_str()), Some(later.as_str()), None, None];

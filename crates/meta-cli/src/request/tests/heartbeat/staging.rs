@@ -7,7 +7,8 @@ const RENAMING: &str = ": renaming to ";
 
 #[test]
 fn every_writer_stages_under_its_own_name_that_holds_the_process_id() {
-    let file = LocalFile::new(std::env::temp_dir().join(FILE));
+    let dir = tempfile::tempdir().unwrap();
+    let file = LocalFile::new(dir.path().join(FILE));
     let [first, second] = [file.staging(), file.staging()];
     assert_ne!(first, second);
     assert!(first.to_string_lossy().contains(&std::process::id().to_string()));
