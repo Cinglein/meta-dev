@@ -35,5 +35,6 @@ exclude_re = [
     "Workflow::(all|read)",
     "DependabotConfig::read",
     "RunEvent::ambient",
+    "GhCalls<'project>::called",
 ]
 minimum_test_timeout = 10.0

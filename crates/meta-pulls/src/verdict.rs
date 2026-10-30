@@ -8,6 +8,13 @@ pub enum Verdict {
 }
 
 impl Verdict {
+    pub fn passed(self) -> Option<()> {
+        match self {
+            Self::Green => Some(()),
+            Self::Pending | Self::Red => None,
+        }
+    }
+
     pub fn failing(self) -> Option<Self> {
         match self {
             Self::Red => Some(self),
