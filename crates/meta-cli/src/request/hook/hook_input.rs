@@ -1,3 +1,4 @@
+mod agent_call;
 mod identity;
 mod pushed_commits;
 mod shell_command;
@@ -10,6 +11,7 @@ use std::path::PathBuf;
 use chrono::{DateTime, Utc};
 use meta_schema::{Actor, ToolName};
 use serde::Deserialize;
+use serde::de::IgnoredAny;
 
 use super::CallPhase;
 use crate::request::ci::{SessionDir, SessionId, SessionStart};
@@ -17,6 +19,7 @@ use crate::request::output::Listed;
 use crate::request::project::Project;
 use crate::request::scale_policy::ToolPolicy;
 
+use agent_call::AgentCall;
 use identity::Identity;
 use pushed_commits::PushedCommits;
 use shell_command::ShellCommand;
@@ -33,9 +36,13 @@ pub struct HookInput {
     tool_input: Option<ToolInput>,
     #[serde(default)]
     tool_name: Option<ToolName>,
+    #[serde(default)]
+    agent_id: Option<IgnoredAny>,
 }
 
 impl HookInput {
+    const UNNAMED: &'static str = "the hook input names no tool, so no tool call is allowed";
+
     pub fn from_stdin() -> Result<HookInput, Unreadable> {
         let mut bytes = Vec::new();
         std::io::stdin().read_to_end(&mut bytes)?;
@@ -56,6 +63,16 @@ impl HookInput {
 
     pub fn modal(&self, policy: &ToolPolicy) -> Option<Listed> {
         policy.refusal(self.tool_name.as_ref())
+    }
+
+    pub fn tool(&self) -> Result<&ToolName, Listed> {
+        self.tool_name.as_ref().ok_or_else(|| Listed::new(Self::UNNAMED))
+    }
+
+    pub fn agent_call(&self, policy: &ToolPolicy) -> Option<AgentCall<'_>> {
+        policy.leased(self.tool_name.as_ref())?;
+        let prompt = self.tool_input.as_ref().and_then(ToolInput::prompt);
+        Some(AgentCall::new(self.cwd(), prompt, self.agent_id.as_ref().map(|_| ())))
     }
 
     pub fn refusal(&self) -> Option<Listed> {

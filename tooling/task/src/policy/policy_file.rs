@@ -1,3 +1,4 @@
+mod dispatch_issuers;
 mod entries;
 mod fallback_keys;
 mod liveness;
@@ -24,6 +25,7 @@ use crate::budgets::{Amount, BudgetDrafts, Budgets, LegacyKey, Measure};
 use crate::domains::Domains;
 use crate::gate_env_name::GateEnvName;
 use crate::gate_status::GateStatus;
+pub use dispatch_issuers::DispatchIssuers;
 use entries::Entries;
 use fallback_keys::FallbackKeys;
 pub use liveness::Liveness;
@@ -70,6 +72,8 @@ pub struct PolicyFile {
     liveness: Option<Liveness>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     tools: Option<ModalTools>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    dispatch: Option<DispatchIssuers>,
     supply_chain: SupplyChain,
 }
 
@@ -104,6 +108,7 @@ impl PolicyFile {
             spec: policy.spec.clone(),
             liveness: policy.liveness,
             tools: policy.tools.clone(),
+            dispatch: policy.dispatch.clone(),
             supply_chain: policy.supply_chain.clone(),
         }
     }
@@ -258,6 +263,7 @@ impl PolicyFile {
             spec: self.spec,
             liveness: self.liveness,
             tools: self.tools,
+            dispatch: self.dispatch,
             supply_chain: self.supply_chain,
         })
     }

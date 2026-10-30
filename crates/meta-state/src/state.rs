@@ -13,6 +13,7 @@ use meta_schema::{
     Task, TaskLink, Text,
 };
 
+use crate::live_lease::LiveLease;
 use crate::project_stage::ProjectStage;
 use crate::rated_item::RatedItem;
 use crate::refusal::Refusal;
@@ -93,6 +94,15 @@ impl State {
         self.task(task)
             .map(|task| task.progress().assignments().iter().map(|stamp| stamp.actor().clone()).collect())
             .unwrap_or_default()
+    }
+
+    #[must_use]
+    pub fn leases(&self, task: Id<Task>) -> Vec<LiveLease> {
+        let live = self.retirement(Entry::Task(task)).map_or_else(|| self.task(task), |_| None);
+        let held = live.map(|task| task.progress().assignments()).unwrap_or_default();
+        held.iter()
+            .filter_map(|stamp| stamp.lease().map(|lease| LiveLease::new(stamp.actor().clone(), lease.clone())))
+            .collect()
     }
 
     #[must_use]

@@ -112,8 +112,12 @@ hot = ["goldens/snapshots"]
 members = 4
 landers = ["owner", "claude-lead"]
 
+[dispatch]
+issuers = ["owner", "claude-lead"]
+
 [tools]
 modal = ["AskUserQuestion"]
+leased = ["Agent"]
 
 [domains.features-and-maintenance]
 crates = ["*"]

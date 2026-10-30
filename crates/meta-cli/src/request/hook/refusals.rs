@@ -16,7 +16,11 @@ impl<'call> Refusals<'call> {
     }
 
     pub fn first(&self) -> Option<Listed> {
-        Self::modal(self.input)
+        self.input
+            .tool()
+            .err()
+            .or_else(|| Self::modal(self.input))
+            .or_else(|| Self::unleased(self.input, self.project))
             .or_else(|| self.project.and_then(|project| self.command(project)))
             .or_else(|| self.input.refusal())
             .or_else(|| self.project.and_then(|project| self.input.unpushable(project, Self::PUSH)))
@@ -25,6 +29,11 @@ impl<'call> Refusals<'call> {
     fn modal(input: &HookInput) -> Option<Listed> {
         ScalePolicy::embedded_section(ScalePolicy::tools)
             .map_or_else(|why| Some(Listed::new(why)), |tools| input.modal(tools))
+    }
+
+    fn unleased(input: &HookInput, project: Option<&Project>) -> Option<Listed> {
+        ScalePolicy::embedded_section(ScalePolicy::tools)
+            .map_or_else(|why| Some(Listed::new(why)), |tools| input.agent_call(tools)?.refusal(project))
     }
 
     fn command(&self, project: &Project) -> Option<Listed> {

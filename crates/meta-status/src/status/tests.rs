@@ -1,5 +1,7 @@
 use meta_pull_query::LiveReply;
-use meta_schema::{Actor, Block, Blocker, Claim, Event, Id, NewIssue, NewTask, Record, Task, TaskLink, TaskRef};
+use meta_schema::{
+    Actor, Block, Blocker, Claim, Event, Id, LeaseGrant, NewIssue, NewTask, Record, Task, TaskLink, TaskRef,
+};
 use meta_state::State;
 
 use super::Status;
@@ -86,7 +88,9 @@ impl Tasks {
                 board.then(Event::TaskOpened(task.clone()))
             });
         let discussed = self.discussed.task();
-        let board = board.claimed(self.held.task()).linked(self.held.task(), "13").linked(self.late.task(), "14");
+        let grant = LeaseGrant::new(Id::generate(), ALICE.parse().unwrap());
+        let leased = Event::TaskClaimed(Claim::new(self.held.task(), None).leased(grant));
+        let board = board.then(leased).linked(self.held.task(), "13").linked(self.late.task(), "14");
         let board = board.linked(self.root.task(), "99").claimed(discussed);
         let asked = Block::new(discussed, Blocker::Discussion(issue.issue())).reply_by(PAST.parse().unwrap());
         let board = board.then(Event::TaskBlocked(asked));
@@ -137,7 +141,7 @@ fn the_tree_runs_from_divisions_down_to_tasks_with_pull_requests_holders_effort_
     let shown = Status::new(&state, &github, NOW.parse().unwrap()).to_string();
     let tree = shown.split_once("orphan #20: open, no task\n").map(|(_, tree)| tree).unwrap_or_default();
     let expected = format!(
-        "root\n  {} open | #99 unknown | #16 open required pending | #19 open required pending | no holder | legacy root task\nfeatures-and-maintenance\n  {} open | #14 open checks truncated | no holder | effort 5000 tokens, spend unmeasured | due 2026-10-01 00:00Z | one two three four five six seven eight…\n  {} {} | #15 open required red | no holder | due 2026-10-01 00:00Z | finished\n  features-and-maintenance/ci\n    {} assigned | #13 open required red | held by alice | due 2026-10-01 00:00Z | held\nperformance-and-cost\n  {} in discussion {} | reply due 2026-10-01 00:00Z | held by alice | due 2026-10-01 00:00Z | discussed\n",
+        "root\n  {} open | #99 unknown | #16 open required pending | #19 open required pending | no holder | legacy root task\nfeatures-and-maintenance\n  {} open | #14 open checks truncated | no holder | effort 5000 tokens, spend unmeasured | due 2026-10-01 00:00Z | one two three four five six seven eight…\n  {} {} | #15 open required red | no holder | due 2026-10-01 00:00Z | finished\n  features-and-maintenance/ci\n    {} assigned | #13 open required red | held by alice leased | due 2026-10-01 00:00Z | held\nperformance-and-cost\n  {} in discussion {} | reply due 2026-10-01 00:00Z | held by alice | due 2026-10-01 00:00Z | discussed\n",
         tasks.root.task(),
         tasks.late.task(),
         tasks.finished.task(),

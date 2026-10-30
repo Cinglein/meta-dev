@@ -20,6 +20,7 @@ use crate::request::ci::{SessionDir, Watcher};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
 use crate::request::output::{Listed, Output};
 use crate::request::project::{CiSettings, Config, Project};
+use crate::request::scale_policy::ScalePolicy;
 pub use call_phase::CallPhase;
 use hook_input::{HookInput, Unreadable};
 use linking::Linking;
@@ -89,7 +90,9 @@ impl HookEvent {
     }
 
     pub fn answer(self, input: &HookInput) -> Output {
-        let unstamped = self.phase().and_then(|call| input.stamp(call, Utc::now())).and_then(Result::err);
+        let tools = ScalePolicy::embedded_section(ScalePolicy::tools).ok();
+        let phase = tools.and_then(|tools| input.agent_call(tools)).map_or(self.phase(), |_| None);
+        let unstamped = phase.and_then(|call| input.stamp(call, Utc::now())).and_then(Result::err);
         let reply = match Project::found(input.cwd().as_path()) {
             Ok(Some(project)) => {
                 let session = input.session().and_then(|session| SessionDir::for_session(&project, session));

@@ -86,6 +86,7 @@ pub struct Policy {
     spec: Option<SpecSettings>,
     liveness: Option<policy_file::Liveness>,
     tools: Option<policy_file::ModalTools>,
+    dispatch: Option<policy_file::DispatchIssuers>,
     supply_chain: SupplyChain,
 }
 

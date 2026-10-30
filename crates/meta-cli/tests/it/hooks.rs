@@ -129,7 +129,7 @@ impl Repo {
     fn started(&self, event: &str, command: &str, cwd: &Path, meta: &mut Command) -> Child {
         let session = if event == SESSION_START { SESSION_FIELD } else { "" };
         let input = format!(
-            r#"{{{session}"cwd":{},"tool_input":{{"command":{}}}}}"#,
+            r#"{{{session}"cwd":{},"tool_name":"Bash","tool_input":{{"command":{}}}}}"#,
             serde_json::to_string(cwd).unwrap(),
             serde_json::to_string(&command.replace(ELSEWHERE, &self.origin.path().display().to_string())).unwrap()
         );

@@ -40,7 +40,8 @@ impl EventVisitor for Applying<'_> {
     }
 
     fn task_claimed(self, claim: &Claim) -> Self::Output {
-        self.state.task_mut(claim.task())?.advance(|progress| progress.claimed(self.stamp, claim.previous_claimant()))
+        let stamp = self.stamp.leased(claim.grant().cloned());
+        self.state.task_mut(claim.task())?.advance(|progress| progress.claimed(stamp, claim.previous_claimant()))
     }
 
     fn task_released(self, task: TaskRef) -> Self::Output {

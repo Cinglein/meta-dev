@@ -150,7 +150,7 @@ struct Session<'repo> {
 impl Session<'_> {
     fn hook(&self, event: &str, command: &str) -> String {
         let input = format!(
-            r#"{{"session_id":{},"cwd":{},"tool_input":{{"command":{}}}}}"#,
+            r#"{{"session_id":{},"cwd":{},"tool_name":"Bash","tool_input":{{"command":{}}}}}"#,
             serde_json::to_string(self.id).unwrap(),
             serde_json::to_string(self.cwd).unwrap(),
             serde_json::to_string(command).unwrap()

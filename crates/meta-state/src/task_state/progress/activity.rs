@@ -48,7 +48,10 @@ impl Activity {
         let actor = by.actor().clone();
         match (Self::holds(&kept, &actor), previous) {
             (false, _) => Ok(Self { assignments: [kept, vec![by]].concat(), ..self.clone() }),
-            (true, None) => Ok(self.clone()),
+            (true, None) => {
+                let renewed = kept.into_iter().map(|held| held.renewed(&by)).collect();
+                Ok(Self { assignments: renewed, ..self.clone() })
+            }
             (true, Some(_)) => Err(Refusal::AlreadyAssigned(actor)),
         }
     }

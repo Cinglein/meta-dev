@@ -10,12 +10,14 @@ use serde::de::IgnoredAny;
 
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::LocalFile;
+pub use dispatch_policy::DispatchPolicy;
 pub use embedded_failure::EmbeddedFailure;
 pub use liveness::Liveness;
 pub use policy_millis::PolicyMillis;
 pub use queue_policy::QueuePolicy;
 pub use tool_policy::ToolPolicy;
 
+mod dispatch_policy;
 mod embedded_failure;
 mod liveness;
 mod policy_millis;
@@ -35,7 +37,9 @@ pub struct ScalePolicy {
     #[serde(default)]
     queue: QueuePolicy,
     #[serde(default)]
-    tools: ToolPolicy,
+    tools: Option<ToolPolicy>,
+    #[serde(default)]
+    dispatch: Option<DispatchPolicy>,
 }
 
 impl ScalePolicy {
@@ -61,19 +65,23 @@ impl ScalePolicy {
         &self.queue
     }
 
+    pub fn dispatch(&self) -> Option<&DispatchPolicy> {
+        self.dispatch.as_ref()
+    }
+
     pub fn embedded() -> Result<&'static ScalePolicy, EmbeddedFailure> {
         static PARSED: OnceLock<Result<ScalePolicy, EmbeddedFailure>> = OnceLock::new();
         PARSED.get_or_init(|| Ok(toml::from_str(Self::EMBEDDED)?)).as_ref().map_err(Clone::clone)
     }
 
     pub fn embedded_section<Section>(
-        section: impl FnOnce(&'static ScalePolicy) -> &'static Section,
+        section: impl FnOnce(&'static ScalePolicy) -> Option<&'static Section>,
     ) -> Result<&'static Section, EmbeddedFailure> {
-        Self::embedded().map(section)
+        Self::embedded().and_then(|policy| section(policy).ok_or(EmbeddedFailure::Missing))
     }
 
-    pub fn tools(&self) -> &ToolPolicy {
-        &self.tools
+    pub fn tools(&self) -> Option<&ToolPolicy> {
+        self.tools.as_ref()
     }
 
     pub fn scales(&self) -> &Scales {

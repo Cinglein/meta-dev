@@ -4,7 +4,7 @@ use super::{ALICE, Events, Lifecycle, OPENED, OWNER, Script};
 use crate::refusal::Refusal;
 use crate::state::State;
 
-const NEWER: &str = r#"{"kind":"SchemaVersion","version":9}"#;
+const NEWER: &str = r#"{"kind":"SchemaVersion","version":10}"#;
 const OLDER: &str = r#"{"kind":"SchemaVersion","version":1}"#;
 const PURPOSED: &str =
     r#"{"kind":"TaskPurposed","task":"task-0000000000000009","purpose":{"serves":"project-0000000000000001"}}"#;

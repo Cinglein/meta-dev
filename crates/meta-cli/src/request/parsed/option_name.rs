@@ -21,6 +21,7 @@ pub enum OptionName {
     Scenario,
     Actor,
     Scratch,
+    Agent,
 }
 
 impl FromStr for OptionName {
@@ -44,6 +45,7 @@ impl FromStr for OptionName {
             "--scenario" => Ok(Self::Scenario),
             "--actor" => Ok(Self::Actor),
             "--scratch" => Ok(Self::Scratch),
+            "--agent" => Ok(Self::Agent),
             other => Err(CliFailure::raised::<Misuse>(format!(
                 "unknown option {other}; put text starting with -- after a bare --"
             ))),
@@ -70,6 +72,7 @@ impl fmt::Display for OptionName {
             Self::Scenario => "--scenario",
             Self::Actor => "--actor",
             Self::Scratch => "--scratch",
+            Self::Agent => "--agent",
         };
         formatter.write_str(name)
     }
