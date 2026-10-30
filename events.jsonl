@@ -1785,3 +1785,4 @@
 {"at":"2026-10-30T14:48:02.605356Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-20870c13156d7414","text":"Agents wait on CI that never started (#242 head 8f39265b: no run in 40 min); meta wait --on ci should check a run exists for the head and flag one that does not.","division":"features-and-maintenance"}
 {"at":"2026-10-30T15:08:11.807108Z","actor":"claude-teststack1","kind":"TaskLinked","task":"task-d53f262aff86547a","pr":244}
 {"at":"2026-10-30T15:34:30.782446Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-39646fb2e7654798","text":"Single-use dispatch leases (owner 2026-10-30): spawning an agent writes LeaseUsed; a used lease admits no further agent. After #226."}
+{"at":"2026-10-30T15:43:09.962379Z","actor":"claude-lead","kind":"EntryCorrected","entry":"concern-6c46d686ddc5c255","text":"CI test_cpu_time varies ~700 ms on identical code (#239: 3345 vs 4067 ms); the 4000 ms line can't tell regression from noise."}
