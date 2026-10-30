@@ -11,7 +11,6 @@ build_time = { path = "../tooling/build_time" }
 corpus_check = { path = "../tooling/corpus_check" }
 crate_graph = { path = "../tooling/lints/crate_graph" }
 elegance = { path = "../tooling/elegance" }
-git_starters = { path = "../tooling/lints/git_starters" }
 git_trace = { path = "../tooling/git_trace" }
 meta-golden = { path = "../crates/meta-golden" }
 meta-log = { path = "../crates/meta-log" }
@@ -21,6 +20,7 @@ meta-severity = { path = "../crates/meta-severity" }
 meta-state = { path = "../crates/meta-state" }
 mutant_costs = { path = "../tooling/mutant_costs" }
 mutation = { path = "../tooling/mutation" }
+process_starters = { path = "../tooling/lints/process_starters" }
 settings = { path = "../tooling/settings" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

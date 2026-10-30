@@ -10,6 +10,7 @@ use listed_test::ListedTest;
 use listing::Listing;
 use test_argument::TestArgument;
 
+use crate::test_name::TestName;
 use crate::test_run::TestRun;
 use crate::test_runner::test_traces::TestTraces;
 use crate::test_timing::TestTiming;
@@ -20,6 +21,7 @@ use task::{CommandLine, Program, Site, Stdout};
 #[derive(Debug)]
 pub(super) struct TestBinary {
     path: PathBuf,
+    package: String,
     arguments: Vec<String>,
     traces: Option<TestTraces>,
 }
@@ -29,11 +31,13 @@ impl TestBinary {
 
     pub(super) fn new(
         path: PathBuf,
+        package: String,
         arguments: impl IntoIterator<Item = String>,
         traces: Option<TestTraces>,
     ) -> TestBinary {
         TestBinary {
             path,
+            package,
             arguments: arguments.into_iter().collect(),
             traces,
         }
@@ -76,17 +80,23 @@ impl TestBinary {
                 error,
             })
         };
+        let name = TestName::new(&self.package, &self.path, &test);
         let traced = self.traces.as_ref().map_or_else(
             || Ok(line.clone()),
-            |traces| traces.traced(line.clone(), &self.path, &test),
+            |traces| traces.traced(line.clone(), &name),
         );
         let before = cpu();
         let started = Instant::now();
         let ran = traced.and_then(|line| line.captured::<Stdout>());
         let elapsed = started.elapsed();
         let spent = before.and_then(|before| cpu().map(|after| after.since(before)));
-        let timing = |cpu| TestTiming::new(&self.path, &test, elapsed, cpu);
-        ran.and(spent)
+        let sealed = self
+            .traces
+            .as_ref()
+            .map_or(Ok(()), |traces| traces.sealed(&name));
+        let timing = |cpu| TestTiming::new(name.clone(), elapsed, cpu);
+        ran.and(sealed)
+            .and(spent)
             .inspect_err(|failure| eprintln!("{failure}"))
             .map_or_else(
                 |_| TestRun::Failed(timing(Duration::ZERO)),

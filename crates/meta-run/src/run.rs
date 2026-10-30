@@ -34,6 +34,7 @@ pub struct Run {
     command: Command,
     input: Option<String>,
     placement: Placement,
+    trace: SpawnTrace,
 }
 
 impl Run {
@@ -50,7 +51,8 @@ impl Run {
 
     #[must_use]
     pub fn inheriting(program: impl AsRef<OsStr>, env: EnvPolicy, inherited: Environment) -> Self {
-        let run = Self { command: Command::new(program), input: None, placement: Placement::Own };
+        let trace = SpawnTrace::within(&inherited);
+        let run = Self { command: Command::new(program), input: None, placement: Placement::Own, trace };
         run.policed_from(env, inherited)
     }
 
@@ -102,8 +104,7 @@ impl Run {
 
     #[must_use]
     pub fn nested(program: impl AsRef<OsStr>) -> Self {
-        let run = Self::new(program, EnvPolicy::Inherit);
-        Self { command: run.command, input: run.input, placement: Placement::Nested }
+        Self { placement: Placement::Nested, ..Self::new(program, EnvPolicy::Inherit) }
     }
 
     #[must_use]
@@ -111,11 +112,11 @@ impl Run {
         let prompt = Self::NO_PROMPT[0];
         self.command.env_remove(prompt);
         let terminal = std::env::var_os(prompt).into_iter().fold(self, |run, inherited| run.var(prompt, inherited));
-        Self { command: terminal.command, input: terminal.input, placement: Placement::Terminal }
+        Self { placement: Placement::Terminal, ..terminal }
     }
 
     pub fn ran(self, deadline: Instant) -> Result<Ran, RunFailure> {
-        let kind = SpanKind::spawning(&self.command);
+        let kind = SpanKind::spawning(self.command.get_program(), &self.command.get_args().collect::<Vec<_>>());
         let _span = kind.entered();
         let run = kind.stitch().into_iter().fold(self, |run, stitch| run.var(Stitch::VARIABLE, OsString::from(stitch)));
         let watch = Interrupts::watched();
@@ -152,8 +153,11 @@ impl Run {
         let stdin = self.input.as_ref().map_or_else(Stdio::null, |_| Stdio::piped());
         let piped = self.command.stdin(stdin).stdout(Stdio::piped()).stderr(Stdio::piped());
         let unspawned = |source| RunFailure::Unspawned { line: line.clone(), source };
-        SpawnTrace::started(piped).map_err(unspawned)?;
         let mut child = piped.spawn().map_err(unspawned)?;
+        self.trace.noted(self.command.get_program()).map_err(|source| {
+            Self::alone(&mut child);
+            unspawned(source)
+        })?;
         let _member = joined(&mut child).ok_or_else(|| RunFailure::Interrupted(line.clone()))?;
         let fed = child.stdin.take().zip(self.input);
         fed.map(|(mut pipe, input)| std::thread::spawn(move || pipe.write_all(input.as_bytes())));
@@ -184,8 +188,11 @@ impl Run {
         Group::accepting().ok_or_else(|| RunFailure::Interrupted(line.clone()))?;
         let quiet = self.command.process_group(i32::default()).stdin(Stdio::null()).stdout(Stdio::null());
         let unspawned = |source| RunFailure::Unspawned { line: line.clone(), source };
-        SpawnTrace::started(quiet).map_err(unspawned)?;
-        quiet.stderr(Stdio::null()).spawn().map(drop).map_err(unspawned)
+        let mut child = quiet.stderr(Stdio::null()).spawn().map_err(unspawned)?;
+        self.trace.noted(self.command.get_program()).map_err(|source| {
+            Self::alone(&mut child);
+            unspawned(source)
+        })
     }
 
     fn drained<Pipe: Read + Send + 'static, Text: Send + 'static>(

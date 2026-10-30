@@ -1,29 +1,59 @@
+use std::ffi::OsStr;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug)]
-pub(crate) struct TestName<'test, Test: fmt::Display> {
-    binary: &'test Path,
-    test: &'test Test,
+use task::{CrateName, FailureKind};
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct TestName {
+    package: String,
+    binary: PathBuf,
+    test: String,
 }
 
-impl<'test, Test: fmt::Display> TestName<'test, Test> {
-    pub(crate) fn new(binary: &'test Path, test: &'test Test) -> Self {
-        TestName { binary, test }
+impl TestName {
+    pub(crate) fn new(package: &str, binary: &Path, test: &impl fmt::Display) -> TestName {
+        TestName {
+            package: package.to_owned(),
+            binary: binary.to_path_buf(),
+            test: test.to_string(),
+        }
     }
 
     pub(crate) fn within(&self, root: &Path) -> PathBuf {
         root.join(self.to_string())
     }
+
+    pub(crate) fn shown(&self) -> String {
+        format!("{} {}", self.stem(), self.test)
+    }
+
+    pub(crate) fn fields(&self, separator: char) -> String {
+        format!(
+            "{}{separator}{}{separator}{}",
+            self.package,
+            self.test,
+            self.binary.display()
+        )
+    }
+
+    pub(crate) fn failure(&self) -> FailureKind {
+        FailureKind::Test {
+            crate_name: CrateName::from(self.binary.as_path()),
+            name: self.test.as_str().into(),
+        }
+    }
+
+    fn stem(&self) -> &str {
+        let name = self.binary.file_name().and_then(OsStr::to_str);
+        name.and_then(|name| name.rsplit_once('-'))
+            .map(|(stem, _)| stem)
+            .unwrap_or_default()
+    }
 }
 
-impl<Test: fmt::Display> fmt::Display for TestName<'_, Test> {
+impl fmt::Display for TestName {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let name = self.binary.file_name().map(|name| name.to_string_lossy());
-        let stem = name
-            .as_ref()
-            .and_then(|name| name.rsplit_once('-'))
-            .map(|(stem, _)| stem);
-        write!(formatter, "{} {}", stem.unwrap_or_default(), self.test)
+        write!(formatter, "{} {} {}", self.package, self.stem(), self.test)
     }
 }

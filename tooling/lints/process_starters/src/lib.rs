@@ -23,9 +23,9 @@ impl Starters {
         found: ProgramNames::found,
     };
     pub const PROCESS: Starters = Starters {
-        ports: &["crates/meta-run", "tooling/task"],
-        headline: "only the runner crates start processes",
-        finding: "names std::process::Command outside meta-run and task; start processes through their runners",
+        ports: &["crates/meta-run", "tooling/task/src/command_line"],
+        headline: "only the runners start processes",
+        finding: "starts a std::process::Command outside meta-run and task::command_line; start it through a runner",
         found: CommandPaths::found,
     };
 
@@ -66,9 +66,12 @@ mod tests {
     const SOURCE: &str = "const GIT: &str = \"git\";\nfn f() { Command::new(\"git\"); assert!(run(\"git\")); }\nfn g(w: &str) -> bool { w == \"git\" || run(\"git\") }\n#[cfg(test)]\nmod tests { fn t() { Command::new(\"git\"); } }\n";
     const PORT_SOURCE: &str = "fn p() { Command::new(\"git\"); }\n";
     const FLAGGED: [&str; 5] = [":1", ":2", ":2", ":3", ":5"];
-    const RUNNER: &str = "crates/meta-run/src/run.rs";
-    const STARTS: &str = "use std::process::{Child, Command};\nuse std::{env, process::Command as C};\nfn f() { std::process::Command::new(X); Command::new(X); }\nuse std::process::Child;\n";
-    const STARTED: [&str; 3] = [":1", ":2", ":3"];
+    const RUNNERS: [&str; 2] = [
+        "crates/meta-run/src/run.rs", "tooling/task/src/command_line/mod.rs",
+    ];
+    const BESIDE_THE_RUNNER: &str = "tooling/task/src/policy.rs";
+    const STARTS: &str = "use std::process::{Child, Command as C};\nuse std::process::*;\nfn f(c: &Command, ran: Ran) { ran.status(); c.spawn(); }\nfn g() { let held = C::new(X); std::process::Command::new(X).arg(Y).output(); }\nfn h() { assert!(Command::new(X).status().is_ok(), \"{}\", Child::new()); }\n";
+    const STARTED: [&str; 3] = [":4", ":4", ":5"];
 
     #[test]
     fn every_literal_naming_git_outside_meta_git_is_a_starter_and_a_comparison_is_not() {
@@ -78,12 +81,9 @@ mod tests {
     }
 
     #[test]
-    fn every_path_to_the_std_command_outside_the_runners_is_a_starter() {
+    fn each_std_command_started_outside_the_runners_is_a_starter_however_it_is_imported() {
         let file = |path: &str| SourceFile::parse(path, STARTS.to_owned()).unwrap();
-        assert!(
-            Starters::PROCESS
-                .report(&[file(RUNNER), file(ELSEWHERE)])
-                .lists_exactly(&STARTED)
-        );
+        let files = [file(RUNNERS[0]), file(RUNNERS[1]), file(BESIDE_THE_RUNNER)];
+        assert!(Starters::PROCESS.report(&files).lists_exactly(&STARTED));
     }
 }

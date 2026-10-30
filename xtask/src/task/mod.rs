@@ -47,7 +47,7 @@ use mutant_costs::MutantCosts;
 use mutation::{Mutants, Scope, ShardPlan, TriggerEvent};
 use settings::EmbeddedDefaults;
 use stacked::Stacked;
-use test_time::{GitCount, TestRunner, TestTime};
+use test_time::{ProcessCount, TestRunner, TestTime};
 use waterfall::Waterfall;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, IntoStaticStr, VariantNames)]
@@ -189,7 +189,7 @@ impl Task {
             Task::Stacked => Ok(Stacked::run(&policy)?),
             Task::Surfaces => Surfaces::announce(workspace.root(), &policy, summary.as_deref()),
             Task::Test => Ok(Test::run(workspace, &selection, &policy)?),
-            Task::TestTime => match env::var_os(GitCount::SWITCH) {
+            Task::TestTime => match env::var_os(ProcessCount::SWITCH) {
                 Some(_) => TestProcesses::run(workspace, &selection, &policy, &mut ledger),
                 None => Ok(TestTime::run(workspace, &selection, &policy, &mut ledger)?),
             }

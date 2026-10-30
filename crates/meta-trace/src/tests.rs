@@ -1,8 +1,7 @@
 mod kept;
 mod overflow;
 
-use std::ffi::OsString;
-use std::process::Command;
+use std::ffi::{OsStr, OsString};
 use std::time::Duration;
 
 use crate::Program::{Gh, Git, Lsof, Meta, Other};
@@ -32,7 +31,9 @@ const SECTIONS: &str = "untraced";
 
 #[test]
 fn spawns_get_closed_kinds_that_survive_their_code_and_stitches_round_trip() {
-    let kinds = COMMANDS.map(|(program, words)| SpanKind::spawning(Command::new(program).args(words)));
+    let kinds = COMMANDS.map(|(program, words)| {
+        SpanKind::spawning(OsStr::new(program), &words.iter().map(OsStr::new).collect::<Vec<_>>())
+    });
     let decoded = CODED.map(|kind| SpanKind::try_from(KindCode::from(kind)));
     assert_eq!((kinds, decoded, SpanKind::try_from(KindCode::UNKNOWN)), (KINDS, CODED.map(Ok), Err(())));
     assert_eq!(STITCH.parse::<Stitch>().map(OsString::from), Ok(OsString::from(STITCH)));

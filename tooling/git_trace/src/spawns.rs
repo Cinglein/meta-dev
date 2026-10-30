@@ -1,10 +1,10 @@
 use std::cmp::Reverse;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use task::{Failure, Most, Site};
+use task::{Failure, FailureKind, FailureSet, Most, Printed, Site};
 
 use super::GitProcesses;
 use super::started::Started;
@@ -18,10 +18,26 @@ pub struct Spawns {
 impl Spawns {
     pub const GIT_TRACES: &'static str = "git-traces";
     const GIT: &'static str = concat!("gi", "t");
+    const UNTRACED: &'static str = "traced-tests";
 
     pub fn traced(root: &Path) -> Result<Spawns, Failure> {
+        let outside = Spawns { git: GitProcesses::traced(&root.join(Self::GIT_TRACES))?, ..Spawns::default() };
         let tests = Self::entries(root)?;
-        tests.iter().filter(|path| path.is_dir()).try_fold(Spawns::default(), |spawns, test| spawns.read(test))
+        let tests = tests.iter().filter(|path| path.is_dir() && !path.ends_with(Self::GIT_TRACES));
+        tests.into_iter().try_fold(outside, |spawns, test| spawns.read(test))
+    }
+
+    pub fn covering(self, timed: impl IntoIterator<Item = impl fmt::Display>) -> Result<Spawns, Failure> {
+        let timed: BTreeSet<String> = timed.into_iter().map(|test| test.to_string()).collect();
+        let traced: BTreeSet<String> = self.tests.keys().cloned().collect();
+        let differing: Vec<&String> = traced.symmetric_difference(&timed).collect();
+        match differing.first() {
+            None => Ok(self),
+            Some(_) => Err(Failure::Found {
+                printed: Printed::Text(format!("traced and timed tests differ: {differing:?}")),
+                found: FailureSet::default().recording(FailureKind::Infra { job: Self::UNTRACED.into() }),
+            }),
+        }
     }
 
     fn entries(directory: &Path) -> Result<Vec<PathBuf>, Failure> {
@@ -73,27 +89,37 @@ impl fmt::Display for Spawns {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
+    use std::ffi::OsStr;
     use std::fs;
 
+    use meta_run::SpawnTrace;
     use task::Most;
 
     use super::Spawns;
 
-    const DIRECTORIES: [&str; 2] = ["it a/git-traces", "it b/git-traces"];
-    const FILES: [(&str, &str); 3] = [("it a/7", "git\nmeta\n"), ("it a/8", "git\n"), ("it a/git-traces/t", TRACE)];
+    const TESTS: [&str; 3] = ["p it a", "p it b", "p it c"];
+    const UNTRACED: &str = "p it d";
+    const STARTS: [(usize, &str); 4] = [(0, Spawns::GIT), (0, "meta"), (0, Spawns::GIT), (2, "meta")];
     const TRACE: &str = "{\"event\":\"version\",\"sid\":\"20261029T0-H1-P1\"}\n";
-    const SHOWN: &str =
-        "processes started per test, 1 of 2 tests start any:\n   3 it a: git 2, meta 1\ngit processes: 1";
-    const TOTALS: [(&str, usize); 2] = [("it a", 3), ("it b", 0)];
+    const SHOWN: &str = "processes started per test, 2 of 3 tests start any:\n   3 p it a: git 2, meta 1\n   1 p it c: meta 1\ngit processes: 2";
+    const TOTALS: [(&str, usize); 3] = [("p it a", 3), ("p it b", 0), ("p it c", 1)];
 
     #[test]
     fn each_test_counts_its_starts_with_git_from_the_larger_of_its_two_traces() {
         let root = tempfile::tempdir().unwrap();
-        DIRECTORIES.iter().try_for_each(|directory| fs::create_dir_all(root.path().join(directory))).unwrap();
-        FILES.iter().try_for_each(|(path, text)| fs::write(root.path().join(path), text)).unwrap();
+        let outside = root.path().join(Spawns::GIT_TRACES);
+        let git_dirs = TESTS.map(|test| root.path().join(test).join(Spawns::GIT_TRACES));
+        let [first, quiet, _] = &git_dirs;
+        git_dirs.iter().chain([&outside]).try_for_each(fs::create_dir_all).unwrap();
+        [first, &outside].iter().try_for_each(|dir| fs::write(dir.join(Spawns::GIT), TRACE)).unwrap();
+        let noted = |(test, program): &(usize, &str)| {
+            SpawnTrace::new(&root.path().join(TESTS[*test])).noted(OsStr::new(program))
+        };
+        STARTS.iter().try_for_each(noted).unwrap();
         let spawns = Spawns::traced(root.path()).unwrap();
         let totals = BTreeMap::from(TOTALS.map(|(test, count)| (test, Most::from(count))));
-        assert!(spawns.to_string().starts_with(SHOWN) && spawns.per_test() == totals, "{spawns}");
-        assert!(Spawns::traced(&root.path().join(FILES[0].0)).is_err());
+        assert!(spawns.to_string().starts_with(SHOWN) && spawns.per_test() == totals);
+        let extra = Spawns::traced(root.path()).unwrap().covering(TESTS.iter().chain([&UNTRACED])).is_err();
+        assert!(Spawns::traced(quiet).is_err() && extra && spawns.covering(TESTS).is_ok());
     }
 }

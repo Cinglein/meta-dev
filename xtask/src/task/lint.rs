@@ -5,7 +5,7 @@ use std::path::Path;
 
 use corpus_check::{Enforcement, LintName};
 use crate_graph::{CrateGraph, GraphReport};
-use git_starters::Starters;
+use process_starters::Starters;
 use strum::IntoEnumIterator;
 use task::{Amount, Branch, Ledger, Measure, Most, Policy, Report, SourceFile};
 use test_budget::TestBudget;

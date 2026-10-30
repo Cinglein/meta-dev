@@ -5,10 +5,10 @@ use super::TestTime;
 use super::execution::Execution;
 
 #[derive(Debug)]
-pub struct GitCount;
+pub struct ProcessCount;
 
-impl GitCount {
-    pub const SWITCH: &'static str = "META_GIT_COUNT";
+impl ProcessCount {
+    pub const SWITCH: &'static str = "META_PROCESS_COUNT";
 
     pub fn run(
         workspace: &Workspace,
@@ -24,8 +24,8 @@ impl GitCount {
             |selection| {
                 let execution = Execution::counting()?;
                 TestTime::examples(workspace, selection, policy)?;
-                TestTime::timings(workspace, selection, policy, &execution)?;
-                let counted = execution.processes()?;
+                let timings = TestTime::timings(workspace, selection, policy, &execution)?;
+                let counted = execution.processes(&timings)?;
                 println!("{counted}");
                 ledger.spend(Measure::GitProcesses, counted.git().amount());
                 Ok(counted)

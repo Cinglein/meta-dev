@@ -14,6 +14,7 @@ use crate::task::adoption::Gaps;
 use crate::task::ci::{Busy, OutsideConfig, Unready, Untracked};
 use crate::task::ratchet::{Raised, Ratchet};
 use crate::task::revision::ForeignEmails;
+use crate::task::test_processes::Unmatched;
 use crate::task::{Misplaced, TrackedBuildFiles};
 pub use step_failures::{StepFailure, StepFailures};
 
@@ -38,6 +39,8 @@ pub enum Failure {
     Ratchet(Ratchet),
     #[error("{0}")]
     Raised(Raised),
+    #[error("{0}")]
+    Unmatched(Unmatched),
     #[error("baseline: {0}")]
     Baseline(#[from] toml::de::Error),
     #[error("baseline: {0}")]

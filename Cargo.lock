@@ -386,18 +386,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "git_starters"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "syn 2.0.119",
- "task",
-]
-
-[[package]]
 name = "git_trace"
 version = "0.1.0"
 dependencies = [
+ "meta-run",
  "serde",
  "serde_json",
  "task",
@@ -812,7 +804,6 @@ dependencies = [
  "crate_graph",
  "elegance",
  "git2",
- "git_starters",
  "git_trace",
  "meta-golden",
  "meta-log",
@@ -822,6 +813,7 @@ dependencies = [
  "meta-state",
  "mutant_costs",
  "mutation",
+ "process_starters",
  "serde",
  "serde_json",
  "settings",
@@ -1072,6 +1064,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "process_starters"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "syn 2.0.119",
+ "task",
 ]
 
 [[package]]

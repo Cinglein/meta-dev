@@ -79,7 +79,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo xtask test-time
         env:
-          META_GIT_COUNT: "1"
+          META_PROCESS_COUNT: "1"
           PULL_REQUEST: ${{ github.event.pull_request.number }}
 
   macos:

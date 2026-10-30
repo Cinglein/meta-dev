@@ -21,12 +21,14 @@ use std::env;
 use std::ffi::OsString;
 use std::fmt;
 use std::fs::File;
+use std::io;
 use std::path::PathBuf;
 use std::process::{Child, Command, Output, Stdio};
 
-use meta_run::SpawnTrace;
+use meta_run::{Environment, SpawnTrace};
 
 use crate::failure::Failure;
+use crate::site::Site;
 
 #[derive(Clone, Debug)]
 pub struct CommandLine {
@@ -67,14 +69,15 @@ impl CommandLine {
         ambient: &BTreeMap<String, OsString>,
         names: impl IntoIterator<Item = impl AsRef<str>>,
     ) -> CommandLine {
+        let traced = SpawnTrace::TRACED.map(str::to_owned);
+        let kept = names.into_iter().map(|name| name.as_ref().to_owned());
         CommandLine {
             inherited: Some(
-                names
-                    .into_iter()
+                kept.chain(traced)
                     .filter_map(|name| {
                         ambient
-                            .get(name.as_ref())
-                            .map(|value| (name.as_ref().to_owned(), value.clone()))
+                            .get(&name)
+                            .map(|value| (name.clone(), value.clone()))
                     })
                     .collect(),
             ),
@@ -108,28 +111,45 @@ impl CommandLine {
     }
 
     pub fn run(&self) -> Result<(), Failure> {
-        self.finished(self.command()?)
+        self.finished(self.command())
     }
 
     pub fn run_holding(&self, held: File) -> Result<(), Failure> {
-        let mut command = self.command()?;
+        let mut command = self.command();
         command.stdin(held);
         self.finished(command)
     }
 
     fn finished(&self, mut command: Command) -> Result<(), Failure> {
-        command
-            .status()
-            .ok()
-            .filter(std::process::ExitStatus::success)
-            .map(|_| ())
+        let status = command.status();
+        self.started(&command, status)?
+            .success()
+            .then_some(())
             .ok_or_else(|| Failure::Command(self.to_string()))
     }
 
     pub fn spawn(&self) -> Result<Child, Failure> {
-        self.command()?
-            .spawn()
-            .map_err(|_| Failure::Command(self.to_string()))
+        let mut command = self.command();
+        let child = command.spawn();
+        self.started(&command, child)
+    }
+
+    fn started<Started>(
+        &self,
+        command: &Command,
+        started: io::Result<Started>,
+    ) -> Result<Started, Failure> {
+        let started = started.map_err(|error| Failure::Printed {
+            command: self.to_string(),
+            printed: error.to_string(),
+        })?;
+        SpawnTrace::within(&Environment::current())
+            .noted(command.get_program())
+            .map_err(|error| Failure::Io {
+                site: Site::Workspace,
+                error,
+            })?;
+        Ok(started)
     }
 
     pub fn streamed(&self) -> Result<String, Failure> {
@@ -154,10 +174,9 @@ impl CommandLine {
     }
 
     fn output(&self) -> Result<Output, Failure> {
-        let output = self
-            .command()?
-            .output()
-            .map_err(|_| Failure::Command(self.to_string()))?;
+        let mut command = self.command();
+        let output = command.output();
+        let output = self.started(&command, output)?;
         if output.status.success() {
             Ok(output)
         } else {
@@ -173,7 +192,7 @@ impl CommandLine {
         }
     }
 
-    fn command(&self) -> Result<Command, Failure> {
+    fn command(&self) -> Command {
         let mut command = Command::new(self.program.to_string());
         command.args(&self.arguments);
         self.directory.iter().for_each(|directory| {
@@ -183,9 +202,7 @@ impl CommandLine {
             command.env_clear().envs(inherited);
         });
         command.envs(&self.variables);
-        SpawnTrace::started(&command)
-            .map(|()| command)
-            .map_err(|_| Failure::Command(self.to_string()))
+        command
     }
 }
 

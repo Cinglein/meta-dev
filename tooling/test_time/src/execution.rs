@@ -1,7 +1,12 @@
+use std::fs;
+
 use git_trace::{GitProcesses, Spawns};
 use meta_run::SpawnTrace;
 use task::{CommandLine, Failure, Site};
 use tempfile::TempDir;
+
+use super::test_runner::test_traces::TestTraces;
+use super::test_timing::TestTiming;
 
 #[derive(Debug)]
 pub(super) enum Execution {
@@ -11,19 +16,21 @@ pub(super) enum Execution {
 
 impl Execution {
     pub(super) fn counting() -> Result<Execution, Failure> {
-        tempfile::tempdir()
-            .map(Execution::Counted)
-            .map_err(|error| Failure::Io {
-                site: Site::Workspace,
-                error,
-            })
+        let failed = |error| Failure::Io {
+            site: Site::Workspace,
+            error,
+        };
+        let root = tempfile::tempdir().map_err(failed)?;
+        fs::create_dir(root.path().join(Spawns::GIT_TRACES)).map_err(failed)?;
+        Ok(Execution::Counted(root))
     }
 
     pub(super) fn traced(&self, line: CommandLine) -> CommandLine {
         match self {
             Execution::Timed => line,
             Execution::Counted(traces) => GitProcesses::LEAN.into_iter().fold(
-                line.environment(SpawnTrace::VARIABLE, traces.path()),
+                line.environment(SpawnTrace::VARIABLE, traces.path())
+                    .environment(GitProcesses::TARGET, traces.path().join(Spawns::GIT_TRACES)),
                 |line, (name, value)| line.environment(name, value),
             ),
         }
@@ -36,10 +43,12 @@ impl Execution {
         }
     }
 
-    pub(super) fn processes(&self) -> Result<Spawns, Failure> {
+    pub(super) fn processes(&self, timings: &[TestTiming]) -> Result<Spawns, Failure> {
         match self {
             Execution::Timed => Ok(Spawns::default()),
-            Execution::Counted(traces) => Spawns::traced(traces.path()),
+            Execution::Counted(traces) => TestTraces::opened(traces.path())
+                .and_then(|()| Spawns::traced(traces.path()))
+                .and_then(|spawns| spawns.covering(timings.iter().map(TestTiming::name))),
         }
     }
 }
@@ -47,15 +56,21 @@ impl Execution {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::time::Duration;
 
-    use task::Amount;
+    use git_trace::Spawns;
+    use task::{Amount, CommandLine, Program};
 
     use super::Execution;
+    use crate::test_name::TestName;
+    use crate::test_runner::test_traces::TestTraces;
+    use crate::test_timing::TestTiming;
 
     const TRACE: &str = "{\"event\":\"version\",\"sid\":\"20261029T0-H1-P1\"}\n";
-    const TEST: &str = "it t/git-traces";
     const SELECTED: Option<u8> = Some(1);
-    const ONE: usize = 1;
+    const NAME: [&str; 3] = ["p", "deps/it-0a1b", "t"];
+    const TWO: usize = 2;
     const ZERO: usize = 0;
 
     #[test]
@@ -68,22 +83,41 @@ mod tests {
     }
 
     #[test]
-    fn a_counted_run_counts_what_the_traces_hold_and_a_timed_run_counts_nothing() {
+    fn a_counted_run_counts_git_traces_inside_and_outside_its_tests() {
         let counted = Execution::counting().unwrap();
-        let Execution::Counted(traces) = &counted else {
+        let Execution::Counted(root) = &counted else {
             return;
         };
-        fs::create_dir_all(traces.path().join(TEST)).unwrap();
-        fs::write(traces.path().join(TEST).join(ONE.to_string()), TRACE).unwrap();
-        let one = counted
-            .processes()
-            .map(|processes| processes.git().amount());
-        let none = Execution::Timed
-            .processes()
-            .map(|processes| processes.git().amount());
+        let [package, binary, test] = NAME;
+        let name = TestName::new(package, Path::new(binary), &test);
+        let traces = TestTraces::new(root.path().to_path_buf());
+        let line = traces.traced(CommandLine::new(Program::Cargo), &name);
+        let dirs = [name.within(root.path()), root.path().to_path_buf()];
+        let write = |dir: &PathBuf| fs::write(dir.join(Spawns::GIT_TRACES).join(test), TRACE);
         assert!(
-            one.is_ok_and(|amount| amount == Amount::Count(ONE.into()))
-                && none.is_ok_and(|amount| amount == Amount::Count(ZERO.into()))
+            line.is_ok() && dirs.iter().try_for_each(write).is_ok() && traces.sealed(&name).is_ok()
+        );
+        let timed = [TestTiming::new(name, Duration::ZERO, Duration::ZERO)];
+        let git = counted
+            .processes(&timed)
+            .map(|spawns| spawns.git().amount());
+        assert!(git.is_ok_and(|amount| amount == Amount::Count(TWO.into())));
+    }
+
+    #[test]
+    fn a_counted_run_needs_every_timed_test_traced_and_a_timed_run_counts_nothing() {
+        let [package, binary, test] = NAME;
+        let name = TestName::new(package, Path::new(binary), &test);
+        let timed = [TestTiming::new(name, Duration::ZERO, Duration::ZERO)];
+        let counted = Execution::counting().unwrap();
+        let git = |execution: &Execution, timed: &[TestTiming]| {
+            execution
+                .processes(timed)
+                .map(|spawns| spawns.git().amount())
+        };
+        assert!(git(&counted, &timed).is_err() && git(&counted, &[]).is_ok());
+        assert!(
+            git(&Execution::Timed, &timed).is_ok_and(|amount| amount == Amount::Count(ZERO.into()))
         );
     }
 }
