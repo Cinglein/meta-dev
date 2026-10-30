@@ -122,7 +122,7 @@ mod tests {
         let budgeted = Policy::DEFAULTS.replace(SELF_BASELINE, MOVED);
         let moved = [MOVED_POLICY, &budgeted, &format!("{UNREADABLE}{budgeted}")].map(|policy| {
             let prior: PriorPolicy = toml::from_str(policy).unwrap();
-            let budgeted = prior.budget_baseline(&BudgetId::from(LINT_FINDINGS.to_owned()));
+            let budgeted = prior.budget_baseline(&BudgetId::from(LINT_FINDINGS));
             let held = (budgeted == Some(&BaselineFile::from(MOVED))) == (policy != MOVED_POLICY);
             held && prior.baseline().unwrap_or(&BaselineFile::from(BASELINE)) == &BaselineFile::from(MOVED)
         });

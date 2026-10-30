@@ -116,8 +116,8 @@ mod tests {
         let ([kept, moved], [counted, fresh]) = (FILES, BUDGETS);
         fixture.write(PriorPolicy::PATH, COUNTED_POLICY).write(kept, ONE).branch();
         fixture.write(moved, TWO).committed();
-        let budgeted = |budget: &str, file| {
-            let (budget, file) = (BudgetId::from(budget.to_owned()), BaselineFile::from(file));
+        let budgeted = |budget: &'static str, file| {
+            let (budget, file) = (BudgetId::from(budget), BaselineFile::from(file));
             Baseline::budgeted(fixture.root(), &budget, &file, Policy::defaults().branch(Branch::Base)).is_ok()
         };
         assert!(!budgeted(counted, moved) && budgeted(counted, kept) && budgeted(fresh, moved));
