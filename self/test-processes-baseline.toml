@@ -1,4 +1,4 @@
-"meta-cli it ci::a_passing_push_lets_the_agent_stop_and_a_commit_whose_state_cannot_be_written_is_not_watched" = 33
+"meta-cli it ci::a_passing_push_lets_the_agent_stop_and_a_commit_whose_state_cannot_be_written_is_not_watched" = 31
 "meta-cli it ci::ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push" = 39
 "meta-cli it ci::pushes::one_commit_gets_one_watcher" = 1
 "meta-cli it ci::review::a_reflog_that_is_off_or_an_unwritable_state_dir_fails_closed" = 13
