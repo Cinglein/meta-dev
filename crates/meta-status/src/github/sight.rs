@@ -1,7 +1,7 @@
 use std::fmt;
 
 use meta_pulls::{PullState, RuledPull};
-use meta_schema::{Id, PullRequest, Task};
+use meta_schema::{CommitId, Id, PullRequest, Task};
 
 use crate::ending::Ending;
 use crate::flag::Flag;
@@ -49,6 +49,14 @@ impl Sight<'_> {
             Self::Seen(pull) => Self::seen_flag(pull, task, pull_request, unheld),
             Self::Missing => Some(Flag::Missing(task, pull_request)),
             Self::Unreached => None,
+        }
+    }
+
+    #[must_use]
+    pub fn unrun(self) -> Option<CommitId> {
+        match self {
+            Self::Seen(pull) => pull.unrun(),
+            Self::Missing | Self::Unreached => None,
         }
     }
 

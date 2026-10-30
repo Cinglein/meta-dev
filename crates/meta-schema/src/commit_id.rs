@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::fmt;
 use std::str::FromStr;
 
@@ -23,6 +24,12 @@ impl FromStr for CommitId {
             .filter(|text| text.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)))
             .map(|text| Self(text.to_owned()))
             .ok_or_else(|| Unrecognised::new("a full commit id", text))
+    }
+}
+
+impl AsRef<OsStr> for CommitId {
+    fn as_ref(&self) -> &OsStr {
+        OsStr::new(&self.0)
     }
 }
 

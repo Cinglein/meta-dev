@@ -14,6 +14,7 @@ fn a_wait_dissolves_when_its_issue_is_retired_or_addressed_and_the_task_stalls_n
     assert_eq!(waiting.script().status(), TaskStatus::Discussion(issue));
     let retired = waiting.clone().then(Events::retiring(Entry::Issue(issue)));
     assert_eq!(retired.script().status(), TaskStatus::Assigned);
+    assert!(waiting.script().waiting_since().is_some() && retired.script().waiting_since().is_none());
     assert_eq!(retired.script().status().stalling(), Stalling::Possible);
     assert!(Shown::first_task(retired.script()).contains(NOTE) && !Shown::first_task(waiting.script()).contains(NOTE));
     let again = board.blocking(Blocker::Discussion(issue));

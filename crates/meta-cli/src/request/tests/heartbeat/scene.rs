@@ -7,6 +7,9 @@ const REQUIRED: &str = r#"["ci"]"#;
 const ORPHAN_REPLY: &str = r#"{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[
 {"number":16,"state":"OPEN","baseRefName":"main","statusCheckRollup":null}]}},
 "trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}}}"#;
+const STUCK_REPLY: &str = r#"{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[]}},
+"linked":{"pr21":{"number":21,"state":"OPEN","baseRefName":"main","statusCheckRollup":null,"mergeStateStatus":"UNKNOWN","headRefOid":"0123456789abcdef0123456789abcdef01234567"}},
+"trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}}}"#;
 const NOTHING_OPEN: &str = r#"{"data":{"open":{"pullRequests":{"pageInfo":{"hasNextPage":false},"nodes":[]}},
 "trunk":{"defaultBranchRef":{"target":{"history":{"pageInfo":{"hasNextPage":true},"nodes":[{"checkSuites":{"pageInfo":{"hasNextPage":false},"nodes":[{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"ci"}}},{"conclusion":"SUCCESS","workflowRun":{"workflow":{"name":"mutants"}}}]}}]}}}}}}"#;
 
@@ -15,6 +18,7 @@ pub enum Scene {
     Offline,
     Orphaned,
     Quiet,
+    Stuck,
 }
 
 impl Scene {
@@ -23,6 +27,7 @@ impl Scene {
             Self::Offline => Github::Unreached(GithubFailure::new(OFFLINE)),
             Self::Orphaned => Self::reached(ORPHAN_REPLY),
             Self::Quiet => Self::reached(NOTHING_OPEN),
+            Self::Stuck => Self::reached(STUCK_REPLY),
         }
     }
 

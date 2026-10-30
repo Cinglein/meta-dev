@@ -9,7 +9,8 @@ mod schema;
 mod waiting_rules;
 
 use meta_schema::{
-    Actor, Claim, Division, Entry, EntryNote, Event, Id, NewConcern, NewIssue, NewTask, Record, Target, Task, TaskRef,
+    Actor, Claim, Division, DueTime, Entry, EntryNote, Event, Id, NewConcern, NewIssue, NewTask, Record, Target, Task,
+    TaskRef,
 };
 
 use super::State;
@@ -111,6 +112,11 @@ impl Script {
     fn status(&self) -> TaskStatus {
         let state = State::fold(&self.records);
         state.tasks().first().map(|task| state.status_of(task)).unwrap()
+    }
+
+    pub(crate) fn waiting_since(&self) -> Option<DueTime> {
+        let state = State::fold(&self.records);
+        state.tasks().first().and_then(|task| task.progress().waiting_since())
     }
 
     fn assigned(&self) -> Vec<Actor> {

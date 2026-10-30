@@ -1,7 +1,7 @@
 use std::fmt;
 
 use meta_pull_query::WorkflowName;
-use meta_schema::{Blocker, DueTime, Id, PullRequest, Task};
+use meta_schema::{Blocker, CommitId, DueTime, Id, PullRequest, Task};
 use serde::{Deserialize, Serialize};
 
 use crate::github_failure::GithubFailure;
@@ -19,6 +19,7 @@ pub enum Flag {
     RedUnheld(Id<Task>, PullRequest),
     Missing(Id<Task>, PullRequest),
     TruncatedChecks(Id<Task>, PullRequest),
+    Unrun(Id<Task>, PullRequest, CommitId, DueTime),
     Orphan(PullRequest),
 }
 
@@ -36,6 +37,7 @@ impl Flag {
             | Self::RedUnheld(..)
             | Self::Missing(..)
             | Self::TruncatedChecks(..)
+            | Self::Unrun(..)
             | Self::Orphan(_) => None,
         }
     }
@@ -56,6 +58,9 @@ impl fmt::Display for Flag {
             Self::TruncatedChecks(task, pull_request) => {
                 write!(formatter, "truncated {pull_request} {task}: more than 100 checks")
             }
+            Self::Unrun(task, pull_request, commit, due) => {
+                write!(formatter, "waiting {pull_request} {task}: no CI run for {commit}, due {due}")
+            }
             Self::Orphan(pull_request) => write!(formatter, "orphan {pull_request}: open, no task"),
         }
     }
@@ -74,7 +79,8 @@ impl Flag {
             | Self::TrunkRed(_)
             | Self::RedUnheld(..)
             | Self::Missing(..)
-            | Self::TruncatedChecks(..) => Judgement::Needed,
+            | Self::TruncatedChecks(..)
+            | Self::Unrun(..) => Judgement::Needed,
         }
     }
 }

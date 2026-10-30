@@ -102,7 +102,7 @@ fn one_graphql_call_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_
     let read = fake.github.read(&LiveQuery::new(vec![]));
     let pulls = fake.github.pulls_from(&"feature".parse().unwrap());
     let state = meta_state::State::default();
-    let shown = meta_status::Status::new(&state, &read, chrono::Utc::now().into()).to_string();
+    let shown = meta_status::Status::new(&state, &read, chrono::Utc::now().into(), DEADLINE).to_string();
     let asked = fake.asked("partial");
     assert!(shown == SHOWN && asked.starts_with(ASKED) && !asked.contains(GONE));
     assert!(asked.contains(RULES) && asked.contains(CLASSIC) && asked.ends_with(HEADED) && asked.contains(NEXT_PAGE));

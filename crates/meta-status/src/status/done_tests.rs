@@ -2,7 +2,7 @@ use meta_schema::{Actor, Claim, Event, Id, NewTask, Record, Task, TaskLink};
 use meta_state::State;
 
 use super::Status;
-use super::tests::{NOW, PAST, Tasks};
+use super::tests::{NOW, PAST, Tasks, WITHIN};
 use crate::github::Github;
 use crate::github_failure::GithubFailure;
 
@@ -57,7 +57,7 @@ impl Board {
     }
 
     fn flags(&self, github: &Github) -> String {
-        Status::new(&self.state, github, NOW.parse().unwrap()).flags().to_string()
+        Status::new(&self.state, github, NOW.parse().unwrap(), WITHIN).flags().to_string()
     }
 }
 
@@ -86,7 +86,7 @@ fn a_red_default_branch_run_is_flagged_and_an_unseen_one_reads_unknown_github() 
     let red = Board::reached(&format!(r#"{{"data":{{{NO_PULLS},{TRUNK_RED}}}}}"#));
     let expected =
         "trunk red ci: latest completed run failed\nunknown github: no completed mutants run on the default branch\n";
-    assert_eq!(Status::new(&state, &red, NOW.parse().unwrap()).flags().to_string(), expected);
+    assert_eq!(Status::new(&state, &red, NOW.parse().unwrap(), WITHIN).flags().to_string(), expected);
     let green = Board::reached(&format!(r#"{{"data":{{{NO_PULLS},{TRUNK_GREEN}}}}}"#));
-    assert_eq!(Status::new(&state, &green, NOW.parse().unwrap()).flags().raised(), None);
+    assert_eq!(Status::new(&state, &green, NOW.parse().unwrap(), WITHIN).flags().raised(), None);
 }

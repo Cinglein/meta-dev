@@ -1,7 +1,7 @@
 use std::fmt;
 
 use chrono::{DateTime, Utc};
-use meta_schema::{Actor, Record};
+use meta_schema::{Actor, DueTime, Record};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Stamp {
@@ -16,6 +16,10 @@ impl Stamp {
 
     pub fn actor(&self) -> &Actor {
         &self.by
+    }
+
+    pub fn written(&self) -> DueTime {
+        self.at.into()
     }
 }
 

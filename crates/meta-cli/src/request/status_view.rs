@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use chrono::Utc;
 use meta_log::LogStore;
 use meta_pull_query::LiveQuery;
@@ -19,6 +21,7 @@ impl StatusView {
         self,
         log: &impl LogStore,
         scales: &Scales,
+        ci_run_within: Duration,
         github: impl FnOnce(&LiveQuery) -> Github,
     ) -> Result<Output, CliFailure> {
         match self {
@@ -26,11 +29,11 @@ impl StatusView {
                 let snapshot = log.read()?;
                 let state = State::fold(snapshot.records());
                 let github = github(&Status::query(&state));
-                let status = Status::new(&state, &github, Utc::now().into());
+                let status = Status::new(&state, &github, Utc::now().into(), ci_run_within);
                 let tally = SeverityTally::new(&state, scales);
                 Ok(Output::Listed(Listed::new(status).then(tally).then(snapshot)))
             }
-            Self::Flags => Self::current_flags(log, github).map(|flags| Self::flagged(&flags)),
+            Self::Flags => Self::current_flags(log, ci_run_within, github).map(|flags| Self::flagged(&flags)),
         }
     }
 
@@ -38,10 +41,14 @@ impl StatusView {
         flags.raised().map_or_else(|| Output::Listed(Listed::new("")), |raised| Output::Flagged(Listed::new(raised)))
     }
 
-    pub fn current_flags(log: &impl LogStore, github: impl FnOnce(&LiveQuery) -> Github) -> Result<Flags, CliFailure> {
+    pub fn current_flags(
+        log: &impl LogStore,
+        ci_run_within: Duration,
+        github: impl FnOnce(&LiveQuery) -> Github,
+    ) -> Result<Flags, CliFailure> {
         let snapshot = log.read()?;
         let state = State::fold(snapshot.records());
         let github = github(&Status::query(&state));
-        Ok(Status::new(&state, &github, Utc::now().into()).flags())
+        Ok(Status::new(&state, &github, Utc::now().into(), ci_run_within).flags())
     }
 }

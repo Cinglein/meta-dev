@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use meta_schema::Block;
 use serde::Deserialize;
 
+use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::hook::CallPhase;
 use after::After;
 
@@ -18,9 +19,18 @@ pub struct Liveness {
     long_call_after: Option<After>,
     #[serde(default)]
     reply_within: Option<After>,
+    #[serde(default)]
+    ci_run_within: Option<After>,
 }
 
 impl Liveness {
+    const UNSET: &'static str =
+        "tooling/policy.toml: [liveness] ci_run_within is missing; status cannot judge a CI wait without it";
+
+    pub fn ci_run_within(&self) -> Result<Duration, CliFailure> {
+        self.ci_run_within.map(After::duration).ok_or_else(|| CliFailure::raised::<Setup>(Self::UNSET))
+    }
+
     pub fn limit(&self, call: CallPhase) -> Option<Duration> {
         let after = match call {
             CallPhase::Started => self.long_call_after,

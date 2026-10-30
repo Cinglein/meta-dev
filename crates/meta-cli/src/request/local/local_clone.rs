@@ -31,6 +31,7 @@ use crate::request::git_link::GitLink;
 use crate::request::live_github::LiveGithub;
 use crate::request::output::{Listed, Output};
 use crate::request::project::{BranchName, CiSettings, Project};
+use crate::request::scale_policy::ScalePolicy;
 use crate::request::writing::Writing;
 use claim_plan::{BranchRefs, ClaimPlan, Holding};
 use claim_run::ClaimRun;
@@ -105,7 +106,8 @@ impl LocalClone {
         let recorded: Vec<RecordedWorktree> = trail.current();
         let tasks: Vec<Id<Task>> = recorded.iter().map(RecordedWorktree::task).collect();
         let github = LiveGithub::for_project(project).read(&Status::linked_query(&state, &tasks));
-        let status = Status::new(&state, &github, Utc::now().into());
+        let within = ScalePolicy::embedded().map_err(CliFailure::raised::<Setup>)?.liveness().ci_run_within()?;
+        let status = Status::new(&state, &github, Utc::now().into(), within);
         let tracked = recorded.into_iter().map(|worktree| {
             let lifetime = status.lifetime(worktree.task());
             Tracked::new(worktree, lifetime)

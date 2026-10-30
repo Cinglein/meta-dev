@@ -1,5 +1,7 @@
 use std::fmt;
 
+use meta_schema::CommitId;
+
 use super::LivePull;
 use super::checks::Checks;
 use super::merge_state::MergeState;
@@ -60,6 +62,13 @@ impl<'pull> RuledPull<'pull> {
             (PullState::Open, None, None, None) => Head::Barred(Barred::new(Stop::Incomplete(number))),
             (PullState::Open, None, None, Some(merging)) => self.open_head(merging),
         }
+    }
+
+    #[must_use]
+    pub fn unrun(self) -> Option<CommitId> {
+        self.open()?;
+        let merging = self.pull.merging.as_ref()?;
+        (self.checks(&RequiredChecks::default()) == Checks::Absent).then(|| merging.commit().commit_id().clone())
     }
 
     fn open_head(self, merging: &Merging) -> Head {

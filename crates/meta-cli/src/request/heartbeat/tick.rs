@@ -17,6 +17,7 @@ use crate::request::live_github::LiveGithub;
 use crate::request::local::LocalClone;
 use crate::request::output::{Listed, Output};
 use crate::request::project::{CiSettings, Project, TickLimit};
+use crate::request::scale_policy::ScalePolicy;
 use crate::request::status_view::StatusView;
 use gave_up::GaveUp;
 
@@ -30,7 +31,7 @@ impl Tick {
         github: impl FnOnce(&LiveQuery) -> Github,
         pulse: Pulse,
     ) -> Result<Output, CliFailure> {
-        let flags = StatusView::current_flags(log, github)?;
+        let flags = StatusView::current_flags(log, pulse.ci_run_within(), github)?;
         let before = HeartbeatRecord::read(git_dir).ok().flatten();
         let seen = before.as_ref().map(|record| record.latest().flags().clone()).unwrap_or_default();
         let fresh = Listed::new(flags.since(&seen));
@@ -54,11 +55,12 @@ impl Tick {
 
     pub fn live(project: &Project, clone: &LocalClone) -> Result<Output, CliFailure> {
         let github = |query: &LiveQuery| LiveGithub::for_project(project).read(query);
+        let within = ScalePolicy::read(project.root())?.liveness().ci_run_within()?;
         Self::answer(
             clone.git_dir().as_ref(),
             &project.log(project.ci_settings().budget(CiSettings::ROUTINE))?,
             github,
-            Pulse::new(Utc::now(), GcHook::Pending),
+            Pulse::new(Utc::now(), GcHook::Pending, within),
         )
     }
 
