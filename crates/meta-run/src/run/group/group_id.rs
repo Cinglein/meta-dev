@@ -1,28 +1,23 @@
 use std::fmt;
 use std::process::Child;
-use std::time::Instant;
 
-use crate::env_policy::EnvPolicy;
-use crate::ran::Ran;
-use crate::run::Run;
-use crate::run_failure::RunFailure;
+use nix::sys::signal::{Signal, killpg};
+use nix::unistd::Pid;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GroupId(u32);
 
 impl GroupId {
-    const KILL: &'static str = "kill";
-    const END_OF_OPTIONS: &'static str = "--";
-    const SEARCH_PATH: [&'static str; 1] = ["PATH"];
+    pub fn signalled(self, signal: Signal) {
+        let _delivered = self.pid().map(|group| killpg(group, signal));
+    }
 
-    pub fn signalled<Target: fmt::Display>(
-        targets: impl IntoIterator<Item = Target>,
-        signal: &str,
-        deadline: Instant,
-    ) -> Result<Ran, RunFailure> {
-        let kill = Run::new(Self::KILL, EnvPolicy::Only(&Self::SEARCH_PATH)).args([signal, Self::END_OF_OPTIONS]);
-        let within = deadline.saturating_duration_since(Instant::now());
-        targets.into_iter().fold(kill, |kill, target| kill.arg(target.to_string())).helped(within)
+    pub fn alive(self) -> bool {
+        self.pid().is_some_and(|group| killpg(group, None).is_ok())
+    }
+
+    fn pid(self) -> Option<Pid> {
+        i32::try_from(self.0).ok().map(Pid::from_raw)
     }
 }
 

@@ -699,6 +699,7 @@ name = "meta-run"
 version = "0.1.0"
 dependencies = [
  "meta-trace",
+ "nix",
  "signal-hook",
  "strum",
  "tempfile",
