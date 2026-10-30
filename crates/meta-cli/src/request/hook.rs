@@ -1,6 +1,7 @@
 mod call_phase;
 mod hook_input;
 mod linking;
+mod refusals;
 mod reply;
 #[cfg(test)]
 mod tests;
@@ -19,12 +20,11 @@ use crate::request::ci::{SessionDir, Watcher};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
 use crate::request::output::{Listed, Output};
 use crate::request::project::{CiSettings, Config, Project};
-use crate::request::scale_policy::ScalePolicy;
 pub use call_phase::CallPhase;
-use hook_input::HookInput;
+use hook_input::{HookInput, Unreadable};
 use linking::Linking;
+use refusals::Refusals;
 use reply::{Blocking, Denial, Reply, Verdict};
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HookEvent {
     SessionStart,
@@ -60,7 +60,6 @@ impl fmt::Display for HookEvent {
 
 impl HookEvent {
     const COMMIT: &'static str = "commit";
-    const PUSH: &'static str = "push";
     const SHORT: Duration = Duration::from_secs(10);
     const SESSION: Duration = Duration::from_secs(30);
     const LONG: Duration = Duration::from_secs(60);
@@ -79,23 +78,32 @@ impl HookEvent {
     }
 
     pub fn respond(self) -> Result<Output, CliFailure> {
-        let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
-        let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
+        HookInput::from_stdin().map_or_else(|unreadable| self.unanswered(unreadable), |input| Ok(self.answer(&input)))
+    }
+
+    pub fn unanswered(self, unreadable: Unreadable) -> Result<Output, CliFailure> {
+        match self {
+            Self::PreToolUse => Ok(Output::Listed(Listed::new(self.refused(Listed::from(unreadable))))),
+            Self::SessionStart | Self::PostToolUse | Self::Stop => Err(CliFailure::raised::<Invalid>(unreadable)),
+        }
+    }
+
+    pub fn answer(self, input: &HookInput) -> Output {
         let unstamped = self.phase().and_then(|call| input.stamp(call, Utc::now())).and_then(Result::err);
         let reply = match Project::found(input.cwd().as_path()) {
             Ok(Some(project)) => {
                 let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
                 let budget = self.budget(project.ci_settings());
-                Some(self.reply(&project, &input, budget).with_news(session.and_then(|dir| dir.news())))
+                Some(self.reply(&project, input, budget).with_news(session.and_then(|dir| dir.news())))
             }
-            Ok(None) => self.outside_projects(&input),
+            Ok(None) => self.outside_projects(input),
             Err(failure) => Some(self.refused(Listed::new(failure))),
         };
         let opened = self.opens_session().and_then(|()| input.open_session().err());
         let reply = reply.map(|reply| reply.with_news(opened));
         let reply = reply.or_else(|| unstamped.as_ref().map(|_| Reply::new(self, Verdict::Allow, None)));
         let reply = reply.map(|reply| reply.with_news(unstamped));
-        Ok(Output::Listed(Listed::new(reply.map(|reply| reply.to_string()).unwrap_or_default())))
+        Output::Listed(Listed::new(reply.map(|reply| reply.to_string()).unwrap_or_default()))
     }
 
     pub const fn phase(self) -> Option<CallPhase> {
@@ -133,16 +141,7 @@ impl HookEvent {
             }
             Self::PreToolUse => Reply::new(
                 self,
-                input
-                    .command()
-                    .and_then(|command| {
-                        let policy = ScalePolicy::read(project.root()).ok().unwrap_or_default();
-                        command.refusal(project.config(), policy.queue().lander(input.announced_actor()).as_ref())
-                    })
-                    .or_else(|| input.refusal())
-                    .or_else(|| input.unpushable(project, Self::PUSH))
-                    .map(Denial::from)
-                    .map_or(Verdict::Allow, Verdict::Deny),
+                Refusals::new(input, Some(project)).first().map(Denial::from).map_or(Verdict::Allow, Verdict::Deny),
                 None,
             ),
             Self::PostToolUse => Self::after_tool_use(project, input, budget),
@@ -164,7 +163,7 @@ impl HookEvent {
         let linked = linked.and_then(|budget| Linking::after(input, *budget));
         let linking = linked.map(|linked| Reply::new(self, Verdict::Allow, Some(linked)));
         let refusal = (self == Self::PreToolUse)
-            .then(|| budget.map_or_else(|failure| Some(Listed::new(failure)), |_| input.refusal()));
+            .then(|| budget.map_or_else(|failure| Some(Listed::new(failure)), |_| Refusals::new(input, None).first()));
         let refusal = refusal.flatten();
         refusal.map(|refusal| Reply::new(self, Verdict::Deny(Denial::from(refusal)), None)).or(linking)
     }

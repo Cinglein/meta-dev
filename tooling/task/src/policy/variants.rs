@@ -1,4 +1,6 @@
 use settings::EmbeddedDefaults;
+
+use super::policy_file::PolicyFile;
 use strum::IntoEnumIterator;
 
 use super::{Limit, Policy, Share};
@@ -16,7 +18,7 @@ const PRICE: &str = "allowance = { share = 100 }\n";
 const WINDOW: &str = "window = \"per_change\"\n";
 const CI: &str = "source = \"ci\"\n";
 
-const REFUSED: [(&str, &str, &str, &str); 34] = [
+const REFUSED: [(&str, &str, &str, &str); 38] = [
     (
         "meta", "\nparameters = 4\n", "\n", "[limits]: parameters is not set",
     ),
@@ -183,9 +185,31 @@ const REFUSED: [(&str, &str, &str, &str); 34] = [
         "\n[budgets.typo]\ndivision = \"features-and-maintenance\"\nmeasure = { open_items = { severity = { at_level = \"critcal\" } } }\nallowance = { count = 0 }\nwindow = \"standing\"\n",
         "critcal is not a level of its division's scale",
     ),
+    (
+        "meta",
+        "performance-and-cost = \"major\"\n",
+        END,
+        "[act]: performance-and-cost has no level in [act] of tooling/policy.toml",
+    ),
+    (
+        "meta", "performance-and-cost = \"major\"", "performance-and-cost = \"majr\"",
+        "[act]: majr is not a level of the division's scale",
+    ),
+    (
+        "meta",
+        "performance-and-cost = \"major\"",
+        "performance-and-cost = \"major\"\n\"performance-and-cost/x\" = \"major\"",
+        "[act]: performance-and-cost/x is not a division in tooling/policy.toml",
+    ),
+    (
+        "unset",
+        "[act]\nfeatures-and-maintenance = \"major\"\nperformance-and-cost = \"major\"\narchitecture-and-planning = \"major\"\n",
+        END,
+        "[act]: a key is not set",
+    ),
 ];
 
-const ACCEPTED: [(&str, &str, &str); 7] = [
+const ACCEPTED: [(&str, &str, &str); 8] = [
     (
         "meta",
         END,
@@ -203,6 +227,11 @@ const ACCEPTED: [(&str, &str, &str); 7] = [
     (
         "meta", TIMED, "allowance = { duration = 4000 }\ntolerance = 10\n",
     ),
+    (
+        "meta",
+        "[act]\n",
+        "[domains.\"performance-and-cost/x\"]\ntests = [\"*\"]\n\n[act]\n\"performance-and-cost/x\" = \"minor\"\n",
+    ),
 ];
 
 impl Policy {
@@ -213,7 +242,14 @@ impl Policy {
         } else {
             text.replacen(found, put, 1)
         };
-        toml::from_str::<Policy>(&text)
+        let fallback = if base == "unset" {
+            text.as_str()
+        } else {
+            Policy::DEFAULTS
+        };
+        toml::from_str::<PolicyFile>(&text)?
+            .resolved_over(fallback)
+            .map_err(serde::de::Error::custom)
     }
 
     fn disagreements(&self) -> Vec<String> {
@@ -285,7 +321,7 @@ fn the_kept_forms_are_read_and_the_table_shows_the_line_each_check_enforces() {
     let read = variants
         .each_ref()
         .map(|variant| variant.as_ref().err().map(ToString::to_string));
-    assert_eq!(read, [None, None, None, None, None, None, None]);
+    assert_eq!(read, ACCEPTED.map(|_| None));
     let disagreements: Vec<String> = variants
         .iter()
         .flatten()

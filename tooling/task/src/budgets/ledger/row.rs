@@ -4,6 +4,7 @@ use meta_budget::BudgetId;
 
 use super::super::budget::{Amount, Budget, Lines, State};
 use super::super::standing::Exposure;
+use crate::failure_kind::FailureKind;
 use crate::selection::Selection;
 
 #[derive(Debug)]
@@ -50,6 +51,20 @@ impl<'policy> Row<'policy> {
     #[must_use]
     pub fn blocks(&self, selection: &Selection) -> bool {
         self.exposure.exposed(selection).is_some() && self.budget.blocks(self.state())
+    }
+}
+
+impl Row<'_> {
+    #[must_use]
+    pub fn failure(&self, selection: &Selection) -> Option<FailureKind> {
+        self.blocks(selection).then(|| FailureKind::Budget {
+            measure: self.budget.measure().to_string().into(),
+            spend: self
+                .spend
+                .as_ref()
+                .map_or_else(|| Self::UNMEASURED.to_owned(), ToString::to_string)
+                .into(),
+        })
     }
 }
 

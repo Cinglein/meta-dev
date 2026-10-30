@@ -1,7 +1,6 @@
 mod build_start;
 mod enforcer;
 mod item_filter;
-mod item_kind;
 mod mutation_job;
 
 use serde::{Deserialize, Serialize};
@@ -12,7 +11,6 @@ use crate::domains::ScopeKind;
 pub use build_start::BuildStart;
 pub use enforcer::Enforcer;
 pub use item_filter::ItemFilter;
-pub use item_kind::ItemKind;
 pub use meta_budget::Unit;
 pub use mutation_job::MutationJob;
 

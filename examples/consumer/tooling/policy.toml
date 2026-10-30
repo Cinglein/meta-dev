@@ -18,6 +18,7 @@ bit_boundary = []
 baseline = "tooling/lint-baseline.toml"
 gate = "local-gate"
 gate_wait = 600000
+promote_after = 3
 surfaces = [
     "xtask",
     ".cargo",
@@ -94,6 +95,11 @@ queue_pace = 60000
 
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]
+
+[act]
+features-and-maintenance = "major"
+performance-and-cost = "major"
+architecture-and-planning = "major"
 
 [queue]
 hot = []
