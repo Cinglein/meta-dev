@@ -188,3 +188,22 @@ trait-graph shape
     meta-schema::EventVisitor -> meta-state::Applying
     task::Stream -> task::Stdout
     task::Tool -> task::CargoTool
+  traits implemented directly, per implementing type: n 577: min 1, q1 1, median 1, q3 1, max 5
+  types with at least N = 2 traits (q3, at least 2) and no edge among them: 141
+    corpus_check::AnnotatedLine: Display, FromStr
+    corpus_check::AnnotatedSource: Display, FromStr
+    corpus_check::Annotation: Display, FromStr
+    crate_graph::ItemCount: Add, Display, Sum
+    elegance::Components: Display, elegance::Located
+    elegance::Concept: Display, elegance::Located
+    elegance::Finding: Display, elegance::Located
+    elegance::HiddenField: Display, elegance::Located
+    elegance::Listed: Display, elegance::Located
+    elegance::MethodKey: Display, elegance::Located
+smell inventory scoring, informational: a finding flags an entry when a type or trait it names is declared in a file the entry lists
+  B1 unnamed concepts [trait graph, to zero]: recall 6 of 9 tagged naming-completeness [about-task-accessors, activity-progress-delegation, lint-report-family, local-journals, repeats-three-times, stored-file-family]; other entries flagged 16 [clock-dispersion, concern-issue-state, deadline-limit-types, dup-primitive-newtypes, id-generators-random, listed-reads-log, monitor-state-reset, new-concern-issue-task, option-unit-as-bool, record-new-clock, recorded-worktree-late-id, signature-renderers, test-module-skip-per-lint, text-newtypes, type-name-reuse, use-tree-walkers]; noise 30 of 59 findings
+  B2 reducible traits [trait graph, to zero]: recall 0 of 0 tagged reducible-traits []; other entries flagged 1 [meta-git-four-call-traits]; noise 0 of 2 findings
+  B3 signatures declared in more than one trait [trait graph, to zero]: recall 0 of 2 tagged orthogonality []; other entries flagged 0 []; noise 1 of 1 findings
+  B9 hidden state fields [transition graph, to zero]: recall 1 of 4 tagged hidden-state [ledger-mode]; other entries flagged 0 []; noise 4 of 7 findings
+  B12 unnamed field concepts [types, to zero]: recall 1 of 1 tagged field-concepts [new-concern-issue-task]; other entries flagged 9 [about-task-accessors, lint-report-family, option-unit-as-bool, record-new-clock, recorded-worktree-late-id, repeats-three-times, test-module-skip-per-lint, two-policy-toml-readers, use-tree-walkers]; noise 13 of 26 findings
+  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 4 tagged lcom4 [inspection-reads-and-writes]; other entries flagged 13 [git-argv-vocabulary-scattered, git-start-paths, gitdir-link-parsers, id-generators-random, kill-and-lsof-twice, local-journals, new-concern-issue-task, oncelock-caches-with-args, quarantine-stamp-string, session-seen-counter, stored-file-family, two-undo-mechanisms, type-name-reuse]; noise 34 of 43 findings
