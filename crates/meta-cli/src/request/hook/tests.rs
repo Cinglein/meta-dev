@@ -13,8 +13,29 @@ const OUTSIDE: &str = r#"{"cwd":"/nonexistent-meta-dir","tool_input":{"command":
 const UNRESOLVED: &str = "cannot resolve the commit directory";
 const ORIGIN: &str = "[remote \"origin\"]\n\turl = https://github.com/o/r\n";
 const DENIED: &str = "permissionDecision";
-const FROM_OUTSIDE: [(&str, bool); 25] = [
-    ("cd ~/meta-development-lead && gh pr merge 1", true),
+const FROM_OUTSIDE: [(&str, bool); 45] = [
+    ("env -C /tmp git push origin main", true),
+    ("env --chdir=/tmp git push origin main", true),
+    ("sudo -D /tmp git push origin main", true),
+    ("git --git-dir=/x push origin main", true),
+    ("git --git-dir /x push origin main", true),
+    ("git --work-tree=/x push origin main", true),
+    ("git --work-tree /x push origin main", true),
+    ("GIT_DIR=/x git push origin main", true),
+    ("GIT_WORK_TREE=/x git push origin main", true),
+    ("export GIT_DIR=/x; git push origin main", true),
+    ("git -C $X push origin main", true),
+    ("git -C \"$(pwd)\" push origin main", true),
+    ("git -C `pwd` push origin main", true),
+    ("cd \"$(git rev-parse --show-toplevel)\" && git push --force origin x", true),
+    ("export GH_REPO=o/r; gh pr merge 1", true),
+    ("GH_REPO=o/r; gh pr merge 1", true),
+    ("env GH_REPO=o/r true; gh pr merge 1", true),
+    ("git -C /nonexistent-meta-dir push origin meta/log", true),
+    ("git -C /nonexistent-meta-dir push origin meta/log-v0", true),
+    ("cd /nonexistent-meta-dir && meta queue run 1", true),
+    ("echo $HOME", false),
+    ("cd /tmp && echo \"$HOME\"", false),
     ("gh pr merge 1 -R Cinglein/meta-dev", true),
     ("gh pr merge 1 --repo Cinglein/meta-dev", true),
     ("cd /nonexistent-meta-dir; git push --force origin x", true),
@@ -22,7 +43,7 @@ const FROM_OUTSIDE: [(&str, bool); 25] = [
     ("cd \"a b\" && gh pr merge 1", true),
     ("cd -P /tmp && gh pr merge 1", true),
     ("pushd /tmp && gh pr merge 1", true),
-    ("bash -c \"cd /tmp && gh pr merge 1\"", true),
+    ("bash -c \"cd /nonexistent-meta-dir && gh pr merge 1\"", true),
     ("cd $(pwd) && git push --force origin x", true),
     ("gh pr merge 1 -Ro/r", true),
     ("gh pr merge 1 -R=o/r", true),
@@ -169,6 +190,9 @@ fn a_named_project_applies_its_own_protected_branches_and_its_repository_resolve
         (format!("cd {directory} && gh pr merge 1 -R o/r"), true),
         (format!("cd {directory} && gh pr view 1 -R o/r"), false),
         (format!("cd {directory} && gh pr view 1 -R x/y"), false),
+        (format!("cd {directory} && meta queue run 1"), true),
+        (format!("cd {directory} && gh pr merge 1"), true),
+        (format!("cd {directory} && ls"), false),
     ];
     let wrong = named
         .iter()
