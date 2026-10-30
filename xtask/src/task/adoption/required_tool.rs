@@ -76,7 +76,7 @@ impl RequiredTool {
                 "add a step `run: cargo xtask stacked` with env GH_TOKEN and PULL_REQUEST (permissions: pull-requests: read) to a workflow on pull_request"
             }
             RequiredTool::DependabotUpdates => {
-                "list this workspace in .github/dependabot.yml: an `updates` entry with `package-ecosystem: cargo`, `directory: /<workspace path>` and `schedule: interval: weekly`"
+                "list this workspace in .github/dependabot.yml: an `updates` entry with `package-ecosystem: cargo`, `directory: /<workspace path>`, `open-pull-requests-limit: 0` (alerts on, version-update pull requests off) and `schedule: interval: weekly`"
             }
             RequiredTool::DependabotAlerts => {
                 "turn on Dependabot alerts, store a fine-grained token with repository permission \"Dependabot alerts: read\" as secret DEPENDABOT_TOKEN, pass it as env `GH_TOKEN: ${{ secrets.DEPENDABOT_TOKEN }}` to the step that runs `cargo xtask ci` (github.token cannot read alerts), and fix or dismiss every open alert"

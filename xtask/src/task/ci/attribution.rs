@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
-use task::{FailureKind, FailureSet};
+use task::{CheckName, FailureKind, FailureSet};
 
 use crate::task::ci::LocalGate;
 use crate::task::ci::step_outcomes::StepOutcomes;
@@ -19,6 +19,7 @@ pub struct Attribution {
 
 impl Attribution {
     pub const FAILURES: &str = "META_CI_FAILURES";
+    const AFTER_STEPS: &str = "ci";
 
     pub fn new(times: Option<PathBuf>, failures: Option<PathBuf>) -> Attribution {
         Attribution { times, failures }
@@ -40,8 +41,8 @@ impl Attribution {
             .map_err(Failure::Summary)
     }
 
-    pub fn attributed(&self, failure: &Failure, times: &StepTimes) -> Result<(), Failure> {
-        let job = times.failed_job();
+    pub fn attributed(&self, failure: &Failure) -> Result<(), Failure> {
+        let job = CheckName::from(Self::AFTER_STEPS);
         self.failures
             .as_ref()
             .map_or(Ok(()), |path| failure.found(&job).or_infra(job).write(path))
@@ -68,7 +69,6 @@ mod tests {
     use super::Attribution;
     use crate::task::ci::LocalGate;
     use crate::task::ci::step_outcomes::StepOutcomes;
-    use crate::task::ci::step_times::StepTimes;
     use crate::task::failure::Failure;
 
     const SCRATCH: &str = "attribution-";
@@ -100,7 +100,7 @@ mod tests {
         let infra = |jobs: &[&str]| Some(jobs.iter().map(|job| FailureKind::Infra { job: (*job).into() }).collect());
         attribution.begin().unwrap();
         let begun = [closed(FIRST).is_err(), read().is_none()];
-        attribution.attributed(&Failure::NoLog, &StepTimes::default()).unwrap();
+        attribution.attributed(&Failure::NoLog).unwrap();
         let steps = [FIRST, LATER, CANCELLED, UNKNOWN, PASSED].map(|steps| closed(steps).map(|()| read()).unwrap());
         fs::remove_file(&file).unwrap();
         assert_eq!(begun, [true, true]);

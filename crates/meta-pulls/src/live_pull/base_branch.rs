@@ -1,4 +1,6 @@
+use std::convert::Infallible;
 use std::fmt;
+use std::str::FromStr;
 
 use serde::Deserialize;
 
@@ -15,6 +17,14 @@ impl BaseBranch {
             RuleSource::Rulesets => format!("repos/{{owner}}/{{repo}}/rules/branches/{self}"),
             RuleSource::Protection => format!("repos/{{owner}}/{{repo}}/branches/{self}"),
         }
+    }
+}
+
+impl FromStr for BaseBranch {
+    type Err = Infallible;
+
+    fn from_str(printed: &str) -> Result<Self, Self::Err> {
+        Ok(Self(printed.trim().to_owned()))
     }
 }
 

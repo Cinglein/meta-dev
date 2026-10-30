@@ -7,6 +7,7 @@ mod stop_limit;
 
 use std::time::{Duration, Instant};
 
+use meta_pulls::Patience;
 use meta_run::Budget;
 use serde::Deserialize;
 
@@ -30,6 +31,8 @@ pub struct CiSettings {
     claim_millis: Millis,
     gh_millis: Millis,
     stop_millis: StopLimit,
+    queue_poll_millis: Millis,
+    queue_checks_millis: Millis,
     #[serde(flatten)]
     poll_schedule: PollSchedule,
     #[serde(flatten)]
@@ -40,6 +43,8 @@ impl CiSettings {
     pub const DEFAULTS: &'static str = include_str!("ci_settings/ci_defaults.toml");
     pub const ROUTINE: GitWork = GitWork::Routine;
     pub const CLAIM: GitWork = GitWork::Claim;
+    const UNDER_FLOOR: &'static str =
+        "meta.toml [ci] queue_poll_millis is under tooling/policy.toml [millis] queue_pace";
 
     pub fn program(&self) -> &ProgramName {
         &self.program
@@ -77,6 +82,20 @@ impl CiSettings {
         self.stop_millis
     }
 
+    pub fn queue_pace(&self, floor: Duration) -> Result<Duration, CliFailure> {
+        let pace = self.queue_poll_millis.duration();
+        (pace >= floor).then_some(pace).ok_or_else(|| CliFailure::raised::<Setup>(Self::UNDER_FLOOR))
+    }
+
+    pub fn queue_turns(&self, pace: Duration) -> impl Iterator<Item = ()> {
+        let polls = self.queue_checks_millis.duration().as_millis() / pace.as_millis().max(1);
+        std::iter::repeat_n((), usize::try_from(polls).unwrap_or(usize::MAX).saturating_add(1))
+    }
+
+    pub fn queue_patience(&self, waited: Duration) -> Patience {
+        Patience::new(waited, self.queue_checks_millis.duration())
+    }
+
     pub fn log_window(&self) -> &LogWindow {
         &self.log_window
     }
@@ -102,6 +121,8 @@ mod tests {
     const CONFIGURED: &str = "[ci]\npoll_millis = 7\nappear_millis = 9";
     const STOP_LIMITS: [&str; 2] = ["[ci]\nstop_millis = 6999", "[ci]\nstop_millis = 7000"];
     const REFUSED: &str = "stop_millis must be under 7000 ms: Claude Code ends a Stop hook at 10 s";
+    const MINUTE: Duration = Duration::from_secs(60);
+    const HOUR_OF_POLLS: usize = 61;
 
     #[test]
     fn the_poll_interval_and_the_overdue_mark_are_the_configured_millis() {
@@ -116,5 +137,13 @@ mod tests {
         let [under, at] = configs.each_ref().map(CiSettings::try_from);
         assert!(under.is_ok_and(|settings| settings.stop_limit().deadline() > std::time::Instant::now()));
         assert!(at.unwrap_err().to_string().contains(REFUSED));
+    }
+
+    #[test]
+    fn the_queue_pace_meets_its_floor_and_bounds_the_polls_for_one_head() {
+        let settings = CiSettings::try_from(&Config::default()).unwrap();
+        let paced = [MINUTE, MINUTE + Duration::from_millis(1)].map(|floor| settings.queue_pace(floor).ok());
+        assert_eq!(paced, [Some(MINUTE), None]);
+        assert_eq!(settings.queue_turns(MINUTE).count(), HOUR_OF_POLLS);
     }
 }

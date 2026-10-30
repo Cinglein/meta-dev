@@ -80,12 +80,9 @@ impl Ci {
                     .map_err(Failure::from)
                     .and_then(|()| TrackedBuildOutput::refuse(workspace.root()))
                     .and_then(|()| TrackedWork::refuse_untracked(&run, read));
-                let stepped = tracked
-                    .is_ok()
-                    .then(CiStep::iter)
-                    .into_iter()
-                    .flatten()
-                    .try_for_each(|step| times.record(step, step.timed(workspace, selection, policy, &mut ledger)));
+                let stepped = times.stepped(tracked.is_ok().then(CiStep::iter).into_iter().flatten(), |step| {
+                    step.timed(workspace, selection, policy, &mut ledger)
+                });
                 let outcome = tracked
                     .and(stepped)
                     .and_then(|()| StandingLog::enforcing(&run, &mut ledger, prior))
@@ -94,8 +91,7 @@ impl Ci {
                     .and_then(|()| Stranding::refuse_stranded(workspace.root(), policy, read));
                 println!("ci: total {:.1?}", started.elapsed());
                 let recorded = self.attribution.recorded(&times);
-                let attributed =
-                    outcome.as_ref().err().map_or(Ok(()), |failure| self.attribution.attributed(failure, &times));
+                let attributed = outcome.as_ref().err().map_or(Ok(()), |failure| self.attribution.attributed(failure));
                 Surfaces::announce(workspace.root(), policy, self.summary.as_deref())
                     .unwrap_or_else(|failure| eprintln!("surfaces: {failure}"));
                 outcome.and(recorded).and(attributed)

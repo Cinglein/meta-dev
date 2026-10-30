@@ -17,6 +17,8 @@ impl DependabotConfig {
     const CARGO: &str = "cargo";
     const DIRECTORY: &str = "directory";
     const DIRECTORIES: &str = "directories";
+    const LIMIT: &str = "open-pull-requests-limit";
+    const NONE: &str = "0";
     const QUOTES: [char; 2] = ['"', '\''];
     const ROOT: char = '/';
 
@@ -27,6 +29,10 @@ impl DependabotConfig {
         }?;
         let Ok(config) = text.parse();
         Ok(config)
+    }
+
+    pub fn proposes(&self) -> bool {
+        self.0.items(Self::UPDATES).iter().any(|update| update.scalar_of(Self::LIMIT).trim() != Self::NONE)
     }
 
     pub fn covers(&self, directory: &WorkingDirectory) -> bool {

@@ -1,5 +1,8 @@
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::Path;
+use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
+use std::thread::Scope;
 use std::time::{Duration, Instant};
 
 use meta_pull_query::LiveQuery;
@@ -39,6 +42,9 @@ const REASONS: [(&str, &str); 3] = [
 ];
 const WORKFLOWS: [&str; 2] = ["ci", "mutants"];
 const DEADLINE: Duration = Duration::from_secs(5);
+const WRITE_SECOND_ARGUMENT_TO_FIRST_PATH: [&str; 2] = ["-c", "printf '%s' \"$1\" > \"$0\""];
+const NOISE: usize = 4;
+const ROUNDS: usize = 20;
 
 struct Fake {
     dir: tempfile::TempDir,
@@ -49,7 +55,12 @@ impl Fake {
     fn new(scenario: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let script = dir.path().join(scenario);
-        std::fs::write(&script, FAKE_GH.replace("$FAKE", scenario)).unwrap();
+        let written = Command::new("sh")
+            .args(WRITE_SECOND_ARGUMENT_TO_FIRST_PATH)
+            .arg(&script)
+            .arg(FAKE_GH.replace("$FAKE", scenario))
+            .status();
+        assert!(written.unwrap().success());
         std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
         let config: Config = toml::from_str(&format!("[ci]\nprogram = {:?}", script.display().to_string())).unwrap();
         let program = CiSettings::try_from(&config).unwrap().program().clone();
@@ -66,6 +77,30 @@ impl Fake {
     fn reason(scenario: &str) -> String {
         let read = Self::new(scenario).github.read(&LiveQuery::new(vec![]));
         read.flag().map(|flag| flag.to_string()).unwrap_or_default()
+    }
+}
+
+struct Spawners(AtomicBool);
+
+impl Spawners {
+    fn running(&self) {
+        std::iter::repeat_with(|| Command::new("true").status().ok())
+            .take_while(|_| !self.0.load(Relaxed))
+            .for_each(drop);
+    }
+
+    fn started<'scope>(&'scope self, scope: &'scope Scope<'scope, '_>) {
+        (0..NOISE).for_each(|_| drop(scope.spawn(|| self.running())));
+    }
+
+    fn wrong_reason() -> Option<String> {
+        let spawners = Self(AtomicBool::new(false));
+        std::thread::scope(|scope| {
+            spawners.started(scope);
+            let wrong = (0..ROUNDS).map(|_| Fake::reason(REASONS[0].0)).find(|reason| reason != REASONS[0].1);
+            spawners.0.store(true, Relaxed);
+            wrong
+        })
     }
 }
 
@@ -97,8 +132,14 @@ fn a_project_requires_the_workflows_its_meta_toml_names_and_none_by_default() {
 }
 
 #[test]
+fn a_fake_gh_is_never_busy_for_writing_while_other_threads_spawn_processes() {
+    assert_eq!(Spawners::wrong_reason(), None);
+}
+
+#[test]
 fn an_unreachable_or_unreadable_github_reads_as_unknown_with_its_reason() {
-    assert!(REASONS.iter().all(|(scenario, reason)| Fake::reason(scenario) == *reason));
+    let reasons = REASONS.map(|(scenario, _)| Fake::reason(scenario));
+    assert_eq!(reasons.each_ref().map(String::as_str), REASONS.map(|(_, reason)| reason));
     let fake = Fake::new("down");
     let missing =
         LiveGithub::new(fake.github.program.clone(), Path::new("/nonexistent").into(), Instant::now(), vec![]);
