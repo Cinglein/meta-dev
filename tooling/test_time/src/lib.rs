@@ -60,6 +60,8 @@ impl TestTime {
         ("GIT_CONFIG_VALUE_5", "false"),
     ];
 
+    const DOCTESTS: &'static str = "doctests";
+
     pub fn run(
         workspace: &Workspace,
         selection: &Selection,
@@ -125,7 +127,14 @@ impl TestTime {
                 error,
             })?
             .parse::<TestRuns>()?
-            .passed()?;
+            .passed()
+            .map_err(|failure| {
+                if documented_ran.is_ok() {
+                    failure
+                } else {
+                    failure.incomplete(Self::DOCTESTS.into())
+                }
+            })?;
         ran.and(documented_ran)?;
         Ok(timings)
     }

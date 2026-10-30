@@ -1,12 +1,13 @@
 use std::time::{Duration, Instant};
 
-use strum::{Display, EnumIter, EnumString};
+use strum::{Display, EnumIter, EnumString, IntoStaticStr};
 
 use crate::task::adoption::Adoption;
 use crate::task::clippy::Clippy;
 use crate::task::failure::Failure;
 use crate::task::lint::Lint;
 use crate::task::supply::Supply;
+use task::CheckName;
 use task::Ledger;
 use task::Policy;
 use task::Selection;
@@ -15,7 +16,7 @@ use task::Workspace;
 use task::{CargoArgument, Program};
 use test_time::TestTime;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumIter, EnumString)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Display, EnumIter, EnumString, IntoStaticStr)]
 #[strum(serialize_all = "kebab-case")]
 pub enum CiStep {
     Adoption,
@@ -25,6 +26,12 @@ pub enum CiStep {
     Lint,
     Spec,
     Supply,
+}
+
+impl From<CiStep> for CheckName {
+    fn from(step: CiStep) -> CheckName {
+        <&'static str>::from(step).into()
+    }
 }
 
 impl CiStep {

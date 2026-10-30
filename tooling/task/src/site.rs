@@ -1,5 +1,5 @@
 use std::fmt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::line_number::LineNumber;
 
@@ -8,6 +8,16 @@ pub enum Site {
     Workspace,
     File(PathBuf),
     Line(PathBuf, LineNumber),
+}
+
+impl Site {
+    #[must_use]
+    pub fn path(&self) -> Option<&Path> {
+        match self {
+            Site::Workspace => None,
+            Site::File(path) | Site::Line(path, _) => Some(path),
+        }
+    }
 }
 
 impl fmt::Display for Site {

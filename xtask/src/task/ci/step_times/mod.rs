@@ -55,9 +55,11 @@ mod tests {
     use std::fs;
     use std::time::Duration;
 
+    use task::FailureKind;
+
     use super::StepTimes;
+    use crate::task::ci::attribution::Attribution;
     use crate::task::ci::ci_step::CiStep;
-    use crate::task::ci::{Ci, LogSource};
     use crate::task::failure::Failure;
     use crate::task::fixture::Fixture;
 
@@ -66,6 +68,7 @@ mod tests {
     const SHOWN: &str = "fmt 1.0s, lint 1.0s, clippy failed, test failed";
     const LISTED: &str = "ci: clippy failed: clippy\nci: test failed: test";
     const TIMES: &str = "times";
+    const JOB: &str = "ci";
 
     impl StepTimes {
         fn outcome(step: CiStep) -> Result<Duration, Failure> {
@@ -87,10 +90,18 @@ mod tests {
     }
 
     #[test]
+    fn every_failed_step_is_attributed_by_name() {
+        let stepped = StepTimes::default().stepped(STEPS, StepTimes::outcome).err();
+        let jobs = stepped.map(|failure| failure.found(&JOB.into()).kinds().to_vec());
+        let infra = |job: &str| FailureKind::Infra { job: job.into() };
+        assert_eq!(jobs, Some(vec![infra("clippy"), infra("test")]));
+    }
+
+    #[test]
     fn no_failing_step_passes_and_a_gate_child_records_every_step_time() {
         let (fixture, mut times) = (Fixture::new(), StepTimes::default());
         assert!(times.stepped([], StepTimes::outcome).is_ok() && times.stepped(STEPS, StepTimes::outcome).is_err());
-        Ci::new(None, None, Some(fixture.path(TIMES)), LogSource::Origin).recorded(&times).unwrap();
+        Attribution::new(Some(fixture.path(TIMES)), None).recorded(&times).unwrap();
         assert_eq!(fs::read_to_string(fixture.path(TIMES)).ok().as_deref(), Some(SHOWN));
     }
 }
