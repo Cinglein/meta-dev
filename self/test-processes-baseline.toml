@@ -3,12 +3,12 @@
 "meta-cli it ci::pushes::one_commit_gets_one_watcher" = 1
 "meta-cli it ci::review::a_reflog_that_is_off_or_an_unwritable_state_dir_fails_closed" = 6
 "meta-cli it ci::waits::an_unreadable_remote_settles_the_hook_spawned_watch_unchecked_and_a_fixed_remote_passes_and_learns_the_run" = 8
-"meta-cli it cli::a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree" = 24
-"meta-cli it cli::writes_go_to_the_remote_as_meta_actor_else_owner_listing_it_once_and_offline_writes_are_refused" = 8
-"meta-cli it gc::gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_with_reasons" = 94
+"meta-cli it cli::a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree" = 1
+"meta-cli it cli::writes_go_to_the_remote_as_meta_actor_else_owner_listing_it_once_and_offline_writes_are_refused" = 2
+"meta-cli it gc::gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_with_reasons" = 89
 "meta-cli it hooks::post_tool_use_pushes_unprotected_branches_and_reports_git_errors" = 15
 "meta-cli it hooks::session_start_shows_state_and_names_the_session_actor" = 1
-"meta-cli it status::opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_the_rest" = 21
+"meta-cli it status::opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_the_rest" = 4
 "meta-cli meta_cli request::live_github::tests::a_fake_gh_is_never_busy_for_writing_while_other_threads_spawn_processes" = 12
 "meta-cli meta_cli request::live_github::tests::an_unreachable_or_unreadable_github_reads_as_unknown_with_its_reason" = 13
 "meta-cli meta_cli request::live_github::tests::one_graphql_call_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_its_own_pull_requests" = 8
@@ -19,7 +19,7 @@
 "meta-golden goldens a_golden_passes_its_own_text_and_fails_on_any_other_and_meta_runs_from_the_bin_dir" = 1
 "meta-golden goldens a_scenario_records_what_real_git_reports_as_checked_in_and_a_failed_setup_fails_the_refresh" = 23
 "meta-golden goldens the_replayer_answers_each_call_with_the_next_recording_and_refuses_once_they_run_out" = 1
-"meta-log meta_log git_log::tests::refusals_write_nothing_and_rejected_or_offline_writes_fail" = 10
+"meta-log meta_log git_log::tests::refusals_write_nothing_and_rejected_or_offline_writes_fail" = 4
 "meta-run meta_run run::placement::tests::terminal_runs_lead_their_group_without_a_terminal_let_git_prompt_and_runs_and_helpers_leave_nothing_behind" = 9
 "meta-run meta_run run::tests::a_meta_child_is_told_its_trace_and_parent_span_even_with_no_inherited_variables" = 1
 "meta-run run a_run_ends_at_its_deadline_and_kills_its_whole_group_holders_deaf_respawning_stalled_and_nested_alike" = 5
@@ -28,8 +28,8 @@
 "meta-xtask meta_xtask task::adoption::tests::missing_tools_steps_that_can_skip_and_absent_steps_are_gaps_with_their_fix" = 9
 "meta-xtask meta_xtask task::ci::local_gate::gate_child::tests::after_meta_done_a_child_given_the_open_pull_request_passes_the_linked_task" = 1
 "meta-xtask meta_xtask task::ci::local_gate::gate_child::tests::the_child_gets_an_empty_home_of_its_own_no_config_home_and_only_allowed_names_with_the_callers_values" = 5
-"meta-xtask meta_xtask task::ci::local_gate::tests::the_checked_commit_gets_the_childs_state_a_scoped_context_the_version_timings_and_surfaces" = 17
-"meta-xtask meta_xtask task::ci::standing_log::tests::the_isolated_run_reads_exactly_the_fetched_tip_and_an_unreachable_or_unfetched_log_fails_closed" = 26
+"meta-xtask meta_xtask task::ci::local_gate::tests::the_checked_commit_gets_the_childs_state_a_scoped_context_the_version_timings_and_surfaces" = 3
+"meta-xtask meta_xtask task::ci::standing_log::tests::the_isolated_run_reads_exactly_the_fetched_tip_and_an_unreachable_or_unfetched_log_fails_closed" = 4
 "mutation mutation scope::test_packages::tests::a_runs_baseline_is_its_own_tests_once_with_the_shards_build_and_limits_and_a_failing_one_ends_all_it_started" = 9
 "mutation mutation shard_plan::tests::a_full_plan_lists_mutants_only_when_due_and_prints_its_shards_as_a_json_array_for_the_matrix" = 1
 "task task command_line::tests::a_command_prints_its_arguments_sees_only_its_given_environment_and_holds_its_input" = 3

@@ -22,7 +22,7 @@ const NOWHERE: &str = "/nonexistent/origin.git";
 const OFFLINE_PREFIX: &str = "offline: cannot fetch meta/log from origin: \"";
 const SHOWN: &str = "meta/log on origin";
 const REJECTED_PREFIX: &str = "meta/log push rejected";
-const REFUSE_PUSHES: [&str; 2] = ["/usr/bin/false", "hooks/pre-receive"];
+const HELD_REF: &str = "refs/heads/meta/log.lock";
 const BRANCH: &str = "refs/heads/meta/log";
 const HEAD: &str = "HEAD";
 const INDEX: &str = ".git/index";
@@ -142,10 +142,10 @@ fn refusals_write_nothing_and_rejected_or_offline_writes_fail() {
             .map(|failure| failure.to_string())
             .unwrap_or_default()
     };
-    let [false_program, hook] = REFUSE_PUSHES;
-    std::fs::create_dir_all(fixture.origin.path().join("hooks")).unwrap();
-    std::os::unix::fs::symlink(false_program, fixture.origin.path().join(hook)).unwrap();
-    assert!(failure().starts_with(REJECTED_PREFIX));
+    std::fs::create_dir_all(fixture.origin.path().join(HELD_REF).parent().unwrap()).unwrap();
+    std::fs::write(fixture.origin.path().join(HELD_REF), "").unwrap();
+    let rejected = failure();
+    assert!(rejected.starts_with(REJECTED_PREFIX), "{rejected}");
     Port::linked(fixture.clones[FIRST].path(), NOWHERE);
     let offline = failure();
     assert!(offline.starts_with(OFFLINE_PREFIX) && offline.contains(NOWHERE), "{offline}");

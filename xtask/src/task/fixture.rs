@@ -34,7 +34,7 @@ impl Fixture {
     }
 
     fn laid(git_dir: &Path, config: &str) {
-        fs::create_dir_all(git_dir.join("objects")).expect("objects dir");
+        fs::create_dir_all(git_dir.join("objects/pack")).expect("objects dir");
         fs::create_dir_all(git_dir.join("refs/heads")).expect("refs dir");
         fs::write(git_dir.join("HEAD"), "ref: refs/heads/change\n").expect("write HEAD");
         fs::write(git_dir.join("config"), config).expect("write config");
