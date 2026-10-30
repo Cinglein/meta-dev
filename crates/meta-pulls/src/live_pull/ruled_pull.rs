@@ -2,9 +2,15 @@ use std::fmt;
 
 use super::LivePull;
 use super::checks::Checks;
+use super::merge_state::MergeState;
+use super::merging::Merging;
 use super::pull_state::PullState;
 use super::rollup::Rollup;
+use crate::head::{Barred, Behind, Checking, Conflicted, Gone, Green, Head, Red, Unmergeable};
 use crate::required_checks::RequiredChecks;
+use crate::stop::Stop;
+use crate::trunk::Trunk;
+use crate::verdict::Verdict;
 
 #[derive(Clone, Copy, Debug)]
 pub struct RuledPull<'pull> {
@@ -39,6 +45,40 @@ impl<'pull> RuledPull<'pull> {
         self.open()?;
         let checks = self.checks(self.required?);
         checks.truncated().map(|()| checks)
+    }
+
+    #[must_use]
+    pub fn head(self, trunk: &Trunk) -> Head {
+        let pull = self.pull;
+        let number = pull.number;
+        let off_trunk = trunk.off_trunk(number, &pull.base);
+        match (pull.state, off_trunk, trunk.unguarded(), pull.merging.as_ref()) {
+            (PullState::Closed, ..) | (PullState::Merged, None, ..) => Head::Gone(Gone::new(number, pull.state)),
+            (PullState::Merged | PullState::Open, Some(stop), ..) | (PullState::Open, None, Some(stop), _) => {
+                Head::Barred(Barred::new(stop))
+            }
+            (PullState::Open, None, None, None) => Head::Barred(Barred::new(Stop::Incomplete(number))),
+            (PullState::Open, None, None, Some(merging)) => self.open_head(merging),
+        }
+    }
+
+    fn open_head(self, merging: &Merging) -> Head {
+        let number = self.pull.number;
+        let verdict = self.required.map_or(Verdict::Pending, |required| self.checks(required).verdict());
+        let failing = self.pull.rollup.as_ref().map(Rollup::failing).unwrap_or_default();
+        let red = verdict.failing().map(|_| ()).or_else(|| failing.any());
+        match (merging.state(), red, verdict.passed()) {
+            (MergeState::Dirty, ..) => Head::Conflicted(Conflicted::new(number)),
+            (_, Some(()), _) => Head::Red(Red::new(number, failing)),
+            (MergeState::Behind, None, _) => Head::Behind(Behind::new(number)),
+            (MergeState::Clean | MergeState::HasHooks | MergeState::Unstable, None, Some(())) => {
+                Head::Green(Green::new(number, merging.commit().clone()))
+            }
+            (MergeState::Blocked | MergeState::Draft, None, Some(())) => {
+                Head::Unmergeable(Unmergeable::new(number, merging.state()))
+            }
+            (_, None, _) => Head::Checking(Checking::new(number)),
+        }
     }
 
     fn checks(self, required: &RequiredChecks) -> Checks {

@@ -1,9 +1,9 @@
 exclude_globs = [
     "xtask/src/main.rs",
     "self/spec/src/main.rs",
-    "crates/meta-cli/src/request/local/local_clone/vetting/host/process_table/darwin.rs",
-    "crates/meta-cli/src/request/local/local_clone/vetting/host/process_table/darwin/*.rs",
-    "crates/meta-cli/src/request/local/local_clone/vetting/host/process_table/unsupported.rs",
+    "crates/meta-process-table/src/darwin.rs",
+    "crates/meta-process-table/src/darwin/*.rs",
+    "crates/meta-process-table/src/unsupported.rs",
 ]
 exclude_re = [
     "MutantCosts::measure",
@@ -21,7 +21,8 @@ exclude_re = [
     "GitCount::run",
     "TestRunner::run",
     "TestBinary::timed",
-    "Changes::(reaches|since_main)",
+    "Changes::(reaches|since_main|since_main_paths)",
+    "Affected::footprint\\b",
     "Stacked::",
     "Scope::(applied|changed_shards|tested|shard_runs|write_diff)",
     "CrateLoad::listed",
@@ -37,5 +38,6 @@ exclude_re = [
     "Workflow::(all|read)",
     "DependabotConfig::read",
     "RunEvent::ambient",
+    "GhCalls<'project>::called",
 ]
 minimum_test_timeout = 10.0

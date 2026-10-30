@@ -3,6 +3,8 @@ mod crate_load;
 mod packing;
 mod reach;
 mod tested_crates;
+#[cfg(test)]
+mod trusted;
 
 pub use changes::Changes;
 pub use crate_load::CrateLoad;
@@ -17,6 +19,7 @@ use task::Footprint;
 use task::PackageGraph;
 use task::Policy;
 use task::Selection;
+use task::SourceFile;
 use task::Workspace;
 
 #[derive(Debug)]
@@ -25,27 +28,50 @@ pub struct Affected;
 impl Affected {
     pub fn selection(
         workspace: &Workspace,
-        changes: Changes,
+        changes: &Changes,
         base: &BranchName,
     ) -> Result<Selection, Failure> {
-        Ok(Self::reached(
+        Ok(Self::tested(
             workspace.packages(),
             &changes.reaches(workspace, base)?,
         ))
     }
 
-    #[must_use]
     pub fn footprint(
-        packages: &PackageGraph,
-        reaches: &[Reach],
-        paths: Vec<PathBuf>,
+        workspace: &Workspace,
+        base: &BranchName,
         policy: &Policy,
-    ) -> Footprint {
-        Footprint::new(
-            Self::reached(packages, reaches),
-            paths.into_iter().collect(),
+    ) -> Result<Footprint, Failure> {
+        let paths = Changes::since_main_paths(workspace, base)?;
+        Self::footprint_of(
+            workspace.packages(),
+            paths,
+            || workspace.source_files(),
             policy,
         )
+    }
+
+    fn footprint_of(
+        packages: &PackageGraph,
+        paths: Vec<PathBuf>,
+        files: impl FnOnce() -> Result<Vec<SourceFile>, Failure>,
+        policy: &Policy,
+    ) -> Result<Footprint, Failure> {
+        let reaches = Changes::reached(packages, &paths, files)?;
+        Ok(Footprint::new(
+            Self::reached(packages, &reaches),
+            paths.into_iter().collect(),
+            policy,
+        ))
+    }
+
+    fn tested(graph: &PackageGraph, trusted: &[Vec<Reach>]) -> Selection {
+        trusted
+            .iter()
+            .map(|reaches| Self::reached(graph, reaches))
+            .fold(Selection::Workspace, |tested, demanded| {
+                tested.meet(&demanded)
+            })
     }
 
     fn reached(graph: &PackageGraph, reaches: &[Reach]) -> Selection {
@@ -80,16 +106,16 @@ mod tests {
     fn a_footprint_holds_the_dependents_closure_and_the_paths_and_the_workspace_for_everything() {
         let graph = PackageGraph::from_metadata(METADATA).unwrap();
         let (policy, path) = (Policy::defaults(), PathBuf::from("crates/board/a.rs"));
-        let made =
-            |reach: Reach| Affected::footprint(&graph, &[reach], vec![path.clone()], &policy);
-        let want =
-            |reach: Selection| Footprint::new(reach, BTreeSet::from([path.clone()]), &policy);
+        let made = |path: &PathBuf| {
+            Affected::footprint_of(&graph, vec![path.clone()], || Ok(Vec::new()), &policy).unwrap()
+        };
+        let want = |path: &PathBuf, reach: Selection| {
+            Footprint::new(reach, BTreeSet::from([path.clone()]), &policy)
+        };
         let both = BTreeSet::from([BOARD.parse().unwrap(), EVAL.parse().unwrap()]);
-        assert_eq!(
-            made(Reach::Package(BOARD.parse().unwrap())),
-            want(Selection::Crates(both))
-        );
-        assert_eq!(made(EVERYTHING), want(Selection::Workspace));
+        let unknown = PathBuf::from("LICENSE");
+        assert_eq!(made(&path), want(&path, Selection::Crates(both)));
+        assert_eq!(made(&unknown), want(&unknown, Selection::Workspace));
     }
 
     #[test]

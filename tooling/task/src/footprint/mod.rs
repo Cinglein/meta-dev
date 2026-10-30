@@ -23,7 +23,8 @@ impl Footprint {
 
     #[must_use]
     pub fn meets(&self, other: &Footprint) -> bool {
-        self.reach.common(&other.reach).is_some()
+        [&self.reach, &other.reach].contains(&&Selection::Workspace)
+            || self.reach.clone().meet(&other.reach).reaching().is_some()
             || !self.hot.is_disjoint(&other.hot)
             || !self.paths.is_disjoint(&other.paths)
     }

@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
+use meta_schema::Actor;
 use serde::{Deserialize, Serialize};
 
 use crate::policy::Surface;
@@ -11,6 +12,8 @@ use crate::policy::Surface;
 pub struct QueueSettings {
     hot: Vec<Surface>,
     members: NonZeroUsize,
+    #[serde(default)]
+    landers: Vec<Actor>,
 }
 
 impl QueueSettings {

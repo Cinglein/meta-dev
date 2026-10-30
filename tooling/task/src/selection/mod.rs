@@ -44,12 +44,10 @@ impl Selection {
     }
 
     #[must_use]
-    pub fn common(&self, other: &Selection) -> Option<Selection> {
-        match (self, other) {
-            (Selection::Crates(ours), Selection::Crates(theirs)) => Some(ours & theirs)
-                .filter(|shared| !shared.is_empty())
-                .map(Selection::Crates),
-            (Selection::Workspace, kept) | (kept, Selection::Workspace) => Some(kept.clone()),
+    pub fn meet(self, other: &Selection) -> Selection {
+        match other {
+            Selection::Workspace => self,
+            Selection::Crates(crates) => self.within(crates),
         }
     }
 

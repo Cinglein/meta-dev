@@ -85,13 +85,18 @@ impl<'view> Status<'view> {
         let stalled = possible.and(unheld).and(overdue).map(|due| Flag::Stalled(id, due));
         let discussing = self.state.status_of(task).discussion();
         let past_due = held.and(overdue).filter(|_| discussing.is_none()).map(|due| Flag::PastDue(id, due));
+        let waiting = task.progress().waiting();
+        let unanswered = waiting.and_then(|block| {
+            let late = block.reply_due().filter(|due| *due < self.now);
+            late.map(|due| Flag::Unanswered(id, block.blocker(), due))
+        });
         let done = held.and(self.github.finished(&self.github.linked(task))).map(|()| Flag::HeldDone(id));
         let spent = possible.and(planned.effort_allowance()).and(match EffortSpend::measured_for(task) {
             EffortSpend::Unmeasured => None,
         });
         let pulls = self.pulls(task).into_iter();
         let flagged = pulls.filter_map(|pull_request| self.github.sight(pull_request).flag(id, pull_request, unheld));
-        stalled.into_iter().chain(past_due).chain(done).chain(spent).chain(flagged).collect()
+        stalled.into_iter().chain(past_due).chain(unanswered).chain(done).chain(spent).chain(flagged).collect()
     }
 }
 

@@ -5,6 +5,7 @@ mod session_dir;
 mod session_id;
 mod session_start;
 mod start_moment;
+mod task_worktree;
 mod unix_seconds;
 mod watcher;
 
