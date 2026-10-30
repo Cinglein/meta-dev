@@ -1,6 +1,7 @@
 mod entries;
 mod fallback_keys;
 mod liveness;
+mod modal_tools;
 
 use std::collections::BTreeMap;
 
@@ -26,6 +27,7 @@ use crate::percent::Percent;
 use entries::Entries;
 use fallback_keys::FallbackKeys;
 pub use liveness::Liveness;
+pub use modal_tools::ModalTools;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -66,6 +68,8 @@ pub struct PolicyFile {
     spec: Option<SpecSettings>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     liveness: Option<Liveness>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    tools: Option<ModalTools>,
     supply_chain: SupplyChain,
 }
 
@@ -99,6 +103,7 @@ impl PolicyFile {
             budgets: BudgetDrafts::from(policy.budgets.clone()),
             spec: policy.spec.clone(),
             liveness: policy.liveness,
+            tools: policy.tools.clone(),
             supply_chain: policy.supply_chain.clone(),
         }
     }
@@ -252,6 +257,7 @@ impl PolicyFile {
             deprecated,
             spec: self.spec,
             liveness: self.liveness,
+            tools: self.tools,
             supply_chain: self.supply_chain,
         })
     }
