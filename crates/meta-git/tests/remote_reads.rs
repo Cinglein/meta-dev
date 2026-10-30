@@ -4,7 +4,9 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use meta_git::{FileCommit, Files, Identity, Layout, ObjectId, RefMove, Remote, Repository, Transport, Writes};
+use meta_git::{
+    FastForward, Fetch, FileCommit, Files, Identity, Layout, ObjectId, RefMove, Remote, Repository, Transport, Writes,
+};
 use meta_run::Budget;
 
 const ORIGIN: &str = "origin";
@@ -18,6 +20,9 @@ const LOCAL: [&str; 3] = ["/srv/o", "o", "./a:b"];
 const COMMAND: [&str; 4] = ["file:///srv/o", "host:o", "ssh://host/o", ""];
 const PATIENT: Duration = Duration::from_secs(30);
 const REWRITE: [&str; 2] = ["url.", ".insteadOf"];
+const REFSPEC: &str = "+refs/heads/*:refs/remotes/origin/*";
+const RECEIVE_PACK: &str = "remote.origin.receivepack";
+const RECEIVE_PACK_PROGRAM: &str = "git-receive-pack";
 
 struct Origin {
     root: PathBuf,
@@ -95,4 +100,18 @@ fn local_heads_list_like_ls_remote_heads_through_a_dot_git_suffix_once_until_for
     assert!(origin.listed(&remote, origin.second));
     remote.forget_heads();
     assert!(origin.listed(&remote, origin.first));
+}
+
+#[test]
+fn a_plain_path_remote_takes_fetches_and_pushes_in_process_unless_a_helper_program_is_configured() {
+    let root = tempfile::tempdir().unwrap();
+    let origin = Origin::made(root.path());
+    let remote = origin.remote(ORIGIN);
+    let fetch = Fetch::from(REFSPEC.to_owned());
+    let [_, main, _] = HEADS;
+    let push = FastForward::new(origin.first, main.parse().unwrap());
+    assert!(remote.local_end(&fetch).is_some() && remote.local_end(&push).is_some());
+    let clone = git2::Repository::open(root.path().join(CLONE)).unwrap();
+    clone.config().unwrap().set_str(RECEIVE_PACK, RECEIVE_PACK_PROGRAM).unwrap();
+    assert!(remote.local_end(&fetch).is_some() && remote.local_end(&push).is_none());
 }

@@ -861,12 +861,15 @@ name = "mutation"
 version = "0.1.0"
 dependencies = [
  "affected",
+ "git2",
+ "meta-git",
  "serde",
  "serde_json",
  "settings",
  "strum",
  "sysinfo",
  "task",
+ "tempfile",
  "toml 0.9.12+spec-1.1.0",
 ]
 

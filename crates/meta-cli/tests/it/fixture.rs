@@ -26,7 +26,7 @@ impl Fixture {
     const EMAIL: &'static str = "t@meta.invalid";
     const ORIGIN: &'static str = "origin";
     const HEAD: &'static str = "HEAD";
-    const QUIET: [&'static str; 2] = ["maintenance.auto", "receive.autogc"];
+    const QUIET: [&'static str; 1] = ["maintenance.auto"];
     const NO_REFLOG: &'static str = "core.logAllRefUpdates";
     const EVERY_HEAD: [&'static str; 0] = [];
     const LINKED: &'static str = "worktrees";
