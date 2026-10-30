@@ -28,6 +28,7 @@ fn only_discussion_never_stalls_and_every_wait_is_a_typed_status() {
     let waiting = board.clone().then(board.blocking(Blocker::Discussion(issue)));
     let resumed = waiting.clone().then(waiting.resumed());
     assert_eq!(resumed.script().status(), TaskStatus::Assigned);
+    assert!(waiting.script().waiting_since().is_some() && resumed.script().waiting_since().is_none());
     let discussed = [waiting.script().status().discussion(), resumed.script().status().discussion()];
     assert_eq!((resumed.script().status().stalling(), discussed), (Stalling::Possible, [Some(issue), None]));
 }
