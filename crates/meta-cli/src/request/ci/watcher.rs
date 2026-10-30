@@ -12,15 +12,17 @@ mod watch_clock;
 use std::ops::ControlFlow;
 use std::time::{Duration, Instant};
 
+use meta_log::RemoteHeads;
 use meta_run::{Budget, EnvPolicy, Run};
 
 use super::ci_status::CiStatus;
 use super::commit::Commit;
 use super::session_dir::SessionDir;
 use super::session_id::SessionId;
+use crate::request::checkout::Checkout;
 use crate::request::cli_failure::{CliFailure, Invalid, Setup};
 use crate::request::output::{Listed, Output};
-use crate::request::project::{CiSettings, Project};
+use crate::request::project::{BranchName, CiSettings, Project};
 use crate::request::remote_failure::RemoteFailure;
 pub use failure_log::FailureLog;
 use gh::{Gh, Observation};
@@ -79,14 +81,25 @@ impl Watcher {
                 Watched::new(commit.clone(), dir.status_of(commit))
             })
             .collect();
+        let checkout = seen.as_ref().ok().map(SessionCommits::checkout);
+        let head = checkout.and_then(Checkout::head).and_then(Commit::commit_id);
+        let branch = checkout.and_then(Checkout::branch).filter(|branch| project.config().protects(branch).is_none());
+        let unseen = RemoteHeads::default();
+        let heads = seen.as_ref().map_or(&unseen, SessionCommits::heads);
+        let budget = project.ci_settings().budget(CiSettings::ROUTINE).within(deadline);
+        let read = || project.log(budget).and_then(|log| log.read_listed(heads).map_err(CliFailure::from));
+        let state = || WaitOnCi::state_read(budget, read);
         let reason = match StopView::new(&seen, unwritable, statuses).reason() {
             ControlFlow::Break(reason) => Some(Listed::new(reason)),
             ControlFlow::Continue(statuses) => {
-                seen.as_ref().ok().and_then(|seen| WaitOnCi::stop_reason(project, &statuses, seen, deadline))
+                WaitOnCi::stop_reason(&statuses, head.as_ref(), branch.and_then(BranchName::task), state)
             }
         };
-        let late = (Instant::now() >= deadline).then(|| Listed::new(Self::OUT_OF_TIME));
-        late.or(reason)
+        Self::stopped(Instant::now(), deadline, reason)
+    }
+
+    pub fn stopped(now: Instant, deadline: Instant, reason: Option<Listed>) -> Option<Listed> {
+        (now >= deadline).then(|| Listed::new(Self::OUT_OF_TIME)).or(reason)
     }
 
     pub fn watch(project: &Project, session: &SessionId, commit: Commit) -> Result<Output, CliFailure> {
@@ -104,17 +117,11 @@ impl Watcher {
         let finished = waits
             .map_while(|wait| watcher.poll(project, &remote, wait))
             .try_fold(Poll::default(), |poll, observed| watcher.step(poll, observed));
-        let unchecked = watcher.dir.status_of(&watcher.commit).filter(|status| *status == CiStatus::Unchecked);
-        unchecked.map_or_else(
-            || {
-                let last = finished.break_value();
-                let current = watcher.dir.status_of(&watcher.commit);
-                let concluded = Note::concluded(current, last.as_ref(), watcher.clock.elapsed());
-                watcher.note(&concluded);
-                Ok(Output::Listed(Listed::new(concluded.status())))
-            },
-            |_| Err(CliFailure::raised::<Setup>("remote URL names no GitHub repository")),
-        )
+        let current = watcher.dir.status_of(&watcher.commit);
+        let concluded = Note::concluded(current, finished.break_value().as_ref(), watcher.clock.elapsed())
+            .ok_or_else(|| CliFailure::raised::<Setup>("remote URL names no GitHub repository"))?;
+        watcher.note(&concluded);
+        Ok(Output::Listed(Listed::new(concluded.status())))
     }
 
     pub fn wait(project: &Project, session: &SessionId) -> Result<Output, CliFailure> {
@@ -153,10 +160,8 @@ impl Watcher {
         let resolved = remote.resolved(project).map_err(RemoteFailure::retry);
         let refused = resolved.as_ref().err().and_then(|retry| retry.as_ref().err());
         let stopped = self.clock.poll(refused, wait, &self.settings).break_value();
-        stopped.map_or(Some(()), |unchecked| {
-            unchecked.map(|note| self.note(&note));
-            None
-        })?;
+        stopped.as_ref().and_then(Option::as_ref).into_iter().for_each(|note| self.note(note));
+        stopped.is_none().then_some(())?;
         let repository = resolved.map_err(|retry| retry.unwrap_or_else(std::convert::identity));
         let observed = repository.and_then(|repository| self.gh.observe(repository, &self.commit));
         let learned = observed.as_ref().ok().and_then(Observation::expected);
@@ -167,17 +172,17 @@ impl Watcher {
     fn step(&self, poll: Poll, observed: Result<Observation, Listed>) -> ControlFlow<Observation, Poll> {
         let overdue = self.settings.run_overdue(self.clock.elapsed());
         let poll = poll.step(&observed, self.dir.status_of(&self.commit), overdue);
-        poll.fresh().and_then(|note| self.note(note));
+        poll.fresh().into_iter().for_each(|note| self.note(note));
         match observed.ok().filter(|observed| observed.finished().is_some()) {
             Some(observed) => ControlFlow::Break(observed),
             None => ControlFlow::Continue(poll),
         }
     }
 
-    fn note(&self, note: &Note) -> Option<()> {
+    fn note(&self, note: &Note) {
         self.dir.record(format!("{self}: {note}")).ok();
         self.dir.detail(&self.commit, &format!("{self}: {note}")).ok();
-        self.dir.settle(&self.commit, note.status()).ok()
+        self.dir.settle(&self.commit, note.status()).ok();
     }
 }
 

@@ -1,18 +1,16 @@
+use std::cell::LazyCell;
 use std::fmt;
-use std::time::Instant;
 
 use meta_log::Snapshot;
 use meta_run::Budget;
 use meta_schema::{Block, CommitId, ExternalKind, Id, Task};
 use meta_state::{State, TaskStatus};
 
-use super::session_commits::SessionCommits;
 use super::stop_view::Watched;
 use crate::request::ci::Commit;
 use crate::request::ci::ci_status::CiStatus;
 use crate::request::cli_failure::CliFailure;
 use crate::request::output::Listed;
-use crate::request::project::{BranchName, CiSettings, Project};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WaitOnCi {
@@ -29,34 +27,20 @@ impl WaitOnCi {
     const READY: [TaskStatus; 2] = [TaskStatus::Open, TaskStatus::Assigned];
 
     pub fn stop_reason(
-        project: &Project,
         statuses: &[Watched],
-        seen: &SessionCommits,
-        deadline: Instant,
+        head: Option<&CommitId>,
+        task: Option<Id<Task>>,
+        state: impl FnOnce() -> Result<State, CliFailure>,
     ) -> Option<Listed> {
-        statuses.iter().find_map(|watched| watched.status().and_then(CiStatus::unresolved))?;
-        let budget = project.ci_settings().budget(CiSettings::ROUTINE).within(deadline);
-        let read = || project.log(budget).and_then(|log| log.read_listed(seen.heads()).map_err(CliFailure::from));
-        let state = Self::state_read(budget, read);
-        let head = seen.checkout().head().and_then(Commit::commit_id);
-        let branch = seen.checkout().branch().filter(|branch| project.config().protects(branch).is_none());
-        Self::verdict(&state, statuses, head.as_ref(), branch.and_then(BranchName::task))
+        let state = LazyCell::new(state);
+        statuses.iter().find_map(|watched| {
+            let what = watched.status().and_then(CiStatus::unresolved)?;
+            Self::judging(&state, watched.commit(), head, task).map_or_else(Some, |wait| wait.reason(what))
+        })
     }
 
     pub fn state_read(budget: Budget, read: impl FnMut() -> Result<Snapshot, CliFailure>) -> Result<State, CliFailure> {
         budget.retried(read).map(|read| State::fold(read.records()))
-    }
-
-    pub fn verdict(
-        state: &Result<State, CliFailure>,
-        statuses: &[Watched],
-        head: Option<&CommitId>,
-        task: Option<Id<Task>>,
-    ) -> Option<Listed> {
-        statuses.iter().find_map(|watched| {
-            let what = watched.status().and_then(CiStatus::unresolved)?;
-            Self::judging(state, watched.commit(), head, task).map_or_else(Some, |wait| wait.reason(what))
-        })
     }
 
     fn judging(

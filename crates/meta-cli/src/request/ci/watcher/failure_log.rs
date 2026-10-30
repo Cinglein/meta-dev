@@ -1,6 +1,7 @@
 use super::gh::Gh;
 use super::reach::Reach;
 use super::session_commits::SessionCommits;
+use super::watch_clock::WatchClock;
 use crate::request::ci::SessionId;
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::output::Output;
@@ -16,9 +17,8 @@ impl FailureLog {
             .map_err(CliFailure::raised::<Setup>)?;
         let pushed = seen.pushed();
         pushed.first().ok_or_else(|| CliFailure::raised::<Setup>("no CI tracked for this session"))?;
-        let deadline = std::time::Instant::now() + settings.remaining(std::time::Duration::ZERO).unwrap_or_default();
         let repository = project.repository().map_err(|failure| CliFailure::raised::<Setup>(failure.into_listed()))?;
-        let gh = Gh::new(settings, project.root(), deadline);
+        let gh = Gh::new(settings, project.root(), WatchClock::start(settings).deadline());
         Ok(Output::Listed(gh.failed_excerpt(&repository, pushed, settings.log_window())))
     }
 }

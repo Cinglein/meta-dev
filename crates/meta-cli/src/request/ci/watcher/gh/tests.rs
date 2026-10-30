@@ -2,8 +2,9 @@ use std::time::{Duration, Instant};
 
 use meta_run::GhArgv;
 
-use super::Gh;
+use super::commit_checks::CommitChecks;
 use super::replies::Replies;
+use super::{Gh, Observation};
 use crate::request::project::{CiSettings, Config};
 
 const FAILED: &str = "sha=e6554a9caf9e41b1c37dc15dd1e6896c276cb81d";
@@ -16,6 +17,20 @@ const SHOWN: [&str; 4] = [
 ];
 const LIMITED: &str = "[ci]\ngh_millis = 400\n";
 const WITHIN: Duration = Duration::from_secs(30);
+const FETCHED: usize = 1;
+const LEARNED: [Option<u64>; 4] = [Some(432), Some(432), Some(422), None];
+
+#[test]
+fn recorded_checks_name_exactly_the_failed_jobs_whose_logs_were_fetched_and_expect_the_median_ancestor_run() {
+    let replies = Replies::recorded(GhArgv::CommitChecks).into_iter().map(|reply| Gh::checks_in(reply.out()));
+    let checks: Vec<CommitChecks> = replies.collect::<Result<_, _>>().unwrap();
+    let expected: Vec<_> = checks.iter().map(|checks| Observation::from(checks).expected()).collect();
+    let fetched: Vec<String> = Replies::recorded(GhArgv::FailedLog).iter().map(|log| log.argv().to_string()).collect();
+    let named = checks[FETCHED].failed_job_ids();
+    let quoted = named.iter().map(|job| format!("\"{}\"", job.to_string_lossy()));
+    assert!(named.len() == fetched.len() && quoted.zip(&fetched).all(|(job, argv)| argv.contains(&job)), "{named:?}");
+    assert_eq!(expected, LEARNED.map(|secs| secs.map(Duration::from_secs)));
+}
 
 #[test]
 fn the_excerpt_shows_every_recorded_failed_log_and_a_failed_download_whose_call_may_outlast_the_checks_limit() {

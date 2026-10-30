@@ -59,13 +59,14 @@ fn gh_errors_are_noted_once_each_and_keep_a_failed_status_and_a_failed_job_says_
 }
 
 #[test]
-fn a_watch_concludes_failed_with_its_steps_else_finished_else_absent_else_timed_out() {
+fn a_watch_concludes_failed_with_its_steps_else_finished_else_absent_else_timed_out_and_an_unchecked_one_not_at_all() {
     let [failed, passed] = [FAILED, PASSED].map(Replies::observed);
     let [unstarted, beside, started] = SUITES.map(|suites| Observation::from(&Gh::checks_in(suites).unwrap()));
     let lasts = [Some(&failed), Some(&passed), None, None, Some(&unstarted), Some(&beside), Some(&started)];
     let currents = [None, Some(CiStatus::Running), Some(CiStatus::Absent), Some(CiStatus::Running), None, None, None];
-    let concluded = lasts.iter().zip(currents).map(|(last, current)| Note::concluded(current, *last, LONG));
+    let concluded = lasts.iter().zip(currents).filter_map(|(last, current)| Note::concluded(current, *last, LONG));
     let shown = concluded.zip(CONCLUDED).filter(|(note, line)| note.line().starts_with(line)).count();
-    let held = Note::concluded(Some(CiStatus::Failed), Some(&passed), LONG).status();
-    assert_eq!((shown, held), (CONCLUDED.len(), CiStatus::Failed));
+    let [held, unchecked] = [CiStatus::Failed, CiStatus::Unchecked]
+        .map(|current| Note::concluded(Some(current), Some(&passed), LONG).map(|note| note.status()));
+    assert_eq!((shown, held, unchecked), (CONCLUDED.len(), Some(CiStatus::Failed), None));
 }
