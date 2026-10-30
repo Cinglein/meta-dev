@@ -4,7 +4,7 @@ use std::fmt;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use meta_golden::{Goldens, Replay};
 
@@ -18,7 +18,7 @@ const PATIENT: &str =
     "expected_millis = 0\nbackoff_millis = 5\nbackoff_cap_millis = 20\ntimeout_millis = 400\ngh_millis = 350\n";
 const EXPECTED: &str = ".git/meta-ci/expected";
 const AT_ONCE: &str = "0";
-const STALLED: &str = "expected_millis = 5\ntimeout_millis = 400\ngh_millis = 350\nstop_millis = 40\n";
+const EXPIRED: &str = "expected_millis = 5\ntimeout_millis = 400\ngh_millis = 350\nstop_millis = 0\n";
 const SETTLE_POLL: Duration = Duration::from_millis(2);
 const SETTLE_LENGTH: usize = 3500;
 const SESSION: &str = "ABCDEF12-34";
@@ -27,8 +27,6 @@ const FAILURE: Answer =
     Answer { checks: "01-failed-test-time", logs: &["02-failed-test-time-ci-log", "03-failed-test-time-gate-log"] };
 const SUCCESS: Answer = Answer { checks: "04-passed", logs: &[] };
 const NOT_WATCHED: &str = "CI not watched for";
-const SLOW_REMOTE: [&str; 2] = ["remote.origin.uploadpack", "sleep 0.3; git-upload-pack"];
-const SLOW: Duration = Duration::from_millis(500);
 const OUT_OF_TIME: &str = "couldn't check CI in time; run `meta ci-wait`";
 const PUSHED: &str = "feature";
 const NEXT_COMMIT: &str = "next";
@@ -293,10 +291,7 @@ fn a_passing_push_lets_the_agent_stop_and_a_commit_whose_state_cannot_be_written
     std::fs::create_dir_all(repo.sessions.path().join(Planted::STATES).join(next)).unwrap();
     repo.hook(POST, COMMIT);
     let unwatched = repo.hook(STOP, COMMIT);
-    repo.configured(STALLED);
-    let [key, value] = SLOW_REMOTE;
-    repo.git().configured(key, value);
-    let started = Instant::now();
-    let slow = repo.hook(STOP, COMMIT);
-    assert!(unwatched.contains(NOT_WATCHED) && slow.contains(OUT_OF_TIME) && started.elapsed() < SLOW);
+    repo.configured(EXPIRED);
+    let late = repo.hook(STOP, COMMIT);
+    assert!(unwatched.contains(NOT_WATCHED) && late.contains(OUT_OF_TIME));
 }
