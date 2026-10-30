@@ -1,4 +1,4 @@
-types 1142, traits declared 27, impls 1795
+types 1143, traits declared 27, impls 1796
 catalog: 24 measures, report-only
   B1 unnamed concepts [trait graph, to zero]: 63
   B2 reducible traits [trait graph, to zero]: 2
@@ -100,7 +100,7 @@ B3 signatures declared in more than one local trait
     words(&self, &RemoteName) -> Vec<OsString>: meta-git::RemoteChange, meta-git::RemoteQuery
 B4 leverage: distinct method names usable on a type / method bodies written for it
   usable = inherent names + the methods of each trait the type has; a local trait contributes its declared methods, a foreign trait the names seen in impls
-  n 1042: min 0.66, q1 1.00, median 1.00, q3 1.00, max 56.00
+  n 1043: min 0.66, q1 1.00, median 1.00, q3 1.00, max 56.00
   types with no bodies: 100
   lowest:
     meta-cli::Cause 0.66 (2 usable / 3 written)
