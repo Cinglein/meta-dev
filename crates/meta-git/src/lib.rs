@@ -43,7 +43,7 @@ pub use queries::history::{
     FilesAt, FirstAddition, FirstParents, HeadReflog, IndependentTips, ReflogLine, Signers, Unpushed,
 };
 pub use queries::refs::{Heads, RefTarget, RemoteBranches, RemoteUrl, Revision};
-pub use queries::{Head, LooseObject, Workdir, WorktreeFiles};
+pub use queries::{Head, LooseObject, RelativeDiff, ShortHead, Workdir, WorktreeFiles, WorktreePaths};
 pub use query::Query;
 pub use reads::Reads;
 pub use ref_name::RefName;
@@ -55,5 +55,5 @@ pub use remote_query::RemoteQuery;
 pub use repository::Repository;
 pub use sends::Sends;
 pub use signer_emails::SignerEmails;
-pub use worktrees::{WorktreeAdd, WorktreePrune, WorktreeRemove};
+pub use worktrees::{WorktreeAdd, WorktreeDetach, WorktreePrune, WorktreeRemove};
 pub use writes::Writes;
