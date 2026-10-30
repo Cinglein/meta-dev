@@ -39,7 +39,6 @@ pub struct ShellRules {
 
 impl ShellRules {
     const QUERIED: &'static str = "command";
-    const EVAL: &'static str = "eval";
     const GIT: &'static str = "git";
 
     pub fn forbidden_in(&self, segment: &[String]) -> Option<Refused> {
@@ -67,16 +66,15 @@ impl ShellRules {
     pub fn stdin_shell<'segment>(&self, segment: &'segment [String]) -> Option<&'segment str> {
         let (word, args) =
             self.command(segment, None)?.split_first().filter(|(word, _)| self.interpreters.names(word))?;
-        (word != Self::EVAL && Program::payload(args).is_none() && !args.iter().any(|arg| !arg.starts_with('-')))
+        (Program::script(word, args).is_none() && !args.iter().any(|arg| !arg.starts_with('-')))
             .then_some(word.as_str())
     }
 
     pub fn nested(&self, segment: &[String]) -> Option<String> {
-        let interpreter = self.command(segment, None).and_then(<[String]>::split_first);
-        let interpreted = interpreter
-            .filter(|(word, _)| self.interpreters.names(word))
-            .and_then(|(word, args)| Program::payload(args).or_else(|| (word == Self::EVAL).then(|| args.join(" "))));
-        interpreted.or_else(|| self.commanding.command_in(segment))
+        let head = self.command(segment, None).and_then(<[String]>::split_first);
+        let script =
+            head.filter(|(word, _)| self.interpreters.names(word)).and_then(|(word, args)| Program::script(word, args));
+        script.or_else(|| self.commanding.command_in(segment))
     }
 
     fn takes_value(&self, wrapper: &str, flag: &str) -> bool {

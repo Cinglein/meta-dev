@@ -7,8 +7,13 @@ pub struct Program(String);
 impl Program {
     const QUERIES: &'static [&'static str] = &["-v", "-V"];
     const COMMAND_FLAG: char = 'c';
+    const EVAL: &'static str = "eval";
 
-    pub fn payload(args: &[String]) -> Option<String> {
+    pub fn script(word: &str, args: &[String]) -> Option<String> {
+        Self::payload(args).or_else(|| (word == Self::EVAL).then(|| args.join(" ")))
+    }
+
+    fn payload(args: &[String]) -> Option<String> {
         let flagged =
             |arg: &&String| arg.starts_with('-') && !arg.starts_with("--") && arg.contains(Self::COMMAND_FLAG);
         args.iter().skip_while(|arg| !flagged(arg)).nth(1).cloned()
