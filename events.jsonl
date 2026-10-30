@@ -1751,3 +1751,4 @@
 {"at":"2026-10-30T10:34:47.279228Z","actor":"claude-projects1","kind":"TaskOpened","task":"task-36f203b76e54c2c7","text":"Projects PR 2: stage typestate and fold rules per docs/design/projects.md","division":"architecture-and-planning"}
 {"at":"2026-10-30T10:34:54.507480Z","actor":"claude-projects1","kind":"TaskClaimed","task":"task-36f203b76e54c2c7"}
 {"at":"2026-10-30T10:39:41.757835Z","actor":"claude-projects1","kind":"TaskLinked","task":"task-36f203b76e54c2c7","pr":243}
+{"at":"2026-10-30T10:51:55.917529Z","actor":"claude-lead","kind":"TaskOpened","task":"task-8c73a766ef5b04b4","text":"Hook binary goes stale against the log schema: after a schema bump merges, every session's hook binary refuses the log (#236 broke the lead's and agents' hooks). meta should rebuild or refuse with an upgrade message; the ops loop rebuilds after each merge as a stopgap","division":"features-and-maintenance"}
