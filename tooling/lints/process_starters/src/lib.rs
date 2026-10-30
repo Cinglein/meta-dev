@@ -71,10 +71,10 @@ mod tests {
     ];
     const BESIDE_THE_RUNNER: &str = "tooling/task/src/policy.rs";
     const STARTS: &str = "use std::process::{Child, Command as C};\nuse std::process::*;\nfn f(c: &Command, ran: Ran) { ran.status(); c.spawn(); }\nfn g() { let held = C::new(X); std::process::Command::new(X).arg(Y).output(); }\nfn h() { assert!(Command::new(X).status().is_ok(), \"{}\", Child::new()); }\n";
-    const STARTED: [&str; 4] = [":4", ":4", ":5", ":5"];
+    const STARTED: [&str; 4] = [":4", ":4", ":5", ":6"];
     const NAMED: (&str, &str) = (
         "crates/meta-log/src/named.rs",
-        "use std::process::Command;\nfn f() {\n    Command::new(X)\n        .arg(Y)\n        .spawn();\n}\n",
+        "\nuse std::process::Command;\nfn f() {\n    Command::new(X)\n        .arg(Y)\n        .spawn();\n}\n",
     );
     const OTHER_MODULE: (&str, &str) = (
         "crates/meta-log/src/other.rs",
