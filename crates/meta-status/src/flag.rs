@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::github_failure::GithubFailure;
 use crate::judgement::Judgement;
+use crate::no_run::NoRun;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Flag {
@@ -19,6 +20,7 @@ pub enum Flag {
     RedUnheld(Id<Task>, PullRequest),
     Missing(Id<Task>, PullRequest),
     TruncatedChecks(Id<Task>, PullRequest),
+    Unrun(Id<Task>, PullRequest, NoRun),
     Orphan(PullRequest),
 }
 
@@ -36,6 +38,7 @@ impl Flag {
             | Self::RedUnheld(..)
             | Self::Missing(..)
             | Self::TruncatedChecks(..)
+            | Self::Unrun(..)
             | Self::Orphan(_) => None,
         }
     }
@@ -56,6 +59,7 @@ impl fmt::Display for Flag {
             Self::TruncatedChecks(task, pull_request) => {
                 write!(formatter, "truncated {pull_request} {task}: more than 100 checks")
             }
+            Self::Unrun(task, pull_request, reason) => write!(formatter, "waiting {pull_request} {task}: {reason}"),
             Self::Orphan(pull_request) => write!(formatter, "orphan {pull_request}: open, no task"),
         }
     }
@@ -74,7 +78,8 @@ impl Flag {
             | Self::TrunkRed(_)
             | Self::RedUnheld(..)
             | Self::Missing(..)
-            | Self::TruncatedChecks(..) => Judgement::Needed,
+            | Self::TruncatedChecks(..)
+            | Self::Unrun(..) => Judgement::Needed,
         }
     }
 }

@@ -18,7 +18,7 @@ impl LiveQuery {
     const OPEN: &'static str =
         "pullRequests(states:OPEN,first:100,after:$after){pageInfo{hasNextPage endCursor} nodes{";
     const TRUNK: &'static str = "trunk:repository(owner:$owner,name:$name){defaultBranchRef{target{...on Commit{history(first:20){pageInfo{hasNextPage} nodes{checkSuites(first:50){pageInfo{hasNextPage} nodes{conclusion workflowRun{workflow{name}}}}}}}}}}";
-    const MERGING: &'static str = " mergeStateStatus headRefOid";
+    const MERGING: &'static str = " mergeStateStatus headRefOid headRef{target{...on Commit{committedDate}}}";
     const LINKED: &'static str = "linked:";
     const CLOSING: &'static str = "}";
 

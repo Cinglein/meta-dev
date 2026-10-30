@@ -19,7 +19,7 @@ pub use action::Action;
 pub use departure::Departure;
 pub use gh_refusal::GhRefusal;
 pub use head::Head;
-pub use live_pull::{BaseBranch, LivePull, PullState, RuleSource, RuledPull};
+pub use live_pull::{BaseBranch, LivePull, PullState, RuleSource, RuledPull, Unrun};
 pub use page::{Cursor, Page};
 pub use patience::Patience;
 pub use required_checks::RequiredChecks;

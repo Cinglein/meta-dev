@@ -5,6 +5,7 @@ mod github;
 mod github_failure;
 mod judgement;
 mod lifetime;
+mod no_run;
 mod severity_tally;
 mod status;
 

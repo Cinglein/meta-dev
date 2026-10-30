@@ -16,6 +16,12 @@ impl From<DateTime<Utc>> for DueTime {
     }
 }
 
+impl From<DueTime> for DateTime<Utc> {
+    fn from(time: DueTime) -> Self {
+        time.0
+    }
+}
+
 impl FromStr for DueTime {
     type Err = Unrecognised;
 

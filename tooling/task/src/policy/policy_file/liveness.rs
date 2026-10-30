@@ -8,4 +8,5 @@ pub struct Liveness {
     silent_after: Millis,
     long_call_after: Millis,
     reply_within: Millis,
+    ci_run_within: Millis,
 }

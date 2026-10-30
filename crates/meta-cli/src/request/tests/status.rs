@@ -24,7 +24,7 @@ impl Asked {
             self.0.replace(query.field());
             Github::Unreached(GithubFailure::new(OFFLINE))
         };
-        view.answer(&meta.0, &Scales::default(), offline).unwrap()
+        view.answer(&meta.0, &Scales::default(), None, offline).unwrap()
     }
 }
 

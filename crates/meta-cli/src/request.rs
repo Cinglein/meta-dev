@@ -186,9 +186,11 @@ impl Request {
                     StatusView::Flags => Monitor::recent(&LocalClone::try_from(project)?, Utc::now())?,
                     StatusView::Tree => None,
                 };
+                let policy = ScalePolicy::read(project.root())?;
                 let answered = view.answer(
                     &project.log(project.ci_settings().budget(CiSettings::ROUTINE))?,
-                    ScalePolicy::read(project.root())?.scales(),
+                    policy.scales(),
+                    policy.liveness().ci_run_within(),
                     |query| LiveGithub::for_project(project).read(query),
                 )?;
                 Ok(answered.raised_with(local))

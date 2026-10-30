@@ -1,7 +1,9 @@
 mod effort_spend;
 mod tree;
+mod unrunning;
 
 use std::fmt;
+use std::time::Duration;
 
 use meta_pull_query::LiveQuery;
 use meta_schema::{DueTime, Id, PullRequest, Task};
@@ -14,18 +16,25 @@ use crate::github::Github;
 use crate::lifetime::Lifetime;
 use effort_spend::EffortSpend;
 use tree::Tree;
+use unrunning::Unrunning;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Status<'view> {
     state: &'view State,
     github: &'view Github,
     now: DueTime,
+    ci_run_within: Option<Duration>,
 }
 
 impl<'view> Status<'view> {
     #[must_use]
     pub fn new(state: &'view State, github: &'view Github, now: DueTime) -> Self {
-        Self { state, github, now }
+        Self { state, github, now, ci_run_within: None }
+    }
+
+    #[must_use]
+    pub fn ci_run_within(self, within: Duration) -> Self {
+        Self { ci_run_within: Some(within), ..self }
     }
 
     #[must_use]
@@ -94,9 +103,15 @@ impl<'view> Status<'view> {
         let spent = possible.and(planned.effort_allowance()).and(match EffortSpend::measured_for(task) {
             EffortSpend::Unmeasured => None,
         });
-        let pulls = self.pulls(task).into_iter();
+        let shown = self.pulls(task);
+        let pulls = shown.iter().copied();
         let flagged = pulls.filter_map(|pull_request| self.github.sight(pull_request).flag(id, pull_request, unheld));
-        stalled.into_iter().chain(past_due).chain(unanswered).chain(done).chain(spent).chain(flagged).collect()
+        let watch = waiting.zip(self.ci_run_within);
+        let unrun = watch
+            .into_iter()
+            .flat_map(|(block, within)| Unrunning::new(self.github, self.now.into(), within).flags(id, block, &shown));
+        let all = stalled.into_iter().chain(past_due).chain(unanswered).chain(done).chain(spent).chain(flagged);
+        all.chain(unrun).collect()
     }
 }
 

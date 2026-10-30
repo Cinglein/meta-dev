@@ -18,9 +18,15 @@ pub struct Liveness {
     long_call_after: Option<After>,
     #[serde(default)]
     reply_within: Option<After>,
+    #[serde(default)]
+    ci_run_within: Option<After>,
 }
 
 impl Liveness {
+    pub fn ci_run_within(&self) -> Option<Duration> {
+        self.ci_run_within.map(After::duration)
+    }
+
     pub fn limit(&self, call: CallPhase) -> Option<Duration> {
         let after = match call {
             CallPhase::Started => self.long_call_after,

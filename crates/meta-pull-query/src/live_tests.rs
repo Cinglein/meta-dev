@@ -85,5 +85,5 @@ fn open_pull_requests_read_as_orphans_and_truncation_is_reported() {
 fn the_query_asks_for_open_pull_requests_and_each_linked_one_once() {
     assert_eq!(LiveQuery::new(vec![]).field(), OPEN_ONLY);
     let linked = LiveQuery::new(["12", "7", "12"].map(Parsed::number).to_vec()).field();
-    assert!(linked.contains(LINKED) && linked.matches("pr12:").count() == 1 && linked.ends_with("headRefOid}}}"));
+    assert!(linked.contains(LINKED) && linked.matches("pr12:").count() == 1 && linked.ends_with("committedDate}}}}}}"));
 }

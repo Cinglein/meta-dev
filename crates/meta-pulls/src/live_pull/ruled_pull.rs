@@ -1,4 +1,7 @@
 use std::fmt;
+use std::time::Duration;
+
+use chrono::{DateTime, TimeDelta, Utc};
 
 use super::LivePull;
 use super::checks::Checks;
@@ -6,6 +9,7 @@ use super::merge_state::MergeState;
 use super::merging::Merging;
 use super::pull_state::PullState;
 use super::rollup::Rollup;
+use super::unrun::Unrun;
 use crate::head::{Barred, Behind, Checking, Conflicted, Gone, Green, Head, Red, Unmergeable};
 use crate::required_checks::RequiredChecks;
 use crate::stop::Stop;
@@ -60,6 +64,16 @@ impl<'pull> RuledPull<'pull> {
             (PullState::Open, None, None, None) => Head::Barred(Barred::new(Stop::Incomplete(number))),
             (PullState::Open, None, None, Some(merging)) => self.open_head(merging),
         }
+    }
+
+    #[must_use]
+    pub fn unrun(self, now: DateTime<Utc>, within: Duration) -> Option<Unrun> {
+        self.open()?;
+        let merging = self.pull.merging.as_ref()?;
+        self.pull.rollup.as_ref().is_none_or(Rollup::silent).then_some(())?;
+        let within = TimeDelta::from_std(within).ok()?;
+        merging.head_ref()?.target().quiet_past(now, within)?;
+        Some(Unrun::new(merging.commit().clone(), merging.state(), within))
     }
 
     fn open_head(self, merging: &Merging) -> Head {
