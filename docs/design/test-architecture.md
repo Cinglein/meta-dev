@@ -138,16 +138,18 @@ its runner reference.
 | # | branch | scope | tests | processes removed (local) | CPU removed (local, measured cost) |
 |---|---|---|---|---|---|
 | 1 | -2 | Ledger: `META_SPAWN_TRACE`, `Spawns`, `test-processes` budget, baseline file, `process_starters` lint, `process-count` job. Report only. | 0 | 0 | 0 |
-| 2 | -3 | meta-git reads: the 19 `GitArgv` calls move to git2. | project | 5, plus most git under `meta` (304 of 593 on CI) | 34 ms, plus part of every `it` test |
-| 3 | -4 | Local transport and CAS in `meta_git::Remote`; xtask `Revision`, gate checkouts, mutation scope and shard plan on meta-git. | 20 | 274 | 1.73 s |
+| 2 | -3 | meta-git reads, done in #239: the local `GitArgv` reads of meta-cli move to git2 (`ReflogWalk`, `Unpushed`, `IndependentTips`, `Head`, `GitPath`). | project | 5, plus most git under `meta` (304 of 593 on CI) | 34 ms, plus part of every `it` test |
+| 3 | -4 | Local transport and CAS in `meta_git::Remote`, including `RemoteHeads` (`ls-remote --heads`); xtask `Revision` (`MergeBase`, `LsTree`, `CatBlob`, `ChangedNames`, `UntrackedNames`, `TrackedNames`, `LogEmails`), gate and head-branch reads (`Porcelain`, `PushedHead`, `Head`, `PushedTips`), tracked build output (`TrackedNames`), gate checkouts, mutation scope and shard plan on meta-git. | 20 | 274 | 1.73 s |
 | 4 | -5 | `Call` and `Answer.then`; ambient-read lint; hooks pre-tool-use and session-start state, cli writes in process. | 3 | 28 | 0.25 s |
-| 5 | -6 | gh `Recorded` source in process; status, gc and the replayer tests; fake gh scripts deleted. | 4 | 59 | 0.62 s (gc: CI 226 ms ÷ 0.52) |
+| 5 | -6 | gh `Recorded` source in process; status, gc (its `WorktreeList` read, and gc vetting's worktree listing) and the replayer tests; fake gh scripts deleted. | 4 | 59 | 0.62 s (gc: CI 226 ms ÷ 0.52) |
 | 6 | -7 | CI watcher in process on #200's verdicts; `it` ci becomes `Call` tests. | 6 | 136 | 0.85 s |
 | 7 | -8 | Claim and post-tool-use in process. | 3 | 96 | 0.56 s |
-| 8 | -9 | Scenario target and job (workflow from #186); scenarios 1-6; residue leaves `it`. | moves 6 | all left outside contracts | the residue |
+| 8 | -9 | Scenario target and job (workflow from #186); scenarios 1-6, including scenario 4 (stop under a slow remote returns inside `stop_millis`, which #234 took out of `cargo test`); residue leaves `it`. | moves 6 | all left outside contracts | the residue |
 | 9 | -10 | Zero rule: 0 outside the contract list; baseline rows only for contracts. | 0 | 0 | 0 |
 
 PR 6 needs #200 on main. PRs 2-5 do not, so the stack starts now and PR 6 restacks with `gh stack sync`.
+
+Every one of the 19 `GitArgv` calls is assigned above, except two that stay on the git CLI by design. `Var` (`git var`) is the subject of meta-run's port contract test. `ShowToplevel` (`rev-parse --show-toplevel`) is the goldens recorder's own call, and it moves to the goldens job with the recorder test.
 The "CPU removed" column is the measured cost of the converted tests. The in-process tests that replace them add back
 about 10-25 ms each (section 6).
 
