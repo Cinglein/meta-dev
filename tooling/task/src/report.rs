@@ -35,6 +35,13 @@ impl Report {
     }
 
     #[must_use]
+    pub fn first_unplaced(&self) -> Option<&Violation> {
+        self.violations
+            .iter()
+            .find(|violation| violation.site().path().is_none())
+    }
+
+    #[must_use]
     pub fn is_clean(&self) -> bool {
         self.violations.is_empty()
     }

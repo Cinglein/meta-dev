@@ -4,9 +4,10 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
-use task::{FailureSet, Ledger};
+use task::{FailureKind, FailureSet};
 
 use crate::task::ci::LocalGate;
+use crate::task::ci::step_outcomes::StepOutcomes;
 use crate::task::ci::step_times::StepTimes;
 use crate::task::failure::Failure;
 
@@ -28,6 +29,10 @@ impl Attribution {
         Attribution::new(path(LocalGate::TIMES), path(Self::FAILURES))
     }
 
+    pub fn begin(&self) -> Result<(), Failure> {
+        self.failures.as_ref().map_or(Ok(()), |path| FailureSet::begin(path)).map_err(Failure::Failures)
+    }
+
     pub fn recorded(&self, times: &StepTimes) -> Result<(), Failure> {
         self.times
             .as_ref()
@@ -35,17 +40,19 @@ impl Attribution {
             .map_err(Failure::Summary)
     }
 
-    pub fn attributed(&self, failure: Option<&Failure>, times: &StepTimes, ledger: &Ledger) -> Result<(), Failure> {
+    pub fn attributed(&self, failure: &Failure, times: &StepTimes) -> Result<(), Failure> {
+        let job = times.failed_job();
         self.failures
             .as_ref()
-            .map_or(Ok(()), |path| {
-                failure
-                    .map_or_else(FailureSet::default, |failure| {
-                        failure.found().joined(ledger.failures()).or_infra(times.failed_job())
-                    })
-                    .write(path)
-            })
+            .map_or(Ok(()), |path| failure.found(&job).or_infra(job).write(path))
             .map_err(Failure::Failures)
+    }
+
+    pub fn closed(&self, steps: &StepOutcomes) -> Result<(), Failure> {
+        let path = self.failures.as_ref().ok_or(task::Failure::Unset(Self::FAILURES))?;
+        let first = if steps.first_passed() { FailureSet::default() } else { FailureSet::read(path)? };
+        let later = steps.later_failures().map(|job| FailureKind::Infra { job });
+        later.fold(first, FailureSet::recording).write(path).map_err(Failure::Failures)
     }
 }
 
@@ -56,15 +63,20 @@ mod tests {
     use std::path::PathBuf;
     use std::{env, fs, process};
 
-    use task::{FailureKind, FailureSet, Ledger};
+    use task::{FailureKind, FailureSet};
 
     use super::Attribution;
     use crate::task::ci::LocalGate;
+    use crate::task::ci::step_outcomes::StepOutcomes;
     use crate::task::ci::step_times::StepTimes;
     use crate::task::failure::Failure;
 
-    const GATE: &str = "gate";
     const SCRATCH: &str = "attribution-";
+    const CI: &str = "ci";
+    const CONSUMER: &str = "consumer";
+    const PASSED: &str = "ci=success,consumer=success";
+    const LATER: &str = "ci=success,consumer=failure,stacked=skipped";
+    const FIRST: &str = "ci=failure,consumer=skipped";
 
     #[test]
     fn the_ambient_names_pick_the_two_output_paths() {
@@ -76,20 +88,18 @@ mod tests {
     }
 
     #[test]
-    fn a_pass_writes_an_empty_set_and_a_bare_failure_writes_infra_unless_the_ledger_holds_failures() {
+    fn a_begun_file_stays_unattributed_through_a_pass_and_only_the_close_step_writes_the_whole_job() {
         let file = env::temp_dir().join(format!("{SCRATCH}{}", process::id()));
         let attribution = Attribution::new(None, Some(file.clone()));
-        let bare = Failure::from(task::Failure::NoWorkspace);
-        let written = |failure: Option<&Failure>, ledger: &Ledger| {
-            attribution.attributed(failure, &StepTimes::default(), ledger).unwrap();
-            FailureSet::read(&file).unwrap()
-        };
-        let mut held = Ledger::default();
-        held.fail(FailureSet::default().recording(FailureKind::Infra { job: SCRATCH.into() }));
-        let sets = [written(None, &held), written(Some(&bare), &Ledger::default()), written(Some(&bare), &held)];
+        let closed = |steps: &str| attribution.closed(&steps.parse::<StepOutcomes>().unwrap());
+        let read = || FailureSet::read(&file).ok().map(|set| set.kinds().to_vec());
+        let infra = |job: &str| Some(vec![FailureKind::Infra { job: job.into() }]);
+        attribution.begin().unwrap();
+        let begun = [closed(FIRST).is_err(), read().is_none()];
+        attribution.attributed(&Failure::NoLog, &StepTimes::default()).unwrap();
+        let steps = [FIRST, LATER, PASSED].map(|steps| closed(steps).map(|()| read()).unwrap());
         fs::remove_file(&file).unwrap();
-        let kinds = sets.map(|set| set.kinds().to_vec());
-        assert_eq!(kinds[..2], [vec![], vec![FailureKind::Infra { job: GATE.into() }]]);
-        assert_eq!(kinds[2], [FailureKind::Infra { job: SCRATCH.into() }]);
+        assert_eq!(begun, [true, true]);
+        assert_eq!(steps, [infra(CI), infra(CONSUMER), Some(vec![])]);
     }
 }

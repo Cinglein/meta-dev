@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::budget::Millis;
 use crate::check_name::CheckName;
 use crate::crate_name::CrateName;
 
@@ -21,11 +20,8 @@ pub enum FailureKind {
         name: CheckName,
     },
     Budget {
-        test: CheckName,
-        cpu: Millis,
-    },
-    Golden {
-        paths: Vec<PathBuf>,
+        measure: CheckName,
+        spend: CheckName,
     },
     Infra {
         job: CheckName,

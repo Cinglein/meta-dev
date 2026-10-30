@@ -5,6 +5,7 @@ mod local_gate;
 mod log_source;
 mod run_kind;
 mod standing_log;
+mod step_outcomes;
 mod step_times;
 mod stranding;
 mod tracked_build_output;
@@ -15,6 +16,7 @@ pub use local_gate::{Busy, LocalGate, OutsideConfig, Posting, Unready};
 pub use log_source::LogSource;
 pub use untracked::Untracked;
 
+use std::env;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -28,6 +30,7 @@ use attribution::Attribution;
 pub use ci_step::CiStep;
 use run_kind::RunKind;
 use standing_log::StandingLog;
+use step_outcomes::StepOutcomes;
 use step_times::StepTimes;
 use stranding::Stranding;
 use task::Branch;
@@ -51,9 +54,15 @@ impl Ci {
         Ci { summary, gate, attribution: Attribution::from_ambient(&CommandLine::ambient()), log }
     }
 
+    pub fn close() -> Result<(), Failure> {
+        let steps = env::var(StepOutcomes::AMBIENT).map_err(|_| task::Failure::Unset(StepOutcomes::AMBIENT))?;
+        Attribution::from_ambient(&CommandLine::ambient()).closed(&steps.parse()?)
+    }
+
     pub fn run(&self, workspace: &Workspace, selection: &Selection, policy: &Policy) -> Result<(), Failure> {
         self.gate.as_ref().map_or_else(
             || {
+                self.attribution.begin()?;
                 println!("ci: checking {selection}");
                 let started = Instant::now();
                 let mut times = StepTimes::default();
@@ -82,11 +91,12 @@ impl Ci {
                     .and_then(|()| Ok(ledger.checked(policy, selection)?))
                     .and_then(|()| Stranding::refuse_stranded(workspace.root(), policy, read));
                 println!("ci: total {:.1?}", started.elapsed());
-                self.attribution.recorded(&times)?;
-                self.attribution.attributed(outcome.as_ref().err(), &times, &ledger)?;
+                let recorded = self.attribution.recorded(&times);
+                let attributed =
+                    outcome.as_ref().err().map_or(Ok(()), |failure| self.attribution.attributed(failure, &times));
                 Surfaces::announce(workspace.root(), policy, self.summary.as_deref())
                     .unwrap_or_else(|failure| eprintln!("surfaces: {failure}"));
-                outcome
+                outcome.and(recorded).and(attributed)
             },
             |gate| gate.run(policy, self.summary.as_deref()),
         )

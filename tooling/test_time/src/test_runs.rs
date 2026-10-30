@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use super::test_run::TestRun;
 use super::test_timing::TestTiming;
-use task::{Failure, FailureKind, FailureSet};
+use task::{Failure, FailureKind, FailureSet, Printed};
 
 #[derive(Debug, Default)]
 pub(super) struct TestRuns {
@@ -14,13 +14,19 @@ pub(super) struct TestRuns {
 }
 
 impl TestRuns {
+    const UNLISTED: &str = "test-binaries-unlisted";
+
     pub(super) fn passed(self) -> Result<Vec<TestTiming>, Failure> {
         if self.failed.is_empty() && self.unlisted.is_empty() {
             Ok(self.passed)
         } else {
+            let unlisted = Some(&self.unlisted).filter(|unlisted| !unlisted.is_empty());
+            let infra = unlisted.map(|_| FailureKind::Infra {
+                job: Self::UNLISTED.into(),
+            });
             Err(Failure::Found {
-                printed: self.to_string(),
-                found: self.failed,
+                printed: Printed::Text(self.to_string()),
+                found: infra.into_iter().fold(self.failed, FailureSet::recording),
             })
         }
     }
@@ -95,7 +101,7 @@ mod tests {
         assert_eq!(
             found
                 .err()
-                .map(|failure| failure.found().to_string())
+                .map(|failure| failure.found(&"test".into()).to_string())
                 .as_deref(),
             Some(FAILING_GOLDEN)
         );

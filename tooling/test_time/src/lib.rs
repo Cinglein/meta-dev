@@ -29,8 +29,6 @@ use test_runs::TestRuns;
 use test_timing::TestTiming;
 
 use task::Failure;
-use task::FailureSet;
-use task::Interval;
 use task::Program;
 use task::Report;
 use task::Selection;
@@ -63,6 +61,8 @@ impl TestTime {
         ("GIT_CONFIG_VALUE_5", "false"),
     ];
 
+    const DOCTESTS: &'static str = "doctests";
+
     pub fn run(
         workspace: &Workspace,
         selection: &Selection,
@@ -78,20 +78,11 @@ impl TestTime {
                 Self::examples(workspace, selection, policy)?;
                 let reference = ReferenceCpu::measured(policy)?;
                 let timings = Self::timings(workspace, selection, policy, &Execution::Timed)?;
-                ledger.fail(Self::overruns(&timings, policy));
                 TestTime { timings, reference }
                     .recorded(policy, ledger)
                     .verdict()
             },
         )
-    }
-
-    fn overruns(timings: &[TestTiming], policy: &Policy) -> FailureSet {
-        let allowance = policy.interval(Interval::PerTest).duration();
-        timings
-            .iter()
-            .filter_map(|timing| timing.overrun(allowance))
-            .fold(FailureSet::default(), FailureSet::recording)
     }
 
     pub(crate) fn examples(
@@ -137,7 +128,14 @@ impl TestTime {
                 error,
             })?
             .parse::<TestRuns>()?
-            .passed()?;
+            .passed()
+            .map_err(|failure| {
+                if documented_ran.is_ok() {
+                    failure
+                } else {
+                    failure.incomplete(Self::DOCTESTS.into())
+                }
+            })?;
         ran.and(documented_ran)?;
         Ok(timings)
     }
@@ -186,9 +184,7 @@ impl TestTime {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        CargoBuild, CargoTest, ReferenceCpu, RunnerConfig, TestRuns, TestTime, TestTiming,
-    };
+    use super::{CargoBuild, CargoTest, ReferenceCpu, RunnerConfig, TestTime, TestTiming};
     use settings::EmbeddedDefaults;
     use std::path::{Path, PathBuf};
     use std::time::Duration;
@@ -207,8 +203,6 @@ mod tests {
     const REPORTED: [&str; 3] = ["slowest-test", "test-cpu-time", "test-time"];
     const NOTHING_TIMED: [&str; 1] = ["no tests were found to time"];
     const HEADLINE: &str = "timed";
-    const OVERRUN: &str = include_str!("../fixtures/budget-overrun.tsv");
-    const OVERRUN_GOLDEN: &str = include_str!("../fixtures/budget-overrun.golden.json");
 
     impl TestTime {
         fn over_budget(timings: Vec<TestTiming>, policy: &Policy) -> Report {
@@ -241,21 +235,6 @@ mod tests {
         let ok = |run| TestTime::over_budget(run, &policy).is_clean();
         assert!(ok(exact) && ok(fast) && over.lists_exactly(&REPORTED));
         assert!(TestTime::over_budget(Vec::new(), &policy).lists_exactly(&NOTHING_TIMED));
-    }
-
-    #[test]
-    fn a_test_over_its_wall_allowance_is_recorded_with_its_cpu_and_one_at_it_is_not() {
-        let policy = Policy::defaults();
-        let limit = policy.interval(Interval::PerTest).duration();
-        let timing = TestTiming::new(Path::new(NAMES[0]), NAMES[1], limit, limit);
-        let found = OVERRUN
-            .parse::<TestRuns>()
-            .and_then(TestRuns::passed)
-            .map(|timings| TestTime::overruns(&timings, &policy));
-        assert!(found.is_ok_and(|set| set.to_string() == OVERRUN_GOLDEN));
-        assert!(
-            timing.overrun(limit).is_none() && timing.overrun(limit.saturating_sub(TICK)).is_some()
-        );
     }
 
     #[test]

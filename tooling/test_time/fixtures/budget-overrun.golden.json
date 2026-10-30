@@ -1,9 +1,0 @@
-{
-  "failures": [
-    {
-      "kind": "budget",
-      "test": "slow",
-      "cpu": 4000
-    }
-  ]
-}

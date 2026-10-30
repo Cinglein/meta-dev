@@ -5,7 +5,7 @@ use meta_golden::GoldenFailure;
 use meta_log::LogFailure;
 use meta_run::Unread;
 use meta_severity::{Demotions, ScaleFailure, Strands};
-use task::FailureSet;
+use task::{CheckName, FailureSet, Unattributed};
 use thiserror::Error;
 
 use crate::task::adoption::Gaps;
@@ -15,13 +15,10 @@ use crate::task::revision::ForeignEmails;
 use crate::task::{Misplaced, TrackedBuildFiles};
 
 impl Failure {
-    pub fn found(&self) -> FailureSet {
+    pub fn found(&self, job: &CheckName) -> FailureSet {
         match self {
-            Failure::Task(failure) => failure.found(),
-            Failure::Golden(failure) => {
-                failure.differing().map_or_else(FailureSet::default, |path| FailureSet::golden(path.to_path_buf()))
-            }
-            Failure::Unreached { failure, .. } => failure.found(),
+            Failure::Task(failure) => failure.found(job),
+            Failure::Unreached { failure, .. } => failure.found(job),
             _ => FailureSet::default(),
         }
     }
@@ -41,6 +38,8 @@ pub enum Failure {
     Written(#[from] toml::ser::Error),
     #[error("step summary: {0}")]
     Summary(io::Error),
+    #[error("{0}")]
+    Unattributed(#[from] Unattributed),
     #[error("failures file: {0}")]
     Failures(io::Error),
     #[error("gate not posted: {0}")]
@@ -99,29 +98,18 @@ pub enum Failure {
 
 #[cfg(test)]
 mod tests {
-    use meta_golden::{Difference, GoldenFailure};
-    use task::FailureSet;
+    use task::{FailureKind, FailureSet, Printed};
 
     use super::Failure;
 
-    const PATH: &str = "a.golden";
-
-    impl Failure {
-        fn found_golden() -> Failure {
-            Failure::Task(task::Failure::Found { printed: String::new(), found: FailureSet::golden(PATH.into()) })
-        }
-
-        fn differing_golden() -> Failure {
-            let difference = Difference::between("a", "b").unwrap();
-            Failure::Golden(GoldenFailure::Differs { path: PATH.into(), difference })
-        }
-    }
+    const JOB: &str = "job";
 
     #[test]
-    fn a_found_set_survives_wrapping_and_a_differing_golden_names_its_path() {
-        let wrapped = Failure::Unreached { skipped: String::new(), failure: Box::new(Failure::found_golden()) };
-        let all = [Failure::found_golden(), Failure::differing_golden(), wrapped];
-        assert!(all.iter().all(|failure| failure.found() == FailureSet::golden(PATH.into())));
-        assert!(Failure::Golden(GoldenFailure::BlessedInCi).found().is_empty());
+    fn a_found_set_survives_wrapping_and_other_failures_name_nothing() {
+        let found = FailureSet::default().recording(FailureKind::Infra { job: JOB.into() });
+        let task = || task::Failure::Found { printed: Printed::Text(JOB.into()), found: found.clone() };
+        let wrapped = Failure::Unreached { skipped: JOB.into(), failure: Box::new(Failure::from(task())) };
+        assert!([Failure::from(task()), wrapped].iter().all(|failure| failure.found(&JOB.into()) == found));
+        assert!(Failure::NoLog.found(&JOB.into()).is_empty());
     }
 }

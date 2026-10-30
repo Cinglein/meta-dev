@@ -3,7 +3,6 @@ mod diagnostics;
 use diagnostics::Diagnostics;
 use task::Failure;
 use task::Policy;
-use task::Stdout;
 use task::Workspace;
 use task::{CargoArgument, Program};
 use task::{CargoTool, Selection};
@@ -30,7 +29,7 @@ impl Clippy {
                     .argument(CargoArgument::ToolArguments)
                     .argument(CargoArgument::Deny)
                     .argument(CargoArgument::Warnings)
-                    .captured::<Stdout>()
+                    .streamed()
                     .map(|_| ())
                     .map_err(|failure| failure.reading(Diagnostics::reading))
             },
@@ -49,7 +48,7 @@ mod tests {
     #[test]
     fn a_compile_error_is_recorded_with_its_path() {
         let read = Diagnostics::reading(PRINTED);
-        let found = read.as_ref().map(|failure| failure.found().to_string());
+        let found = read.as_ref().map(|failure| failure.found(&"clippy".into()).to_string());
         assert_eq!(found.as_deref(), Some(GOLDEN));
         assert!(read.is_some_and(|failure| failure.to_string().contains(SHOWN)));
     }

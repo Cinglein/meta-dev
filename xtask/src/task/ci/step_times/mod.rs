@@ -15,7 +15,7 @@ pub struct StepTimes {
 }
 
 impl StepTimes {
-    const GATE: &str = "gate";
+    const GATE: &str = "ci";
 
     pub fn record(&mut self, step: CiStep, outcome: Result<Duration, Failure>) -> Result<(), Failure> {
         match outcome {

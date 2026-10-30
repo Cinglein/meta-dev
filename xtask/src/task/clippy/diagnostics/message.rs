@@ -1,6 +1,7 @@
 mod code;
 mod level;
 mod span;
+mod standing;
 
 use serde::Deserialize;
 use task::FailureKind;
@@ -8,6 +9,7 @@ use task::FailureKind;
 use code::Code;
 use level::Level;
 use span::Span;
+pub(in crate::task::clippy::diagnostics) use standing::Standing;
 
 #[derive(Debug, Deserialize)]
 pub(super) struct Message {
@@ -15,12 +17,28 @@ pub(super) struct Message {
     code: Option<Code>,
     #[serde(default)]
     spans: Vec<Span>,
+    #[serde(default, rename = "message")]
+    text: String,
     rendered: Option<String>,
 }
 
 impl Message {
-    pub(super) fn is_error(&self) -> bool {
-        self.level == Level::Error && self.spans.iter().any(Span::is_primary)
+    const SUMMARIES: [&'static str; 2] = ["aborting due to", "could not compile"];
+
+    pub(super) fn standing(&self) -> Option<Standing> {
+        (self.level != Level::Other).then(|| match (self.is_placed(), self.is_summary()) {
+            (true, _) => Standing::Placed,
+            (false, true) => Standing::Summary,
+            (false, false) => Standing::Unplaced,
+        })
+    }
+
+    fn is_placed(&self) -> bool {
+        self.spans.iter().any(Span::is_primary)
+    }
+
+    fn is_summary(&self) -> bool {
+        Self::SUMMARIES.iter().any(|summary| self.text.starts_with(summary))
     }
 
     pub(super) fn failure(&self) -> FailureKind {

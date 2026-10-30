@@ -64,6 +64,7 @@ pub enum Task {
     Elegance,
     EnumPredicates,
     ExpressionFlow,
+    FailuresClose,
     FnShape,
     Goldens,
     GoldensOnline,
@@ -113,6 +114,7 @@ impl Task {
     pub fn run(self, flags: impl Iterator<Item = String>) -> Result<(), Failure> {
         match self {
             Task::TestRunner => Ok(TestRunner::run(flags)?),
+            Task::FailuresClose => Ci::close(),
             Task::Init => Ok(BuildDirectory::read(Workspace::locate()?.root())?.initialized()?),
             Task::Waterfall => {
                 Waterfall::shown(flags.map(PathBuf::from))?.map(|shown| print!("{shown}")).ok_or_else(Self::usage)

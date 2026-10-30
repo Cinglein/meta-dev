@@ -17,6 +17,10 @@
       "paths": [
         "src/lint.rs"
       ]
+    },
+    {
+      "kind": "infra",
+      "job": "clippy"
     }
   ]
 }

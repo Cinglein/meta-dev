@@ -22,7 +22,7 @@ use std::ffi::OsString;
 use std::fmt;
 use std::fs::File;
 use std::path::PathBuf;
-use std::process::{Child, Command, Output};
+use std::process::{Child, Command, Output, Stdio};
 
 use crate::failure::Failure;
 
@@ -128,6 +128,23 @@ impl CommandLine {
         self.command()
             .spawn()
             .map_err(|_| Failure::Command(self.to_string()))
+    }
+
+    pub fn streamed(&self) -> Result<String, Failure> {
+        let output = self
+            .command()
+            .stderr(Stdio::inherit())
+            .output()
+            .map_err(|_| Failure::Command(self.to_string()))?;
+        let printed = String::from_utf8_lossy(&output.stdout).into_owned();
+        if output.status.success() {
+            Ok(printed)
+        } else {
+            Err(Failure::Printed {
+                command: self.to_string(),
+                printed,
+            })
+        }
     }
 
     pub fn captured<S: Stream>(&self) -> Result<String, Failure> {

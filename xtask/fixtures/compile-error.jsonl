@@ -1,7 +1,9 @@
 {"reason":"compiler-artifact","target":{"name":"demo"}}
-{"reason":"compiler-message","message":{"level":"error","code":{"code":"E0425"},"spans":[{"file_name":"src/lib.rs","is_primary":true},{"file_name":"src/note.rs","is_primary":false}],"rendered":"error[E0425]: cannot find value `x` in this scope\n"}}
-{"reason":"compiler-message","message":{"level":"error","code":null,"spans":[{"file_name":"src/main.rs","is_primary":true}],"rendered":"error: expected item\n"}}
-{"reason":"compiler-message","message":{"level":"error","code":{"code":"clippy::needless_return"},"spans":[{"file_name":"src/lint.rs","is_primary":true}],"rendered":"error: unneeded return\n"}}
-{"reason":"compiler-message","message":{"level":"warning","code":{"code":"unused_variables"},"spans":[{"file_name":"src/warn.rs","is_primary":true}],"rendered":"warning: unused variable\n"}}
-{"reason":"compiler-message","message":{"level":"error","code":null,"spans":[],"rendered":"error: aborting due to 3 previous errors\n"}}
+{"reason":"compiler-message","message":{"level":"error","message":"cannot find value `x`","code":{"code":"E0425"},"spans":[{"file_name":"src/lib.rs","is_primary":true},{"file_name":"src/note.rs","is_primary":false}],"rendered":"error[E0425]: cannot find value `x` in this scope\n"}}
+{"reason":"compiler-message","message":{"level":"error","message":"expected item","code":null,"spans":[{"file_name":"src/main.rs","is_primary":true}],"rendered":"error: expected item\n"}}
+{"reason":"compiler-message","message":{"level":"error","message":"unneeded return","code":{"code":"clippy::needless_return"},"spans":[{"file_name":"src/lint.rs","is_primary":true}],"rendered":"error: unneeded return\n"}}
+{"reason":"compiler-message","message":{"level":"warning","message":"unused variable","code":{"code":"unused_variables"},"spans":[{"file_name":"src/warn.rs","is_primary":true}],"rendered":"warning: unused variable\n"}}
+{"reason":"compiler-message","message":{"level":"error","message":"linking with `cc` failed","code":null,"spans":[],"rendered":"error: linking with `cc` failed\n"}}
+{"reason":"compiler-message","message":{"level":"error","message":"aborting due to 3 previous errors","code":null,"spans":[],"rendered":"error: aborting due to 3 previous errors\n"}}
+{"reason":"build-script-executed","message":{"level":"error","message":"not a compiler message","code":null,"spans":[],"rendered":"ignored\n"}}
 {"reason":"build-finished","success":false}

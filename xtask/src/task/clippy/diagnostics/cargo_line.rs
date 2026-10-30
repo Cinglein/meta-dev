@@ -1,17 +1,21 @@
+mod reason;
+
 use std::str::FromStr;
 
 use serde::Deserialize;
 
 use super::message::Message;
+use reason::Reason;
 
 #[derive(Debug, Deserialize)]
 pub(super) struct CargoLine {
+    reason: Reason,
     message: Option<Message>,
 }
 
 impl CargoLine {
-    pub(super) fn error(self) -> Option<Message> {
-        self.message.filter(Message::is_error)
+    pub(super) fn compiler_message(self) -> Option<Message> {
+        self.message.filter(|_| self.reason == Reason::CompilerMessage)
     }
 }
 

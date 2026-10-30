@@ -31,30 +31,39 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny@0.20.2,cargo-semver-checks@0.51.0,cargo-mutants@27.1.0
-      - run: cargo xtask ci ${{ github.event_name == 'pull_request' && '--affected' || '' }}
+      - id: ci
+        run: cargo xtask ci ${{ github.event_name == 'pull_request' && '--affected' || '' }}
         env:
           GH_TOKEN: ${{ secrets.DEPENDABOT_TOKEN }}
           PULL_REQUEST: ${{ github.event.pull_request.number }}
           META_CI_FAILURES: ${{ runner.temp }}/failures.json
-      - uses: actions/upload-artifact@v4
+      - id: consumer
+        run: cargo xtask ci
+        working-directory: examples/consumer
+        env:
+          GH_TOKEN: ${{ secrets.DEPENDABOT_TOKEN }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+      - id: stacked
+        run: cargo xtask stacked
+        working-directory: examples/consumer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+      - id: mutants
+        run: cargo xtask mutants
+        working-directory: examples/consumer
+      - if: always()
+        run: cargo xtask failures-close
+        env:
+          META_CI_FAILURES: ${{ runner.temp }}/failures.json
+          META_CI_STEPS: ci=${{ steps.ci.outcome }},consumer=${{ steps.consumer.outcome }},stacked=${{ steps.stacked.outcome }},mutants=${{ steps.mutants.outcome }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: failures
           path: ${{ runner.temp }}/failures.json
           if-no-files-found: ignore
           retention-days: 30
-      - run: cargo xtask ci
-        working-directory: examples/consumer
-        env:
-          GH_TOKEN: ${{ secrets.DEPENDABOT_TOKEN }}
-          PULL_REQUEST: ${{ github.event.pull_request.number }}
-      - run: cargo xtask stacked
-        working-directory: examples/consumer
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PULL_REQUEST: ${{ github.event.pull_request.number }}
-      - run: cargo xtask mutants
-        working-directory: examples/consumer
 
   git-count:
     runs-on: ubuntu-latest

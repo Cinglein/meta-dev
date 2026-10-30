@@ -1,8 +1,10 @@
 mod failed_runs;
 mod killed_processes;
+mod printed;
 
 pub use failed_runs::FailedRuns;
 pub use killed_processes::{KilledProcess, KilledProcesses};
+pub use printed::Printed;
 
 use std::io;
 use std::path::PathBuf;
@@ -10,6 +12,8 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 use crate::budget::AvailableGib;
+use crate::check_name::CheckName;
+use crate::failure_kind::FailureKind;
 use crate::failure_set::FailureSet;
 use crate::report::Report;
 use crate::site::Site;
@@ -33,7 +37,7 @@ pub enum Failure {
     #[error("{command} failed:\n{printed}")]
     Printed { command: String, printed: String },
     #[error("{printed}")]
-    Found { printed: String, found: FailureSet },
+    Found { printed: Printed, found: FailureSet },
     #[error("{0}")]
     Runs(FailedRuns),
     #[error("gh failed: {0}")]
@@ -83,22 +87,52 @@ pub enum Failure {
 
 impl Failure {
     #[must_use]
-    pub fn found(&self) -> FailureSet {
+    pub fn found(&self, job: &CheckName) -> FailureSet {
         match self {
             Failure::Found { found, .. } => found.clone(),
             Failure::Lint(reports) => {
-                FailureSet::lint(reports.iter().flat_map(Report::files).collect())
+                let lint = FailureSet::lint(reports.iter().flat_map(Report::files).collect());
+                let unplaced = FailureKind::Infra { job: job.clone() };
+                if reports
+                    .iter()
+                    .any(|report| report.first_unplaced().is_some())
+                {
+                    lint.recording(unplaced)
+                } else {
+                    lint
+                }
             }
             _ => FailureSet::default(),
         }
     }
 
     #[must_use]
+    pub fn incomplete(self, job: CheckName) -> Failure {
+        match self {
+            Failure::Found { printed, found } => Failure::Found {
+                printed,
+                found: found.recording(FailureKind::Infra { job }),
+            },
+            other => other,
+        }
+    }
+
+    #[must_use]
     pub fn reading(self, read: impl FnOnce(&str) -> Option<Failure>) -> Failure {
         match self {
-            Failure::Printed { command, printed } => {
-                read(&printed).unwrap_or(Failure::Printed { command, printed })
-            }
+            Failure::Printed { command, printed } => match read(&printed) {
+                Some(Failure::Found {
+                    printed: text,
+                    found,
+                }) => Failure::Found {
+                    printed: Printed::Under {
+                        command,
+                        text: Box::new(text),
+                    },
+                    found,
+                },
+                _ => Failure::Printed { command, printed },
+            },
             other => other,
         }
     }
@@ -109,19 +143,62 @@ mod tests {
     use std::collections::BTreeSet;
     use std::path::PathBuf;
 
-    use super::{Failure, FailureSet, Report, Site};
+    use super::{Failure, FailureKind, FailureSet, Printed, Report, Site};
     use crate::violation::Violation;
 
     const FILE: &str = "a.rs";
+    const JOB: &str = "lint";
+
+    const SHOWN: &str = "cmd failed:\nshown";
+
+    impl Failure {
+        fn linting(sites: Vec<Site>) -> FailureSet {
+            let violations = sites
+                .into_iter()
+                .map(|site| Violation::new(site, FILE))
+                .collect();
+            Failure::Lint(vec![Report::new(FILE, violations)]).found(&JOB.into())
+        }
+
+        fn shown() -> Failure {
+            Failure::Found {
+                printed: Printed::Text("shown".into()),
+                found: FailureSet::default(),
+            }
+        }
+    }
 
     #[test]
-    fn a_lint_failure_reports_the_files_of_its_violations_and_another_failure_reports_none() {
-        let report = Report::new(
-            "slip",
-            vec![Violation::new(Site::File(PathBuf::from(FILE)), FILE)],
+    fn lint_files_are_named_and_an_unplaced_violation_adds_infra() {
+        let file = Site::File(PathBuf::from(FILE));
+        let infra = FailureKind::Infra { job: JOB.into() };
+        assert_eq!(
+            Failure::linting(vec![file.clone()]),
+            FailureSet::lint(BTreeSet::from([PathBuf::from(FILE)]))
         );
-        let lint = FailureSet::lint(BTreeSet::from([PathBuf::from(FILE)]));
-        assert_eq!(Failure::Lint(vec![report]).found(), lint);
-        assert!(Failure::NoWorkspace.found().is_empty());
+        assert_eq!(
+            Failure::linting(vec![file, Site::Workspace]).kinds().last(),
+            Some(&infra)
+        );
+        assert!(Failure::NoWorkspace.found(&JOB.into()).is_empty());
+    }
+
+    #[test]
+    fn a_printed_failure_gains_its_command_header_only_when_read() {
+        let printed = || Failure::Printed {
+            command: "cmd".into(),
+            printed: FILE.into(),
+        };
+        assert_eq!(
+            printed().reading(|_| Some(Failure::shown())).to_string(),
+            SHOWN
+        );
+        assert_eq!(printed().reading(|_| None).to_string(), "cmd failed:\na.rs");
+    }
+
+    #[test]
+    fn an_incomplete_found_set_gains_infra() {
+        let kinds = Failure::shown().incomplete(JOB.into()).found(&JOB.into());
+        assert_eq!(kinds.kinds(), [FailureKind::Infra { job: JOB.into() }]);
     }
 }

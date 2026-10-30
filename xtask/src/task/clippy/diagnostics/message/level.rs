@@ -1,9 +1,11 @@
 use serde::Deserialize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub(super) enum Level {
+    #[serde(rename = "error")]
     Error,
+    #[serde(rename = "error: internal compiler error")]
+    Internal,
     #[serde(other)]
     Other,
 }

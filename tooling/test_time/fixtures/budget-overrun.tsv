@@ -1,2 +1,0 @@
-passed	1000000	1000000	quick	target/debug/deps/bin-1a2b3c
-passed	5000000000	4000000000	slow	target/debug/deps/bin-1a2b3c
