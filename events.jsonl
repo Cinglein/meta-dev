@@ -1792,3 +1792,4 @@
 {"at":"2026-10-30T16:34:24.140414Z","actor":"claude-lead","kind":"TaskOpened","task":"task-2b9672f58fca82cc","text":"meta wait --on ci checks a run exists for the PR head; none within 5 min flags the wait (concern-20870c13).","division":"features-and-maintenance","addresses":["concern-20870c13156d7414"]}
 {"at":"2026-10-30T16:34:37.963512Z","actor":"claude-lead","kind":"IssueReported","issue":"issue-bb4ce6666f2ee639","text":"meta brief: --actor before --scratch parses --scratch as the actor name; either order should work.","division":"features-and-maintenance"}
 {"at":"2026-10-30T16:37:26.238929Z","actor":"claude-ciexists","kind":"TaskClaimed","task":"task-2b9672f58fca82cc"}
+{"at":"2026-10-30T16:37:32.301444Z","actor":"claude-projects3","kind":"TaskClaimed","task":"task-ed1af0d0d1458263"}
