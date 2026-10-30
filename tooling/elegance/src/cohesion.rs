@@ -99,7 +99,7 @@ mod tests {
     const PATH: &str = "rows/src/lib.rs";
     const CRATE: &str = "rows";
 
-    const ROWS: [[&str; 3]; 9] = [
+    const ROWS: [[&str; 3]; 10] = [
         [
             "value type: single-field methods are projections",
             "pub struct Hold { a: A, b: B } impl Hold { pub fn a_len(&self) -> usize { self.a.len() } pub fn b_len(&self) -> usize { self.b.len() } }",
@@ -139,6 +139,11 @@ mod tests {
             "unresolved self call does not link",
             "pub struct Stub { a: A, b: B } impl Stub { pub fn first(&mut self) { self.a = 1; self.shared() } pub fn second(&mut self) { self.b = 2; self.shared() } }",
             "  found 1\n    rows::Stub: 2 components [first] [second]",
+        ],
+        [
+            "a bare use of self joins every field",
+            "pub struct Wide { a: A, b: B } impl Wide { pub fn whole(&self) -> W { W::from(self) } pub fn a_bump(&mut self) { self.a.push(1) } pub fn b_bump(&mut self) { self.b.push(1) } }",
+            "  found 0",
         ],
         [
             "duplicate accessor names reach every field",
