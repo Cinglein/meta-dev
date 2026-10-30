@@ -158,7 +158,7 @@ impl Task {
             Task::Goldens => GoldenRefresh::run(workspace, Reach::Offline),
             Task::GoldensOnline => GoldenRefresh::run(workspace, Reach::Online),
             Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
-            Task::Elegance => Ok(print!("{}", EleganceReport::text(workspace)?)),
+            Task::Elegance => EleganceReport::measured(workspace).map(|report| print!("{report}")),
             Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy, &mut ledger)
                 .and_then(|()| Ok(ledger.checked(&policy, &selection)?)),
             Task::MutantCosts => Ok(MutantCosts::measure(
