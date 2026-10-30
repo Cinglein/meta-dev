@@ -124,9 +124,10 @@ mod tests {
             SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()
         }
 
-        fn expected(&self, at: u64) -> Vec<ReflogEntry> {
+        fn expected(&self, moments: [u64; FILES.len()]) -> Vec<ReflogEntry> {
             let [name, email] = AUTHOR;
             let line = |made: usize, commit: &ObjectId| {
+                let at = moments[made];
                 let parents: Vec<String> =
                     self.commits[made.saturating_sub(1)..made].iter().map(ToString::to_string).collect();
                 let parents = parents.join(" ");
@@ -144,6 +145,8 @@ mod tests {
         let (dir, before) = (tempfile::tempdir().unwrap(), Moved::now());
         let moved = Moved::made(dir.path());
         let read = ReflogEntry::read(&moved.repository.read(&HeadReflog).unwrap());
-        assert!((before..=Moved::now()).any(|at| read == Ok(moved.expected(at))), "{read:?}");
+        let after = Moved::now();
+        let moments = (before..=after).flat_map(|first| (first..=after).map(move |second| [first, second]));
+        assert!(moments.into_iter().any(|moments| read == Ok(moved.expected(moments))), "{read:?}");
     }
 }
