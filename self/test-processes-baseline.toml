@@ -26,7 +26,6 @@
 "meta-log meta_log git_log::tests::malformed::a_meta_log_without_exactly_events_jsonl_is_refused" = 21
 "meta-log meta_log git_log::tests::refusals_write_nothing_and_rejected_or_offline_writes_fail" = 16
 "meta-log meta_log git_log::tests::staged::a_staged_ref_moved_while_the_writer_decided_races_and_the_writer_decides_again" = 14
-"meta-log meta_log git_log::tests::staged::a_stale_staged_lock_fails_the_append_naming_the_lock_and_the_way_out" = 2
 "meta-log meta_log git_log::tests::writers_on_any_clone_race_and_each_lands_right_after_what_it_validated_without_touching_checkouts" = 23
 "meta-run meta_run run::placement::tests::terminal_runs_lead_their_group_without_a_terminal_let_git_prompt_and_runs_and_helpers_leave_nothing_behind" = 9
 "meta-run meta_run run::tests::a_meta_child_is_told_its_trace_and_parent_span_even_with_no_inherited_variables" = 1
@@ -42,11 +41,6 @@
 "meta-xtask meta_xtask task::ci::local_gate::tests::a_changed_checkout_posts_nothing" = 11
 "meta-xtask meta_xtask task::ci::local_gate::tests::the_checked_commit_gets_the_childs_state_a_scoped_context_the_version_timings_and_surfaces" = 20
 "meta-xtask meta_xtask task::ci::standing_log::tests::the_isolated_run_reads_exactly_the_fetched_tip_and_an_unreachable_or_unfetched_log_fails_closed" = 36
-"meta-xtask meta_xtask task::ci::stranding::tests::levels_shipped_with_an_xtask_pin_that_moved_are_read_from_a_real_cargo_git_db" = 14
-"meta-xtask meta_xtask task::ci::tracked_build_output::tests::a_tracked_file_in_the_configured_target_dir_or_a_cargo_cachedir_tag_directory_is_refused_with_the_remedy" = 3
-"meta-xtask meta_xtask task::revision::tests::a_workspace_below_the_git_top_level_reads_its_own_prior_policy_baseline_changes_and_emails" = 19
-"meta-xtask meta_xtask task::revision::tests::every_recorded_revision_read_parses_to_its_golden_view_and_a_failed_read_fails_closed" = 1
-"meta-xtask meta_xtask task::test_processes::tests::a_budgets_rows_are_kept_against_that_budgets_file_at_the_merge_base_and_a_new_budget_starts_free" = 13
 "mutation mutation scope::test_packages::tests::a_runs_baseline_is_its_own_tests_once_with_the_shards_build_and_limits_and_a_failing_one_ends_all_it_started" = 9
 "mutation mutation scope::tests::the_diff_of_a_workspace_below_the_git_top_level_names_paths_from_its_root" = 5
 "mutation mutation shard_plan::tests::a_full_plan_lists_mutants_only_when_due_and_prints_its_shards_as_a_json_array_for_the_matrix" = 1
