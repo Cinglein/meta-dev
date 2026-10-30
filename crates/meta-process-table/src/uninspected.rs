@@ -4,6 +4,7 @@ use std::fmt;
 pub struct Uninspected(usize);
 
 impl Uninspected {
+    #[must_use]
     pub fn counted(self) -> Self {
         Self(self.0 + 1)
     }

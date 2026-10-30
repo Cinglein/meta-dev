@@ -6,7 +6,7 @@ use meta_run::{Budget, EnvPolicy, Ran, Run, Stderr};
 
 use crate::asks::Asks;
 use crate::git_failure::GitFailure;
-use crate::queries::Heads;
+use crate::queries::refs::Heads;
 use crate::remote_change::RemoteChange;
 use crate::remote_listing::RemoteListing;
 use crate::remote_name::RemoteName;

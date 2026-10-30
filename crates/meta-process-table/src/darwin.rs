@@ -15,7 +15,7 @@ use libproc::processes::{ProcFilter, pids_by_type};
 
 use super::held::Held;
 use super::scan::Scan;
-use crate::request::local::local_clone::vetting::cause::Cause;
+use super::table_failure::TableFailure;
 use fd_vnode::FdVnode;
 use probe_failure::ProbeFailure;
 use process_dirs::ProcessDirs;
@@ -28,26 +28,26 @@ pub struct Darwin {
 impl Darwin {
     const WHOLE: u64 = 0;
 
-    pub fn held() -> Result<Held, Cause> {
-        let own = i32::try_from(std::process::id()).map_err(Cause::new)?;
-        let uid = pidinfo::<BSDInfo>(own, Self::WHOLE).map_err(Cause::new)?.pbi_uid;
+    pub fn held() -> Result<Held, TableFailure> {
+        let own = i32::try_from(std::process::id()).map_err(TableFailure::new)?;
+        let uid = pidinfo::<BSDInfo>(own, Self::WHOLE).map_err(TableFailure::new)?.pbi_uid;
         let owned = Self::listed(ProcFilter::ByUID { uid })?;
         Self::listed(ProcFilter::All)?.into_iter().map(|pid| Self { pid }.scanned(&owned)).collect()
     }
 
-    fn listed(filter: ProcFilter) -> Result<Vec<i32>, Cause> {
-        let pids = pids_by_type(filter).map_err(Cause::new)?;
+    fn listed(filter: ProcFilter) -> Result<Vec<i32>, TableFailure> {
+        let pids = pids_by_type(filter).map_err(TableFailure::new)?;
         Ok(pids.into_iter().filter_map(|pid| i32::try_from(pid).ok()).collect())
     }
 
-    fn scanned(&self, owned: &[i32]) -> Result<Scan, Cause> {
+    fn scanned(&self, owned: &[i32]) -> Result<Scan, TableFailure> {
         self.opened().map(Scan::Opened).or_else(|failure| failure.excused(owned.contains(&self.pid), || self.alive()))
     }
 
     fn opened(&self) -> Result<Vec<PathBuf>, ProbeFailure> {
         let info = pidinfo::<BSDInfo>(self.pid, Self::WHOLE)?;
         let dirs = pidinfo::<ProcessDirs>(self.pid, Self::WHOLE)?;
-        let table_len = usize::try_from(info.pbi_nfiles).map_err(Cause::new)?;
+        let table_len = usize::try_from(info.pbi_nfiles).map_err(TableFailure::new)?;
         let fds = listpidinfo::<ListFDs>(self.pid, table_len)?;
         let vnodes = fds.iter().filter(|fd| matches!(ProcFDType::from(fd.proc_fdtype), ProcFDType::VNode));
         let files = vnodes.map(|fd| FdVnode::read(self.pid, fd.proc_fd, table_len));
@@ -56,7 +56,7 @@ impl Darwin {
         Ok(dirs.paths().chain(files).chain(program).collect())
     }
 
-    fn alive(&self) -> Result<bool, Cause> {
+    fn alive(&self) -> Result<bool, TableFailure> {
         Ok(Self::listed(ProcFilter::All)?.contains(&self.pid)
             && pidinfo::<BSDInfo>(self.pid, Self::WHOLE).map_or(true, |info| info.pbi_status != libc::SZOMB))
     }

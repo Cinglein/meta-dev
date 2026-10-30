@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
 use super::Procfs;
-use crate::request::local::local_clone::vetting::host::process_table::scan::Scan;
+use crate::scan::Scan;
 
 const ALIVE: &str = "alive";
 const EXITED: &str = "exited";

@@ -76,7 +76,7 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: . -> target.noindex
-      - run: cargo test -p meta-cli --all-features
+      - run: cargo test -p meta-process-table -p meta-cli --all-features
         timeout-minutes: 5
 
   macos-mutants:
@@ -98,7 +98,7 @@ jobs:
       - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: cargo-mutants@27.1.0
-      - run: cargo mutants --config .cargo/mutants-macos.toml --shard ${{ matrix.shard }} --package meta-cli --in-place --test-package meta-cli --cargo-test-arg=--all-features --cargo-test-arg=process_table --file 'crates/meta-cli/src/request/local/local_clone/vetting/host/process_table/darwin.rs' --file 'crates/meta-cli/src/request/local/local_clone/vetting/host/process_table/darwin/*.rs'
+      - run: cargo mutants --config .cargo/mutants-macos.toml --shard ${{ matrix.shard }} --package meta-process-table --in-place --test-package meta-process-table --cargo-test-arg=--all-features --file 'crates/meta-process-table/src/darwin.rs' --file 'crates/meta-process-table/src/darwin/*.rs'
         timeout-minutes: 5
 
   goldens:

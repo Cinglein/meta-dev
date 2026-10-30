@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use super::super::scan::Scan;
-use crate::request::local::local_clone::vetting::cause::Cause;
+use crate::scan::Scan;
+use crate::table_failure::TableFailure;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProbeFailure {
@@ -11,7 +11,7 @@ pub enum ProbeFailure {
     #[error("no such process")]
     Gone,
     #[error("{0}")]
-    Failed(Cause),
+    Failed(TableFailure),
 }
 
 impl ProbeFailure {
@@ -26,14 +26,18 @@ impl ProbeFailure {
         })
     }
 
-    pub fn excused(self, owned: bool, alive: impl FnOnce() -> Result<bool, Cause>) -> Result<Scan, Cause> {
+    pub fn excused(
+        self,
+        owned: bool,
+        alive: impl FnOnce() -> Result<bool, TableFailure>,
+    ) -> Result<Scan, TableFailure> {
         match self.unexplained() {
             Some(cause) if owned && alive()? => Err(cause),
             Some(_) | None => Ok(Scan::Skipped),
         }
     }
 
-    pub fn unexplained(self) -> Option<Cause> {
+    pub fn unexplained(self) -> Option<TableFailure> {
         match self {
             Self::Refused | Self::Gone => None,
             Self::Failed(cause) => Some(cause),
@@ -48,7 +52,7 @@ impl FromStr for ProbeFailure {
         Ok(match reported {
             refused if refused.contains(Self::REFUSED) => Self::Refused,
             gone if gone.contains(Self::GONE) => Self::Gone,
-            failed => Self::Failed(Cause::new(failed)),
+            failed => Self::Failed(TableFailure::new(failed)),
         })
     }
 }
@@ -60,8 +64,8 @@ impl From<String> for ProbeFailure {
     }
 }
 
-impl From<Cause> for ProbeFailure {
-    fn from(cause: Cause) -> Self {
+impl From<TableFailure> for ProbeFailure {
+    fn from(cause: TableFailure) -> Self {
         Self::Failed(cause)
     }
 }
