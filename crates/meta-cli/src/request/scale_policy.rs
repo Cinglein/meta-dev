@@ -37,6 +37,7 @@ pub struct ScalePolicy {
 
 impl ScalePolicy {
     const FILE: &'static str = "tooling/policy.toml";
+    const EMBEDDED: &'static str = include_str!("../../../../tooling/policy.toml");
     const MISSING: &'static str =
         "missing; scales are not defaulted; copy meta-dev's tooling/policy.toml to it (meta init will do this later)";
 
@@ -57,8 +58,9 @@ impl ScalePolicy {
         &self.queue
     }
 
-    pub fn tools(&self) -> &ToolPolicy {
-        &self.tools
+    pub fn tools(&self) -> ToolPolicy {
+        let embedded = toml::from_str::<ScalePolicy>(Self::EMBEDDED).map(|policy| policy.tools).unwrap_or_default();
+        embedded.union(self.tools.clone())
     }
 
     pub fn scales(&self) -> &Scales {

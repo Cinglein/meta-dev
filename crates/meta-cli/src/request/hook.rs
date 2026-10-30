@@ -155,7 +155,7 @@ impl HookEvent {
 
     fn policy_refusal(project: &Project, input: &HookInput) -> Option<Listed> {
         let policy = ScalePolicy::read(project.root()).ok().unwrap_or_default();
-        input.modal(policy.tools()).or_else(|| {
+        input.modal(&policy.tools()).or_else(|| {
             let lander = policy.queue().lander(input.announced_actor());
             input.command()?.refusal(project.config(), lander.as_ref())
         })
@@ -166,8 +166,11 @@ impl HookEvent {
         let linked = budget.as_ref().ok().filter(|_| self == Self::PostToolUse);
         let linked = linked.and_then(|budget| Linking::after(input, *budget));
         let linking = linked.map(|linked| Reply::new(self, Verdict::Allow, Some(linked)));
-        let refusal = (self == Self::PreToolUse)
-            .then(|| budget.map_or_else(|failure| Some(Listed::new(failure)), |_| input.refusal()));
+        let refusal = (self == Self::PreToolUse).then(|| {
+            input
+                .modal(&ScalePolicy::default().tools())
+                .or_else(|| budget.map_or_else(|failure| Some(Listed::new(failure)), |_| input.refusal()))
+        });
         let refusal = refusal.flatten();
         refusal.map(|refusal| Reply::new(self, Verdict::Deny(Denial::from(refusal)), None)).or(linking)
     }
