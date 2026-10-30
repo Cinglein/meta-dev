@@ -8,6 +8,7 @@ use std::collections::BTreeSet;
 use chrono::{DateTime, Utc};
 
 use super::culprit::Culprit;
+use super::fault::Fault;
 use super::finding::Finding;
 use super::load_average::LoadAverage;
 use super::machine::Machine;
@@ -18,6 +19,7 @@ use super::ownership::Ownership;
 use super::pid_list::PidList;
 use super::process_row::ProcessRow;
 use super::signal::Signal;
+use super::silence::Silence;
 use super::starts::Starts;
 use super::target::Target;
 use super::watch_item::WatchItem;
@@ -31,11 +33,18 @@ use process_table::ProcessTable;
 pub struct Patrol<'patrol, Host> {
     settings: &'patrol MonitorSettings,
     host: &'patrol Host,
+    silences: &'patrol [Silence],
+    unheard: Option<&'patrol Fault>,
 }
 
 impl<'patrol, Host: Machine> Patrol<'patrol, Host> {
-    pub fn new(settings: &'patrol MonitorSettings, host: &'patrol Host) -> Self {
-        Self { settings, host }
+    pub fn new(
+        settings: &'patrol MonitorSettings,
+        host: &'patrol Host,
+        silences: &'patrol [Silence],
+        unheard: Option<&'patrol Fault>,
+    ) -> Self {
+        Self { settings, host, silences, unheard }
     }
 
     pub fn settings(&self) -> &MonitorSettings {
@@ -44,8 +53,11 @@ impl<'patrol, Host: Machine> Patrol<'patrol, Host> {
 
     pub fn round(&self, before: &MonitorState, now: DateTime<Utc>) -> MonitorReport {
         let load = self.host.uptime().and_then(|uptime| uptime.parse::<LoadAverage>().ok());
+        let unheard = self.unheard.cloned().map(Finding::Failed);
+        let silent = unheard.into_iter().chain(self.silences.iter().cloned().map(Finding::Silent));
+        let blind = [Finding::Blind].into_iter().chain(silent.clone()).collect();
         self.rows().map_or_else(
-            || MonitorReport::new(now, load, before.clone()).found(vec![Finding::Blind], Vec::new()),
+            || MonitorReport::new(now, load, before.clone()).found(blind, Vec::new()),
             |rows| {
                 let starts = Starts::listed(&rows);
                 let table = ProcessTable::new(rows, self.settings, self.host.own_pid());
@@ -60,8 +72,8 @@ impl<'patrol, Host: Machine> Patrol<'patrol, Host> {
                 let promoted = watched.iter().filter(|item| self.settings.promotes(item.ticks()).is_some());
                 let promoted = promoted.cloned().map(Finding::Watched);
                 let findings = self.stopped(&stopped, &marked, &starts).into_iter();
-                let findings: Vec<Finding> =
-                    findings.chain(over.into_iter().map(Finding::OverLimit)).chain(unknown).chain(promoted).collect();
+                let findings = findings.chain(silent).chain(over.into_iter().map(Finding::OverLimit));
+                let findings: Vec<Finding> = findings.chain(unknown).chain(promoted).collect();
                 MonitorReport::new(now, load, MonitorState::new(marked, watched)).found(findings, judged.shown())
             },
         )

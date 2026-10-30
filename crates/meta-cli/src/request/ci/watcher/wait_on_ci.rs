@@ -3,7 +3,7 @@ use std::fmt;
 
 use meta_log::Snapshot;
 use meta_run::Budget;
-use meta_schema::{CommitId, ExternalKind, Id, Task};
+use meta_schema::{Block, CommitId, ExternalKind, Id, Task};
 use meta_state::{State, TaskStatus};
 
 use super::stop_view::Watched;
@@ -57,10 +57,10 @@ impl WaitOnCi {
 
     fn in_state(state: &State, commit: Option<&CommitId>, head: Option<&CommitId>, task: Option<Id<Task>>) -> Self {
         let covered = commit.and_then(|commit| {
-            state
-                .tasks()
-                .iter()
-                .find(|known| state.status_of(known) == Self::ON_CI && known.progress().waited_at() == Some(commit))
+            state.tasks().iter().find(|known| {
+                state.status_of(known) == Self::ON_CI
+                    && known.progress().waiting().and_then(Block::head) == Some(commit)
+            })
         });
         let elsewhere = commit.filter(|commit| Some(*commit) != head).map(|commit| Self::NotHead(commit.clone()));
         let advice = || task.map_or(Self::Taskless, |task| Self::of_task(state, task));

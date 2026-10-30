@@ -44,6 +44,14 @@ impl Selection {
     }
 
     #[must_use]
+    pub fn meet(self, other: &Selection) -> Selection {
+        match other {
+            Selection::Workspace => self,
+            Selection::Crates(crates) => self.within(crates),
+        }
+    }
+
+    #[must_use]
     pub fn reaching(&self) -> Option<&Selection> {
         match self {
             Selection::Crates(crates) if crates.is_empty() => None,
