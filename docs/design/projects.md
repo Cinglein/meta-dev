@@ -7,9 +7,9 @@ Task: task-7b6e5d9baadb95f8. This document is a design only. It absorbs the feat
 **Kernel concepts.** A project uses only these concepts:
 - Item (K2): a new item kind, `project`.
 - Stage (K4): the project typestate (§1).
-- Budget (K9): the acceptance measure is a budget row in `tooling/policy.toml` (§3).
+- Budget (K9): each acceptance measure is a budget row in `tooling/policy.toml` (§3).
 - Signal (K5): readings from main, the no-progress flag and the regression flag (§3, §5).
-- Edge (K3): `serves`, `caused_by` and the decision `blocks` edge (§4).
+- Edge (K3): `instruments`, `serves`, `caused_by` and the decision `blocks` edge (§4).
 
 The new value types are `Purpose` and `Root`. There are no new scales, no new ledgers and no new journals.
 
@@ -19,31 +19,41 @@ The new value types are `Purpose` and `Root`. There are no new scales, no new le
 
 Performance, cost and measurement are symptoms of these two roots. They are not a root.
 
-**Measurement is never its own root or its own project** (owner, 2026-10-30: "everything needs to be observable and measured by default"). It is a default part of every acceptance. Each acceptance names the observability that measures the project: its budget rows, its spans and its status line. If what a project builds cannot be observed, the project cannot be accepted.
+**Measurement is never its own root or its own project** (owner, 2026-10-30: "everything needs to be observable and measured by default"). It is a default part of every acceptance. Each acceptance names the observability that measures the project: its budget rows, its spans and its status line. Until main produces all of them, only instrumentation work can be claimed (§1).
 
 The Delivered guard is the pairing of the two roots: the measure on target is the state change, and the gating enforcement is the process that keeps it.
 
 ## 1. Typestate
 
-`ProjectStage = Proposed | Accepted | Active | Delivered | Regressed`. A fold over meta/log gives the stage. `Active` is derived. It has no event.
+`ProjectStage = Proposed | Accepted | Instrumented | Active | Delivered | Regressed`. A fold over meta/log gives the stage. `Active` is derived. It has no event.
 
 | From | To | Event | Guard | Who |
 |---|---|---|---|---|
 | — | Proposed | `ProjectProposed` | The goal text is not empty. The division is known. | Any actor. |
-| Proposed | Accepted | `ProjectAccepted` | The CLI checks that each acceptance budget id is in `tooling/policy.toml` on main. The type requires a root and at least one CI-side enforcement point (§3). **Observable:** the type requires at least one span. The CLI checks that each acceptance budget has a `Measure` that the CI ledger produces, so its row can never read `unmeasured` by design. The projects section of status shows every Accepted project, so the status line needs no field. | Owner only. |
-| Accepted | Active | none (derived) | A task that serves the project has a holder. | — |
-| Active | Accepted | none (derived) | No task that serves the project has a holder. | — |
-| Accepted or Active | Delivered | `ProjectObserved` | Every acceptance row is measured and on target on main. Every named span is in the push run's trace. Every enforcement point is gating on main. The evidence names the main commit and its push run. | meta only (`meta project observe`). |
-| Delivered | Regressed | `ProjectObserved` | An acceptance row is off target on main, or an enforcement point stops gating. | meta only. |
+| Proposed | Accepted | `ProjectAccepted` | The type requires a root, at least one acceptance row (budget id, measure, target), at least one span and at least one CI-side enforcement point (§3). None of them needs to exist yet. | Owner only. |
+| Accepted | Instrumented | `ProjectObserved` | Main's ledger has a row for each acceptance budget, with the named measure and a measured spend (no `unmeasured`). Each named span is in main's push-run trace. | meta only (`meta project observe`). |
+| Instrumented | Active | none (derived) | A `serves` task has a holder. | — |
+| Active | Instrumented | none (derived) | No `serves` task has a holder. | — |
+| Instrumented or Active | Accepted | `ProjectObserved` | A row became unmeasured or a span is missing on main, before delivery. | meta only. |
+| Instrumented or Active | Delivered | `ProjectObserved` | Each acceptance row is on target on main. Each enforcement point is gating on main. The instrumentation guard still holds. The evidence names the main commit and its push run. | meta only. |
+| Delivered | Regressed | `ProjectObserved` | A row is off target or unmeasured, a span is missing, or an enforcement point stops gating. | meta only. |
 | Regressed | Delivered | `ProjectObserved` | The same guard as the first delivery. | meta only. |
 | Any | Retired | `EntryRetired` (existing) | Proposed: a reason. Accepted and later: owner only. | Proposed: the lead or the owner. Later: owner only. |
 
+**Which tasks attach and which can be claimed:**
+
+| Stage | `instruments` | `serves` | `caused_by { project }` |
+|---|---|---|---|
+| Proposed | refused | refused | refused |
+| Accepted | attach and claim | attach; claim refused | attach and claim |
+| Instrumented, Active | attach and claim | attach and claim | attach and claim |
+| Delivered | refused | refused | attach and claim |
+| Regressed | refused | refused | attach and claim (the only way to fix it) |
+
 Rules:
-- In `Proposed`, no task can attach. The fold refuses `serves` to a Proposed project.
-- In `Delivered`, new `serves` is refused. New work on a delivered goal is a new project.
-- In `Regressed`, new tasks for the project must carry `caused_by` (§4). A fix for a regression is an own goal.
+- A fix for a regression is an own goal (§4).
 - `ProjectObserved` that does not change the stage is refused (`Refusal::Unchanged`). The log gets one record per transition, not one per poll.
-- `EntryCorrected` changes the goal text. It cannot change the acceptance. A new acceptance needs a new `ProjectAccepted` from the owner, and only before delivery.
+- `EntryCorrected` changes the goal text. It cannot change the acceptance. A new acceptance needs a new `ProjectAccepted` from the owner, and only before delivery. It puts the project back to Accepted.
 
 ## 2. Schema change
 
@@ -54,24 +64,29 @@ New events:
 | Event | Payload |
 |---|---|
 | `ProjectProposed` | `NewProject { project, text, division }` |
-| `ProjectAccepted` | `Acceptance { project, root: Root, target: Vec1<BudgetId>, spans: Vec1<SpanKind>, enforcement: Vec1<Enforcement> }` |
-| `ProjectObserved` | `Observation { project, main: CommitId, run: RunId, verdict: OnTarget \| OffTarget(BudgetId) \| NotGating(Enforcement) }` |
+| `ProjectAccepted` | `Acceptance { project, root: Root, rows: Vec1<AcceptanceRow>, spans: Vec1<SpanKind>, enforcement: Vec1<Enforcement> }` |
+| `ProjectObserved` | `Observation { project, main: CommitId, run: RunId, verdict: Verdict }` |
 | `TaskPurposed` | `TaskPurpose { task, purpose: Purpose }` (attach an existing task) |
 
 Changed event: `TaskOpened` gains `purpose: Option<Purpose>`, with `#[serde(default, skip_serializing_if = "Option::is_none")]`.
 
 ```
-Purpose = Serves(Id<Project>)
-        | CausedBy { cause: Cause, project: Option<Id<Project>> }
-Cause   = Pull(PullRequest) | Item(Target) | Task(Id<Task>)
-Root    = Process | State
+Purpose      = Instruments(Id<Project>)
+             | Serves(Id<Project>)
+             | CausedBy { cause: Cause, project: Option<Id<Project>> }
+Cause        = Pull(PullRequest) | Item(Target) | Task(Id<Task>)
+Root         = Process | State
+AcceptanceRow = { budget: BudgetId, measure: MeasureName, target: Amount }
+Verdict      = Instrumented | Uninstrumented(Gap) | OnTarget
+             | OffTarget(BudgetId) | NotGating(Enforcement)
+Gap          = Unmeasured(BudgetId) | NoSpan(SpanKind)
 ```
 
-`root` is set at Accepted, not at Proposed. The owner decides it with the measure. A Proposed project has no root, so its type has no `root` field. A new root needs a new `ProjectAccepted` before delivery, as for the measure.
-
-`spans` names the trace spans that the project's output emits, such as a hook, a CI step or a command. `SpanKind` is the existing `meta-trace` type (`Command(Verb) | Spawn(Program) | Network(Program) | Fs`). A missing trace on main fails closed, so the project cannot be delivered.
-
-`Purpose` is one enum, so a task cannot both serve and be an own goal. The `project` in `CausedBy` only places the task under a project in status. Its spend stays an own goal.
+- **Instrumentation is a purpose.** `Instruments(p)` is typed. It is not a word in a task title. Its tasks add the measure, the spans and the budget rows.
+- **Root** is set at Accepted, not at Proposed. A Proposed project has no root, so its type has no `root` field.
+- **Rows.** `MeasureName` is the policy spelling of a `Measure`. `meta project observe` parses it against `Measure`. `Amount` moves into `meta-schema`, as `ItemKind` did in #217.
+- **Spans.** `spans` names the trace spans that the project's output emits. `SpanKind` is the existing `meta-trace` type (`Command(Verb) | Spawn(Program) | Network(Program) | Fs`). An instrumentation task may add a variant. A missing trace on main fails closed.
+- **One purpose per task.** `Purpose` is one enum, so a task cannot both serve and be an own goal. The `project` in `CausedBy` only places the task under a project in status. Its spend stays an own goal.
 
 **Version.** `SchemaVersion::current()` goes from 7 to 8. An older build reads the version 8 marker and stops writing, as it does today.
 
@@ -94,16 +109,16 @@ Selector = Landing(pr) | Stage(task, StageKind) | Task(task) | Footprint(crates)
 
 ## 3. Measures and enforcement points
 
-**Acceptance measure.** The target is a list of budget ids in `tooling/policy.toml`. A row is **on target** when its `budgets::State` is `Ok`, which is at or below its warning line.
-- The owner sets the number, as for every budget. A budget number is an owner decision (design §2).
-- A new measure is a new `Measure` variant with its own budget row. It is not a project field.
-- A project does not hold a number. The budget holds it. There is one copy.
+**Acceptance row.** The owner names a budget id, its measure and a target. A row is **on target** when main's measured spend is at or below the target.
+- The target is an owner decision, like every budget number (design §2).
+- A new measure is a new `Measure` variant with its own budget row. An instrumentation task adds both. The row starts with `overspend = report`.
+- The project holds the target. The budget row holds the enforcement lines. They are different numbers with different jobs.
 
 **Readings on main.** The push run on main writes `ledger.json` as a CI artifact. It holds:
 - `rows`: every budget row (id, measure, spend, lines, state, overspend), from `Ledger::statement`.
 - `gates`: every enforcement point that is live on this commit (see below).
 
-Caps (design §7) read the same artifact. A missing artifact, a missing row or an unmeasured spend fails closed: no delivery, and status shows `unmeasured`.
+The push run also uploads its trace (task-433270d3). Caps (design §7) read the same artifact. A missing artifact, a missing row, an unmeasured spend or a missing trace fails closed.
 
 **Enforcement point.**
 
@@ -115,7 +130,7 @@ Enforcement = Budget(BudgetId)   -- gating: the row has overspend = block and wi
 
 - At least one point must be `Budget` or `Step`. Hooks guard against honest mistakes only (threat model). A required CI check is the backstop.
 - "Merged and gating" is one check: the point is in the `gates` list of main's latest push-run artifact. A point can only be there after its PR merged.
-- A per-change budget blocks at its blocking line. The target is the warning line. Drift between the two raises `Regressed`, not a CI failure. To make CI hold the target, the owner can lower the allowance at delivery. That is a budget-number decision.
+- A per-change budget blocks at its blocking line. If that line is above the target, drift between the two raises `Regressed`, not a CI failure. To make CI hold the target, the owner can set the allowance to the target at delivery. That is a budget-number decision.
 
 ## 4. Spend attribution and own goals
 
@@ -125,6 +140,7 @@ Enforcement = Budget(BudgetId)   -- gating: the row has overspend = block and wi
 
 | Task purpose | Spend goes to |
 |---|---|
+| `Instruments(p)` | project `p` |
 | `Serves(p)` | project `p` |
 | `CausedBy { .. }` | own goal |
 | `Unlinked` (old task) | own goal |
@@ -151,25 +167,27 @@ The last two rows make the measure fail closed. Unlinked spend is visible, so th
 
 ```
 projects:
-  project-1a2b tests below warn       Active    state    test-time 5.9s>4.8s  test-spawns 31>0   gate budget:test-time ok, step:test ok    spend 41.2M  [no progress 9.0M]
-  project-3c4d dogfooding gate        Accepted  process  unlinked-spawns 4>0  direct-merges 2>0   gate hook:agent-lease ok, budget:direct-merges MISSING  spend 3.1M
-  project-5e6f elegance lint gating   Proposed  —
-  project-7a8b waterfalls             Delivered process  untraced-share 6%<=10%                   gate budget:untraced-share ok              spend 18.0M
+  project-1a2b tests below warn       Active        state    test-time 5.9s>4.8s  test-spawns 31>0   gate budget:test-time ok, step:test ok    spend 41.2M  [no progress 9.0M]
+  project-3c4d dogfooding gate        Accepted      process  needs: unmeasured direct-merges, no span Command(queue)   instrumenting 1 task   spend 3.1M
+  project-5e6f elegance lint gating   Instrumented  process  effect-share 31%>25%   gate budget:effect-share MISSING   spend 0.4M
+  project-7a8b waterfalls             Delivered     process  trace-unlinked-waits 0<=0   gate budget:trace-unlinked-waits ok   spend 18.0M
+  project-9c0d spec claims            Proposed      —
 own goals: 22.4M of 84.7M (26%): caused_by 15.0M, unlinked 7.4M
 goal: 84.7M / 1 delivered (7d)
 ```
 
-- Each project shows its root (`process` or `state`) after its stage, once it is Accepted.
-- Each acceptance row shows `now` against its warning line, from main's latest artifact.
+- Each project shows its stage, then its root once it is Accepted.
+- An Accepted project shows `needs:`, which lists each gap that holds it back from Instrumented, and its open instrumentation tasks.
+- From Instrumented on, each acceptance row shows `now` against its target, from main's latest artifact.
 - Each enforcement point shows `ok` (gating) or `MISSING`.
 - Spend shows `spend unmeasured` until the spend ledger lands (the existing `EffortSpend::Unmeasured`).
-- Tasks in the tree show their purpose: `> project-1a2b` or `caused_by #217`.
+- Tasks in the tree show their purpose: `instruments project-3c4d`, `> project-1a2b` or `caused_by #217`.
 
 **New flags.** Both are signals (K5), rated by the one rating rule (design §1.3).
 
 | Flag | Measure | Line |
 |---|---|---|
-| `NoProgress(project)` | Spend on the project since the last improvement of any acceptance row on main. | `[projects] no_progress` in policy (owner sets). |
+| `NoProgress(project)` | Spend on the project since the last improvement of any acceptance row on main. In Accepted: spend since the last closed gap. | `[projects] no_progress` in policy (owner sets). |
 | `Regressed(project)` | The stage is Regressed. | Always raised. |
 
 "Spend since the last improvement" needs no time window. It reads main's push-run artifacts through the GitHub service cache.
@@ -178,48 +196,49 @@ goal: 84.7M / 1 delivered (7d)
 
 | Stage or rule | Where it is enforced |
 |---|---|
-| Proposed: no tasks attach | Fold: `serves` to a Proposed project is refused. |
-| Accepted: owner only | Fold: `ProjectAccepted` from an actor other than `owner` is refused. CI owner-event check (design §2) covers the budget rows it adds. |
-| Every task has a purpose | Fold (version 8). `meta claim` refuses an `Unlinked` task and names `meta serve` or `meta cause`. CI `TrackedWork` adds `Untracked::Unpurposed(task)`. |
-| Regressed: fixes are own goals | Fold: `serves` to a Regressed project is refused. The task needs `CausedBy { project: Some(p) }`. |
-| Delivered: on target and gating | `meta project observe` reads the artifact and writes `ProjectObserved` only on a passing guard. The `Observation` type requires the commit and run as evidence. A CI audit on push to main replays each `ProjectObserved` against its named run artifact and fails closed on a mismatch. |
-| Landing | `meta queue run` refuses a PR whose task is `Unlinked`. After each landing, it runs `meta project observe` for the projects that the landed tasks serve. |
-| Regressed: raised | `meta heartbeat tick` runs `meta project observe` for every Delivered project. |
-| Decisions | A decision blocks a project with `Blocks { by: Decision(d), selector: Project(p) }`. `meta claim` refuses a task that serves `p` while the decision is open. |
+| Proposed: no tasks attach | Fold: every purpose that names a Proposed project is refused. |
+| Accepted: owner only | Fold: `ProjectAccepted` from an actor other than `owner` is refused. CI owner-event check (design §2) covers the budget rows that instrumentation adds. |
+| Accepted: only instrumentation is claimed | `meta claim` refuses a `serves` task while its project is Accepted. The refusal names the gaps and the open `instruments` tasks. CI `TrackedWork` adds `Untracked::Uninstrumented(project)` for a PR of such a task. |
+| Instrumented: measured on main | `meta project observe` writes `Instrumented` only when every row is measured and every span is in the trace. A gap before delivery writes `Uninstrumented` and claims of `serves` tasks stop again. |
+| Every task has a purpose | Fold (version 8). `meta claim` refuses an `Unlinked` task and names `meta serve`, `meta instrument` or `meta cause`. CI `TrackedWork` adds `Untracked::Unpurposed(task)`. |
+| Regressed: fixes are own goals | Fold: `instruments` and `serves` to a Regressed project are refused. The task needs `CausedBy { project: Some(p) }`. |
+| Delivered: on target and gating | `meta project observe` reads the artifact and the trace and writes `ProjectObserved` only on a passing guard. The `Observation` type requires the commit and run as evidence. A CI audit on push to main replays each `ProjectObserved` against its named run artifact and fails closed on a mismatch. |
+| Landing | `meta queue run` refuses a PR whose task is `Unlinked`. After each landing, it runs `meta project observe` for the projects that the landed tasks instrument or serve. |
+| Regressed: raised | `meta heartbeat tick` runs `meta project observe` for every Instrumented, Active and Delivered project. |
+| Decisions | A decision blocks a project with `Blocks { by: Decision(d), selector: Project(p) }`. `meta claim` refuses a task with a purpose that names `p` while the decision is open. |
 
 ## 7. PR plan
 
 Each PR is small and comes off main. Each first commit is red first.
 
-1. **Schema.** `Project` entity, `Purpose`, `Cause`, `Root`, four events, `TaskOpened.purpose`, version 8. Red: round-trip and old-log rows fail.
-2. **Fold.** `ProjectState` typestate, the refusals in §1 and §6, `requires_purpose`. Red: a test that lists every refused transition.
-3. **CLI.** `meta project propose|accept|list`, `meta open --serves|--caused-by`, `meta serve`, `meta cause`. `meta claim` refuses `Unlinked`. Goldens re-recorded.
-4. **CI.** `TrackedWork` refuses `Unpurposed`. `meta queue run` refuses `Unlinked`.
+1. **Schema.** `Project` entity, `Purpose` (with `Instruments`), `Cause`, `Root`, `AcceptanceRow`, `Verdict`, four events, `TaskOpened.purpose`, `Amount` into `meta-schema`, version 8. Red: round-trip and old-log rows fail.
+2. **Fold.** `ProjectState` typestate with `Instrumented`, the attach table in §1, the refusals in §6, `requires_purpose`. Red: a test that lists every refused transition and attach.
+3. **CLI.** `meta project propose|accept|list`, `meta open --instruments|--serves|--caused-by`, `meta instrument`, `meta serve`, `meta cause`. `meta claim` refuses `Unlinked`, and refuses `serves` before Instrumented. Goldens re-recorded.
+4. **CI.** `TrackedWork` refuses `Unpurposed` and `Uninstrumented`. `meta queue run` refuses `Unlinked`.
 5. **Ledger artifact.** `xtask ci` writes `ledger.json` with `rows` and `gates` on push to main; the workflow uploads it. Shared with caps (design §7).
-6. **Observe.** `meta project observe` reads the artifact and the push run's trace (task-433270d3 uploads it) through meta-gh and writes `ProjectObserved`. Heartbeat and queue call it. The push-to-main audit replays observations.
-7. **Status.** Projects section, own-goal line, goal line, `NoProgress` and `Regressed` flags. Spend reads `Unmeasured` until task-41cdd344 lands.
+6. **Observe.** `meta project observe` reads the artifact and the push run's trace (task-433270d3 uploads it) through meta-gh and writes `ProjectObserved`: `Instrumented`, `Uninstrumented`, delivery and regression. Heartbeat and queue call it. The push-to-main audit replays observations.
+7. **Status.** Projects section with `needs:` for Accepted projects, own-goal line, goal line, `NoProgress` and `Regressed` flags. Spend reads `Unmeasured` until task-41cdd344 lands.
 8. **Derived causes.** Triage writes `caused_by` from batch attribution, reverts and regressions. Waits on the batch queue (design §9).
-9. **Seed.** No code. The lead writes `ProjectProposed` for §8 and attaches the open tasks with `TaskPurposed`. The owner accepts.
+9. **Seed.** No code. The lead writes `ProjectProposed` for §8, the owner writes `ProjectAccepted`, and the lead opens the instrumentation tasks first and attaches the open tasks with `TaskPurposed`.
 
 Order: 1, 2, 3, then 4, 5 and 7 in parallel, then 6, then 8. The owner accepted this design on 2026-10-30. PR 1 starts after the hook PRs land. The lead retires task-6d498ba4 into this task after PR 1.
 
-## 8. First projects for the owner to accept
+## 8. First projects
 
-The targets below are proposals. Each number is the owner's decision.
+The four projects start at Accepted. Each one has its instrumentation tasks first. Its serving tasks attach at once, but they can be claimed only after the project is Instrumented. The targets below are proposals. Each number is the owner's decision.
 
-| Project | Root | Acceptance budgets (on target = at or below warning) | Enforcement points | Serving tasks |
-|---|---|---|---|---|
-| **Tests below warn, no stray spawns** | `state` (test architecture) | Existing `test-time`, `test-cpu-time`, `slowest-test`, `git-processes`. New `test-spawns` (measure `test_spawns_outside_allowance`, count; proposed allowance 0, so the warning line is 0). | `Budget(test-spawns)` blocking per change; `Step(Test)`. | task-914f9a97 (test architecture) and its stack. |
-| **Dogfooding gate** | `process` | New `unleased-agent-starts` (agent starts with no live lease from `meta claim --agent`, count over the window; proposed 0). New `direct-merges` (main commits with no queue landing record, count; proposed 0). | `Hook(pre-tool-use agent)` (task-8065b583, PR #226); `Budget(direct-merges)` blocking, audited on push to main. | task-8065b583, task-a940d57c, task-71d90f14, task-cccccfaa, task-a3df18c7 (retire the stopgap at delivery). |
-| **Elegance lint gating** | `process` (a process that guards state) | New per-change budgets on the existing measures `effect_share`, `effect_dispersion`, `repeated_shapes`, and a parallel-vocabulary count (B26). Allowances: the owner sets them from today's readings. | `Budget(effect-share)`, `Budget(effect-dispersion)`, `Budget(repeated-shapes)` with overspend = block; `Step(Lint)`. | task-3b34f81b, task-4b4e69c3, task-e7d5c91c, task-e2574ad0. |
-| **Dependency-aware waterfalls** | `process` (owner, 2026-10-30): measure, then optimise. Known-expensive work gets spans automatically. Other work is optimised only after a waterfall shows it is expensive; then it is profiled and given spans. The waterfall tool is state that serves this process. | New `trace-unlinked-waits` (waits on the CI trace critical path with no `follows_from` edge, count; proposed 0). New `trace-untraced-share` (untraced share of the critical path; the owner sets the line). | `Budget(trace-unlinked-waits)` and `Budget(trace-untraced-share)` blocking per change on the uploaded CI trace. | task-9da916d3, task-433270d3, task-b6a65742. |
+| Project | Root | Acceptance rows (budget: measure, target) | Spans | Instrumentation tasks (first) | Enforcement points | Serving tasks |
+|---|---|---|---|---|---|---|
+| **Tests below warn, no stray spawns** | `state` (test architecture) | Existing `test-time`, `test-cpu-time`, `slowest-test`, `git-processes`, each with its current warning line as the target. New `test-spawns`: `test_spawns_outside_allowance`, target 0. | `Spawn(Program)` for each spawn in a test. | Add the `test_spawns_outside_allowance` measure, per-test spawn spans and the `test-spawns` row. | `Budget(test-spawns)` blocking per change; `Step(Test)`. | task-914f9a97 (test architecture) and its stack. |
+| **Dogfooding gate** | `process` | New `unleased-agent-starts`: agent starts with no live lease from `meta claim --agent`, target 0. New `direct-merges`: main commits with no queue landing record, target 0. | `Command(claim)`, `Command(hook)`, `Command(queue)`. | Add both measures (from the hook record and the push-to-main audit), the spans and both rows. | `Hook(pre-tool-use agent)` (task-8065b583, PR #226); `Budget(direct-merges)` blocking, audited on push to main. | task-8065b583, task-a940d57c, task-71d90f14, task-cccccfaa, task-a3df18c7 (retire the stopgap at delivery). |
+| **Elegance lint gating** | `process` (a process that guards state) | New rows on the existing measures `effect_share`, `effect_dispersion`, `repeated_shapes`, and a parallel-vocabulary count (B26). Targets: the owner sets them from the first readings. | A span for the xtask lint step (adds a `SpanKind` variant for xtask steps). | Add the B26 measure, the xtask step span and the four rows. | `Budget(effect-share)`, `Budget(effect-dispersion)`, `Budget(repeated-shapes)` with overspend = block; `Step(Lint)`. | task-3b34f81b, task-4b4e69c3, task-e7d5c91c, task-e2574ad0. |
+| **Dependency-aware waterfalls** | `process` (owner, 2026-10-30): measure, then optimise. Known-expensive work gets spans automatically. Other work is optimised only after a waterfall shows it is expensive; then it is profiled and given spans. The waterfall tool is state that serves this process. | New `trace-unlinked-waits`: waits on the CI trace critical path with no `follows_from` edge, target 0. New `trace-untraced-share`: untraced share of the critical path; the owner sets the target. | `Command(Verb)`, `Spawn(git)`, `Network(gh)` in the uploaded CI trace. | task-433270d3 (CI uploads one trace per run), task-b6a65742 (git spans at the port), and both rows. | `Budget(trace-unlinked-waits)` and `Budget(trace-untraced-share)` blocking per change on the uploaded CI trace. | task-9da916d3. |
 
-Each new budget row is one owner decision. It lands in its project's first serving PR, with `overspend = report` until the owner accepts the numbers. A row with `report` is not gating, so the project cannot reach Delivered until the owner switches it to `block`.
+Each new budget row starts with `overspend = report`. A row with `report` is not gating, so a project cannot reach Delivered until the owner switches the row to `block`.
 
 ## 9. Open questions
 
 - Naming: formal rules for names are a separate, deferred task (owner, 2026-10-30).
-- Measure before acceptance: the Accepted guard needs each acceptance `Measure` to exist on main. A Proposed project accepts no tasks. So who builds a new measure? Option: a Proposed project accepts one kind of task, which adds its measure and a `report` budget row, and that task's spend goes to the project.
 
 ## 10. Later: roots as the primary structure
 
