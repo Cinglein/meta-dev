@@ -34,6 +34,6 @@ impl GoldenRefresh {
             };
             Ok::<(), Failure>(checked.run()?)
         })?;
-        EleganceReport::measured(workspace)?.golden(workspace)
+        EleganceReport::golden(workspace)
     }
 }
