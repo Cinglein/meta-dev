@@ -5,6 +5,8 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use meta_run::{Budget, EnvPolicy, Environment, Ran, Run, RunFailure, Unread};
+use nix::sys::signal::kill;
+use nix::unistd::Pid;
 
 const SHELL: &str = "bash";
 const LEADS: &str = "kill -0 -- -$$ 2>/dev/null && echo leader; true";
@@ -29,7 +31,6 @@ const NESTED: &str = "set -m; (trap '' TERM; exec sh -c 'echo $$ >> \"$0\"; exec
 const RECORDED_LEN: usize = 9;
 const EXPIRED: &str = "deadline had passed";
 const STALLS: &str = "waiting for terminal input";
-const PS: [&str; 4] = ["ps", "-o", "stat=", "-p"];
 const POLL: Duration = Duration::from_millis(2);
 const NO_PROMPT: &str = "\"GIT_TERMINAL_PROMPT\": Some(\"0\")";
 const INHERITED: [(&str, &str); 6] = [
@@ -62,13 +63,12 @@ impl Scripted {
     }
 
     fn gone(pids: &Path) -> bool {
-        let listed: Vec<String> =
-            std::fs::read_to_string(pids).unwrap_or_default().split_whitespace().map(str::to_owned).collect();
+        let text = std::fs::read_to_string(pids).unwrap_or_default();
+        let listed: Vec<Pid> = text.split_whitespace().filter_map(|pid| pid.parse().ok()).map(Pid::from_raw).collect();
         let until = Instant::now() + PROMPT;
-        let ps = || Run::new(PS[0], EnvPolicy::Inherit).args(&PS[1..]).arg(listed.join(",")).stdout(until + PATIENT);
         let polls = std::iter::repeat_with(|| std::thread::sleep(POLL)).take_while(|()| Instant::now() < until);
-        let zombies = |states: String| states.lines().all(|state| state.starts_with('Z'));
-        listed.len() >= RECORDED_LEN && polls.into_iter().any(|()| zombies(ps().unwrap_or_default()))
+        let ended = || listed.iter().all(|pid| kill(*pid, None).is_err());
+        listed.len() >= RECORDED_LEN && polls.into_iter().any(|()| ended())
     }
 }
 
