@@ -1,11 +1,11 @@
 use std::fmt;
 
+use meta_text::Text;
 use serde::{Deserialize, Serialize};
 
 use crate::division::Division;
 use crate::entity::Project;
 use crate::id::Id;
-use crate::text::Text;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NewProject {

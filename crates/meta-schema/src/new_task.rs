@@ -1,5 +1,6 @@
 use std::fmt;
 
+use meta_text::Text;
 use serde::{Deserialize, Serialize};
 
 use crate::division::Division;
@@ -9,7 +10,6 @@ use crate::id::Id;
 use crate::placement::Placement;
 use crate::purpose::Purpose;
 use crate::target::Target;
-use crate::text::Text;
 use crate::tokens::Tokens;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

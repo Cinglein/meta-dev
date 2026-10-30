@@ -4,7 +4,6 @@ mod acceptance_rows;
 mod enforcement;
 mod gap;
 mod gating;
-mod label;
 mod observability;
 mod point_name;
 mod span_name;

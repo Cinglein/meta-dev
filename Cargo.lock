@@ -583,6 +583,7 @@ name = "meta-acceptance"
 version = "0.1.0"
 dependencies = [
  "meta-budget",
+ "meta-text",
  "serde",
  "thiserror",
 ]
@@ -727,6 +728,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "meta-acceptance",
+ "meta-text",
  "serde",
  "serde_json",
  "strum",
@@ -777,6 +779,15 @@ dependencies = [
  "meta-state",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "meta-text"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]

@@ -7,6 +7,4 @@ pub enum AcceptanceFailure {
     Ungated,
     #[error("budget {0} has two acceptance rows")]
     DuplicateBudget(BudgetId),
-    #[error("a span, step or hook name is one trimmed line")]
-    Blank,
 }

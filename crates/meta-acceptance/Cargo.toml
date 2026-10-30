@@ -8,6 +8,7 @@ license.workspace = true
 
 [dependencies]
 meta-budget.workspace = true
+meta-text.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 
