@@ -10,7 +10,7 @@ const MAIN: &str = "main";
 const LINKED: [&str; 2] = [".tmpgate", ".tmpother"];
 const DETACHED: &str = "detached-tmpgate";
 const ADMIN: &str = "worktrees/detached-tmpgate";
-const HERE: &str = ".";
+const UP: &str = "..";
 const OUTSIDE: &str = "top.rs";
 const SOURCE: &str = "consumer/a.rs";
 const BASE: &str = "refs/remotes/origin/main";
@@ -68,7 +68,7 @@ fn a_detached_worktree_is_named_after_its_path_leaves_no_branch_and_only_it_is_r
     let branch = opened.find_branch(DETACHED, git2::BranchType::Local).ok().map(drop);
     let named = opened.path().join(ADMIN).exists();
     assert!(named && branch.is_none() && head.commit() == Some(ObjectId::from(main.commit)) && head.branch().is_none());
-    main.opened().write(&WorktreeRemove::At(other.join(HERE))).unwrap();
+    main.opened().write(&WorktreeRemove::At(linked.join(UP).join(LINKED[1]))).unwrap();
     assert!(main.paths() == [canonical(&main.root.path().join(MAIN)), canonical(&linked)] && !other.exists());
     main.opened().write(&WorktreeRemove::At(linked.clone())).unwrap();
     assert!(main.paths() == [canonical(&main.root.path().join(MAIN))] && !linked.exists());
