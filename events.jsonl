@@ -1662,3 +1662,4 @@
 {"at":"2026-10-30T04:35:48.191889Z","actor":"claude-lead","kind":"TaskOpened","task":"task-914f9a9748b07f03","text":"Test architecture design: in-process integration tests through library entry points, git via the git2 port, a spawned-process budget per test ratcheting to zero, a small real-binary scenario set; then a gh stack","division":"performance-and-cost"}
 {"at":"2026-10-30T04:35:49.847872Z","actor":"claude-lead","kind":"TaskOpened","task":"task-c4045ac93eae25b9","text":"Project stock-take view: meta status shows each project's landed and open work and its measures against targets","division":"features-and-maintenance"}
 {"at":"2026-10-30T04:37:44.329329Z","actor":"claude-testarch","kind":"TaskClaimed","task":"task-914f9a9748b07f03"}
+{"at":"2026-10-30T04:37:57.666200Z","actor":"claude-dispatch","kind":"TaskClaimed","task":"task-8065b583f070e54b"}
