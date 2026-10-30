@@ -1696,3 +1696,4 @@
 {"at":"2026-10-30T05:08:32.612902Z","actor":"claude-projects","kind":"IssueReported","issue":"issue-1efa28173b46e38a","text":"claim --worktree with missing worktrees dir fails after git made .git/worktrees/<task>; retry fails until git worktree prune","division":"features-and-maintenance"}
 {"at":"2026-10-30T05:08:33.993840Z","actor":"claude-projects","kind":"IssueReported","issue":"issue-429873c3946deac1","text":"PostToolUse hook auto-linked PR #232 as actor owner, not the agent: hook env lacks META_ACTOR","division":"features-and-maintenance"}
 {"at":"2026-10-30T05:08:51.525492Z","actor":"claude-lead","kind":"EntryRetired","entry":"issue-1efa28173b46e38a","text":"duplicate of issue-a670a6917746ed8c; paydown task-75ca92c7 in flight"}
+{"at":"2026-10-30T05:08:53.101951Z","actor":"claude-lead","kind":"EntryRetired","entry":"issue-429873c3946deac1","text":"covered by task-a7a8abb166a22b18 (actor never defaults to owner)"}
