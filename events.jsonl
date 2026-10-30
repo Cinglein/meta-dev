@@ -1802,3 +1802,4 @@
 {"at":"2026-10-30T17:00:44.943944Z","actor":"claude-hooks2","kind":"TaskClaimed","task":"task-f8d74542230d659b"}
 {"at":"2026-10-30T17:05:47.998213Z","actor":"claude-teststack1","kind":"TaskReleased","task":"task-d53f262aff86547a"}
 {"at":"2026-10-30T17:06:32.451936Z","actor":"claude-teststack3","kind":"TaskClaimed","task":"task-d53f262aff86547a"}
+{"at":"2026-10-30T17:13:39.556037Z","actor":"claude-lead","kind":"TaskOpened","task":"task-db75b1839c7321d7","text":"Shell rules follow-up (#224 review): heredoc delimiters starting with digits or -; unlisted wrappers (caffeinate, stdbuf, coproc, trap, xargs -J); ANSI-C quotes; project [shell.valued] can't loosen.","division":"features-and-maintenance"}
