@@ -42,7 +42,11 @@ impl Dispatch {
     }
 
     pub fn announced() -> Result<Actor, CliFailure> {
-        let named = std::env::var(Self::ACTOR).ok().filter(|name| !name.is_empty());
+        Self::named(std::env::var(Self::ACTOR).ok())
+    }
+
+    fn named(variable: Option<String>) -> Result<Actor, CliFailure> {
+        let named = variable.filter(|name| !name.is_empty());
         let named = named.ok_or_else(|| CliFailure::raised::<Setup>(Self::UNANNOUNCED))?;
         named.parse().map_err(CliFailure::raised::<Invalid>)
     }

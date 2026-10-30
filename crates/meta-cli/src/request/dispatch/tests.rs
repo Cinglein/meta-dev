@@ -71,6 +71,12 @@ fn only_a_lease_line_naming_the_live_lease_of_its_open_task_admits_an_agent() {
 }
 
 #[test]
+fn a_dispatch_is_announced_only_by_a_non_empty_actor_name() {
+    let announced = [None, Some(String::new()), Some(OWNER.to_owned())].map(|variable| Dispatch::named(variable).ok());
+    assert_eq!(announced, [None, None, Some(OWNER.parse().unwrap())]);
+}
+
+#[test]
 fn a_rooted_dispatch_briefs_the_project_root() {
     let meta = Meta::default();
     let task = meta.run(OWNER, &OPEN).split_whitespace().nth(ID_INDEX).unwrap_or_default().to_owned();
