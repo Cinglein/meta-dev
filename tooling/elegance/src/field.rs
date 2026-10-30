@@ -25,6 +25,11 @@ impl Field {
     }
 
     #[must_use]
+    pub fn is_shared(&self) -> bool {
+        self.kind == FieldKind::Shared
+    }
+
+    #[must_use]
     pub fn kind(&self) -> FieldKind {
         self.kind
     }

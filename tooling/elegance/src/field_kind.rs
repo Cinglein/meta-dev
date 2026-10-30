@@ -7,6 +7,7 @@ pub enum FieldKind {
     Flag,
     Mode,
     Slot,
+    Shared,
     Plain,
 }
 
@@ -16,7 +17,7 @@ impl FieldKind {
         match self {
             FieldKind::Flag | FieldKind::Mode => &[WriteKind::Assigned],
             FieldKind::Slot => &[WriteKind::Assigned, WriteKind::Filled],
-            FieldKind::Plain => &[],
+            FieldKind::Shared | FieldKind::Plain => &[],
         }
     }
 }
@@ -27,6 +28,7 @@ impl fmt::Display for FieldKind {
             FieldKind::Flag => "bool",
             FieldKind::Mode => "local enum",
             FieldKind::Slot => "Option",
+            FieldKind::Shared => "interior mutability",
             FieldKind::Plain => "plain",
         })
     }

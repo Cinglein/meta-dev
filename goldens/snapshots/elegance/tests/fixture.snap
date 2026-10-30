@@ -12,7 +12,7 @@ catalog: 24 measures, report-only
   B10 typestate share of transitions [transition graph, higher]: not implemented
   B11 transition graph simplicity [transition graph, lower]: not implemented
   B12 unnamed field concepts [types, to zero]: 3
-  B13 types with LCOM4 above 1 [types, to zero]: 3
+  B13 types with LCOM4 above 1 [types, to zero]: 1
   B14 behavioural inherent methods [types, lower]: not implemented
   B15 bodies identical up to types [code, to zero]: not implemented
   B16 same-job paths per external effect [effects, lower]: measured by lint git_starters (partial)
@@ -110,11 +110,9 @@ B12 field concepts: maximal (types, named fields) concepts with at least 2 of ea
     types: fixture::Hatch, fixture::Vault
     share: hinge: Hinge; name: Name; size: Size
 B13 types whose method-field graph splits
-  rule: LCOM4 per type with fields, over its self methods keyed by trait and name; nodes are those methods and the fields; edges join a method to each field it reads or writes, to each self method it calls, and to the field of each accessor it calls; an accessor (body is self.f, &self.f or self.f = value) is not a node; a bare use of self joins every field; a method that touches nothing is left out
-  limits: syntactic: fields reached through helpers or locals and trait default bodies are not seen; a call is resolved by name to every method of the type with that name
-  found 3
-    fixture::Dial: 2 components [nudge] [raise, report]
-    fixture::Duo: 2 components [Debug::fmt] [Display::fmt]
+  rule: LCOM4 per type with fields, over its self methods keyed by trait and name; nodes are those methods and the fields; edges join a method to each field it reads or writes, to each self method it calls, and to the field of each accessor it calls; an accessor (body is self.f, &self.f or self.f = value) is not a node; a bare use of self joins every field; a method that touches nothing is left out; a self call that names no method or accessor of the type links nothing; on a type none of whose methods takes &mut self or writes a field and that has no Mutex, RwLock, RefCell, Cell, OnceCell or OnceLock field (a value or settings type), a method that reaches exactly one field is a projection and is left out
+  limits: syntactic: fields reached through helpers or locals and trait default bodies are not seen; a call is resolved by name to every method of the type with that name and, when several accessors share the name, to the field of each
+  found 1
     fixture::Gate: 2 components [fit, ready, sealed] [label]
 trait-graph shape
   graph edges: supertrait 1, blanket 4; depth 2
@@ -142,4 +140,4 @@ smell inventory scoring, informational: a finding flags an entry when a type or 
   B3 signatures declared in more than one trait [trait graph, to zero]: recall 0 of 0 tagged orthogonality []; other entries flagged 1 [split-duo]; noise 0 of 1 findings
   B9 hidden state fields [transition graph, to zero]: recall 0 of 0 tagged hidden-state []; other entries flagged 1 [split-duo]; noise 0 of 6 findings
   B12 unnamed field concepts [types, to zero]: recall 0 of 0 tagged field-concepts []; other entries flagged 1 [split-duo]; noise 0 of 3 findings
-  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 2 tagged lcom4 [split-duo]; other entries flagged 0 []; noise 0 of 3 findings
+  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 2 tagged lcom4 [split-duo]; other entries flagged 0 []; noise 0 of 1 findings

@@ -12,7 +12,7 @@ catalog: 24 measures, report-only
   B10 typestate share of transitions [transition graph, higher]: not implemented
   B11 transition graph simplicity [transition graph, lower]: not implemented
   B12 unnamed field concepts [types, to zero]: 26
-  B13 types with LCOM4 above 1 [types, to zero]: 43
+  B13 types with LCOM4 above 1 [types, to zero]: 13
   B14 behavioural inherent methods [types, lower]: not implemented
   B15 bodies identical up to types [code, to zero]: not implemented
   B16 same-job paths per external effect [effects, lower]: measured by lint git_starters (partial)
@@ -159,19 +159,19 @@ B12 field concepts: maximal (types, named fields) concepts with at least 2 of ea
     types: meta-cli::Parsed, meta-schema::NewConcern
     share: severity: Option<LevelName>; source: Option<Text>; tags: Vec<Tag>
 B13 types whose method-field graph splits
-  rule: LCOM4 per type with fields, over its self methods keyed by trait and name; nodes are those methods and the fields; edges join a method to each field it reads or writes, to each self method it calls, and to the field of each accessor it calls; an accessor (body is self.f, &self.f or self.f = value) is not a node; a bare use of self joins every field; a method that touches nothing is left out
-  limits: syntactic: fields reached through helpers or locals and trait default bodies are not seen; a call is resolved by name to every method of the type with that name
-  found 43
-    meta-cli::MonitorSettings: 7 components [cause, near] [mark_fresh, paced] [probe_deadline] [promotes] [shows] [start_slack] [stops]
-    meta-cli::CiSettings: 6 components [budget] [gh_limit, remaining] [queue_pace] [queue_patience, queue_turns] [remote_deadline] [run_overdue]
-    task::Package: 4 components [directory] [doctested, example] [local_dependencies] [publish]
-    task::PackageGraph: 4 components [containing] [dependents_closure, names] [published_in] [with_examples]
-    corpus_check::AnnotatedLine: 2 components [expectations] [Display::fmt]
-    corpus_check::AnnotatedSource: 2 components [expectations, Display::fmt] [source_file]
-    elegance::Normalizer: 2 components [abstracted, VisitMut::visit_path_arguments_mut, VisitMut::visit_path_mut] [VisitMut::visit_receiver_mut, VisitMut::visit_type_reference_mut]
+  rule: LCOM4 per type with fields, over its self methods keyed by trait and name; nodes are those methods and the fields; edges join a method to each field it reads or writes, to each self method it calls, and to the field of each accessor it calls; an accessor (body is self.f, &self.f or self.f = value) is not a node; a bare use of self joins every field; a method that touches nothing is left out; a self call that names no method or accessor of the type links nothing; on a type none of whose methods takes &mut self or writes a field and that has no Mutex, RwLock, RefCell, Cell, OnceCell or OnceLock field (a value or settings type), a method that reaches exactly one field is a projection and is left out
+  limits: syntactic: fields reached through helpers or locals and trait default bodies are not seen; a call is resolved by name to every method of the type with that name and, when several accessors share the name, to the field of each
+  found 13
+    elegance::FormalContext: 2 components [concepts, extent] [extents, reducible]
     elegance::Places: 2 components [of_trait, trait_at] [of_type, type_at]
-    elegance::Resolution: 2 components [called] [fields]
-    elegance::Smell: 2 components [is_flagged_by] [is_tagged]
+    elegance::Structure: 2 components [laid_out, layout] [methods_of, used]
+    elegance::Usage: 2 components [touch] [write]
+    meta-cli::CiSettings: 2 components [budget] [gh_limit]
+    meta-cli::Fixture: 2 components [added, worktrees] [commit_on, committed, committed_at, relogged, stepped, written]
+    meta-cli::Host: 2 components [lenders, noted, meta-cli::Inspection::cleared, meta-cli::Inspection::entry, meta-cli::Inspection::frozen, meta-cli::Inspection::neighbours, meta-cli::Inspection::occupancy, meta-cli::Inspection::text, meta-cli::Inspection::thawed, meta-cli::Inspection::uninspected, meta-cli::Inspection::walked] [meta-cli::Inspection::git]
+    meta-cli::Project: 2 components [born_after, checkout, created_after, git, head, independent_tips, lines, log, push_failure, reflog, remote_heads, repository, unprotected_branch, unpushed] [meta, path, unkept]
+    meta-pulls::LivePull: 2 components [open_base] [task]
+    meta-xtask::YamlNode: 2 components [child, items, scalar_of] [name, names]
 trait-graph shape
   graph edges: supertrait 3, blanket 0; depth 1
   blanket share: 0 of 799 trait impls = 0.00
@@ -206,4 +206,4 @@ smell inventory scoring, informational: a finding flags an entry when a type or 
   B3 signatures declared in more than one trait [trait graph, to zero]: recall 0 of 2 tagged orthogonality []; other entries flagged 0 []; noise 1 of 1 findings
   B9 hidden state fields [transition graph, to zero]: recall 1 of 4 tagged hidden-state [ledger-mode]; other entries flagged 0 []; noise 4 of 7 findings
   B12 unnamed field concepts [types, to zero]: recall 1 of 1 tagged field-concepts [new-concern-issue-task]; other entries flagged 9 [about-task-accessors, lint-report-family, option-unit-as-bool, record-new-clock, recorded-worktree-late-id, repeats-three-times, test-module-skip-per-lint, two-policy-toml-readers, use-tree-walkers]; noise 13 of 26 findings
-  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 4 tagged lcom4 [inspection-reads-and-writes]; other entries flagged 13 [git-argv-vocabulary-scattered, git-start-paths, gitdir-link-parsers, id-generators-random, kill-and-lsof-twice, local-journals, new-concern-issue-task, oncelock-caches-with-args, quarantine-stamp-string, session-seen-counter, stored-file-family, two-undo-mechanisms, type-name-reuse]; noise 34 of 43 findings
+  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 4 tagged lcom4 [inspection-reads-and-writes]; other entries flagged 3 [kill-and-lsof-twice, oncelock-caches-with-args, two-undo-mechanisms]; noise 12 of 13 findings

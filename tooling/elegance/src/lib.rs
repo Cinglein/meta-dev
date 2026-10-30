@@ -41,6 +41,8 @@ mod shared_signatures;
 mod signature;
 mod smell_inventory;
 mod source_path;
+#[cfg(test)]
+mod split_rows;
 mod structure;
 mod syn_source;
 mod tally;
@@ -217,55 +219,6 @@ mod tests {
         let capped: EleganceSettings = toml::from_str(SMALL_CAP).unwrap();
         let (hit, spared) = (Fixture::measured(capped), Fixture::by_default());
         assert!(hit.contains(INCOMPLETE) && !spared.contains(INCOMPLETE), "{hit}");
-    }
-
-    const SPLIT_ROWS: [[&str; 3]; 5] = [
-        [
-            "value type: single-field methods are projections",
-            "pub struct Hold { a: A, b: B } impl Hold { pub fn a_len(&self) -> usize { self.a.len() } pub fn b_len(&self) -> usize { self.b.len() } }",
-            "  found 0",
-        ],
-        [
-            "mutable type: single-field methods stay",
-            "pub struct Cell { a: A, b: B } impl Cell { pub fn a_bump(&mut self) { self.a.push(1) } pub fn b_bump(&mut self) { self.b.push(1) } }",
-            "  found 1\n    rows::Cell: 2 components [a_bump] [b_bump]",
-        ],
-        [
-            "value type: multi-field methods stay nodes",
-            "pub struct Hold { a: A, b: B, c: C } impl Hold { pub fn both(&self) -> usize { self.a.len() + self.b.len() } pub fn c_len(&self) -> usize { self.c.len() } pub fn all(&self) -> usize { self.b.len() + self.c.len() } }",
-            "  found 0",
-        ],
-        [
-            "unresolved self call does not link",
-            "pub struct Stub { a: A, b: B } impl Stub { pub fn first(&mut self) { self.a = 1; self.shared() } pub fn second(&mut self) { self.b = 2; self.shared() } }",
-            "  found 1\n    rows::Stub: 2 components [first] [second]",
-        ],
-        [
-            "duplicate accessor names reach every field",
-            "pub struct Twin { a: A, b: B } pub trait Named { fn name(&self) -> &B; } impl Twin { pub fn name(&self) -> &A { &self.a } pub fn show(&self) -> usize { self.name().len() } pub fn a_bump(&mut self) { self.a.push(1) } pub fn b_bump(&mut self) { self.b.push(1) } } impl Named for Twin { fn name(&self) -> &B { &self.b } }",
-            "  found 0",
-        ],
-    ];
-
-    #[test]
-    fn the_split_rows_hold() {
-        let wrong: Vec<&str> = SPLIT_ROWS
-            .iter()
-            .filter(|[_, source, expected]| {
-                let file = SourceFile::parse("rows/src/lib.rs", (*source).to_owned()).unwrap();
-                let files = [file.in_crate("rows".parse().unwrap())];
-                let report = Measures::measured(&SynSource::new(&files), &EleganceSettings::defaults()).to_string();
-                let section: Vec<&str> = report
-                    .lines()
-                    .skip_while(|line| !line.starts_with("B13"))
-                    .skip(3)
-                    .take_while(|line| line.starts_with("  "))
-                    .collect();
-                section.join("\n") != *expected
-            })
-            .map(|[name, _, _]| *name)
-            .collect();
-        assert!(wrong.is_empty(), "{wrong:?}");
     }
 
     #[test]

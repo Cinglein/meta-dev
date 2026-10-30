@@ -23,6 +23,7 @@ pub struct Declarations {
 impl Declarations {
     const FLAG: &'static str = "bool";
     const SLOT: &'static str = "Option";
+    const SHARED: [&'static str; 6] = ["Mutex", "RwLock", "RefCell", "Cell", "OnceCell", "OnceLock"];
 
     #[must_use]
     pub fn scanned(files: &[&SourceFile]) -> Declarations {
@@ -74,6 +75,7 @@ impl Declarations {
         match FactScan::named(ty) {
             Some(ident) if ident == Self::FLAG => FieldKind::Flag,
             Some(ident) if ident == Self::SLOT => FieldKind::Slot,
+            Some(ident) if Self::SHARED.iter().any(|shared| ident == shared) => FieldKind::Shared,
             Some(ident) if self.enums.contains(ident) => FieldKind::Mode,
             _ => FieldKind::Plain,
         }

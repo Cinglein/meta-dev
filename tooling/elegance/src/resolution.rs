@@ -9,7 +9,7 @@ use crate::usage_node::UsageNode;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Resolution {
     fields: BTreeSet<FieldName>,
-    accessors: BTreeMap<MethodName, FieldName>,
+    accessors: BTreeMap<MethodName, BTreeSet<FieldName>>,
     methods: BTreeMap<MethodName, BTreeSet<MethodKey>>,
 }
 
@@ -19,7 +19,10 @@ impl Resolution {
         let accessors = methods
             .iter()
             .filter_map(|method| method.accessed().map(|field| (method.key().name().clone(), field.clone())))
-            .collect();
+            .fold(BTreeMap::new(), |mut accessors: BTreeMap<MethodName, BTreeSet<FieldName>>, (name, field)| {
+                accessors.entry(name).or_default().insert(field);
+                accessors
+            });
         let methods = methods.iter().filter(|method| method.accessed().is_none()).map(|method| method.key()).fold(
             BTreeMap::new(),
             |mut methods: BTreeMap<MethodName, BTreeSet<MethodKey>>, key| {
@@ -37,9 +40,8 @@ impl Resolution {
 
     #[must_use]
     pub fn called(&self, name: &MethodName) -> Vec<UsageNode> {
-        let accessed = self.accessors.get(name).cloned().map(UsageNode::Field);
+        let accessed = self.accessors.get(name).into_iter().flatten().cloned().map(UsageNode::Field);
         let owned = self.methods.get(name).into_iter().flatten().cloned().map(UsageNode::Own);
-        let resolved: Vec<UsageNode> = accessed.into_iter().chain(owned).collect();
-        if resolved.is_empty() { vec![UsageNode::Call(name.clone())] } else { resolved }
+        accessed.chain(owned).collect()
     }
 }
