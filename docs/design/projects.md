@@ -17,7 +17,11 @@ The new value types are `Purpose` and `Root`. There are no new scales, no new le
 - `process`: enforcement. We bind ourselves to a better subset of actions than naive instinct.
 - `state`: architecture. This is everything we built, both features and own goals.
 
-Performance, cost and measurement are symptoms of these two roots. They are not a root. The Delivered guard is the pairing of the two roots: the measure on target is the state change, and the gating enforcement is the process that keeps it.
+Performance, cost and measurement are symptoms of these two roots. They are not a root.
+
+**Measurement is never its own root or its own project** (owner, 2026-10-30: "everything needs to be observable and measured by default"). It is a default part of every acceptance. Each acceptance names the observability that measures the project: its budget rows, its spans and its status line. If what a project builds cannot be observed, the project cannot be accepted.
+
+The Delivered guard is the pairing of the two roots: the measure on target is the state change, and the gating enforcement is the process that keeps it.
 
 ## 1. Typestate
 
@@ -26,10 +30,10 @@ Performance, cost and measurement are symptoms of these two roots. They are not 
 | From | To | Event | Guard | Who |
 |---|---|---|---|---|
 | — | Proposed | `ProjectProposed` | The goal text is not empty. The division is known. | Any actor. |
-| Proposed | Accepted | `ProjectAccepted` | The CLI checks that each acceptance budget id is in `tooling/policy.toml` on main. The type requires a root and at least one CI-side enforcement point (§3). | Owner only. |
+| Proposed | Accepted | `ProjectAccepted` | The CLI checks that each acceptance budget id is in `tooling/policy.toml` on main. The type requires a root and at least one CI-side enforcement point (§3). **Observable:** the type requires at least one span. The CLI checks that each acceptance budget has a `Measure` that the CI ledger produces, so its row can never read `unmeasured` by design. The projects section of status shows every Accepted project, so the status line needs no field. | Owner only. |
 | Accepted | Active | none (derived) | A task that serves the project has a holder. | — |
 | Active | Accepted | none (derived) | No task that serves the project has a holder. | — |
-| Accepted or Active | Delivered | `ProjectObserved` | Every acceptance row is on target on main. Every enforcement point is gating on main. The evidence names the main commit and its push run. | meta only (`meta project observe`). |
+| Accepted or Active | Delivered | `ProjectObserved` | Every acceptance row is measured and on target on main. Every named span is in the push run's trace. Every enforcement point is gating on main. The evidence names the main commit and its push run. | meta only (`meta project observe`). |
 | Delivered | Regressed | `ProjectObserved` | An acceptance row is off target on main, or an enforcement point stops gating. | meta only. |
 | Regressed | Delivered | `ProjectObserved` | The same guard as the first delivery. | meta only. |
 | Any | Retired | `EntryRetired` (existing) | Proposed: a reason. Accepted and later: owner only. | Proposed: the lead or the owner. Later: owner only. |
@@ -50,7 +54,7 @@ New events:
 | Event | Payload |
 |---|---|
 | `ProjectProposed` | `NewProject { project, text, division }` |
-| `ProjectAccepted` | `Acceptance { project, root: Root, target: Vec1<BudgetId>, enforcement: Vec1<Enforcement> }` |
+| `ProjectAccepted` | `Acceptance { project, root: Root, target: Vec1<BudgetId>, spans: Vec1<SpanKind>, enforcement: Vec1<Enforcement> }` |
 | `ProjectObserved` | `Observation { project, main: CommitId, run: RunId, verdict: OnTarget \| OffTarget(BudgetId) \| NotGating(Enforcement) }` |
 | `TaskPurposed` | `TaskPurpose { task, purpose: Purpose }` (attach an existing task) |
 
@@ -64,6 +68,8 @@ Root    = Process | State
 ```
 
 `root` is set at Accepted, not at Proposed. The owner decides it with the measure. A Proposed project has no root, so its type has no `root` field. A new root needs a new `ProjectAccepted` before delivery, as for the measure.
+
+`spans` names the trace spans that the project's output emits, such as a hook, a CI step or a command. `SpanKind` is the existing `meta-trace` type (`Command(Verb) | Spawn(Program) | Network(Program) | Fs`). A missing trace on main fails closed, so the project cannot be delivered.
 
 `Purpose` is one enum, so a task cannot both serve and be an own goal. The `project` in `CausedBy` only places the task under a project in status. Its spend stays an own goal.
 
@@ -190,7 +196,7 @@ Each PR is small and comes off main. Each first commit is red first.
 3. **CLI.** `meta project propose|accept|list`, `meta open --serves|--caused-by`, `meta serve`, `meta cause`. `meta claim` refuses `Unlinked`. Goldens re-recorded.
 4. **CI.** `TrackedWork` refuses `Unpurposed`. `meta queue run` refuses `Unlinked`.
 5. **Ledger artifact.** `xtask ci` writes `ledger.json` with `rows` and `gates` on push to main; the workflow uploads it. Shared with caps (design §7).
-6. **Observe.** `meta project observe` reads the artifact through meta-gh and writes `ProjectObserved`. Heartbeat and queue call it. The push-to-main audit replays observations.
+6. **Observe.** `meta project observe` reads the artifact and the push run's trace (task-433270d3 uploads it) through meta-gh and writes `ProjectObserved`. Heartbeat and queue call it. The push-to-main audit replays observations.
 7. **Status.** Projects section, own-goal line, goal line, `NoProgress` and `Regressed` flags. Spend reads `Unmeasured` until task-41cdd344 lands.
 8. **Derived causes.** Triage writes `caused_by` from batch attribution, reverts and regressions. Waits on the batch queue (design §9).
 9. **Seed.** No code. The lead writes `ProjectProposed` for §8 and attaches the open tasks with `TaskPurposed`. The owner accepts.
@@ -206,13 +212,14 @@ The targets below are proposals. Each number is the owner's decision.
 | **Tests below warn, no stray spawns** | `state` (test architecture) | Existing `test-time`, `test-cpu-time`, `slowest-test`, `git-processes`. New `test-spawns` (measure `test_spawns_outside_allowance`, count; proposed allowance 0, so the warning line is 0). | `Budget(test-spawns)` blocking per change; `Step(Test)`. | task-914f9a97 (test architecture) and its stack. |
 | **Dogfooding gate** | `process` | New `unleased-agent-starts` (agent starts with no live lease from `meta claim --agent`, count over the window; proposed 0). New `direct-merges` (main commits with no queue landing record, count; proposed 0). | `Hook(pre-tool-use agent)` (task-8065b583, PR #226); `Budget(direct-merges)` blocking, audited on push to main. | task-8065b583, task-a940d57c, task-71d90f14, task-cccccfaa, task-a3df18c7 (retire the stopgap at delivery). |
 | **Elegance lint gating** | `process` (a process that guards state) | New per-change budgets on the existing measures `effect_share`, `effect_dispersion`, `repeated_shapes`, and a parallel-vocabulary count (B26). Allowances: the owner sets them from today's readings. | `Budget(effect-share)`, `Budget(effect-dispersion)`, `Budget(repeated-shapes)` with overspend = block; `Step(Lint)`. | task-3b34f81b, task-4b4e69c3, task-e7d5c91c, task-e2574ad0. |
-| **Dependency-aware waterfalls** | Owner sets at acceptance. This is measurement, which serves both roots, and `Root` has only `process` and `state`. | New `trace-unlinked-waits` (waits on the CI trace critical path with no `follows_from` edge, count; proposed 0). New `trace-untraced-share` (untraced share of the critical path; the owner sets the line). | `Budget(trace-unlinked-waits)` and `Budget(trace-untraced-share)` blocking per change on the uploaded CI trace. | task-9da916d3, task-433270d3, task-b6a65742. |
+| **Dependency-aware waterfalls** | `process` (owner, 2026-10-30): measure, then optimise. Known-expensive work gets spans automatically. Other work is optimised only after a waterfall shows it is expensive; then it is profiled and given spans. The waterfall tool is state that serves this process. | New `trace-unlinked-waits` (waits on the CI trace critical path with no `follows_from` edge, count; proposed 0). New `trace-untraced-share` (untraced share of the critical path; the owner sets the line). | `Budget(trace-unlinked-waits)` and `Budget(trace-untraced-share)` blocking per change on the uploaded CI trace. | task-9da916d3, task-433270d3, task-b6a65742. |
 
 Each new budget row is one owner decision. It lands in its project's first serving PR, with `overspend = report` until the owner accepts the numbers. A row with `report` is not gating, so the project cannot reach Delivered until the owner switches it to `block`.
 
 ## 9. Open questions
 
 - Naming: formal rules for names are a separate, deferred task (owner, 2026-10-30).
+- Measure before acceptance: the Accepted guard needs each acceptance `Measure` to exist on main. A Proposed project accepts no tasks. So who builds a new measure? Option: a Proposed project accepts one kind of task, which adds its measure and a `report` budget row, and that task's spend goes to the project.
 
 ## 10. Later: roots as the primary structure
 
