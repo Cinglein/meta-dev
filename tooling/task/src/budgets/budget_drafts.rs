@@ -1,13 +1,12 @@
 use std::collections::BTreeMap;
 
+use meta_budget::{BudgetId, Percent};
 use serde::{Deserialize, Serialize};
 
 use super::Budgets;
 use super::budget::{Amount, Budget, Measure};
-use super::budget_id::BudgetId;
 use super::legacy_key::LegacyKey;
 use super::tree_failure::TreeFailure;
-use crate::percent::Percent;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(transparent)]

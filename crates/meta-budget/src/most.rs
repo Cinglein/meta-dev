@@ -1,11 +1,22 @@
-use derive_more::{Display, From};
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Display, From, Serialize, Deserialize,
-)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Most(usize);
+
+impl From<usize> for Most {
+    fn from(count: usize) -> Most {
+        Most(count)
+    }
+}
+
+impl fmt::Display for Most {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
 
 impl Most {
     #[must_use]
