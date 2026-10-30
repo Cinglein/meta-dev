@@ -84,3 +84,11 @@ fn unpushed_commits_skip_the_remote_and_held_ones_and_only_independent_tips_rema
     let object = repository.read(&LooseObject::from(second)).unwrap();
     assert!(tips == [second, side] && object.exists());
 }
+
+#[test]
+fn a_reflog_entry_whose_commit_is_gone_fails_the_whole_read() {
+    let root = tempfile::tempdir().unwrap();
+    let History { repository, second, .. } = History::made(root.path());
+    std::fs::remove_file(repository.read(&LooseObject::from(second)).unwrap()).unwrap();
+    assert!(Repository::open(root.path()).unwrap().read(&HeadReflog).is_err());
+}

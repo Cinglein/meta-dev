@@ -68,7 +68,7 @@ impl Project {
     }
 
     pub fn reflog(&self) -> Option<&[ReflogEntry]> {
-        self.reflog.get_or_init(|| self.read(&HeadReflog).map(|lines| ReflogEntry::read(&lines))).as_deref()
+        self.reflog.get_or_init(|| self.read(&HeadReflog).and_then(|lines| ReflogEntry::read(&lines).ok())).as_deref()
     }
 
     pub fn created_after(&self, start: &StartMoment) -> Option<Vec<Commit>> {

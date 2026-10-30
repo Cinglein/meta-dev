@@ -14,10 +14,7 @@ impl Query for HeadReflog {
 
     fn answered(&self, repository: &git2::Repository) -> Result<Vec<ReflogLine>, GitFailure> {
         let reflog = repository.reflog(Self::HEAD)?;
-        let lines = reflog.iter().filter_map(|entry| {
-            let commit = repository.find_commit(entry.id_new()).ok()?;
-            Some(ReflogLine::read(&entry, &commit))
-        });
-        Ok(lines.collect())
+        let lines = reflog.iter().map(|entry| Ok(ReflogLine::read(&entry, &repository.find_commit(entry.id_new())?)));
+        lines.collect()
     }
 }
