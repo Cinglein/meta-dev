@@ -34,3 +34,6 @@ impl fmt::Display for ProjectState {
         write!(formatter, "{} {}", self.project, self.progress.stage())
     }
 }
+
+#[cfg(test)]
+mod tests;
