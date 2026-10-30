@@ -1679,3 +1679,4 @@
 {"at":"2026-10-30T04:49:07.570526Z","actor":"claude-paydown","kind":"TaskClaimed","task":"task-24294f547ce72c66"}
 {"at":"2026-10-30T04:53:58.244656Z","actor":"claude-macos","kind":"TaskDone","task":"task-cc7b5ef79b0bb628"}
 {"at":"2026-10-30T04:55:18.949125Z","actor":"owner","kind":"TaskLinked","task":"task-914f9a9748b07f03","pr":229}
+{"at":"2026-10-30T04:55:29.754614Z","actor":"claude-testarch","kind":"IssueReported","issue":"issue-34b0d0c3a94b8b83","text":"claim --worktree with a missing worktrees dir fails and leaves .git/worktrees/<task>, so the retry fails with 'directory exists' until git worktree prune; rollback should remove the admin dir","division":"features-and-maintenance"}
