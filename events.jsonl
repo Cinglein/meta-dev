@@ -1714,3 +1714,4 @@
 {"at":"2026-10-30T06:32:52.806609Z","actor":"owner","kind":"TaskLinked","task":"task-b220f507cc5a058f","pr":236}
 {"at":"2026-10-30T06:43:11.393720Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-6d498ba438a6e5a1","text":"absorbed by task-7b6e5d9baadb95f8 (projects as items; design #232)"}
 {"at":"2026-10-30T06:43:12.899722Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-7b6e5d9baadb95f8","text":"Projects as typestated items with root, acceptance rows, spans, enforcement; Instrumented stage; tasks carry a Purpose; status shows projects first. Design #232. Detail in entry history."}
+{"at":"2026-10-30T06:43:14.293429Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-3e566f36be9eaf04","text":"Deferred: roots (process, state) as primary divisions, measurement a layer; signals diagnosed to a root before closing; absorbs task-f105a220. Design #232 §10."}
