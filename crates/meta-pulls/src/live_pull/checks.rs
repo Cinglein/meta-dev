@@ -18,6 +18,13 @@ impl Checks {
         }
     }
 
+    pub fn verdict(self) -> Verdict {
+        match self {
+            Self::Required(verdict) | Self::Unrequired(verdict) => verdict,
+            Self::Truncated | Self::Absent => Verdict::Pending,
+        }
+    }
+
     pub fn truncated(self) -> Option<()> {
         match self {
             Self::Truncated => Some(()),
