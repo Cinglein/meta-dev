@@ -32,4 +32,6 @@ pub use trunk::Trunk;
 #[cfg(test)]
 mod head_tests;
 #[cfg(test)]
+mod stack_tests;
+#[cfg(test)]
 mod stop_tests;
