@@ -8,7 +8,10 @@ pub use mutants_run::MutantsRun;
 
 use std::env;
 use std::fs;
+use std::io;
 use std::path::Path;
+
+use meta_git::{Reads as _, RelativeDiff, Repository};
 
 use affected::TestedCrates;
 use affected::{CrateLoad, Packing};
@@ -18,7 +21,7 @@ use task::Shard;
 use task::Site;
 use task::Workspace;
 use task::{Branch, BranchName, Interval, Policy};
-use task::{CargoArgument, CommandLine, GitArgument, MutantsArgument, Program, Stdout};
+use task::{CargoArgument, CommandLine, MutantsArgument};
 use test_packages::TestPackages;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -110,13 +113,11 @@ impl Scope {
     }
 
     fn write_diff(root: &Path, base: &BranchName, file: &Path) -> Result<(), Failure> {
-        let diff = CommandLine::new(Program::Git)
-            .in_directory(root.to_path_buf())
-            .argument(GitArgument::Diff)
-            .argument(GitArgument::Relative)
-            .argument(GitArgument::MergeBase)
-            .argument(base)
-            .captured::<Stdout>()?;
+        let unread = |error| Failure::Io { site: Site::File(root.to_path_buf()), error };
+        let repository = Repository::discovered(root).map_err(|failure| unread(io::Error::other(failure)))?;
+        let repository = repository.ok_or_else(|| unread(io::Error::from(io::ErrorKind::NotFound)))?;
+        let asked = RelativeDiff::new(base.as_ref().to_string_lossy().into_owned(), root.to_path_buf());
+        let diff = repository.read(&asked).map_err(|failure| unread(io::Error::other(failure)))?;
         fs::write(file, diff).map_err(|error| Failure::Io { site: Site::File(file.to_path_buf()), error })
     }
 }
@@ -124,30 +125,31 @@ impl Scope {
 #[cfg(test)]
 mod tests {
     use super::Scope;
-    use std::{env, fs, path::Path, process, process::Command};
+    use std::fs;
     const SOURCE: &str = "consumer/a.rs";
     const BASE: &str = "origin/main";
-    const RELATIVE: &str = "+++ b/a.rs";
-    const GIT: [&[&str]; 4] = [
-        &["init", "--quiet"],
-        &["add", "--all"],
-        &["-c", "user.name=t", "-c", "user.email=t@invalid", "commit", "--quiet", "-m", "t"],
-        &["update-ref", "refs/remotes/origin/main", "HEAD"],
-    ];
+    const TRACKING: &str = "refs/remotes/origin/main";
+    const EVERY: &str = "*";
+    const DIFF: &str = "mutants.diff";
+    const RELATIVE: &str = "--- a/a.rs\n+++ b/a.rs\n@@ -1 +1 @@\n-origin/main\n\\ No newline at end of file\n+consumer/a.rs\n\\ No newline at end of file\n";
 
     #[test]
     fn the_diff_of_a_workspace_below_the_git_top_level_names_paths_from_its_root() {
-        let repository = env::temp_dir().join(format!("meta-diff-{}", process::id()));
-        fs::create_dir_all(repository.join(SOURCE).parent().unwrap()).unwrap();
-        fs::write(repository.join(SOURCE), BASE).unwrap();
-        assert!(GIT.iter().all(|arguments| {
-            Command::new("git").args(*arguments).current_dir(&repository).status().unwrap().success()
-        }));
-        fs::write(repository.join(SOURCE), SOURCE).unwrap();
-        let file = repository.join("mutants.diff");
-        let root = repository.join(Path::new(SOURCE).parent().unwrap());
-        Scope::write_diff(&root, &BASE.parse().unwrap(), &file).unwrap();
-        assert!(fs::read_to_string(&file).unwrap().contains(RELATIVE));
-        fs::remove_dir_all(&repository).unwrap();
+        let repository = tempfile::tempdir().unwrap();
+        let source = repository.path().join(SOURCE);
+        fs::create_dir_all(source.parent().unwrap()).unwrap();
+        fs::write(&source, BASE).unwrap();
+        let git = git2::Repository::init(repository.path()).unwrap();
+        let mut index = git.index().unwrap();
+        index.add_all([EVERY], git2::IndexAddOption::DEFAULT, None).unwrap();
+        index.write().unwrap();
+        let tree = git.find_tree(index.write_tree().unwrap()).unwrap();
+        let signature = git2::Signature::now(BASE, BASE).unwrap();
+        let commit = git.commit(None, &signature, &signature, BASE, &tree, &[]).unwrap();
+        git.reference(TRACKING, commit, true, BASE).and(git.set_head_detached(commit)).unwrap();
+        fs::write(&source, SOURCE).unwrap();
+        let file = repository.path().join(DIFF);
+        Scope::write_diff(source.parent().unwrap(), &BASE.parse().unwrap(), &file).unwrap();
+        assert!(fs::read_to_string(&file).unwrap().ends_with(RELATIVE));
     }
 }
