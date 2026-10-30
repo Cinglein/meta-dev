@@ -1,11 +1,7 @@
 use meta_pull_query::LiveData;
-use meta_pulls::{Action, Departure, Patience, Stop, TransitionVisitor};
+use meta_pulls::{Action, Departure, Patience, PullState, Stop, TransitionVisitor};
 use meta_schema::PullRequest;
 use meta_state::State;
-
-mod departed;
-
-use departed::Departed;
 
 use super::HeadWatch;
 use super::watched::Watched;
@@ -32,10 +28,9 @@ impl<'watch> Turn<'watch> {
     }
 
     pub fn landed(self, patience: Patience) -> Option<Result<Option<Watched>, CliFailure>> {
-        let head = self.live.pull(self.watch.pull_request())?.head(self.watch.trunk());
-        let departure = head.step(patience).visit(Departed)?;
-        departure.landed()?;
-        Some(self.left(departure))
+        let ruled = self.live.pull(self.watch.pull_request()).filter(|ruled| ruled.state() == PullState::Merged)?;
+        let transition = ruled.head(self.watch.trunk()).step(patience);
+        Some(transition.visit(self))
     }
 }
 

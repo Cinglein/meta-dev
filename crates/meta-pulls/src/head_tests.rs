@@ -31,8 +31,8 @@ impl TransitionVisitor for Argv {
         String::new()
     }
 
-    fn left(self, _: Departure) -> String {
-        String::new()
+    fn left(self, departure: Departure) -> String {
+        departure.landed().map(|landed| format!(" => lands {landed}")).unwrap_or_default()
     }
 }
 

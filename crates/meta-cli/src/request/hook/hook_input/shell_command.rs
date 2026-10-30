@@ -144,11 +144,12 @@ mod tests {
         "git push --force-with-lease origin main",
         "git --no-pager push origin main",
     ];
-    const ALLOWED: [&str; 4] = [
+    const ALLOWED: [&str; 5] = [
         "git push -u origin feature",
         "git push --force-with-lease origin feature",
         "git commit -m 'git push origin main'",
         "gh pr view 1",
+        "meta status --flags",
     ];
     const PUSH_REASON: &str = "git push";
     const LOG_CONFIG: &str = "protected = [\"main\", \"meta/log\", \"meta/logs\"]\nlog_branches = [\"meta/log\"]\n";

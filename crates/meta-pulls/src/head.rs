@@ -7,8 +7,6 @@ mod green;
 mod red;
 mod unmergeable;
 
-use std::fmt;
-
 use crate::patience::Patience;
 use crate::transition::Transition;
 pub use barred::Barred;
@@ -45,20 +43,5 @@ impl Head {
             Self::Unmergeable(unmergeable) => unmergeable.stopped(),
             Self::Checking(checking) => checking.waited(patience),
         }
-    }
-}
-
-impl fmt::Display for Head {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::Gone(_) => "gone",
-            Self::Barred(_) => "barred",
-            Self::Conflicted(_) => "conflicted",
-            Self::Red(_) => "red",
-            Self::Behind(_) => "behind",
-            Self::Green(_) => "green",
-            Self::Unmergeable(_) => "unmergeable",
-            Self::Checking(_) => "checking",
-        })
     }
 }

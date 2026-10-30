@@ -48,16 +48,15 @@ impl<'run> HeadWatch<'run> {
 
     pub fn acted(&self, action: Action) -> Result<Option<Watched>, CliFailure> {
         let called = action.call().map(|call| GhCalls::new(self.project).called(call, action.operands()));
-        called.and_then(Result::err).map_or_else(|| Ok(self.paced()), |refusal| self.rechecked(action, refusal))
+        let paced = || {
+            std::thread::sleep(self.pace);
+            Ok(None)
+        };
+        called.and_then(Result::err).map_or_else(paced, |refusal| self.rechecked(action, refusal))
     }
 
     pub fn closed(&self, close_out: CloseOut) -> Result<Listed, CliFailure> {
         close_out.entered(&self.project.log(self.project.ci_settings().budget(CiSettings::ROUTINE))?)
-    }
-
-    fn paced(&self) -> Option<Watched> {
-        std::thread::sleep(self.pace);
-        None
     }
 
     fn polled(&self) -> Result<Option<Watched>, CliFailure> {
@@ -85,3 +84,6 @@ impl<'run> HeadWatch<'run> {
         Ok(live.map(|live| Turn::new(self, state, live)).map_err(GhRefusal::new))
     }
 }
+
+#[cfg(test)]
+mod tests;
