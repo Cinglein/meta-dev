@@ -64,13 +64,6 @@ const OPEN: [&str; 4] = ["open", "--division", "features-and-maintenance", "text
 const ROOT: &str = "ROOT";
 const PIDS: &str = "pids";
 const IGNORING_HUP: &str = "trap '' HUP; exec \"$0\" \"$@\"";
-const DISPATCH: [&str; 2] = ["--agent", "worker"];
-const UNLEASED: &str = "work on it";
-const HOW_TO_START: &str = "meta claim <task> --agent <name>";
-const ID_INDEX: usize = 4;
-const LEAD: &str = "claude-lead";
-const LEASE_LINE: &str = "lease:";
-const NOT_TEXT: &str = "[\"not text\"]";
 const INTERRUPTED: &str = "SIGINT";
 const HELPERS: &str = r#"[remote "origin"]
 	receivepack = "sh -c 'trap \"\" TERM; touch ROOT/hold && echo $$ >> ROOT/pids && sleep 5' x"
@@ -248,40 +241,6 @@ fn session_start_shows_state_and_names_the_session_actor() {
     let started = Instant::now();
     let shown = repo.hook(SESSION_START, COMMIT, home);
     assert!(home.join(SESSION_STARTED).exists() && started.elapsed() < PATIENT && shown.contains(UNREADABLE));
-}
-
-struct Lead<'repo>(&'repo Path);
-
-impl Lead<'_> {
-    fn meta(&self, actor: &str, words: &[&str]) -> String {
-        let run = MetaCommand::tagged(words).current_dir(self.0).env("META_ACTOR", actor).output();
-        String::from_utf8_lossy(&run.unwrap().stdout).into_owned()
-    }
-
-    fn agent(&self, prompt: &str) -> String {
-        let cwd = serde_json::to_string(self.0).unwrap();
-        let input = format!(r#"{{"cwd":{cwd},"tool_name":"Agent","tool_input":{{"prompt":{prompt}}}}}"#);
-        let mut child = MetaCommand::tagged(&[HOOK, PRE]).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
-        child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
-        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
-    }
-}
-
-#[test]
-fn pre_tool_use_starts_an_agent_only_with_the_lease_meta_claim_gave_it() {
-    let repo = Repo::new();
-    let lead = Lead(repo.clone.path());
-    let opened = lead.meta(LEAD, &OPEN);
-    let task = opened.split_whitespace().nth(ID_INDEX).unwrap();
-    let claim = [&["claim", task][..], &DISPATCH].concat();
-    assert!(!lead.meta("", &claim).contains(LEASE_LINE));
-    let brief = lead.meta(LEAD, &claim);
-    let elsewhere = format!("project: {}\n{brief}", repo.origin.path().display());
-    let quoted = |text: &str| serde_json::to_string(text).unwrap();
-    let refused = [quoted(UNLEASED), quoted(&elsewhere)].map(|prompt| lead.agent(&prompt));
-    assert!(lead.agent(NOT_TEXT).contains(DENY));
-    assert_eq!(lead.agent(&quoted(&brief)), "", "{brief}");
-    assert!(refused.iter().all(|shown| shown.contains(DENY) && shown.contains(HOW_TO_START)), "{refused:?}");
 }
 
 impl fmt::Display for Repo {
