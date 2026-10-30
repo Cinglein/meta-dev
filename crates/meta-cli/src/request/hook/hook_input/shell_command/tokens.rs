@@ -18,6 +18,9 @@ pub struct Tokens {
 }
 
 impl Tokens {
+    const OPEN: &'static str = "(";
+    const CLOSE: &'static str = ")";
+
     pub fn segments(&self) -> impl Iterator<Item = &[String]> {
         self.segments.iter().map(Segment::words)
     }
@@ -28,6 +31,24 @@ impl Tokens {
 
     pub fn breach(&self) -> Option<&'static str> {
         self.breach.map(Breach::reason)
+    }
+
+    pub fn flattened(self, nested: &dyn Fn(&[String]) -> Option<String>) -> Self {
+        let start = Self { segments: Vec::new(), breach: self.breach };
+        self.segments.into_iter().fold(start, |flat, part| flat.followed_by(part, nested))
+    }
+
+    fn followed_by(self, part: Segment, nested: &dyn Fn(&[String]) -> Option<String>) -> Self {
+        let inner =
+            nested(part.words()).and_then(|text| text.parse::<Self>().ok()).map(|inner| inner.flattened(nested));
+        match inner {
+            None => self.extended(part),
+            Some(inner) => {
+                let fenced = self.extended(part).extended(Segment::lone(Self::OPEN));
+                let inside = inner.segments.into_iter().fold(fenced, Self::extended);
+                inside.extended(Segment::lone(Self::CLOSE)).flagged(inner.breach)
+            }
+        }
     }
 
     fn extended(mut self, segment: Segment) -> Self {
