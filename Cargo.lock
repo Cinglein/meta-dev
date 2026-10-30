@@ -584,13 +584,12 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "git2",
- "libc",
- "libproc",
  "meta-gh",
  "meta-git",
  "meta-golden",
  "meta-listing",
  "meta-log",
+ "meta-process-table",
  "meta-pull-query",
  "meta-pulls",
  "meta-run",
@@ -663,6 +662,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "meta-process-table"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "libproc",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "meta-pull-query"
 version = "0.1.0"
 dependencies = [
@@ -677,8 +686,11 @@ dependencies = [
 name = "meta-pulls"
 version = "0.1.0"
 dependencies = [
+ "meta-golden",
+ "meta-run",
  "meta-schema",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

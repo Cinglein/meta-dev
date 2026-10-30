@@ -14,7 +14,7 @@ wire_types = [
     "std::any::Any",
     "core::any::Any",
 ]
-bit_boundary = ["crates/meta-cli/src/request/local/local_clone/vetting/host/process_table"]
+bit_boundary = ["crates/meta-process-table/src"]
 gate = "local-gate"
 gate_wait = 600000
 surfaces = [
@@ -91,6 +91,7 @@ discover_every = 100
 per_crate = 21000
 test_timeout = 30000
 job_setup = 90000
+queue_pace = 60000
 
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]
@@ -99,6 +100,9 @@ full_run = ["every_main_push", "weekly", "on_demand"]
 silent_after = 1800000
 long_call_after = 3600000
 reply_within = 3600000
+
+[queue]
+landers = ["owner", "claude-lead"]
 
 [domains.features-and-maintenance]
 crates = ["*"]

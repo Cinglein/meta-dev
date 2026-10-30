@@ -19,6 +19,7 @@ use crate::request::ci::{SessionDir, Watcher};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
 use crate::request::output::{Listed, Output};
 use crate::request::project::{CiSettings, Config, Project};
+use crate::request::scale_policy::ScalePolicy;
 pub use call_phase::CallPhase;
 use hook_input::HookInput;
 use linking::Linking;
@@ -134,7 +135,10 @@ impl HookEvent {
                 self,
                 input
                     .command()
-                    .and_then(|command| command.refusal(project.config()))
+                    .and_then(|command| {
+                        let policy = ScalePolicy::read(project.root()).ok().unwrap_or_default();
+                        command.refusal(project.config(), policy.queue().lander(input.announced_actor()).as_ref())
+                    })
                     .or_else(|| input.refusal())
                     .or_else(|| input.unpushable(project, Self::PUSH))
                     .map(Denial::from)

@@ -21,6 +21,7 @@ meta-status = { path = "crates/meta-status" }
 meta-severity = { path = "crates/meta-severity" }
 meta-pulls = { path = "crates/meta-pulls" }
 meta-pull-query = { path = "crates/meta-pull-query" }
+meta-process-table = { path = "crates/meta-process-table" }
 meta-trace = { path = "crates/meta-trace" }
 tracing = { version = "0.1.44", default-features = false, features = ["std"] }
 chrono = { version = "0.4.44", default-features = false, features = ["std", "clock", "serde"] }
