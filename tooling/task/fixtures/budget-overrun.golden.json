@@ -1,0 +1,14 @@
+{
+  "failures": [
+    {
+      "kind": "budget",
+      "measure": "test_wall_time",
+      "spend": "8001ms"
+    },
+    {
+      "kind": "budget",
+      "measure": "test_wall_time",
+      "spend": "8001ms"
+    }
+  ]
+}

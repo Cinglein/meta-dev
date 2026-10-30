@@ -49,6 +49,8 @@ pub enum CargoArgument {
     Color,
     #[strum(serialize = "never")]
     Never,
+    #[strum(serialize = "--message-format=json")]
+    MessageFormatJson,
     #[strum(serialize = "--jobs")]
     Jobs,
     #[strum(serialize = "--format-version=1")]
