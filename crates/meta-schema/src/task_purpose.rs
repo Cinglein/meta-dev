@@ -17,6 +17,11 @@ impl TaskPurpose {
     pub fn task(&self) -> Id<Task> {
         self.task
     }
+
+    #[must_use]
+    pub fn purpose(&self) -> Purpose {
+        self.purpose
+    }
 }
 
 impl fmt::Display for TaskPurpose {

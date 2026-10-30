@@ -2,16 +2,18 @@ mod anomaly;
 mod applying;
 mod concern_state;
 mod issue_state;
+mod projects;
 mod retired;
 mod vetting;
 
 use std::collections::HashMap;
 
 use meta_schema::{
-    Actor, Block, Entry, EntryNote, Id, PullRequest, Record, Relocation, Rerating, SchemaVersion, Target, Task,
-    TaskLink, Text,
+    Actor, Block, Entry, EntryNote, Id, Project, PullRequest, Record, Relocation, Rerating, SchemaVersion, Target,
+    Task, TaskLink, Text,
 };
 
+use crate::project_stage::ProjectStage;
 use crate::rated_item::RatedItem;
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
@@ -20,6 +22,7 @@ use anomaly::Anomaly;
 use applying::Applying;
 use concern_state::ConcernState;
 use issue_state::IssueState;
+use projects::Projects;
 pub use retired::Retired;
 use vetting::Vetting;
 
@@ -33,6 +36,7 @@ pub struct State {
     anomalies: Vec<Anomaly>,
     retired: HashMap<Entry, Retired>,
     schema: Option<SchemaVersion>,
+    projects: Projects,
 }
 
 impl State {
@@ -89,6 +93,11 @@ impl State {
         self.task(task)
             .map(|task| task.progress().assignments().iter().map(|stamp| stamp.actor().clone()).collect())
             .unwrap_or_default()
+    }
+
+    #[must_use]
+    pub fn project_stage(&self, project: Id<Project>) -> Option<ProjectStage> {
+        self.projects.stage(project, |task| !self.holders(task).is_empty())
     }
 
     #[must_use]

@@ -1,3 +1,4 @@
+mod project_stage;
 mod rated_item;
 mod refusal;
 mod stamp;
@@ -5,6 +6,7 @@ mod state;
 mod summary;
 mod task_state;
 
+pub use project_stage::ProjectStage;
 pub use rated_item::RatedItem;
 pub use refusal::Refusal;
 pub use state::State;

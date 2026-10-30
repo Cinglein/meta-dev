@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 meta-schema.workspace = true
 chrono.workspace = true
+strum.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

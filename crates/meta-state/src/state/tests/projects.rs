@@ -1,6 +1,9 @@
 use meta_schema::Event;
 
 use super::{ALICE, OWNER, Script};
+use crate::project_stage::ProjectStage;
+use crate::refusal::Refusal;
+use crate::state::State;
 
 const META: &str = "meta";
 const PROPOSE: &str = r#"{"kind":"ProjectProposed","project":"project-00000000000000a1","text":"p","division":"architecture-and-planning"}"#;
@@ -45,32 +48,51 @@ const ACCEPTED: &[Step] = HISTORY.split_at(6).0;
 const MEASURED: &[Step] = HISTORY.split_at(7).0;
 const DELIVERED: &[Step] = HISTORY.split_at(8).0;
 const REGRESSED: &[Step] = &HISTORY;
-const REFUSED: [(&[Step], Step); 25] = [
-    (UNPROPOSED, Step::written(ALICE, SERVES)),
-    (PROPOSED, Step::written(ALICE, PROPOSE)),
-    (PROPOSED, Step::written(ALICE, ACCEPT)),
-    (PROPOSED, Step::written(META, INSTRUMENTED)),
-    (PROPOSED, Step::written(ALICE, INSTRUMENTS)),
-    (PROPOSED, Step::written(ALICE, SERVES)),
-    (PROPOSED, Step::written(ALICE, CAUSED_IN)),
-    (PROPOSED, Step::written(ALICE, OPENED_SERVING)),
-    (PROPOSED, Step::written(ALICE, SERVES_GHOST)),
-    (ACCEPTED, Step::written(META, UNINSTRUMENTED)),
-    (ACCEPTED, Step::written(META, ON_TARGET)),
-    (ACCEPTED, Step::written(ALICE, REPURPOSED_OPENED)),
-    (ACCEPTED, Step::written(ALICE, REPURPOSED)),
-    (MEASURED, Step::written(META, INSTRUMENTED)),
-    (MEASURED, Step::written(META, OFF_TARGET)),
-    (MEASURED, Step::written(META, NOT_GATING)),
-    (DELIVERED, Step::written(OWNER, ACCEPT)),
-    (DELIVERED, Step::written(META, ON_TARGET)),
-    (DELIVERED, Step::written(META, INSTRUMENTED)),
-    (DELIVERED, Step::written(ALICE, INSTRUMENTS)),
-    (DELIVERED, Step::written(ALICE, SERVES)),
-    (REGRESSED, Step::written(OWNER, ACCEPT)),
-    (REGRESSED, Step::written(META, OFF_TARGET)),
-    (REGRESSED, Step::written(ALICE, INSTRUMENTS)),
-    (REGRESSED, Step::written(ALICE, SERVES)),
+const CLAIM: &str = r#"{"kind":"TaskClaimed","task":"task-00000000000000c1"}"#;
+const PROJECT: &str = "project-00000000000000a1";
+const GHOST: &str = "project-00000000000000b2";
+const ON_PROPOSED: Refusal = Refusal::Unattachable(ProjectStage::Proposed);
+const ON_DELIVERED: Refusal = Refusal::Unattachable(ProjectStage::Delivered);
+const ON_REGRESSED: Refusal = Refusal::Unattachable(ProjectStage::Regressed);
+const REFUSED: [(&[Step], Step, Refusal); 23] = [
+    (PROPOSED, Step::written(ALICE, PROPOSE), Refusal::DuplicateId),
+    (PROPOSED, Step::written(ALICE, ACCEPT), Refusal::NotOwner),
+    (PROPOSED, Step::written(META, INSTRUMENTED), Refusal::ProjectIs(ProjectStage::Proposed)),
+    (PROPOSED, Step::written(ALICE, INSTRUMENTS), ON_PROPOSED),
+    (PROPOSED, Step::written(ALICE, SERVES), ON_PROPOSED),
+    (PROPOSED, Step::written(ALICE, CAUSED_IN), ON_PROPOSED),
+    (PROPOSED, Step::written(ALICE, OPENED_SERVING), ON_PROPOSED),
+    (ACCEPTED, Step::written(META, UNINSTRUMENTED), Refusal::Unchanged),
+    (ACCEPTED, Step::written(META, ON_TARGET), Refusal::Unchanged),
+    (ACCEPTED, Step::written(ALICE, REPURPOSED_OPENED), Refusal::AlreadyPurposed),
+    (ACCEPTED, Step::written(ALICE, REPURPOSED), Refusal::AlreadyPurposed),
+    (MEASURED, Step::written(META, INSTRUMENTED), Refusal::Unchanged),
+    (MEASURED, Step::written(META, OFF_TARGET), Refusal::Unchanged),
+    (MEASURED, Step::written(META, NOT_GATING), Refusal::Unchanged),
+    (DELIVERED, Step::written(OWNER, ACCEPT), Refusal::ProjectIs(ProjectStage::Delivered)),
+    (DELIVERED, Step::written(META, ON_TARGET), Refusal::Unchanged),
+    (DELIVERED, Step::written(META, INSTRUMENTED), Refusal::Unchanged),
+    (DELIVERED, Step::written(ALICE, INSTRUMENTS), ON_DELIVERED),
+    (DELIVERED, Step::written(ALICE, SERVES), ON_DELIVERED),
+    (REGRESSED, Step::written(OWNER, ACCEPT), Refusal::ProjectIs(ProjectStage::Regressed)),
+    (REGRESSED, Step::written(META, OFF_TARGET), Refusal::Unchanged),
+    (REGRESSED, Step::written(ALICE, INSTRUMENTS), ON_REGRESSED),
+    (REGRESSED, Step::written(ALICE, SERVES), ON_REGRESSED),
+];
+const STAGES: [(&[Step], &[Step], ProjectStage); 13] = [
+    (PROPOSED, &[], ProjectStage::Proposed),
+    (ACCEPTED, &[], ProjectStage::Accepted),
+    (MEASURED, &[], ProjectStage::Instrumented),
+    (DELIVERED, &[], ProjectStage::Delivered),
+    (REGRESSED, &[], ProjectStage::Regressed),
+    (MEASURED, &[Step::written(ALICE, SERVES)], ProjectStage::Instrumented),
+    (MEASURED, &[Step::written(ALICE, SERVES), Step::written(ALICE, CLAIM)], ProjectStage::Active),
+    (MEASURED, &[Step::written(META, UNINSTRUMENTED)], ProjectStage::Accepted),
+    (MEASURED, &[Step::written(OWNER, ACCEPT)], ProjectStage::Accepted),
+    (REGRESSED, &[Step::written(META, ON_TARGET)], ProjectStage::Delivered),
+    (DELIVERED, &[Step::written(META, NOT_GATING)], ProjectStage::Regressed),
+    (DELIVERED, &[Step::written(META, UNINSTRUMENTED)], ProjectStage::Regressed),
+    (REGRESSED, &[Step::written(ALICE, CAUSED_IN)], ProjectStage::Regressed),
 ];
 
 struct Step {
@@ -93,8 +115,32 @@ impl Step {
 }
 
 #[test]
-fn every_refused_project_transition_and_attach_is_refused() {
-    let accepted =
-        REFUSED.iter().enumerate().filter(|(_, (log, step))| Step::replayed(log).vet(step.actor, step.event()).is_ok());
-    assert_eq!(accepted.map(|(row, _)| row).collect::<Vec<usize>>(), Vec::<usize>::new());
+fn every_refused_project_transition_and_attach_names_its_refusal() {
+    let found: Vec<Result<(), Refusal>> =
+        REFUSED.iter().map(|(log, step, _)| Step::replayed(log).vet(step.actor, step.event())).collect();
+    let expected: Vec<Result<(), Refusal>> = REFUSED.iter().map(|(.., refusal)| Err(refusal.clone())).collect();
+    assert_eq!(found, expected);
+}
+
+#[test]
+fn a_purpose_naming_an_unknown_project_is_refused() {
+    let unproposed = Step::replayed(UNPROPOSED).vet(ALICE, Step::written(ALICE, SERVES).event());
+    let ghost = Step::replayed(PROPOSED).vet(ALICE, Step::written(ALICE, SERVES_GHOST).event());
+    let refused = [PROJECT, GHOST].map(|project| Err(Refusal::UnknownProject(project.parse().unwrap())));
+    assert_eq!([unproposed, ghost], refused);
+}
+
+#[test]
+fn the_fold_reaches_each_stage_and_active_needs_a_held_serving_task() {
+    let folded: Vec<(Option<ProjectStage>, usize)> = STAGES
+        .iter()
+        .map(|(log, then, _)| {
+            let state = State::fold(
+                &then.iter().fold(Step::replayed(log), |script, step| script.then(step.actor, step.event())).records,
+            );
+            (state.project_stage(PROJECT.parse().unwrap()), state.anomalies().len())
+        })
+        .collect();
+    let expected: Vec<(Option<ProjectStage>, usize)> = STAGES.iter().map(|(.., stage)| (Some(*stage), 0)).collect();
+    assert_eq!(folded, expected);
 }
