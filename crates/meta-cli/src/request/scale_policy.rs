@@ -12,10 +12,12 @@ use crate::request::local::LocalFile;
 pub use liveness::Liveness;
 pub use policy_millis::PolicyMillis;
 pub use queue_policy::QueuePolicy;
+pub use tool_policy::ToolPolicy;
 
 mod liveness;
 mod policy_millis;
 mod queue_policy;
+mod tool_policy;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct ScalePolicy {
@@ -29,6 +31,8 @@ pub struct ScalePolicy {
     liveness: Liveness,
     #[serde(default)]
     queue: QueuePolicy,
+    #[serde(default)]
+    tools: ToolPolicy,
 }
 
 impl ScalePolicy {
@@ -51,6 +55,10 @@ impl ScalePolicy {
 
     pub fn queue(&self) -> &QueuePolicy {
         &self.queue
+    }
+
+    pub fn tools(&self) -> &ToolPolicy {
+        &self.tools
     }
 
     pub fn scales(&self) -> &Scales {

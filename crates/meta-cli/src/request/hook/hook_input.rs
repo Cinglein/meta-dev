@@ -6,13 +6,14 @@ mod tool_input;
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
-use meta_schema::Actor;
+use meta_schema::{Actor, ToolName};
 use serde::Deserialize;
 
 use super::CallPhase;
 use crate::request::ci::{SessionDir, SessionId, SessionStart};
 use crate::request::output::Listed;
 use crate::request::project::Project;
+use crate::request::scale_policy::ToolPolicy;
 
 use identity::Identity;
 use pushed_commits::PushedCommits;
@@ -27,6 +28,8 @@ pub struct HookInput {
     cwd: Option<PathBuf>,
     #[serde(default)]
     tool_input: Option<ToolInput>,
+    #[serde(default)]
+    tool_name: Option<ToolName>,
 }
 
 impl HookInput {
@@ -40,6 +43,10 @@ impl HookInput {
 
     pub fn open_session(&self) -> Result<(), Listed> {
         self.session().map_or(Ok(()), |session| SessionStart::for_session(session).open().map_err(Listed::new))
+    }
+
+    pub fn modal(&self, policy: &ToolPolicy) -> Option<Listed> {
+        policy.refusal(self.tool_name.as_ref())
     }
 
     pub fn refusal(&self) -> Option<Listed> {

@@ -133,12 +133,7 @@ impl HookEvent {
             }
             Self::PreToolUse => Reply::new(
                 self,
-                input
-                    .command()
-                    .and_then(|command| {
-                        let policy = ScalePolicy::read(project.root()).ok().unwrap_or_default();
-                        command.refusal(project.config(), policy.queue().lander(input.announced_actor()).as_ref())
-                    })
+                Self::policy_refusal(project, input)
                     .or_else(|| input.refusal())
                     .or_else(|| input.unpushable(project, Self::PUSH))
                     .map(Denial::from)
@@ -156,6 +151,14 @@ impl HookEvent {
                 None,
             ),
         }
+    }
+
+    fn policy_refusal(project: &Project, input: &HookInput) -> Option<Listed> {
+        let policy = ScalePolicy::read(project.root()).ok().unwrap_or_default();
+        input.modal(policy.tools()).or_else(|| {
+            let lander = policy.queue().lander(input.announced_actor());
+            input.command()?.refusal(project.config(), lander.as_ref())
+        })
     }
 
     fn outside_projects(self, input: &HookInput) -> Option<Reply> {

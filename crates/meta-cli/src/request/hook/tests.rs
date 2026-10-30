@@ -3,6 +3,7 @@ use std::time::Instant;
 use super::{HookEvent, HookInput};
 use crate::request::output::Listed;
 use crate::request::project::{CiSettings, Config};
+use crate::request::scale_policy::ScalePolicy;
 
 const HOOKS: &str = include_str!("../../../../../plugin/hooks/hooks.json");
 const EVENTS: [HookEvent; 4] =
@@ -11,6 +12,22 @@ const OUTSIDE: &str = r#"{"cwd":"/nonexistent-meta-dir","tool_input":{"command":
 const UNRESOLVED: &str = "cannot resolve the commit directory";
 const REFUSED: [(HookEvent, &str); 2] =
     [(HookEvent::PreToolUse, "\"permissionDecision\":\"deny\""), (HookEvent::Stop, "\"decision\":\"block\"")];
+
+const MODAL: &str = "[tools]\nmodal = [\"AskUserQuestion\"]\n";
+const MODAL_ROWS: [(&str, bool); 4] = [
+    (r#"{"tool_name":"AskUserQuestion","tool_input":{}}"#, true),
+    (r#"{"agent_id":"a1","tool_name":"AskUserQuestion","tool_input":{}}"#, true),
+    (r#"{"tool_name":"Bash","tool_input":{"command":"ls"}}"#, false),
+    (r#"{"tool_input":{"command":"ls"}}"#, false),
+];
+
+#[test]
+fn a_tool_listed_as_modal_in_policy_is_refused_with_or_without_an_agent_and_other_calls_pass() {
+    let policy: ScalePolicy = toml::from_str(MODAL).unwrap();
+    let refusal = |input: &str| serde_json::from_str::<HookInput>(input).unwrap().modal(policy.tools());
+    assert_eq!(MODAL_ROWS.map(|(input, _)| refusal(input).is_some()), MODAL_ROWS.map(|(_, modal)| modal));
+    assert!(refusal(MODAL_ROWS[0].0).unwrap().to_string().contains("discussion in your reply"));
+}
 
 #[test]
 fn hook_timeouts_match_hooks_json_and_bound_every_git_deadline() {

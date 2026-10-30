@@ -85,6 +85,7 @@ pub struct Policy {
     spec: Option<SpecSettings>,
     liveness: Option<policy_file::Liveness>,
     queue: Option<policy_file::QueueLanders>,
+    tools: Option<policy_file::ModalTools>,
     supply_chain: SupplyChain,
 }
 

@@ -104,6 +104,9 @@ reply_within = 3600000
 [queue]
 landers = ["owner", "claude-lead"]
 
+[tools]
+modal = ["AskUserQuestion"]
+
 [domains.features-and-maintenance]
 crates = ["*"]
 paths = ["*"]

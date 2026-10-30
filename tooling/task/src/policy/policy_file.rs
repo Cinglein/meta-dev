@@ -1,5 +1,6 @@
 mod entries;
 mod liveness;
+mod modal_tools;
 mod queue_landers;
 
 use std::collections::BTreeMap;
@@ -23,6 +24,7 @@ use crate::gate_status::GateStatus;
 use crate::percent::Percent;
 use entries::Entries;
 pub use liveness::Liveness;
+pub use modal_tools::ModalTools;
 pub use queue_landers::QueueLanders;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -60,6 +62,8 @@ pub struct PolicyFile {
     liveness: Option<Liveness>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     queue: Option<QueueLanders>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    tools: Option<ModalTools>,
     supply_chain: SupplyChain,
 }
 
@@ -91,6 +95,7 @@ impl PolicyFile {
             spec: policy.spec.clone(),
             liveness: policy.liveness,
             queue: policy.queue.clone(),
+            tools: policy.tools.clone(),
             supply_chain: policy.supply_chain.clone(),
         }
     }
@@ -227,6 +232,7 @@ impl PolicyFile {
             spec: self.spec,
             liveness: self.liveness,
             queue: self.queue,
+            tools: self.tools,
             supply_chain: self.supply_chain,
         })
     }
