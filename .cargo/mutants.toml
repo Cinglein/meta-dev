@@ -22,6 +22,7 @@ exclude_re = [
     "TestRunner::run",
     "TestBinary::timed",
     "Changes::(reaches|since_main)",
+    "Affected::footprint\\b",
     "Stacked::",
     "Scope::(applied|changed_shards|tested|shard_runs|write_diff)",
     "CrateLoad::listed",

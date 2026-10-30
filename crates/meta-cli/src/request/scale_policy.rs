@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::io::ErrorKind;
 use std::path::Path;
+use std::sync::OnceLock;
 
 use meta_schema::Division;
 use meta_severity::{RatingFailure, Scales};
@@ -9,13 +10,17 @@ use serde::de::IgnoredAny;
 
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::LocalFile;
+pub use embedded_failure::EmbeddedFailure;
 pub use liveness::Liveness;
 pub use policy_millis::PolicyMillis;
 pub use queue_policy::QueuePolicy;
+pub use tool_policy::ToolPolicy;
 
+mod embedded_failure;
 mod liveness;
 mod policy_millis;
 mod queue_policy;
+mod tool_policy;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct ScalePolicy {
@@ -29,10 +34,13 @@ pub struct ScalePolicy {
     liveness: Liveness,
     #[serde(default)]
     queue: QueuePolicy,
+    #[serde(default)]
+    tools: ToolPolicy,
 }
 
 impl ScalePolicy {
     const FILE: &'static str = "tooling/policy.toml";
+    const EMBEDDED: &'static str = include_str!("../../../../tooling/policy.toml");
     const MISSING: &'static str =
         "missing; scales are not defaulted; copy meta-dev's tooling/policy.toml to it (meta init will do this later)";
 
@@ -51,6 +59,21 @@ impl ScalePolicy {
 
     pub fn queue(&self) -> &QueuePolicy {
         &self.queue
+    }
+
+    pub fn embedded() -> Result<&'static ScalePolicy, EmbeddedFailure> {
+        static PARSED: OnceLock<Result<ScalePolicy, EmbeddedFailure>> = OnceLock::new();
+        PARSED.get_or_init(|| Ok(toml::from_str(Self::EMBEDDED)?)).as_ref().map_err(Clone::clone)
+    }
+
+    pub fn embedded_section<Section>(
+        section: impl FnOnce(&'static ScalePolicy) -> &'static Section,
+    ) -> Result<&'static Section, EmbeddedFailure> {
+        Self::embedded().map(section)
+    }
+
+    pub fn tools(&self) -> &ToolPolicy {
+        &self.tools
     }
 
     pub fn scales(&self) -> &Scales {

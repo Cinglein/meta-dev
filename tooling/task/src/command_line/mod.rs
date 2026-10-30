@@ -22,7 +22,7 @@ use std::ffi::OsString;
 use std::fmt;
 use std::fs::File;
 use std::path::PathBuf;
-use std::process::{Child, Command, Output};
+use std::process::{Child, Command, Output, Stdio};
 
 use crate::failure::Failure;
 
@@ -130,6 +130,23 @@ impl CommandLine {
             .map_err(|_| Failure::Command(self.to_string()))
     }
 
+    pub fn streamed(&self) -> Result<String, Failure> {
+        let output = self
+            .command()
+            .stderr(Stdio::inherit())
+            .output()
+            .map_err(|_| Failure::Command(self.to_string()))?;
+        let printed = String::from_utf8_lossy(&output.stdout).into_owned();
+        if output.status.success() {
+            Ok(printed)
+        } else {
+            Err(Failure::Printed {
+                command: self.to_string(),
+                printed,
+            })
+        }
+    }
+
     pub fn captured<S: Stream>(&self) -> Result<String, Failure> {
         self.output().map(|output| S::pick(&output))
     }
@@ -177,6 +194,7 @@ impl fmt::Display for CommandLine {
 #[cfg(test)]
 mod tests {
     use super::{CargoArgument, CommandLine, Program, Stderr, Stdout};
+    use crate::failure::Failure;
     use std::fs::File;
     use std::path::{Path, PathBuf};
     const SHOWN: &str = "sh fmt --all";
@@ -193,6 +211,9 @@ mod tests {
     const READS_PACKAGE: [&str; 2] = ["-c", "read line && [ \"$line\" = \"[package]\" ]"];
     const PRINTS_AND_FAILS: [&str; 2] =
         ["-c", "echo out | tr o O; echo err | tr e E >&2; exit 101"];
+    const PRINTS: &str = "echo streamed";
+    const PRINTS_THEN_FAILS: &str = "echo streamed; exit 1";
+    const STREAMED: &str = "streamed\n";
     const OUT: &str = "Out";
     const ERR: &str = "Err";
 
@@ -237,5 +258,15 @@ mod tests {
         let reads = shell().arguments(READS_PACKAGE);
         let empty = File::open(EMPTY).unwrap();
         assert!(reads.run_holding(manifest()).is_ok() && reads.run_holding(empty).is_err());
+    }
+
+    #[test]
+    fn a_streamed_command_returns_its_stdout_whether_it_succeeds_or_fails() {
+        let shell = |script: &str| {
+            CommandLine::new(Program::Executable(SHELL.into())).arguments(["-c", script])
+        };
+        let failed = shell(PRINTS_THEN_FAILS).streamed();
+        assert_eq!(shell(PRINTS).streamed().ok().as_deref(), Some(STREAMED));
+        assert!(matches!(failed, Err(Failure::Printed { printed, .. }) if printed == STREAMED));
     }
 }

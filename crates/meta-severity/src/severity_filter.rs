@@ -4,6 +4,7 @@ use meta_schema::{Division, LevelName, Rating, Target};
 use meta_state::{RatedItem, State};
 use serde::{Deserialize, Serialize};
 
+use crate::reading::Reading;
 use crate::scales::Scales;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -44,9 +45,10 @@ impl SeverityFilter {
             .filter(inside)
             .zip(item.rating().level())
             .and_then(|(placed, rated)| scales.rolled_up(placed, rated, division));
-        let ranks = scales.scale(division).zip(rolled).zip(self.level());
-        let at_or_above = ranks.and_then(|((scale, rolled), level)| scale.index_of(&rolled).zip(scale.index_of(level)));
-        let covered = at_or_above.filter(|(found, capped)| found <= capped).map(|_| item.target());
+        let lined = scales.scale(division).zip(rolled).zip(self.level());
+        let covered = lined
+            .filter(|((scale, rolled), level)| scale.reaches(&Reading::from(Rating::Rated(rolled.clone())), level))
+            .map(|_| item.target());
         covered.or_else(|| self.admitted(scales, division, item))
     }
 

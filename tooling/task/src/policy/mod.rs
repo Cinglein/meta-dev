@@ -7,6 +7,7 @@ mod limit;
 mod most;
 mod policy_failure;
 mod policy_file;
+mod queue_settings;
 mod share;
 mod spec_settings;
 mod supply_chain;
@@ -24,6 +25,7 @@ pub use floor::Floor;
 pub use limit::Limit;
 
 pub use most::Most;
+use queue_settings::QueueSettings;
 pub use share::Share;
 pub use spec_settings::SpecSettings;
 pub use surface::Surface;
@@ -39,11 +41,10 @@ use crate::percent::Percent;
 use bit_boundary::BitBoundary;
 use enum_map::EnumMap;
 use least::Least;
-use meta_severity::Scales;
+use meta_severity::{ActionLevels, PromoteAfter, Scales};
 use policy_failure::PolicyFailure;
 use policy_file::PolicyFile;
 use serde::{Deserialize, Serialize, Serializer};
-#[cfg(any(test, feature = "test-policy"))]
 use settings::EmbeddedDefaults;
 use supply_chain::SupplyChain;
 use vague::Vague;
@@ -71,6 +72,7 @@ pub struct Policy {
     gate: Option<GateStatus>,
     gate_wait: Option<Millis>,
     gate_env: Vec<GateEnvName>,
+    promote_after: PromoteAfter,
     limits: EnumMap<Limit, Most>,
     floors: EnumMap<Floor, Least>,
     shares: EnumMap<Share, Percent>,
@@ -78,17 +80,18 @@ pub struct Policy {
     millis: EnumMap<Interval, Millis>,
     mutant_millis: MutantMillis,
     mutation: MutationCadence,
+    act: ActionLevels,
+    queue: QueueSettings,
     domains: Domains,
     scales: Scales,
     budgets: Budgets,
     deprecated: Vec<LegacyKey>,
     spec: Option<SpecSettings>,
     liveness: Option<policy_file::Liveness>,
-    queue: Option<policy_file::QueueLanders>,
+    tools: Option<policy_file::ModalTools>,
     supply_chain: SupplyChain,
 }
 
-#[cfg(any(test, feature = "test-policy"))]
 impl EmbeddedDefaults for Policy {
     const DEFAULTS: &str = include_str!("../../../policy.toml");
 }
@@ -184,6 +187,11 @@ impl Policy {
     }
 
     #[must_use]
+    pub fn queue(&self) -> &QueueSettings {
+        &self.queue
+    }
+
+    #[must_use]
     pub fn compiler_tasks(&self) -> CompilerTasks {
         CompilerTasks::within(
             self.memory_gib[MemoryShare::Granted].minus(self.memory_gib[MemoryShare::ForTheTests]),
@@ -199,6 +207,16 @@ impl Policy {
     #[must_use]
     pub fn scales(&self) -> &Scales {
         &self.scales
+    }
+
+    #[must_use]
+    pub fn promote_after(&self) -> PromoteAfter {
+        self.promote_after
+    }
+
+    #[must_use]
+    pub fn act(&self) -> &ActionLevels {
+        &self.act
     }
 
     #[must_use]
