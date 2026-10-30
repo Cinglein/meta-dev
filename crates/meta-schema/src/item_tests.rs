@@ -13,7 +13,7 @@ const TASK: &str = "task-0000000000000002";
 const HEAD: &str = "6c1ea3b4d9f1f48d98517b891f4283d6f0e55b94";
 const BLOCKED: &str = "TaskBlocked task-0000000000000002 on ci at 6c1ea3b4d9f1f48d98517b891f4283d6f0e55b94";
 const LINKED: &str = "TaskLinked task-0000000000000002 #7";
-const MARKER: &str = "SchemaVersion 7";
+const MARKER: &str = "SchemaVersion 8";
 
 #[test]
 fn new_items_carry_their_division_and_tasks_their_effort_and_due_time() {

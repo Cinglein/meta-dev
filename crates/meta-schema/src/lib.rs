@@ -43,6 +43,8 @@ mod item_tests;
 #[cfg(test)]
 mod parsing_tests;
 #[cfg(test)]
+mod project_tests;
+#[cfg(test)]
 mod rating_tests;
 
 pub use actor::Actor;
