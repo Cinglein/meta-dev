@@ -17,7 +17,8 @@ impl<'call> Refusals<'call> {
 
     pub fn first(&self) -> Option<Listed> {
         Self::modal(self.input)
-            .or_else(|| self.project.and_then(|project| self.command(project)))
+            .or_else(|| self.project.and_then(|project| self.guarded(project)))
+            .or_else(|| self.input.shell_breach(self.project.map(Project::root)))
             .or_else(|| self.input.refusal())
             .or_else(|| self.project.and_then(|project| self.input.unpushable(project, Self::PUSH)))
     }
@@ -27,7 +28,7 @@ impl<'call> Refusals<'call> {
             .map_or_else(|why| Some(Listed::new(why)), |tools| input.modal(tools))
     }
 
-    fn command(&self, project: &Project) -> Option<Listed> {
+    fn guarded(&self, project: &Project) -> Option<Listed> {
         let policy = ScalePolicy::read(project.root()).ok().unwrap_or_default();
         let lander = policy.queue().lander(self.input.announced_actor());
         self.input.command()?.refusal(project.config(), lander.as_ref())

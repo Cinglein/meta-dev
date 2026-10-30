@@ -19,6 +19,17 @@ const UNKNOWN: &str = "features-and-maintenance/nowhere";
 const UNMAPPED: &str = "maps onto no level";
 const QUEUED: &str = "[millis]\nqueue_pace = 60000\n[queue]\nlanders = [\"claude-lead\"]\n";
 const LANDER: &str = "claude-lead";
+const ADDED: &str = "[shell]\nforbidden = [\"curl\"]\n";
+
+#[test]
+fn a_project_adds_forbidden_words_to_the_embedded_list_and_never_removes_one() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir(dir.path().join(TOOLING)).unwrap();
+    std::fs::write(dir.path().join(ScalePolicy::FILE), ADDED).unwrap();
+    let rules = ScalePolicy::shell_in(Some(dir.path())).unwrap();
+    let forbidden = |word: &str| rules.forbidden_in(&[word.to_owned()]).is_some();
+    assert!(forbidden("curl") && forbidden("sed") && !forbidden("ls"));
+}
 
 #[test]
 fn scales_and_known_divisions_are_read_from_policy_and_a_missing_one_is_refused() {

@@ -2,6 +2,7 @@ mod entries;
 mod fallback_keys;
 mod liveness;
 mod modal_tools;
+mod shell_rules;
 
 use std::collections::BTreeMap;
 
@@ -28,6 +29,7 @@ use entries::Entries;
 use fallback_keys::FallbackKeys;
 pub use liveness::Liveness;
 pub use modal_tools::ModalTools;
+pub use shell_rules::ShellRules;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -70,6 +72,8 @@ pub struct PolicyFile {
     liveness: Option<Liveness>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     tools: Option<ModalTools>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    shell: Option<ShellRules>,
     supply_chain: SupplyChain,
 }
 
@@ -104,6 +108,7 @@ impl PolicyFile {
             spec: policy.spec.clone(),
             liveness: policy.liveness,
             tools: policy.tools.clone(),
+            shell: policy.shell.clone(),
             supply_chain: policy.supply_chain.clone(),
         }
     }
@@ -258,6 +263,7 @@ impl PolicyFile {
             spec: self.spec,
             liveness: self.liveness,
             tools: self.tools,
+            shell: self.shell,
             supply_chain: self.supply_chain,
         })
     }

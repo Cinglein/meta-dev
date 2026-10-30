@@ -14,12 +14,15 @@ pub use embedded_failure::EmbeddedFailure;
 pub use liveness::Liveness;
 pub use policy_millis::PolicyMillis;
 pub use queue_policy::QueuePolicy;
+use shell_rules::Union;
+pub use shell_rules::{Position, Refused, ShellRules};
 pub use tool_policy::ToolPolicy;
 
 mod embedded_failure;
 mod liveness;
 mod policy_millis;
 mod queue_policy;
+mod shell_rules;
 mod tool_policy;
 
 #[derive(Debug, Default, Deserialize)]
@@ -36,6 +39,8 @@ pub struct ScalePolicy {
     queue: QueuePolicy,
     #[serde(default)]
     tools: ToolPolicy,
+    #[serde(default)]
+    shell: ShellRules,
 }
 
 impl ScalePolicy {
@@ -51,6 +56,16 @@ impl ScalePolicy {
             _ => file.failure(failure),
         })?;
         toml::from_str(&text).map_err(CliFailure::raised::<Setup>)
+    }
+
+    pub fn shell_in(root: Option<&Path>) -> Result<ShellRules, CliFailure> {
+        let own = root.filter(|root| root.join(Self::FILE).exists()).map(Self::read).transpose()?;
+        let embedded = Self::embedded_section(Self::shell).map_err(CliFailure::raised::<Setup>)?;
+        Ok(own.map_or_else(|| embedded.clone(), |policy| embedded.clone().union(policy.shell)))
+    }
+
+    pub fn shell(&self) -> &ShellRules {
+        &self.shell
     }
 
     pub fn millis(&self) -> PolicyMillis {
