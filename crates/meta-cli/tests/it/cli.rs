@@ -25,6 +25,7 @@ const SHOWN_BY_GIT: [&str; 3] = ["author.email", "committer.email", "user.name"]
 const FOREIGN_IDENTITY: [&str; 2] = ["someone@example.com", "someone@example.com"];
 const RECORD_DIR: &str = ".git/meta-local";
 const AGENT: &str = "agent";
+const ABSENT: &str = "absent";
 const SEEDED_LEN: usize = 1;
 const CLAIMED: &str = "TaskClaimed";
 const UNRECORDED: &str = "unrecorded";
@@ -187,7 +188,7 @@ fn writes_go_to_the_remote_as_meta_actor_else_owner_listing_it_once_and_offline_
 fn a_target_seed_that_cannot_copy_warns_on_one_line_and_leaves_no_target_but_the_claim_succeeds() {
     use std::os::unix::fs::PermissionsExt;
     let worktrees = tempfile::tempdir().unwrap();
-    let project = Project::seeded(worktrees.path());
+    let project = Project::seeded(&worktrees.path().join(ABSENT));
     let target = project.clone.path().join(TARGET);
     let _building = Seed::built(&target);
     let unreadable = target.join(PROFILES[0]).join(ARTIFACT[0]);
