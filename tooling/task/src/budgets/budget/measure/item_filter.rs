@@ -1,8 +1,7 @@
+use meta_schema::ItemKind;
 use meta_severity::SeverityFilter;
 use serde::{Deserialize, Serialize};
 use strum::Display;
-
-use super::item_kind::ItemKind;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Display, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

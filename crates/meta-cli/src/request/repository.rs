@@ -1,4 +1,5 @@
 use std::ffi::OsString;
+use std::fmt;
 use std::str::FromStr;
 
 use meta_run::Run;
@@ -34,6 +35,12 @@ impl FromStr for Repository {
         let mut parts = trimmed.strip_suffix(Self::SUFFIX).unwrap_or(trimmed).rsplit(Self::SEPARATORS);
         let [name, owner] = [parts.next(), parts.next()].map(|part| part.filter(|part| !part.is_empty()));
         Ok(Self(format!("{}/{}", owner.ok_or(())?, name.ok_or(())?)))
+    }
+}
+
+impl fmt::Display for Repository {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.0)
     }
 }
 

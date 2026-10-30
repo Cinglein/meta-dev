@@ -1,3 +1,6 @@
+mod diagnostics;
+
+use diagnostics::Diagnostics;
 use task::Failure;
 use task::Policy;
 use task::Workspace;
@@ -20,13 +23,40 @@ impl Clippy {
                     .arguments(selection.arguments::<CargoTool>())
                     .argument(CargoArgument::AllTargets)
                     .argument(CargoArgument::AllFeatures)
+                    .argument(CargoArgument::MessageFormatJson)
                     .argument(CargoArgument::Jobs)
                     .argument(policy.compiler_tasks())
                     .argument(CargoArgument::ToolArguments)
                     .argument(CargoArgument::Deny)
                     .argument(CargoArgument::Warnings)
-                    .run()
+                    .streamed()
+                    .map(|_| ())
+                    .map_err(|failure| failure.reading(Diagnostics::reading))
             },
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::diagnostics::Diagnostics;
+
+    const SHOWN: &str = "cannot find value";
+    const SUMMARIES: &str = include_str!("../../fixtures/summary-only.jsonl");
+    const PRINTED: &str = include_str!("../../fixtures/compile-error.jsonl");
+    const GOLDEN: &str = include_str!("../../fixtures/compile-error.golden.json");
+
+    #[test]
+    fn a_compile_error_is_recorded_with_its_path() {
+        let read = Diagnostics::reading(PRINTED);
+        let found = read.as_ref().map(|failure| failure.found(&"clippy".into()).to_string());
+        assert_eq!(found.as_deref(), Some(GOLDEN));
+        assert!(read.is_some_and(|failure| failure.to_string().contains(SHOWN)));
+    }
+
+    #[test]
+    fn the_cargo_summary_lines_are_explained_and_add_no_infra() {
+        let found = Diagnostics::reading(SUMMARIES).map(|failure| failure.found(&"clippy".into()));
+        assert_eq!(found.map(|set| set.kinds().len()), Some(1));
     }
 }

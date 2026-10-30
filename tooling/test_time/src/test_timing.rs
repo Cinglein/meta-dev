@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use super::clock::Clock;
+use task::{CrateName, FailureKind};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct TestTiming {
@@ -31,6 +32,13 @@ impl TestTiming {
         match clock {
             Clock::Wall => self.elapsed,
             Clock::Cpu => self.cpu,
+        }
+    }
+
+    pub(super) fn failure(&self) -> FailureKind {
+        FailureKind::Test {
+            crate_name: CrateName::from(self.binary.as_path()),
+            name: self.test.as_str().into(),
         }
     }
 

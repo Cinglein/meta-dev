@@ -4,21 +4,30 @@ use std::str::FromStr;
 
 use super::test_run::TestRun;
 use super::test_timing::TestTiming;
-use task::Failure;
+use task::{Failure, FailureKind, FailureSet, Printed};
 
 #[derive(Debug, Default)]
 pub(super) struct TestRuns {
     passed: Vec<TestTiming>,
-    failed: Vec<String>,
+    failed: FailureSet,
     unlisted: Vec<PathBuf>,
 }
 
 impl TestRuns {
+    const UNLISTED: &str = "test-binaries-unlisted";
+
     pub(super) fn passed(self) -> Result<Vec<TestTiming>, Failure> {
         if self.failed.is_empty() && self.unlisted.is_empty() {
             Ok(self.passed)
         } else {
-            Err(Failure::Tests(self.to_string()))
+            let unlisted = Some(&self.unlisted).filter(|unlisted| !unlisted.is_empty());
+            let infra = unlisted.map(|_| FailureKind::Infra {
+                job: Self::UNLISTED.into(),
+            });
+            Err(Failure::Found {
+                printed: Printed::Text(self.to_string()),
+                found: infra.into_iter().fold(self.failed, FailureSet::recording),
+            })
         }
     }
 
@@ -27,8 +36,8 @@ impl TestRuns {
         self
     }
 
-    pub(super) fn failing(mut self, test: &str) -> TestRuns {
-        self.failed.push(test.to_owned());
+    pub(super) fn failing(mut self, kind: FailureKind) -> TestRuns {
+        self.failed = self.failed.recording(kind);
         self
     }
 
@@ -59,8 +68,12 @@ impl FromStr for TestRuns {
 
 impl fmt::Display for TestRuns {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let tests = self.failed.len() + self.passed.len();
-        write!(formatter, "{} of {tests} tests failed", self.failed.len())?;
+        let failed = self.failed.kinds().len();
+        write!(
+            formatter,
+            "{failed} of {} tests failed",
+            failed + self.passed.len()
+        )?;
         match self.unlisted.len() {
             0 => Ok(()),
             unlisted => write!(
@@ -78,6 +91,21 @@ mod tests {
 
     use super::TestRun::{Failed, Passed};
     use super::{TestRun, TestRuns, TestTiming};
+
+    const FAILING: &str = include_str!("../fixtures/failing-test.tsv");
+    const FAILING_GOLDEN: &str = include_str!("../fixtures/failing-test.golden.json");
+
+    #[test]
+    fn a_failing_test_is_recorded_with_its_crate_and_name() {
+        let found = FAILING.parse::<TestRuns>().and_then(TestRuns::passed);
+        assert_eq!(
+            found
+                .err()
+                .map(|failure| failure.found(&"test".into()).to_string())
+                .as_deref(),
+            Some(FAILING_GOLDEN)
+        );
+    }
 
     const BINARY: &str = "target/debug/deps/bin-1a2b3c";
     const NAMES: [&str; 2] = ["passes", "fails"];

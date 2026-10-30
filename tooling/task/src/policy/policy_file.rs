@@ -1,12 +1,14 @@
 mod entries;
+mod fallback_keys;
 mod liveness;
 mod modal_tools;
 
 use std::collections::BTreeMap;
 
 use enum_map::EnumMap;
-use meta_severity::Scales;
+use meta_severity::{ActionLevels, PromoteAfter, Scales};
 use serde::{Deserialize, Serialize};
+use settings::EmbeddedDefaults;
 use strum::IntoEnumIterator;
 
 use super::bit_boundary::BitBoundary;
@@ -23,6 +25,7 @@ use crate::gate_env_name::GateEnvName;
 use crate::gate_status::GateStatus;
 use crate::percent::Percent;
 use entries::Entries;
+use fallback_keys::FallbackKeys;
 pub use liveness::Liveness;
 pub use modal_tools::ModalTools;
 
@@ -42,6 +45,8 @@ pub struct PolicyFile {
     gate_wait: Option<Millis>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     gate_env: Vec<GateEnvName>,
+    #[serde(default)]
+    promote_after: Option<PromoteAfter>,
     limits: Entries<Limit, Most>,
     floors: Entries<Floor, Least>,
     shares: Entries<Share, Percent>,
@@ -49,6 +54,8 @@ pub struct PolicyFile {
     millis: Entries<Interval, Millis>,
     mutant_millis: MutantMillis,
     mutation: MutationCadence,
+    #[serde(default)]
+    act: Option<ActionLevels>,
     #[serde(default)]
     queue: QueueSettings,
     #[serde(default)]
@@ -79,6 +86,7 @@ impl PolicyFile {
             gate: policy.gate.clone(),
             gate_wait: policy.gate_wait,
             gate_env: policy.gate_env.clone(),
+            promote_after: Some(policy.promote_after),
             limits: Entries::without(&policy.limits, |limit| LegacyKey::of_limit(limit).is_some()),
             floors: Entries::without(&policy.floors, |floor| LegacyKey::of_floor(floor).is_some()),
             shares: Entries::without(&policy.shares, |share| LegacyKey::of_share(share).is_some()),
@@ -88,6 +96,7 @@ impl PolicyFile {
             }),
             mutant_millis: policy.mutant_millis.clone(),
             mutation: policy.mutation.clone(),
+            act: Some(policy.act.clone()),
             queue: policy.queue.clone(),
             domains: policy.domains.clone(),
             scales: policy.scales.clone(),
@@ -153,12 +162,27 @@ impl PolicyFile {
     }
 
     pub fn resolved(self) -> Result<Policy, PolicyFailure> {
+        self.resolved_over(Policy::DEFAULTS)
+    }
+
+    pub fn resolved_over(self, fallback: &str) -> Result<Policy, PolicyFailure> {
         let budgets = self.budgeted()?;
         let deprecated = LegacyKey::iter()
             .filter(|key| self.legacy(*key).is_some())
             .collect();
         budgets.measurable(&self.domains)?;
         budgets.leveled(&self.scales)?;
+        let promote_after = self.promote_after.map_or_else(
+            || FallbackKeys::read(fallback).and_then(FallbackKeys::promote_after),
+            Ok,
+        )?;
+        let act = self.act.map_or_else(
+            || FallbackKeys::read(fallback).and_then(FallbackKeys::act),
+            Ok,
+        )?;
+        act.leveled(&self.scales, |division| {
+            self.domains.domain(division).is_some()
+        })?;
         let amount =
             |key: Option<LegacyKey>| key.and_then(|key| budgets.blocking_line(&key.measure()));
         let baseline = budgets
@@ -186,6 +210,7 @@ impl PolicyFile {
             gate: self.gate,
             gate_wait: self.gate_wait,
             gate_env: self.gate_env,
+            promote_after,
             limits: self
                 .limits
                 .completed(|limit| {
@@ -224,6 +249,7 @@ impl PolicyFile {
                 .map_err(|key| PolicyFailure::MissingKey(Self::MILLIS, key))?,
             mutant_millis: self.mutant_millis,
             mutation: self.mutation,
+            act,
             queue: self.queue,
             domains: self.domains,
             scales: self.scales,

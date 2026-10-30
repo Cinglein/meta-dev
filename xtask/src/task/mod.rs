@@ -34,8 +34,8 @@ use crate::task::test::Test;
 use crate::task::usage::Usage;
 use affected::{Affected, Changes};
 use build_time::BuildTime;
+use ci::Ci;
 pub use ci::CiStep;
-use ci::{Ci, LocalGate};
 use corpus_check::LintName;
 use crate_graph::CrateGraph;
 use elegance::{EleganceSettings, Measures, SynSource};
@@ -111,13 +111,15 @@ impl Task {
     }
 
     pub fn run(self, flags: impl Iterator<Item = String>) -> Result<(), Failure> {
+        let flags: Vec<String> = flags.collect();
         match self {
-            Task::TestRunner => Ok(TestRunner::run(flags)?),
+            Task::TestRunner => Ok(TestRunner::run(flags.into_iter())?),
+            Task::Ci if flags == [Ci::CLOSE] => Ci::close(),
             Task::Init => Ok(BuildDirectory::read(Workspace::locate()?.root())?.initialized()?),
-            Task::Waterfall => {
-                Waterfall::shown(flags.map(PathBuf::from))?.map(|shown| print!("{shown}")).ok_or_else(Self::usage)
-            }
-            task => task.run_in_workspace(&Workspace::locate()?, flags),
+            Task::Waterfall => Waterfall::shown(flags.into_iter().map(PathBuf::from))?
+                .map(|shown| print!("{shown}"))
+                .ok_or_else(Self::usage),
+            task => task.run_in_workspace(&Workspace::locate()?, flags.into_iter()),
         }
     }
 
@@ -146,13 +148,8 @@ impl Task {
                 .map(|reached| println!("{reached}"))?),
             Task::Baseline => Lint::shrink(workspace.root(), &workspace.source_files()?, &policy)
                 .map(|kept| println!("baseline: {} violations", kept.total())),
-            Task::Ci => Ci::new(
-                summary,
-                coverage.gate(workspace.root(), &policy)?,
-                env::var_os(LocalGate::TIMES).map(PathBuf::from),
-                coverage.log().clone(),
-            )
-            .run(workspace, &selection, &policy),
+            Task::Ci => Ci::new(summary, coverage.gate(workspace.root(), &policy)?, coverage.log().clone())
+                .run(workspace, &selection, &policy),
             Task::BuildTime => Ok(BuildTime::run(workspace, &policy, &mut ledger)
                 .and_then(|()| ledger.checked(&policy, &Selection::Workspace))?),
             Task::Clippy => Ok(Clippy::run(workspace, &selection, &policy)?),
