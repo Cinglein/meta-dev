@@ -82,6 +82,10 @@ jobs:
   macos-mutants:
     runs-on: macos-latest
     timeout-minutes: 6
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0/4, 1/4, 2/4, 3/4]
     permissions:
       contents: read
     steps:
@@ -94,7 +98,7 @@ jobs:
       - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: cargo-mutants@27.1.0
-      - run: cargo mutants --package meta-cli --in-place --test-package meta-cli --cargo-test-arg=--all-features --file 'crates/meta-cli/src/request/local/local_clone/vetting/host/process_table/darwin.rs' --file 'crates/meta-cli/src/request/local/local_clone/vetting/host/process_table/darwin/*.rs'
+      - run: cargo mutants --config .cargo/mutants-macos.toml --shard ${{ matrix.shard }} --package meta-cli --in-place --test-package meta-cli --cargo-test-arg=--all-features --cargo-test-arg=process_table --file 'crates/meta-cli/src/request/local/local_clone/vetting/host/process_table/darwin.rs' --file 'crates/meta-cli/src/request/local/local_clone/vetting/host/process_table/darwin/*.rs'
         timeout-minutes: 5
 
   goldens:

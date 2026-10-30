@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use super::super::scan::Scan;
 use crate::request::local::local_clone::vetting::cause::Cause;
 
 #[derive(Debug, thiserror::Error)]
@@ -23,6 +24,13 @@ impl ProbeFailure {
             Self::Failed(cause) if cause.to_string().contains(Self::NO_PROGRAM_FILE) => Ok(None),
             other => Err(other),
         })
+    }
+
+    pub fn excused(self, owned: bool, alive: impl FnOnce() -> Result<bool, Cause>) -> Result<Scan, Cause> {
+        match self.unexplained() {
+            Some(cause) if owned && alive()? => Err(cause),
+            Some(_) | None => Ok(Scan::Skipped),
+        }
     }
 
     pub fn unexplained(self) -> Option<Cause> {

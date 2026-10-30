@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::process::{Child, Command};
 use std::time::{Duration, Instant};
 
@@ -5,6 +6,7 @@ use libproc::bsd_info::BSDInfo;
 use libproc::proc_pid::pidinfo;
 
 use super::Darwin;
+use super::fd_vnode::FdVnode;
 use super::probe_failure::ProbeFailure;
 
 const EXIT: &str = "true";
@@ -33,16 +35,39 @@ impl Drop for Zombie {
 
 const FOUND: &str = "/bin/sleep";
 const ENOENT: &str = "return code = 0, errno = 2, message = 'No such file or directory'";
+const EIO: &str = "return code = 0, errno = 5, message = 'Input/output error'";
+const DEAD: i32 = i32::MAX;
+const TABLE: usize = 512;
 const EPERM: &str = "return code = 0, errno = 1, message = 'Operation not permitted'";
 
 #[test]
 fn a_missing_program_file_leaves_no_program_path_and_the_scan_continues() {
-    let rows = [Ok(FOUND.into()), Err(ENOENT.to_owned()), Err(EPERM.to_owned())]
+    let rows = [Ok(FOUND.into()), Err(ENOENT.to_owned()), Err(EPERM.to_owned()), Err(EIO.to_owned())]
         .map(|found| ProbeFailure::program(found.map_err(ProbeFailure::from)));
-    assert!(
-        matches!(&rows, [Ok(Some(path)), Ok(None), Err(ProbeFailure::Refused)] if path.to_str() == Some(FOUND)),
-        "{rows:?}"
-    );
+    let shape = matches!(&rows, [Ok(Some(_)), Ok(None), Err(ProbeFailure::Refused), Err(ProbeFailure::Failed(_))]);
+    assert!(shape && rows[0].as_ref().is_ok_and(|path| path.as_deref() == Some(Path::new(FOUND))), "{rows:?}");
+}
+
+#[test]
+fn a_probe_failure_stops_the_scan_only_for_an_owned_live_process_and_not_for_a_refused_one() {
+    let own = i32::try_from(std::process::id()).unwrap();
+    let excused = |pid: i32, owned: &[i32], reported: &str| {
+        let failure = ProbeFailure::from(reported.to_owned());
+        failure.excused(owned.contains(&pid), || Darwin { pid }.alive()).is_ok()
+    };
+    let rows = [
+        excused(own, &[own], ENOENT),
+        excused(own, &[], ENOENT),
+        excused(DEAD, &[DEAD], ENOENT),
+        excused(own, &[own], EPERM),
+    ];
+    assert_eq!(rows, [false, true, true, true]);
+}
+
+#[test]
+fn a_descriptor_that_is_not_open_has_no_path_and_does_not_fail_the_probe() {
+    let own = i32::try_from(std::process::id()).unwrap();
+    assert!(matches!(FdVnode::read(own, DEAD, TABLE), Ok(None)));
 }
 
 #[test]

@@ -41,10 +41,7 @@ impl Darwin {
     }
 
     fn scanned(&self, owned: &[i32]) -> Result<Scan, Cause> {
-        self.opened().map(Scan::Opened).or_else(|failure| match failure.unexplained() {
-            Some(cause) if owned.contains(&self.pid) && self.alive()? => Err(cause),
-            Some(_) | None => Ok(Scan::Skipped),
-        })
+        self.opened().map(Scan::Opened).or_else(|failure| failure.excused(owned.contains(&self.pid), || self.alive()))
     }
 
     fn opened(&self) -> Result<Vec<PathBuf>, ProbeFailure> {
