@@ -29,7 +29,7 @@ use fetched::Fetched;
 use listing::Listing;
 use outcome::Outcome;
 use pacing::Pacing;
-use remote::Remote;
+pub use remote::Remote;
 use staged_ref::StagedRef;
 use tip::Tip;
 
