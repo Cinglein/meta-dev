@@ -1,0 +1,18 @@
+stop: #105 targets main, not the default branch
+stop: #187 targets main, not the default branch
+stop: #196 targets main, not the default branch
+stop: #200 targets main, not the default branch
+stop: #203 targets main, not the default branch
+#214 closed: next
+stop: #215 targets main, not the default branch
+stop: #216 targets main, not the default branch
+stop: #218 targets main, not the default branch
+stop: main does not require branches to be up to date; nothing lands untested
+stop: main does not require branches to be up to date; nothing lands untested
+#196 merged: next => lands #196
+stop: main does not require branches to be up to date; nothing lands untested
+stop: main does not require branches to be up to date; nothing lands untested
+#214 closed: next
+stop: main does not require branches to be up to date; nothing lands untested
+stop: main does not require branches to be up to date; nothing lands untested
+stop: main does not require branches to be up to date; nothing lands untested

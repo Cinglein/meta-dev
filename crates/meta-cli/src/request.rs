@@ -6,6 +6,7 @@ mod heartbeat;
 mod hook;
 mod live_github;
 mod local;
+mod merge_queue;
 mod output;
 mod parsed;
 mod project;
@@ -32,6 +33,7 @@ use hook::HookEvent;
 use live_github::LiveGithub;
 pub use local::TraceRecord;
 use local::{LocalClone, Monitor, Sweep};
+use merge_queue::MergeQueue;
 use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
 use project::{CiSettings, Project};
@@ -61,6 +63,7 @@ pub enum Request {
     WaitCi(SessionId),
     CiLog(SessionId),
     Trace(TraceView),
+    Queue(MergeQueue),
 }
 
 impl TryFrom<Vec<String>> for Request {
@@ -107,8 +110,9 @@ impl TryFrom<Vec<String>> for Request {
                 Ok(Self::Write(Event::TaskOpened(parsed.due().into_iter().fold(sized, NewTask::due_by))))
             }
             "wait" => {
-                let parsed = parsed.allowing(&[OptionName::On])?;
-                Ok(Self::Wait(Block::new(parsed.task()?, parsed.blocker()?)))
+                let parsed = parsed.allowing(&[OptionName::On, OptionName::Due])?;
+                let block = Block::new(parsed.task()?, parsed.blocker()?);
+                Ok(Self::Wait(parsed.due().into_iter().fold(block, Block::reply_by)))
             }
             "resume" => Ok(Self::Write(Event::TaskUnblocked(task()?))),
             "link" => Ok(Self::Write(Event::TaskLinked(parsed.allowing(&[])?.task_link()?))),
@@ -144,6 +148,7 @@ impl TryFrom<Vec<String>> for Request {
             "ci-wait" => Self::session().map(Self::WaitCi),
             "ci-log" => Self::session().map(Self::CiLog),
             "trace" => Ok(Self::Trace(parsed.allowing(&[])?.text()?.to_string().parse()?)),
+            "queue" => parsed.allowing(&[])?.queue().map(Self::Queue),
             other => Err(CliFailure::raised::<Misuse>(format!("unknown command `{other}`"))),
         }
     }
@@ -167,6 +172,7 @@ impl Request {
             Self::WaitCi(session) => Watcher::wait(project, &session),
             Self::CiLog(session) => FailureLog::excerpt(project, &session),
             Self::Trace(view) => TraceRecord::shown(&LocalClone::try_from(project)?, view),
+            Self::Queue(queue) => queue.run(project),
             Self::Status(view) => {
                 let local = match view {
                     StatusView::Flags => Monitor::recent(&LocalClone::try_from(project)?, Utc::now())?,
@@ -179,8 +185,11 @@ impl Request {
                 )?;
                 Ok(answered.raised_with(local))
             }
-            Self::Monitor(command) => command
-                .answer(&LocalClone::try_from(project)?, &project::HeartbeatSettings::try_from(project.config())?),
+            Self::Monitor(command) => command.answer(
+                project,
+                &LocalClone::try_from(project)?,
+                &project::HeartbeatSettings::try_from(project.config())?,
+            ),
             Self::ClaimWorktree(claim) => LocalClone::try_from(project)?.claimed(project, claim, Self::actor()?),
             Self::Worktrees => LocalClone::try_from(project)?.worktrees(project),
             Self::Gc(sweep) => LocalClone::try_from(project)?.collected(project, sweep),
@@ -192,7 +201,9 @@ impl Request {
             ),
             Self::Wait(block) => {
                 let head = project.head().and_then(|head| head.commit_id());
-                Self::Write(Event::TaskBlocked(head.into_iter().fold(block, Block::at_head))).answer_in(project)
+                let block = head.into_iter().fold(block, Block::at_head);
+                let asked = ScalePolicy::read(project.root())?.liveness().asked(block, Utc::now());
+                Self::Write(Event::TaskBlocked(asked)).answer_in(project)
             }
         }
     }
@@ -219,6 +230,7 @@ impl Request {
             | Self::WaitCi(_)
             | Self::CiLog(_)
             | Self::Trace(_)
+            | Self::Queue(_)
             | Self::Status(_)
             | Self::ClaimWorktree(_)
             | Self::Worktrees

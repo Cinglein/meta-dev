@@ -30,7 +30,7 @@ mod walk;
 mod workspace;
 
 pub use binary_files::BinaryFiles;
-pub use branches::{Branch, BranchName};
+pub use branches::{Branch, BranchName, Trusted};
 pub use budget::{AvailableGib, FullRun, Interval, MemoryShare, Millis};
 pub use budgets::{Amount, ChangeLink, Ledger, Measure, Standing};
 pub use command_line::{CargoArgument, CommandLine, GitArgument, MutantsArgument, Program, Stdout};

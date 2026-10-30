@@ -2,9 +2,12 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+mod unpriced_note;
+
 use super::millis::Millis;
 use crate::crate_name::CrateName;
 use meta_schema::TopDivision;
+use unpriced_note::UnpricedNote;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -18,22 +21,51 @@ impl MutantMillis {
 
     #[must_use]
     pub fn for_crate(&self, name: &CrateName) -> Millis {
-        self.crates.get(name).copied().unwrap_or(self.default)
+        self.crates
+            .get(name)
+            .copied()
+            .unwrap_or_else(|| self.median())
+    }
+
+    #[must_use]
+    pub fn unpriced_note(&self, name: &CrateName) -> Option<UnpricedNote> {
+        (!self.crates.contains_key(name)).then(|| UnpricedNote::new(name.clone(), self.median()))
+    }
+
+    fn median(&self) -> Millis {
+        let mut prices: Vec<Millis> = self.crates.values().copied().collect();
+        prices.sort_unstable();
+        prices
+            .get(prices.len() >> 1)
+            .copied()
+            .unwrap_or(self.default)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{Millis, MutantMillis};
-    const TABLE: &str = "default = 5\n\n[crates]\nlisted = 9\n";
+    const TABLE: &str = "default = 5\n\n[crates]\nlisted = 20\nlow = 1\nmid = 9\n";
     const LISTED: &str = "listed";
     const UNLISTED: &str = "unlisted";
-    const COSTS: [Millis; 2] = [Millis::new(9), Millis::new(5)];
+    const NOTE: &str = "mutants: unlisted is unpriced in [mutant_millis]; planned at the table median, 9 ms per mutant; `cargo xtask mutant-costs` will measure it";
+    const COSTS: [Millis; 2] = [Millis::new(20), Millis::new(9)];
 
     #[test]
-    fn a_listed_crate_takes_its_own_cost_and_any_other_the_default() {
+    fn a_listed_crate_takes_its_own_cost_and_any_other_the_median_of_the_table() {
         let table: MutantMillis = toml::from_str(TABLE).unwrap();
         let costs = [LISTED, UNLISTED].map(|name| table.for_crate(&name.parse().unwrap()));
         assert_eq!(costs, COSTS);
+    }
+
+    #[test]
+    fn only_an_unlisted_crate_gets_a_note_naming_it_its_price_and_the_command_that_measures_it() {
+        let table: MutantMillis = toml::from_str(TABLE).unwrap();
+        let notes = [LISTED, UNLISTED].map(|name| {
+            table
+                .unpriced_note(&name.parse().unwrap())
+                .map(|note| note.to_string())
+        });
+        assert_eq!(notes, [None, Some(NOTE.to_owned())]);
     }
 }

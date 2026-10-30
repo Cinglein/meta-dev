@@ -1,4 +1,3 @@
-mod process_table;
 mod walker;
 
 #[cfg(test)]
@@ -25,11 +24,10 @@ use super::inspection::Inspection;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
 use super::thaw::{Mode, Thaw, Thawed};
-use super::uninspected::Uninspected;
 use crate::request::local::LocalFile;
 use crate::request::local::local_clone::quarantine::Stamp;
 use crate::request::project::CiSettings;
-use process_table::{Held, ProcessTable};
+use meta_process_table::{Held, ProcessTable, Uninspected};
 use walker::Walker;
 
 #[derive(Debug)]
@@ -48,7 +46,7 @@ impl Host {
 
     fn noted(&self, held: Held, paths: &[PathBuf]) -> Occupancy {
         self.uninspected.lock().unwrap_or_else(PoisonError::into_inner).raise(held.uninspected());
-        held.occupancy(paths)
+        Occupancy::Listed(held.under(paths))
     }
 
     fn lenders(&self, root: &Path) -> Vec<Alternates> {
@@ -107,7 +105,8 @@ impl Inspection for Host {
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
         match paths.iter().find(|path| self.entry(path) != EntryKind::Dir) {
             Some(absent) => Occupancy::Unlisted(Cause::new(format_args!("{} {}", Self::NOT_A_DIR, absent.display()))),
-            None => ProcessTable::held().map_or_else(Occupancy::Unlisted, |held| self.noted(held, paths)),
+            None => ProcessTable::held()
+                .map_or_else(|failure| Occupancy::Unlisted(Cause::new(failure)), |held| self.noted(held, paths)),
         }
     }
 
