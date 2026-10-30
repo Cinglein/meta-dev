@@ -11,6 +11,7 @@ use meta_schema::{
 
 use crate::request::ci::{Commit, SessionId};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
+use crate::request::merge_queue::MergeQueue;
 use crate::request::rate::Rate;
 use crate::request::relocate::Relocate;
 use crate::request::status_view::StatusView;
@@ -39,6 +40,7 @@ pub struct Parsed {
 
 impl Parsed {
     const RESTORE: &'static str = "restore";
+    const RUN: &'static str = "run";
 
     fn take(self, args: &[String]) -> Result<Self, CliFailure> {
         match args {
@@ -240,6 +242,18 @@ impl Parsed {
 
     pub fn scratch(&self) -> Option<Text> {
         self.scratch.clone()
+    }
+
+    pub fn queue(&self) -> Result<MergeQueue, CliFailure> {
+        match self.words.as_slice() {
+            [verb, pulls @ ..] if verb.to_string() == Self::RUN => MergeQueue::new(
+                pulls
+                    .iter()
+                    .map(|pull| pull.to_string().parse().map_err(CliFailure::raised::<Invalid>))
+                    .collect::<Result<_, _>>()?,
+            ),
+            _ => Err(CliFailure::raised::<Misuse>("expected `queue run <pr-number>...`")),
+        }
     }
 
     pub fn previous_claimant(&self) -> Option<Actor> {

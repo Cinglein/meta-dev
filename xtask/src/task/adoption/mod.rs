@@ -80,7 +80,9 @@ impl Adoption {
                         && !self.dependabot.covers(&self.directory))
                     .then(|| Gap::Unlisted(tool, self.directory.clone()));
                     let alerted = matches!(tool, RequiredTool::DependabotAlerts).then(|| self.alerts(tool)).flatten();
-                    gaps.chain(tool.turned_off(policy)).chain(unlisted).chain(alerted)
+                    let proposing = (matches!(tool, RequiredTool::DependabotUpdates) && self.dependabot.proposes())
+                        .then_some(Gap::Proposing(tool));
+                    gaps.chain(tool.turned_off(policy)).chain(unlisted).chain(proposing).chain(alerted)
                 })
                 .collect(),
         )
@@ -181,10 +183,13 @@ jobs:
 updates:
   - package-ecosystem: \"cargo\"
     directories: [\"/\"]
+    open-pull-requests-limit: 0
   - package-ecosystem: cargo
     directory: /other/
+    open-pull-requests-limit: 0
   - package-ecosystem: github-actions
     directory: /unrun
+    open-pull-requests-limit: 0
 ";
     const DIRECTORIES: [(&str, &[&str]); 3] =
         [(".", &[FAILING]), ("other", &["true"]), ("unrun", &["sh", "-c", "echo 0"])];
@@ -207,6 +212,39 @@ updates:
         });
         assert!(Gaps::new(Vec::new()).is_empty() && !gaps.iter().any(Gaps::is_empty));
         Golden::for_test(module_path!(), "gaps").checked(&gaps.map(|gaps| gaps.to_string()).join("\n")).unwrap();
+    }
+
+    const LIMIT_DIRECTORY: &str = ".";
+    const LIMIT_PROGRAM: &str = "true";
+    const LIMIT_TOOL: &str = "dependabot-updates";
+    const LIMIT_OFF: &str =
+        "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 0\n";
+    const LIMIT_NON_ZERO: &str =
+        "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 5\n";
+    const LIMIT_MISSING: &str = "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n";
+    const LIMIT_ONE_LEFT_ON: &str = "version: 2\nupdates:\n  - package-ecosystem: cargo\n    directory: /\n    open-pull-requests-limit: 0\n  - package-ecosystem: github-actions\n    directory: /\n";
+    const LIMIT_MESSAGE: &str = "dependabot-updates: .github/dependabot.yml opens version-update pull requests";
+
+    #[test]
+    fn dependabot_version_update_pull_requests_must_be_off_so_a_missing_or_non_zero_limit_is_a_gap() {
+        let gaps = |dependabot: &str| {
+            let Ok(directory) = LIMIT_DIRECTORY.parse::<WorkingDirectory>();
+            let Ok(dependabot) = dependabot.parse();
+            let line = || CommandLine::new(Program::Executable(LIMIT_PROGRAM.into()));
+            let adoption = Adoption {
+                cargo: line(),
+                gh: line(),
+                runner: Runner::Ci,
+                workflows: Vec::new(),
+                dependabot,
+                directory,
+            };
+            adoption.gaps(&Policy::defaults()).to_string()
+        };
+        assert!(!gaps(LIMIT_OFF).contains(LIMIT_TOOL));
+        for text in [LIMIT_NON_ZERO, LIMIT_MISSING, LIMIT_ONE_LEFT_ON] {
+            assert!(gaps(text).contains(LIMIT_MESSAGE));
+        }
     }
 
     #[test]
