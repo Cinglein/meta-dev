@@ -86,19 +86,20 @@ impl HookEvent {
 
     pub fn answer(self, input: &HookInput) -> Output {
         let unstamped = self.phase().and_then(|call| input.stamp(call, Utc::now())).and_then(Result::err);
-        let reply = match Project::found(input.cwd().as_path()) {
+        let found = Project::found(input.cwd().as_path());
+        let reply = match &found {
             Ok(Some(project)) => {
-                let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
+                let session = input.session().and_then(|session| SessionDir::for_session(project, session));
                 let budget = self.budget(project.ci_settings());
-                Some(self.reply(&project, input, budget).with_news(session.and_then(|dir| dir.news())))
+                Some(self.reply(project, input, budget).with_news(session.and_then(|dir| dir.news())))
             }
             Ok(None) => self.outside_projects(input),
             Err(failure) => Some(self.refused(Listed::new(failure))),
         };
-        let named = input
-            .command()
-            .filter(|_| self == Self::PreToolUse)
-            .and_then(|command| Target::resolved_from(&command, &input.cwd()).denial(self, &command, input));
+        let home = found.as_ref().ok().and_then(Option::as_ref);
+        let named = input.command().filter(|_| self == Self::PreToolUse).and_then(|command| {
+            Target::resolved_from(&command, &input.cwd(), home).denial(self, &command, input, home)
+        });
         let reply = named.filter(|_| !reply.as_ref().is_some_and(Reply::denied)).or(reply);
         let opened = self.opens_session().and_then(|()| input.open_session().err());
         let reply = reply.map(|reply| reply.with_news(opened));

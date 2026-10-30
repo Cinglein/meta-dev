@@ -1,4 +1,6 @@
+mod gh_call;
 mod git_call;
+mod pin;
 mod working_directory;
 
 use std::path::{Path, PathBuf};
@@ -8,7 +10,9 @@ use meta_schema::Actor;
 
 use crate::request::output::Listed;
 use crate::request::project::Config;
+use gh_call::GhCall;
 use git_call::GitCall;
+pub use pin::Pin;
 use working_directory::WorkingDirectory;
 
 #[derive(Debug)]
@@ -53,9 +57,12 @@ impl ShellCommand {
         self.segments().filter_map(|words| shell.follow(words, writes)).collect()
     }
 
-    pub fn named_directories(&self, cwd: &Path) -> impl Iterator<Item = PathBuf> + '_ {
-        let mut shell = WorkingDirectory::new(cwd);
-        self.segments().filter_map(move |words| shell.follow(words, |words| (!words.is_empty()).then_some(())))
+    pub fn pins(&self, cwd: &Path) -> Vec<Pin> {
+        Pin::of_calls(&self.segments().collect::<Vec<_>>(), cwd, Self::gh_repositories)
+    }
+
+    fn gh_repositories(words: &[String]) -> Option<Vec<Option<String>>> {
+        GhCall::parse(words).map(|call| call.repositories().to_vec())
     }
 
     pub fn publishing_directory(&self, cwd: &Path) -> Option<PathBuf> {
@@ -77,7 +84,7 @@ impl ShellCommand {
         Self::WRITING.iter().find_map(|subcommand| self.runs(subcommand))
     }
 
-    pub fn segments(&self) -> impl Iterator<Item = &[String]> {
+    fn segments(&self) -> impl Iterator<Item = &[String]> {
         self.0.iter().map(Vec::as_slice)
     }
 }
