@@ -12,6 +12,9 @@ use crate::remote_listing::RemoteListing;
 use crate::remote_name::RemoteName;
 use crate::remote_query::RemoteQuery;
 use crate::sends::Sends;
+pub use transport::Transport;
+
+mod transport;
 
 #[derive(Clone, Debug)]
 pub struct Remote {
@@ -45,7 +48,8 @@ impl Remote {
         let known = self.heads.borrow().clone();
         known.map_or_else(
             || {
-                let listed = self.ask(&Heads)?;
+                let there = self.transport().opened();
+                let listed = there.map_or_else(|| self.ask(&Heads), |there| Ok(RemoteListing::heads_in(&there)))?;
                 self.heads.replace(listed.as_ref().ok().cloned());
                 Ok(listed)
             },
@@ -55,6 +59,14 @@ impl Remote {
 
     pub fn forget_heads(&self) {
         self.heads.take();
+    }
+
+    #[must_use]
+    pub fn transport(&self) -> Transport {
+        let here = git2::Repository::open(&self.directory).ok();
+        let url = here.and_then(|here| here.find_remote(self.name.text()).ok()?.url().ok().map(str::to_owned));
+        let Ok(transport) = url.unwrap_or_default().parse::<Transport>();
+        transport.below(&self.directory)
     }
 
     fn ran(&self, words: Vec<OsString>) -> Result<Ran, GitFailure> {

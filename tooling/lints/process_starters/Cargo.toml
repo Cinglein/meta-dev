@@ -1,5 +1,5 @@
 [package]
-name = "git_starters"
+name = "process_starters"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

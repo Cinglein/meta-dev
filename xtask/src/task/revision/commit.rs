@@ -1,21 +1,23 @@
 use std::ffi::OsStr;
 use std::fmt;
-use std::path::Path;
 use std::str::FromStr;
 
-use super::TrackedPath;
+use meta_git::ObjectId;
+
 use crate::task::failure::Failure;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Commit(String);
 
 impl Commit {
-    pub fn object(&self, path: &Path) -> String {
-        format!("{}:./{}", self.0, path.display())
+    pub fn object_id(&self) -> Result<ObjectId, Failure> {
+        Ok(self.0.parse()?)
     }
+}
 
-    pub fn tracked(&self, path: TrackedPath) -> String {
-        format!("{}:{}", self.0, path.path().display())
+impl From<ObjectId> for Commit {
+    fn from(id: ObjectId) -> Commit {
+        Commit(id.to_string())
     }
 }
 

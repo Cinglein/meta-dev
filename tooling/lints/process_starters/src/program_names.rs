@@ -2,7 +2,7 @@ use proc_macro2::{Literal, TokenStream, TokenTree};
 use syn::visit::{self, Visit};
 use syn::{BinOp, ExprBinary, LitStr, Macro};
 
-use task::LineNumber;
+use task::{LineNumber, SourceFile};
 
 #[derive(Debug, Default)]
 pub(crate) struct ProgramNames(Vec<LineNumber>);
@@ -10,8 +10,10 @@ pub(crate) struct ProgramNames(Vec<LineNumber>);
 impl ProgramNames {
     const PROGRAM: &str = concat!("gi", "t");
 
-    pub(crate) fn lines(self) -> Vec<LineNumber> {
-        self.0
+    pub(crate) fn found(file: &SourceFile) -> Vec<LineNumber> {
+        let mut names = ProgramNames::default();
+        names.visit_file(file.syntax());
+        names.0
     }
 
     fn tokens_naming(&mut self, tokens: TokenStream) {

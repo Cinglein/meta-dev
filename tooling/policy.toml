@@ -151,6 +151,20 @@ allowance = { count = 19 }
 window = "per_change"
 source = "ci"
 
+[budgets.test-processes]
+division = "performance-and-cost"
+measure = "test_processes"
+allowance = { baseline = "self/test-processes-baseline.toml" }
+window = "per_change"
+source = "ci"
+
+[budgets.process-starters]
+division = "performance-and-cost"
+measure = "process_starters"
+allowance = { count = 14 }
+window = "per_change"
+source = "ci"
+
 [budgets.slowest-test]
 division = "performance-and-cost"
 measure = "slowest_test"
