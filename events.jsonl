@@ -1806,3 +1806,4 @@
 {"at":"2026-10-30T17:27:15.081837Z","actor":"claude-elegcat","kind":"TaskDone","task":"task-3d193b38d85522f9"}
 {"at":"2026-10-30T17:27:16.685909Z","actor":"claude-b13","kind":"TaskDone","task":"task-b345cd6a3924ee90"}
 {"at":"2026-10-30T17:56:28.001256Z","actor":"claude-teststack4","kind":"TaskClaimed","task":"task-d53f262aff86547a"}
+{"at":"2026-10-30T17:58:21.293040Z","actor":"claude-lead","kind":"IssueReported","issue":"issue-f4ba42ff4b8fb33f","text":"macOS CI job fails with every test ok and no error line (#226 run 41098914251, macos and macos-mutants 3/4); the failing step must print why.","division":"performance-and-cost"}
