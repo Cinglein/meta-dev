@@ -1,7 +1,9 @@
 #![allow(clippy::unwrap_used)]
 
+use std::ffi::{OsStr, OsString};
 use std::fmt;
 use std::io::Write as _;
+use std::os::unix::ffi::{OsStrExt as _, OsStringExt as _};
 use std::os::unix::process::CommandExt as _;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
@@ -77,6 +79,28 @@ impl Config {
     }
 }
 
+struct Stray(u8);
+
+const STRAY: Stray = Stray(0xff);
+const STRAYS: usize = 2;
+
+struct Call<'path>(&'path Path);
+
+impl Call<'_> {
+    fn json(&self, fields: &str) -> String {
+        let cwd = serde_json::to_string(self.0).unwrap();
+        self.bytes(OsStr::new(&format!(r#"{{"cwd":{cwd},{fields}}}"#)))
+    }
+
+    fn bytes(&self, input: &OsStr) -> String {
+        let mut meta = MetaCommand::tagged(&[HOOK, PRE]);
+        let piped = meta.env_remove("META_ACTOR").env("TMPDIR", self.0);
+        let mut child = piped.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
+        child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
+        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
+    }
+}
+
 struct Repo {
     origin: tempfile::TempDir,
     clone: tempfile::TempDir,
@@ -97,19 +121,6 @@ impl Repo {
 
     fn hook(&self, event: &str, command: &str, cwd: &Path) -> String {
         let child = self.started(event, command, cwd, &mut MetaCommand::tagged(&[HOOK, event]));
-        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
-    }
-
-    fn tool_call(&self, fields: &str) -> String {
-        let cwd = serde_json::to_string(self.clone.path()).unwrap();
-        self.raw_call(format!(r#"{{"cwd":{cwd},{fields}}}"#).as_bytes())
-    }
-
-    fn raw_call(&self, input: &[u8]) -> String {
-        let mut meta = MetaCommand::tagged(&[HOOK, PRE]);
-        let piped = meta.env_remove("META_ACTOR").env("TMPDIR", self.clone.path());
-        let mut child = piped.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
-        child.stdin.take().unwrap().write_all(input).unwrap();
         String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
     }
 
@@ -149,7 +160,6 @@ impl Repo {
 }
 
 const UNPARSABLE: &str = "{not json";
-const NOT_UTF8: &[u8] = &[0xff, 0xfe];
 const UNPARSABLE_REASON: &str = "cannot parse the hook input";
 const MODAL_CALLS: [&str; 2] = [
     r#""tool_name":"AskUserQuestion","tool_input":{"questions":[]}"#,
@@ -161,10 +171,11 @@ const MODAL_REASON: &str = "Modal questions are refused: write the decision as d
 #[test]
 fn pre_tool_use_refuses_modal_question_tools_in_every_session_and_leaves_other_tools_alone() {
     let repo = Repo::new();
-    assert!(MODAL_CALLS.iter().all(|call| repo.tool_call(call).contains(&format!("{DENY}{MODAL_REASON}"))));
-    assert_eq!(repo.tool_call(BASH_CALL), "");
+    let call = Call(repo.clone.path());
+    assert!(MODAL_CALLS.iter().all(|fields| call.json(fields).contains(&format!("{DENY}{MODAL_REASON}"))));
+    assert_eq!(call.json(BASH_CALL), "");
     let denied = |shown: String| shown.contains(&format!("{DENY}{UNPARSABLE_REASON}"));
-    assert!(denied(repo.tool_call(UNPARSABLE)) && denied(repo.raw_call(NOT_UTF8)));
+    assert!(denied(call.json(UNPARSABLE)) && denied(call.bytes(&OsString::from_vec(vec![STRAY.0; STRAYS]))));
 }
 
 #[test]

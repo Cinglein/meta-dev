@@ -2,7 +2,9 @@ mod identity;
 mod pushed_commits;
 mod shell_command;
 mod tool_input;
+mod unreadable;
 
+use std::io::Read as _;
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
@@ -19,6 +21,7 @@ use identity::Identity;
 use pushed_commits::PushedCommits;
 use shell_command::ShellCommand;
 use tool_input::ToolInput;
+pub use unreadable::Unreadable;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct HookInput {
@@ -33,6 +36,12 @@ pub struct HookInput {
 }
 
 impl HookInput {
+    pub fn from_stdin() -> Result<HookInput, Unreadable> {
+        let mut bytes = Vec::new();
+        std::io::stdin().read_to_end(&mut bytes)?;
+        Ok(serde_json::from_slice(&bytes)?)
+    }
+
     pub fn cwd(&self) -> PathBuf {
         self.cwd.clone().or_else(|| std::env::current_dir().ok()).unwrap_or_default()
     }
