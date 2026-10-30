@@ -124,7 +124,11 @@ impl Scanner {
 
     fn input(&mut self) {
         match (self.peek(0), self.peek(1)) {
-            (Some('<'), Some('<')) => self.at += 2,
+            (Some('<'), Some('<')) => {
+                self.at += 2;
+                self.end_word();
+                self.segment.push("<<<".to_owned());
+            }
             (Some('<'), _) => {
                 self.at += 1;
                 self.found.heredoc |= Self::delimited(self.chars.get(self.at..).unwrap_or_default());

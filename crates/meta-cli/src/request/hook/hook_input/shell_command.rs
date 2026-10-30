@@ -18,7 +18,8 @@ pub struct ShellCommand(Tokens);
 impl ShellCommand {
     const SHELL_RULE: &'static str = "shell rule:";
     const USE: &'static str =
-        "is not allowed; use the Edit and Write tools, `git restore`, or `git rm` inside a code change";
+        "is not allowed; use the Write or Edit tool, `git restore`, or `git rm` inside a code change";
+    const STDIN: &'static str = "reads its commands from stdin; pass them with -c so they can be checked";
     const PR_MERGE: &'static [&'static str] = &["gh", "pr", "merge"];
     const PR_CREATE: &'static [&'static str] = &["gh", "pr", "create"];
     const PUBLISHING: &'static [&'static str] = &["push", "commit"];
@@ -70,8 +71,12 @@ impl ShellCommand {
 
     fn reason(&self, rules: &ShellRules) -> Option<String> {
         let program = |segment: &[String]| {
-            let named = rules.forbidden_in(segment).map(|word| format!("{} `{word}` {}", Self::SHELL_RULE, Self::USE));
-            named.or_else(|| rules.nested(segment).and_then(|text| Self(Tokens::scan(&text)).reason(rules)))
+            let said = |word: &str, why: &str| format!("{} `{word}` {why}", Self::SHELL_RULE);
+            let named = rules.forbidden_in(segment).map(|word| said(word, Self::USE));
+            let piped = || rules.stdin_shell(segment).map(|word| said(word, Self::STDIN));
+            named
+                .or_else(piped)
+                .or_else(|| rules.nested(segment).and_then(|text| Self(Tokens::scan(&text)).reason(rules)))
         };
         self.0.breach().map(str::to_owned).or_else(|| self.segments().find_map(program))
     }
@@ -153,7 +158,7 @@ mod tests {
         assert!(ALLOWED.iter().all(|command| refusal(command).is_none()));
     }
 
-    const VERDICTS: [(&str, bool); 43] = [
+    const VERDICTS: [(&str, bool); 56] = [
         ("rm -rf x", true),
         ("cd a && mv b c", true),
         ("sed -i s/a/b/ f", true),
@@ -197,6 +202,19 @@ mod tests {
         ("timeout -s KILL 5 sed p", true),
         ("timeout --signal KILL -k 1 5 sed p", true),
         ("cd a; (sed p f)", true),
+        ("sudo -n rm x", true),
+        ("sudo -E rm x", true),
+        ("sudo -S rm x", true),
+        ("sudo -k rm x", true),
+        ("if rm x; then :; fi", true),
+        ("while sed p f; do :; done", true),
+        ("echo rm x | bash", true),
+        ("bash <<< 'rm x'", true),
+        ("bash script.sh; source f", false),
+        ("gh pr create --body \"Fix (a; b) > c\n\n- rm x; sed\"", false),
+        ("cargo test -- --nocapture 2>&1 | tail", false),
+        ("jq '.[] | select(.a > 1)' f", false),
+        ("RUSTFLAGS=\"-D warnings\" nice -n 19 cargo clippy", false),
     ];
 
     #[test]

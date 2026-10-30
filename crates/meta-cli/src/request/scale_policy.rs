@@ -44,9 +44,9 @@ impl ScalePolicy {
 
     pub fn shell_in(root: Option<&Path>) -> Result<ShellRules, CliFailure> {
         let own = root.filter(|root| root.join(Self::FILE).exists()).map(Self::read).transpose()?;
-        let embedded = || toml::from_str::<ScalePolicy>(Self::EMBEDDED).map_err(CliFailure::raised::<Setup>);
-        own.and_then(|policy| policy.shell)
-            .map_or_else(|| embedded().map(|policy| policy.shell.unwrap_or_default()), Ok)
+        let embedded = toml::from_str::<ScalePolicy>(Self::EMBEDDED).map_err(CliFailure::raised::<Setup>)?;
+        let embedded = embedded.shell.unwrap_or_default();
+        Ok(own.and_then(|policy| policy.shell).map_or_else(|| embedded.clone(), |own| embedded.clone().union(own)))
     }
 
     pub fn scales(&self) -> &Scales {
