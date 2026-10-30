@@ -42,6 +42,8 @@ mod tests {
     use crate::env_policy::EnvPolicy;
     use crate::run::Run;
     use crate::run_failure::RunFailure;
+    use nix::sys::signal::kill;
+    use nix::unistd::Pid;
     use std::time::{Duration, Instant};
 
     const BASH: &str = "bash";
@@ -53,7 +55,6 @@ mod tests {
     const CHILD: &str =
         "--exact run::placement::tests::in_a_terminal_it_shares_the_group_and_closing_refuses --ignored";
     const HELPER: &str = "bash -c 'sleep 5 & echo $! > \"$0\"; wait' \"$0\" & wait";
-    const HELD: &str = "case \"$(ps -o stat= -p \"$(cat \"$0\")\")\" in ''|Z*) ;; *) echo held;; esac";
     const POLL: Duration = Duration::from_millis(2);
     const WINDOW: Duration = Duration::from_secs(1);
     const LEADER: &str = "leader";
@@ -70,10 +71,11 @@ mod tests {
         let leads = shell(LEADS).terminal().stdout(Instant::now() + PATIENT).unwrap_or_default();
         let helper = tempfile::NamedTempFile::new().unwrap();
         let expired = shell(HELPER).arg(helper.path()).terminal().ran(Instant::now() + MARGIN);
-        let held = || shell(HELD).arg(helper.path()).stdout(Instant::now() + PATIENT).unwrap_or_default();
+        let pid = std::fs::read_to_string(helper.path()).unwrap_or_default().trim().parse().ok().map(Pid::from_raw);
+        let held = || pid.is_none_or(|pid| kill(pid, None).is_ok());
         let until = Instant::now() + WINDOW;
         let polls = std::iter::repeat_with(|| std::thread::sleep(POLL)).take_while(|()| Instant::now() < until);
-        let ended = matches!(expired, Err(RunFailure::TimedOut(_))) && polls.into_iter().any(|()| held().is_empty());
+        let ended = matches!(expired, Err(RunFailure::TimedOut(_))) && polls.into_iter().any(|()| !held());
         Group::all_ended();
         let refused = shell(LEADS).ran(Instant::now() + PATIENT);
         assert!(!leads.is_empty() && !leads.contains(LEADER) && matches!(refused, Err(RunFailure::Interrupted(_))));

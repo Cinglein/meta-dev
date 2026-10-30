@@ -11,6 +11,8 @@ pub enum GitFailure {
     Reftable(PathBuf),
     #[error("git: {0}")]
     Library(#[from] git2::Error),
+    #[error("worktree parent: {0}")]
+    Parent(#[from] std::io::Error),
     #[error("offline: {0}")]
     Unrun(#[from] RunFailure),
     #[error("{0} is not UTF-8 text")]
