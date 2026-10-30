@@ -108,6 +108,21 @@ mod tests {
         );
     }
 
+    const FAILING: &str = include_str!("../fixtures/failing-test.tsv");
+    const FAILING_GOLDEN: &str = include_str!("../fixtures/failing-test.golden.json");
+
+    #[test]
+    fn a_failing_test_is_recorded_with_its_crate_and_name() {
+        let found = FAILING.parse::<TestRuns>().and_then(TestRuns::passed);
+        assert_eq!(
+            found
+                .err()
+                .map(|failure| failure.found(&"test".into()).to_string())
+                .as_deref(),
+            Some(FAILING_GOLDEN)
+        );
+    }
+
     const BINARY: &str = "target/debug/deps/bin-1a2b3c";
     const NAMES: [&str; 2] = ["passes", "fails"];
     const TICK: Duration = Duration::from_millis(1);
