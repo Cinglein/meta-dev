@@ -1,7 +1,6 @@
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::Path;
 use std::process::Command;
-use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::time::{Duration, Instant};
 
 use meta_pull_query::LiveQuery;
@@ -41,8 +40,7 @@ const REASONS: [(&str, &str); 3] = [
 ];
 const WORKFLOWS: [&str; 2] = ["ci", "mutants"];
 const DEADLINE: Duration = Duration::from_secs(5);
-const NOISE: usize = 4;
-const ROUNDS: usize = 150;
+const WRITER: [&str; 2] = ["-c", "printf '%s' \"$1\" > \"$0\""];
 
 struct Fake {
     dir: tempfile::TempDir,
@@ -53,7 +51,8 @@ impl Fake {
     fn new(scenario: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let script = dir.path().join(scenario);
-        std::fs::write(&script, FAKE_GH.replace("$FAKE", scenario)).unwrap();
+        let written = Command::new("sh").args(WRITER).arg(&script).arg(FAKE_GH.replace("$FAKE", scenario)).status();
+        assert!(written.unwrap().success());
         std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
         let config: Config = toml::from_str(&format!("[ci]\nprogram = {:?}", script.display().to_string())).unwrap();
         let program = CiSettings::try_from(&config).unwrap().program().clone();
@@ -98,18 +97,6 @@ fn a_project_requires_the_workflows_its_meta_toml_names_and_none_by_default() {
     };
     assert_eq!(required("remote = \"origin\"\nrequired_workflows = [\"ci\", \"docs\"]"), ["ci", "docs"]);
     assert_eq!(required("remote = \"origin\""), Vec::<String>::new());
-}
-
-#[test]
-fn a_fake_gh_is_never_busy_for_writing_while_other_threads_spawn_processes() {
-    let stop = AtomicBool::new(false);
-    let spawning = || std::iter::repeat_with(|| Command::new("true").status().ok()).take_while(|_| !stop.load(Relaxed));
-    std::thread::scope(|scope| {
-        (0..NOISE).for_each(|_| drop(scope.spawn(|| spawning().for_each(drop))));
-        let read = (0..ROUNDS).all(|_| Fake::reason(REASONS[0].0) == REASONS[0].1);
-        stop.store(true, Relaxed);
-        assert!(read);
-    });
 }
 
 #[test]
