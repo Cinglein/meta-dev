@@ -66,7 +66,8 @@ impl LegacyKey {
             | Interval::DiscoverEvery
             | Interval::PerCrate
             | Interval::TestTimeout
-            | Interval::JobSetup => None,
+            | Interval::JobSetup
+            | Interval::QueuePace => None,
         }
     }
 

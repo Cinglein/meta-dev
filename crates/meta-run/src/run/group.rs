@@ -7,6 +7,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
+use nix::sys::signal::Signal;
+
 use super::Run;
 pub(super) use group_id::GroupId;
 
@@ -19,9 +21,7 @@ pub struct Group(GroupId);
 impl Group {
     pub const HANDOFF: Duration = Duration::from_millis(30);
     pub const SETTLE: Duration = Self::HANDOFF.saturating_mul(10);
-    const STOPPING: [&'static str; 2] = ["-TERM", "-CONT"];
-    const KILLING: &'static str = "-KILL";
-    const PROBE: &'static str = "-0";
+    const STOPPING: [Signal; 2] = [Signal::SIGTERM, Signal::SIGCONT];
     const GRACE: Duration = Duration::from_secs(1);
     const STEP: Duration = Duration::from_millis(5);
 
@@ -42,11 +42,11 @@ impl Group {
         let group = GroupId::from(&*leader);
         let begun = Instant::now();
         let deadline = begun + Self::GRACE;
-        drop(Self::STOPPING.map(|signal| GroupId::signalled([&group], signal, deadline)));
+        let _stopped = Self::STOPPING.map(|signal| group.signalled(signal));
         let _swept = std::iter::repeat(()).try_for_each(|()| {
             std::thread::sleep(Self::STEP);
             drop(leader.try_wait());
-            drop(begun.elapsed().checked_sub(patience).map(|_| GroupId::signalled([&group], Self::KILLING, deadline)));
+            begun.elapsed().checked_sub(patience).into_iter().for_each(|_| group.signalled(Signal::SIGKILL));
             Self::probed(group, deadline).map_or(ControlFlow::Break(()), ControlFlow::Continue)
         });
         Run::alone(leader);
@@ -57,7 +57,7 @@ impl Group {
         let begun = Instant::now();
         let deadline = begun + Self::GRACE;
         let live = Self::live().clone();
-        drop(Self::STOPPING.map(|signal| GroupId::signalled(live.keys(), signal, deadline)));
+        let _stopped = Self::STOPPING.map(|signal| live.keys().for_each(|group| group.signalled(signal)));
         let _closed = std::iter::repeat(()).try_for_each(|()| Self::closed(begun, deadline));
     }
 
@@ -65,7 +65,7 @@ impl Group {
         std::thread::sleep(Self::STEP);
         let live = Self::live().clone();
         let late = live.iter().filter(|(_, patience)| begun.elapsed().checked_sub(**patience).is_some());
-        drop(GroupId::signalled(late.map(|(group, _)| group), Self::KILLING, deadline));
+        late.for_each(|(group, _)| group.signalled(Signal::SIGKILL));
         let gone = live.keys().filter(|group| Self::probed(**group, deadline).is_none());
         gone.for_each(|group| {
             Self::live().remove(group);
@@ -78,9 +78,7 @@ impl Group {
     }
 
     fn probed(group: GroupId, deadline: Instant) -> Option<()> {
-        let probed = GroupId::signalled([&group], Self::PROBE, deadline);
-        let alive = probed.map_or(Some(()), |probed| probed.success().then_some(()));
-        deadline.checked_duration_since(Instant::now()).and(alive)
+        deadline.checked_duration_since(Instant::now()).and(group.alive().then_some(()))
     }
 
     pub fn live() -> MutexGuard<'static, BTreeMap<GroupId, Duration>> {

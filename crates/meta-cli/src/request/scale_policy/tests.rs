@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use chrono::{DateTime, TimeDelta, Utc};
 use meta_schema::{Block, Blocker, DueTime, ExternalKind};
 
@@ -15,6 +17,8 @@ const NAV: &str = "features-and-maintenance/nav";
 const KNOWN: [&str; 3] = [NAV, "features-and-maintenance/tracker", "architecture-and-planning"];
 const UNKNOWN: &str = "features-and-maintenance/nowhere";
 const UNMAPPED: &str = "maps onto no level";
+const QUEUED: &str = "[millis]\nqueue_pace = 60000\n[queue]\nlanders = [\"claude-lead\"]\n";
+const LANDER: &str = "claude-lead";
 
 #[test]
 fn scales_and_known_divisions_are_read_from_policy_and_a_missing_one_is_refused() {
@@ -30,6 +34,14 @@ fn scales_and_known_divisions_are_read_from_policy_and_a_missing_one_is_refused(
     assert!(policy.known(&UNKNOWN.parse().unwrap()).is_err());
     std::fs::write(dir.path().join(ScalePolicy::FILE), POLICY.replace("critical", "nope")).unwrap();
     assert!(ScalePolicy::read(dir.path()).unwrap_err().to_string().contains(UNMAPPED));
+}
+
+#[test]
+fn the_queue_reads_its_pace_floor_and_its_landers_from_policy() {
+    let policy: ScalePolicy = toml::from_str(QUEUED).unwrap();
+    let floor = [policy.millis().queue_floor().ok(), ScalePolicy::default().millis().queue_floor().ok()];
+    assert_eq!(floor, [Some(Duration::from_secs(60)), None]);
+    assert!(policy.queue().lander(LANDER.parse().ok()).is_some());
 }
 
 #[test]

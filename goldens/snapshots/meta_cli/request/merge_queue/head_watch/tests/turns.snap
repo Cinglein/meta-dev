@@ -1,0 +1,9 @@
+[
+    "Ok(Some(Flagged(Listed(\"#105 conflicts with main: needs conflict fix\\n\"), PullRequest(105))))",
+    "Ok(Some(Stopped(Red { pull_request: PullRequest(218), checks: FailingChecks([CheckName(\"mutants (task)\"), CheckName(\"mutants (affected+meta-xtask)\"), CheckName(\"ci-gate\")]) })))",
+    "Ok(None)",
+    "Err(Setup(Message(\"meta.toml: `remote` is required\")))",
+    "Some(Ok(Some(Flagged(Listed(\"#196 merged: next\\nclose-out failed: meta.toml: `remote` is required\\n\"), PullRequest(196)))))",
+    "None",
+    "Err(Setup(Message(\"meta.toml: `remote` is required\")))",
+]

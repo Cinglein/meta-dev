@@ -1,0 +1,12 @@
+[package]
+name = "rusage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+nix = { version = "0.31.3", default-features = false, features = ["resource"] }
+
+[lints]
+workspace = true
