@@ -1794,3 +1794,4 @@
 {"at":"2026-10-30T16:37:26.238929Z","actor":"claude-ciexists","kind":"TaskClaimed","task":"task-2b9672f58fca82cc"}
 {"at":"2026-10-30T16:37:32.301444Z","actor":"claude-projects3","kind":"TaskClaimed","task":"task-ed1af0d0d1458263"}
 {"at":"2026-10-30T16:37:48.184531Z","actor":"claude-stackmerge","kind":"TaskClaimed","task":"task-618030b8b5b44082"}
+{"at":"2026-10-30T16:40:38.457665Z","actor":"owner","kind":"TaskLinked","task":"task-2b9672f58fca82cc","pr":246}
