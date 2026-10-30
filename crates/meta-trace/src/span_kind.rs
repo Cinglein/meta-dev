@@ -1,5 +1,5 @@
+use std::ffi::OsStr;
 use std::fmt;
-use std::process::Command;
 
 use tracing::span::EnteredSpan;
 
@@ -19,8 +19,8 @@ pub enum SpanKind {
 
 impl SpanKind {
     #[must_use]
-    pub fn spawning(command: &Command) -> Self {
-        Program::named(command.get_program()).spawned(command)
+    pub fn spawning(program: &OsStr, args: &[&OsStr]) -> Self {
+        Program::named(program).spawned(args)
     }
 
     pub fn entered(self) -> EnteredSpan {

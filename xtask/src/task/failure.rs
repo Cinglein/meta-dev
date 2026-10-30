@@ -14,6 +14,7 @@ use crate::task::adoption::Gaps;
 use crate::task::ci::{Busy, OutsideConfig, Unready, Untracked};
 use crate::task::ratchet::{Raised, Ratchet};
 use crate::task::revision::ForeignEmails;
+use crate::task::test_processes::Unmatched;
 use crate::task::{Misplaced, TrackedBuildFiles};
 pub use step_failures::{StepFailure, StepFailures};
 
@@ -38,6 +39,8 @@ pub enum Failure {
     Ratchet(Ratchet),
     #[error("{0}")]
     Raised(Raised),
+    #[error("{0}")]
+    Unmatched(Unmatched),
     #[error("baseline: {0}")]
     Baseline(#[from] toml::de::Error),
     #[error("baseline: {0}")]
@@ -90,6 +93,12 @@ pub enum Failure {
     Unbuilt(&'static str),
     #[error("git: {0}")]
     Git(Unread),
+    #[error("{0}")]
+    Repository(#[from] meta_git::GitFailure),
+    #[error("{} is not inside a git repository", .0.display())]
+    NoRepository(PathBuf),
+    #[error("{} is not inside the work tree of its git repository; nothing read", .0.display())]
+    OutsideWorkdir(PathBuf),
     #[error("{0}")]
     BuildDirectory(#[from] Misplaced),
     #[error("{0}")]

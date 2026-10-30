@@ -35,14 +35,19 @@ pub use git_failure::GitFailure;
 pub use identity::Identity;
 pub use layout::Layout;
 pub use object_id::ObjectId;
-pub use queries::Head;
 pub use queries::config::{Ignored, Setting};
-pub use queries::history::{FilesAt, FirstAddition, FirstParents, Signers};
-pub use queries::refs::{Heads, RefTarget, RemoteUrl, Revision};
+pub use queries::history::commit_emails::CommitEmails;
+pub use queries::history::merge_base::MergeBase;
+pub use queries::history::tree_text::TreeText;
+pub use queries::history::{
+    FilesAt, FirstAddition, FirstParents, HeadReflog, IndependentTips, ReflogLine, Signers, Unpushed,
+};
+pub use queries::refs::{Heads, RefTarget, RemoteBranches, RemoteUrl, Revision};
+pub use queries::{Head, LooseObject, Workdir, WorktreeFiles};
 pub use query::Query;
 pub use reads::Reads;
 pub use ref_name::RefName;
-pub use remote::Remote;
+pub use remote::{Remote, Transport};
 pub use remote_change::RemoteChange;
 pub use remote_listing::RemoteListing;
 pub use remote_name::RemoteName;

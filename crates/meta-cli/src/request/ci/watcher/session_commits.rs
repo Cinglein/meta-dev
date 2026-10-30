@@ -21,13 +21,13 @@ impl SessionCommits {
 
     pub fn judged(project: &Project, session: &SessionId, reach: Reach, deadline: Instant) -> Result<Self, Listed> {
         let start = SessionStart::for_session(session).read();
-        let created = start.map_or(Some(Vec::new()), |start| project.created_after(&start, deadline));
+        let created = start.map_or(Some(Vec::new()), |start| project.created_after(&start));
         let created = Self::known(created)?;
         let remote = reach.asks_remote(&created).map(|()| project.remote_heads(deadline));
         let heads = remote.transpose()?.unwrap_or_default();
-        let unpushed = project.unpushed(&created, &heads.tips(), deadline);
+        let unpushed = project.unpushed(&created, &heads.tips());
         let seen = Self::new(&created, unpushed, project.checkout().clone(), heads);
-        let independent = project.independent_tips(seen.pushed(), deadline);
+        let independent = project.independent_tips(seen.pushed());
         Ok(seen.tipped(independent))
     }
 

@@ -4,10 +4,9 @@ mod git_paths;
 mod git_reads;
 mod tracked_path;
 
-use std::ffi::OsStr;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use meta_run::GitArgv;
+use meta_git::{CommitEmails, MergeBase, TreeText, WorktreeFiles};
 use task::BranchName;
 
 use crate::task::failure::Failure;
@@ -24,13 +23,11 @@ pub struct Revision {
 }
 
 impl Revision {
-    const FULL_TREE: &str = "--full-tree";
-    const PATHS: &str = "--";
-
     pub fn merge_base(root: &Path, base: &BranchName) -> Result<Revision, Failure> {
         let git = GitReads::new(root);
-        let found = git.read(GitArgv::MergeBase, [base]).map_err(|_| task::Failure::NoMergeBase)?;
-        Ok(Revision { commit: found.parse()?, git })
+        let found = git.read(&MergeBase::from(&*base.as_ref().to_string_lossy()));
+        let commit = found.map_err(|_| task::Failure::NoMergeBase)?;
+        Ok(Revision { commit: Commit::from(commit), git })
     }
 
     pub fn commit(&self) -> &Commit {
@@ -42,28 +39,25 @@ impl Revision {
     }
 
     pub fn present(&self, path: &Path) -> Result<Option<String>, Failure> {
-        self.found(path, None, self.commit.object(path))
+        self.found(self.git.below()?.join(path))
     }
 
     pub fn tracked(&self, path: TrackedPath) -> Result<Option<String>, Failure> {
-        self.found(path.path(), Some(Self::FULL_TREE), self.commit.tracked(path))
+        self.found(path.path().to_path_buf())
     }
 
-    fn found(&self, path: &Path, scope: Option<&str>, object: String) -> Result<Option<String>, Failure> {
-        let named = [self.commit.as_ref(), OsStr::new(Self::PATHS), path.as_os_str()];
-        let operands = scope.map(OsStr::new).into_iter().chain(named);
-        let Ok(listed) = self.git.read(GitArgv::LsTree, operands)?.parse::<GitPaths>();
-        (!listed.is_empty()).then(|| self.git.read(GitArgv::CatBlob, [object])).transpose()
+    fn found(&self, path: PathBuf) -> Result<Option<String>, Failure> {
+        self.git.read(&TreeText::new(self.commit.object_id()?, path))
     }
 
     pub fn changed_paths(&self) -> Result<GitPaths, Failure> {
-        let Ok(listed) = self.git.read(GitArgv::ChangedNames, [&self.commit])?.parse::<GitPaths>();
-        let Ok(untracked) = self.git.read(GitArgv::UntrackedNames, GitReads::NO_OPERANDS)?.parse::<GitPaths>();
-        Ok(listed.and(untracked))
+        let listed = self.git.files(WorktreeFiles::ChangedSince(self.commit.object_id()?))?;
+        Ok(listed.and(self.git.files(WorktreeFiles::Untracked)?))
     }
 
     pub fn noreply_off(root: &Path, base: &BranchName) -> Result<(), Failure> {
-        ForeignEmails::refused(&GitReads::new(root).read(GitArgv::LogEmails, [base])?)
+        let emails = GitReads::new(root).read(&CommitEmails::from(&*base.as_ref().to_string_lossy()))?;
+        ForeignEmails::refused(&emails.join("\n"))
     }
 }
 
