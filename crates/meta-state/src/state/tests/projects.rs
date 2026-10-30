@@ -157,3 +157,50 @@ fn the_fold_reaches_each_stage_and_active_needs_a_held_serving_task() {
     let expected: Vec<(Option<ProjectStage>, usize)> = STAGES.iter().map(|(.., stage)| (Some(*stage), 0)).collect();
     assert_eq!(folded, expected);
 }
+
+const MARK: Step = Step::written(OWNER, r#"{"kind":"SchemaVersion","version":9}"#);
+const SERVE: Step = Step::written(ALICE, SERVES);
+const CAUSE: Step = Step::written(ALICE, CAUSED_IN);
+const INSTRUMENT: Step = Step::written(ALICE, INSTRUMENTS);
+const DELIVER: Step = Step::written(META, ON_TARGET);
+const REGRESS: Step = Step::written(META, OFF_TARGET);
+const TASK_C1: &str = "task-00000000000000c1";
+const OPENED_PLAIN_FIVE: &str = r#"{"kind":"TaskOpened","task":"task-00000000000000c5","text":"v"}"#;
+const UNSERVABLE_ACCEPTED: Refusal = Refusal::ServesNotInstrumented(ProjectStage::Accepted);
+type ClaimCase = (&'static [Step], &'static [Step], Result<(), Refusal>);
+
+fn claimed() -> [ClaimCase; 8] {
+    [
+        (ACCEPTED, &[SERVE], Err(UNSERVABLE_ACCEPTED)),
+        (MEASURED, &[SERVE], Ok(())),
+        (MEASURED, &[SERVE, DELIVER], Err(Refusal::ServesNotInstrumented(ProjectStage::Delivered))),
+        (MEASURED, &[SERVE, DELIVER, REGRESS], Err(Refusal::ServesNotInstrumented(ProjectStage::Regressed))),
+        (ACCEPTED, &[INSTRUMENT], Ok(())),
+        (ACCEPTED, &[], Ok(())),
+        (ACCEPTED, &[MARK], Err(Refusal::Unlinked(TASK_C1.parse().unwrap()))),
+        (ACCEPTED, &[MARK, CAUSE], Ok(())),
+    ]
+}
+
+#[test]
+fn a_claim_needs_a_purpose_after_the_marker_and_a_serving_task_waits_for_instrumentation() {
+    let cases = claimed();
+    let found: Vec<Result<(), Refusal>> = cases
+        .iter()
+        .map(|(log, then, _)| Step::replayed(&[*log, *then].concat()).vet(ALICE, Step::written(ALICE, CLAIM).event()))
+        .collect();
+    let expected: Vec<Result<(), Refusal>> = cases.iter().map(|(.., verdict)| verdict.clone()).collect();
+    assert_eq!(found, expected);
+}
+
+#[test]
+fn a_task_opens_without_a_purpose_only_before_the_marker_and_the_fold_keeps_old_claims() {
+    let opened = Step::written(ALICE, OPENED_PLAIN_FIVE).event();
+    let serving = Step::written(ALICE, OPENED_SERVING).event();
+    let marked = Step::replayed(&[ACCEPTED, &[MARK]].concat());
+    assert_eq!(marked.vet(ALICE, opened.clone()), Err(Refusal::Unpurposed));
+    assert_eq!(marked.vet(ALICE, serving), Ok(()));
+    assert_eq!(Step::replayed(ACCEPTED).vet(ALICE, opened), Ok(()));
+    let claimed_unlinked = Step::replayed(&[ACCEPTED, &[Step::written(ALICE, CLAIM), MARK]].concat());
+    assert_eq!(State::fold(&claimed_unlinked.records).anomalies().len(), 0);
+}

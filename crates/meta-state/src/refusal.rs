@@ -23,6 +23,12 @@ pub enum Refusal {
     Unattachable(ProjectStage),
     #[error("the task already has a purpose")]
     AlreadyPurposed,
+    #[error("{0} has no purpose; give it one with `meta serve`, `meta instrument` or `meta cause`")]
+    Unlinked(Id<Task>),
+    #[error("a task needs a purpose: --instruments, --serves or --caused-by")]
+    Unpurposed,
+    #[error("the project is {0}, not instrumented; serving waits for instrumentation")]
+    ServesNotInstrumented(ProjectStage),
     #[error("there is no task {0}")]
     UnknownTask(Id<Task>),
     #[error("there is no concern or issue {0}")]
