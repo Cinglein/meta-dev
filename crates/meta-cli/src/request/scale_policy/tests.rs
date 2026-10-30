@@ -56,3 +56,11 @@ fn a_wait_without_its_own_due_time_is_due_one_reply_window_from_now() {
     let due = [block.clone(), block.reply_by(own)].map(|block| liveness.asked(block, now).reply_due());
     assert_eq!(due, [Some(DueTime::from(now + WINDOW)), Some(own)]);
 }
+
+#[test]
+fn the_ci_run_limit_is_read_from_policy_and_is_five_minutes_in_the_embedded_policy() {
+    let policy: ScalePolicy = toml::from_str("[liveness]\nci_run_within = 60000\n").unwrap();
+    let embedded = ScalePolicy::embedded().unwrap().liveness();
+    assert_eq!(policy.liveness().ci_run_within(), Some(Duration::from_secs(60)));
+    assert_eq!(embedded.ci_run_within(), Some(Duration::from_secs(300)));
+}

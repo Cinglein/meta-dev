@@ -112,6 +112,9 @@ impl fmt::Display for Status<'_> {
 mod tests;
 
 #[cfg(test)]
+mod ci_run_tests;
+
+#[cfg(test)]
 mod lifetime_tests;
 
 #[cfg(test)]
