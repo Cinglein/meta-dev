@@ -1,9 +1,8 @@
 use std::fmt;
 
+use meta_acceptance::SpanName;
 use meta_budget::BudgetId;
 use serde::{Deserialize, Serialize};
-
-use crate::span_name::SpanName;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

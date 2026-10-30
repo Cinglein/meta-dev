@@ -14,6 +14,13 @@ pub struct NewProject {
     division: Division,
 }
 
+impl NewProject {
+    #[must_use]
+    pub fn project(&self) -> Id<Project> {
+        self.project
+    }
+}
+
 impl fmt::Display for NewProject {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{} {} @{}", self.project, self.text, self.division)

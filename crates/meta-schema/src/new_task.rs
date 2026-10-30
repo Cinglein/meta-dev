@@ -76,6 +76,11 @@ impl NewTask {
     }
 
     #[must_use]
+    pub fn purpose(&self) -> Option<Purpose> {
+        self.purpose
+    }
+
+    #[must_use]
     pub fn corrected(&self, text: Text) -> Self {
         Self { text, ..self.clone() }
     }

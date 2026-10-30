@@ -1,10 +1,28 @@
-use meta_schema::{Actor, Division, Entry, Id, PullRequest, Rating, SchemaVersion, Target, Task};
+use meta_schema::{Actor, Division, Entry, Id, Project, PullRequest, Rating, SchemaVersion, Target, Task};
 use thiserror::Error;
+
+use crate::project_stage::ProjectStage;
 
 #[derive(Clone, Debug, PartialEq, Eq, Error)]
 pub enum Refusal {
     #[error("the id is already in use")]
     DuplicateId,
+    #[error("there is no project {0}")]
+    UnknownProject(Id<Project>),
+    #[error("only the owner accepts a project")]
+    NotOwner,
+    #[error("the project is {0}")]
+    ProjectIs(ProjectStage),
+    #[error("only meta observes a project")]
+    NotObserver,
+    #[error("the observation does not change the stage")]
+    Unchanged,
+    #[error("the project is not instrumented yet")]
+    NotInstrumented,
+    #[error("a task with this purpose cannot attach to a {0} project")]
+    Unattachable(ProjectStage),
+    #[error("the task already has a purpose")]
+    AlreadyPurposed,
     #[error("there is no task {0}")]
     UnknownTask(Id<Task>),
     #[error("there is no concern or issue {0}")]
