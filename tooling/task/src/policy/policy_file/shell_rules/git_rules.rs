@@ -6,5 +6,5 @@ use serde::{Deserialize, Serialize};
 #[serde(deny_unknown_fields)]
 pub struct GitRules {
     forbidden: Vec<String>,
-    flags: BTreeMap<String, Vec<String>>,
+    nested: BTreeMap<String, Vec<String>>,
 }

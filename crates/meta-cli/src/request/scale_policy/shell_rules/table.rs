@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 
 use serde::Deserialize;
 
+use super::flag::Flag;
+use super::program::Program;
 use super::union::Union;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -11,6 +13,15 @@ pub struct Table<Word>(BTreeMap<String, Vec<Word>>);
 impl<Word> Table<Word> {
     pub fn words_for(&self, key: &str) -> &[Word] {
         self.0.get(key).map_or(&[], Vec::as_slice)
+    }
+}
+
+impl Table<Flag> {
+    pub fn command_in(&self, segment: &[String]) -> Option<String> {
+        segment.iter().enumerate().find_map(|(index, word)| {
+            let flags = self.words_for(Program::base(word));
+            segment.get(index + 1..).and_then(|args| Flag::command_after(flags, args))
+        })
     }
 }
 

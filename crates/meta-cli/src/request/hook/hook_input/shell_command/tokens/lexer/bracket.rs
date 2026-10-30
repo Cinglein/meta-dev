@@ -1,3 +1,6 @@
+use super::super::kind::Kind;
+use super::super::segment::Segment;
+
 #[derive(Clone, Copy)]
 pub enum Bracket {
     Open,
@@ -16,10 +19,14 @@ impl Bracket {
         }
     }
 
-    pub fn segment(self) -> Vec<String> {
-        vec![match self {
-            Self::Open => Self::OPEN.into(),
-            Self::Close => Self::CLOSE.into(),
-        }]
+    pub fn segment(self) -> Segment {
+        Segment::default().appended(
+            match self {
+                Self::Open => Self::OPEN,
+                Self::Close => Self::CLOSE,
+            }
+            .into(),
+            Kind::Literal,
+        )
     }
 }

@@ -13,7 +13,7 @@ use crate::request::output::Listed;
 use crate::request::project::Config;
 use crate::request::scale_policy::ShellRules;
 use git_call::GitCall;
-use tokens::Tokens;
+use tokens::{Kind, Segment, Tokens};
 use working_directory::WorkingDirectory;
 
 #[derive(Debug)]
@@ -24,6 +24,8 @@ impl ShellCommand {
     const USE: &'static str =
         "is not allowed; use the Write or Edit tool, `git restore`, or `git rm` inside a code change";
     const GIT_USE: &'static str = "is not allowed for agents; commit on your branch, push normally, `git restore`";
+    const EXPANDED: &'static str =
+        "the program or the command it runs is built by $ expansion or substitution; write it out so it can be checked";
     const STDIN: &'static str = "reads its commands from stdin; pass them with -c so they can be checked";
     const PR_MERGE: &'static [&'static str] = &["gh", "pr", "merge"];
     const PR_CREATE: &'static [&'static str] = &["gh", "pr", "create"];
@@ -86,18 +88,25 @@ impl ShellCommand {
 
     fn reason(&self, rules: &ShellRules) -> Option<String> {
         let breach = self.0.breach().map(str::to_owned);
-        breach.or_else(|| self.0.segments().find_map(|segment| Self::segment_reason(rules, segment)))
+        breach.or_else(|| self.0.parts().find_map(|part| Self::segment_reason(rules, part)))
     }
 
-    fn segment_reason(rules: &ShellRules, segment: &[String]) -> Option<String> {
+    fn segment_reason(rules: &ShellRules, part: &Segment) -> Option<String> {
+        let segment = part.words();
         let said = |word: &str, why: &str| format!("{} `{word}` {why}", Self::SHELL_RULE);
-        let named = rules.forbidden_in(segment).map(|word| said(word, Self::USE));
+        let named = rules.forbidden_in(segment).map(|word| said(&word.to_string(), Self::USE));
         let call = rules.git_in(segment).and_then(GitCall::parse);
-        let gitted = || call.and_then(|call| call.breach(rules)).map(|what| said(&what.to_string(), Self::GIT_USE));
+        let gitted =
+            || call.as_ref().and_then(|call| call.breach(rules)).map(|what| said(&what.to_string(), Self::GIT_USE));
+        let text = rules.nested(segment).or_else(|| call.as_ref().and_then(|call| call.nested(rules)));
+        let kinds = rules.program_at(segment).map(|position| part.kinds_from(position)).unwrap_or_default();
+        let built = || {
+            (kinds.first() == Some(&Kind::Expanded) || (text.is_some() && kinds.contains(&Kind::Expanded)))
+                .then(|| format!("{} {}", Self::SHELL_RULE, Self::EXPANDED))
+        };
         let piped = || rules.stdin_shell(segment).map(|word| said(word, Self::STDIN));
-        let nested =
-            || rules.nested(segment).and_then(|text| text.parse::<Self>().ok()).and_then(|inner| inner.reason(rules));
-        named.or_else(gitted).or_else(piped).or_else(nested)
+        let nested = || text.as_ref().and_then(|text| text.parse::<Self>().ok()).and_then(|inner| inner.reason(rules));
+        named.or_else(gitted).or_else(built).or_else(piped).or_else(nested)
     }
 }
 

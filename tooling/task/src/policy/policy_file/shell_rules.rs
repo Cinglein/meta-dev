@@ -12,5 +12,7 @@ pub struct ShellRules {
     wrappers: Vec<String>,
     interpreters: Vec<String>,
     valued: BTreeMap<String, Vec<String>>,
+    nested: BTreeMap<String, Vec<String>>,
+    flags: BTreeMap<String, Vec<String>>,
     git: GitRules,
 }

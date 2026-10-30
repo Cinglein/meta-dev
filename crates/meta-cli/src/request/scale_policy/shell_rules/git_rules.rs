@@ -1,9 +1,7 @@
-mod git_flag;
-
-use git_flag::GitFlag;
 use serde::Deserialize;
 
-use super::git_breach::GitBreach;
+use super::flag::Flag;
+use super::refused::Refused;
 use super::table::Table;
 use super::union::Union;
 
@@ -13,19 +11,21 @@ pub struct GitRules {
     #[serde(default)]
     forbidden: Vec<String>,
     #[serde(default)]
-    flags: Table<GitFlag>,
+    nested: Table<Flag>,
 }
 
 impl GitRules {
-    pub fn breach(&self, subcommand: &str, args: &[String]) -> Option<GitBreach> {
-        let named = self.forbidden.iter().any(|word| word == subcommand).then(|| GitBreach::new(subcommand, None));
-        let flagged = |arg: &String| self.flags.words_for(subcommand).iter().any(|flag| flag.matches(arg));
-        named.or_else(|| args.iter().find(|arg| flagged(arg)).map(|arg| GitBreach::new(subcommand, Some(arg))))
+    pub fn breach(&self, subcommand: &str) -> Option<Refused> {
+        self.forbidden.iter().any(|word| word == subcommand).then(|| Refused::spelled(&["git", subcommand]))
+    }
+
+    pub fn nested(&self, subcommand: &str, args: &[String]) -> Option<String> {
+        Flag::command_after(self.nested.words_for(subcommand), args)
     }
 }
 
 impl Union for GitRules {
     fn union(self, other: Self) -> Self {
-        Self { forbidden: [self.forbidden, other.forbidden].concat(), flags: self.flags.union(other.flags) }
+        Self { forbidden: [self.forbidden, other.forbidden].concat(), nested: self.nested.union(other.nested) }
     }
 }

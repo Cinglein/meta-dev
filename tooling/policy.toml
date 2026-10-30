@@ -117,7 +117,7 @@ modal = ["AskUserQuestion"]
 
 [shell]
 forbidden = ["rm", "mv", "python", "python3", "sed", "awk", "perl"]
-wrappers = ["nice", "env", "xargs", "sudo", "command", "time", "exec", "nohup", "timeout", "then", "do", "else", "!", "{", "if", "elif", "while", "until"]
+wrappers = ["nice", "env", "xargs", "sudo", "command", "time", "exec", "nohup", "timeout", "watch", "then", "do", "else", "!", "{", "if", "elif", "while", "until"]
 interpreters = ["bash", "sh", "zsh", "dash", "ksh", "eval"]
 
 [shell.valued]
@@ -128,12 +128,21 @@ nice = ["-n", "--adjustment"]
 xargs = ["-I", "-n", "-P", "-L", "-E", "-d", "-s", "-a"]
 time = ["-f", "-o"]
 exec = ["-a"]
+watch = ["-n", "--interval"]
+
+[shell.nested]
+find = ["-exec", "-execdir", "-ok", "-okdir"]
+env = ["-S", "--split-string"]
+
+[shell.flags]
+find = ["-delete"]
 
 [shell.git]
 forbidden = ["stash"]
 
-[shell.git.flags]
-push = ["--force", "--force-with-lease", "-f"]
+[shell.git.nested]
+rebase = ["-x", "--exec"]
+submodule = ["foreach"]
 
 [domains.features-and-maintenance]
 crates = ["*"]

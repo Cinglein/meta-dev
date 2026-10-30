@@ -6,6 +6,13 @@ pub struct Program(String);
 
 impl Program {
     const QUERIES: &'static [&'static str] = &["-v", "-V"];
+    const COMMAND_FLAG: char = 'c';
+
+    pub fn payload(args: &[String]) -> Option<String> {
+        let flagged =
+            |arg: &&String| arg.starts_with('-') && !arg.starts_with("--") && arg.contains(Self::COMMAND_FLAG);
+        args.iter().skip_while(|arg| !flagged(arg)).nth(1).cloned()
+    }
 
     pub fn queries(next: Option<&String>) -> bool {
         next.is_some_and(|word| Self::QUERIES.contains(&word.as_str()))

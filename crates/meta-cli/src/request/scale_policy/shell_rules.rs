@@ -1,16 +1,20 @@
-mod git_breach;
+mod flag;
 mod git_rules;
+mod position;
 mod program;
 mod programs;
+mod refused;
 mod table;
 mod union;
 
+use flag::Flag;
 use serde::Deserialize;
 
-pub use git_breach::GitBreach;
 pub use git_rules::GitRules;
+pub use position::Position;
 use program::Program;
 use programs::Programs;
+pub use refused::Refused;
 use table::Table;
 pub use union::Union;
 
@@ -25,6 +29,10 @@ pub struct ShellRules {
     interpreters: Programs,
     #[serde(default)]
     valued: Table<Program>,
+    #[serde(default, rename = "nested")]
+    commanding: Table<Flag>,
+    #[serde(default)]
+    flags: Table<Flag>,
     #[serde(default)]
     git: GitRules,
 }
@@ -33,12 +41,19 @@ impl ShellRules {
     const QUERIED: &'static str = "command";
     const EVAL: &'static str = "eval";
     const GIT: &'static str = "git";
-    const HERE_STRING: &'static str = "<<<";
-    const COMMAND_FLAG: char = 'c';
 
-    pub fn forbidden_in<'segment>(&self, segment: &'segment [String]) -> Option<&'segment String> {
-        let word = self.command(segment, None)?.first()?;
-        self.forbidden.names(word).then_some(word)
+    pub fn forbidden_in(&self, segment: &[String]) -> Option<Refused> {
+        let (word, args) = self.command(segment, None)?.split_first()?;
+        let flags = self.flags.words_for(Program::base(word));
+        let flagged = flags.iter().find_map(|flag| args.iter().find(|arg| flag.names(arg)));
+        self.forbidden
+            .names(word)
+            .then(|| Refused::spelled(&[word]))
+            .or_else(|| flagged.map(|arg| Refused::spelled(&[word, arg])))
+    }
+
+    pub fn program_at(&self, segment: &[String]) -> Option<Position> {
+        self.command(segment, None).map(|rest| Position::between(segment, rest))
     }
 
     pub fn git_in<'segment>(&self, segment: &'segment [String]) -> Option<&'segment [String]> {
@@ -52,23 +67,16 @@ impl ShellRules {
     pub fn stdin_shell<'segment>(&self, segment: &'segment [String]) -> Option<&'segment str> {
         let (word, args) =
             self.command(segment, None)?.split_first().filter(|(word, _)| self.interpreters.names(word))?;
-        let named = |arg: &&String| arg.as_str() != Self::HERE_STRING;
-        (word != Self::EVAL
-            && Self::command_payload(args).is_none()
-            && !args.iter().take_while(named).any(|arg| !arg.starts_with('-')))
-        .then_some(word.as_str())
+        (word != Self::EVAL && Program::payload(args).is_none() && !args.iter().any(|arg| !arg.starts_with('-')))
+            .then_some(word.as_str())
     }
 
     pub fn nested(&self, segment: &[String]) -> Option<String> {
-        let (word, args) =
-            self.command(segment, None)?.split_first().filter(|(word, _)| self.interpreters.names(word))?;
-        Self::command_payload(args).or_else(|| (word == Self::EVAL).then(|| args.join(" ")))
-    }
-
-    fn command_payload(args: &[String]) -> Option<String> {
-        let flagged =
-            |arg: &&String| arg.starts_with('-') && !arg.starts_with("--") && arg.contains(Self::COMMAND_FLAG);
-        args.iter().skip_while(|arg| !flagged(arg)).nth(1).cloned()
+        let interpreter = self.command(segment, None).and_then(<[String]>::split_first);
+        let interpreted = interpreter
+            .filter(|(word, _)| self.interpreters.names(word))
+            .and_then(|(word, args)| Program::payload(args).or_else(|| (word == Self::EVAL).then(|| args.join(" "))));
+        interpreted.or_else(|| self.commanding.command_in(segment))
     }
 
     fn takes_value(&self, wrapper: &str, flag: &str) -> bool {
@@ -96,6 +104,8 @@ impl Union for ShellRules {
             wrappers: self.wrappers.union(other.wrappers),
             interpreters: self.interpreters.union(other.interpreters),
             valued: self.valued.union(other.valued),
+            commanding: self.commanding.union(other.commanding),
+            flags: self.flags.union(other.flags),
             git: self.git.union(other.git),
         }
     }
