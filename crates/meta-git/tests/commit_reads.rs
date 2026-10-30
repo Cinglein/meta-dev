@@ -16,7 +16,10 @@ const REMOTES: [&str; 4] =
 const SIDE: &str = "refs/remotes/origin/side";
 const OLD: &str = "refs/remotes/origin/old";
 const BRANCH: &str = "refs/heads/main";
-const MOMENTS: [i64; 3] = [2_000_000_000, 1_000_000_000, 2_100_000_000];
+const MOMENTS: [Moment; 3] = [Moment(2_000_000_000), Moment(1_000_000_000), Moment(2_100_000_000)];
+
+#[derive(Clone, Copy)]
+struct Moment(i64);
 
 struct History {
     repository: Repository,
@@ -38,7 +41,7 @@ impl History {
         let mut index = repository.index().unwrap();
         index.add_all(["*"], git2::IndexAddOption::DEFAULT, None).unwrap();
         let snapshot = repository.find_tree(index.write_tree().unwrap()).unwrap();
-        let commit = |parent: Option<git2::Oid>, [author, committer]: [&str; PAIR_LEN], moment: i64| {
+        let commit = |parent: Option<git2::Oid>, [author, committer]: [&str; PAIR_LEN], Moment(moment)| {
             let time = git2::Time::new(moment, 0);
             let [author, committer] =
                 [author, committer].map(|email| git2::Signature::new(email, email, &time).unwrap());
