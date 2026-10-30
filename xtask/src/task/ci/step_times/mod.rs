@@ -1,3 +1,4 @@
+mod step_failure;
 mod step_time;
 
 use std::fmt;
@@ -5,6 +6,7 @@ use std::time::Duration;
 
 use crate::task::ci::ci_step::CiStep;
 use crate::task::failure::Failure;
+use step_failure::StepFailure;
 use step_time::StepTime;
 
 #[derive(Debug, Default)]
@@ -14,22 +16,21 @@ pub struct StepTimes {
 }
 
 impl StepTimes {
-    pub fn reported(failures: Vec<(CiStep, Failure)>) -> Result<(), Failure> {
-        let mut failures = failures.into_iter();
-        let last = failures.next_back();
-        failures.for_each(|(step, failure)| eprintln!("ci: {step} failed: {failure}"));
-        last.map_or(Ok(()), |(_, failure)| Err(failure))
+    pub fn reported(mut failures: Vec<StepFailure>) -> Result<(), Failure> {
+        let last = failures.pop();
+        eprint!("{}", failures.iter().fold(String::new(), |shown, failure| shown + &failure.to_string() + "\n"));
+        last.map_or(Ok(()), |failure| Err(failure.into_failure()))
     }
 
-    pub fn record(&mut self, step: CiStep, outcome: Result<Duration, Failure>) -> Result<(), Failure> {
+    pub fn record(&mut self, step: CiStep, outcome: Result<Duration, Failure>) -> Option<StepFailure> {
         match outcome {
             Ok(elapsed) => {
                 self.passed.push(StepTime::new(step, elapsed));
-                Ok(())
+                None
             }
             Err(failure) => {
                 self.failed.push(step);
-                Err(failure)
+                Some(StepFailure::new(step, failure))
             }
         }
     }
@@ -48,7 +49,7 @@ mod tests {
     use std::fs;
     use std::time::Duration;
 
-    use super::StepTimes;
+    use super::{StepFailure, StepTimes};
     use crate::task::ci::ci_step::CiStep;
     use crate::task::ci::{Ci, LogSource};
     use crate::task::failure::Failure;
@@ -59,7 +60,7 @@ mod tests {
     const TIMES: &str = "times";
 
     impl StepTimes {
-        fn failing(&mut self, step: CiStep) -> Result<(), Failure> {
+        fn failing(&mut self, step: CiStep) -> Option<StepFailure> {
             self.record(step, Err(Failure::from(task::Failure::NoWorkspace)))
         }
     }
@@ -67,11 +68,9 @@ mod tests {
     #[test]
     fn passed_steps_show_their_time_a_failed_step_fails_the_gate_and_a_gate_child_records_them() {
         let (fixture, mut times) = (Fixture::new(), StepTimes::default());
-        assert!(times.record(CiStep::Fmt, Ok(SECOND)).is_ok());
-        assert!(times.failing(CiStep::Clippy).is_err() && times.failing(CiStep::Test).is_err());
-        let failed = |step: CiStep| (step, Failure::from(task::Failure::Usage(step.to_string())));
-        let reported = StepTimes::reported(vec![failed(CiStep::Clippy), failed(CiStep::Test)]);
-        assert!(StepTimes::reported(vec![]).is_ok() && reported.is_err_and(|failure| failure.to_string() == "test"));
+        assert!(times.record(CiStep::Fmt, Ok(SECOND)).is_none());
+        let failures = [CiStep::Clippy, CiStep::Test].map(|step| times.failing(step)).into_iter().flatten().collect();
+        assert!(StepTimes::reported(failures).is_err());
         Ci::new(None, None, Some(fixture.path(TIMES)), LogSource::Origin).recorded(&times).unwrap();
         assert_eq!(fs::read_to_string(fixture.path(TIMES)).ok().as_deref(), Some(SHOWN));
     }

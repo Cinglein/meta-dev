@@ -76,8 +76,8 @@ impl Ci {
                         .into_iter()
                         .flatten()
                         .filter_map(|step| {
-                            let timed = step.timed(workspace, selection, policy, &mut ledger);
-                            times.record(step, timed).err().map(|failure| (step, failure))
+                            let outcome = step.timed(workspace, selection, policy, &mut ledger);
+                            times.record(step, outcome)
                         })
                         .collect(),
                 );
