@@ -7,6 +7,7 @@ publish.workspace = true
 
 [dependencies]
 task = { path = "../../task" }
+syn_rules = { path = "../../syn_rules" }
 derive_more = { version = "2", features = ["display"] }
 syn = { version = "2", features = ["full", "parsing", "visit"] }
 quote = "1"

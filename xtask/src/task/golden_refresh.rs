@@ -3,6 +3,7 @@ mod built_binary;
 use meta_golden::{Golden, Goldens, Reach};
 use task::{CargoArgument, Program, Stdout, Workspace};
 
+use crate::task::elegance_report::EleganceReport;
 use crate::task::failure::Failure;
 use built_binary::BuiltBinary;
 
@@ -31,7 +32,8 @@ impl GoldenRefresh {
                 Some(_) => views,
                 None => views.environment(Golden::BLESS, Self::BLESSED),
             };
-            Ok(checked.run()?)
-        })
+            Ok::<(), Failure>(checked.run()?)
+        })?;
+        EleganceReport::golden(workspace)
     }
 }

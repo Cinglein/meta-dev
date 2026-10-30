@@ -1,0 +1,949 @@
+# Smell inventory for Cinglein/meta-dev, main 517e2f80 (2026-10-29).
+# Hand-checked against a fresh clone. Coarse ground truth for scoring elegance-lint ideas.
+# Every location below was opened and read. Entries that could not be confirmed were dropped.
+#
+# Categories (fixed list):
+#   duplicate-path       one external effect (git, gh, kill, lsof, env scrub) reached by several code paths
+#   duplicate-parser     one external text format parsed by several independent parsers
+#   duplicate-logic      the same body or algorithm written again per type or per crate
+#   near-duplicate-type  types with near-identical fields and behaviour (or one concept split into several types)
+#   parallel-tables      an enum with several hand-written matches or string tables that must stay in sync
+#   missing-trait        a method family shared by many types, or a delegation layer, with no trait naming it
+#   hidden-state         mode fields, late-filled Options, or caches that change what later calls do
+#   low-cohesion         one type or trait carrying disjoint responsibilities (reads + writes, text + I/O)
+#   god-type             a type, enum or crate that most of the system routes through
+#   primitive-domain     domain values as String, u32, Option<()> or ad-hoc string encodings
+#   effect-in-core       clock, randomness, fs, env or process inside otherwise pure code, parsers or queries
+#   fake                 hand-written test double of a seam trait
+#   unsafe-destructive   destructive effect with no compare-and-swap or freshness check, or with its failure swallowed
+#   fail-open            a check or read that cannot decide and silently proceeds with a default
+#   name-collision       one type name used for unrelated concepts across the workspace
+#
+# Measure keys (from algebra/formalization.md):
+#   naming-completeness  P1 unnamed concepts of the behaviour lattice
+#   orthogonality        P3 signature declared in more than one trait
+#   leverage             P4 usable methods / written bodies
+#   behavioural-inherent P6 behaviour-bearing inherent methods
+#   bisimilar-pairs      P7 bisimilar type pairs in the transition graph
+#   primitive-edges      P7 domain transitions touching primitive nodes
+#   typestate-share      P7 share of transitions that consume self into another type
+#   generic-over-concrete P8 bodies identical up to types
+#   one-path-per-effect  P9 distinct call paths ending in one external effect
+#   hidden-state         "no implicit state": mutable mode fields and late-filled options
+#   hub-degree           graph simplicity: degree distribution / god nodes / crate modularity
+#   failure-nodes        graph simplicity: failure states as explicit nodes
+#   field-concepts       FCA over (type x field) shared field sets
+#   lcom4                cohesion: components of the method-field usage graph
+#   "none yet"           no proposed measure would flag it
+#
+# confidence: clear = reviewer would agree on sight; likely = real but arguable or partly justified.
+
+# ---------------------------------------------------------------- duplicate-path
+
+[[smell]]
+id = "git-start-paths"
+category = "duplicate-path"
+locations = [
+  "crates/meta-run/src/run.rs:65",
+  "crates/meta-run/src/port.rs:29",
+  "crates/meta-cli/src/request/local/local_clone/git.rs:12",
+  "crates/meta-cli/src/request/local/local_clone/vetting/git_call.rs:60",
+  "crates/meta-git/src/remote.rs:60",
+  "crates/meta-git/src/repository.rs:42",
+  "tooling/task/src/command_line/mod.rs:157",
+]
+why = "Seven production ways to run git: Run::git, Port<GitArgv>, local_clone::Git (wraps Port), vetting GitCall, meta_git::Remote::ran, in-process git2 Repository, task::CommandLine Program::Git; each with its own env, deadline and error handling."
+confidence = "clear"
+measure = "one-path-per-effect"
+
+[[smell]]
+id = "two-process-runners"
+category = "duplicate-path"
+locations = [
+  "crates/meta-run/src/run.rs:28",
+  "tooling/task/src/command_line/mod.rs:30",
+]
+why = "meta_run::Run (deadlines, process groups, interrupts, EnvPolicy) and task::CommandLine (no deadline, String args, own env inheritance) are two process ports; task::CommandLine is used in 8 crates."
+confidence = "clear"
+measure = "one-path-per-effect"
+
+[[smell]]
+id = "gh-start-paths"
+category = "duplicate-path"
+locations = [
+  "crates/meta-cli/src/request/ci/watcher/gh.rs:31",
+  "crates/meta-cli/src/request/live_github.rs:92",
+  "tooling/task/src/shard/mod.rs:113",
+  "tooling/stacked/src/lib.rs:55",
+  "xtask/src/task/ci/local_gate/mod.rs:79",
+]
+why = "gh is started through Port<GhArgv>, a bare Run::new(program) in LiveGithub, and task::CommandLine Program::GitHub in three more crates."
+confidence = "clear"
+measure = "one-path-per-effect"
+
+[[smell]]
+id = "env-scrub-three-ways"
+category = "duplicate-path"
+locations = [
+  "crates/meta-run/src/env_policy.rs:4",
+  "crates/meta-cli/src/request/local/local_clone/vetting/git_call.rs:16",
+  "tooling/task/src/command_line/mod.rs:51",
+  "crates/meta-git/src/remote.rs:27",
+]
+why = "Child-environment policy is written three times (EnvPolicy enum, GitCall::ISOLATED + PINNED config, CommandLine::inheriting_only); the GIT_TERMINAL_PROMPT=0 pair is re-declared in Run, Port and meta_git::Remote."
+confidence = "clear"
+measure = "one-path-per-effect"
+
+[[smell]]
+id = "kill-and-lsof-twice"
+category = "duplicate-path"
+locations = [
+  "crates/meta-run/src/run/group/group_id.rs:23",
+  "crates/meta-cli/src/request/local/monitor/live_machine.rs:58",
+  "crates/meta-cli/src/request/local/local_clone/vetting/host.rs:97",
+  "crates/meta-cli/src/request/local/monitor/live_machine.rs:48",
+]
+why = "kill is spawned by meta-run's group signalling and by the monitor; lsof is spawned by vetting Host and by the monitor, each with its own argv, env policy and output parser."
+confidence = "clear"
+measure = "one-path-per-effect"
+
+[[smell]]
+id = "git-argv-vocabulary-scattered"
+category = "duplicate-path"
+locations = [
+  "crates/meta-run/src/git_argv.rs:8",
+  "crates/meta-cli/src/request/local/local_clone/vetting/vetted/link.rs:36",
+  "xtask/src/task/ci/local_gate/checkout.rs:21",
+  "crates/meta-cli/src/request/project.rs:61",
+  "tooling/task/src/command_line/git_argument.rs:5",
+]
+why = "git argv is spelled in five vocabularies: the GitArgv enum, inline consts in vetting Link/Deletable/Checkouts, xtask Checkout consts, inline literals in Project (push, branch --show-current) and task GitArgument; the same call (worktree list --porcelain) appears 4 times."
+confidence = "clear"
+measure = "one-path-per-effect"
+
+[[smell]]
+id = "project-mixes-run-and-port"
+category = "duplicate-path"
+locations = [
+  "crates/meta-cli/src/request/project.rs:61",
+  "crates/meta-cli/src/request/project.rs:78",
+  "crates/meta-cli/src/request/project.rs:126",
+  "xtask/src/task/ci/local_gate/mod.rs:86",
+  "xtask/src/task/ci/local_gate/mod.rs:99",
+]
+why = "Within one type, git is called both via Run::git with raw words and via Port<GitArgv>; LocalGate::run likewise mixes GitReads (meta-run) with task::CommandLine git in adjacent lines."
+confidence = "clear"
+measure = "one-path-per-effect"
+
+[[smell]]
+id = "self-spawn-stringly"
+category = "duplicate-path"
+locations = [
+  "crates/meta-cli/src/request/ci/watcher.rs:57",
+  "crates/meta-run/src/meta_argv.rs:8",
+  "crates/meta-cli/src/request.rs:71",
+]
+why = "Watcher::spawn re-invokes meta with a literal \"ci-watch\" word although MetaArgv exists as the typed meta vocabulary; command names live in Request::try_from, MetaArgv and literals separately."
+confidence = "likely"
+measure = "one-path-per-effect"
+
+[[smell]]
+id = "two-policy-toml-readers"
+category = "duplicate-path"
+locations = [
+  "crates/meta-cli/src/request/scale_policy.rs:20",
+  "tooling/task/src/policy/mod.rs:109",
+]
+why = "tooling/policy.toml is parsed by meta-cli ScalePolicy (scales and domain names only) and by task::Policy; the two schemas can drift."
+confidence = "likely"
+measure = "one-path-per-effect"
+
+# ---------------------------------------------------------------- duplicate-parser
+
+[[smell]]
+id = "worktree-list-parsers"
+category = "duplicate-parser"
+locations = [
+  "crates/meta-cli/src/request/local/local_clone/worktree_listing.rs:9",
+  "xtask/src/task/ci/local_gate/worktrees.rs:24",
+  "crates/meta-cli/src/request/local/local_clone/vetting/vetted/checkouts.rs:43",
+]
+why = "`git worktree list --porcelain` is parsed three times (WorktreeListing, xtask Worktrees, vetting Checkouts), each stripping \"worktree \" by hand."
+confidence = "clear"
+measure = "none yet"
+
+[[smell]]
+id = "ref-line-parsers"
+category = "duplicate-parser"
+locations = [
+  "crates/meta-git/src/remote_listing.rs:20",
+  "crates/meta-log/src/git_log/remote_heads.rs:13",
+  "crates/meta-cli/src/request/local/local_clone/vetting/vetted/ref_list.rs:30",
+]
+why = "ls-remote / for-each-ref \"<sha><ws><ref>\" lines are parsed by RemoteListing (tab, typed), RemoteHeads (tab, String) and RefList/RefLine (whitespace, String); ls-remote itself is spelled in GitArgv, meta_git::Heads and vetting Context."
+confidence = "clear"
+measure = "none yet"
+
+[[smell]]
+id = "gitdir-link-parsers"
+category = "duplicate-parser"
+locations = [
+  "crates/meta-cli/src/request/git_link.rs:12",
+  "crates/meta-cli/src/request/local/local_clone/vetting/vetted/link.rs:170",
+]
+why = "The .git file `gitdir:` and `commondir` indirection is resolved by GitLink and again by vetting Link::followed; GitArgv::AbsoluteGitDir asks git for the same answer a third way."
+confidence = "likely"
+measure = "none yet"
+
+[[smell]]
+id = "repo-root-discovery"
+category = "duplicate-logic"
+locations = [
+  "crates/meta-cli/src/request/project.rs:49",
+  "xtask/src/task/ci/standing_log.rs:24",
+  "xtask/src/task/ci/local_gate/checkout.rs:56",
+]
+why = "\"walk ancestors until one contains .git\" is written three times, each with its own \".git\" const."
+confidence = "clear"
+measure = "generic-over-concrete"
+
+[[smell]]
+id = "use-tree-walkers"
+category = "duplicate-logic"
+locations = [
+  "tooling/task/src/use_edges.rs:40",
+  "tooling/lints/primitive_boundary/src/number_sites/use_aliases.rs:27",
+  "tooling/lints/public_surface/src/export.rs:48",
+  "tooling/lints/public_surface/src/foreign_references.rs:55",
+  "tooling/lints/crate_graph/src/item_graph/scope/mod.rs:96",
+]
+why = "Five recursive syn UseTree walkers (Path/Group/Name/Rename/Glob) with the same shape, differing only in what they record at a leaf."
+confidence = "clear"
+measure = "generic-over-concrete"
+
+[[smell]]
+id = "signature-renderers"
+category = "duplicate-logic"
+locations = [
+  "tooling/lints/distinct_signatures/src/lib.rs:57",
+  "tooling/lints/repeated_methods/src/shape_index/method_shape.rs:19",
+  "tooling/elegance/src/signature.rs:12",
+]
+why = "A method signature is rendered from syn tokens three times (Shape::describe, MethodShape::described, elegance Signature) with slightly different erasure rules."
+confidence = "clear"
+measure = "generic-over-concrete"
+
+[[smell]]
+id = "test-module-skip-per-lint"
+category = "duplicate-logic"
+locations = [
+  "tooling/lints/no_numbers_in_binaries/src/lib.rs:44",
+  "tooling/lints/type_shape/src/lib.rs:92",
+  "tooling/lints/named_numbers/src/lib.rs:62",
+  "tooling/lints/const_shape/src/lib.rs:82",
+  "tooling/lints/vec_out_params/src/lib.rs:50",
+]
+why = "The same 5-line visit_item_mod (match walk -> Entered/Skipped) is pasted into ~16 lint visitors, with two spellings (SourceFile::walk vs Walk::outside_tests)."
+confidence = "clear"
+measure = "generic-over-concrete"
+
+[[smell]]
+id = "repeats-three-times"
+category = "duplicate-logic"
+locations = [
+  "crates/meta-cli/src/request/local/monitor/finding.rs:21",
+  "crates/meta-cli/src/request/local/monitor/culprit.rs:37",
+  "crates/meta-status/src/flag.rs:79",
+]
+why = "`repeats(&self, &Self) -> Option<()>` (dedupe key equality) is written on Finding, Culprit and Flag with no Finding trait or key()."
+confidence = "clear"
+measure = "naming-completeness"
+
+[[smell]]
+id = "retry-loops"
+category = "duplicate-logic"
+locations = [
+  "crates/meta-run/src/budget.rs:26",
+  "crates/meta-log/src/git_log.rs:126",
+  "crates/meta-cli/src/request/local/local_clone/vetting/deletable.rs:23",
+]
+why = "Read-decide-retry is implemented as Budget::retried, GitLog::append's Attempt/Outcome/Pacing sequence, and Deletable::confirmed (re-read and compare), each separately."
+confidence = "likely"
+measure = "none yet"
+
+[[smell]]
+id = "two-undo-mechanisms"
+category = "missing-trait"
+locations = [
+  "crates/meta-cli/src/request/local/local_clone/claim_plan/claim_step.rs:17",
+  "crates/meta-cli/src/request/local/local_clone/vetting/host.rs:110",
+  "crates/meta-cli/src/request/local/local_clone/vetting/host.rs:133",
+]
+why = "Claim rollback (ClaimStep::undo) and quarantine freeze/thaw are two hand-made compensation schemes with no shared Reversible abstraction."
+confidence = "likely"
+measure = "naming-completeness"
+
+[[smell]]
+id = "fixture-repos"
+category = "duplicate-logic"
+locations = [
+  "xtask/src/task/fixture.rs:10",
+  "crates/meta-cli/tests/support/fixture.rs:5",
+  "crates/meta-log/src/git_log/tests.rs:41",
+  "crates/meta-git/tests/port.rs:30",
+]
+why = "Test repositories are built by separate git2 fixtures (xtask lays .git files and config text by hand, meta-cli support, meta-log writes literal config) instead of one fixture over the meta-git port."
+confidence = "likely"
+measure = "generic-over-concrete"
+
+# ---------------------------------------------------------------- near-duplicate-type
+
+[[smell]]
+id = "commit-hash-types"
+category = "near-duplicate-type"
+locations = [
+  "crates/meta-git/src/object_id.rs:7",
+  "crates/meta-schema/src/commit_id.rs:10",
+  "crates/meta-log/src/git_log/sha.rs:10",
+  "crates/meta-cli/src/request/ci/commit.rs:9",
+  "xtask/src/task/revision/commit.rs:10",
+]
+why = "Five commit-id types with five validation rules: 40 hex (ObjectId), 40|64 lowercase (CommitId), trimmed 40 hex (Sha), first whitespace word with no check (ci::Commit), any non-empty hex (xtask Commit); plus raw String objects in RefLine and Leak."
+confidence = "clear"
+measure = "bisimilar-pairs"
+
+[[smell]]
+id = "conclusion-twice-diverging"
+category = "near-duplicate-type"
+locations = [
+  "crates/meta-gh/src/conclusion.rs:7",
+  "crates/meta-pull-query/src/pulls/trunk/branch/target/commit/suite/conclusion.rs:7",
+]
+why = "Two GitHub Conclusion enums deserialise the same field but classify differently: Cancelled and ActionRequired are Failing in meta-gh, Undecided in meta-pull-query."
+confidence = "clear"
+measure = "bisimilar-pairs"
+
+[[smell]]
+id = "new-concern-issue-task"
+category = "near-duplicate-type"
+locations = [
+  "crates/meta-schema/src/new_concern.rs:15",
+  "crates/meta-schema/src/new_issue.rs:14",
+  "crates/meta-schema/src/new_task.rs:30",
+]
+why = "NewConcern and NewIssue differ only by source+tags; all three repeat id/text/division and corrected/placed/placement/rated/rating/Display."
+confidence = "clear"
+measure = "field-concepts"
+
+[[smell]]
+id = "concern-issue-state"
+category = "near-duplicate-type"
+locations = [
+  "crates/meta-state/src/state/concern_state.rs:9",
+  "crates/meta-state/src/state/issue_state.rs:9",
+]
+why = "ConcernState and IssueState are line-for-line copies (correct, rerate, relocate, target, rated, Display) except for names and ConcernState::tagged."
+confidence = "clear"
+measure = "bisimilar-pairs"
+
+[[smell]]
+id = "deadline-limit-types"
+category = "near-duplicate-type"
+locations = [
+  "crates/meta-cli/src/request/project/config/heartbeat_settings/gc_limit.rs:9",
+  "crates/meta-cli/src/request/project/config/heartbeat_settings/tick_limit.rs:10",
+  "crates/meta-cli/src/request/project/config/ci_settings/stop_limit.rs:10",
+]
+why = "GcLimit, TickLimit and StopLimit are each Duration with deadline() = Instant::now() + self.0; config mixes Seconds and Millis units for the same kind of setting."
+confidence = "clear"
+measure = "bisimilar-pairs"
+
+[[smell]]
+id = "dup-primitive-newtypes"
+category = "near-duplicate-type"
+locations = [
+  "crates/meta-cli/src/request/project/config/ci_settings/millis.rs:7",
+  "tooling/task/src/budget/millis.rs:11",
+  "crates/meta-log/src/skipped_line/line_number.rs:4",
+  "tooling/task/src/line_number.rs:5",
+  "crates/meta-run/src/run/placement/process_id.rs:11",
+  "crates/meta-cli/src/request/local/local_file/staged_name/process_id.rs:4",
+]
+why = "Millis, LineNumber and ProcessId each exist twice with overlapping behaviour (two GroupId as well)."
+confidence = "clear"
+measure = "bisimilar-pairs"
+
+[[smell]]
+id = "text-newtypes"
+category = "near-duplicate-type"
+locations = [
+  "crates/meta-cli/src/request/cli_failure/message.rs:4",
+  "crates/meta-cli/src/request/output/listed.rs:10",
+  "crates/meta-cli/src/request/local/local_clone/vetting/cause.rs:4",
+  "crates/meta-cli/src/request/parsed/word.rs:4",
+  "crates/meta-status/src/github_failure.rs:7",
+]
+why = "Five String newtypes with the same new(impl Display) + Display pair; Listed doubles as an error type in 24 Result<_, Listed> signatures."
+confidence = "likely"
+measure = "bisimilar-pairs"
+
+[[smell]]
+id = "two-tool-traits"
+category = "near-duplicate-type"
+locations = [
+  "crates/meta-run/src/tool.rs:3",
+  "tooling/task/src/selection/tool.rs:3",
+]
+why = "Two unrelated traits named Tool: meta-run's argv vocabulary trait (3 impls) and task's single-implementor CargoTool trait."
+confidence = "likely"
+measure = "orthogonality"
+
+[[smell]]
+id = "two-stdout-stderr"
+category = "near-duplicate-type"
+locations = [
+  "crates/meta-run/src/stdout.rs:6",
+  "tooling/task/src/command_line/stdout.rs:6",
+]
+why = "Stdout/Stderr exist in both runners; task's are marker types for a Stream trait, meta-run's hold the captured bytes."
+confidence = "likely"
+measure = "one-path-per-effect"
+
+[[smell]]
+id = "enforcement-vocabularies"
+category = "near-duplicate-type"
+locations = [
+  "tooling/corpus_check/src/enforcement.rs:2",
+  "tooling/task/src/budgets/budget/measure/enforcer.rs:2",
+  "self/spec/src/enforcement.rs:10",
+]
+why = "Three overlapping enums say how a rule is enforced (Ratchet/Listed; Checker/Lint/MutationJobs; Tracked/Lint/CiStep/Check/Type)."
+confidence = "likely"
+measure = "none yet"
+
+# ---------------------------------------------------------------- parallel-tables
+
+[[smell]]
+id = "lintname-match"
+category = "parallel-tables"
+locations = [
+  "tooling/corpus_check/src/lint_name.rs:37",
+  "tooling/corpus_check/src/lint_name.rs:68",
+  "tooling/corpus_check/src/lint_name.rs:100",
+  "xtask/src/task/lint.rs:51",
+]
+why = "26 lints have no Lint trait: LintName lists them, enforcement() and report() re-match all 26; GitStarters and SpecProse are special-cased outside the registry."
+confidence = "clear"
+measure = "naming-completeness"
+
+[[smell]]
+id = "measure-enum-tables"
+category = "parallel-tables"
+locations = [
+  "tooling/task/src/budgets/budget/measure.rs:42",
+  "tooling/task/src/budgets/budget/measure.rs:60",
+  "tooling/task/src/budgets/budget/measure.rs:78",
+  "tooling/task/src/budgets/budget/measure.rs:97",
+  "tooling/task/src/budgets/budget/measure.rs:117",
+  "xtask/src/task/lint.rs:43",
+]
+why = "Measure's unit/scope/enforcer/item_filter/window are five matches over 14 variants; adding a measure means editing all five plus a hand-listed ledger.spend call."
+confidence = "clear"
+measure = "none yet"
+
+[[smell]]
+id = "legacy-key-tables"
+category = "parallel-tables"
+locations = [
+  "tooling/task/src/budgets/legacy_key.rs:9",
+  "tooling/task/src/budgets/legacy_key.rs:30",
+  "tooling/task/src/budgets/legacy_key.rs:45",
+]
+why = "LegacyKey keeps three more parallel tables (strum string, measure(), budget_id()) for migration from the old policy format."
+confidence = "likely"
+measure = "none yet"
+
+[[smell]]
+id = "option-name-tables"
+category = "parallel-tables"
+locations = [
+  "crates/meta-cli/src/request/parsed/option_name.rs:27",
+  "crates/meta-cli/src/request/parsed/option_name.rs:52",
+]
+why = "OptionName hand-writes FromStr and Display as two 14-arm string tables although strum is already a meta-cli dependency."
+confidence = "clear"
+measure = "none yet"
+
+# ---------------------------------------------------------------- missing-trait
+
+[[smell]]
+id = "activity-progress-delegation"
+category = "missing-trait"
+locations = [
+  "crates/meta-state/src/task_state/progress.rs:17",
+  "crates/meta-state/src/task_state/progress/activity.rs:18",
+]
+why = "Progress = Active(Activity) | Done, and 9 methods (assignments, status, ended, dissolved, claimed, released, blocked, waited_at, unblocked) match then forward to Activity."
+confidence = "clear"
+measure = "naming-completeness"
+
+[[smell]]
+id = "event-visitor-one-impl"
+category = "missing-trait"
+locations = [
+  "crates/meta-schema/src/event_visitor.rs:13",
+  "crates/meta-state/src/state/applying.rs:25",
+]
+why = "EventVisitor has exactly one implementor (Applying); a visitor abstraction where one match in State's fold would do."
+confidence = "clear"
+measure = "naming-completeness"
+
+[[smell]]
+id = "lint-report-family"
+category = "missing-trait"
+locations = [
+  "tooling/lints/type_shape/src/lib.rs:22",
+  "tooling/lints/vec_out_params/src/lib.rs:18",
+  "tooling/lints/type_shape/src/lib.rs:66",
+]
+why = "26 lint types expose report(&[SourceFile]) or report(&[SourceFile], &Policy) and 4 write the same violation(span, message); one job, two signatures, no trait."
+confidence = "clear"
+measure = "naming-completeness"
+
+[[smell]]
+id = "about-task-accessors"
+category = "missing-trait"
+locations = [
+  "crates/meta-state/src/state/concern_state.rs:31",
+  "crates/meta-cli/src/request/local/recorded_worktree.rs:46",
+]
+why = "task() -> Id<Task> on 7 types and target() -> Target on 6 types (ConcernState, IssueState, Culprit, RatedItem, Relocation, Rerating) with no About/Subject trait."
+confidence = "likely"
+measure = "naming-completeness"
+
+[[smell]]
+id = "stored-file-family"
+category = "missing-trait"
+locations = [
+  "crates/meta-cli/src/request/heartbeat/heartbeat_record.rs:19",
+  "crates/meta-cli/src/request/local/monitor/monitor_state.rs:24",
+  "crates/meta-cli/src/request/local/local_settings.rs:31",
+  "crates/meta-cli/src/request/local/local_trail.rs:23",
+  "crates/meta-cli/src/request/scale_policy.rs:22",
+]
+why = "Six meta-cli types each pair a const FILE with hand-written read(&Path)/write(&self,&Path) over LocalFile + serde; one Stored abstraction would hold path, format and error policy."
+confidence = "clear"
+measure = "naming-completeness"
+
+[[smell]]
+id = "local-journals"
+category = "missing-trait"
+locations = [
+  "crates/meta-cli/src/request/local/local_trail.rs:21",
+  "crates/meta-cli/src/request/local/monitor/monitor_trail.rs:17",
+  "crates/meta-cli/src/request/heartbeat/heartbeat_record.rs:17",
+  "crates/meta-cli/src/request/ci/session_dir.rs:39",
+  "crates/meta-log/src/git_log/remote.rs:22",
+]
+why = "Five append/rewrite journals (worktrees.jsonl, monitor.jsonl, heartbeat.json, CI session events, meta/log events.jsonl) each with their own torn-line policy: LocalTrail reports torn lines, MonitorTrail silently drops them, SessionDir appends with no torn-line handling."
+confidence = "clear"
+measure = "naming-completeness"
+
+[[smell]]
+id = "meta-git-four-call-traits"
+category = "missing-trait"
+locations = [
+  "crates/meta-git/src/reads.rs:4",
+  "crates/meta-git/src/asks.rs:4",
+  "crates/meta-git/src/writes.rs:4",
+  "crates/meta-git/src/sends.rs:6",
+]
+why = "Reads/Asks/Writes/Sends are four one-method traits of the same shape, each with one implementor, splitting local vs remote and query vs change instead of one Request with an Answer."
+confidence = "likely"
+measure = "orthogonality"
+
+[[smell]]
+id = "failure-kind-markers"
+category = "missing-trait"
+locations = [
+  "crates/meta-cli/src/request/cli_failure/failure_kind.rs:4",
+  "crates/meta-cli/src/request/cli_failure.rs:37",
+]
+why = "FailureKind is a trait with three marker types whose only job is to pick a CliFailure variant for a formatted string (98 raised::<Kind>(format!(..)) sites)."
+confidence = "likely"
+measure = "leverage"
+
+# ---------------------------------------------------------------- hidden-state
+
+[[smell]]
+id = "ledger-mode"
+category = "hidden-state"
+locations = [
+  "tooling/task/src/budgets/ledger.rs:20",
+  "tooling/task/src/budgets/ledger.rs:29",
+  "tooling/task/src/budgets/ledger.rs:38",
+  "tooling/task/src/budgets/ledger.rs:66",
+]
+why = "Ledger is a state machine in fields: mode flipped by report_only/enforce_from, prior filled late by enforce_from, standing by count(), based by measured_at_base; Enforcing with prior=None is representable."
+confidence = "clear"
+measure = "hidden-state"
+
+[[smell]]
+id = "remote-heads-cache"
+category = "hidden-state"
+locations = [
+  "crates/meta-git/src/remote.rs:21",
+  "crates/meta-git/src/remote.rs:56",
+  "crates/meta-log/src/git_log.rs:38",
+]
+why = "meta_git::Remote caches ls-remote in RefCell<Option<_>> cleared by forget_heads()/send(); GitLog.known caches the last fetch and attempt() decides on it; freshness depends on call order."
+confidence = "clear"
+measure = "hidden-state"
+
+[[smell]]
+id = "oncelock-caches-with-args"
+category = "hidden-state"
+locations = [
+  "crates/meta-cli/src/request/project.rs:29",
+  "crates/meta-cli/src/request/project.rs:69",
+  "crates/meta-cli/src/request/local/local_clone/vetting/context.rs:20",
+  "crates/meta-cli/src/request/local/local_clone/vetting/host.rs:32",
+]
+why = "Project caches reflog/checkout in OnceLock keyed by nothing, so the deadline argument is ignored after the first call; vetting Context holds three OnceLock git results and Host a Mutex lender cache."
+confidence = "likely"
+measure = "hidden-state"
+
+[[smell]]
+id = "recorded-worktree-late-id"
+category = "hidden-state"
+locations = [
+  "crates/meta-cli/src/request/local/recorded_worktree.rs:18",
+  "crates/meta-cli/src/request/local/recorded_worktree.rs:26",
+]
+why = "worktree: Option<WorktreeId> is filled later by identified(); unidentified and identified worktrees are one type (partly serde back-compat)."
+confidence = "likely"
+measure = "typestate-share"
+
+[[smell]]
+id = "step-times-failed"
+category = "hidden-state"
+locations = [
+  "xtask/src/task/ci/step_times/mod.rs:13",
+  "xtask/src/task/ci/step_times/mod.rs:24",
+]
+why = "StepTimes.failed is set by a &mut record() and nothing stops records after a failure."
+confidence = "likely"
+measure = "hidden-state"
+
+# ---------------------------------------------------------------- low-cohesion / god-type
+
+[[smell]]
+id = "inspection-reads-and-writes"
+category = "low-cohesion"
+locations = [
+  "crates/meta-cli/src/request/local/local_clone/vetting/inspection.rs:12",
+  "crates/meta-cli/src/request/local/local_clone/vetting/host.rs:81",
+]
+why = "The Inspection trait mixes fs reads, git (including worktree move and update-ref -d), lsof, clock (stamp) and permission-changing writes (frozen/thawed); the name says read-only."
+confidence = "clear"
+measure = "lcom4"
+
+[[smell]]
+id = "project-god"
+category = "god-type"
+locations = [
+  "crates/meta-cli/src/request/project.rs:24",
+]
+why = "Project loads config, builds the log, pushes, walks the reflog, lists remote heads, parses the GitHub URL, computes unpushed commits and stat()s loose objects."
+confidence = "likely"
+measure = "lcom4"
+
+[[smell]]
+id = "meta-cli-god-crate"
+category = "god-type"
+locations = [
+  "crates/meta-cli/src/request.rs:43",
+]
+why = "meta-cli holds CLI parsing, the CI watcher, the monitor, gc/vetting, claim, hooks and heartbeat in 283 files; 50 of 228 units touch effects, clock reads sit in 21 units."
+confidence = "clear"
+measure = "hub-degree"
+
+[[smell]]
+id = "task-failure-hub"
+category = "god-type"
+locations = [
+  "tooling/task/src/failure/mod.rs:17",
+  "xtask/src/task/revision/commit.rs:28",
+]
+why = "task::Failure (23 variants, mostly String payloads) is the error type for 66 files across lints, mutation, test_time and xtask; xtask Commit::from_str reports a bad hash as NoMergeBase."
+confidence = "likely"
+measure = "hub-degree"
+
+[[smell]]
+id = "listed-reads-log"
+category = "low-cohesion"
+locations = [
+  "crates/meta-cli/src/request/output/listed.rs:22",
+]
+why = "Listed is an output text newtype yet has from_log(), which reads the log and folds State."
+confidence = "likely"
+measure = "lcom4"
+
+[[smell]]
+id = "session-id-announce"
+category = "low-cohesion"
+locations = [
+  "crates/meta-cli/src/request/ci/session_id.rs:29",
+]
+why = "SessionId, an identifier, reads CLAUDE_ENV_FILE from the environment and appends export lines to it."
+confidence = "clear"
+measure = "lcom4"
+
+# ---------------------------------------------------------------- primitive-domain
+
+[[smell]]
+id = "checkouts-nul-joined"
+category = "primitive-domain"
+locations = [
+  "crates/meta-cli/src/request/local/local_clone/vetting/vetted/checkouts.rs:10",
+  "crates/meta-cli/src/request/local/local_clone/vetting/vetted/checkouts.rs:33",
+]
+why = "Checkouts stores (path, branch) pairs as Vec<String> joined with \\0 and matches with ends_with; branch is &str throughout although BranchName exists."
+confidence = "clear"
+measure = "primitive-edges"
+
+[[smell]]
+id = "ref-line-strings"
+category = "primitive-domain"
+locations = [
+  "crates/meta-cli/src/request/local/local_clone/vetting/vetted/ref_line.rs:6",
+  "crates/meta-cli/src/request/hook/hook_input/pushed_commits/patch/leak.rs:7",
+  "crates/meta-cli/src/request/hook/hook_input/pushed_commits/patch/commit.rs:11",
+]
+why = "Object ids and ref names are bare String in RefLine, Leak and patch Commit although ObjectId/RefName exist in meta-git."
+confidence = "clear"
+measure = "primitive-edges"
+
+[[smell]]
+id = "quarantine-stamp-string"
+category = "primitive-domain"
+locations = [
+  "crates/meta-cli/src/request/local/local_clone/quarantine/stamp.rs:6",
+]
+why = "Quarantine Stamp is a String formatted as \"<pid>x<nanos>\" instead of a structured value."
+confidence = "likely"
+measure = "primitive-edges"
+
+[[smell]]
+id = "task-commandline-string-args"
+category = "primitive-domain"
+locations = [
+  "tooling/task/src/command_line/mod.rs:32",
+  "tooling/task/src/command_line/mod.rs:98",
+  "xtask/src/task/ci/local_gate/checkout.rs:47",
+]
+why = "task::CommandLine stores arguments as String via Display, so paths pass through place.display() (lossy for non-UTF-8)."
+confidence = "likely"
+measure = "primitive-edges"
+
+[[smell]]
+id = "option-unit-as-bool"
+category = "primitive-domain"
+locations = [
+  "crates/meta-cli/src/request/local/monitor/culprit.rs:37",
+  "crates/meta-cli/src/request/project/config/heartbeat_settings/tick_limit.rs:17",
+  "crates/meta-cli/src/request/local/local_clone/git.rs:32",
+]
+why = "59 functions return Option<()> as a boolean (then_some(())), which hides the meaning; Git::holds turns a git failure into None."
+confidence = "likely"
+measure = "primitive-edges"
+
+[[smell]]
+id = "stringly-errors"
+category = "primitive-domain"
+locations = [
+  "crates/meta-cli/src/request/cli_failure.rs:23",
+  "tooling/task/src/failure/mod.rs:31",
+]
+why = "CliFailure variants carry a formatted Message (98 raise sites) and task::Failure has Command(String), Printed{String}, GitHub(String), Refused(String); callers cannot match on causes."
+confidence = "likely"
+measure = "failure-nodes"
+
+# ---------------------------------------------------------------- effect-in-core
+
+[[smell]]
+id = "record-new-clock"
+category = "effect-in-core"
+locations = [
+  "crates/meta-schema/src/record.rs:20",
+  "crates/meta-cli/src/request/local/recorded_worktree.rs:23",
+]
+why = "Record::new (pure schema crate) and RecordedWorktree::new read Utc::now() inside a constructor."
+confidence = "clear"
+measure = "one-path-per-effect"
+
+[[smell]]
+id = "id-generators-random"
+category = "effect-in-core"
+locations = [
+  "crates/meta-schema/src/id/raw_id.rs:17",
+  "crates/meta-cli/src/request/local/local_file/staged_name/nonce.rs:9",
+  "crates/meta-cli/src/request/local/local_clone/quarantine/stamp.rs:10",
+]
+why = "Three unique-name generators: RawId hashes a global counter with a fresh RandomState inside meta-schema (called from New*::new), Nonce hashes SystemTime, quarantine Stamp uses pid + nanos."
+confidence = "clear"
+measure = "one-path-per-effect"
+
+[[smell]]
+id = "parser-canonicalizes"
+category = "effect-in-core"
+locations = [
+  "crates/meta-cli/src/request/local/local_clone/worktree_listing.rs:13",
+]
+why = "WorktreeListing::paths, a text parser, calls std::fs::canonicalize on each parsed path."
+confidence = "clear"
+measure = "one-path-per-effect"
+
+[[smell]]
+id = "query-spawns-watchers"
+category = "effect-in-core"
+locations = [
+  "crates/meta-cli/src/request/ci/watcher.rs:78",
+  "crates/meta-cli/src/request/ci/watcher.rs:57",
+]
+why = "Watcher::stop_reason, named as a query, spawns detached watcher processes inside a map() while computing statuses."
+confidence = "clear"
+measure = "none yet"
+
+[[smell]]
+id = "clock-dispersion"
+category = "effect-in-core"
+locations = [
+  "crates/meta-cli/src/request.rs:166",
+  "crates/meta-cli/src/request/status_view.rs:29",
+  "crates/meta-cli/src/request/local/local_clone.rs:106",
+  "crates/meta-cli/src/request/ci/start_moment.rs:13",
+]
+why = "Clock reads (Utc::now/Instant::now/SystemTime::now) appear at ~30 non-test sites in meta-cli with no clock port; Status::new(.., Utc::now()) is written three times."
+confidence = "clear"
+measure = "one-path-per-effect"
+
+# ---------------------------------------------------------------- fake
+
+[[smell]]
+id = "fake-host"
+category = "fake"
+locations = [
+  "crates/meta-cli/src/request/local/local_clone/vetting/fake_host.rs:250",
+  "crates/meta-cli/src/request/local/local_clone/vetting.rs:28",
+]
+why = "FakeHost (318+34+28 lines) re-implements Inspection with canned git answers keyed by first word; declared pub mod fake_host."
+confidence = "clear"
+measure = "none yet"
+
+[[smell]]
+id = "fake-machine"
+category = "fake"
+locations = [
+  "crates/meta-cli/src/request/local/monitor/tests/fake_machine.rs:28",
+]
+why = "FakeMachine (61 lines) re-implements the Machine trait with canned ps/lsof text."
+confidence = "clear"
+measure = "none yet"
+
+[[smell]]
+id = "memory-log-in-prod-api"
+category = "fake"
+locations = [
+  "crates/meta-log/src/memory_log.rs:10",
+  "crates/meta-log/src/lib.rs:9",
+  "crates/meta-cli/src/request/tests/fetches.rs:16",
+]
+why = "MemoryLog is a LogStore fake exported from the production meta-log API (not cfg(test)); Counted wraps it to count fetches."
+confidence = "clear"
+measure = "none yet"
+
+# ---------------------------------------------------------------- unsafe-destructive / fail-open
+
+[[smell]]
+id = "refmove-force"
+category = "unsafe-destructive"
+locations = [
+  "crates/meta-git/src/changes/ref_move.rs:24",
+  "crates/meta-log/src/git_log.rs:79",
+]
+why = "RefMove calls repository.reference(.., force=true, ..) with no expected old value, so a concurrent writer's ref is overwritten silently."
+confidence = "clear"
+measure = "none yet"
+
+[[smell]]
+id = "claim-rollback-swallowed"
+category = "unsafe-destructive"
+locations = [
+  "crates/meta-cli/src/request/local/local_clone/claim_run.rs:98",
+  "crates/meta-cli/src/request/local/local_clone/claim_run.rs:102",
+  "crates/meta-cli/src/request/local/local_clone/claim_plan/claim_hands.rs:12",
+]
+why = "Claim rollback runs `worktree remove --force` and `branch -D` with results discarded (removed/deleted return ()), so a failed undo leaves remains and is never reported."
+confidence = "likely"
+measure = "failure-nodes"
+
+[[smell]]
+id = "monitor-kill-by-pid"
+category = "unsafe-destructive"
+locations = [
+  "crates/meta-cli/src/request/local/monitor/patrol.rs:86",
+  "crates/meta-cli/src/request/local/monitor/live_machine.rs:57",
+]
+why = "Patrol signals pids/groups read from an earlier ps table with no start-time identity check, so a reused pid could be signalled."
+confidence = "likely"
+measure = "none yet"
+
+[[smell]]
+id = "scale-policy-missing-defaults"
+category = "fail-open"
+locations = [
+  "crates/meta-cli/src/request/scale_policy.rs:22",
+]
+why = "If tooling/policy.toml cannot be read, ScalePolicy::read silently uses default scales instead of failing."
+confidence = "likely"
+measure = "none yet"
+
+[[smell]]
+id = "monitor-state-reset"
+category = "fail-open"
+locations = [
+  "crates/meta-cli/src/request/local/monitor/monitor_state.rs:24",
+  "crates/meta-cli/src/request/local/monitor/monitor_trail.rs:51",
+]
+why = "MonitorState::read turns unreadable or corrupt state into Default, and MonitorTrail drops unparseable lines, so marked groups and history vanish silently."
+confidence = "likely"
+measure = "none yet"
+
+[[smell]]
+id = "session-seen-counter"
+category = "unsafe-destructive"
+locations = [
+  "crates/meta-cli/src/request/ci/session_dir.rs:48",
+]
+why = "SessionDir::news reads events, then truncates and rewrites the seen counter with File::create (not the atomic LocalFile::replaced), so two concurrent readers can lose or repeat news."
+confidence = "likely"
+measure = "none yet"
+
+# ---------------------------------------------------------------- name-collision
+
+[[smell]]
+id = "type-name-reuse"
+category = "name-collision"
+locations = [
+  "crates/meta-git/src/remote.rs:17",
+  "crates/meta-log/src/git_log/remote.rs:16",
+  "crates/meta-cli/src/request/ci/watcher/remote.rs:8",
+  "crates/meta-cli/src/request/local/local_clone/vetting/git_call.rs:7",
+  "crates/meta-cli/src/request/hook/hook_input/shell_command/git_call.rs:7",
+  "crates/meta-state/src/stamp.rs:7",
+  "crates/meta-cli/src/request/local/local_clone/quarantine/stamp.rs:6",
+]
+why = "Unrelated types share names: Remote x3, Repository x3, CommandLine x3, Stamp x3, Commit x4, GitCall x2, Checkout x2, Budget x2; reading a signature needs the module path."
+confidence = "likely"
+measure = "none yet"

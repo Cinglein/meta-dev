@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::impl_fact::ImplFact;
+use crate::structure::Structure;
 use crate::trait_key::TraitKey;
 use crate::trait_shape::TraitShape;
 use crate::type_key::TypeKey;
@@ -10,12 +11,18 @@ pub struct Facts {
     types: BTreeSet<TypeKey>,
     traits: BTreeMap<TraitKey, TraitShape>,
     impls: Vec<ImplFact>,
+    structure: Structure,
 }
 
 impl Facts {
     #[must_use]
-    pub fn new(types: BTreeSet<TypeKey>, traits: BTreeMap<TraitKey, TraitShape>, impls: Vec<ImplFact>) -> Facts {
-        Facts { types, traits, impls }
+    pub fn new(
+        types: BTreeSet<TypeKey>,
+        traits: BTreeMap<TraitKey, TraitShape>,
+        impls: Vec<ImplFact>,
+        structure: Structure,
+    ) -> Facts {
+        Facts { types, traits, impls, structure }
     }
 
     #[must_use]
@@ -31,6 +38,11 @@ impl Facts {
     #[must_use]
     pub fn impls(&self) -> &[ImplFact] {
         &self.impls
+    }
+
+    #[must_use]
+    pub fn structure(&self) -> &Structure {
+        &self.structure
     }
 
     pub fn impls_of<'facts>(
@@ -49,5 +61,14 @@ impl Facts {
     pub fn impls_on<'facts>(&'facts self, target: &TypeKey) -> impl Iterator<Item = &'facts ImplFact> + use<'facts> {
         let wanted = target.clone();
         self.impls.iter().filter(move |fact| fact.kind().target() == Some(&wanted))
+    }
+
+    #[must_use]
+    pub fn blanketed(&self) -> BTreeSet<&TraitKey> {
+        self.impls
+            .iter()
+            .filter(|fact| fact.kind().blanket_bounds().is_some())
+            .filter_map(|fact| fact.kind().implemented())
+            .collect()
     }
 }

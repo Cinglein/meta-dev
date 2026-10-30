@@ -1,74 +1,143 @@
-types 33, traits declared 11, impls 57
-missing abstractions: maximal (types, signatures) concepts with at least 2 of each
-  concepts 25: named by one trait 2, by a composition only 1, unnamed 22
-  missing, one trait must name it: 23
-  missing, a composition may name it: 22
+types 42, traits declared 16, impls 76
+catalog: 24 measures, report-only
+  B1 unnamed concepts [trait graph, to zero]: 23
+  B2 reducible traits [trait graph, to zero]: 2
+  B3 signatures declared in more than one trait [trait graph, to zero]: 1
+  B4 leverage: usable methods / written bodies [trait graph, higher]: median 1.00
+  B5 order not realised: derivable hand impls [trait graph, to zero]: not implemented
+  B6 label reuse: transitions per label [transition graph, higher]: not implemented
+  B7 bisimilar type pairs [transition graph, to zero]: not implemented
+  B8 domain transitions touching primitives [transition graph, to zero]: measured by lint primitive_boundary (partial)
+  B9 hidden state fields [transition graph, to zero]: 6
+  B10 typestate share of transitions [transition graph, higher]: not implemented
+  B11 transition graph simplicity [transition graph, lower]: not implemented
+  B12 unnamed field concepts [types, to zero]: 3
+  B13 types with LCOM4 above 1 [types, to zero]: 1
+  B14 behavioural inherent methods [types, lower]: not implemented
+  B15 bodies identical up to types [code, to zero]: not implemented
+  B16 same-job paths per external effect [effects, lower]: measured by lint git_starters (partial)
+  B17 parsers of the same external command [effects, lower]: not implemented
+  B18 derivable hand impls [code, to zero]: not implemented
+  B19 repeated method shapes across types [code, lower]: measured by lint repeated_methods
+  B20 effect share and dispersion per crate [effects, lower]: measured by lint crate_graph
+  B21 test duplication [tests, lower]: not implemented
+  B22 redundant tests [tests, to zero]: not implemented
+  B23 repeated meta starts per command and scene [tests, lower]: not implemented
+  B24 test lines per caught mutant [tests, lower]: not implemented
+B1 missing abstractions: maximal (types, signatures) concepts with at least 2 of each
+  concepts 26: named by one trait 2, by a composition only 1, unnamed 23
+  missing, one trait must name it: 24
+  missing, a composition may name it: 23
   largest, unnamed:
-  1. 6 = 3 types x 2 signatures
+  1. 6 = 3 types x 2 attributes
     types: fixture::Axe, fixture::Bow, fixture::Cup
     share: up(&self, &mut Formatter) -> Result<Self, Error>; west(&self, &mut Formatter) -> Result<Self, Error>
-  2. 6 = 3 types x 2 signatures
+  2. 6 = 3 types x 2 attributes
     types: fixture::Axe, fixture::Bow, fixture::Den
     share: east(&self, &mut Formatter) -> Result<Self, Error>; up(&self, &mut Formatter) -> Result<Self, Error>
-  3. 6 = 3 types x 2 signatures
+  3. 6 = 3 types x 2 attributes
     types: fixture::Axe, fixture::Bow, fixture::Elm
     share: east(&self, &mut Formatter) -> Result<Self, Error>; west(&self, &mut Formatter) -> Result<Self, Error>
-  4. 6 = 3 types x 2 signatures
+  4. 6 = 3 types x 2 attributes
     types: fixture::Axe, fixture::Cup, fixture::Den
     share: south(&self, &mut Formatter) -> Result<Self, Error>; up(&self, &mut Formatter) -> Result<Self, Error>
-  5. 6 = 3 types x 2 signatures
+  5. 6 = 3 types x 2 attributes
     types: fixture::Axe, fixture::Cup, fixture::Elm
     share: south(&self, &mut Formatter) -> Result<Self, Error>; west(&self, &mut Formatter) -> Result<Self, Error>
-  6. 6 = 3 types x 2 signatures
+  6. 6 = 3 types x 2 attributes
     types: fixture::Axe, fixture::Den, fixture::Elm
     share: east(&self, &mut Formatter) -> Result<Self, Error>; south(&self, &mut Formatter) -> Result<Self, Error>
-  7. 6 = 3 types x 2 signatures
+  7. 6 = 3 types x 2 attributes
     types: fixture::Badge, fixture::Label, remote::Gadget
     share: height(&self) -> Height; width(&self) -> Width
-  8. 6 = 3 types x 2 signatures
+  8. 6 = 3 types x 2 attributes
     types: fixture::Bow, fixture::Cup, fixture::Den
     share: north(&self, &mut Formatter) -> Result<Self, Error>; up(&self, &mut Formatter) -> Result<Self, Error>
-  9. 6 = 3 types x 2 signatures
+  9. 6 = 3 types x 2 attributes
     types: fixture::Bow, fixture::Cup, fixture::Elm
     share: north(&self, &mut Formatter) -> Result<Self, Error>; west(&self, &mut Formatter) -> Result<Self, Error>
-  10. 6 = 3 types x 2 signatures
+  10. 6 = 3 types x 2 attributes
     types: fixture::Bow, fixture::Den, fixture::Elm
     share: east(&self, &mut Formatter) -> Result<Self, Error>; north(&self, &mut Formatter) -> Result<Self, Error>
   largest, named only by a composition of shared traits:
-  1. 4 = 2 types x 2 signatures
+  1. 4 = 2 types x 2 attributes
     types: fixture::Celsius, fixture::Kelvin
     share: symbol(&self) -> Symbol; value(&self) -> Degrees
-leverage: distinct method names usable on a type / method bodies written for it
+B2 reducible traits: same implementors as another trait, or exactly the meet of two or more
+  local traits only; a trait with a blanket impl is derived, not reducible
+  found 2
+    fixture::Lock: implementors are exactly those of fixture::Bolt + fixture::Swing
+    fixture::Shut: same implementors as fixture::Seal
+B3 signatures declared in more than one local trait
+  found 1
+    open(&self) -> Door: fixture::Lock, fixture::Swing
+B4 leverage: distinct method names usable on a type / method bodies written for it
   usable = inherent names + the methods of each trait the type has; a local trait contributes its declared methods, a foreign trait the names seen in impls
-  n 21: min 1.00, q1 1.00, median 1.00, q3 1.50, max 2.50
+  n 30: min 1.00, q1 1.00, median 1.00, q3 1.33, max 2.50
   types with no bodies: 12
   lowest:
+    fixture::Gate 1.00 (9 usable / 9 written)
+    fixture::Dial 1.00 (8 usable / 8 written)
+    fixture::Latch 1.00 (7 usable / 7 written)
     fixture::Axe 1.00 (4 usable / 4 written)
     fixture::Bow 1.00 (4 usable / 4 written)
     fixture::Cup 1.00 (4 usable / 4 written)
     fixture::Den 1.00 (4 usable / 4 written)
     fixture::Elm 1.00 (4 usable / 4 written)
-    fixture::Lonely 1.00 (3 usable / 3 written)
-    fixture::Badge 1.00 (2 usable / 2 written)
-    fixture::Phase 1.00 (2 usable / 2 written)
-    remote::Gadget 1.00 (2 usable / 2 written)
-    fixture::Ember 1.00 (1 usable / 1 written)
+    fixture::Phase 1.00 (4 usable / 4 written)
+    fixture::Hinge2 1.00 (3 usable / 3 written)
+B9 hidden state
+  rule: a bool or local-enum field assigned (= or op=), or an Option field assigned or filled (insert, replace, take, get_or_insert, get_or_insert_with), inside a &mut self method of the same type
+  limits: syntactic: misses writes through aliases (let f = &mut self.f), mem::replace or swap, helper fns, other types' methods, type aliases of bool or Option, and enums from other crates
+  found 6
+    fixture::Dial.dirty: bool (bool): mark
+    fixture::Gate.key: Option<Key> (Option): fit
+    fixture::Gate.phase: Phase (local enum): melt
+    fixture::Gate.shut: bool (bool): toggle
+    fixture::Latch.armed: bool (bool): arm
+    fixture::Latch.spare: Option<Pin> (Option): stash
+B12 field concepts: maximal (types, named fields) concepts with at least 2 of each
+  a field is its name and its written type; a type that nests the set names it, so its fields are not shared
+  concepts 3
+  largest, unnamed:
+  1. 6 = 3 types x 2 attributes
+    types: fixture::Gate, fixture::Hatch, fixture::Vault
+    share: name: Name; size: Size
+  2. 6 = 2 types x 3 attributes
+    types: fixture::Gate, fixture::Vault
+    share: key: Option<Key>; name: Name; size: Size
+  3. 6 = 2 types x 3 attributes
+    types: fixture::Hatch, fixture::Vault
+    share: hinge: Hinge; name: Name; size: Size
+B13 types whose method-field graph splits
+  rule: LCOM4 per type with fields, over its self methods keyed by trait and name; nodes are those methods and the fields; edges join a method to each field it reads or writes, to each self method it calls, and to the field of each accessor it calls; an accessor (body is self.f, &self.f or self.f = value) is not a node; a bare use of self joins every field; a method that touches nothing is left out; a self call that names no method or accessor of the type links nothing; on a type none of whose methods takes &mut self or writes a field and none of whose field types names Mutex, RwLock, RefCell, Cell, OnceCell, OnceLock, LazyLock, LazyCell or a std atomic at any depth (a value or settings type), a method that reaches exactly one field is a projection: it keeps its edges, and a component made only of projections is dropped
+  limits: syntactic: fields reached through helpers or locals and trait default bodies are not seen; a call is resolved by name to every method of the type with that name and, when several accessors share the name, to the field of each; on a type that also has a &mut self method, one-field reads stay nodes and can split it; a &self facade over separate resources is not seen
+  found 1
+    fixture::Gate: 2 components [fit, ready, sealed] [label]
 trait-graph shape
   graph edges: supertrait 1, blanket 4; depth 2
-  blanket share: 8 of 45 trait impls = 0.17
-  single-implementor traits: 3
+  blanket share: 8 of 56 trait impls = 0.14
+  single-implementor traits: 4
     fixture::Gauge -> fixture::Meter
+    fixture::Lock -> fixture::Gate
     fixture::Scaled -> fixture::Circle
     fixture::Solo -> fixture::Lonely
-  traits implemented directly, per implementing type: n 23: min 1, q1 1, median 2, q3 2, max 2
-  types with at least N = 2 traits (q3, at least 2) and no edge among them: 13
+  traits implemented directly, per implementing type: n 27: min 1, q1 1, median 2, q3 2, max 3
+  types with at least N = 2 traits (q3, at least 2) and no edge among them: 17
     fixture::Celsius: fixture::Reading, fixture::Unit
+    fixture::Duo: Debug, Display
+    fixture::Gate: fixture::Bolt, fixture::Lock, fixture::Swing
+    fixture::Hatch: fixture::Seal, fixture::Shut, fixture::Swing
     fixture::Kelvin: fixture::Reading, fixture::Unit
     fixture::U01: fixture::Reading, fixture::Unit
     fixture::U02: fixture::Reading, fixture::Unit
     fixture::U03: fixture::Reading, fixture::Unit
     fixture::U04: fixture::Reading, fixture::Unit
     fixture::U05: fixture::Reading, fixture::Unit
-    fixture::U06: fixture::Reading, fixture::Unit
-    fixture::U07: fixture::Reading, fixture::Unit
-    fixture::U08: fixture::Reading, fixture::Unit
+smell inventory scoring, informational: a finding flags an entry when a type or trait it names is declared in a file the entry lists
+  B1 unnamed concepts [trait graph, to zero]: recall 1 of 1 tagged naming-completeness [remote-signal]; other entries flagged 1 [split-duo]; noise 0 of 23 findings
+  B2 reducible traits [trait graph, to zero]: recall 0 of 0 tagged reducible-traits []; other entries flagged 1 [split-duo]; noise 0 of 2 findings
+  B3 signatures declared in more than one trait [trait graph, to zero]: recall 0 of 0 tagged orthogonality []; other entries flagged 1 [split-duo]; noise 0 of 1 findings
+  B9 hidden state fields [transition graph, to zero]: recall 0 of 0 tagged hidden-state []; other entries flagged 1 [split-duo]; noise 0 of 6 findings
+  B12 unnamed field concepts [types, to zero]: recall 0 of 0 tagged field-concepts []; other entries flagged 1 [split-duo]; noise 0 of 3 findings
+  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 2 tagged lcom4 [split-duo]; other entries flagged 0 []; noise 0 of 1 findings

@@ -10,6 +10,7 @@ exclude_re = [
     "BuildTime::",
     "Task::run",
     "GoldenRefresh::run",
+    "EleganceReport::(golden|measured)",
     "CiStep::timed",
     "Ci::run",
     "Stranding::refuse_stranded",
