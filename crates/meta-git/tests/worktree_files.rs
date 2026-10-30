@@ -14,6 +14,7 @@ const UNTRACKED: [&str; 2] = ["new/inner.txt", "debug.log"];
 const RENAMED: [&str; 2] = ["moved", "renamed"];
 const OTHERS: [&str; 1] = ["new/inner.txt"];
 const STATUS: [&str; 4] = ["moved", "new/inner.txt", "renamed", "sub"];
+const TOUCHED: [&str; 5] = ["debug.log", "moved", "new/inner.txt", "renamed", "sub"];
 const DIFF: [&str; 3] = ["moved", "renamed", "sub"];
 const LS_FILES: [&str; 5] = [".gitignore", ".gitmodules", "kept", "renamed", "sub"];
 
@@ -91,4 +92,12 @@ fn worktree_files_list_what_git_ls_files_status_and_diff_list_with_ignored_renam
         work.listed(WorktreeFiles::ChangedSince(head)) == paths(&DIFF)
             && work.listed(WorktreeFiles::Tracked) == paths(&LS_FILES)
     );
+}
+
+#[test]
+fn touched_files_are_what_git_status_lists_with_ignored_files_too() {
+    let root = tempfile::tempdir().unwrap();
+    let work = Work::made(root.path()).changed();
+    let touched: Vec<PathBuf> = TOUCHED.iter().map(PathBuf::from).collect();
+    assert_eq!(work.listed(WorktreeFiles::Touched), touched);
 }
