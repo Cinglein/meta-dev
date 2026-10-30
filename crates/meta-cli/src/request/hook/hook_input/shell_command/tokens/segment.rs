@@ -8,6 +8,10 @@ pub struct Segment {
 }
 
 impl Segment {
+    pub fn lone(text: &str) -> Self {
+        Self::default().appended(text.to_owned(), Kind::Literal)
+    }
+
     pub fn words(&self) -> &[String] {
         &self.words
     }

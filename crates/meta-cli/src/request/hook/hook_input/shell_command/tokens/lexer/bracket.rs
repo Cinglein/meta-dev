@@ -1,4 +1,3 @@
-use super::super::kind::Kind;
 use super::super::segment::Segment;
 
 #[derive(Clone, Copy)]
@@ -20,13 +19,9 @@ impl Bracket {
     }
 
     pub fn segment(self) -> Segment {
-        Segment::default().appended(
-            match self {
-                Self::Open => Self::OPEN,
-                Self::Close => Self::CLOSE,
-            }
-            .into(),
-            Kind::Literal,
-        )
+        Segment::lone(match self {
+            Self::Open => Self::OPEN,
+            Self::Close => Self::CLOSE,
+        })
     }
 }

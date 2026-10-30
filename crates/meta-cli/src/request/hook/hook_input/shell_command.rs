@@ -13,7 +13,7 @@ use meta_schema::Actor;
 
 use crate::request::output::Listed;
 use crate::request::project::Config;
-use crate::request::scale_policy::ShellRules;
+use crate::request::scale_policy::{ScalePolicy, ShellRules};
 use gh_call::GhCall;
 use git_call::GitCall;
 pub use pin::Pin;
@@ -126,7 +126,11 @@ impl FromStr for ShellCommand {
     type Err = std::convert::Infallible;
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        Ok(Self(text.parse()?))
+        let tokens: Tokens = text.parse()?;
+        Ok(Self(match ScalePolicy::embedded_section(ScalePolicy::shell) {
+            Ok(rules) => tokens.flattened(&|words| rules.nested(words)),
+            Err(_) => tokens,
+        }))
     }
 }
 
@@ -163,7 +167,9 @@ mod tests {
     }
 
     const CONFIG: &str = "protected = [\"main\"]\n";
-    const MERGES: [&str; 4] = [
+    const MERGES: [&str; 6] = [
+        "bash -c \"gh pr merge 1\"",
+        "sh -c 'cd x && gh pr merge 1'",
         "gh pr merge 1",
         "cd x && gh pr merge 1 --squash",
         "meta queue run 1",
