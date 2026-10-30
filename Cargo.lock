@@ -23,6 +23,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ambient_reads"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "syn 2.0.119",
+ "task",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -158,6 +167,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 name = "corpus_check"
 version = "0.1.0"
 dependencies = [
+ "ambient_reads",
  "const_shape",
  "crate_graph",
  "distinct_signatures",

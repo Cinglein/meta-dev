@@ -10,6 +10,7 @@ task = { path = "../task" }
 settings = { path = "../settings" }
 strum = { version = "0.28", features = ["derive"] }
 thiserror = "2"
+ambient_reads = { path = "../lints/ambient_reads" }
 const_shape = { path = "../lints/const_shape" }
 crate_graph = { path = "../lints/crate_graph" }
 distinct_signatures = { path = "../lints/distinct_signatures" }
