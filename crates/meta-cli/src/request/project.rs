@@ -1,12 +1,11 @@
 mod config;
 
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use std::sync::OnceLock;
 use std::time::Instant;
 
-use meta_git::{Head, Reads as _};
+use meta_git::{Head, HeadReflog, IndependentTips, LooseObject, Query, Reads as _, Unpushed};
 use meta_log::{GitLog, RemoteHeads};
 use meta_run::{Budget, GitArgv, Port, Run};
 
@@ -19,8 +18,6 @@ use crate::request::repository::Repository;
 pub use config::{BranchName, CiSettings, Config, GcMode, HeartbeatSettings, LogWindow, ProgramName, TickLimit};
 #[cfg(test)]
 mod tests;
-
-const NO_OPERANDS: [&str; 0] = [];
 
 #[derive(Debug)]
 pub struct Project {
@@ -70,13 +67,13 @@ impl Project {
         }
     }
 
-    pub fn reflog(&self, deadline: Instant) -> Option<&[ReflogEntry]> {
-        self.reflog.get_or_init(|| self.lines(GitArgv::ReflogWalk, NO_OPERANDS, deadline)).as_deref()
+    pub fn reflog(&self) -> Option<&[ReflogEntry]> {
+        self.reflog.get_or_init(|| self.read(&HeadReflog).map(|lines| ReflogEntry::read(&lines))).as_deref()
     }
 
-    pub fn created_after(&self, start: &StartMoment, deadline: Instant) -> Option<Vec<Commit>> {
-        let entries = self.reflog(deadline).filter(|entries| !entries.is_empty())?;
-        Some(ReflogEntry::created(entries, start, |commit| self.born_after(commit, start, deadline)))
+    pub fn created_after(&self, start: &StartMoment) -> Option<Vec<Commit>> {
+        let entries = self.reflog().filter(|entries| !entries.is_empty())?;
+        Some(ReflogEntry::created(entries, start, |commit| self.born_after(commit, start)))
     }
 
     pub fn remote_heads(&self, deadline: Instant) -> Result<RemoteHeads, Listed> {
@@ -89,21 +86,22 @@ impl Project {
         Ok(heads)
     }
 
-    pub fn unpushed(&self, commits: &[Commit], heads: &[Commit], deadline: Instant) -> Option<Vec<Commit>> {
+    pub fn unpushed(&self, commits: &[Commit], heads: &[Commit]) -> Option<Vec<Commit>> {
         let remote = commits.first().and_then(|_| self.config.remote().ok())?;
-        let not = [OsString::from("--not"), OsString::from(format!("--remotes={remote}"))];
-        let words = commits.iter().map(Commit::argument).chain(not).chain(heads.iter().map(Commit::argument));
-        self.lines(GitArgv::Unpushed, words, deadline)
+        let ids = |commits: &[Commit]| commits.iter().filter_map(Commit::object_id).collect();
+        let unpushed = self.read(&Unpushed::new(ids(commits), remote.clone(), ids(heads)))?;
+        Some(unpushed.into_iter().map(Commit::from).collect())
     }
 
-    pub fn independent_tips(&self, pushed: &[Commit], deadline: Instant) -> Option<Vec<Commit>> {
+    pub fn independent_tips(&self, pushed: &[Commit]) -> Option<Vec<Commit>> {
         pushed.get(1)?;
-        self.lines(GitArgv::IndependentTips, pushed.iter().map(Commit::argument), deadline)
+        let tips =
+            self.read(&IndependentTips::from(pushed.iter().filter_map(Commit::object_id).collect::<Vec<_>>()))?;
+        Some(tips.into_iter().map(Commit::from).collect())
     }
 
     pub fn head(&self) -> Option<Commit> {
-        let heads: Vec<Commit> = self.lines(GitArgv::Head, NO_OPERANDS, self.ci.remote_deadline())?;
-        heads.into_iter().next()
+        self.checkout().head().cloned()
     }
 
     pub fn repository(&self) -> Result<Repository, RemoteFailure> {
@@ -131,20 +129,14 @@ impl Project {
         Run::git(&self.root).args(words)
     }
 
-    fn lines<Line: FromStr>(
-        &self,
-        call: GitArgv,
-        operands: impl IntoIterator<Item = impl AsRef<OsStr>>,
-        deadline: Instant,
-    ) -> Option<Vec<Line>> {
-        let output = Port::new(&self.root).reported(call, operands, deadline).ok()?;
-        Some(output.text().lines().filter_map(|line| line.parse().ok()).collect())
+    fn read<Asked: Query>(&self, query: &Asked) -> Option<Asked::View> {
+        meta_git::Repository::open(&self.root).and_then(|repository| repository.read(query)).ok()
     }
 
-    fn born_after(&self, commit: &Commit, start: &StartMoment, deadline: Instant) -> bool {
-        let reported = Port::new(&self.root).reported(GitArgv::GitPath, [commit.loose_object()], deadline);
-        let modified = |path: &Path| std::fs::metadata(self.root.join(path)).and_then(|meta| meta.modified()).ok();
-        reported.is_ok_and(|git_path| start.born_after(&git_path.text(), modified))
+    fn born_after(&self, commit: &Commit, start: &StartMoment) -> bool {
+        let path = commit.object_id().and_then(|object| self.read(&LooseObject::from(object)));
+        let modified = |path: &Path| std::fs::metadata(path).and_then(|meta| meta.modified()).ok();
+        path.is_some_and(|path| start.born_after(&path, modified))
     }
 
     pub fn checkout(&self) -> &Checkout {

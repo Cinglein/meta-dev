@@ -4,6 +4,8 @@ mod stamp;
 
 use std::str::FromStr;
 
+use meta_git::ReflogLine;
+
 use super::commit::Commit;
 use super::start_moment::StartMoment;
 use super::unix_seconds::UnixSeconds;
@@ -50,6 +52,12 @@ impl ReflogEntry {
             || (self.parents.get(1).is_some() && self.parents.first() == before.map(|before| &before.commit)))
             && self.moved.by_after(&self.committer, start, || born_after(&self.commit)))
         .then_some(&self.commit)
+    }
+}
+
+impl ReflogEntry {
+    pub fn read(lines: &[ReflogLine]) -> Vec<Self> {
+        lines.iter().filter_map(|line| line.to_string().parse().ok()).collect()
     }
 }
 

@@ -9,6 +9,12 @@ use serde::Deserialize;
 #[serde(transparent)]
 pub struct RemoteName(String);
 
+impl RemoteName {
+    pub(crate) fn tracking_glob(&self) -> String {
+        format!("refs/remotes/{}/*", self.0)
+    }
+}
+
 impl FromStr for RemoteName {
     type Err = Infallible;
 

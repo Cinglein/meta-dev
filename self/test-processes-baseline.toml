@@ -1,8 +1,8 @@
-"meta-cli it ci::a_passing_push_lets_the_agent_stop_and_a_commit_whose_state_cannot_be_written_is_not_watched" = 31
-"meta-cli it ci::ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push" = 39
+"meta-cli it ci::a_passing_push_lets_the_agent_stop_and_a_commit_whose_state_cannot_be_written_is_not_watched" = 19
+"meta-cli it ci::ci_wait_returns_at_the_first_failure_and_stop_stays_blocked_until_a_later_push" = 25
 "meta-cli it ci::pushes::one_commit_gets_one_watcher" = 1
-"meta-cli it ci::review::a_reflog_that_is_off_or_an_unwritable_state_dir_fails_closed" = 13
-"meta-cli it ci::waits::an_unreadable_remote_settles_the_hook_spawned_watch_unchecked_and_a_fixed_remote_passes_and_learns_the_run" = 18
+"meta-cli it ci::review::a_reflog_that_is_off_or_an_unwritable_state_dir_fails_closed" = 8
+"meta-cli it ci::waits::an_unreadable_remote_settles_the_hook_spawned_watch_unchecked_and_a_fixed_remote_passes_and_learns_the_run" = 12
 "meta-cli it cli::a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree" = 30
 "meta-cli it cli::a_target_seed_that_cannot_copy_warns_on_one_line_and_leaves_no_target_but_the_claim_succeeds" = 22
 "meta-cli it cli::writes_go_to_the_remote_as_meta_actor_else_owner_listing_it_once_and_offline_writes_are_refused" = 10

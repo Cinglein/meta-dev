@@ -1,9 +1,17 @@
 mod files_at;
 mod first_addition;
 mod first_parents;
+mod head_reflog;
+mod independent_tips;
+mod reflog_line;
 mod signers;
+mod unpushed;
 
 pub use files_at::FilesAt;
 pub use first_addition::FirstAddition;
 pub use first_parents::FirstParents;
+pub use head_reflog::HeadReflog;
+pub use independent_tips::IndependentTips;
+pub use reflog_line::ReflogLine;
 pub use signers::Signers;
+pub use unpushed::Unpushed;

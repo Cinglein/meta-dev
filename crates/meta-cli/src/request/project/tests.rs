@@ -1,5 +1,7 @@
 use std::time::UNIX_EPOCH;
 
+use meta_git::{LooseObject, Reads as _, Repository};
+
 use super::Project;
 use crate::request::ci::{Commit, StartMoment};
 
@@ -20,12 +22,13 @@ fn a_project_serves_its_meta_toml_and_reads_head_and_object_births_through_git_a
     });
     assert!(shown.iter().zip(SHOWN).all(|(shown, named)| shown.contains(named)), "{shown:?}");
     let [head, unborn] = SHAS.map(|sha| sha.parse::<Commit>().unwrap());
-    let object = dir.path().join(GIT[0]).with_file_name(head.loose_object());
-    [dir.path().join(GIT[2]), object.clone()].iter().try_for_each(|file| std::fs::write(file, SHAS[0])).unwrap();
+    std::fs::write(dir.path().join(GIT[2]), SHAS[0]).unwrap();
+    let loose = LooseObject::from(head.object_id().unwrap());
+    let object = Repository::open(dir.path()).and_then(|repository| repository.read(&loose)).unwrap();
+    std::fs::write(&object, SHAS[0]).unwrap();
     let modified = std::fs::metadata(object).and_then(|meta| meta.modified()).unwrap().duration_since(UNIX_EPOCH);
     let starts = [0, modified.unwrap().as_nanos()].map(|nanos| nanos.to_string().parse::<StartMoment>().unwrap());
     let project = Project::try_from(dir.path()).unwrap();
-    let deadline = project.ci_settings().remote_deadline();
-    let judged = starts.map(|start| [&head, &unborn].map(|commit| project.born_after(commit, &start, deadline)));
+    let judged = starts.map(|start| [&head, &unborn].map(|commit| project.born_after(commit, &start)));
     assert!(judged == [[true, false], [false, false]] && project.head() == Some(head), "{judged:?}");
 }

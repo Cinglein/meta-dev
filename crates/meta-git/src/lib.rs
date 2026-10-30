@@ -35,10 +35,12 @@ pub use git_failure::GitFailure;
 pub use identity::Identity;
 pub use layout::Layout;
 pub use object_id::ObjectId;
-pub use queries::Head;
 pub use queries::config::{Ignored, Setting};
-pub use queries::history::{FilesAt, FirstAddition, FirstParents, Signers};
+pub use queries::history::{
+    FilesAt, FirstAddition, FirstParents, HeadReflog, IndependentTips, ReflogLine, Signers, Unpushed,
+};
 pub use queries::refs::{Heads, RefTarget, RemoteUrl, Revision};
+pub use queries::{Head, LooseObject};
 pub use query::Query;
 pub use reads::Reads;
 pub use ref_name::RefName;
