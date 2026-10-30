@@ -7,6 +7,7 @@ use meta_schema::{Actor, Id, Task};
 use serde::Deserialize;
 
 use super::task_worktree::TaskWorktree;
+use crate::request::environment::Environment;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(transparent)]
@@ -18,6 +19,7 @@ impl SessionId {
     }
 
     pub const VARIABLE: &'static str = "META_SESSION";
+    const ENV_FILE: &'static str = "CLAUDE_ENV_FILE";
 
     pub fn of_task(task: Id<Task>) -> Self {
         Self(task.to_string())
@@ -28,14 +30,14 @@ impl SessionId {
         variable.map(Self).or_else(|| claimed().map(Self::of_task))
     }
 
-    pub fn announce(&self, actor: Option<Actor>) -> Option<Actor> {
+    pub fn announce(&self, actor: Option<Actor>, environment: &Environment) -> Option<Actor> {
         let actor = actor.or_else(|| {
             format!("claude-{}", self.file_name().display().to_string().to_ascii_lowercase()).parse().ok()
         })?;
         std::fs::OpenOptions::new()
             .create(true)
             .append(true)
-            .open(std::env::var_os("CLAUDE_ENV_FILE")?)
+            .open(environment.variable(Self::ENV_FILE)?)
             .ok()?
             .write_all(format!("export META_ACTOR={actor}\nexport {}={}\n", Self::VARIABLE, self.0).as_bytes())
             .ok()?;

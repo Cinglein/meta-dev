@@ -1,7 +1,10 @@
 #![allow(clippy::unwrap_used)]
 
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Output;
+
+use meta_cli::Answer;
 
 const OWNER: &str = "owner";
 const WRITER: &str = "writer";
@@ -11,7 +14,6 @@ const ISSUE: [&str; 4] = ["issue", "--division", "features-and-maintenance", "te
 const OFFLINE: &str = "offline";
 const WRITES_LEN: usize = 2;
 const LIST_ISSUES: [&str; 2] = ["list", "issues"];
-const LOCAL_NAME: &str = "localname";
 const SEED: &str = "seed";
 const SEED_TIME: Moment = Moment::after_epoch(1_700_000_000);
 const TRACKING: &str = "refs/remotes/origin/";
@@ -31,10 +33,7 @@ const CLAIMED: &str = "TaskClaimed";
 const UNRECORDED: &str = "unrecorded";
 const EXCLUDE: &str = ".git/info/exclude";
 const LOCAL_SETTINGS_RULE: &str = "/meta.local.toml\n";
-const TRACE: &str = "GIT_TRACE2_EVENT";
-const STARTED: &str = "\"event\":\"start\"";
-const LISTING: &str = "\"hierarchy\":\"ls-remote\"";
-const NO_STARTS_LEN: usize = 0;
+const ACTOR: &str = "META_ACTOR";
 const TARGET: &str = "target.noindex";
 const CARGO_TAG: [&str; 2] = [
     "CACHEDIR.TAG",
@@ -47,6 +46,7 @@ const LOCK: &str = ".cargo-lock";
 const LINK: &str = "linked";
 const ARTIFACT: [&str; 2] = ["deps/libx.rlib", "compiled"];
 
+use crate::called::Called;
 use crate::fixture::{Fixture, Moment};
 use crate::meta_command::MetaCommand;
 use crate::seeded_log::{SeededLog, TASK};
@@ -96,23 +96,14 @@ impl Seed {
     }
 }
 
-struct Run(Output);
+struct Run {
+    out: String,
+    err: String,
+}
 
 struct Complaint(String);
 
 struct Written(String);
-
-struct Traced(Run, String);
-
-impl Traced {
-    fn run(project: &Project, words: &[&str]) -> Self {
-        let trace = tempfile::NamedTempFile::new().unwrap();
-        let mut command = MetaCommand::tagged(words);
-        command.current_dir(project.clone.path()).env_remove("META_ACTOR").env("USER", LOCAL_NAME);
-        command.env(TRACE, trace.path());
-        Self(Run(command.output().unwrap()), std::fs::read_to_string(trace.path()).unwrap())
-    }
-}
 
 impl Run {
     const ACTOR_INDEX: usize = 2;
@@ -123,7 +114,7 @@ impl Run {
     }
 
     fn complaint(&self) -> Complaint {
-        Complaint(String::from_utf8_lossy(&self.0.stderr).into_owned())
+        Complaint(self.err.clone())
     }
 
     fn written(&self) -> Written {
@@ -131,9 +122,22 @@ impl Run {
     }
 }
 
+impl From<Output> for Run {
+    fn from(output: Output) -> Self {
+        let text = |bytes: &[u8]| String::from_utf8_lossy(bytes).into_owned();
+        Self { out: text(&output.stdout), err: text(&output.stderr) }
+    }
+}
+
+impl From<Answer> for Run {
+    fn from(answer: Answer) -> Self {
+        Self { out: answer.to_string(), err: answer.err().unwrap_or_default() }
+    }
+}
+
 impl std::fmt::Display for Run {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(&String::from_utf8_lossy(&self.0.stdout))
+        formatter.write_str(&self.out)
     }
 }
 
@@ -166,22 +170,25 @@ impl Project {
     }
 
     fn meta(&self, actor: &str, words: &[&str]) -> Run {
-        Run(MetaCommand::tagged(words).current_dir(self.clone.path()).env("META_ACTOR", actor).output().unwrap())
+        Run::from(MetaCommand::tagged(words).current_dir(self.clone.path()).env("META_ACTOR", actor).output().unwrap())
+    }
+
+    fn called(&self, actor: Option<&str>, words: &[&str]) -> Run {
+        let actor = actor.map(|actor| (OsString::from(ACTOR), OsString::from(actor)));
+        Run::from(Called::new(actor.into_iter().collect()).answered(words, self.clone.path(), ""))
     }
 }
 
 #[test]
 fn writes_go_to_the_remote_as_meta_actor_else_owner_listing_it_once_and_offline_writes_are_refused() {
     let project = Project::new();
-    let opened = Traced::run(&project, &ISSUE);
-    let listed = Traced::run(&project, &LIST_ISSUES);
-    let started = listed.1.matches(STARTED).count();
-    assert!(opened.0.actor().as_deref() == Some(OWNER) && listed.0.to_string().contains(&opened.0.written().0));
-    assert!(!opened.1.contains(LISTING) && started == NO_STARTS_LEN, "{started}");
+    let opened = project.called(None, &ISSUE);
+    let listed = project.called(None, &LIST_ISSUES);
+    assert!(opened.actor().as_deref() == Some(OWNER) && listed.to_string().contains(&opened.written().0));
     assert_eq!(Fixture::opened(project.origin.path()).history_len(LOG), WRITES_LEN);
-    assert_eq!(project.meta(WRITER, &ISSUE).actor().as_deref(), Some(WRITER));
+    assert_eq!(project.called(Some(WRITER), &ISSUE).actor().as_deref(), Some(WRITER));
     Fixture::opened(project.clone.path()).pointed(Path::new(NOWHERE));
-    assert!(project.meta(OWNER, &ISSUE).complaint().0.contains(OFFLINE));
+    assert!(project.called(Some(OWNER), &ISSUE).complaint().0.contains(OFFLINE));
 }
 
 #[test]

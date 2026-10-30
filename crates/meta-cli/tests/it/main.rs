@@ -1,5 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+mod called;
 mod ci;
 mod cli;
 #[allow(dead_code)]

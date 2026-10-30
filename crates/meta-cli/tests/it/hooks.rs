@@ -1,5 +1,6 @@
 #![allow(clippy::unwrap_used)]
 
+use std::collections::BTreeMap;
 use std::ffi::{OsStr, OsString};
 use std::fmt;
 use std::io::Write as _;
@@ -46,6 +47,8 @@ const SESSION_START: &str = "session-start";
 const PATIENT: Duration = Duration::from_secs(2);
 const POLL: Duration = Duration::from_millis(2);
 const ENV_FILE: &str = ".env";
+const ENV_FILE_VARIABLE: &str = "CLAUDE_ENV_FILE";
+const TEMPORARY: &str = "TMPDIR";
 const SESSION_FIELD: &str = r#""session_id":"ABCDEF12-34","#;
 const WATCHERS: &str = ".git/meta-ci";
 const NO_TASKS: &str = "Tasks: 0 unfinished";
@@ -70,6 +73,9 @@ const HELPERS: &str = r#"[remote "origin"]
 	uploadpack = "sh -c 'test -e ROOT/hold && echo $$ >> ROOT/pids && sleep 5 || exec git upload-pack \"$1\"' x"
 "#;
 
+use meta_cli::Answer;
+
+use crate::called::Called;
 use crate::fixture::{Fixture, WorkStep};
 use crate::meta_command::MetaCommand;
 
@@ -127,12 +133,7 @@ impl Repo {
     }
 
     fn started(&self, event: &str, command: &str, cwd: &Path, meta: &mut Command) -> Child {
-        let session = if event == SESSION_START { SESSION_FIELD } else { "" };
-        let input = format!(
-            r#"{{{session}"cwd":{},"tool_input":{{"command":{}}}}}"#,
-            serde_json::to_string(cwd).unwrap(),
-            serde_json::to_string(&command.replace(ELSEWHERE, &self.origin.path().display().to_string())).unwrap()
-        );
+        let input = Payload::text(self, event, command, cwd);
         let meta = meta.env_remove("META_ACTOR").env("CLAUDE_ENV_FILE", self.clone.path().join(ENV_FILE));
         let piped = meta.env("TMPDIR", self.clone.path()).stdin(Stdio::piped()).stdout(Stdio::piped());
         let mut child = piped.spawn().unwrap();
@@ -187,10 +188,11 @@ fn pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_whereve
     let elsewhere = repo.origin.path();
     Config::configure(&home.join(GIT_CONFIG), NOREPLY_IDENTITY);
     Config::configure(&elsewhere.join(BARE_CONFIG), FOREIGN_IDENTITY);
-    let push = repo.hook(PRE, PUSH, home);
-    assert!(repo.hook(PRE, MERGE, home).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
-    assert!(repo.hook(PRE, REFUSED_COMMIT, home).contains(&format!("{DENY}{FOREIGN_REASON}")));
-    assert_eq!(repo.hook(PRE, ALLOWED, home), "");
+    let called = |command: &str| Payload::answered(&repo, PRE, command, home).to_string();
+    let push = called(PUSH);
+    assert!(called(MERGE).contains(DENY) && push.contains(DENY) && push.contains(PUSH_REASON));
+    assert!(called(REFUSED_COMMIT).contains(&format!("{DENY}{FOREIGN_REASON}")));
+    assert_eq!(called(ALLOWED), "");
 }
 
 #[test]
@@ -232,15 +234,37 @@ fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
 fn session_start_shows_state_and_names_the_session_actor() {
     let repo = Repo::new();
     let home = repo.clone.path();
-    let shown = repo.hook(SESSION_START, COMMIT, home);
+    let called = || Payload::answered(&repo, SESSION_START, COMMIT, home).to_string();
+    let shown = called();
     assert!(shown.contains(NO_TASKS) && shown.contains(SESSION_ACTOR));
     assert_eq!(std::fs::read_to_string(home.join(ENV_FILE)).unwrap(), ENV_LINE);
     Fixture::opened(home).configured(REMOTE_URL, &[FILE_SCHEME, &repo.origin.path().display().to_string()].concat());
     Config::configure(&home.join(GIT_CONFIG), HANGING_UPLOAD);
     Config::configure(&home.join(META_TOML), QUICK_GIT);
     let started = Instant::now();
-    let shown = repo.hook(SESSION_START, COMMIT, home);
+    let shown = called();
     assert!(home.join(SESSION_STARTED).exists() && started.elapsed() < PATIENT && shown.contains(UNREADABLE));
+}
+
+struct Payload;
+
+impl Payload {
+    fn text(repo: &Repo, event: &str, command: &str, cwd: &Path) -> String {
+        let session = if event == SESSION_START { SESSION_FIELD } else { "" };
+        format!(
+            r#"{{{session}"cwd":{},"tool_input":{{"command":{}}}}}"#,
+            serde_json::to_string(cwd).unwrap(),
+            serde_json::to_string(&command.replace(ELSEWHERE, &repo.origin.path().display().to_string())).unwrap()
+        )
+    }
+
+    fn answered(repo: &Repo, event: &str, command: &str, cwd: &Path) -> Answer {
+        let variables = BTreeMap::from([
+            (OsString::from(ENV_FILE_VARIABLE), repo.clone.path().join(ENV_FILE).into_os_string()),
+            (OsString::from(TEMPORARY), repo.clone.path().as_os_str().to_owned()),
+        ]);
+        Called::new(variables).answered(&[HOOK, event], cwd, &Self::text(repo, event, command, cwd))
+    }
 }
 
 impl fmt::Display for Repo {

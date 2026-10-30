@@ -6,12 +6,13 @@ mod pulse;
 mod snapshot;
 mod tick;
 
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use chrono::Utc;
 use meta_run::Run;
 
-use crate::request::cli_failure::{CliFailure, Misuse, Setup};
+use crate::request::cli_failure::{CliFailure, Misuse};
 use crate::request::local::{LocalClone, Monitor};
 use crate::request::output::{Listed, Output};
 use crate::request::project::{HeartbeatSettings, Project};
@@ -52,6 +53,7 @@ impl FromStr for Heartbeat {
 
 impl Heartbeat {
     const HEARTBEAT: &'static str = "heartbeat";
+    const SEARCH_PATH: &'static str = "PATH";
     const TICK_RUN: &'static str = "tick-run";
     const GC_RUN: &'static str = "gc-run";
     const DISABLED: &'static str = "gc disabled";
@@ -65,9 +67,9 @@ impl Heartbeat {
                     .answer(project, &clone, &settings)
                     .map_err(|failure| Monitor::noted(&clone, &failure, Utc::now()))
                     .ok();
-                let ticked = Tick::supervised(Self::inner(project, Self::TICK_RUN)?, settings.tick_limit());
+                let ticked = Tick::supervised(Self::inner(project, Self::TICK_RUN), settings.tick_limit());
                 let gc = GcHook::supervised(
-                    Self::inner(project, Self::GC_RUN)?,
+                    Self::inner(project, Self::GC_RUN),
                     settings.gc_limit().deadline(),
                     settings.gc_mode(),
                 );
@@ -84,19 +86,18 @@ impl Heartbeat {
                 let flags = LatestFlags::answer(clone.git_dir().as_ref(), &settings, now)?;
                 Ok(flags.raised_with(Monitor::recent(&clone, now)?))
             }
-            Self::Plist => Self::plist(&clone, &settings),
+            Self::Plist => Ok(Self::plist(project, &clone, &settings)),
         }
     }
 
-    fn inner(project: &Project, run: &str) -> Result<Run, CliFailure> {
-        let program = std::env::current_exe().map_err(CliFailure::raised::<Setup>)?;
-        let inner = Run::nested(program).args([Self::HEARTBEAT, run]).dir(project.root());
-        Ok(inner)
+    fn inner(project: &Project, run: &str) -> Run {
+        Run::nested(project.environment().program()).args([Self::HEARTBEAT, run]).dir(project.root())
     }
 
-    fn plist(clone: &LocalClone, settings: &HeartbeatSettings) -> Result<Output, CliFailure> {
-        let program = std::env::current_exe().map_err(CliFailure::raised::<Setup>)?;
-        let search_path = std::env::var_os("PATH").unwrap_or_default();
-        Ok(Output::Listed(Listed::new(LaunchdPlist::new(program, clone, settings, search_path))))
+    fn plist(project: &Project, clone: &LocalClone, settings: &HeartbeatSettings) -> Output {
+        let environment = project.environment();
+        let search_path = environment.variable(Self::SEARCH_PATH).unwrap_or_default().to_owned();
+        let program = PathBuf::from(environment.program());
+        Output::Listed(Listed::new(LaunchdPlist::new(program, clone, settings, search_path)))
     }
 }

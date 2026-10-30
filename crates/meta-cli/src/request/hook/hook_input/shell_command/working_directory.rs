@@ -5,6 +5,7 @@ use super::git_call::GitCall;
 #[derive(Debug)]
 pub struct WorkingDirectory {
     cwd: PathBuf,
+    home: Option<PathBuf>,
     subshells: Vec<PathBuf>,
 }
 
@@ -15,8 +16,8 @@ impl WorkingDirectory {
     const HOMES: &'static [&'static str] = &["~", "$HOME"];
     const PWD: &'static str = "$PWD";
 
-    pub fn new(cwd: &Path) -> Self {
-        Self { cwd: cwd.to_path_buf(), subshells: Vec::new() }
+    pub fn new(cwd: &Path, home: Option<&Path>) -> Self {
+        Self { cwd: cwd.to_path_buf(), home: home.map(Path::to_path_buf), subshells: Vec::new() }
     }
 
     pub fn follow(&mut self, words: &[String], wanted: impl Fn(&[String]) -> Option<()>) -> Option<PathBuf> {
@@ -30,28 +31,28 @@ impl WorkingDirectory {
                 None
             }
             [cd, target] if cd == Self::CD => {
-                let next = Self::resolve(&self.current(), Path::new(target));
+                let next = self.resolve(&self.current(), Path::new(target));
                 *self.subshells.last_mut().unwrap_or(&mut self.cwd) = next;
                 None
             }
-            _ => wanted(words).map(|()| Self::directory(&self.current(), words)),
+            _ => wanted(words).map(|()| self.directory(&self.current(), words)),
         }
     }
 
-    fn directory(current: &Path, words: &[String]) -> PathBuf {
+    fn directory(&self, current: &Path, words: &[String]) -> PathBuf {
         let directories = GitCall::parse(words).map(|call| call.directory_words().to_vec()).unwrap_or_default();
-        directories.iter().fold(current.to_path_buf(), |directory, word| Self::resolve(&directory, Path::new(word)))
+        directories.iter().fold(current.to_path_buf(), |directory, word| self.resolve(&directory, Path::new(word)))
     }
 
     fn current(&self) -> PathBuf {
         self.subshells.last().unwrap_or(&self.cwd).clone()
     }
 
-    fn resolve(base: &Path, target: &Path) -> PathBuf {
+    fn resolve(&self, base: &Path, target: &Path) -> PathBuf {
         let mut components = target.components();
         let head = components.next().map(|head| head.as_os_str().to_owned()).unwrap_or_default();
         let root = if Self::HOMES.iter().any(|home| head == *home) {
-            std::env::var_os("HOME").map(PathBuf::from)
+            self.home.clone()
         } else {
             (head == Self::PWD).then(|| base.to_path_buf())
         };

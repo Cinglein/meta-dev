@@ -1,3 +1,3 @@
 mod request;
 
-pub use request::{Request, TraceRecord};
+pub use request::{Answer, Call, Environment, FollowUp, Request, TraceRecord};

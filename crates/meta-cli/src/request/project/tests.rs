@@ -3,7 +3,7 @@ use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use meta_git::{FileCommit, Files, Identity, Layout, LooseObject, Reads as _, RefMove, Repository, Writes as _};
 
-use super::Project;
+use super::{Environment, Project};
 use crate::request::ci::{Commit, StartMoment};
 
 const ORIGIN: &str = "origin.git";
@@ -39,7 +39,7 @@ const SHAS: [&str; 2] = ["f2e83b47f04f1aadaaf72b9d15074e933a513dc6", "9271c82b76
 fn a_project_serves_its_meta_toml_and_reads_head_and_object_births_through_git_and_no_meta_toml_is_no_project() {
     let dir = tempfile::tempdir().unwrap();
     GIT[..2].iter().for_each(|made| std::fs::create_dir_all(dir.path().join(made)).unwrap());
-    assert!(Project::found(dir.path()).is_ok_and(|project| project.is_none()));
+    assert!(Project::found(dir.path(), &Environment::default()).is_ok_and(|project| project.is_none()));
     let shown = CONFIGS.map(|text| {
         std::fs::write(dir.path().join("meta.toml"), text).unwrap();
         Project::try_from(dir.path())

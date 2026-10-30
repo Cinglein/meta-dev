@@ -6,6 +6,7 @@ use tempfile::TempDir;
 use super::{Hush, Silence};
 use crate::request::ci::SessionDir;
 use crate::request::cli_failure::CliFailure;
+use crate::request::environment::Environment;
 use crate::request::hook::CallPhase;
 use crate::request::local::local_trail::LocalTrail;
 use crate::request::local::recorded_worktree::RecordedWorktree;
@@ -50,7 +51,8 @@ impl Scene {
             std::fs::create_dir(&worktree).and_then(|()| std::fs::write(worktree.join(GIT), LINK)).unwrap();
             let created = TrailEntry::Created(RecordedWorktree::new(worktree.clone(), task.parse().unwrap()));
             LocalTrail::append(&scene.root.path().join(GIT), &created).unwrap();
-            call.and_then(|call| SessionDir::stamped(&worktree, call, scene.at)).transpose().unwrap();
+            let environment = Environment::default();
+            call.and_then(|call| SessionDir::stamped(&worktree, call, scene.at, &environment)).transpose().unwrap();
         });
         scene
     }

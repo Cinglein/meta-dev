@@ -12,13 +12,14 @@ mod watch_clock;
 use std::ops::ControlFlow;
 use std::time::{Duration, Instant};
 
-use meta_run::{Budget, EnvPolicy, Run};
+use meta_run::Budget;
 
 use super::ci_status::CiStatus;
 use super::commit::Commit;
 use super::session_dir::SessionDir;
 use super::session_id::SessionId;
 use crate::request::cli_failure::{CliFailure, Invalid, Setup};
+use crate::request::follow_up::FollowUp;
 use crate::request::output::{Listed, Output};
 use crate::request::project::{CiSettings, Project};
 use crate::request::remote_failure::RemoteFailure;
@@ -44,6 +45,7 @@ pub struct Watcher {
 
 impl Watcher {
     const OUT_OF_TIME: &'static str = "couldn't check CI in time; run `meta ci-wait`, then stop again";
+    const WATCH: &'static str = "ci-watch";
 
     pub fn spawn(project: &Project, session: &SessionId, commit: &Commit) -> Result<(), Listed> {
         let unwatched = |error: std::io::Error| Listed::new(format!("CI not watched: {error}"));
@@ -52,10 +54,11 @@ impl Watcher {
         dir.writable().map_err(unwatched)?;
         let status = dir.status_of(commit).map_or_else(|| dir.watch(commit).map(|()| CiStatus::Running), Ok);
         let idle = status.map_err(unwatched)?.finished().is_none().then(|| dir.claim(commit).map(drop)).flatten();
+        let words = [Self::WATCH.to_owned(), session.to_string(), commit.to_string()];
+        let watch = || project.environment().then(FollowUp::new(words.to_vec(), project.root().to_path_buf()));
         idle.map_or(Ok(()), |()| {
-            let watch = Run::new(std::env::current_exe().map_err(unwatched)?, EnvPolicy::Inherit);
-            let watch = watch.args(["ci-watch", &session.to_string(), &commit.to_string()]).dir(project.root());
-            watch.detached().map_err(|failure| Listed::new(format!("CI not watched: {failure}")))
+            watch();
+            Ok(())
         })
     }
 

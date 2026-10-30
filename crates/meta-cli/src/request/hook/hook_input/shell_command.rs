@@ -47,14 +47,14 @@ impl ShellCommand {
         self.segments().find(|segment| segment.windows(words.len()).any(|window| window == words)).map(|_| ())
     }
 
-    pub fn commit_directories(&self, cwd: &Path) -> Vec<PathBuf> {
-        let mut shell = WorkingDirectory::new(cwd);
+    pub fn commit_directories(&self, cwd: &Path, home: Option<&Path>) -> Vec<PathBuf> {
+        let mut shell = WorkingDirectory::new(cwd, home);
         let writes = |words: &[String]| GitCall::parse(words)?.writes_commits();
         self.segments().filter_map(|words| shell.follow(words, writes)).collect()
     }
 
-    pub fn publishing_directory(&self, cwd: &Path) -> Option<PathBuf> {
-        let mut shell = WorkingDirectory::new(cwd);
+    pub fn publishing_directory(&self, cwd: &Path, home: Option<&Path>) -> Option<PathBuf> {
+        let mut shell = WorkingDirectory::new(cwd, home);
         self.segments().find_map(|words| shell.follow(words, Self::publishes))
     }
 
@@ -108,6 +108,7 @@ mod tests {
     const NOT_WRITERS: [&str; 3] = ["git merge --abort", "git rebase --abort", "git merge-base a b"];
     const SESSION_WRITES: [(&str, bool); 2] = [("git pull", true), ("git merge-base a b", false)];
     const CWD: &str = "/w/good";
+    const HOME: &str = "/home/agent";
     const CHAINS: [(&str, &[&str]); 5] = [
         ("(cd a && git -c x=y -C b commit -m 'cd z')", &["/w/good/a/b"]),
         ("git commit -m x && git -C ../bad commit -m y", &["/w/good", "/w/good/../bad"]),
@@ -118,10 +119,11 @@ mod tests {
 
     #[test]
     fn every_commit_writer_resolves_its_own_directory_and_aborts_write_nothing() {
-        let home = std::env::var("HOME").unwrap();
-        let directories = |command: &str| command.parse::<ShellCommand>().unwrap().commit_directories(Path::new(CWD));
+        let directories = |command: &str| {
+            command.parse::<ShellCommand>().unwrap().commit_directories(Path::new(CWD), Some(Path::new(HOME)))
+        };
         let expected =
-            |paths: &[&str]| paths.iter().map(|path| PathBuf::from(path.replacen('~', &home, 1))).collect::<Vec<_>>();
+            |paths: &[&str]| paths.iter().map(|path| PathBuf::from(path.replacen('~', HOME, 1))).collect::<Vec<_>>();
         let writes =
             |(command, writes): &(&str, bool)| command.parse::<ShellCommand>().unwrap().writes().is_some() == *writes;
         assert!(WRITERS.iter().all(|command| directories(command).len() == 1) && SESSION_WRITES.iter().all(writes));

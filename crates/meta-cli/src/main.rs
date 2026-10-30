@@ -1,21 +1,12 @@
 use std::process::ExitCode;
 
-use meta_cli::{Request, TraceRecord};
+use meta_cli::{Call, Environment};
 use meta_run::Run;
 
 fn main() -> ExitCode {
-    let args: Vec<String> = std::env::args().collect();
-    let trace = TraceRecord::started(&args);
-    let code = match Request::try_from(args).and_then(Request::answer) {
-        Ok(output) => {
-            print!("{output}");
-            output.exit_code()
-        }
-        Err(failure) => {
-            eprintln!("meta: {failure}");
-            ExitCode::FAILURE
-        }
-    };
-    trace.kept();
-    Run::exit(code)
+    let directory = std::env::current_dir().unwrap_or_default();
+    let program = std::env::current_exe().unwrap_or_default();
+    let environment = Environment::new(directory, program, std::env::vars_os().collect());
+    let call = Call::new(std::env::args().collect(), environment, Box::new(std::io::stdin()));
+    Run::exit(call.answered().delivered())
 }
