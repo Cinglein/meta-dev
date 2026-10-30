@@ -148,7 +148,9 @@ mod tests {
         "meta queue run 1",
         "cd x && target/release/meta queue run 1 2",
     ];
-    const PUSHES: [&str; 6] = [
+    const PUSHES: [&str; 8] = [
+        "git push --forc origin feature",
+        "/usr/bin/git push --force origin feature",
         "git push --force origin feature",
         "git push -uf origin feature",
         "git push origin +feature",
@@ -156,7 +158,9 @@ mod tests {
         "git push --force-with-lease origin main",
         "git --no-pager push origin main",
     ];
-    const ALLOWED: [&str; 5] = [
+    const ALLOWED: [&str; 7] = [
+        "git push --force-w origin feature",
+        "git push --force-if-includes origin feature",
         "git push -u origin feature",
         "git push --force-with-lease origin feature",
         "git commit -m 'git push origin main'",

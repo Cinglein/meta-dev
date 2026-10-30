@@ -1,7 +1,59 @@
 use super::ShellCommand;
 use crate::request::scale_policy::ScalePolicy;
 
-const GIT_ROWS: [(&str, bool); 12] = [
+const FLEX_ROWS: [(&str, bool); 36] = [
+    ("find . -exec rm {} \\;", true),
+    ("find . -execdir sed p {} +", true),
+    ("find . -ok rm {} \\;", true),
+    ("/usr/bin/find . -delete", true),
+    ("find . -delete", true),
+    ("find . -name x -print", false),
+    ("find . -exec echo {} \\;", false),
+    ("env -S 'rm x'", true),
+    ("env --split-string='rm x'", true),
+    ("env -S 'ls'", false),
+    ("watch rm x", true),
+    ("watch -n 1 rm x", true),
+    ("watch -n 1 ls", false),
+    ("$X x", true),
+    ("\"$(echo rm)\" x", true),
+    ("`echo rm` x", true),
+    ("sh -c \"$CMD\"", true),
+    ("eval \"$CMD\"", true),
+    ("eval $CMD", true),
+    ("echo $HOME", false),
+    ("ls \"$DIR\"", false),
+    ("FOO=$(pwd) cargo build", false),
+    ("git commit -m \"$(cat msg)\"", false),
+    ("bash -c 'echo \"$HOME\"'", false),
+    ("echo $(( 1 > 0 ))", false),
+    ("echo $((1 + (2 * 3)))", false),
+    ("echo \"$(( 1 > 0 ))\"", false),
+    ("[[ a > b ]]", false),
+    ("[[ a < b ]] && echo ok", false),
+    ("echo x >& 2", false),
+    ("echo x >&2", false),
+    ("echo x 2>&1", false),
+    ("echo x >& f", true),
+    ("echo x > f", true),
+    ("echo $(( 1 > 0 )) > f", true),
+    ("[[ a > b ]]; echo x > f", true),
+];
+
+const GIT_ROWS: [(&str, bool); 25] = [
+    ("/usr/bin/git stash", true),
+    ("git --git-dir x stash", true),
+    ("git --work-tree x stash", true),
+    ("git --namespace n stash", true),
+    ("git --config-env a=B stash", true),
+    ("git push origin +f", true),
+    ("git push --force-w origin f", true),
+    ("git push --forc origin f", true),
+    ("git push --force-if-includes origin f", true),
+    ("git rebase -x 'rm x' main", true),
+    ("git rebase --exec='rm x'", true),
+    ("git submodule foreach 'rm x'", true),
+    ("git -C d rebase -x 'sed p'", true),
     ("git stash", true),
     ("git stash pop", true),
     ("git -C x stash", true),
@@ -16,7 +68,7 @@ const GIT_ROWS: [(&str, bool); 12] = [
     ("git commit -m 'git stash'", false),
 ];
 
-const SHELL_ROWS: [(&str, bool); 56] = [
+const SHELL_ROWS: [(&str, bool); 57] = [
     ("rm -rf x", true),
     ("cd a && mv b c", true),
     ("sed -i s/a/b/ f", true),
@@ -34,7 +86,8 @@ const SHELL_ROWS: [(&str, bool); 56] = [
     ("git commit -m \"rm and sed\" && git rm x", false),
     ("ls crates/rm/src/sed.rs | grep rm", false),
     ("cargo build 2>&1 | tail -3", false),
-    ("cat f < in; grep x <<< y", false),
+    ("cat f < in; grep x <<< y", true),
+    ("grep x <<< y", true),
     ("echo a\\>b; FOO=rm env ls", false),
     ("git diff | wc -l", false),
     ("timeout 5s sed p f", true),
@@ -81,4 +134,5 @@ fn a_shell_command_running_a_forbidden_program_git_use_heredoc_or_file_redirect_
     let refused = |command: &str| command.parse::<ShellCommand>().unwrap().breach(&rules).is_some();
     assert!(SHELL_ROWS.iter().all(|(command, verdict)| refused(command) == *verdict));
     assert!(GIT_ROWS.iter().all(|(command, verdict)| refused(command) == *verdict));
+    assert!(FLEX_ROWS.iter().all(|(command, verdict)| refused(command) == *verdict));
 }
