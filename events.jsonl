@@ -1628,3 +1628,4 @@
 {"at":"2026-10-29T21:31:23.167939Z","actor":"claude-qa","kind":"TaskDone","task":"task-cce9360d23a2663e"}
 {"at":"2026-10-29T21:31:55.678Z","actor":"claude-macos","kind":"TaskClaimed","task":"task-cc7b5ef79b0bb628"}
 {"at":"2026-10-29T21:32:04.315108Z","actor":"claude-hookrules","kind":"TaskClaimed","task":"task-bb4ce616a62d5555"}
+{"at":"2026-10-30T00:15:46.139082Z","actor":"claude-lead","kind":"TaskOpened","task":"task-8e950deca18bd017","text":"Main red: test CPU 4686 ms over 4000 since #218. Its trusted proptest costs 906 ms CPU; cut it below 100 ms without losing coverage (mutants guard)","division":"performance-and-cost"}
