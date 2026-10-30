@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::request::local::local_clone::vetting::cause::Cause;
+use crate::table_failure::TableFailure;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProbeFailure {
@@ -9,14 +9,14 @@ pub enum ProbeFailure {
     #[error("no such process")]
     Gone,
     #[error("{0}")]
-    Failed(Cause),
+    Failed(TableFailure),
 }
 
 impl ProbeFailure {
     const REFUSED: &'static str = "errno = 1,";
     const GONE: &'static str = "errno = 3,";
 
-    pub fn unexplained(self) -> Option<Cause> {
+    pub fn unexplained(self) -> Option<TableFailure> {
         match self {
             Self::Refused | Self::Gone => None,
             Self::Failed(cause) => Some(cause),
@@ -31,7 +31,7 @@ impl FromStr for ProbeFailure {
         Ok(match reported {
             refused if refused.contains(Self::REFUSED) => Self::Refused,
             gone if gone.contains(Self::GONE) => Self::Gone,
-            failed => Self::Failed(Cause::new(failed)),
+            failed => Self::Failed(TableFailure::new(failed)),
         })
     }
 }
@@ -43,8 +43,8 @@ impl From<String> for ProbeFailure {
     }
 }
 
-impl From<Cause> for ProbeFailure {
-    fn from(cause: Cause) -> Self {
+impl From<TableFailure> for ProbeFailure {
+    fn from(cause: TableFailure) -> Self {
         Self::Failed(cause)
     }
 }
