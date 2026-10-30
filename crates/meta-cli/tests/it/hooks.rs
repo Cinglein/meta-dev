@@ -60,6 +60,10 @@ const OPEN: [&str; 4] = ["open", "--division", "features-and-maintenance", "text
 const ROOT: &str = "ROOT";
 const PIDS: &str = "pids";
 const IGNORING_HUP: &str = "trap '' HUP; exec \"$0\" \"$@\"";
+const DISPATCH: [&str; 2] = ["--agent", "worker"];
+const UNLEASED: &str = "work on it";
+const HOW_TO_START: &str = "meta claim <task> --agent <name>";
+const ID_INDEX: usize = 4;
 const INTERRUPTED: &str = "SIGINT";
 const HELPERS: &str = r#"[remote "origin"]
 	receivepack = "sh -c 'trap \"\" TERM; touch ROOT/hold && echo $$ >> ROOT/pids && sleep 5' x"
@@ -112,6 +116,19 @@ impl Repo {
         let mut child = piped.spawn().unwrap();
         child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
         child
+    }
+
+    fn meta(&self, words: &[&str]) -> String {
+        let run = MetaCommand::tagged(words).current_dir(self.clone.path()).env("META_ACTOR", "writer").output();
+        String::from_utf8_lossy(&run.unwrap().stdout).into_owned()
+    }
+
+    fn agent(&self, prompt: &str) -> String {
+        let input =
+            serde_json::json!({ "cwd": self.clone.path(), "tool_name": "Agent", "tool_input": { "prompt": prompt } });
+        let mut child = MetaCommand::tagged(&[HOOK, PRE]).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
+        child.stdin.take().unwrap().write_all(input.to_string().as_bytes()).unwrap();
+        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
     }
 
     fn interrupted(&self) -> bool {
@@ -195,6 +212,17 @@ fn session_start_shows_state_and_names_the_session_actor() {
     let started = Instant::now();
     let shown = repo.hook(SESSION_START, COMMIT, home);
     assert!(home.join(SESSION_STARTED).exists() && started.elapsed() < PATIENT && shown.contains(UNREADABLE));
+}
+
+#[test]
+fn pre_tool_use_starts_an_agent_only_with_the_lease_meta_claim_gave_it() {
+    let repo = Repo::new();
+    let opened = repo.meta(&OPEN);
+    let task = opened.split_whitespace().nth(ID_INDEX).unwrap();
+    let brief = repo.meta(&[&["claim", task][..], &DISPATCH].concat());
+    let refused = repo.agent(UNLEASED);
+    assert_eq!(repo.agent(&brief), "", "{brief}");
+    assert!(refused.contains(DENY) && refused.contains(HOW_TO_START), "{refused}");
 }
 
 impl fmt::Display for Repo {
