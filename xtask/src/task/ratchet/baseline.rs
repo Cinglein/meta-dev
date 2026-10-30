@@ -65,6 +65,11 @@ impl Baseline {
             .map_err(|error| Failure::from(task::Failure::Io { site: Site::File(path.to_path_buf()), error }))
     }
 
+    pub fn retained(mut self, kept: impl Fn(&str) -> bool) -> Baseline {
+        self.0.retain(|key, _| kept(key));
+        self
+    }
+
     pub fn drifts(&self, allowed: &Baseline) -> Vec<Drift> {
         let lints: BTreeSet<&String> = self.0.keys().chain(allowed.0.keys()).collect();
         let count = |baseline: &Baseline, lint: &String| baseline.0.get(lint).copied().unwrap_or_default();

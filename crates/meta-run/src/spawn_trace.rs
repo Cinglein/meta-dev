@@ -11,7 +11,7 @@ pub struct SpawnTrace(Option<PathBuf>);
 impl SpawnTrace {
     pub const VARIABLE: &'static str = "META_SPAWN_TRACE";
     pub const TRACED: [&'static str; 3] = [Self::VARIABLE, "GIT_TRACE2_EVENT", "GIT_TRACE2_PARENT_SID"];
-    const STARTS: &'static str = "starts";
+    pub const STARTS: &'static str = "starts";
 
     #[must_use]
     pub fn within(environment: &Environment) -> Self {

@@ -10,9 +10,9 @@
 "meta-cli it hooks::post_tool_use_pushes_unprotected_branches_and_reports_git_errors" = 17
 "meta-cli it hooks::session_start_shows_state_and_names_the_session_actor" = 3
 "meta-cli it status::opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_the_rest" = 27
-"meta-cli meta_cli request::live_github::tests::a_fake_gh_is_never_busy_for_writing_while_other_threads_spawn_processes" = 20
-"meta-cli meta_cli request::live_github::tests::an_unreachable_or_unreadable_github_reads_as_unknown_with_its_reason" = 9
-"meta-cli meta_cli request::live_github::tests::one_graphql_call_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_its_own_pull_requests" = 7
+"meta-cli meta_cli request::live_github::tests::a_fake_gh_is_never_busy_for_writing_while_other_threads_spawn_processes" = 120
+"meta-cli meta_cli request::live_github::tests::an_unreachable_or_unreadable_github_reads_as_unknown_with_its_reason" = 13
+"meta-cli meta_cli request::live_github::tests::one_graphql_call_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_its_own_pull_requests" = 8
 "meta-cli meta_cli request::local::monitor::live_machine::tests::the_live_machine_lists_a_child_with_its_cwd_and_kills_its_group" = 5
 "meta-cli meta_cli request::project::tests::a_project_serves_its_meta_toml_and_reads_head_and_object_births_through_git_and_no_meta_toml_is_no_project" = 5
 "meta-cli meta_cli request::tests::heartbeat::gc::gc_runs_in_its_own_child_under_its_own_deadline_and_a_timeout_never_reads_as_freed" = 4
@@ -53,5 +53,5 @@
 "mutation mutation shard_plan::tests::a_full_plan_lists_mutants_only_when_due_and_prints_its_shards_as_a_json_array_for_the_matrix" = 1
 "task task command_line::tests::a_command_prints_its_arguments_sees_only_its_given_environment_and_holds_its_input" = 3
 "task task command_line::tests::a_command_runs_in_its_directory_and_its_output_is_captured_and_shown_when_it_fails" = 5
-"test_time test_time test_runner::test_traces::tests::each_test_gets_fresh_trace_directories_sealed_after_it_and_a_reused_name_fails" = 1
+"test_time test_time test_runner::test_traces::tests::each_test_gets_fresh_trace_directories_and_a_start_after_its_seal_is_refused_or_reported" = 1
 "test_time test_time test_runner::tests::a_binary_that_cannot_list_fails_and_one_that_lists_nothing_runs_once_as_one_test" = 3

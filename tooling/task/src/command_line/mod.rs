@@ -130,8 +130,16 @@ impl CommandLine {
 
     pub fn spawn(&self) -> Result<Child, Failure> {
         let mut command = self.command();
-        let child = command.spawn();
-        self.started(&command, child)
+        let mut child = command.spawn().map_err(|error| Failure::Printed {
+            command: self.to_string(),
+            printed: error.to_string(),
+        })?;
+        self.started(&command, Ok(()))
+            .inspect_err(|_| {
+                drop(child.kill());
+                drop(child.wait());
+            })
+            .map(|()| child)
     }
 
     fn started<Started>(

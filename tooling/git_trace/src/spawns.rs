@@ -17,6 +17,7 @@ pub struct Spawns {
 
 impl Spawns {
     pub const GIT_TRACES: &'static str = "git-traces";
+    pub const SEALED_GIT_TRACES: &'static str = "sealed-git-traces";
     const GIT: &'static str = concat!("gi", "t");
     const UNTRACED: &'static str = "traced-tests";
 
@@ -47,7 +48,10 @@ impl Spawns {
     }
 
     fn read(mut self, test: &Path) -> Result<Spawns, Failure> {
-        let git = GitProcesses::traced(&test.join(Self::GIT_TRACES))?;
+        let late = Self::entries(&test.join(Self::GIT_TRACES))?;
+        let ended = |_| Err(Failure::Tests(format!("{} started git after it ended", test.display())));
+        late.first().map_or(Ok(()), ended)?;
+        let git = GitProcesses::traced(&test.join(Self::SEALED_GIT_TRACES))?;
         let failed = |error| Failure::Io { site: Site::File(test.to_path_buf()), error };
         let read = Self::entries(test)?.into_iter().filter(|path| path.is_file()).map(fs::read_to_string);
         let texts = read.collect::<Result<Vec<String>, _>>().map_err(failed)?;
@@ -108,9 +112,10 @@ mod tests {
     fn each_test_counts_its_starts_with_git_from_the_larger_of_its_two_traces() {
         let root = tempfile::tempdir().unwrap();
         let outside = root.path().join(Spawns::GIT_TRACES);
-        let git_dirs = TESTS.map(|test| root.path().join(test).join(Spawns::GIT_TRACES));
+        let git_dirs = TESTS.map(|test| root.path().join(test).join(Spawns::SEALED_GIT_TRACES));
+        let late_dirs = TESTS.map(|test| root.path().join(test).join(Spawns::GIT_TRACES));
         let [first, quiet, _] = &git_dirs;
-        git_dirs.iter().chain([&outside]).try_for_each(fs::create_dir_all).unwrap();
+        git_dirs.iter().chain(&late_dirs).chain([&outside]).try_for_each(fs::create_dir_all).unwrap();
         [first, &outside].iter().try_for_each(|dir| fs::write(dir.join(Spawns::GIT), TRACE)).unwrap();
         let noted = |(test, program): &(usize, &str)| {
             SpawnTrace::new(&root.path().join(TESTS[*test])).noted(OsStr::new(program))

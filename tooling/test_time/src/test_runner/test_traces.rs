@@ -1,6 +1,6 @@
 mod access;
 
-use std::fs;
+use std::fs::{self, OpenOptions};
 use std::path::{Path, PathBuf};
 
 use git_trace::{GitProcesses, Spawns};
@@ -37,7 +37,17 @@ impl TestTraces {
 
     pub(crate) fn sealed(&self, name: &TestName) -> Result<(), Failure> {
         let own = name.within(&self.0);
-        Self::marked(&own, Access::Sealed)
+        let git = own.join(Spawns::GIT_TRACES);
+        let starts = own.join(SpawnTrace::STARTS);
+        fs::rename(&git, own.join(Spawns::SEALED_GIT_TRACES))
+            .and_then(|()| fs::create_dir(&git))
+            .and_then(|()| OpenOptions::new().create(true).append(true).open(&starts))
+            .and_then(|_| Access::Sealed.applied(&starts))
+            .and_then(|()| Access::Sealed.applied(&own))
+            .map_err(|error| Failure::Io {
+                site: Site::File(own.clone()),
+                error,
+            })
     }
 
     pub(crate) fn opened(root: &Path) -> Result<(), Failure> {
@@ -54,24 +64,17 @@ impl TestTraces {
             .map(fs::DirEntry::path)
             .filter(|test| test.is_dir() && !test.ends_with(Spawns::GIT_TRACES));
         own.into_iter()
-            .try_for_each(|test| Self::marked(&test, Access::Open))
-    }
-
-    fn marked(own: &Path, access: Access) -> Result<(), Failure> {
-        let failed = |error| Failure::Io {
-            site: Site::File(own.to_path_buf()),
-            error,
-        };
-        let mark = |dir: &Path| access.applied(dir).map_err(failed);
-        mark(own).and_then(|()| mark(&own.join(Spawns::GIT_TRACES)))
+            .try_for_each(|test| Access::Open.applied(&test).map_err(failed))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::ffi::OsStr;
+    use std::fs;
     use std::path::Path;
 
+    use git_trace::Spawns;
     use meta_run::SpawnTrace;
     use task::{CommandLine, Program, Stdout};
 
@@ -80,29 +83,27 @@ mod tests {
 
     const SHELL: &str = "sh";
     const SHOWN: [&str; 2] = ["-c", "printf %s \"$META_SPAWN_TRACE $GIT_TRACE2_EVENT\""];
-    const BINARY: &str = "deps/it-0a1b";
+    const NAME: [&str; 3] = ["p", "deps/it-0a1b", "a"];
     const OWN: &str = "p it a";
-    const TEST: &str = "a";
-    const TRACES: &str = "git-traces";
 
     #[test]
-    fn each_test_gets_fresh_trace_directories_sealed_after_it_and_a_reused_name_fails() {
+    fn each_test_gets_fresh_trace_directories_and_a_start_after_its_seal_is_refused_or_reported() {
         let root = tempfile::tempdir().unwrap();
-        let (traces, name) = (
-            TestTraces::new(root.path().to_path_buf()),
-            TestName::new("p", Path::new(BINARY), &TEST),
-        );
+        let [package, binary, test] = NAME;
+        let traces = TestTraces::new(root.path().to_path_buf());
+        let name = TestName::new(package, Path::new(binary), &test);
         let shell = CommandLine::new(Program::Executable(SHELL.into())).arguments(SHOWN);
         let shown = traces
             .traced(shell.clone(), &name)
             .and_then(|line| line.captured::<Stdout>());
         let own = root.path().join(OWN);
-        let shown_both = [own.clone(), own.join(TRACES)]
-            .map(|path| path.display().to_string())
-            .join(" ");
-        assert!(shown.ok() == Some(shown_both) && traces.traced(shell, &name).is_err());
-        let late = || SpawnTrace::new(&own).noted(OsStr::new(SHELL)).is_ok();
-        assert!(traces.sealed(&name).is_ok() && !late());
-        assert!(TestTraces::opened(root.path()).is_ok() && late());
+        let both = format!("{0} {0}/{1}", own.display(), Spawns::GIT_TRACES);
+        assert!(shown.ok() == Some(both) && traces.traced(shell, &name).is_err());
+        let start = || SpawnTrace::new(&own).noted(OsStr::new(SHELL)).is_ok();
+        assert!(start() && traces.sealed(&name).is_ok() && !start());
+        let late_git = fs::write(own.join(Spawns::GIT_TRACES).join(SHELL), SHELL);
+        let outside = fs::create_dir(root.path().join(Spawns::GIT_TRACES));
+        let reported = late_git.and(outside).is_ok() && Spawns::traced(root.path()).is_err();
+        assert!(reported && TestTraces::opened(root.path()).is_ok());
     }
 }

@@ -72,6 +72,10 @@ mod tests {
     const BESIDE_THE_RUNNER: &str = "tooling/task/src/policy.rs";
     const STARTS: &str = "use std::process::{Child, Command as C};\nuse std::process::*;\nfn f(c: &Command, ran: Ran) { ran.status(); c.spawn(); }\nfn g() { let held = C::new(X); std::process::Command::new(X).arg(Y).output(); }\nfn h() { assert!(Command::new(X).status().is_ok(), \"{}\", Child::new()); }\n";
     const STARTED: [&str; 3] = [":4", ":4", ":5"];
+    const OTHER_MODULE: (&str, &str) = (
+        "crates/meta-log/src/other.rs",
+        "use other::Command as D;\nuse other::*;\nfn f() { D::new(X).status(); Command::new(X).spawn(); }\n",
+    );
 
     #[test]
     fn every_literal_naming_git_outside_meta_git_is_a_starter_and_a_comparison_is_not() {
@@ -82,8 +86,14 @@ mod tests {
 
     #[test]
     fn each_std_command_started_outside_the_runners_is_a_starter_however_it_is_imported() {
-        let file = |path: &str| SourceFile::parse(path, STARTS.to_owned()).unwrap();
-        let files = [file(RUNNERS[0]), file(RUNNERS[1]), file(BESIDE_THE_RUNNER)];
+        let file = |path: &str, source: &str| SourceFile::parse(path, source.to_owned()).unwrap();
+        let ([meta_run, command_line], (other, elsewhere)) = (RUNNERS, OTHER_MODULE);
+        let files = [
+            file(meta_run, STARTS),
+            file(command_line, STARTS),
+            file(BESIDE_THE_RUNNER, STARTS),
+            file(other, elsewhere),
+        ];
         assert!(Starters::PROCESS.report(&files).lists_exactly(&STARTED));
     }
 }
