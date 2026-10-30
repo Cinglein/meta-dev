@@ -29,7 +29,7 @@ impl RemoteBranches {
         tips: impl Iterator<Item = git2::Oid>,
     ) -> Result<HashSet<git2::Oid>, git2::Error> {
         let mut walk = repository.revwalk()?;
-        walk.set_sorting(git2::Sort::TOPOLOGICAL | git2::Sort::REVERSE)?;
+        walk.set_sorting(git2::Sort::TOPOLOGICAL.union(git2::Sort::REVERSE))?;
         tips.into_iter().try_for_each(|tip| walk.push(tip))?;
         repository.find_commit(commit)?.parent_ids().try_for_each(|parent| walk.hide(parent))?;
         walk.try_fold(HashSet::new(), |mut reaching, id| {

@@ -59,6 +59,7 @@ impl FromStr for HeadBranch {
 mod tests {
     use std::fmt::Debug;
 
+    use meta_git::RefName;
     use meta_golden::GoldenFailure;
     use meta_run::GitArgv;
 
@@ -69,6 +70,9 @@ mod tests {
     const VIEWED: [GitArgv; 4] = [GitArgv::Porcelain, GitArgv::PushedHead, GitArgv::Head, GitArgv::PushedTips];
     const LISTED: [&str; 4] = ["HEAD\nmain\n", "main\nsecond\n", "HEAD\n", ""];
     const MAIN: &str = "main";
+    const REMOTE_TIPS: [&str; 3] =
+        ["refs/remotes/origin/HEAD", "refs/remotes/origin/main", "refs/remotes/origin/feature/x"];
+    const BRANCH_NAMES: &str = "HEAD\nmain\nfeature/x";
 
     impl HeadBranch {
         fn view(call: GitArgv, out: &str) -> Box<dyn Debug> {
@@ -85,6 +89,12 @@ mod tests {
         let named = LISTED.map(HeadBranch::only);
         let unnamed = Err(Unready::Unnamed);
         assert_eq!(named, [Ok(MAIN.parse().unwrap()), unnamed.clone(), unnamed.clone(), unnamed]);
+    }
+
+    #[test]
+    fn the_gate_names_each_remote_tip_by_its_branch_without_the_remote() {
+        let tips: Vec<RefName> = REMOTE_TIPS.iter().map(|tip| tip.parse().unwrap()).collect();
+        assert_eq!(HeadBranch::listed(&tips), BRANCH_NAMES);
     }
 
     #[test]

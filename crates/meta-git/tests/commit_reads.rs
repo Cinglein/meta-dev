@@ -16,6 +16,7 @@ const REMOTES: [&str; 4] =
 const SIDE: &str = "refs/remotes/origin/side";
 const OLD: &str = "refs/remotes/origin/old";
 const BRANCH: &str = "refs/heads/main";
+const MOMENTS: [i64; 3] = [2_000_000_000, 1_000_000_000, 2_100_000_000];
 
 struct History {
     repository: Repository,
@@ -37,8 +38,10 @@ impl History {
         let mut index = repository.index().unwrap();
         index.add_all(["*"], git2::IndexAddOption::DEFAULT, None).unwrap();
         let snapshot = repository.find_tree(index.write_tree().unwrap()).unwrap();
-        let commit = |parent: Option<git2::Oid>, [author, committer]: [&str; PAIR_LEN]| {
-            let [author, committer] = [author, committer].map(|email| git2::Signature::now(email, email).unwrap());
+        let commit = |parent: Option<git2::Oid>, [author, committer]: [&str; PAIR_LEN], moment: i64| {
+            let time = git2::Time::new(moment, 0);
+            let [author, committer] =
+                [author, committer].map(|email| git2::Signature::new(email, email, &time).unwrap());
             let parents: Vec<_> = parent.iter().map(|parent| repository.find_commit(*parent).unwrap()).collect();
             repository
                 .commit(
@@ -52,10 +55,11 @@ impl History {
                 .unwrap()
         };
         let [one, two, three] = PEOPLE;
-        let first = commit(None, one);
-        let second = commit(Some(first), two);
-        let third = commit(Some(second), three);
-        let side = commit(Some(first), three);
+        let [early, skewed, late] = MOMENTS;
+        let first = commit(None, one, early);
+        let second = commit(Some(first), two, skewed);
+        let third = commit(Some(second), three, late);
+        let side = commit(Some(first), three, late);
         let [head, main, old, side_ref] = REMOTES;
         [(main, second), (old, first), (side_ref, side), (BRANCH, third)]
             .iter()
