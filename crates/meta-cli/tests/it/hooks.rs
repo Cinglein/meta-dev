@@ -100,6 +100,15 @@ impl Repo {
         String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
     }
 
+    fn tool_call(&self, fields: &str) -> String {
+        let cwd = serde_json::to_string(self.clone.path()).unwrap();
+        let mut meta = MetaCommand::tagged(&[HOOK, PRE]);
+        let piped = meta.env_remove("META_ACTOR").env("TMPDIR", self.clone.path());
+        let mut child = piped.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
+        child.stdin.take().unwrap().write_all(format!(r#"{{"cwd":{cwd},{fields}}}"#).as_bytes()).unwrap();
+        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
+    }
+
     fn started(&self, event: &str, command: &str, cwd: &Path, meta: &mut Command) -> Child {
         let session = if event == SESSION_START { SESSION_FIELD } else { "" };
         let input = format!(
@@ -133,6 +142,23 @@ impl Repo {
         let status = meta.wait().map(|status| status.to_string()).unwrap_or_default();
         status.contains(INTERRUPTED) && started.is_some() && polls().any(|()| !listed().split_whitespace().any(alive))
     }
+}
+
+const MODAL_POLICY: &str = "[tools]\nmodal = [\"AskUserQuestion\"]\n";
+const POLICY_FILE: &str = "tooling/policy.toml";
+const MODAL_CALLS: [&str; 2] = [
+    r#""tool_name":"AskUserQuestion","tool_input":{"questions":[]}"#,
+    r#""agent_id":"a1","tool_name":"AskUserQuestion","tool_input":{"questions":[]}"#,
+];
+const BASH_CALL: &str = r#""tool_name":"Bash","tool_input":{"command":"ls"}"#;
+const MODAL_REASON: &str = "Modal questions are refused: write the decision as discussion in your reply";
+
+#[test]
+fn pre_tool_use_refuses_modal_question_tools_in_every_session_and_leaves_other_tools_alone() {
+    let repo = Repo::new();
+    std::fs::write(repo.clone.path().join(POLICY_FILE), MODAL_POLICY).unwrap();
+    assert!(MODAL_CALLS.iter().all(|call| repo.tool_call(call).contains(&format!("{DENY}{MODAL_REASON}"))));
+    assert_eq!(repo.tool_call(BASH_CALL), "");
 }
 
 #[test]
