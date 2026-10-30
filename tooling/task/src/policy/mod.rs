@@ -5,6 +5,7 @@ mod least;
 mod limit;
 mod policy_failure;
 mod policy_file;
+mod queue_settings;
 mod share;
 mod spec_settings;
 mod supply_chain;
@@ -21,6 +22,7 @@ pub use floor::Floor;
 pub use limit::Limit;
 pub use meta_budget::{BaselineFile, Most};
 
+use queue_settings::QueueSettings;
 pub use share::Share;
 pub use spec_settings::SpecSettings;
 pub use surface::Surface;
@@ -75,13 +77,13 @@ pub struct Policy {
     millis: EnumMap<Interval, Millis>,
     mutant_millis: MutantMillis,
     mutation: MutationCadence,
+    queue: QueueSettings,
     domains: Domains,
     scales: Scales,
     budgets: Budgets,
     deprecated: Vec<LegacyKey>,
     spec: Option<SpecSettings>,
     liveness: Option<policy_file::Liveness>,
-    queue: Option<policy_file::QueueLanders>,
     supply_chain: SupplyChain,
 }
 
@@ -178,6 +180,11 @@ impl Policy {
     #[must_use]
     pub fn mutation(&self) -> &MutationCadence {
         &self.mutation
+    }
+
+    #[must_use]
+    pub fn queue(&self) -> &QueueSettings {
+        &self.queue
     }
 
     #[must_use]
