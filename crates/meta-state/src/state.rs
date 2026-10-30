@@ -10,8 +10,8 @@ mod vetting;
 use std::collections::HashMap;
 
 use meta_schema::{
-    Actor, Block, Entry, EntryNote, Id, Project, PullRequest, Record, Relocation, Rerating, SchemaVersion, Target,
-    Task, TaskLink, Text,
+    Actor, Block, Entry, EntryNote, Id, Project, PullRequest, Purpose, Record, Relocation, Rerating, SchemaVersion,
+    Target, Task, TaskLink, Text,
 };
 
 use crate::project_row::ProjectRow;
@@ -108,6 +108,14 @@ impl State {
     #[must_use]
     pub fn projects(&self) -> Vec<ProjectRow<'_>> {
         self.projects.listed(self.holding())
+    }
+
+    pub(crate) fn vet_cause(&self, task: Id<Task>, purpose: &Purpose) -> Result<(), Refusal> {
+        purpose.cause().map_or(Ok(()), |cause| {
+            let entry = cause.entry().ok_or(Refusal::PullCause)?;
+            (entry != Entry::Task(task)).then_some(()).ok_or(Refusal::SelfCause)?;
+            self.known(entry)
+        })
     }
 
     pub(crate) fn holding(&self) -> impl Fn(Id<Task>) -> bool + '_ {

@@ -31,6 +31,38 @@ pub enum OptionName {
     Gate,
 }
 
+impl OptionName {
+    const PURPOSES: [Self; 3] = [Self::Instruments, Self::Serves, Self::CausedBy];
+
+    #[must_use]
+    pub fn excludes(self) -> &'static [Self] {
+        match self {
+            Self::Instruments | Self::Serves | Self::CausedBy => &Self::PURPOSES,
+            Self::Project => &[Self::Project],
+            Self::Root => &[Self::Root],
+            Self::Source
+            | Self::Tag
+            | Self::Addresses
+            | Self::From
+            | Self::All
+            | Self::Division
+            | Self::Effort
+            | Self::Due
+            | Self::On
+            | Self::Flags
+            | Self::Worktree
+            | Self::DryRun
+            | Self::Severity
+            | Self::Scenario
+            | Self::Actor
+            | Self::Scratch
+            | Self::Row
+            | Self::Span
+            | Self::Gate => &[],
+        }
+    }
+}
+
 impl FromStr for OptionName {
     type Err = CliFailure;
 

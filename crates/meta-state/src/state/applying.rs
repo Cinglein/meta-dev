@@ -37,6 +37,7 @@ impl EventVisitor for Applying<'_> {
         PurposeRule::under(self.state.schema())
             .admitting(task.purpose())
             .map_err(|PurposeMissing| Refusal::Unpurposed)?;
+        task.purpose().map_or(Ok(()), |purpose| self.state.vet_cause(task.task(), &purpose))?;
         task.purpose().map_or(Ok(()), |purpose| self.state.projects.admit(&purpose))?;
         self.state.add_task(TaskState::new(task.clone(), self.stamp), task.addresses())?;
         task.purpose().map_or(Ok(()), |purpose| self.state.projects.attach(task.task(), purpose))
@@ -109,6 +110,7 @@ impl EventVisitor for Applying<'_> {
 
     fn task_purposed(self, purpose: TaskPurpose) -> Self::Output {
         self.state.task_mut(purpose.task())?;
+        self.state.vet_cause(purpose.task(), &purpose.purpose())?;
         self.state.projects.attach(purpose.task(), purpose.purpose())
     }
 }

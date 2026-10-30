@@ -31,12 +31,26 @@ impl SchemaVersion {
 
     #[must_use]
     pub fn current() -> Self {
-        Self::PURPOSES
+        Self::PROJECTS
     }
 }
 
 impl fmt::Display for SchemaVersion {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.version.fmt(formatter)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SchemaVersion;
+    use crate::purpose_rule::PurposeRule;
+
+    #[test]
+    fn the_current_version_does_not_yet_require_a_purpose_and_the_next_one_does() {
+        let rules = [SchemaVersion::PROJECTS, SchemaVersion::PURPOSES].map(SchemaVersion::purpose_rule);
+        assert_eq!(rules, [PurposeRule::Optional, PurposeRule::Required]);
+        assert_eq!(SchemaVersion::current().purpose_rule(), PurposeRule::Optional);
+        assert!(SchemaVersion::current() < SchemaVersion::PURPOSES);
     }
 }

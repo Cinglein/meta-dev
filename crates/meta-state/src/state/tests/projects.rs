@@ -1,9 +1,11 @@
-use meta_schema::Event;
+use meta_schema::{Entry, Event};
 
 use super::{ALICE, OWNER, Script};
 use crate::project_stage::ProjectStage;
 use crate::refusal::Refusal;
 use crate::state::State;
+use crate::state::claiming::Claiming;
+use crate::unservable::Unservable;
 
 const META: &str = "meta";
 const PROPOSE: &str = r#"{"kind":"ProjectProposed","project":"project-00000000000000a1","text":"p","division":"architecture-and-planning"}"#;
@@ -17,25 +19,22 @@ const INSTRUMENTS: &str =
     r#"{"kind":"TaskPurposed","task":"task-00000000000000c1","purpose":{"instruments":"project-00000000000000a1"}}"#;
 const SERVES: &str =
     r#"{"kind":"TaskPurposed","task":"task-00000000000000c1","purpose":{"serves":"project-00000000000000a1"}}"#;
-const CAUSED_IN: &str = r#"{"kind":"TaskPurposed","task":"task-00000000000000c1","purpose":{"caused_by":{"cause":{"pull":7},"project":"project-00000000000000a1"}}}"#;
+const CAUSED_IN: &str = r#"{"kind":"TaskPurposed","task":"task-00000000000000c1","purpose":{"caused_by":{"cause":{"task":"task-00000000000000c2"},"project":"project-00000000000000a1"}}}"#;
 const SERVES_GHOST: &str =
     r#"{"kind":"TaskPurposed","task":"task-00000000000000c1","purpose":{"serves":"project-00000000000000b2"}}"#;
 const OPENED_SERVING: &str = r#"{"kind":"TaskOpened","task":"task-00000000000000c4","text":"x","purpose":{"serves":"project-00000000000000a1"}}"#;
 const REPURPOSED_OPENED: &str =
     r#"{"kind":"TaskPurposed","task":"task-00000000000000c2","purpose":{"serves":"project-00000000000000a1"}}"#;
-const REPURPOSED: &str =
-    r#"{"kind":"TaskPurposed","task":"task-00000000000000c3","purpose":{"caused_by":{"cause":{"pull":8}}}}"#;
-const OPENED_CAUSED: &str =
-    r#"{"kind":"TaskOpened","task":"task-00000000000000c2","text":"u","purpose":{"caused_by":{"cause":{"pull":7}}}}"#;
+const REPURPOSED: &str = r#"{"kind":"TaskPurposed","task":"task-00000000000000c3","purpose":{"caused_by":{"cause":{"task":"task-00000000000000c1"}}}}"#;
+const OPENED_CAUSED: &str = r#"{"kind":"TaskOpened","task":"task-00000000000000c2","text":"u","purpose":{"caused_by":{"cause":{"task":"task-00000000000000c1"}}}}"#;
 const OPENED_PLAIN: &str = r#"{"kind":"TaskOpened","task":"task-00000000000000c3","text":"w"}"#;
-const PURPOSED_CAUSED: &str =
-    r#"{"kind":"TaskPurposed","task":"task-00000000000000c3","purpose":{"caused_by":{"cause":{"pull":7}}}}"#;
+const PURPOSED_CAUSED: &str = r#"{"kind":"TaskPurposed","task":"task-00000000000000c3","purpose":{"caused_by":{"cause":{"task":"task-00000000000000c1"}}}}"#;
 const OPENED_TASK: &str = r#"{"kind":"TaskOpened","task":"task-00000000000000c1","text":"t"}"#;
 const HISTORY: [Step; 9] = [
-    Step::written(ALICE, OPENED_CAUSED),
-    Step::written(ALICE, OPENED_PLAIN),
-    Step::written(ALICE, PURPOSED_CAUSED),
     Step::written(ALICE, OPENED_TASK),
+    Step::written(ALICE, OPENED_PLAIN),
+    Step::written(ALICE, OPENED_CAUSED),
+    Step::written(ALICE, PURPOSED_CAUSED),
     Step::written(ALICE, PROPOSE),
     Step::written(OWNER, ACCEPT),
     Step::written(META, INSTRUMENTED),
@@ -165,27 +164,60 @@ const INSTRUMENT: Step = Step::written(ALICE, INSTRUMENTS);
 const DELIVER: Step = Step::written(META, ON_TARGET);
 const REGRESS: Step = Step::written(META, OFF_TARGET);
 const TASK_C1: &str = "task-00000000000000c1";
+const TASK_C6: &str = "task-00000000000000c6";
+const TASK_C9: &str = "task-00000000000000c9";
+const ISSUE_B1: &str = "issue-00000000000000b1";
 const OPENED_PLAIN_FIVE: &str = r#"{"kind":"TaskOpened","task":"task-00000000000000c5","text":"v"}"#;
-const UNSERVABLE_ACCEPTED: Refusal = Refusal::ServesNotInstrumented(ProjectStage::Accepted);
+const OPENED_INSTRUMENTING: Step = Step::written(
+    ALICE,
+    r#"{"kind":"TaskOpened","task":"task-00000000000000c6","text":"i","purpose":{"instruments":"project-00000000000000a1"}}"#,
+);
+const PULL_CAUSED: &str =
+    r#"{"kind":"TaskPurposed","task":"task-00000000000000c1","purpose":{"caused_by":{"cause":{"pull":7}}}}"#;
+const SELF_CAUSED: &str = r#"{"kind":"TaskPurposed","task":"task-00000000000000c1","purpose":{"caused_by":{"cause":{"task":"task-00000000000000c1"}}}}"#;
+const GHOST_TASK_CAUSED: &str = r#"{"kind":"TaskPurposed","task":"task-00000000000000c1","purpose":{"caused_by":{"cause":{"task":"task-00000000000000c9"}}}}"#;
+const GHOST_ITEM_CAUSED: &str = r#"{"kind":"TaskOpened","task":"task-00000000000000c7","text":"z","purpose":{"caused_by":{"cause":{"item":"issue-00000000000000b1"}}}}"#;
+const OPENED_SELF_CAUSED: &str = r#"{"kind":"TaskOpened","task":"task-00000000000000c7","text":"z","purpose":{"caused_by":{"cause":{"task":"task-00000000000000c7"}}}}"#;
+const OPENED_REAL_CAUSE: &str = r#"{"kind":"TaskOpened","task":"task-00000000000000c7","text":"z","purpose":{"caused_by":{"cause":{"task":"task-00000000000000c1"}}}}"#;
+
+struct Unservables;
+
+impl Unservables {
+    fn accepted(open: &[&str]) -> Result<(), Refusal> {
+        let tasks = open.iter().map(|task| task.parse().unwrap()).collect();
+        Err(Refusal::Unservable(Unservable::accepted(PROJECT.parse().unwrap(), tasks)))
+    }
+
+    fn closed(stage: ProjectStage) -> Result<(), Refusal> {
+        let project = PROJECT.parse().unwrap();
+        let reason = if stage == ProjectStage::Delivered {
+            Unservable::Delivered(project)
+        } else {
+            Unservable::Regressed(project)
+        };
+        Err(Refusal::Unservable(reason))
+    }
+}
+
 type ClaimCase = (&'static [Step], &'static [Step], Result<(), Refusal>);
 
 impl Step {
     fn claims() -> Vec<ClaimCase> {
         vec![
-            (ACCEPTED, &[SERVE], Err(UNSERVABLE_ACCEPTED)),
+            (ACCEPTED, &[SERVE], Unservables::accepted(&[])),
+            (ACCEPTED, &[OPENED_INSTRUMENTING, SERVE], Unservables::accepted(&[TASK_C6])),
             (MEASURED, &[SERVE], Ok(())),
-            (MEASURED, &[SERVE, DELIVER], Err(Refusal::ServesNotInstrumented(ProjectStage::Delivered))),
-            (MEASURED, &[SERVE, DELIVER, REGRESS], Err(Refusal::ServesNotInstrumented(ProjectStage::Regressed))),
+            (MEASURED, &[SERVE, DELIVER], Unservables::closed(ProjectStage::Delivered)),
+            (MEASURED, &[SERVE, DELIVER, REGRESS], Unservables::closed(ProjectStage::Regressed)),
             (ACCEPTED, &[INSTRUMENT], Ok(())),
+            (ACCEPTED, &[CAUSE], Ok(())),
             (ACCEPTED, &[], Ok(())),
-            (ACCEPTED, &[MARK], Err(Refusal::Unlinked(TASK_C1.parse().unwrap()))),
-            (ACCEPTED, &[MARK, CAUSE], Ok(())),
         ]
     }
 }
 
 #[test]
-fn a_claim_needs_a_purpose_after_the_marker_and_a_serving_task_waits_for_instrumentation() {
+fn a_serving_claim_waits_for_instrumentation_and_names_the_way_out() {
     let cases = Step::claims();
     let found: Vec<Result<(), Refusal>> = cases
         .iter()
@@ -196,13 +228,39 @@ fn a_claim_needs_a_purpose_after_the_marker_and_a_serving_task_waits_for_instrum
 }
 
 #[test]
-fn a_task_opens_without_a_purpose_only_before_the_marker_and_the_fold_keeps_old_claims() {
+fn an_unpurposed_task_opens_and_is_claimed_at_the_current_version() {
     let opened = Step::written(ALICE, OPENED_PLAIN_FIVE).event();
-    let serving = Step::written(ALICE, OPENED_SERVING).event();
-    let marked = Step::replayed(&[ACCEPTED, &[MARK]].concat());
-    assert_eq!(marked.vet(ALICE, opened.clone()), Err(Refusal::Unpurposed));
-    assert_eq!(marked.vet(ALICE, serving), Ok(()));
+    let claim = Step::written(ALICE, CLAIM).event();
     assert_eq!(Step::replayed(ACCEPTED).vet(ALICE, opened), Ok(()));
-    let claimed_unlinked = Step::replayed(&[ACCEPTED, &[Step::written(ALICE, CLAIM), MARK]].concat());
-    assert_eq!(State::fold(&claimed_unlinked.records).anomalies().len(), 0);
+    assert_eq!(Step::replayed(ACCEPTED).vet(ALICE, claim), Ok(()));
+}
+
+#[test]
+fn once_a_log_is_marked_for_purposes_the_fold_refuses_unpurposed_tasks_and_claims_name_the_way_out() {
+    let marked = Step::replayed(&[ACCEPTED, &[MARK, Step::written(ALICE, OPENED_PLAIN_FIVE)]].concat());
+    let state = State::fold(&marked.records);
+    assert_eq!(state.anomalies().len(), 1);
+    let claiming = |task: &str| Claiming::new(&state, task.parse().unwrap()).allowed();
+    assert_eq!(claiming(TASK_C1), Err(Refusal::Unlinked(TASK_C1.parse().unwrap())));
+    let purposed = State::fold(&Step::replayed(&[ACCEPTED, &[MARK, CAUSE]].concat()).records);
+    assert_eq!(Claiming::new(&purposed, TASK_C1.parse().unwrap()).allowed(), Ok(()));
+}
+
+#[test]
+fn a_cause_is_a_known_task_or_item_other_than_the_task_and_a_pull_is_refused_for_now() {
+    let log = Step::replayed(UNPROPOSED);
+    let attempts =
+        [PULL_CAUSED, SELF_CAUSED, GHOST_TASK_CAUSED, GHOST_ITEM_CAUSED, OPENED_SELF_CAUSED, OPENED_REAL_CAUSE];
+    let found = attempts.map(|json| log.vet(ALICE, Step::written(ALICE, json).event()));
+    let task = |id: &str| Refusal::UnknownEntry(Entry::Task(id.parse().unwrap()));
+    let item = Refusal::UnknownEntry(Entry::Issue(ISSUE_B1.parse().unwrap()));
+    let expected = [
+        Err(Refusal::PullCause),
+        Err(Refusal::SelfCause),
+        Err(task(TASK_C9)),
+        Err(item),
+        Err(Refusal::SelfCause),
+        Ok(()),
+    ];
+    assert_eq!(found, expected);
 }

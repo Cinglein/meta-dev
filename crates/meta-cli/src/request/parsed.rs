@@ -1,15 +1,17 @@
-mod acceptance_options;
+mod given;
 mod missing_option;
 mod option_name;
-mod purpose_options;
 
+use std::fmt;
 use std::path::PathBuf;
+use std::str::FromStr;
 mod word;
 
+use meta_acceptance::{Gating, Observability};
 use meta_listing::{Kind, Scope};
 use meta_schema::{
-    Acceptance, Actor, Blocker, Division, DueTime, Entry, Event, Id, LevelName, NewProject, Project, PullRequest,
-    Purpose, Scenario, Tag, Target, Task, TaskLink, TaskPurpose, Text, Tokens,
+    Acceptance, Actor, Blocker, Division, DueTime, Entry, Event, Id, LevelName, NewProject, NewTask, Project,
+    PullRequest, Purpose, Scenario, Tag, Target, Task, TaskLink, TaskPurpose, Text, Tokens,
 };
 
 use crate::request::Request;
@@ -20,10 +22,9 @@ use crate::request::merge_queue::MergeQueue;
 use crate::request::rate::Rate;
 use crate::request::relocate::Relocate;
 use crate::request::status_view::StatusView;
-use acceptance_options::AcceptanceOptions;
+use given::Given;
 use missing_option::MissingOption;
 pub use option_name::OptionName;
-use purpose_options::PurposeOptions;
 use word::Word;
 
 #[derive(Debug)]
@@ -44,8 +45,7 @@ pub struct Parsed {
     scenario: Option<Scenario>,
     actor: Option<Actor>,
     scratch: Option<Text>,
-    purposes: PurposeOptions,
-    acceptance: AcceptanceOptions,
+    valued: Vec<Given>,
 }
 
 impl Parsed {
@@ -67,6 +67,9 @@ impl Parsed {
     }
 
     fn option(mut self, name: OptionName, args: &[String]) -> Result<Self, CliFailure> {
+        name.excludes().iter().find(|other| self.given.contains(other)).map_or(Ok(()), |other| {
+            Err(CliFailure::raised::<Misuse>(format!("{name} cannot be given after {other}")))
+        })?;
         self.given.push(name);
         match (name, args) {
             (OptionName::All, rest) => Self { scope: Scope::All, ..self }.take(rest),
@@ -108,38 +111,17 @@ impl Parsed {
             (OptionName::Scratch, [value, rest @ ..]) => {
                 Self { scratch: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
             }
-            (OptionName::Instruments, [value, rest @ ..]) => {
-                let project = value.parse().map_err(CliFailure::raised::<Invalid>)?;
-                Self { purposes: self.purposes.adding(Purpose::Instruments(project)), ..self }.take(rest)
-            }
-            (OptionName::Serves, [value, rest @ ..]) => {
-                let project = value.parse().map_err(CliFailure::raised::<Invalid>)?;
-                Self { purposes: self.purposes.adding(Purpose::Serves(project)), ..self }.take(rest)
-            }
-            (OptionName::CausedBy, [value, rest @ ..]) => {
-                let cause = value.parse().map_err(CliFailure::raised::<Invalid>)?;
-                Self { purposes: self.purposes.adding(Purpose::CausedBy { cause, project: None }), ..self }.take(rest)
-            }
-            (OptionName::Project, [value, rest @ ..]) => {
-                let project = value.parse().map_err(CliFailure::raised::<Invalid>)?;
-                Self { purposes: self.purposes.placed(project), ..self }.take(rest)
-            }
-            (OptionName::Root, [value, rest @ ..]) => {
-                let root = value.parse().map_err(CliFailure::raised::<Invalid>)?;
-                Self { acceptance: self.acceptance.rooted(root), ..self }.take(rest)
-            }
-            (OptionName::Row, [value, rest @ ..]) => {
-                let row = value.parse().map_err(CliFailure::raised::<Invalid>)?;
-                Self { acceptance: self.acceptance.row(row), ..self }.take(rest)
-            }
-            (OptionName::Span, [value, rest @ ..]) => {
-                let span = value.parse().map_err(CliFailure::raised::<Invalid>)?;
-                Self { acceptance: self.acceptance.span(span), ..self }.take(rest)
-            }
-            (OptionName::Gate, [value, rest @ ..]) => {
-                let gate = value.parse().map_err(CliFailure::raised::<Invalid>)?;
-                Self { acceptance: self.acceptance.gate(gate), ..self }.take(rest)
-            }
+            (
+                OptionName::Instruments
+                | OptionName::Serves
+                | OptionName::CausedBy
+                | OptionName::Project
+                | OptionName::Root
+                | OptionName::Row
+                | OptionName::Span
+                | OptionName::Gate,
+                [value, rest @ ..],
+            ) => Self { valued: [self.valued, vec![Given::new(name, Word::new(value))]].concat(), ..self }.take(rest),
             (OptionName::Scenario, [value, rest @ ..]) => {
                 let scenario = value.parse::<Text>().map_err(CliFailure::raised::<Invalid>)?;
                 Self { scenario: Some(Scenario::from(scenario)), ..self }.take(rest)
@@ -197,30 +179,52 @@ impl Parsed {
         }
     }
 
-    pub fn purposes(&self) -> &PurposeOptions {
-        &self.purposes
+    fn each<Value: FromStr>(&self, name: OptionName) -> Result<Vec<Value>, CliFailure>
+    where
+        Value::Err: fmt::Display,
+    {
+        let wanted = self.valued.iter().filter_map(|given| given.value_of(name));
+        wanted.map(|word| word.to_string().parse().map_err(CliFailure::raised::<Invalid>)).collect()
     }
 
-    pub fn purposing(&self, purpose: impl FnOnce(Id<Project>) -> Purpose) -> Result<TaskPurpose, CliFailure> {
-        match self.words.as_slice() {
-            [task, project] => Ok(TaskPurpose::new(
-                task.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
-                purpose(project.to_string().parse().map_err(CliFailure::raised::<Invalid>)?),
-            )),
-            _ => Err(CliFailure::raised::<Misuse>("expected a task id and a project id")),
-        }
+    fn one<Value: FromStr>(&self, name: OptionName) -> Result<Option<Value>, CliFailure>
+    where
+        Value::Err: fmt::Display,
+    {
+        self.each(name).map(|values| values.into_iter().next())
     }
 
-    pub fn causing(&self) -> Result<TaskPurpose, CliFailure> {
+    pub fn purpose(&self) -> Result<Option<Purpose>, CliFailure> {
+        let instruments = self.one::<Id<Project>>(OptionName::Instruments)?.map(Purpose::Instruments);
+        let serves = self.one::<Id<Project>>(OptionName::Serves)?.map(Purpose::Serves);
+        let caused = self.one(OptionName::CausedBy)?.map(|cause| Purpose::CausedBy { cause, project: None });
+        let purpose = instruments.or(serves).or(caused);
+        self.one(OptionName::Project)?.map_or(Ok(purpose), |project| {
+            purpose
+                .and_then(|purpose| purpose.in_project(project))
+                .map(Some)
+                .ok_or_else(|| CliFailure::raised::<Misuse>("--project goes with --caused-by"))
+        })
+    }
+
+    pub fn purposing<Subject: FromStr>(
+        &self,
+        make: impl FnOnce(Subject, Option<Id<Project>>) -> Purpose,
+    ) -> Result<TaskPurpose, CliFailure>
+    where
+        Subject::Err: fmt::Display,
+    {
         match self.words.as_slice() {
-            [task, cause] => Ok(TaskPurpose::new(
+            [task, subject] => Ok(TaskPurpose::new(
                 task.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
-                Purpose::CausedBy {
-                    cause: cause.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
-                    project: self.purposes.project(),
-                },
+                make(
+                    subject.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
+                    self.one(OptionName::Project)?,
+                ),
             )),
-            _ => Err(CliFailure::raised::<Misuse>("expected a task id and a pull request, concern, issue or task")),
+            _ => {
+                Err(CliFailure::raised::<Misuse>("expected a task id and what it serves, instruments or is caused by"))
+            }
         }
     }
 
@@ -229,10 +233,40 @@ impl Parsed {
     }
 
     pub fn accepted(&self) -> Result<Acceptance, CliFailure> {
+        let missing = |option: MissingOption| CliFailure::raised::<Misuse>(option);
+        let root = self.one(OptionName::Root)?.ok_or_else(|| missing(MissingOption::Root))?;
+        let rows = Some(self.each(OptionName::Row)?).filter(|rows| !rows.is_empty());
+        let spans = Some(self.each(OptionName::Span)?).filter(|spans| !spans.is_empty());
+        let gates = Some(self.each(OptionName::Gate)?).filter(|gates| !gates.is_empty());
+        let observability = Observability::named(
+            rows.ok_or_else(|| missing(MissingOption::Row))?,
+            spans.ok_or_else(|| missing(MissingOption::Span))?,
+        )
+        .map_err(CliFailure::raised::<Invalid>)?;
+        let gating = Gating::try_from(gates.ok_or_else(|| missing(MissingOption::Gate))?)
+            .map_err(CliFailure::raised::<Invalid>)?;
         match self.words.as_slice() {
-            [project] => self.acceptance.accepting(project.to_string().parse().map_err(CliFailure::raised::<Invalid>)?),
+            [project] => Ok(Acceptance::new(
+                project.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
+                root,
+                observability,
+                gating,
+            )),
             _ => Err(CliFailure::raised::<Misuse>("expected one project id")),
         }
+    }
+
+    pub fn listable(self) -> Result<Self, CliFailure> {
+        let parsed = self.allowing(&[OptionName::All])?;
+        let refused = (parsed.kind()? == Some(Kind::Projects)).then(|| parsed.flagged(OptionName::All)).flatten();
+        refused.map_or(Ok(parsed), |()| Err(CliFailure::raised::<Misuse>("projects list without --all")))
+    }
+
+    pub fn opened(&self) -> Result<NewTask, CliFailure> {
+        let opened = NewTask::new(self.division()?, self.text()?, self.addresses());
+        let sized = self.effort().into_iter().fold(opened, NewTask::allowing);
+        let purposed = self.purpose()?.into_iter().fold(sized, NewTask::purposed);
+        Ok(self.due().into_iter().fold(purposed, NewTask::due_by))
     }
 
     pub fn division(&self) -> Result<Division, CliFailure> {
@@ -388,8 +422,7 @@ impl TryFrom<&[String]> for Parsed {
             scenario: None,
             actor: None,
             scratch: None,
-            purposes: PurposeOptions::default(),
-            acceptance: AcceptanceOptions::default(),
+            valued: vec![],
         };
         empty.take(args)
     }

@@ -29,6 +29,14 @@ impl Purpose {
     }
 
     #[must_use]
+    pub fn cause(&self) -> Option<Cause> {
+        match self {
+            Self::CausedBy { cause, .. } => Some(*cause),
+            Self::Instruments(_) | Self::Serves(_) => None,
+        }
+    }
+
+    #[must_use]
     pub fn in_project(self, project: Id<Project>) -> Option<Self> {
         match self {
             Self::CausedBy { cause, .. } => Some(Self::CausedBy { cause, project: Some(project) }),

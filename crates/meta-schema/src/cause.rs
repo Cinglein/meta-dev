@@ -4,6 +4,7 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 use crate::entity::Task;
+use crate::entry::Entry;
 use crate::id::Id;
 use crate::pull_request::PullRequest;
 use crate::target::Target;
@@ -15,6 +16,17 @@ pub enum Cause {
     Pull(PullRequest),
     Item(Target),
     Task(Id<Task>),
+}
+
+impl Cause {
+    #[must_use]
+    pub fn entry(self) -> Option<Entry> {
+        match self {
+            Self::Pull(_) => None,
+            Self::Item(item) => Some(item.entry()),
+            Self::Task(task) => Some(Entry::Task(task)),
+        }
+    }
 }
 
 impl FromStr for Cause {

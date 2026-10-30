@@ -25,7 +25,7 @@ impl fmt::Display for Usage {
              \x20 link <task-id> <pr-number>\n\
              \x20 retire <id> <reason>   (won't do; keeps the entry)\n\
              \x20 correct <id> <text>   (replaces the entry's text)\n\
-             \x20 list [tasks|issues|concerns] [--all]\n\
+             \x20 list [tasks|issues|concerns|projects] [--all]   (--all does not apply to projects)\n\
              \x20 status [--flags]   (divisions down to tasks, live PR and CI; --flags: flags only, exit 1 if any)\n\
              \x20 heartbeat tick|flags|plist   (tick: one timed run of status, writes the local snapshot, prints new flags, exit 1 if any needs judgement | flags: latest snapshot and age, stale is a flag | plist: launchd job for this clone, printed only)\n\
              \x20 monitor tick|report   (tick: reports this project's processes, obvious and watch tiers, into the local record, exit 1 if anything is obvious; stops nothing unless meta.local.toml [monitor] stop lists a class; also runs on heartbeat tick | report: the latest report)\n\
