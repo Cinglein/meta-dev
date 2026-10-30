@@ -4,7 +4,9 @@ usage: meta <command> [options] [--] [words]
   issue <text> --division <path> [--severity <level>]
   rate <concern-id|issue-id> <level> [--scenario <text>]   (levels: the division's scale in tooling/policy.toml; raising needs the reproduction or failure scenario)
   move <concern-id|issue-id> --division <path> [--severity <level> [--scenario <text>]]   (division: a top division or one in tooling/policy.toml; levels compare where they roll up: the level is kept only if it rolls up the same, else give --severity; a lower roll-up is free, a higher one needs --scenario)
-  open <text> --division <path> [--addresses <concern-id|issue-id>]... [--effort <tokens>] [--due <rfc3339>]
+  open <text> --division <path> (--instruments <project-id> | --serves <project-id> | --caused-by <pr-number|concern-id|issue-id|task-id> [--project <project-id>]) [--addresses <concern-id|issue-id>]... [--effort <tokens>] [--due <rfc3339>]   (every task has one purpose: instruments makes a project measurable, serves delivers it once instrumented, caused-by is an own goal)
+  instrument|serve <task-id> <project-id> | cause <task-id> <pr-number|concern-id|issue-id|task-id> [--project <project-id>]   (gives a task without a purpose its one purpose)
+  project propose <text> --division <path> | project accept <project-id> --root <process|state> --row <budget>:<measure><=<target>... --span <name>... --gate <budget:id|step:name|hook:name>... | project list   (accept: owner only; a target is a count, 250ms or 30%; at least one gate is a budget or a step)
   claim <task-id> [--from <actor>] [--worktree]   (assigns you; several may hold a task; --worktree: new worktree on branch <task-id>, prints its path)
   brief <task-id> [--actor <name>] [--scratch <dir>]   (agent brief: task, setup steps and self/agent-rules.md verbatim)
   worktrees   (this clone's worktrees: task status, missing, unrecorded)
@@ -16,7 +18,7 @@ usage: meta <command> [options] [--] [words]
   link <task-id> <pr-number>
   retire <id> <reason>   (won't do; keeps the entry)
   correct <id> <text>   (replaces the entry's text)
-  list [tasks|issues|concerns] [--all]
+  list [tasks|issues|concerns|projects] [--all]   (--all does not apply to projects)
   status [--flags]   (divisions down to tasks, live PR and CI; --flags: flags only, exit 1 if any)
   heartbeat tick|flags|plist   (tick: one timed run of status, writes the local snapshot, prints new flags, exit 1 if any needs judgement | flags: latest snapshot and age, stale is a flag | plist: launchd job for this clone, printed only)
   monitor tick|report   (tick: reports this project's processes, obvious and watch tiers, into the local record, exit 1 if anything is obvious; stops nothing unless meta.local.toml [monitor] stop lists a class; also runs on heartbeat tick | report: the latest report)

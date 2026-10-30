@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::fmt;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
@@ -8,6 +9,7 @@ use crate::millis::Millis;
 use crate::most::Most;
 use crate::percent::Percent;
 use crate::unit::Unit;
+use crate::vocabulary_failure::VocabularyFailure;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
@@ -68,6 +70,19 @@ impl Amount {
         match self {
             Amount::Baseline(file) => Some(file),
             Amount::Count(_) | Amount::Duration(_) | Amount::Share(_) => None,
+        }
+    }
+}
+
+impl FromStr for Amount {
+    type Err = VocabularyFailure;
+
+    fn from_str(text: &str) -> Result<Amount, VocabularyFailure> {
+        let unreadable = |_| VocabularyFailure::UnreadableAmount;
+        match (text.strip_suffix("ms"), text.strip_suffix('%')) {
+            (Some(millis), _) => millis.parse().map(|millis| Amount::Duration(Millis::new(millis))).map_err(unreadable),
+            (_, Some(share)) => share.parse().map(|share| Amount::Share(Percent::new(share))).map_err(unreadable),
+            (None, None) => text.parse::<usize>().map(|count| Amount::Count(Most::from(count))).map_err(unreadable),
         }
     }
 }

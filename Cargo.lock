@@ -595,6 +595,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "git2",
+ "meta-acceptance",
  "meta-gh",
  "meta-git",
  "meta-golden",

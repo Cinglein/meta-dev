@@ -16,6 +16,10 @@ impl ProjectState {
         Self { project, progress: ProjectProgress::Proposed }
     }
 
+    pub fn project(&self) -> &NewProject {
+        &self.project
+    }
+
     pub fn progress(&self) -> &ProjectProgress {
         &self.progress
     }

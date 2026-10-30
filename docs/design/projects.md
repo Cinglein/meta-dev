@@ -96,7 +96,7 @@ Gap          = Unmeasured(BudgetId) | NoSpan(SpanName)
 - Old events are unchanged and still read.
 - An old `TaskOpened` has no purpose. It reads as `Unlinked`. Its spend counts as an own goal (fail closed).
 - `PROJECTS` does not require a purpose. Until the CLI can supply one (PR 3), every `meta open` writes a `TaskOpened` with no purpose.
-- `SchemaVersion::requires_purpose()` starts at its own later version, `PURPOSES`, which lands with or after the CLI that supplies a purpose. After that marker, the fold refuses a `TaskOpened` with no purpose. This uses the same pattern as `keeps_holders_on_reopen`.
+- `SchemaVersion::purpose_rule()` returns `Required` from its own later version, `PURPOSES`, which becomes current in the seed PR (§7 item 9), after the CLI that supplies a purpose. After that marker, the fold refuses a `TaskOpened` with no purpose. This uses the same pattern as `keeps_holders_on_reopen`.
 - Open tasks from before `PURPOSES` get a purpose through `TaskPurposed`.
 
 **Selector names** (owner, 2026-10-30). Design §2's selector list becomes:
@@ -216,14 +216,14 @@ Each PR is small and comes off main. Each first commit is red first.
 
 1. **Schema.** `Project` entity, `Purpose` (with `Instruments`), `Cause`, `Root`, `AcceptanceRow`, `Verdict`, four events, `TaskOpened.purpose`, `meta-budget` and `meta-acceptance`, version `PROJECTS`. Red: round-trip and old-log rows fail.
 2. **Fold.** `ProjectState` typestate with `Instrumented`, the attach table in §1, the refusals in §6, and the refusal of a second purpose. Red: a test that lists every refused transition and attach.
-3. **CLI.** `meta project propose|accept|list`, `meta open --instruments|--serves|--caused-by`, `meta instrument`, `meta serve`, `meta cause`. `meta claim` refuses `Unlinked`, and refuses `serves` before Instrumented. Goldens re-recorded. Version `PURPOSES` and `requires_purpose` land here or later, not before the CLI can supply a purpose.
+3. **CLI.** `meta project propose|accept|list`, `meta open --instruments|--serves|--caused-by`, `meta instrument`, `meta serve`, `meta cause`. `meta claim` refuses `Unlinked`, and refuses `serves` before Instrumented. Goldens re-recorded. This PR defines `PURPOSES` and the marker-gated rules (`PurposeRule`), but `SchemaVersion::current()` stays `PROJECTS`. The bump to `PURPOSES` moves to the seed PR (item 9), after projects exist and the open tasks have a purpose. A cause is checked in the fold: it names a known concern, issue or task other than the task itself. A pull cause is refused until the merged-PR check lands.
 4. **CI.** `TrackedWork` refuses `Unpurposed` and `Uninstrumented`. `meta queue run` refuses `Unlinked`.
 5. **Ledger artifact.** `xtask ci` writes `ledger.json` with `rows` and `gates` on push to main; the workflow uploads it. Shared with caps (design §7).
 6. **Observe.** `meta project observe` reads the artifact and the push run's trace (task-433270d3 uploads it) through meta-gh and writes `ProjectObserved`: `Instrumented`, `Uninstrumented`, delivery and regression. Heartbeat and queue call it. The push-to-main audit replays observations.
 7. **Status.** Projects section with `needs:` for Accepted projects, own-goal line, goal line, `NoProgress` and `Regressed` flags. Spend reads `Unmeasured` until task-41cdd344 lands.
 8. **Derived causes.** Triage writes `caused_by` from batch attribution, reverts and regressions. Waits on the batch queue (design §9).
 8a. **Retire a project.** `Entry::Project`, so that `EntryRetired` and `EntryCorrected` can name a project, with the retirement guards in §1. This needs its own schema version, because older builds cannot parse a project entry. It lands before PR 9.
-9. **Seed.** No code. The lead writes `ProjectProposed` for §8, the owner writes `ProjectAccepted`, and the lead opens the instrumentation tasks first and attaches the open tasks with `TaskPurposed`.
+9. **Seed.** No code. The lead writes `ProjectProposed` for §8, the owner writes `ProjectAccepted`, and the lead opens the instrumentation tasks first and attaches the open tasks with `TaskPurposed`. Only after that does the seed PR bump `SchemaVersion::current()` to `PURPOSES`. That PR also adds a purpose flag to the two hints that name `meta open`: `xtask/src/task/ci/untracked.rs` and `crates/meta-cli/src/request/ci/watcher/wait_on_ci.rs`.
 
 Order: 1, 2, 3, then 4, 5 and 7 in parallel, then 6, then 8. 8a lands before 9. The owner accepted this design on 2026-10-30. PR 1 starts after the hook PRs land. The lead retires task-6d498ba4 into this task after PR 1.
 

@@ -1,5 +1,6 @@
 mod anomaly;
 mod applying;
+mod claiming;
 mod concern_state;
 mod issue_state;
 mod projects;
@@ -9,10 +10,11 @@ mod vetting;
 use std::collections::HashMap;
 
 use meta_schema::{
-    Actor, Block, Entry, EntryNote, Id, Project, PullRequest, Record, Relocation, Rerating, SchemaVersion, Target,
-    Task, TaskLink, Text,
+    Actor, Block, Entry, EntryNote, Id, Project, PullRequest, Purpose, Record, Relocation, Rerating, SchemaVersion,
+    Target, Task, TaskLink, Text,
 };
 
+use crate::project_row::ProjectRow;
 use crate::project_stage::ProjectStage;
 use crate::rated_item::RatedItem;
 use crate::refusal::Refusal;
@@ -20,6 +22,7 @@ use crate::stamp::Stamp;
 use crate::task_state::{TaskState, TaskStatus};
 use anomaly::Anomaly;
 use applying::Applying;
+use claiming::Claiming;
 use concern_state::ConcernState;
 use issue_state::IssueState;
 use projects::Projects;
@@ -58,7 +61,9 @@ impl State {
         let known = record.event().task_link().filter(linked);
         known.map_or(Ok(()), |link| Err(Refusal::AlreadyLinked(link.pull_request())))?;
         let mut next = self.clone();
-        record.event().visit(Applying::new(&mut next, Stamp::from_record(record))).map(|()| next.swept())
+        record.event().visit(Applying::new(&mut next, Stamp::from_record(record)))?;
+        record.event().claimed_task().map_or(Ok(()), |task| Claiming::new(self, task).allowed())?;
+        Ok(next.swept())
     }
 
     #[must_use]
@@ -97,8 +102,24 @@ impl State {
 
     #[must_use]
     pub fn project_stage(&self, project: Id<Project>) -> Option<ProjectStage> {
-        self.projects
-            .stage(project, |task| self.retirement(Entry::Task(task)).is_none() && !self.holders(task).is_empty())
+        self.projects.stage(project, self.holding())
+    }
+
+    #[must_use]
+    pub fn projects(&self) -> Vec<ProjectRow<'_>> {
+        self.projects.listed(self.holding())
+    }
+
+    pub(crate) fn vet_cause(&self, task: Id<Task>, purpose: &Purpose) -> Result<(), Refusal> {
+        purpose.cause().map_or(Ok(()), |cause| {
+            let entry = cause.entry().ok_or(Refusal::PullCause)?;
+            (entry != Entry::Task(task)).then_some(()).ok_or(Refusal::SelfCause)?;
+            self.known(entry)
+        })
+    }
+
+    pub(crate) fn holding(&self) -> impl Fn(Id<Task>) -> bool + '_ {
+        |task| self.retirement(Entry::Task(task)).is_none() && !self.holders(task).is_empty()
     }
 
     #[must_use]

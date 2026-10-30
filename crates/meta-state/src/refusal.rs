@@ -2,6 +2,7 @@ use meta_schema::{Actor, Division, Entry, Id, Project, PullRequest, Rating, Sche
 use thiserror::Error;
 
 use crate::project_stage::ProjectStage;
+use crate::unservable::Unservable;
 
 #[derive(Clone, Debug, PartialEq, Eq, Error)]
 pub enum Refusal {
@@ -23,6 +24,16 @@ pub enum Refusal {
     Unattachable(ProjectStage),
     #[error("the task already has a purpose")]
     AlreadyPurposed,
+    #[error("{0} has no purpose; give it one with `meta serve`, `meta instrument` or `meta cause`")]
+    Unlinked(Id<Task>),
+    #[error("a task needs a purpose: --instruments, --serves or --caused-by")]
+    Unpurposed,
+    #[error("{0}")]
+    Unservable(Unservable),
+    #[error("the cause is the task itself")]
+    SelfCause,
+    #[error("pull causes need the merged-PR check; cite the concern or task")]
+    PullCause,
     #[error("there is no task {0}")]
     UnknownTask(Id<Task>),
     #[error("there is no concern or issue {0}")]

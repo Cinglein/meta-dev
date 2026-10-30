@@ -25,7 +25,7 @@ use std::path::PathBuf;
 use chrono::Utc;
 use meta_listing::{Kind, Scope};
 use meta_log::LogStore;
-use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, TaskRef};
+use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, Purpose, TaskRef};
 
 use brief::BriefRequest;
 use ci::{Commit, FailureLog, SessionId, Watcher};
@@ -107,11 +107,25 @@ impl TryFrom<Vec<String>> for Request {
                     OptionName::Division,
                     OptionName::Effort,
                     OptionName::Due,
+                    OptionName::Instruments,
+                    OptionName::Serves,
+                    OptionName::CausedBy,
+                    OptionName::Project,
                 ])?;
-                let opened = NewTask::new(parsed.division()?, parsed.text()?, parsed.addresses());
-                let sized = parsed.effort().into_iter().fold(opened, NewTask::allowing);
-                Ok(Self::Write(Event::TaskOpened(parsed.due().into_iter().fold(sized, NewTask::due_by))))
+                parsed.opened().map(|opened| Self::Write(Event::TaskOpened(opened)))
             }
+            "project" => parsed.project_request(),
+            "instrument" => Ok(Self::Write(Event::TaskPurposed(
+                parsed.allowing(&[])?.purposing(|project, _| Purpose::Instruments(project))?,
+            ))),
+            "serve" => Ok(Self::Write(Event::TaskPurposed(
+                parsed.allowing(&[])?.purposing(|project, _| Purpose::Serves(project))?,
+            ))),
+            "cause" => Ok(Self::Write(Event::TaskPurposed(
+                parsed
+                    .allowing(&[OptionName::Project])?
+                    .purposing(|cause, project| Purpose::CausedBy { cause, project })?,
+            ))),
             "wait" => {
                 let parsed = parsed.allowing(&[OptionName::On, OptionName::Due])?;
                 let block = Block::new(parsed.task()?, parsed.blocker()?);
@@ -146,7 +160,7 @@ impl TryFrom<Vec<String>> for Request {
             "correct" => parsed
                 .allowing(&[])?
                 .entry_and_text(|entry, text| Self::Write(Event::EntryCorrected(EntryNote::new(entry, text)))),
-            "list" => Ok(Self::List(parsed.kind()?, parsed.allowing(&[OptionName::All])?.scope())),
+            "list" => parsed.listable().and_then(|parsed| Ok(Self::List(parsed.kind()?, parsed.scope()))),
             "status" => Ok(Self::Status(parsed.allowing(&[OptionName::Flags])?.view())),
             "hook" => Ok(Self::Hook(parsed.allowing(&[])?.text()?.to_string().parse()?)),
             "heartbeat" => Ok(Self::Heartbeat(parsed.allowing(&[])?.text()?.to_string().parse()?)),

@@ -19,6 +19,7 @@ replay = ["dep:meta-golden"]
 
 [dependencies]
 meta-golden = { workspace = true, optional = true }
+meta-acceptance.workspace = true
 meta-schema.workspace = true
 meta-log.workspace = true
 meta-run.workspace = true

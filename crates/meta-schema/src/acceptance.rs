@@ -18,8 +18,18 @@ pub struct Acceptance {
 
 impl Acceptance {
     #[must_use]
+    pub fn new(project: Id<Project>, root: Root, observability: Observability, enforcement: Gating) -> Self {
+        Self { project, root, observability, enforcement }
+    }
+
+    #[must_use]
     pub fn project(&self) -> Id<Project> {
         self.project
+    }
+
+    #[must_use]
+    pub fn root(&self) -> Root {
+        self.root
     }
 }
 

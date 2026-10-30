@@ -3,6 +3,7 @@ mod empty_list;
 use serde::de::Error as _;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::acceptance_failure::AcceptanceFailure;
 use empty_list::EmptyList;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -12,6 +13,14 @@ impl<Item> Vec1<Item> {
     #[must_use]
     pub fn as_slice(&self) -> &[Item] {
         &self.0
+    }
+}
+
+impl<Item> TryFrom<Vec<Item>> for Vec1<Item> {
+    type Error = AcceptanceFailure;
+
+    fn try_from(items: Vec<Item>) -> Result<Self, Self::Error> {
+        EmptyList::refused(items).map(Self).map_err(|_| AcceptanceFailure::Empty)
     }
 }
 

@@ -21,6 +21,46 @@ pub enum OptionName {
     Scenario,
     Actor,
     Scratch,
+    Instruments,
+    Serves,
+    CausedBy,
+    Project,
+    Root,
+    Row,
+    Span,
+    Gate,
+}
+
+impl OptionName {
+    const PURPOSES: [Self; 3] = [Self::Instruments, Self::Serves, Self::CausedBy];
+
+    #[must_use]
+    pub fn excludes(self) -> &'static [Self] {
+        match self {
+            Self::Instruments | Self::Serves | Self::CausedBy => &Self::PURPOSES,
+            Self::Project => &[Self::Project],
+            Self::Root => &[Self::Root],
+            Self::Source
+            | Self::Tag
+            | Self::Addresses
+            | Self::From
+            | Self::All
+            | Self::Division
+            | Self::Effort
+            | Self::Due
+            | Self::On
+            | Self::Flags
+            | Self::Worktree
+            | Self::DryRun
+            | Self::Severity
+            | Self::Scenario
+            | Self::Actor
+            | Self::Scratch
+            | Self::Row
+            | Self::Span
+            | Self::Gate => &[],
+        }
+    }
 }
 
 impl FromStr for OptionName {
@@ -44,6 +84,14 @@ impl FromStr for OptionName {
             "--scenario" => Ok(Self::Scenario),
             "--actor" => Ok(Self::Actor),
             "--scratch" => Ok(Self::Scratch),
+            "--instruments" => Ok(Self::Instruments),
+            "--serves" => Ok(Self::Serves),
+            "--caused-by" => Ok(Self::CausedBy),
+            "--project" => Ok(Self::Project),
+            "--root" => Ok(Self::Root),
+            "--row" => Ok(Self::Row),
+            "--span" => Ok(Self::Span),
+            "--gate" => Ok(Self::Gate),
             other => Err(CliFailure::raised::<Misuse>(format!(
                 "unknown option {other}; put text starting with -- after a bare --"
             ))),
@@ -70,6 +118,14 @@ impl fmt::Display for OptionName {
             Self::Scenario => "--scenario",
             Self::Actor => "--actor",
             Self::Scratch => "--scratch",
+            Self::Instruments => "--instruments",
+            Self::Serves => "--serves",
+            Self::CausedBy => "--caused-by",
+            Self::Project => "--project",
+            Self::Root => "--root",
+            Self::Row => "--row",
+            Self::Span => "--span",
+            Self::Gate => "--gate",
         };
         formatter.write_str(name)
     }

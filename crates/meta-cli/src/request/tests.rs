@@ -5,6 +5,8 @@ mod heartbeat;
 mod moving;
 mod notices;
 #[cfg(test)]
+mod projects;
+#[cfg(test)]
 mod rating;
 #[cfg(test)]
 mod status;

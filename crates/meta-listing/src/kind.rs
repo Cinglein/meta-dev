@@ -6,4 +6,5 @@ pub enum Kind {
     Tasks,
     Issues,
     Concerns,
+    Projects,
 }

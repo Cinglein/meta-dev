@@ -15,6 +15,22 @@ impl AcceptanceRows {
     pub fn rows(&self) -> &Vec1<AcceptanceRow> {
         &self.0
     }
+
+    fn distinct(rows: Vec1<AcceptanceRow>) -> Result<Self, AcceptanceFailure> {
+        let mut seen = BTreeSet::new();
+        match rows.as_slice().iter().find(|row| !seen.insert(row.budget())) {
+            Some(row) => Err(AcceptanceFailure::DuplicateBudget(row.budget().clone())),
+            None => Ok(Self(rows)),
+        }
+    }
+}
+
+impl TryFrom<Vec<AcceptanceRow>> for AcceptanceRows {
+    type Error = AcceptanceFailure;
+
+    fn try_from(rows: Vec<AcceptanceRow>) -> Result<Self, Self::Error> {
+        Vec1::try_from(rows).and_then(Self::distinct)
+    }
 }
 
 impl Serialize for AcceptanceRows {
@@ -25,11 +41,6 @@ impl Serialize for AcceptanceRows {
 
 impl<'de> Deserialize<'de> for AcceptanceRows {
     fn deserialize<In: Deserializer<'de>>(deserializer: In) -> Result<Self, In::Error> {
-        let rows = Vec1::<AcceptanceRow>::deserialize(deserializer)?;
-        let mut seen = BTreeSet::new();
-        match rows.as_slice().iter().find(|row| !seen.insert(row.budget())) {
-            Some(row) => Err(In::Error::custom(AcceptanceFailure::DuplicateBudget(row.budget().clone()))),
-            None => Ok(Self(rows)),
-        }
+        Self::distinct(Vec1::<AcceptanceRow>::deserialize(deserializer)?).map_err(In::Error::custom)
     }
 }
