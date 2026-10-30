@@ -1694,3 +1694,4 @@
 {"at":"2026-10-30T05:03:37.625718Z","actor":"claude-projects","kind":"TaskClaimed","task":"task-7b6e5d9baadb95f8"}
 {"at":"2026-10-30T05:08:21.569881Z","actor":"owner","kind":"TaskLinked","task":"task-7b6e5d9baadb95f8","pr":232}
 {"at":"2026-10-30T05:08:32.612902Z","actor":"claude-projects","kind":"IssueReported","issue":"issue-1efa28173b46e38a","text":"claim --worktree with missing worktrees dir fails after git made .git/worktrees/<task>; retry fails until git worktree prune","division":"features-and-maintenance"}
+{"at":"2026-10-30T05:08:33.993840Z","actor":"claude-projects","kind":"IssueReported","issue":"issue-429873c3946deac1","text":"PostToolUse hook auto-linked PR #232 as actor owner, not the agent: hook env lacks META_ACTOR","division":"features-and-maintenance"}
