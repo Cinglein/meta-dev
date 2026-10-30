@@ -97,7 +97,8 @@ impl State {
 
     #[must_use]
     pub fn project_stage(&self, project: Id<Project>) -> Option<ProjectStage> {
-        self.projects.stage(project, |task| !self.holders(task).is_empty())
+        self.projects
+            .stage(project, |task| self.retirement(Entry::Task(task)).is_none() && !self.holders(task).is_empty())
     }
 
     #[must_use]

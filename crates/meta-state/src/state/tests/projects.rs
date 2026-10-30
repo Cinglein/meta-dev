@@ -57,7 +57,7 @@ const GHOST: &str = "project-00000000000000b2";
 const ON_PROPOSED: Refusal = Refusal::Unattachable(ProjectStage::Proposed);
 const ON_DELIVERED: Refusal = Refusal::Unattachable(ProjectStage::Delivered);
 const ON_REGRESSED: Refusal = Refusal::Unattachable(ProjectStage::Regressed);
-const REFUSED: [(&[Step], Step, Refusal); 23] = [
+const REFUSED: [(&[Step], Step, Refusal); 25] = [
     (PROPOSED, Step::written(ALICE, PROPOSE), Refusal::DuplicateId),
     (PROPOSED, Step::written(ALICE, ACCEPT), Refusal::NotOwner),
     (PROPOSED, Step::written(META, INSTRUMENTED), Refusal::ProjectIs(ProjectStage::Proposed)),
@@ -66,7 +66,9 @@ const REFUSED: [(&[Step], Step, Refusal); 23] = [
     (PROPOSED, Step::written(ALICE, CAUSED_IN), ON_PROPOSED),
     (PROPOSED, Step::written(ALICE, OPENED_SERVING), ON_PROPOSED),
     (ACCEPTED, Step::written(META, UNINSTRUMENTED), Refusal::Unchanged),
-    (ACCEPTED, Step::written(META, ON_TARGET), Refusal::Unchanged),
+    (ACCEPTED, Step::written(META, ON_TARGET), Refusal::NotInstrumented),
+    (ACCEPTED, Step::written(ALICE, INSTRUMENTED), Refusal::NotObserver),
+    (ACCEPTED, Step::written(OWNER, INSTRUMENTED), Refusal::NotObserver),
     (ACCEPTED, Step::written(ALICE, REPURPOSED_OPENED), Refusal::AlreadyPurposed),
     (ACCEPTED, Step::written(ALICE, REPURPOSED), Refusal::AlreadyPurposed),
     (MEASURED, Step::written(META, INSTRUMENTED), Refusal::Unchanged),

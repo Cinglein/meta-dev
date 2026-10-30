@@ -100,6 +100,7 @@ impl EventVisitor for Applying<'_> {
     }
 
     fn project_observed(self, observation: &Observation) -> Self::Output {
+        self.stamp.actor().is_meta().then_some(()).ok_or(Refusal::NotObserver)?;
         self.state.projects.advance(observation.project(), |progress| observation.verdict().visit(progress))
     }
 

@@ -13,8 +13,12 @@ pub enum Refusal {
     NotOwner,
     #[error("the project is {0}")]
     ProjectIs(ProjectStage),
+    #[error("only meta observes a project")]
+    NotObserver,
     #[error("the observation does not change the stage")]
     Unchanged,
+    #[error("the project is not instrumented yet")]
+    NotInstrumented,
     #[error("a task with this purpose cannot attach to a {0} project")]
     Unattachable(ProjectStage),
     #[error("the task already has a purpose")]

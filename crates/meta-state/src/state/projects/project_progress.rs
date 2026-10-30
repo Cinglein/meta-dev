@@ -67,7 +67,8 @@ impl VerdictVisitor for &ProjectProgress {
             ProjectProgress::Instrumented(acceptance) | ProjectProgress::Regressed(acceptance) => {
                 Ok(ProjectProgress::Delivered(acceptance.clone()))
             }
-            ProjectProgress::Accepted(_) | ProjectProgress::Delivered(_) => Err(Refusal::Unchanged),
+            ProjectProgress::Accepted(_) => Err(Refusal::NotInstrumented),
+            ProjectProgress::Delivered(_) => Err(Refusal::Unchanged),
         }
     }
 
