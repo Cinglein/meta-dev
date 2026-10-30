@@ -144,8 +144,8 @@ impl Repo {
     }
 }
 
-const MODAL_POLICY: &str = "[tools]\nmodal = [\"AskUserQuestion\"]\n";
-const POLICY_FILE: &str = "tooling/policy.toml";
+const UNPARSABLE: &str = "{not json";
+const UNPARSABLE_REASON: &str = "cannot parse the hook input";
 const MODAL_CALLS: [&str; 2] = [
     r#""tool_name":"AskUserQuestion","tool_input":{"questions":[]}"#,
     r#""agent_id":"a1","tool_name":"AskUserQuestion","tool_input":{"questions":[]}"#,
@@ -156,9 +156,9 @@ const MODAL_REASON: &str = "Modal questions are refused: write the decision as d
 #[test]
 fn pre_tool_use_refuses_modal_question_tools_in_every_session_and_leaves_other_tools_alone() {
     let repo = Repo::new();
-    std::fs::write(repo.clone.path().join(POLICY_FILE), MODAL_POLICY).unwrap();
     assert!(MODAL_CALLS.iter().all(|call| repo.tool_call(call).contains(&format!("{DENY}{MODAL_REASON}"))));
     assert_eq!(repo.tool_call(BASH_CALL), "");
+    assert!(repo.tool_call(UNPARSABLE).contains(&format!("{DENY}{UNPARSABLE_REASON}")));
 }
 
 #[test]

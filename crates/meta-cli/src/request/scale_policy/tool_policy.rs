@@ -13,12 +13,6 @@ pub struct ToolPolicy {
 impl ToolPolicy {
     const MODAL_REFUSED: &'static str = "Modal questions are refused: write the decision as discussion in your reply (problem, options with tradeoffs, recommendation) and keep working on what doesn't depend on it.";
 
-    pub fn union(mut self, other: ToolPolicy) -> ToolPolicy {
-        let added = other.modal.into_iter().filter(|tool| !self.modal.contains(tool)).collect::<Vec<_>>();
-        self.modal.extend(added);
-        self
-    }
-
     pub fn refusal(&self, tool: Option<&ToolName>) -> Option<Listed> {
         tool.filter(|tool| self.modal.contains(tool)).map(|_| Listed::new(Self::MODAL_REFUSED))
     }

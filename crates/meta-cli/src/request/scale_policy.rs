@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::io::ErrorKind;
 use std::path::Path;
+use std::sync::OnceLock;
 
 use meta_schema::Division;
 use meta_severity::{RatingFailure, Scales};
@@ -58,9 +59,25 @@ impl ScalePolicy {
         &self.queue
     }
 
-    pub fn tools(&self) -> ToolPolicy {
-        let embedded = toml::from_str::<ScalePolicy>(Self::EMBEDDED).map(|policy| policy.tools).unwrap_or_default();
-        embedded.union(self.tools.clone())
+    pub fn embedded() -> Result<&'static ScalePolicy, String> {
+        static PARSED: OnceLock<Result<ScalePolicy, String>> = OnceLock::new();
+        PARSED
+            .get_or_init(|| {
+                toml::from_str(Self::EMBEDDED)
+                    .map_err(|failure| format!("the embedded tooling/policy.toml cannot be parsed: {failure}"))
+            })
+            .as_ref()
+            .map_err(Clone::clone)
+    }
+
+    pub fn embedded_section<Section>(
+        section: impl FnOnce(&'static ScalePolicy) -> &'static Section,
+    ) -> Result<&'static Section, String> {
+        Self::embedded().map(section)
+    }
+
+    pub fn tools(&self) -> &ToolPolicy {
+        &self.tools
     }
 
     pub fn scales(&self) -> &Scales {

@@ -80,7 +80,14 @@ impl HookEvent {
 
     pub fn respond(self) -> Result<Output, CliFailure> {
         let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
-        let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
+        let input: HookInput = match serde_json::from_str(&stdin) {
+            Ok(input) => input,
+            Err(failure) if self == Self::PreToolUse => {
+                let reason = Listed::new(format!("cannot parse the hook input, so no command is allowed: {failure}"));
+                return Ok(Output::Listed(Listed::new(self.refused(reason).to_string())));
+            }
+            Err(failure) => return Err(CliFailure::raised::<Invalid>(failure)),
+        };
         let unstamped = self.phase().and_then(|call| input.stamp(call, Utc::now())).and_then(Result::err);
         let reply = match Project::found(input.cwd().as_path()) {
             Ok(Some(project)) => {
@@ -155,10 +162,15 @@ impl HookEvent {
 
     fn policy_refusal(project: &Project, input: &HookInput) -> Option<Listed> {
         let policy = ScalePolicy::read(project.root()).ok().unwrap_or_default();
-        input.modal(&policy.tools()).or_else(|| {
+        Self::modal_refusal(input).or_else(|| {
             let lander = policy.queue().lander(input.announced_actor());
             input.command()?.refusal(project.config(), lander.as_ref())
         })
+    }
+
+    fn modal_refusal(input: &HookInput) -> Option<Listed> {
+        ScalePolicy::embedded_section(ScalePolicy::tools)
+            .map_or_else(|why| Some(Listed::new(why)), |tools| input.modal(tools))
     }
 
     fn outside_projects(self, input: &HookInput) -> Option<Reply> {
@@ -167,8 +179,7 @@ impl HookEvent {
         let linked = linked.and_then(|budget| Linking::after(input, *budget));
         let linking = linked.map(|linked| Reply::new(self, Verdict::Allow, Some(linked)));
         let refusal = (self == Self::PreToolUse).then(|| {
-            input
-                .modal(&ScalePolicy::default().tools())
+            Self::modal_refusal(input)
                 .or_else(|| budget.map_or_else(|failure| Some(Listed::new(failure)), |_| input.refusal()))
         });
         let refusal = refusal.flatten();
