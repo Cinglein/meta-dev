@@ -21,6 +21,7 @@ mod impl_fact;
 mod impl_kind;
 mod implementations;
 mod intent_cap;
+mod interior;
 mod layout;
 mod leverage;
 mod leverage_report;
@@ -41,8 +42,6 @@ mod shared_signatures;
 mod signature;
 mod smell_inventory;
 mod source_path;
-#[cfg(test)]
-mod split_rows;
 mod structure;
 mod syn_source;
 mod tally;

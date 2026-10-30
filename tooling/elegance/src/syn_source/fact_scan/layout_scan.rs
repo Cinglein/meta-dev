@@ -1,9 +1,12 @@
+mod interior_scan;
+
 use syn::{Fields, Index, Member};
 
 use super::super::declarations::Declarations;
 use crate::field::Field;
 use crate::field_name::FieldName;
 use crate::layout::Layout;
+use interior_scan::InteriorScan;
 
 #[derive(Debug)]
 pub struct LayoutScan<'declared> {
@@ -33,6 +36,11 @@ impl<'declared> LayoutScan<'declared> {
 
     #[must_use]
     pub fn field(&self, member: &Member, field: &syn::Field) -> Field {
-        Field::new(FieldName::new(member), &field.ty, self.declarations.field_kind(&field.ty))
+        Field::new(
+            FieldName::new(member),
+            &field.ty,
+            self.declarations.field_kind(&field.ty),
+            InteriorScan::scanned(&field.ty),
+        )
     }
 }

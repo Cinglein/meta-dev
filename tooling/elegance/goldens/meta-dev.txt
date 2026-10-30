@@ -1,4 +1,4 @@
-types 1076, traits declared 26, impls 1695
+types 1078, traits declared 26, impls 1697
 catalog: 24 measures, report-only
   B1 unnamed concepts [trait graph, to zero]: 59
   B2 reducible traits [trait graph, to zero]: 2
@@ -12,7 +12,7 @@ catalog: 24 measures, report-only
   B10 typestate share of transitions [transition graph, higher]: not implemented
   B11 transition graph simplicity [transition graph, lower]: not implemented
   B12 unnamed field concepts [types, to zero]: 26
-  B13 types with LCOM4 above 1 [types, to zero]: 13
+  B13 types with LCOM4 above 1 [types, to zero]: 9
   B14 behavioural inherent methods [types, lower]: not implemented
   B15 bodies identical up to types [code, to zero]: not implemented
   B16 same-job paths per external effect [effects, lower]: measured by lint git_starters (partial)
@@ -100,8 +100,8 @@ B3 signatures declared in more than one local trait
     words(&self, &RemoteName) -> Vec<OsString>: meta-git::RemoteChange, meta-git::RemoteQuery
 B4 leverage: distinct method names usable on a type / method bodies written for it
   usable = inherent names + the methods of each trait the type has; a local trait contributes its declared methods, a foreign trait the names seen in impls
-  n 988: min 0.66, q1 1.00, median 1.00, q3 1.00, max 55.00
-  types with no bodies: 88
+  n 989: min 0.66, q1 1.00, median 1.00, q3 1.00, max 56.00
+  types with no bodies: 89
   lowest:
     meta-cli::Cause 0.66 (2 usable / 3 written)
     meta-cli::Unmarked 0.66 (2 usable / 3 written)
@@ -159,22 +159,21 @@ B12 field concepts: maximal (types, named fields) concepts with at least 2 of ea
     types: meta-cli::Parsed, meta-schema::NewConcern
     share: severity: Option<LevelName>; source: Option<Text>; tags: Vec<Tag>
 B13 types whose method-field graph splits
-  rule: LCOM4 per type with fields, over its self methods keyed by trait and name; nodes are those methods and the fields; edges join a method to each field it reads or writes, to each self method it calls, and to the field of each accessor it calls; an accessor (body is self.f, &self.f or self.f = value) is not a node; a bare use of self joins every field; a method that touches nothing is left out; a self call that names no method or accessor of the type links nothing; on a type none of whose methods takes &mut self or writes a field and that has no Mutex, RwLock, RefCell, Cell, OnceCell or OnceLock field (a value or settings type), a method that reaches exactly one field is a projection and is left out
-  limits: syntactic: fields reached through helpers or locals and trait default bodies are not seen; a call is resolved by name to every method of the type with that name and, when several accessors share the name, to the field of each
-  found 13
-    elegance::FormalContext: 2 components [concepts, extent] [extents, reducible]
+  rule: LCOM4 per type with fields, over its self methods keyed by trait and name; nodes are those methods and the fields; edges join a method to each field it reads or writes, to each self method it calls, and to the field of each accessor it calls; an accessor (body is self.f, &self.f or self.f = value) is not a node; a bare use of self joins every field; a method that touches nothing is left out; a self call that names no method or accessor of the type links nothing; on a type none of whose methods takes &mut self or writes a field and none of whose field types names Mutex, RwLock, RefCell, Cell, OnceCell, OnceLock, LazyLock, LazyCell or a std atomic at any depth (a value or settings type), a method that reaches exactly one field is a projection: it keeps its edges, and a component made only of projections is dropped
+  limits: syntactic: fields reached through helpers or locals and trait default bodies are not seen; a call is resolved by name to every method of the type with that name and, when several accessors share the name, to the field of each; on a type that also has a &mut self method, one-field reads stay nodes and can split it; a &self facade over separate resources is not seen
+  found 9
     elegance::Places: 2 components [of_trait, trait_at] [of_type, type_at]
     elegance::Structure: 2 components [laid_out, layout] [methods_of, used]
     elegance::Usage: 2 components [touch] [write]
-    meta-cli::CiSettings: 2 components [budget] [gh_limit]
-    meta-cli::Fixture: 2 components [added, worktrees] [commit_on, committed, committed_at, relogged, stepped, written]
+    meta-cli::CiSettings: 2 components [budget] [gh_limit, remaining]
     meta-cli::Host: 2 components [lenders, noted, meta-cli::Inspection::cleared, meta-cli::Inspection::entry, meta-cli::Inspection::frozen, meta-cli::Inspection::neighbours, meta-cli::Inspection::occupancy, meta-cli::Inspection::text, meta-cli::Inspection::thawed, meta-cli::Inspection::uninspected, meta-cli::Inspection::walked] [meta-cli::Inspection::git]
-    meta-cli::Project: 2 components [born_after, checkout, created_after, git, head, independent_tips, lines, log, push_failure, reflog, remote_heads, repository, unprotected_branch, unpushed] [meta, path, unkept]
+    meta-cli::Project: 2 components [born_after, checkout, created_after, git, head, independent_tips, lines, log, push_failure, reflog, remote_heads, repository, unprotected_branch, unpushed] [meta, path, unkept, Display::fmt]
+    meta-git::Repository: 2 components [git_dir, locked, meta-git::Reads::read, meta-git::Writes::write] [Debug::fmt]
     meta-pulls::LivePull: 2 components [open_base] [task]
-    meta-xtask::YamlNode: 2 components [child, items, scalar_of] [name, names]
+    waterfall::TimedUnit: 2 components [end, ended, section, Display::fmt] [unblocked]
 trait-graph shape
   graph edges: supertrait 3, blanket 0; depth 1
-  blanket share: 0 of 799 trait impls = 0.00
+  blanket share: 0 of 800 trait impls = 0.00
   single-implementor traits: 12
     elegance::FactSource -> elegance::SynSource
     meta-cli::ClaimHands -> meta-cli::ClaimRun
@@ -188,7 +187,7 @@ trait-graph shape
     meta-schema::EventVisitor -> meta-state::Applying
     task::Stream -> task::Stdout
     task::Tool -> task::CargoTool
-  traits implemented directly, per implementing type: n 577: min 1, q1 1, median 1, q3 1, max 5
+  traits implemented directly, per implementing type: n 578: min 1, q1 1, median 1, q3 1, max 5
   types with at least N = 2 traits (q3, at least 2) and no edge among them: 141
     corpus_check::AnnotatedLine: Display, FromStr
     corpus_check::AnnotatedSource: Display, FromStr
@@ -206,4 +205,4 @@ smell inventory scoring, informational: a finding flags an entry when a type or 
   B3 signatures declared in more than one trait [trait graph, to zero]: recall 0 of 2 tagged orthogonality []; other entries flagged 0 []; noise 1 of 1 findings
   B9 hidden state fields [transition graph, to zero]: recall 1 of 4 tagged hidden-state [ledger-mode]; other entries flagged 0 []; noise 4 of 7 findings
   B12 unnamed field concepts [types, to zero]: recall 1 of 1 tagged field-concepts [new-concern-issue-task]; other entries flagged 9 [about-task-accessors, lint-report-family, option-unit-as-bool, record-new-clock, recorded-worktree-late-id, repeats-three-times, test-module-skip-per-lint, two-policy-toml-readers, use-tree-walkers]; noise 13 of 26 findings
-  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 4 tagged lcom4 [inspection-reads-and-writes]; other entries flagged 3 [kill-and-lsof-twice, oncelock-caches-with-args, two-undo-mechanisms]; noise 12 of 13 findings
+  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 4 tagged lcom4 [inspection-reads-and-writes]; other entries flagged 4 [git-start-paths, kill-and-lsof-twice, oncelock-caches-with-args, two-undo-mechanisms]; noise 7 of 9 findings
