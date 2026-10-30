@@ -1,5 +1,6 @@
 mod baseline_file;
 mod bit_boundary;
+mod crate_policy;
 mod floor;
 mod key_name;
 mod least;
@@ -37,6 +38,7 @@ use crate::budgets::{Budgets, LegacyKey};
 use crate::domains::Domains;
 use crate::percent::Percent;
 use bit_boundary::BitBoundary;
+use crate_policy::CratePolicy;
 use enum_map::EnumMap;
 use least::Least;
 use meta_severity::Scales;
@@ -86,6 +88,7 @@ pub struct Policy {
     liveness: Option<policy_file::Liveness>,
     queue: Option<policy_file::QueueLanders>,
     supply_chain: SupplyChain,
+    crates: CratePolicy,
 }
 
 #[cfg(any(test, feature = "test-policy"))]
@@ -219,6 +222,11 @@ impl Policy {
     #[must_use]
     pub fn supply_chain(&self) -> &SupplyChain {
         &self.supply_chain
+    }
+
+    #[must_use]
+    pub fn crate_policy(&self) -> &CratePolicy {
+        &self.crates
     }
 
     #[must_use]

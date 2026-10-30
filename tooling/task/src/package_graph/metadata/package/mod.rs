@@ -4,7 +4,7 @@ mod dependency;
 use std::path::{Path, PathBuf};
 
 use built_target::BuiltTarget;
-use dependency::Dependency;
+pub use dependency::Dependency;
 use serde::Deserialize;
 use serde::de::IgnoredAny;
 
@@ -49,6 +49,10 @@ impl Package {
             .map(|directory| directory.strip_prefix(workspace_root).unwrap_or(directory))
             .map(Path::to_path_buf)
             .unwrap_or_default()
+    }
+
+    pub fn dependencies(&self) -> &[Dependency] {
+        &self.dependencies
     }
 
     pub fn local_dependencies(&self) -> impl Iterator<Item = &CrateName> {

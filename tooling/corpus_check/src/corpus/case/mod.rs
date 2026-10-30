@@ -11,6 +11,7 @@ use crate::lint_name::LintName;
 use crate_graph::{CrateGraph, GraphReport};
 use task::CrateName;
 use task::Name;
+use task::PackageGraph;
 use task::Policy;
 use task::Site;
 use task::SourceFile;
@@ -25,6 +26,7 @@ pub struct Case {
 
 impl Case {
     const SOURCE_DIRECTORY: &str = "src";
+    const METADATA: &str = "metadata.json";
 
     pub fn load(directory: &Path) -> Result<Case, CorpusError> {
         let empty = Case {
@@ -36,7 +38,12 @@ impl Case {
         let mut files = Workspace::rust_files_under(directory)?;
         files.sort();
         let read = files.iter().try_fold(empty, |case, file| case.reading(directory, file))?;
-        Ok(Case { graphs: CrateGraph::graphs(&read.files), ..read })
+        let packages = fs::read_to_string(directory.join(Self::METADATA))
+            .ok()
+            .map(|metadata| PackageGraph::from_metadata(&metadata))
+            .transpose()?
+            .unwrap_or_default();
+        Ok(Case { graphs: CrateGraph::graphs(&read.files, &packages), ..read })
     }
 
     pub fn expectations(&self) -> &[Expectation] {

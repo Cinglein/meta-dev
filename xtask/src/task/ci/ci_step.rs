@@ -47,10 +47,7 @@ impl CiStep {
                 .map_err(Failure::from),
             CiStep::Clippy => Clippy::run(workspace, selection, policy).map_err(Failure::from),
             CiStep::Test => TestTime::run(workspace, selection, policy, ledger).map_err(Failure::from),
-            CiStep::Lint => workspace
-                .source_files()
-                .map_err(Failure::from)
-                .and_then(|files| Lint::run(workspace.root(), &files, policy, ledger)),
+            CiStep::Lint => Lint::run(workspace, policy, ledger),
             CiStep::Spec => policy.spec().map_or(Ok(()), |spec| {
                 workspace
                     .line(Program::Cargo)

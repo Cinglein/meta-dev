@@ -13,7 +13,7 @@ use super::bit_boundary::BitBoundary;
 use super::least::Least;
 use super::policy_failure::PolicyFailure;
 use super::supply_chain::SupplyChain;
-use super::{BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface};
+use super::{BaselineFile, CratePolicy, Floor, Limit, Most, Policy, Share, SpecSettings, Surface};
 use crate::branches::{Branch, BranchName};
 use crate::budget::{AvailableGib, Interval, MemoryShare, Millis, MutantMillis, MutationCadence};
 use crate::budgets::{Amount, BudgetDrafts, Budgets, LegacyKey, Measure};
@@ -61,6 +61,8 @@ pub struct PolicyFile {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     queue: Option<QueueLanders>,
     supply_chain: SupplyChain,
+    #[serde(default)]
+    crate_policy: CratePolicy,
 }
 
 impl PolicyFile {
@@ -92,6 +94,7 @@ impl PolicyFile {
             liveness: policy.liveness,
             queue: policy.queue.clone(),
             supply_chain: policy.supply_chain.clone(),
+            crate_policy: policy.crates.clone(),
         }
     }
 
@@ -228,6 +231,7 @@ impl PolicyFile {
             liveness: self.liveness,
             queue: self.queue,
             supply_chain: self.supply_chain,
+            crates: self.crate_policy,
         })
     }
 
