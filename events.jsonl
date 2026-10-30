@@ -1748,3 +1748,4 @@
 {"at":"2026-10-30T10:26:44.544368Z","actor":"claude-projects1","kind":"TaskDone","task":"task-b220f507cc5a058f"}
 {"at":"2026-10-30T10:34:20.709122Z","actor":"claude-lead","kind":"TaskOpened","task":"task-383bd3d9984c4f5d","text":"Dispatch follow-ups (#226 review): make [tools] and [dispatch] required in the tooling policy so CI catches a missing section; known-projects file refuses when HOME is unset or XDG_CONFIG_HOME is empty instead of using a relative path; decide whether a project's own [tools] must carry leased","division":"features-and-maintenance"}
 {"at":"2026-10-30T10:34:45.994204Z","actor":"claude-projects1","kind":"SchemaVersion","version":8}
+{"at":"2026-10-30T10:34:47.279228Z","actor":"claude-projects1","kind":"TaskOpened","task":"task-36f203b76e54c2c7","text":"Projects PR 2: stage typestate and fold rules per docs/design/projects.md","division":"architecture-and-planning"}
