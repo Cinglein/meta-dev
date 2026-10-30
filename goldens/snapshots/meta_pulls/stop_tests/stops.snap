@@ -1,0 +1,4 @@
+[
+    "stop: #7 poll failed: HTTP 403: denied",
+    "stop: #7 green but not mergeable: blocked",
+]

@@ -18,6 +18,7 @@ pub enum Interval {
     FullJob,
     DiffJob,
     JobSetup,
+    QueuePace,
 }
 
 impl Interval {
