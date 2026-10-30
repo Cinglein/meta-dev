@@ -102,6 +102,8 @@ long_call_after = 3600000
 reply_within = 3600000
 
 [queue]
+hot = ["goldens/snapshots"]
+members = 4
 landers = ["owner", "claude-lead"]
 
 [tools]
