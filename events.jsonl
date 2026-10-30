@@ -1722,3 +1722,4 @@
 {"at":"2026-10-30T06:43:21.797450Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-16743fa955ebb397","text":"Deferred: formal multi-pass review with enforced escalation (Sonnet flags → Opus); review is about 3% of tokens."}
 {"at":"2026-10-30T06:44:07.083829Z","actor":"owner","kind":"TaskLinked","task":"task-b345cd6a3924ee90","pr":237}
 {"at":"2026-10-30T06:53:29.035967Z","actor":"claude-teststack1","kind":"TaskLinked","task":"task-d53f262aff86547a","pr":239}
+{"at":"2026-10-30T07:03:12.838793Z","actor":"claude-lead","kind":"TaskOpened","task":"task-618030b8b5b44082","text":"meta queue run lands stacked PRs: GitHub refuses squash-merge of stack members (GraphQL and REST) and requires the stack merge; pin the tested head before calling it and verify the merged commit after. Hit on #234","division":"features-and-maintenance"}
