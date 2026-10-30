@@ -1,6 +1,5 @@
 mod cargo_build;
 mod cargo_test;
-mod children_cpu;
 mod clock;
 mod execution;
 mod git_count;

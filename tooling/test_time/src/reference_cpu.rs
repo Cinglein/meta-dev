@@ -1,8 +1,8 @@
 use std::fmt;
 use std::time::Duration;
 
-use super::children_cpu::ChildrenCpu;
-use task::{CommandLine, Failure, Limit, Policy, Program, Stdout};
+use rusage::ChildrenCpu;
+use task::{CommandLine, Failure, Limit, Policy, Program, Site, Stdout};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct ReferenceCpu(Duration);
@@ -12,10 +12,16 @@ impl ReferenceCpu {
 
     pub(super) fn measured(policy: &Policy) -> Result<ReferenceCpu, Failure> {
         let line = CommandLine::new(Program::Git).argument(Self::VERSION);
-        let before = ChildrenCpu::now()?;
+        let spent = || {
+            ChildrenCpu::now().map_err(|error| Failure::Io {
+                site: Site::Workspace,
+                error,
+            })
+        };
+        let before = spent()?;
         (0..policy.limit(Limit::ReferenceSpawns).count())
             .try_for_each(|_| line.captured::<Stdout>().map(|_| ()))?;
-        Ok(ReferenceCpu::new(ChildrenCpu::now()?.since(before)))
+        Ok(ReferenceCpu::new(spent()?.since(before)))
     }
 
     pub(super) const fn new(measured: Duration) -> ReferenceCpu {

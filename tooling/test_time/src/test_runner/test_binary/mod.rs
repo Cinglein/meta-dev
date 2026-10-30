@@ -10,11 +10,11 @@ use listed_test::ListedTest;
 use listing::Listing;
 use test_argument::TestArgument;
 
-use crate::children_cpu::ChildrenCpu;
 use crate::test_run::TestRun;
 use crate::test_timing::TestTiming;
+use rusage::ChildrenCpu;
 use task::Failure;
-use task::{CommandLine, Program, Stdout};
+use task::{CommandLine, Program, Site, Stdout};
 
 #[derive(Debug)]
 pub(super) struct TestBinary {
@@ -63,11 +63,17 @@ impl TestBinary {
     }
 
     fn timed(&self, line: &CommandLine, test: impl fmt::Display) -> TestRun {
-        let before = ChildrenCpu::now();
+        let cpu = || {
+            ChildrenCpu::now().map_err(|error| Failure::Io {
+                site: Site::Workspace,
+                error,
+            })
+        };
+        let before = cpu();
         let started = Instant::now();
         let ran = line.captured::<Stdout>();
         let elapsed = started.elapsed();
-        let spent = before.and_then(|before| ChildrenCpu::now().map(|after| after.since(before)));
+        let spent = before.and_then(|before| cpu().map(|after| after.since(before)));
         let timing = |cpu| TestTiming::new(&self.path, &test, elapsed, cpu);
         ran.and(spent)
             .inspect_err(|failure| eprintln!("{failure}"))
