@@ -1729,3 +1729,4 @@
 {"at":"2026-10-30T07:29:08.465030Z","actor":"claude-teststack1","kind":"TaskLinked","task":"task-d53f262aff86547a","pr":240}
 {"at":"2026-10-30T07:49:48.555500Z","actor":"claude-qc","kind":"TaskDone","task":"task-1920ab52fb3805f8"}
 {"at":"2026-10-30T07:52:44.399289Z","actor":"claude-lead","kind":"TaskOpened","task":"task-8781c26f4a0d191c","text":"Main red: test CPU 4.3-4.7 s since #231. Its stress test a_fake_gh_is_never_busy_for_writing_while_other_threads_spawn_processes costs 650-750 ms CPU; cut it to under 50 ms without losing the regression check","division":"performance-and-cost"}
+{"at":"2026-10-30T07:53:03.072634Z","actor":"claude-lead","kind":"TaskOpened","task":"task-f66ea1986e3634b0","text":"Per-test CPU budget beside slowest-test (wall): a test whose raw CPU exceeds the line fails its own PR's CI. #231's stress test passed review on wall time (<0.2 s) while costing 650-750 ms CPU and turned main red","division":"performance-and-cost"}
