@@ -13,6 +13,7 @@ const CHECKOUT: &str = "checkout";
 const KEPT: &str = "kept";
 const GONE: &str = "gone";
 const NAME: &str = "agent";
+const ABSENT: &str = "absent";
 const EMAIL: &str = "1+agent@users.noreply.github.com";
 const WORKTREE_CONFIG: &str = "extensions.worktreeConfig";
 const PINNED: [&str; 3] = ["user.email", "author.email", "committer.email"];
@@ -76,4 +77,15 @@ fn an_added_worktree_is_checked_out_and_pinned_a_gone_one_is_pruned_and_a_remove
     repository.write(&WorktreeRemove::from(KEPT.to_owned())).unwrap();
     repository.write(&BranchDelete::from(KEPT.to_owned())).unwrap();
     assert!(!root.path().join(KEPT).exists() && read(KEPT).is_none() && scene.excluded(root.path()));
+}
+
+#[test]
+fn a_worktree_whose_parent_directory_is_absent_gets_the_parent_made() {
+    let root = tempfile::tempdir().unwrap();
+    let scene = Scene::seeded(root.path());
+    scene.repository.write(&BranchCreate::new(KEPT.to_owned(), scene.tip)).unwrap();
+    let identity = Identity::new(NAME.to_owned(), EMAIL.to_owned());
+    let path = root.path().join(ABSENT).join(KEPT);
+    scene.repository.write(&WorktreeAdd::new(KEPT.to_owned(), path.clone(), KEPT.to_owned(), identity)).unwrap();
+    assert!(path.join(FILE).exists());
 }
