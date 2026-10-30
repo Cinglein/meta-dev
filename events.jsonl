@@ -1750,3 +1750,4 @@
 {"at":"2026-10-30T10:34:45.994204Z","actor":"claude-projects1","kind":"SchemaVersion","version":8}
 {"at":"2026-10-30T10:34:47.279228Z","actor":"claude-projects1","kind":"TaskOpened","task":"task-36f203b76e54c2c7","text":"Projects PR 2: stage typestate and fold rules per docs/design/projects.md","division":"architecture-and-planning"}
 {"at":"2026-10-30T10:34:54.507480Z","actor":"claude-projects1","kind":"TaskClaimed","task":"task-36f203b76e54c2c7"}
+{"at":"2026-10-30T10:39:41.757835Z","actor":"claude-projects1","kind":"TaskLinked","task":"task-36f203b76e54c2c7","pr":243}
