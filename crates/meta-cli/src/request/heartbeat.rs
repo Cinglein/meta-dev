@@ -62,7 +62,7 @@ impl Heartbeat {
         match self {
             Self::Tick => {
                 Monitor::Tick
-                    .answer(&clone, &settings)
+                    .answer(project, &clone, &settings)
                     .map_err(|failure| Monitor::noted(&clone, &failure, Utc::now()))
                     .ok();
                 let ticked = Tick::supervised(Self::inner(project, Self::TICK_RUN)?, settings.tick_limit());

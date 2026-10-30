@@ -69,7 +69,7 @@ impl LiveGithub {
         listed.unwrap_or_default().lines().filter_map(|line| line.parse().ok()).collect()
     }
 
-    fn live(&self, query: &LiveQuery) -> Result<LiveData, GithubFailure> {
+    pub fn live(&self, query: &LiveQuery) -> Result<LiveData, GithubFailure> {
         let pulls = OpenPages::new(self, query).read()?;
         let rules = BaseRules::new(self).read(pulls.bases())?;
         let data = pulls.ruled(rules).ok_or_else(|| GithubFailure::new(Self::UNRULED))?;

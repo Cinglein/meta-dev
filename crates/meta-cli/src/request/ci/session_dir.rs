@@ -1,18 +1,26 @@
 mod expected_run;
+mod tool_stamp;
 mod watch_state;
 
 use std::fmt;
 use std::io::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use super::ci_status::CiStatus;
 use super::commit::Commit;
 use super::session_id::SessionId;
+use super::task_worktree::TaskWorktree;
+use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::git_link::GitLink;
+use crate::request::hook::CallPhase;
+use crate::request::local::LocalFile;
 use crate::request::output::Listed;
 use crate::request::project::Project;
+use chrono::{DateTime, Utc};
 use expected_run::ExpectedRun;
+use meta_schema::{Id, Task};
+use tool_stamp::ToolStamp;
 use watch_state::WatchState;
 
 #[derive(Clone, Debug)]
@@ -31,10 +39,60 @@ impl SessionDir {
     const LOCKS: &'static str = "locks";
     const PROBE: &'static str = "probe";
     const EXPECTED: &'static str = "expected";
+    const STAMP: &'static str = "tool-stamp";
+    const STAMP_LOCK: &'static str = "tool-stamp.lock";
+    const NO_GIT: &'static str = "no git directory";
+    const LOCK_HELD: &'static str = "stamp lock held elsewhere; stamp skipped";
+    const LOCK_PAUSES: [Duration; 5] = [Duration::from_millis(20); 5];
+    const UNSTAMPED: &'static str = "tool-call stamp not written; liveness reads this task as unstamped: ";
 
     pub fn for_session(project: &Project, session: &SessionId) -> Option<Self> {
-        let own = GitLink::common_dir(project.root())?.join(Self::ROOT).join(session.file_name());
+        Self::within(project.root(), session)
+    }
+
+    pub fn within(root: &Path, session: &SessionId) -> Option<Self> {
+        let own = GitLink::common_dir(root)?.join(Self::ROOT).join(session.file_name());
         Some(Self { own, shared: std::env::temp_dir().join(Self::ROOT) })
+    }
+
+    pub fn stamped(cwd: &Path, call: CallPhase, at: DateTime<Utc>) -> Option<Result<(), Listed>> {
+        let worktree = TaskWorktree::enclosing(cwd)?.canonical();
+        let session = Self::within(worktree.path(), &SessionId::of_task(worktree.task()));
+        let stamped = session
+            .ok_or_else(|| CliFailure::raised::<Setup>(Self::NO_GIT))
+            .and_then(|session| session.stamp(&ToolStamp::new(worktree, at, call)));
+        Some(stamped.map_err(|failure| Listed::new(Self::UNSTAMPED).then(failure)))
+    }
+
+    fn stamp(&self, stamp: &ToolStamp) -> Result<(), CliFailure> {
+        let target = LocalFile::new(self.own.join(Self::STAMP));
+        let locking = || {
+            std::fs::create_dir_all(&self.own)?;
+            let lock = std::fs::File::options().create(true).append(true).open(self.own.join(Self::STAMP_LOCK))?;
+            Ok::<_, std::io::Error>(lock)
+        };
+        let lock = locking().map_err(|failure| target.failure(failure))?;
+        let held = Self::LOCK_PAUSES
+            .into_iter()
+            .map(|pause| lock.try_lock().inspect_err(|_| std::thread::sleep(pause)))
+            .find_map(Result::ok);
+        held.ok_or_else(|| target.failure(Self::LOCK_HELD))?;
+        let kept = serde_json::from_str::<ToolStamp>(&target.text()?).ok();
+        let newer = kept.as_ref().and_then(|kept| kept.newer_than(stamp));
+        let text = serde_json::to_string(stamp).map_err(|failure| target.failure(failure))?;
+        newer.map_or_else(|| target.replaced(&text), Ok)
+    }
+
+    pub fn stamp_of(common_dir: &Path, task: Id<Task>) -> Result<Option<ToolStamp>, CliFailure> {
+        let own = common_dir.join(Self::ROOT).join(SessionId::of_task(task).file_name());
+        let stamp = LocalFile::new(own.join(Self::STAMP));
+        let text = stamp.text()?;
+        let parsed = |text: &str| serde_json::from_str::<ToolStamp>(text).map_err(|failure| stamp.failure(failure));
+        let owned = |read: ToolStamp| {
+            let named = read.worktree().task();
+            (named == task).then_some(read).ok_or_else(|| stamp.failure(named))
+        };
+        (!text.is_empty()).then(|| parsed(&text).and_then(owned)).transpose()
     }
 
     pub fn record(&self, line: impl fmt::Display) -> std::io::Result<()> {
@@ -112,13 +170,19 @@ impl SessionDir {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
     use std::time::Duration;
 
-    use super::SessionDir;
+    use chrono::Utc;
+
+    use super::{SessionDir, TaskWorktree, ToolStamp};
     use crate::request::ci::ci_status::CiStatus;
     use crate::request::ci::commit::Commit;
+    use crate::request::hook::CallPhase;
+    use crate::request::local::LocalFile;
 
     const OWN: &str = "session";
+    const WORKTREE: &str = "/w/task-00000000000000c0";
     const SHA: &str = "f2e83b47f04f1aadaaf72b9d15074e933a513dc6";
     const TOOK: Duration = Duration::from_millis(64);
     const FAILED: &str = "ci failed after 1m: lint; run `meta ci-log`";
@@ -132,6 +196,21 @@ mod tests {
         dir.watch(&commit).and_then(|()| dir.learn(TOOK)).unwrap();
         assert_eq!(before, (None, None));
         assert_eq!((dir.status_of(&commit), dir.expected()), (Some(CiStatus::Running), Some(TOOK)));
+    }
+
+    #[test]
+    fn a_stamp_lock_held_elsewhere_skips_the_stamp_after_a_bounded_wait_and_says_so() {
+        let root = tempfile::tempdir().unwrap();
+        let dir = SessionDir { own: root.path().join(OWN), shared: root.path().to_path_buf() };
+        std::fs::create_dir_all(&dir.own).unwrap();
+        let held = std::fs::File::create(dir.own.join(SessionDir::STAMP_LOCK)).unwrap();
+        held.lock().unwrap();
+        let worktree = TaskWorktree::enclosing(Path::new(WORKTREE)).unwrap();
+        let skipped = dir.stamp(&ToolStamp::new(worktree, Utc::now(), CallPhase::Finished)).unwrap_err().to_string();
+        assert!(
+            skipped.contains(SessionDir::LOCK_HELD)
+                && LocalFile::new(dir.own.join(SessionDir::STAMP)).text().unwrap().is_empty()
+        );
     }
 
     #[test]

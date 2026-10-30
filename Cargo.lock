@@ -686,8 +686,11 @@ dependencies = [
 name = "meta-pulls"
 version = "0.1.0"
 dependencies = [
+ "meta-golden",
+ "meta-run",
  "meta-schema",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1114,6 +1117,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusage"
+version = "0.1.0"
+dependencies = [
+ "nix",
+]
+
+[[package]]
 name = "rustc-hash"
 version = "2.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1395,7 +1405,7 @@ name = "test_time"
 version = "0.1.0"
 dependencies = [
  "git_trace",
- "nix",
+ "rusage",
  "settings",
  "strum",
  "task",

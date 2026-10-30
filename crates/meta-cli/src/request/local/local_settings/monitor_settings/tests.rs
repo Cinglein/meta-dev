@@ -4,12 +4,13 @@ use super::MonitorSettings;
 use crate::request::project::{Config, HeartbeatSettings};
 
 const TOO_WIDE: [&str; 8] = ["", ".", "/", "~", "..", "~/..", "~/gone/../..", "~/p"];
-const TOO_LONG: [&str; 5] = [
+const TOO_LONG: [&str; 6] = [
     "grace_seconds = 31",
     "probe_seconds = 31",
     "start_slack_seconds = 31",
     "watch_percent = 101",
     "watch_percent = 0",
+    "stop = [\"silent\"]",
 ];
 const UNPACED: &str = "mark_seconds = 299";
 const SCRATCH: &str = "scratch = [\"~/scratch\", \"work\"]\nspared = []";
