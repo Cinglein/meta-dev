@@ -1,7 +1,11 @@
+mod force;
+
 use std::fmt;
 
 use crate::request::output::Listed;
 use crate::request::project::{BranchName, Config};
+use crate::request::scale_policy::{Refused, ShellRules};
+use force::Force;
 
 #[derive(Debug)]
 pub struct GitCall {
@@ -10,7 +14,10 @@ pub struct GitCall {
 }
 
 impl GitCall {
-    const VALUED_OPTIONS: &'static [&'static str] = &["-C", "-c"];
+    const VALUED_OPTIONS: &'static [&'static str] =
+        &["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"];
+    const PROGRAM: &'static str = "git";
+    const PUSH: &'static str = "push";
     const DIRECTORY: &'static str = "-C";
     const OPTION_PAIR_LEN: usize = 2;
     const COMMIT_WRITERS: &'static [&'static str] =
@@ -18,7 +25,7 @@ impl GitCall {
     const ABORT: &'static str = "--abort";
 
     pub fn parse(segment: &[String]) -> Option<Self> {
-        let start = segment.iter().position(|word| word == "git")?;
+        let start = segment.iter().position(|word| word.rsplit('/').next() == Some(Self::PROGRAM))?;
         let (_git, rest) = segment.get(start..)?.split_first()?;
         let words = Self::after_options(rest);
         let directories = rest
@@ -38,6 +45,17 @@ impl GitCall {
             .then_some(())
     }
 
+    pub fn breach(&self, rules: &ShellRules) -> Option<Refused> {
+        let (subcommand, args) = self.words.split_first()?;
+        let forced = args.iter().find(|arg| subcommand == Self::PUSH && Force::in_word(arg).is_some());
+        rules.git().breach(subcommand).or_else(|| forced.map(|arg| Refused::spelled(&[Self::PROGRAM, Self::PUSH, arg])))
+    }
+
+    pub fn nested(&self, rules: &ShellRules) -> Option<String> {
+        let (subcommand, args) = self.words.split_first()?;
+        rules.git().nested(subcommand, args)
+    }
+
     pub fn directory_words(&self) -> &[String] {
         &self.directories
     }
@@ -47,9 +65,10 @@ impl GitCall {
     }
 
     pub fn push_refusal(&self, config: &Config) -> Option<Listed> {
-        let args = self.words.split_first().filter(|(subcommand, _)| *subcommand == "push").map(|(_, args)| args)?;
+        let args =
+            self.words.split_first().filter(|(subcommand, _)| *subcommand == Self::PUSH).map(|(_, args)| args)?;
         args.iter()
-            .find(|word| Self::forces(word).is_some())
+            .find(|word| Force::in_word(word) == Some(Force::Hard))
             .map(|word| Listed::new(format!("{self}: {word} forces; merge instead of rewriting history")))
             .or_else(|| self.protected(args, config))
     }
@@ -65,13 +84,6 @@ impl GitCall {
             [option, rest @ ..] if option.starts_with('-') => Self::after_options(rest),
             subcommand => subcommand,
         }
-    }
-
-    fn forces(word: &str) -> Option<&str> {
-        (word == "--force"
-            || word.starts_with('+')
-            || (word.starts_with('-') && !word.starts_with("--") && word.contains('f')))
-        .then_some(word)
     }
 
     fn targets(args: &[String]) -> impl Iterator<Item = BranchName> + '_ {

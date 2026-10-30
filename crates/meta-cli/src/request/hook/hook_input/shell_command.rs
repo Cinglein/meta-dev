@@ -1,6 +1,9 @@
+#[cfg(test)]
+mod breaches;
 mod gh_call;
 mod git_call;
 mod pin;
+mod tokens;
 mod working_directory;
 
 use std::path::{Path, PathBuf};
@@ -10,17 +13,24 @@ use meta_schema::Actor;
 
 use crate::request::output::Listed;
 use crate::request::project::Config;
+use crate::request::scale_policy::ShellRules;
 use gh_call::GhCall;
 use git_call::GitCall;
 pub use pin::Pin;
+use tokens::{Kind, Segment, Tokens};
 use working_directory::WorkingDirectory;
 
 #[derive(Debug)]
-pub struct ShellCommand(Vec<Vec<String>>);
+pub struct ShellCommand(Tokens);
 
 impl ShellCommand {
-    const SEPARATORS: &'static [char] = &[';', '&', '|', '\n'];
-    const QUOTES: &'static [char] = &['\'', '"'];
+    const SHELL_RULE: &'static str = "shell rule:";
+    const USE: &'static str =
+        "is not allowed; use the Write or Edit tool, `git restore`, or `git rm` inside a code change";
+    const GIT_USE: &'static str = "is not allowed for agents; commit on your branch, push normally, `git restore`";
+    const EXPANDED: &'static str =
+        "the program or the command it runs is built by $ expansion or substitution; write it out so it can be checked";
+    const STDIN: &'static str = "reads its commands from stdin; pass them with -c so they can be checked";
     const PR_MERGE: &'static [&'static str] = &["gh", "pr", "merge"];
     const PR_CREATE: &'static [&'static str] = &["gh", "pr", "create"];
     const META: &'static str = "meta";
@@ -35,7 +45,7 @@ impl ShellCommand {
         self.invokes(Self::PR_MERGE)
             .map(|()| Listed::new("gh pr merge is the owner's job"))
             .or_else(|| lander.map_or_else(|| self.landing(), |_| None))
-            .or_else(|| self.segments().filter_map(GitCall::parse).find_map(|call| call.push_refusal(config)))
+            .or_else(|| self.0.segments().filter_map(GitCall::parse).find_map(|call| call.push_refusal(config)))
     }
 
     fn landing(&self) -> Option<Listed> {
@@ -44,21 +54,21 @@ impl ShellCommand {
             window.split_first().is_some_and(|(program, rest)| meta(program) && rest == Self::QUEUE_RUN)
         };
         let lands = |segment: &&[String]| segment.windows(Self::QUEUE_RUN.len() + 1).any(queue_run);
-        self.segments().find(lands).map(|_| Listed::new(Self::LANDING))
+        self.0.segments().find(lands).map(|_| Listed::new(Self::LANDING))
     }
 
     pub fn invokes(&self, words: &[&str]) -> Option<()> {
-        self.segments().find(|segment| segment.windows(words.len()).any(|window| window == words)).map(|_| ())
+        self.0.segments().find(|segment| segment.windows(words.len()).any(|window| window == words)).map(|_| ())
     }
 
     pub fn commit_directories(&self, cwd: &Path) -> Vec<PathBuf> {
         let mut shell = WorkingDirectory::new(cwd);
         let writes = |words: &[String]| GitCall::parse(words)?.writes_commits();
-        self.segments().filter_map(|words| shell.follow(words, writes)).collect()
+        self.0.segments().filter_map(|words| shell.follow(words, writes)).collect()
     }
 
     pub fn pins(&self, cwd: &Path) -> Vec<Pin> {
-        Pin::of_calls(&self.segments().collect::<Vec<_>>(), cwd, Self::gh_repositories)
+        Pin::of_calls(&self.0.segments().collect::<Vec<_>>(), cwd, Self::gh_repositories)
     }
 
     fn gh_repositories(words: &[String]) -> Option<Vec<Option<String>>> {
@@ -67,7 +77,7 @@ impl ShellCommand {
 
     pub fn publishing_directory(&self, cwd: &Path) -> Option<PathBuf> {
         let mut shell = WorkingDirectory::new(cwd);
-        self.segments().find_map(|words| shell.follow(words, Self::publishes))
+        self.0.segments().find_map(|words| shell.follow(words, Self::publishes))
     }
 
     fn publishes(words: &[String]) -> Option<()> {
@@ -77,15 +87,38 @@ impl ShellCommand {
     }
 
     pub fn runs(&self, subcommand: &str) -> Option<()> {
-        self.segments().filter_map(GitCall::parse).find_map(|call| call.runs(subcommand))
+        self.0.segments().filter_map(GitCall::parse).find_map(|call| call.runs(subcommand))
     }
 
     pub fn writes(&self) -> Option<()> {
         Self::WRITING.iter().find_map(|subcommand| self.runs(subcommand))
     }
 
-    fn segments(&self) -> impl Iterator<Item = &[String]> {
-        self.0.iter().map(Vec::as_slice)
+    pub fn breach(&self, rules: &ShellRules) -> Option<Listed> {
+        self.reason(rules).map(Listed::new)
+    }
+
+    fn reason(&self, rules: &ShellRules) -> Option<String> {
+        let breach = self.0.breach().map(str::to_owned);
+        breach.or_else(|| self.0.parts().find_map(|part| Self::segment_reason(rules, part)))
+    }
+
+    fn segment_reason(rules: &ShellRules, part: &Segment) -> Option<String> {
+        let segment = part.words();
+        let said = |word: &str, why: &str| format!("{} `{word}` {why}", Self::SHELL_RULE);
+        let named = rules.forbidden_in(segment).map(|word| said(&word.to_string(), Self::USE));
+        let call = rules.git_in(segment).and_then(GitCall::parse);
+        let gitted =
+            || call.as_ref().and_then(|call| call.breach(rules)).map(|what| said(&what.to_string(), Self::GIT_USE));
+        let text = rules.nested(segment).or_else(|| call.as_ref().and_then(|call| call.nested(rules)));
+        let kinds = rules.program_at(segment).map(|position| part.kinds_from(position)).unwrap_or_default();
+        let built = || {
+            (kinds.first() == Some(&Kind::Expanded) || (text.is_some() && kinds.contains(&Kind::Expanded)))
+                .then(|| format!("{} {}", Self::SHELL_RULE, Self::EXPANDED))
+        };
+        let piped = || rules.stdin_shell(segment).map(|word| said(word, Self::STDIN));
+        let nested = || text.as_ref().and_then(|text| text.parse::<Self>().ok()).and_then(|inner| inner.reason(rules));
+        named.or_else(gitted).or_else(built).or_else(piped).or_else(nested)
     }
 }
 
@@ -93,19 +126,7 @@ impl FromStr for ShellCommand {
     type Err = std::convert::Infallible;
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        Ok(Self(
-            text.replace('(', ";(;")
-                .replace(')', ";);")
-                .split(Self::SEPARATORS)
-                .map(|segment| {
-                    segment
-                        .split_whitespace()
-                        .map(|word| word.trim_matches(Self::QUOTES).to_owned())
-                        .filter(|word| !word.is_empty())
-                        .collect()
-                })
-                .collect(),
-        ))
+        Ok(Self(text.parse()?))
     }
 }
 
@@ -148,7 +169,9 @@ mod tests {
         "meta queue run 1",
         "cd x && target/release/meta queue run 1 2",
     ];
-    const PUSHES: [&str; 6] = [
+    const PUSHES: [&str; 8] = [
+        "git push --forc origin feature",
+        "/usr/bin/git push --force origin feature",
         "git push --force origin feature",
         "git push -uf origin feature",
         "git push origin +feature",
@@ -156,7 +179,9 @@ mod tests {
         "git push --force-with-lease origin main",
         "git --no-pager push origin main",
     ];
-    const ALLOWED: [&str; 5] = [
+    const ALLOWED: [&str; 7] = [
+        "git push --force-w origin feature",
+        "git push --force-if-includes origin feature",
         "git push -u origin feature",
         "git push --force-with-lease origin feature",
         "git commit -m 'git push origin main'",

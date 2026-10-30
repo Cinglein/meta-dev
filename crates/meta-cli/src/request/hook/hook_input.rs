@@ -6,7 +6,7 @@ mod tool_input;
 mod unreadable;
 
 use std::io::Read as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 use meta_schema::{Actor, ToolName};
@@ -16,7 +16,8 @@ use super::CallPhase;
 use crate::request::ci::{SessionDir, SessionId, SessionStart};
 use crate::request::output::Listed;
 use crate::request::project::Project;
-use crate::request::scale_policy::ToolPolicy;
+use crate::request::scale_policy::{ScalePolicy, ToolPolicy};
+use serde::de::IgnoredAny;
 
 use identity::Identity;
 use pushed_commits::PushedCommits;
@@ -35,6 +36,8 @@ pub struct HookInput {
     tool_input: Option<ToolInput>,
     #[serde(default)]
     tool_name: Option<ToolName>,
+    #[serde(default)]
+    agent_id: Option<IgnoredAny>,
 }
 
 impl HookInput {
@@ -67,6 +70,15 @@ impl HookInput {
         let writing = self.session().zip(command.writes());
         let unrecorded = writing.and_then(|(session, ())| SessionStart::for_session(session).record().err());
         unrecorded.or(foreign)
+    }
+
+    pub fn shell_breach(&self, root: Option<&Path>) -> Option<Listed> {
+        let command = self.command()?;
+        self.agent_id.as_ref()?;
+        match ScalePolicy::shell_in(root) {
+            Ok(rules) => command.breach(&rules),
+            Err(failure) => Some(Listed::new(failure)),
+        }
     }
 
     pub fn unpushable(&self, project: &Project, subcommand: &str) -> Option<Listed> {

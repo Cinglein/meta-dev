@@ -24,6 +24,7 @@ impl<'call> Refusals<'call> {
     fn local(input: &HookInput, project: Option<&Project>) -> Option<Listed> {
         Self::modal(input)
             .or_else(|| project.and_then(|project| Self::guarded(input, project.config(), Some(project))))
+            .or_else(|| input.shell_breach(project.map(Project::root)))
             .or_else(|| input.refusal())
             .or_else(|| project.and_then(|project| input.unpushable(project, Self::PUSH)))
     }
