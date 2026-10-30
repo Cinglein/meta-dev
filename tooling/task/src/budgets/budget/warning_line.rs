@@ -2,7 +2,7 @@ mod warning_failure;
 
 use serde::{Deserialize, Serialize};
 
-use crate::percent::Percent;
+use crate::Percent;
 pub use warning_failure::WarningFailure;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

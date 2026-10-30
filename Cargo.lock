@@ -386,18 +386,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "git_starters"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "syn 2.0.119",
- "task",
-]
-
-[[package]]
 name = "git_trace"
 version = "0.1.0"
 dependencies = [
+ "meta-run",
  "serde",
  "serde_json",
  "task",
@@ -579,6 +571,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "meta-acceptance"
+version = "0.1.0"
+dependencies = [
+ "meta-budget",
+ "meta-text",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "meta-budget"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "meta-cli"
 version = "0.1.0"
 dependencies = [
@@ -698,6 +708,7 @@ name = "meta-run"
 version = "0.1.0"
 dependencies = [
  "meta-trace",
+ "nix",
  "signal-hook",
  "strum",
  "tempfile",
@@ -709,6 +720,9 @@ name = "meta-schema"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "meta-acceptance",
+ "meta-budget",
+ "meta-text",
  "serde",
  "serde_json",
  "strum",
@@ -745,6 +759,7 @@ dependencies = [
  "chrono",
  "meta-schema",
  "serde_json",
+ "strum",
  "thiserror",
 ]
 
@@ -759,6 +774,15 @@ dependencies = [
  "meta-state",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "meta-text"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -782,7 +806,8 @@ dependencies = [
  "crate_graph",
  "elegance",
  "git2",
- "git_starters",
+ "git_trace",
+ "meta-git",
  "meta-golden",
  "meta-log",
  "meta-run",
@@ -791,6 +816,7 @@ dependencies = [
  "meta-state",
  "mutant_costs",
  "mutation",
+ "process_starters",
  "serde",
  "serde_json",
  "settings",
@@ -834,12 +860,15 @@ name = "mutation"
 version = "0.1.0"
 dependencies = [
  "affected",
+ "git2",
+ "meta-git",
  "serde",
  "serde_json",
  "settings",
  "strum",
  "sysinfo",
  "task",
+ "tempfile",
  "toml 0.9.12+spec-1.1.0",
 ]
 
@@ -1041,6 +1070,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "process_starters"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "syn 2.0.119",
+ "task",
 ]
 
 [[package]]
@@ -1362,6 +1400,8 @@ version = "0.1.0"
 dependencies = [
  "derive_more",
  "enum-map",
+ "meta-budget",
+ "meta-run",
  "meta-schema",
  "meta-severity",
  "meta-state",
@@ -1405,6 +1445,7 @@ name = "test_time"
 version = "0.1.0"
 dependencies = [
  "git_trace",
+ "meta-run",
  "rusage",
  "settings",
  "strum",

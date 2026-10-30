@@ -24,10 +24,6 @@ impl Reply {
         Self { event, verdict, context: context.into_iter().collect() }
     }
 
-    pub fn denied(&self) -> bool {
-        self.verdict.denial().is_some()
-    }
-
     pub fn with_news(mut self, news: Option<Listed>) -> Self {
         self.context.extend(news);
         self

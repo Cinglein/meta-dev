@@ -2,13 +2,9 @@ use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-use super::HookInput;
 use super::shell_command::{Pin, ShellCommand};
-use crate::request::hook::HookEvent;
-use crate::request::hook::reply::{Denial, Reply, Verdict};
 use crate::request::project::{Config, Project};
 use crate::request::repository::Repository;
-use crate::request::scale_policy::ScalePolicy;
 
 #[derive(Debug)]
 pub struct Target {
@@ -46,22 +42,12 @@ impl Target {
         Self { projects, unresolved }
     }
 
-    pub fn denial(
-        &self,
-        event: HookEvent,
-        command: &ShellCommand,
-        input: &HookInput,
-        home: Option<&Project>,
-    ) -> Option<Reply> {
-        let judged =
-            self.projects.iter().map(|project| event.reply(project, input, event.budget(project.ci_settings())));
-        let policy = home.and_then(|home| ScalePolicy::read(home.root()).ok()).unwrap_or_default();
-        let lander = policy.queue().lander(input.announced_actor());
-        let strict = Some(&self.unresolved)
-            .filter(|unresolved| !unresolved.is_empty())
-            .and_then(|_| command.refusal(Config::strictest(), lander.as_ref()))
-            .map(|why| Reply::new(event, Verdict::Deny(Denial::from(why)), None));
-        judged.chain(strict).find(Reply::denied)
+    pub fn projects(&self) -> &[Project] {
+        &self.projects
+    }
+
+    pub fn strictest(&self) -> Option<&'static Config> {
+        Some(&self.unresolved).filter(|unresolved| !unresolved.is_empty()).map(|_| Config::strictest())
     }
 
     fn owned(known: &[&Project], name: &str) -> Option<()> {

@@ -15,7 +15,8 @@ pub struct Fixture {
 impl Fixture {
     const WORKING: &str =
         "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = false\n[maintenance]\n\tauto = false\n";
-    const BARE: &str = "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = true\n[maintenance]\n\tauto = false\n[receive]\n\tautogc = false\n";
+    const BARE: &str =
+        "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = true\n[maintenance]\n\tauto = false\n";
     const NAME: &str = "fixture";
     const EMAIL: &str = "fixture@invalid";
     const MESSAGE: &str = "fixture\n";
@@ -34,7 +35,7 @@ impl Fixture {
     }
 
     fn laid(git_dir: &Path, config: &str) {
-        fs::create_dir_all(git_dir.join("objects")).expect("objects dir");
+        fs::create_dir_all(git_dir.join("objects/pack")).expect("objects dir");
         fs::create_dir_all(git_dir.join("refs/heads")).expect("refs dir");
         fs::write(git_dir.join("HEAD"), "ref: refs/heads/change\n").expect("write HEAD");
         fs::write(git_dir.join("config"), config).expect("write config");

@@ -19,9 +19,10 @@ const ORIGIN: &str = "origin";
 const WRITER: &str = "writer";
 const DIVISION: &str = "features-and-maintenance";
 const NOWHERE: &str = "/nonexistent/origin.git";
-const OFFLINE_PREFIX: &str = "offline: cannot fetch meta/log from origin: \"fatal: ";
+const OFFLINE_PREFIX: &str = "offline: cannot fetch meta/log from origin: \"";
 const SHOWN: &str = "meta/log on origin";
 const REJECTED_PREFIX: &str = "meta/log push rejected";
+const HELD_REF: &str = "refs/heads/meta/log.lock";
 const REFUSE_PUSHES: [&str; 2] = ["/usr/bin/false", "hooks/pre-receive"];
 const BRANCH: &str = "refs/heads/meta/log";
 const HEAD: &str = "HEAD";
@@ -32,7 +33,7 @@ const PAIR: usize = 2;
 const SINGLE: usize = 1;
 const PATIENT: Duration = Duration::from_secs(30);
 const ORIGIN_CONFIG_FILE: &str = "config";
-const ORIGIN_CONFIG: &str = "[core]\n\trepositoryformatversion = 0\n\tbare = true\n[maintenance]\n\tauto = false\n[receive]\n\tautogc = false\n";
+const ORIGIN_CONFIG: &str = "[core]\n\trepositoryformatversion = 0\n\tbare = true\n[maintenance]\n\tauto = false\n";
 
 struct Port;
 
@@ -54,7 +55,26 @@ impl Port {
             .map(|tip| Repository::open(dir).unwrap().read(&FirstParents::from(tip)).unwrap())
             .unwrap_or_default()
     }
+}
 
+struct Guards;
+
+impl Guards {
+    fn held(origin: &Path) -> std::path::PathBuf {
+        let lock = origin.join(HELD_REF);
+        std::fs::create_dir_all(lock.parent().unwrap()).unwrap();
+        std::fs::write(&lock, "").unwrap();
+        lock
+    }
+
+    fn hooked(origin: &Path) {
+        let [false_program, hook] = REFUSE_PUSHES;
+        std::fs::create_dir_all(origin.join(hook).parent().unwrap()).unwrap();
+        std::os::unix::fs::symlink(false_program, origin.join(hook)).unwrap();
+    }
+}
+
+impl Port {
     fn untouched(dir: &Path) -> bool {
         Self::target(dir, HEAD).is_none() && !dir.join(INDEX).exists()
     }
@@ -136,18 +156,16 @@ fn refusals_write_nothing_and_rejected_or_offline_writes_fail() {
         refused.zip(log.read().ok().filter(|snapshot| snapshot.records().is_empty())).map(|(refused, _)| refused),
         Some(LogFailure::Contended.to_string())
     );
-    let failure = || {
-        log.append::<LogFailure>(&mut |_| Ok(Fixture::record()))
-            .err()
-            .map(|failure| failure.to_string())
-            .unwrap_or_default()
-    };
-    let [false_program, hook] = REFUSE_PUSHES;
-    std::fs::create_dir_all(fixture.origin.path().join("hooks")).unwrap();
-    std::os::unix::fs::symlink(false_program, fixture.origin.path().join(hook)).unwrap();
-    assert!(failure().starts_with(REJECTED_PREFIX));
+    let failure = || log.append::<LogFailure>(&mut |_| Ok(Fixture::record())).err().map(|f| f.to_string());
+    let held = Guards::held(fixture.origin.path());
+    let locked = failure().unwrap_or_default();
+    std::fs::remove_file(held).unwrap();
+    Guards::hooked(fixture.origin.path());
+    let hooked = failure().unwrap_or_default();
+    assert!(locked.starts_with(REJECTED_PREFIX) && hooked.starts_with(REJECTED_PREFIX), "{locked} {hooked}");
     Port::linked(fixture.clones[FIRST].path(), NOWHERE);
-    assert!(failure().starts_with(OFFLINE_PREFIX));
+    let offline = failure().unwrap_or_default();
+    assert!(offline.starts_with(OFFLINE_PREFIX) && offline.contains(NOWHERE), "{offline}");
 }
 
 #[test]

@@ -1,0 +1,51 @@
+use proc_macro2::{Literal, TokenStream, TokenTree};
+use syn::visit::{self, Visit};
+use syn::{BinOp, ExprBinary, LitStr, Macro};
+
+use task::{LineNumber, SourceFile};
+
+#[derive(Debug, Default)]
+pub(crate) struct ProgramNames(Vec<LineNumber>);
+
+impl ProgramNames {
+    const PROGRAM: &str = concat!("gi", "t");
+
+    pub(crate) fn found(file: &SourceFile) -> Vec<LineNumber> {
+        let mut names = ProgramNames::default();
+        names.visit_file(file.syntax());
+        names.0
+    }
+
+    fn tokens_naming(&mut self, tokens: TokenStream) {
+        tokens.into_iter().for_each(|token| match token {
+            TokenTree::Group(group) => self.tokens_naming(group.stream()),
+            TokenTree::Literal(literal) => self.literal_naming(literal),
+            TokenTree::Ident(_) | TokenTree::Punct(_) => {}
+        });
+    }
+
+    fn literal_naming(&mut self, literal: Literal) {
+        let text = syn::parse2::<LitStr>(TokenStream::from(TokenTree::Literal(literal))).ok();
+        let named = text.filter(|text| text.value() == Self::PROGRAM);
+        self.0
+            .extend(named.map(|text| LineNumber::from(text.span())));
+    }
+}
+
+impl<'ast> Visit<'ast> for ProgramNames {
+    fn visit_expr_binary(&mut self, binary: &'ast ExprBinary) {
+        match binary.op {
+            BinOp::Eq(_) | BinOp::Ne(_) => {}
+            _ => visit::visit_expr_binary(self, binary),
+        }
+    }
+
+    fn visit_lit_str(&mut self, literal: &'ast LitStr) {
+        self.0
+            .extend((literal.value() == Self::PROGRAM).then(|| LineNumber::from(literal.span())));
+    }
+
+    fn visit_macro(&mut self, called: &'ast Macro) {
+        self.tokens_naming(called.tokens.clone());
+    }
+}

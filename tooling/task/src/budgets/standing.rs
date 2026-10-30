@@ -2,11 +2,11 @@ mod change_link;
 mod exposure;
 mod open_item;
 
-use meta_schema::{Division, NewTask};
+use meta_schema::{Division, ItemKind, NewTask};
 use meta_severity::{Scales, SeverityFilter};
 use meta_state::{State, TaskState};
 
-use super::budget::{Amount, ItemFilter, ItemKind};
+use super::budget::{Amount, ItemFilter};
 use crate::policy::Most;
 pub use change_link::ChangeLink;
 pub use exposure::Exposure;

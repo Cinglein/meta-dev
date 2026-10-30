@@ -1,4 +1,6 @@
+use std::collections::BTreeSet;
 use std::fmt;
+use std::path::{Path, PathBuf};
 
 use crate::failure::Failure;
 use crate::violation::Violation;
@@ -21,6 +23,22 @@ impl Report {
     #[must_use]
     pub fn violations(&self) -> &[Violation] {
         &self.violations
+    }
+
+    #[must_use]
+    pub fn files(&self) -> BTreeSet<PathBuf> {
+        self.violations
+            .iter()
+            .filter_map(|violation| violation.site().path())
+            .map(Path::to_path_buf)
+            .collect()
+    }
+
+    #[must_use]
+    pub fn first_unplaced(&self) -> Option<&Violation> {
+        self.violations
+            .iter()
+            .find(|violation| violation.site().path().is_none())
     }
 
     #[must_use]
@@ -58,11 +76,33 @@ impl fmt::Display for Report {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+    use std::path::PathBuf;
+
     use super::Report;
+    use crate::line_number::LineNumber;
     use crate::site::Site;
     use crate::violation::Violation;
     const HEADLINE: &str = "something slipped";
     const MESSAGE: &str = "a slip";
+    const FILE: &str = "a.rs";
+
+    #[test]
+    fn a_report_names_the_files_of_its_violations_and_not_the_workspace() {
+        let sites = [
+            Site::File(FILE.into()),
+            Site::Line(FILE.into(), LineNumber::new(1)),
+            Site::Workspace,
+        ];
+        let violations = sites
+            .into_iter()
+            .map(|site| Violation::new(site, MESSAGE))
+            .collect();
+        assert_eq!(
+            Report::new(HEADLINE, violations).files(),
+            BTreeSet::from([PathBuf::from(FILE)])
+        );
+    }
 
     #[test]
     fn a_report_is_clean_only_without_violations_and_lists_exactly_what_it_holds() {

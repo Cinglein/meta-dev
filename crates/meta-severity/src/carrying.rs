@@ -2,7 +2,9 @@ use std::cmp::Ordering;
 
 use meta_schema::{Carry, Change, Division, LevelName, Rating, Scenario};
 
+use crate::evidence::Evidence;
 use crate::rating_failure::RatingFailure;
+use crate::reading::Reading;
 use crate::scales::Scales;
 
 #[derive(Clone, Copy, Debug)]
@@ -41,12 +43,14 @@ impl<'policy> Carrying<'policy> {
     }
 
     fn changed(&self, from: LevelName, level: LevelName, scenario: Option<Scenario>) -> Result<Carry, RatingFailure> {
-        match self.severity(&from, &level) {
-            Some(Ordering::Equal) => Ok(Carry::Kept { from, level }),
-            Some(Ordering::Less) => Ok(Carry::Changed { change: Change::Lowered { from, level } }),
-            Some(Ordering::Greater) | None => scenario
-                .map(|scenario| Carry::Changed { change: Change::Raised { from: from.clone(), level, scenario } })
-                .ok_or(RatingFailure::RaisedWithoutScenario(from)),
+        let was = Reading::from(Rating::Rated(from.clone()));
+        let rise = self.severity(&from, &level).map_or(Ordering::Less, Ordering::reverse);
+        match (Evidence::from(scenario.clone()).admits(&was, rise).map_err(RatingFailure::asking_scenario)?, scenario) {
+            (Ordering::Equal, _) => Ok(Carry::Kept { from, level }),
+            (Ordering::Greater, _) => Ok(Carry::Changed { change: Change::Lowered { from, level } }),
+            (Ordering::Less, scenario) => scenario
+                .map(|scenario| Carry::Changed { change: Change::Raised { from, level, scenario } })
+                .ok_or(RatingFailure::RaisedWithoutScenario(was)),
         }
     }
 

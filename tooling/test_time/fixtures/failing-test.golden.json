@@ -1,0 +1,9 @@
+{
+  "failures": [
+    {
+      "kind": "test",
+      "crate": "bin",
+      "name": "fails"
+    }
+  ]
+}

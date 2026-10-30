@@ -2,6 +2,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+use crate::acceptance::Acceptance;
 use crate::block::Block;
 use crate::claim::Claim;
 use crate::entity::Task;
@@ -10,13 +11,16 @@ use crate::event_visitor::EventVisitor;
 use crate::id::Id;
 use crate::new_concern::NewConcern;
 use crate::new_issue::NewIssue;
+use crate::new_project::NewProject;
 use crate::new_task::NewTask;
+use crate::observation::Observation;
 use crate::placement::Placement;
 use crate::rating::Rating;
 use crate::relocation::Relocation;
 use crate::rerating::Rerating;
 use crate::schema_version::SchemaVersion;
 use crate::task_link::TaskLink;
+use crate::task_purpose::TaskPurpose;
 use crate::task_ref::TaskRef;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -37,6 +41,10 @@ pub enum Event {
     SchemaVersion(SchemaVersion),
     ItemRated(Rerating),
     ItemMoved(Relocation),
+    ProjectProposed(NewProject),
+    ProjectAccepted(Acceptance),
+    ProjectObserved(Observation),
+    TaskPurposed(TaskPurpose),
 }
 
 impl Event {
@@ -99,6 +107,10 @@ impl Event {
             Self::SchemaVersion(version) => visitor.schema_versioned(*version),
             Self::ItemRated(rerating) => visitor.item_rated(rerating),
             Self::ItemMoved(relocation) => visitor.item_moved(relocation),
+            Self::ProjectProposed(project) => visitor.project_proposed(project),
+            Self::ProjectAccepted(acceptance) => visitor.project_accepted(acceptance),
+            Self::ProjectObserved(observation) => visitor.project_observed(observation),
+            Self::TaskPurposed(purpose) => visitor.task_purposed(*purpose),
         }
     }
 }
@@ -121,6 +133,10 @@ impl fmt::Display for Event {
             Self::SchemaVersion(version) => write!(formatter, "SchemaVersion {version}"),
             Self::ItemRated(rerating) => write!(formatter, "ItemRated {rerating}"),
             Self::ItemMoved(relocation) => write!(formatter, "ItemMoved {relocation}"),
+            Self::ProjectProposed(project) => write!(formatter, "ProjectProposed {project}"),
+            Self::ProjectAccepted(acceptance) => write!(formatter, "ProjectAccepted {acceptance}"),
+            Self::ProjectObserved(observation) => write!(formatter, "ProjectObserved {observation}"),
+            Self::TaskPurposed(purpose) => write!(formatter, "TaskPurposed {purpose}"),
         }
     }
 }

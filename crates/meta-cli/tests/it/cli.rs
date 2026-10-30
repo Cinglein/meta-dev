@@ -25,6 +25,7 @@ const SHOWN_BY_GIT: [&str; 3] = ["author.email", "committer.email", "user.name"]
 const FOREIGN_IDENTITY: [&str; 2] = ["someone@example.com", "someone@example.com"];
 const RECORD_DIR: &str = ".git/meta-local";
 const AGENT: &str = "agent";
+const ABSENT: &str = "absent";
 const SEEDED_LEN: usize = 1;
 const CLAIMED: &str = "TaskClaimed";
 const UNRECORDED: &str = "unrecorded";
@@ -33,7 +34,7 @@ const LOCAL_SETTINGS_RULE: &str = "/meta.local.toml\n";
 const TRACE: &str = "GIT_TRACE2_EVENT";
 const STARTED: &str = "\"event\":\"start\"";
 const LISTING: &str = "\"hierarchy\":\"ls-remote\"";
-const READ_PROCESSES: [&str; 3] = ["ls-remote", "upload-pack", "cat-file"];
+const NO_STARTS_LEN: usize = 0;
 const TARGET: &str = "target.noindex";
 const CARGO_TAG: [&str; 2] = [
     "CACHEDIR.TAG",
@@ -176,7 +177,7 @@ fn writes_go_to_the_remote_as_meta_actor_else_owner_listing_it_once_and_offline_
     let listed = Traced::run(&project, &LIST_ISSUES);
     let started = listed.1.matches(STARTED).count();
     assert!(opened.0.actor().as_deref() == Some(OWNER) && listed.0.to_string().contains(&opened.0.written().0));
-    assert!(opened.1.matches(LISTING).count() == 1 && (1..=READ_PROCESSES.len()).contains(&started), "{started}");
+    assert!(!opened.1.contains(LISTING) && started == NO_STARTS_LEN, "{started}");
     assert_eq!(Fixture::opened(project.origin.path()).history_len(LOG), WRITES_LEN);
     assert_eq!(project.meta(WRITER, &ISSUE).actor().as_deref(), Some(WRITER));
     Fixture::opened(project.clone.path()).pointed(Path::new(NOWHERE));
@@ -187,7 +188,7 @@ fn writes_go_to_the_remote_as_meta_actor_else_owner_listing_it_once_and_offline_
 fn a_target_seed_that_cannot_copy_warns_on_one_line_and_leaves_no_target_but_the_claim_succeeds() {
     use std::os::unix::fs::PermissionsExt;
     let worktrees = tempfile::tempdir().unwrap();
-    let project = Project::seeded(worktrees.path());
+    let project = Project::seeded(&worktrees.path().join(ABSENT));
     let target = project.clone.path().join(TARGET);
     let _building = Seed::built(&target);
     let unreadable = target.join(PROFILES[0]).join(ARTIFACT[0]);

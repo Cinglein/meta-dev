@@ -41,7 +41,7 @@ use worktrees::Worktrees;
 use std::env;
 use std::path::{Path, PathBuf};
 
-use meta_run::GitArgv;
+use meta_git::{Head, RemoteBranches, WorktreeFiles, WorktreePaths};
 use meta_schema::PullRequest;
 
 use task::{Branch, CommandLine, GateEnvName, GateStatus, Policy, Program, Stdout};
@@ -71,7 +71,6 @@ impl LocalGate {
     const CHECKOUTS: &str = "meta-local-gate";
     const CARGO: &str = "cargo";
     const METADATA: [&str; 4] = ["metadata", "--format-version", "1", "--all-features"];
-    const WORKTREES: [&str; 3] = ["worktree", "list", "--porcelain"];
 
     pub fn new(root: &Path, policy: &Policy) -> Result<LocalGate, Failure> {
         Ok(LocalGate {
@@ -84,9 +83,9 @@ impl LocalGate {
 
     pub fn ready(&self) -> Result<Commit, Failure> {
         let git = GitReads::new(&self.root);
-        let read = |call| git.read(call, GitReads::NO_OPERANDS);
-        Unready::judged(&read(GitArgv::Porcelain)?, &read(GitArgv::PushedHead)?)?;
-        read(GitArgv::Head)?.parse()
+        let head = git.read(&Head)?.commit().ok_or(Failure::Unready(Unready::Unpushed))?;
+        Unready::judged(&git.read(&WorktreeFiles::Unclean)?, &git.read(&RemoteBranches::Containing(head))?)?;
+        Ok(Commit::from(head))
     }
 
     pub fn checkout(&self, parent: &Path) -> Result<Checkout, Failure> {
@@ -96,12 +95,13 @@ impl LocalGate {
 
     pub fn run(&self, policy: &Policy, summary: Option<&Path>) -> Result<(), Failure> {
         let parent = env::temp_dir().join(Self::CHECKOUTS);
-        let listed: Worktrees = Self::git(&self.root).arguments(Self::WORKTREES).captured::<Stdout>()?.parse()?;
+        let listed = Worktrees::from(GitReads::new(&self.root).read(&WorktreePaths)?);
         let key = listed.main().unwrap_or(&self.root).join(Checkout::scope_of(&self.root));
         let target = GateLock::target(&parent, &key);
         let lock = GateLock::guarding(&target, policy.gate_wait()?)?;
         let checkout = self.checkout(&parent)?;
-        let head = HeadBranch::only(&GitReads::new(&self.root).read(GitArgv::PushedTips, [checkout.commit()])?)?;
+        let tips = GitReads::new(&self.root).read(&RemoteBranches::At(checkout.commit().object_id()?))?;
+        let head = HeadBranch::only(&HeadBranch::listed(&tips))?;
         let pulls = self.gh.clone().in_directory(self.root.clone()).arguments(Self::PULLS).argument(&head);
         let number =
             Self::open_pull(&pulls.captured::<Stdout>()?).as_ref().map(ToString::to_string).unwrap_or_default();
@@ -167,10 +167,6 @@ impl LocalGate {
             [only] => only.parse().ok(),
             _ => None,
         }
-    }
-
-    fn git(directory: &Path) -> CommandLine {
-        CommandLine::new(Program::Git).in_directory(directory.to_path_buf())
     }
 }
 

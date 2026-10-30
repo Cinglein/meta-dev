@@ -2,10 +2,11 @@ mod cargo_build;
 mod cargo_test;
 mod clock;
 mod execution;
-mod git_count;
 mod no_tests;
+mod process_count;
 mod reference_cpu;
 mod runner_config;
+mod test_name;
 mod test_run;
 mod test_runner;
 mod test_runs;
@@ -19,8 +20,8 @@ use cargo_build::CargoBuild;
 use cargo_test::CargoTest;
 use clock::Clock;
 use execution::Execution;
-pub use git_count::GitCount;
 use no_tests::NoTests;
+pub use process_count::ProcessCount;
 use reference_cpu::ReferenceCpu;
 use runner_config::RunnerConfig;
 pub use test_runner::TestRunner;
@@ -59,6 +60,8 @@ impl TestTime {
         ("GIT_CONFIG_KEY_5", "core.preloadIndex"),
         ("GIT_CONFIG_VALUE_5", "false"),
     ];
+
+    const DOCTESTS: &'static str = "doctests";
 
     pub fn run(
         workspace: &Workspace,
@@ -125,7 +128,14 @@ impl TestTime {
                 error,
             })?
             .parse::<TestRuns>()?
-            .passed()?;
+            .passed()
+            .map_err(|failure| {
+                if documented_ran.is_ok() {
+                    failure
+                } else {
+                    failure.incomplete(Self::DOCTESTS.into())
+                }
+            })?;
         ran.and(documented_ran)?;
         Ok(timings)
     }
@@ -175,6 +185,7 @@ impl TestTime {
 #[cfg(test)]
 mod tests {
     use super::{CargoBuild, CargoTest, ReferenceCpu, RunnerConfig, TestTime, TestTiming};
+    use crate::test_name::TestName;
     use settings::EmbeddedDefaults;
     use std::path::{Path, PathBuf};
     use std::time::Duration;
@@ -213,9 +224,9 @@ mod tests {
         let limit = policy.interval(Interval::PerTest).duration();
         let [binary, exact, slow, bulk] = NAMES;
         let raw = Duration::from_secs_f64(RAW_CPU_SECS);
-        let fast = vec![TestTiming::new(Path::new(binary), slow, TICK, raw)];
-        let timing =
-            |name: &str, elapsed| TestTiming::new(Path::new(binary), name, elapsed, elapsed);
+        let named = |name: &str| TestName::new(binary, Path::new(binary), &name);
+        let fast = vec![TestTiming::new(named(slow), TICK, raw)];
+        let timing = |name: &str, elapsed| TestTiming::new(named(name), elapsed, elapsed);
         let exact = (0..WHOLE_IN_UNITS).map(|_| timing(exact, limit)).collect();
         let total = policy.interval(Interval::Total).duration();
         let over = TestTime::over_budget(

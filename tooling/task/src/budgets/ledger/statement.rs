@@ -1,6 +1,7 @@
 use std::fmt;
 
 use super::row::Row;
+use crate::failure_set::FailureSet;
 use crate::report::Report;
 use crate::selection::Selection;
 use crate::site::Site;
@@ -25,6 +26,16 @@ impl<'policy> Statement<'policy> {
                 .map(|row| Violation::new(Site::Workspace, row))
                 .collect(),
         )
+    }
+}
+
+impl Statement<'_> {
+    #[must_use]
+    pub fn failures(&self, selection: &Selection) -> FailureSet {
+        self.0
+            .iter()
+            .filter_map(|row| row.failure(selection))
+            .fold(FailureSet::default(), FailureSet::recording)
     }
 }
 

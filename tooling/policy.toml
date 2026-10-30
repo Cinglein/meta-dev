@@ -17,6 +17,7 @@ wire_types = [
 bit_boundary = ["crates/meta-process-table/src"]
 gate = "local-gate"
 gate_wait = 600000
+promote_after = 3
 surfaces = [
     "xtask",
     ".cargo",
@@ -96,13 +97,23 @@ queue_pace = 60000
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]
 
+[act]
+features-and-maintenance = "major"
+performance-and-cost = "major"
+architecture-and-planning = "major"
+
 [liveness]
 silent_after = 1800000
 long_call_after = 3600000
 reply_within = 3600000
 
 [queue]
+hot = ["goldens/snapshots"]
+members = 4
 landers = ["owner", "claude-lead"]
+
+[tools]
+modal = ["AskUserQuestion"]
 
 [domains.features-and-maintenance]
 crates = ["*"]
@@ -137,6 +148,20 @@ source = "ci"
 division = "performance-and-cost"
 measure = "git_starters"
 allowance = { count = 19 }
+window = "per_change"
+source = "ci"
+
+[budgets.test-processes]
+division = "performance-and-cost"
+measure = "test_processes"
+allowance = { baseline = "self/test-processes-baseline.toml" }
+window = "per_change"
+source = "ci"
+
+[budgets.process-starters]
+division = "performance-and-cost"
+measure = "process_starters"
+allowance = { count = 14 }
 window = "per_change"
 source = "ci"
 
@@ -231,6 +256,7 @@ crate_graph = 3000
 expression_flow = 2200
 fn_shape = 2200
 meta-cli = 3600
+meta-git = 10600
 meta-log = 6300
 meta-pull-query = 3600
 meta-pulls = 3700
