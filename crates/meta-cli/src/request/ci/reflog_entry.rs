@@ -59,6 +59,12 @@ impl ReflogEntry {
     }
 }
 
+impl ReflogEntry {
+    pub fn read(lines: &[ReflogLine]) -> Vec<Self> {
+        lines.iter().filter_map(|line| line.to_string().parse().ok()).collect()
+    }
+}
+
 impl FromStr for ReflogEntry {
     type Err = ();
 
