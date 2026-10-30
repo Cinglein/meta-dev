@@ -14,6 +14,11 @@ pub struct TaskPurpose {
 
 impl TaskPurpose {
     #[must_use]
+    pub fn new(task: Id<Task>, purpose: Purpose) -> Self {
+        Self { task, purpose }
+    }
+
+    #[must_use]
     pub fn task(&self) -> Id<Task> {
         self.task
     }

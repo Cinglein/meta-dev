@@ -169,22 +169,24 @@ const OPENED_PLAIN_FIVE: &str = r#"{"kind":"TaskOpened","task":"task-00000000000
 const UNSERVABLE_ACCEPTED: Refusal = Refusal::ServesNotInstrumented(ProjectStage::Accepted);
 type ClaimCase = (&'static [Step], &'static [Step], Result<(), Refusal>);
 
-fn claimed() -> [ClaimCase; 8] {
-    [
-        (ACCEPTED, &[SERVE], Err(UNSERVABLE_ACCEPTED)),
-        (MEASURED, &[SERVE], Ok(())),
-        (MEASURED, &[SERVE, DELIVER], Err(Refusal::ServesNotInstrumented(ProjectStage::Delivered))),
-        (MEASURED, &[SERVE, DELIVER, REGRESS], Err(Refusal::ServesNotInstrumented(ProjectStage::Regressed))),
-        (ACCEPTED, &[INSTRUMENT], Ok(())),
-        (ACCEPTED, &[], Ok(())),
-        (ACCEPTED, &[MARK], Err(Refusal::Unlinked(TASK_C1.parse().unwrap()))),
-        (ACCEPTED, &[MARK, CAUSE], Ok(())),
-    ]
+impl Step {
+    fn claims() -> Vec<ClaimCase> {
+        vec![
+            (ACCEPTED, &[SERVE], Err(UNSERVABLE_ACCEPTED)),
+            (MEASURED, &[SERVE], Ok(())),
+            (MEASURED, &[SERVE, DELIVER], Err(Refusal::ServesNotInstrumented(ProjectStage::Delivered))),
+            (MEASURED, &[SERVE, DELIVER, REGRESS], Err(Refusal::ServesNotInstrumented(ProjectStage::Regressed))),
+            (ACCEPTED, &[INSTRUMENT], Ok(())),
+            (ACCEPTED, &[], Ok(())),
+            (ACCEPTED, &[MARK], Err(Refusal::Unlinked(TASK_C1.parse().unwrap()))),
+            (ACCEPTED, &[MARK, CAUSE], Ok(())),
+        ]
+    }
 }
 
 #[test]
 fn a_claim_needs_a_purpose_after_the_marker_and_a_serving_task_waits_for_instrumentation() {
-    let cases = claimed();
+    let cases = Step::claims();
     let found: Vec<Result<(), Refusal>> = cases
         .iter()
         .map(|(log, then, _)| Step::replayed(&[*log, *then].concat()).vet(ALICE, Step::written(ALICE, CLAIM).event()))

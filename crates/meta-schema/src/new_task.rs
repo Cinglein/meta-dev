@@ -46,6 +46,11 @@ impl NewTask {
     }
 
     #[must_use]
+    pub fn purposed(self, purpose: Purpose) -> Self {
+        Self { purpose: Some(purpose), ..self }
+    }
+
+    #[must_use]
     pub fn task(&self) -> Id<Task> {
         self.task
     }

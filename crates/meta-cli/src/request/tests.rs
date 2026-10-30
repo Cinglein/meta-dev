@@ -26,16 +26,27 @@ const ALICE: &str = "alice";
 const DIVISION: &str = "features-and-maintenance";
 const CONCERN: [&str; 9] = ["concern", "CI", "is", "slow", "--source", "chat", "--division", DIVISION, "--tag"];
 const CONCERN_SHOWN: &str = " CI is slow @features-and-maintenance #acceptance-candidate (from chat)";
-const OPEN_DASHED: [&str; 6] = ["open", "--division", DIVISION, "--", "--dashed", "text"];
+const OWN_GOAL: [&str; 2] = ["--caused-by", "1"];
+const OPEN_DASHED: [&str; 8] = ["open", "--division", DIVISION, OWN_GOAL[0], OWN_GOAL[1], "--", "--dashed", "text"];
 const ISSUE_PLACED: [&str; 4] = ["issue", "--division", DIVISION, "crash"];
-const OPEN_PLANNED: [&str; 8] =
-    ["open", "--division", "performance-and-cost/ci", "--effort", "5000", "--due", "2026-11-01T00:00:00Z", "speed"];
+const OPEN_PLANNED: [&str; 10] = [
+    "open",
+    "--division",
+    "performance-and-cost/ci",
+    OWN_GOAL[0],
+    OWN_GOAL[1],
+    "--effort",
+    "5000",
+    "--due",
+    "2026-11-01T00:00:00Z",
+    "speed",
+];
 const LIST_TASKS: [&str; 2] = ["list", "tasks"];
 const LINK: &str = "link";
 const PULL_REQUEST: &str = "12";
-const PLANNED_SHOWN: &str = "speed @performance-and-cost/ci effort 5000 tokens due 2026-11-01 00:00Z";
+const PLANNED_SHOWN: &str = "speed @performance-and-cost/ci effort 5000 tokens due 2026-11-01 00:00Z caused_by #1";
 const NOT_HERE: &str = "--source does not apply here\nusage: meta <command>";
-const OPEN_FOR: [&str; 5] = ["open", "budget", "--division", DIVISION, "--addresses"];
+const OPEN_FOR: [&str; 7] = ["open", "budget", "--division", DIVISION, OWN_GOAL[0], OWN_GOAL[1], "--addresses"];
 const CLAIM: &str = "claim";
 const DONE: &str = "done";
 const WRITES: usize = 3;

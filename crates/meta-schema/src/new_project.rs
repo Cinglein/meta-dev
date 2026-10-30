@@ -16,6 +16,11 @@ pub struct NewProject {
 
 impl NewProject {
     #[must_use]
+    pub fn new(division: Division, text: Text) -> Self {
+        Self { project: Id::generate(), text, division }
+    }
+
+    #[must_use]
     pub fn project(&self) -> Id<Project> {
         self.project
     }

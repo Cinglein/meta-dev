@@ -21,6 +21,14 @@ pub enum OptionName {
     Scenario,
     Actor,
     Scratch,
+    Instruments,
+    Serves,
+    CausedBy,
+    Project,
+    Root,
+    Row,
+    Span,
+    Gate,
 }
 
 impl FromStr for OptionName {
@@ -44,6 +52,14 @@ impl FromStr for OptionName {
             "--scenario" => Ok(Self::Scenario),
             "--actor" => Ok(Self::Actor),
             "--scratch" => Ok(Self::Scratch),
+            "--instruments" => Ok(Self::Instruments),
+            "--serves" => Ok(Self::Serves),
+            "--caused-by" => Ok(Self::CausedBy),
+            "--project" => Ok(Self::Project),
+            "--root" => Ok(Self::Root),
+            "--row" => Ok(Self::Row),
+            "--span" => Ok(Self::Span),
+            "--gate" => Ok(Self::Gate),
             other => Err(CliFailure::raised::<Misuse>(format!(
                 "unknown option {other}; put text starting with -- after a bare --"
             ))),
@@ -70,6 +86,14 @@ impl fmt::Display for OptionName {
             Self::Scenario => "--scenario",
             Self::Actor => "--actor",
             Self::Scratch => "--scratch",
+            Self::Instruments => "--instruments",
+            Self::Serves => "--serves",
+            Self::CausedBy => "--caused-by",
+            Self::Project => "--project",
+            Self::Root => "--root",
+            Self::Row => "--row",
+            Self::Span => "--span",
+            Self::Gate => "--gate",
         };
         formatter.write_str(name)
     }

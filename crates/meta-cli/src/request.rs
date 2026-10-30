@@ -25,7 +25,7 @@ use std::path::PathBuf;
 use chrono::Utc;
 use meta_listing::{Kind, Scope};
 use meta_log::LogStore;
-use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, TaskRef};
+use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, Purpose, TaskRef};
 
 use brief::BriefRequest;
 use ci::{Commit, FailureLog, SessionId, Watcher};
@@ -107,11 +107,22 @@ impl TryFrom<Vec<String>> for Request {
                     OptionName::Division,
                     OptionName::Effort,
                     OptionName::Due,
+                    OptionName::Instruments,
+                    OptionName::Serves,
+                    OptionName::CausedBy,
+                    OptionName::Project,
                 ])?;
                 let opened = NewTask::new(parsed.division()?, parsed.text()?, parsed.addresses());
                 let sized = parsed.effort().into_iter().fold(opened, NewTask::allowing);
-                Ok(Self::Write(Event::TaskOpened(parsed.due().into_iter().fold(sized, NewTask::due_by))))
+                let purposed = parsed.purposes().purpose()?.into_iter().fold(sized, NewTask::purposed);
+                Ok(Self::Write(Event::TaskOpened(parsed.due().into_iter().fold(purposed, NewTask::due_by))))
             }
+            "project" => parsed.project_request(),
+            "instrument" => {
+                Ok(Self::Write(Event::TaskPurposed(parsed.allowing(&[])?.purposing(Purpose::Instruments)?)))
+            }
+            "serve" => Ok(Self::Write(Event::TaskPurposed(parsed.allowing(&[])?.purposing(Purpose::Serves)?))),
+            "cause" => Ok(Self::Write(Event::TaskPurposed(parsed.allowing(&[OptionName::Project])?.causing()?))),
             "wait" => {
                 let parsed = parsed.allowing(&[OptionName::On, OptionName::Due])?;
                 let block = Block::new(parsed.task()?, parsed.blocker()?);

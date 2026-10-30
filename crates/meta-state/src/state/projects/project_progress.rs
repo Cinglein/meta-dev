@@ -23,6 +23,16 @@ impl ProjectProgress {
         }
     }
 
+    pub fn acceptance(&self) -> Option<&Acceptance> {
+        match self {
+            Self::Proposed => None,
+            Self::Accepted(acceptance)
+            | Self::Instrumented(acceptance)
+            | Self::Delivered(acceptance)
+            | Self::Regressed(acceptance) => Some(acceptance),
+        }
+    }
+
     pub fn accepted(&self, acceptance: &Acceptance) -> Result<Self, Refusal> {
         match self {
             Self::Proposed | Self::Accepted(_) | Self::Instrumented(_) => Ok(Self::Accepted(acceptance.clone())),

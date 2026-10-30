@@ -1,6 +1,6 @@
 use meta_schema::{
     Acceptance, Actor, Block, Claim, EntryNote, EventVisitor, NewConcern, NewIssue, NewProject, NewTask, Observation,
-    Relocation, Rerating, SchemaVersion, TaskLink, TaskPurpose, TaskRef,
+    PurposeMissing, PurposeRule, Relocation, Rerating, SchemaVersion, TaskLink, TaskPurpose, TaskRef,
 };
 
 use crate::refusal::Refusal;
@@ -34,6 +34,9 @@ impl EventVisitor for Applying<'_> {
     }
 
     fn task_opened(self, task: &NewTask) -> Self::Output {
+        PurposeRule::under(self.state.schema())
+            .admitting(task.purpose())
+            .map_err(|PurposeMissing| Refusal::Unpurposed)?;
         task.purpose().map_or(Ok(()), |purpose| self.state.projects.admit(&purpose))?;
         self.state.add_task(TaskState::new(task.clone(), self.stamp), task.addresses())?;
         task.purpose().map_or(Ok(()), |purpose| self.state.projects.attach(task.task(), purpose))

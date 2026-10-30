@@ -27,6 +27,7 @@ impl<'state> Listing<'state> {
             Kind::Concerns => {
                 state.concerns().iter().filter_map(|concern| self.row(concern, concern.target().entry())).collect()
             }
+            Kind::Projects => state.projects().iter().map(ToString::to_string).collect(),
         }
     }
 

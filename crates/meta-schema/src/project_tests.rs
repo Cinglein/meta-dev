@@ -1,4 +1,6 @@
-use crate::Record;
+use meta_acceptance::{AcceptanceRow, Enforcement, Gating, Observability};
+
+use crate::{Acceptance, Cause, Event, Purpose, Record, Root};
 
 const LINES: [&str; 16] = [
     r#"{"at":"2026-10-30T00:00:00Z","actor":"a","kind":"SchemaVersion","version":7}"#,
@@ -76,6 +78,43 @@ fn project_events_and_purposes_read_show_and_write_back_unchanged() {
     let records = LINES.map(|line| serde_json::from_str::<Record>(line).unwrap());
     assert_eq!(records.each_ref().map(|record| serde_json::to_string(record).unwrap()), LINES);
     assert_eq!(records.map(|record| record.event().to_string()), SHOWN);
+}
+
+const BUILT_ROWS: [&str; 3] = ["b:m<=250ms", "c:n<=30%", "d:o<=3"];
+const BUILT: &str = r#"{"at":"2026-10-30T00:00:00Z","actor":"owner","kind":"ProjectAccepted","project":"project-0000000000000001","root":"process","rows":[{"budget":"b","measure":"m","target":{"duration":250}},{"budget":"c","measure":"n","target":{"share":30}},{"budget":"d","measure":"o","target":{"count":3}}],"spans":["fs"],"enforcement":[{"budget":"b"},{"step":"test"},{"hook":"h"}]}"#;
+const UNREADABLE: [&str; 5] = ["b:m", "b<=3", "b:m<=soon", ":m<=3", "b:M<=3"];
+const POINTS: [&str; 3] = ["budget:b", "step:test", "hook:h"];
+const UNREADABLE_POINTS: [&str; 3] = ["budget", "other:x", "step:"];
+const CAUSES: [(&str, &str); 4] = [
+    ("7", "#7"),
+    ("#7", "#7"),
+    ("issue-0000000000000006", "issue-0000000000000006"),
+    ("task-0000000000000005", "task-0000000000000005"),
+];
+
+#[test]
+fn an_acceptance_built_from_option_text_is_the_one_the_log_reads() {
+    let rows = BUILT_ROWS.map(|row| row.parse::<AcceptanceRow>().unwrap()).to_vec();
+    let observability = Observability::named(rows, vec!["fs".parse().unwrap()]).unwrap();
+    let gating = Gating::try_from(POINTS.map(|point| point.parse::<Enforcement>().unwrap()).to_vec()).unwrap();
+    let built = Acceptance::new("project-0000000000000001".parse().unwrap(), Root::Process, observability, gating);
+    let read: Record = serde_json::from_str(BUILT).unwrap();
+    assert_eq!(read.event(), &Event::ProjectAccepted(built));
+    assert!(UNREADABLE.iter().all(|row| row.parse::<AcceptanceRow>().is_err()));
+    assert!(UNREADABLE_POINTS.iter().all(|point| point.parse::<Enforcement>().is_err()));
+    assert!(Gating::try_from(vec![Enforcement::Hook("h".parse().unwrap())]).is_err());
+    assert!(Observability::named(vec![], vec!["fs".parse().unwrap()]).is_err());
+}
+
+#[test]
+fn a_cause_is_a_pull_request_an_item_or_a_task_and_a_project_goes_only_with_a_cause() {
+    let shown = CAUSES.map(|(text, _)| text.parse::<Cause>().unwrap().to_string());
+    assert_eq!(shown, CAUSES.map(|(_, expected)| expected));
+    assert!("project-0000000000000001".parse::<Cause>().is_err());
+    let project = "project-0000000000000001".parse().unwrap();
+    let caused = Purpose::CausedBy { cause: "7".parse().unwrap(), project: None };
+    assert_eq!(caused.in_project(project).and_then(|purpose| purpose.project()), Some(project));
+    assert_eq!(Purpose::Serves(project).in_project(project), None);
 }
 
 #[test]

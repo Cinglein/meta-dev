@@ -18,8 +18,9 @@ const ACCEPT_WITH: [&str; 8] = ["--root", "state", "--row", ROW, "--span", "fs",
 const PULL: &str = "7";
 
 impl Meta {
-    fn plant(&self, json: &str) {
-        self.0.append::<CliFailure>(&mut |_| Ok(serde_json::from_str(json).unwrap())).unwrap();
+    fn plant(&self, jsons: &[&str]) {
+        let append = |json: &&str| self.0.append::<CliFailure>(&mut |_| Ok(serde_json::from_str(json).unwrap()));
+        jsons.iter().try_for_each(|json| append(json).map(drop)).unwrap();
     }
 
     fn refused(&self, actor: &str, words: &[&str]) -> String {
@@ -35,7 +36,7 @@ impl Meta {
 fn a_project_is_proposed_accepted_listed_and_only_then_served() {
     let meta = Meta::default();
     let project = meta.written(ALICE, &PROPOSE);
-    assert!(meta.run(ALICE, &LIST).unwrap().contains(&format!("{project}")));
+    assert!(meta.run(ALICE, &LIST).unwrap().contains(&project));
     assert!(meta.run(ALICE, &LIST).unwrap().contains("proposed"));
     assert!(meta.refused(ALICE, &["open", "w", "--division", DIVISION, "--serves", &project]).contains("proposed"));
     let accept = |actor: &str, extra: &[&str]| {
@@ -68,9 +69,9 @@ fn tasks_open_with_one_purpose_and_serving_waits_for_instrumentation() {
 #[test]
 fn an_unlinked_task_is_not_claimed_until_it_gets_a_purpose_once() {
     let meta = Meta::default();
+    meta.plant(&PLANTED);
     let project = meta.written(ALICE, &PROPOSE);
     meta.run(OWNER, &[&["project", "accept", &project][..], &ACCEPT_WITH[..]].concat()).unwrap();
-    PLANTED.iter().for_each(|json| meta.plant(json));
     let refusal = meta.refused(ALICE, &[CLAIM, OLD_ONE]);
     assert!(["no purpose", "meta serve", "meta instrument", "meta cause"].iter().all(|word| refusal.contains(word)));
     meta.run(ALICE, &["serve", OLD_ONE, &project]).unwrap();

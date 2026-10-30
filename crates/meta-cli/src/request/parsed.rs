@@ -1,14 +1,18 @@
+mod acceptance_options;
+mod missing_option;
 mod option_name;
+mod purpose_options;
 
 use std::path::PathBuf;
 mod word;
 
 use meta_listing::{Kind, Scope};
 use meta_schema::{
-    Actor, Blocker, Division, DueTime, Entry, Id, LevelName, PullRequest, Scenario, Tag, Target, Task, TaskLink, Text,
-    Tokens,
+    Acceptance, Actor, Blocker, Division, DueTime, Entry, Event, Id, LevelName, NewProject, Project, PullRequest,
+    Purpose, Scenario, Tag, Target, Task, TaskLink, TaskPurpose, Text, Tokens,
 };
 
+use crate::request::Request;
 use crate::request::brief::BriefRequest;
 use crate::request::ci::{Commit, SessionId};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
@@ -16,7 +20,10 @@ use crate::request::merge_queue::MergeQueue;
 use crate::request::rate::Rate;
 use crate::request::relocate::Relocate;
 use crate::request::status_view::StatusView;
+use acceptance_options::AcceptanceOptions;
+use missing_option::MissingOption;
 pub use option_name::OptionName;
+use purpose_options::PurposeOptions;
 use word::Word;
 
 #[derive(Debug)]
@@ -37,11 +44,16 @@ pub struct Parsed {
     scenario: Option<Scenario>,
     actor: Option<Actor>,
     scratch: Option<Text>,
+    purposes: PurposeOptions,
+    acceptance: AcceptanceOptions,
 }
 
 impl Parsed {
     const RESTORE: &'static str = "restore";
     const RUN: &'static str = "run";
+    const PROPOSE: &'static str = "propose";
+    const ACCEPT: &'static str = "accept";
+    const LIST: &'static str = "list";
 
     fn take(self, args: &[String]) -> Result<Self, CliFailure> {
         match args {
@@ -96,6 +108,38 @@ impl Parsed {
             (OptionName::Scratch, [value, rest @ ..]) => {
                 Self { scratch: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
             }
+            (OptionName::Instruments, [value, rest @ ..]) => {
+                let project = value.parse().map_err(CliFailure::raised::<Invalid>)?;
+                Self { purposes: self.purposes.adding(Purpose::Instruments(project)), ..self }.take(rest)
+            }
+            (OptionName::Serves, [value, rest @ ..]) => {
+                let project = value.parse().map_err(CliFailure::raised::<Invalid>)?;
+                Self { purposes: self.purposes.adding(Purpose::Serves(project)), ..self }.take(rest)
+            }
+            (OptionName::CausedBy, [value, rest @ ..]) => {
+                let cause = value.parse().map_err(CliFailure::raised::<Invalid>)?;
+                Self { purposes: self.purposes.adding(Purpose::CausedBy { cause, project: None }), ..self }.take(rest)
+            }
+            (OptionName::Project, [value, rest @ ..]) => {
+                let project = value.parse().map_err(CliFailure::raised::<Invalid>)?;
+                Self { purposes: self.purposes.placed(project), ..self }.take(rest)
+            }
+            (OptionName::Root, [value, rest @ ..]) => {
+                let root = value.parse().map_err(CliFailure::raised::<Invalid>)?;
+                Self { acceptance: self.acceptance.rooted(root), ..self }.take(rest)
+            }
+            (OptionName::Row, [value, rest @ ..]) => {
+                let row = value.parse().map_err(CliFailure::raised::<Invalid>)?;
+                Self { acceptance: self.acceptance.row(row), ..self }.take(rest)
+            }
+            (OptionName::Span, [value, rest @ ..]) => {
+                let span = value.parse().map_err(CliFailure::raised::<Invalid>)?;
+                Self { acceptance: self.acceptance.span(span), ..self }.take(rest)
+            }
+            (OptionName::Gate, [value, rest @ ..]) => {
+                let gate = value.parse().map_err(CliFailure::raised::<Invalid>)?;
+                Self { acceptance: self.acceptance.gate(gate), ..self }.take(rest)
+            }
             (OptionName::Scenario, [value, rest @ ..]) => {
                 let scenario = value.parse::<Text>().map_err(CliFailure::raised::<Invalid>)?;
                 Self { scenario: Some(Scenario::from(scenario)), ..self }.take(rest)
@@ -137,12 +181,66 @@ impl Parsed {
         }
     }
 
+    pub fn project_request(self) -> Result<Request, CliFailure> {
+        let verb = self.words.first().map(ToString::to_string).unwrap_or_default();
+        let rest = Self { words: self.words.iter().skip(1).cloned().collect(), ..self };
+        match verb.as_str() {
+            Self::PROPOSE => {
+                Ok(Request::Write(Event::ProjectProposed(rest.allowing(&[OptionName::Division])?.proposal()?)))
+            }
+            Self::ACCEPT => {
+                let options = [OptionName::Root, OptionName::Row, OptionName::Span, OptionName::Gate];
+                Ok(Request::Write(Event::ProjectAccepted(rest.allowing(&options)?.accepted()?)))
+            }
+            Self::LIST => Ok(Request::List(Some(Kind::Projects), rest.allowing(&[])?.scope())),
+            other => Err(CliFailure::raised::<Misuse>(format!("expected propose, accept or list, found `{other}`"))),
+        }
+    }
+
+    pub fn purposes(&self) -> &PurposeOptions {
+        &self.purposes
+    }
+
+    pub fn purposing(&self, purpose: impl FnOnce(Id<Project>) -> Purpose) -> Result<TaskPurpose, CliFailure> {
+        match self.words.as_slice() {
+            [task, project] => Ok(TaskPurpose::new(
+                task.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
+                purpose(project.to_string().parse().map_err(CliFailure::raised::<Invalid>)?),
+            )),
+            _ => Err(CliFailure::raised::<Misuse>("expected a task id and a project id")),
+        }
+    }
+
+    pub fn causing(&self) -> Result<TaskPurpose, CliFailure> {
+        match self.words.as_slice() {
+            [task, cause] => Ok(TaskPurpose::new(
+                task.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
+                Purpose::CausedBy {
+                    cause: cause.to_string().parse().map_err(CliFailure::raised::<Invalid>)?,
+                    project: self.purposes.project(),
+                },
+            )),
+            _ => Err(CliFailure::raised::<Misuse>("expected a task id and a pull request, concern, issue or task")),
+        }
+    }
+
+    pub fn proposal(&self) -> Result<NewProject, CliFailure> {
+        Ok(NewProject::new(self.division()?, self.text()?))
+    }
+
+    pub fn accepted(&self) -> Result<Acceptance, CliFailure> {
+        match self.words.as_slice() {
+            [project] => self.acceptance.accepting(project.to_string().parse().map_err(CliFailure::raised::<Invalid>)?),
+            _ => Err(CliFailure::raised::<Misuse>("expected one project id")),
+        }
+    }
+
     pub fn division(&self) -> Result<Division, CliFailure> {
-        self.division.clone().ok_or_else(|| CliFailure::raised::<Misuse>("--division <path> is required"))
+        self.division.clone().ok_or_else(|| CliFailure::raised::<Misuse>(MissingOption::Division))
     }
 
     pub fn blocker(&self) -> Result<Blocker, CliFailure> {
-        self.on.ok_or_else(|| CliFailure::raised::<Misuse>("--on <issue id|task id|review|ci|merge> is required"))
+        self.on.ok_or_else(|| CliFailure::raised::<Misuse>(MissingOption::On))
     }
 
     pub fn severity(&self) -> Option<LevelName> {
@@ -290,6 +388,8 @@ impl TryFrom<&[String]> for Parsed {
             scenario: None,
             actor: None,
             scratch: None,
+            purposes: PurposeOptions::default(),
+            acceptance: AcceptanceOptions::default(),
         };
         empty.take(args)
     }
