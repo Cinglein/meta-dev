@@ -49,6 +49,9 @@ const MEASURED: &[Step] = HISTORY.split_at(7).0;
 const DELIVERED: &[Step] = HISTORY.split_at(8).0;
 const REGRESSED: &[Step] = &HISTORY;
 const CLAIM: &str = r#"{"kind":"TaskClaimed","task":"task-00000000000000c1"}"#;
+const RELEASE: &str = r#"{"kind":"TaskReleased","task":"task-00000000000000c1"}"#;
+const DONE: &str = r#"{"kind":"TaskDone","task":"task-00000000000000c1"}"#;
+const RETIRE: &str = r#"{"kind":"EntryRetired","entry":"task-00000000000000c1","text":"dropped"}"#;
 const PROJECT: &str = "project-00000000000000a1";
 const GHOST: &str = "project-00000000000000b2";
 const ON_PROPOSED: Refusal = Refusal::Unattachable(ProjectStage::Proposed);
@@ -79,14 +82,21 @@ const REFUSED: [(&[Step], Step, Refusal); 23] = [
     (REGRESSED, Step::written(ALICE, INSTRUMENTS), ON_REGRESSED),
     (REGRESSED, Step::written(ALICE, SERVES), ON_REGRESSED),
 ];
-const STAGES: [(&[Step], &[Step], ProjectStage); 13] = [
+const SERVING: [Step; 2] = [Step::written(ALICE, SERVES), Step::written(ALICE, CLAIM)];
+const RELEASED: [Step; 3] = [SERVING[0], SERVING[1], Step::written(ALICE, RELEASE)];
+const FINISHED: [Step; 3] = [SERVING[0], SERVING[1], Step::written(ALICE, DONE)];
+const RETIRED: [Step; 3] = [SERVING[0], SERVING[1], Step::written(OWNER, RETIRE)];
+const STAGES: [(&[Step], &[Step], ProjectStage); 16] = [
     (PROPOSED, &[], ProjectStage::Proposed),
     (ACCEPTED, &[], ProjectStage::Accepted),
     (MEASURED, &[], ProjectStage::Instrumented),
     (DELIVERED, &[], ProjectStage::Delivered),
     (REGRESSED, &[], ProjectStage::Regressed),
     (MEASURED, &[Step::written(ALICE, SERVES)], ProjectStage::Instrumented),
-    (MEASURED, &[Step::written(ALICE, SERVES), Step::written(ALICE, CLAIM)], ProjectStage::Active),
+    (MEASURED, &SERVING, ProjectStage::Active),
+    (MEASURED, &RELEASED, ProjectStage::Instrumented),
+    (MEASURED, &FINISHED, ProjectStage::Instrumented),
+    (MEASURED, &RETIRED, ProjectStage::Instrumented),
     (MEASURED, &[Step::written(META, UNINSTRUMENTED)], ProjectStage::Accepted),
     (MEASURED, &[Step::written(OWNER, ACCEPT)], ProjectStage::Accepted),
     (REGRESSED, &[Step::written(META, ON_TARGET)], ProjectStage::Delivered),
@@ -95,6 +105,7 @@ const STAGES: [(&[Step], &[Step], ProjectStage); 13] = [
     (REGRESSED, &[Step::written(ALICE, CAUSED_IN)], ProjectStage::Regressed),
 ];
 
+#[derive(Clone, Copy)]
 struct Step {
     actor: &'static str,
     json: &'static str,
