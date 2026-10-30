@@ -4,7 +4,7 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use task::{BaselineFile, BranchName, Site};
+use task::{BaselineFile, BranchName, BudgetId, Site};
 
 use crate::task::failure::Failure;
 use crate::task::prior_policy::PriorPolicy;
@@ -27,10 +27,30 @@ impl Baseline {
     }
 
     pub fn admitted(root: &Path, file: &BaselineFile, base: &BranchName) -> Result<Baseline, Failure> {
+        Self::kept_since(root, file, base, |prior| Some(prior.baseline().unwrap_or(file).clone()))
+    }
+
+    pub fn budgeted(
+        root: &Path,
+        budget: &BudgetId,
+        file: &BaselineFile,
+        base: &BranchName,
+    ) -> Result<Baseline, Failure> {
+        Self::kept_since(root, file, base, |prior| prior.budget_baseline(budget).cloned())
+    }
+
+    fn kept_since(
+        root: &Path,
+        file: &BaselineFile,
+        base: &BranchName,
+        prior_file: impl FnOnce(&PriorPolicy) -> Option<BaselineFile>,
+    ) -> Result<Baseline, Failure> {
         let allowed = Self::read(&file.within(root))?;
         let revision = Revision::merge_base(root, base)?;
-        let prior_policy = PriorPolicy::read_at(&revision)?;
-        allowed.kept(revision.present(prior_policy.baseline().unwrap_or(file).path())?.as_deref())
+        match prior_file(&PriorPolicy::read_at(&revision)?) {
+            Some(prior) => allowed.kept(revision.present(prior.path())?.as_deref()),
+            None => Ok(allowed),
+        }
     }
 
     fn kept(self, prior: Option<&str>) -> Result<Baseline, Failure> {
@@ -43,6 +63,11 @@ impl Baseline {
         let text = toml::to_string(self)?;
         fs::write(path, text)
             .map_err(|error| Failure::from(task::Failure::Io { site: Site::File(path.to_path_buf()), error }))
+    }
+
+    pub fn retained(mut self, kept: impl Fn(&str) -> bool) -> Baseline {
+        self.0.retain(|key, _| kept(key));
+        self
     }
 
     pub fn drifts(&self, allowed: &Baseline) -> Vec<Drift> {
@@ -75,9 +100,10 @@ mod tests {
     use crate::task::fixture::Fixture;
     use crate::task::prior_policy::PriorPolicy;
     use settings::EmbeddedDefaults;
-    use task::{BaselineFile, Policy};
+    use task::{BaselineFile, BudgetId, Policy};
 
     const SELF_BASELINE: &str = "self/lint-baseline.toml";
+    const LINT_FINDINGS: &str = "lint-findings";
     const UNREADABLE: &str = "retired = 1\n";
     const BASELINE: &str = "lint-baseline.toml";
     const MOVED: &str = "self/moved.toml";
@@ -96,7 +122,9 @@ mod tests {
         let budgeted = Policy::DEFAULTS.replace(SELF_BASELINE, MOVED);
         let moved = [MOVED_POLICY, &budgeted, &format!("{UNREADABLE}{budgeted}")].map(|policy| {
             let prior: PriorPolicy = toml::from_str(policy).unwrap();
-            prior.baseline().unwrap_or(&BaselineFile::from(BASELINE)) == &BaselineFile::from(MOVED)
+            let budgeted = prior.budget_baseline(&BudgetId::from(LINT_FINDINGS));
+            let held = (budgeted == Some(&BaselineFile::from(MOVED))) == (policy != MOVED_POLICY);
+            held && prior.baseline().unwrap_or(&BaselineFile::from(BASELINE)) == &BaselineFile::from(MOVED)
         });
         assert!(moved.iter().all(|moved| *moved));
     }

@@ -2,10 +2,10 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
-use meta_run::GitArgv;
+use meta_git::WorktreeFiles;
 
 use crate::task::failure::Failure;
-use crate::task::revision::{GitPaths, GitReads};
+use crate::task::revision::GitReads;
 use crate::task::{BuildDirectory, TrackedBuildFiles};
 
 pub struct TrackedBuildOutput;
@@ -15,8 +15,7 @@ impl TrackedBuildOutput {
     const SIGNATURE: &str = "Signature: 8a477f597d28d172789f06886806bc55";
 
     pub fn refuse(root: &Path) -> Result<(), Failure> {
-        let Ok(tracked) = GitReads::new(root).read(GitArgv::TrackedNames, GitReads::NO_OPERANDS)?.parse::<GitPaths>();
-        let tracked: Vec<_> = tracked.into_iter().collect();
+        let tracked: Vec<_> = GitReads::new(root).files(WorktreeFiles::Tracked)?.into_iter().collect();
         let directories: BTreeSet<&Path> = tracked.iter().flat_map(|file| Self::enclosing(file)).collect();
         let builds: BTreeSet<&Path> =
             directories.into_iter().filter(|directory| Self::is_build_directory(root, directory)).collect();

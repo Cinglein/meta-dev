@@ -5,7 +5,7 @@ use std::path::Path;
 
 use corpus_check::{Enforcement, LintName};
 use crate_graph::{CrateGraph, GraphReport};
-use git_starters::GitStarters;
+use process_starters::Starters;
 use strum::IntoEnumIterator;
 use task::{Amount, Branch, Ledger, Measure, Most, Policy, Report, SourceFile};
 use test_budget::TestBudget;
@@ -48,9 +48,13 @@ impl Lint {
         println!("lint: {} rust files, {} baselined violations", files.len(), observed.total());
         ledger.spend(Measure::LintFindings, Amount::Baseline(policy.baseline().clone()));
         ledger.spend(Measure::TestLineShare, TestBudget::line_share(files, policy));
-        let starters = GitStarters::report(files);
-        print!("{starters}");
-        ledger.spend(Measure::GitStarters, GitStarters::amount(&starters));
+        [(Starters::GIT, Measure::GitStarters), (Starters::PROCESS, Measure::ProcessStarters)]
+            .into_iter()
+            .map(|(starters, measure)| (starters.report(files), measure))
+            .for_each(|(report, measure)| {
+                print!("{report}");
+                ledger.spend(measure, Starters::amount(&report));
+            });
         Ok(())
     }
 

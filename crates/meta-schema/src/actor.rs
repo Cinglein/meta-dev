@@ -14,10 +14,16 @@ pub struct Actor(String);
 
 impl Actor {
     const OWNER: &'static str = "owner";
+    const META: &'static str = "meta";
 
     #[must_use]
     pub fn owner() -> Self {
         Self(Self::OWNER.to_owned())
+    }
+
+    #[must_use]
+    pub fn is_meta(&self) -> bool {
+        self.0 == Self::META
     }
 }
 

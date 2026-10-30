@@ -45,10 +45,7 @@ const DROPPED: [(EnvPolicy, &str); 4] = [
     (EnvPolicy::Inherit, ""),
     (EnvPolicy::NoRepoVars, "\"GIT_DIR\": None"),
     (EnvPolicy::NoGitVars, "\"EMAIL\": None, \"GIT_DIR\": None, \"GIT_SSH_COMMAND\": None"),
-    (
-        EnvPolicy::Only(&["LANG"]),
-        "\"EMAIL\": None, \"GIT_DIR\": None, \"GIT_SSH_COMMAND\": None, \"GIT_TRACE2_EVENT\": None, \"PATH\": None",
-    ),
+    (EnvPolicy::Only(&["LANG"]), "\"EMAIL\": None, \"GIT_DIR\": None, \"GIT_SSH_COMMAND\": None, \"PATH\": None"),
 ];
 
 struct Scripted;

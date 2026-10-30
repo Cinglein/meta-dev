@@ -21,10 +21,12 @@ performance-and-cost-critical performance-and-cost       open_items critical    
 performance-and-cost-major performance-and-cost       open_items major                     -          2          4 -
 performance-and-cost-minor performance-and-cost       open_items minor                     -          4          8 -
 performance-and-cost-unrated performance-and-cost       open_items unrated                   -          1          2 -
+process-starters   performance-and-cost       process_starters                     -          8         14 -
 slowest-test       performance-and-cost       slowest_test                     999ms      600ms     1000ms warn
 tangle-items       features-and-maintenance   tangle_items                       128         49         83 over
 test-cpu-time      performance-and-cost       test_cpu_time                        -     2400ms     4000ms -
 test-line-share    features-and-maintenance   test_line_share                    25%        10%        18% over
+test-processes     performance-and-cost       test_processes                       -                     - -
 test-time          performance-and-cost       test_wall_time                  8001ms     4800ms     8000ms over
 unit-time          performance-and-cost/unit  test_wall_time                  8001ms     2400ms     4000ms over
 unreached budget over its blocking line:
@@ -54,10 +56,12 @@ performance-and-cost-critical performance-and-cost       open_items critical    
 performance-and-cost-major performance-and-cost       open_items major                     -          2          4 -
 performance-and-cost-minor performance-and-cost       open_items minor                     -          4          8 -
 performance-and-cost-unrated performance-and-cost       open_items unrated                   -          1          2 -
+process-starters   performance-and-cost       process_starters                     -          8         14 -
 slowest-test       performance-and-cost       slowest_test                         -      600ms     1000ms -
 tangle-items       features-and-maintenance   tangle_items                       128         49         83 over
 test-cpu-time      performance-and-cost       test_cpu_time                        -     2400ms     4000ms -
 test-line-share    features-and-maintenance   test_line_share                      -        10%        18% -
+test-processes     performance-and-cost       test_processes                       -                     - -
 test-time          performance-and-cost       test_wall_time                       -     4800ms     8000ms -
 unit-time          performance-and-cost/unit  test_wall_time                       -     2400ms     4000ms -
 unreached budget over its blocking line:

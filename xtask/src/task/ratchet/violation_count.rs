@@ -3,7 +3,7 @@ use std::iter::Sum;
 use std::ops::Add;
 
 use serde::{Deserialize, Serialize};
-use task::Report;
+use task::{Most, Report};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -12,6 +12,12 @@ pub struct ViolationCount(usize);
 impl ViolationCount {
     pub fn in_report(report: &Report) -> ViolationCount {
         ViolationCount(report.violations().len())
+    }
+}
+
+impl From<Most> for ViolationCount {
+    fn from(most: Most) -> ViolationCount {
+        ViolationCount(most.count())
     }
 }
 

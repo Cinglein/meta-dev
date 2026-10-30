@@ -3,6 +3,7 @@ use std::convert::Infallible;
 use std::fmt;
 use std::str::FromStr;
 
+use meta_git::RefName;
 use meta_schema::{Id, Task};
 use task::BranchName;
 
@@ -17,12 +18,19 @@ pub struct HeadBranch {
 
 impl HeadBranch {
     const REMOTE_HEAD: &str = "HEAD";
+    const REMOTE_PARTS_LEN: usize = 4;
 
     pub fn only(listed: &str) -> Result<HeadBranch, Unready> {
         let names: BTreeSet<&str> = listed.lines().filter(|name| *name != Self::REMOTE_HEAD).collect();
         let only = names.first().filter(|_| names.len() == 1).ok_or(Unready::Unnamed)?;
         let Ok(head) = only.parse();
         Ok(head)
+    }
+
+    pub fn listed(tips: &[RefName]) -> String {
+        let short =
+            |tip: &RefName| tip.to_string().splitn(Self::REMOTE_PARTS_LEN, '/').last().unwrap_or_default().to_owned();
+        tips.iter().map(short).collect::<Vec<_>>().join("\n")
     }
 
     pub fn task(&self) -> Result<Id<Task>, Untracked> {
@@ -51,6 +59,7 @@ impl FromStr for HeadBranch {
 mod tests {
     use std::fmt::Debug;
 
+    use meta_git::RefName;
     use meta_golden::GoldenFailure;
     use meta_run::GitArgv;
 
@@ -61,6 +70,9 @@ mod tests {
     const VIEWED: [GitArgv; 4] = [GitArgv::Porcelain, GitArgv::PushedHead, GitArgv::Head, GitArgv::PushedTips];
     const LISTED: [&str; 4] = ["HEAD\nmain\n", "main\nsecond\n", "HEAD\n", ""];
     const MAIN: &str = "main";
+    const REMOTE_TIPS: [&str; 3] =
+        ["refs/remotes/origin/HEAD", "refs/remotes/origin/main", "refs/remotes/origin/feature/x"];
+    const BRANCH_NAMES: &str = "HEAD\nmain\nfeature/x";
 
     impl HeadBranch {
         fn view(call: GitArgv, out: &str) -> Box<dyn Debug> {
@@ -77,6 +89,12 @@ mod tests {
         let named = LISTED.map(HeadBranch::only);
         let unnamed = Err(Unready::Unnamed);
         assert_eq!(named, [Ok(MAIN.parse().unwrap()), unnamed.clone(), unnamed.clone(), unnamed]);
+    }
+
+    #[test]
+    fn the_gate_names_each_remote_tip_by_its_branch_without_the_remote() {
+        let tips: Vec<RefName> = REMOTE_TIPS.iter().map(|tip| tip.parse().unwrap()).collect();
+        assert_eq!(HeadBranch::listed(&tips), BRANCH_NAMES);
     }
 
     #[test]

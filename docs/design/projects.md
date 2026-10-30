@@ -222,9 +222,10 @@ Each PR is small and comes off main. Each first commit is red first.
 6. **Observe.** `meta project observe` reads the artifact and the push run's trace (task-433270d3 uploads it) through meta-gh and writes `ProjectObserved`: `Instrumented`, `Uninstrumented`, delivery and regression. Heartbeat and queue call it. The push-to-main audit replays observations.
 7. **Status.** Projects section with `needs:` for Accepted projects, own-goal line, goal line, `NoProgress` and `Regressed` flags. Spend reads `Unmeasured` until task-41cdd344 lands.
 8. **Derived causes.** Triage writes `caused_by` from batch attribution, reverts and regressions. Waits on the batch queue (design §9).
+8a. **Retire a project.** `Entry::Project`, so that `EntryRetired` and `EntryCorrected` can name a project, with the retirement guards in §1. This needs its own schema version, because older builds cannot parse a project entry. It lands before PR 9.
 9. **Seed.** No code. The lead writes `ProjectProposed` for §8, the owner writes `ProjectAccepted`, and the lead opens the instrumentation tasks first and attaches the open tasks with `TaskPurposed`.
 
-Order: 1, 2, 3, then 4, 5 and 7 in parallel, then 6, then 8. The owner accepted this design on 2026-10-30. PR 1 starts after the hook PRs land. The lead retires task-6d498ba4 into this task after PR 1.
+Order: 1, 2, 3, then 4, 5 and 7 in parallel, then 6, then 8. 8a lands before 9. The owner accepted this design on 2026-10-30. PR 1 starts after the hook PRs land. The lead retires task-6d498ba4 into this task after PR 1.
 
 ## 8. First projects
 

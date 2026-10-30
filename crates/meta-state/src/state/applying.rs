@@ -1,5 +1,5 @@
 use meta_schema::{
-    Acceptance, Block, Claim, EntryNote, EventVisitor, NewConcern, NewIssue, NewProject, NewTask, Observation,
+    Acceptance, Actor, Block, Claim, EntryNote, EventVisitor, NewConcern, NewIssue, NewProject, NewTask, Observation,
     Relocation, Rerating, SchemaVersion, TaskLink, TaskPurpose, TaskRef,
 };
 
@@ -34,7 +34,9 @@ impl EventVisitor for Applying<'_> {
     }
 
     fn task_opened(self, task: &NewTask) -> Self::Output {
-        self.state.add_task(TaskState::new(task.clone(), self.stamp), task.addresses())
+        task.purpose().map_or(Ok(()), |purpose| self.state.projects.admit(&purpose))?;
+        self.state.add_task(TaskState::new(task.clone(), self.stamp), task.addresses())?;
+        task.purpose().map_or(Ok(()), |purpose| self.state.projects.attach(task.task(), purpose))
     }
 
     fn task_claimed(self, claim: &Claim) -> Self::Output {
@@ -88,19 +90,22 @@ impl EventVisitor for Applying<'_> {
         self.state.task_mut(task.task())?.advance(|progress| progress.reopened(reopening).map(Progress::Active))
     }
 
-    fn project_proposed(self, _: &NewProject) -> Self::Output {
-        Ok(())
+    fn project_proposed(self, project: &NewProject) -> Self::Output {
+        self.state.projects.propose(project)
     }
 
-    fn project_accepted(self, _: &Acceptance) -> Self::Output {
-        Ok(())
+    fn project_accepted(self, acceptance: &Acceptance) -> Self::Output {
+        (*self.stamp.actor() == Actor::owner()).then_some(()).ok_or(Refusal::NotOwner)?;
+        self.state.projects.advance(acceptance.project(), |progress| progress.accepted(acceptance))
     }
 
-    fn project_observed(self, _: &Observation) -> Self::Output {
-        Ok(())
+    fn project_observed(self, observation: &Observation) -> Self::Output {
+        self.stamp.actor().is_meta().then_some(()).ok_or(Refusal::NotObserver)?;
+        self.state.projects.advance(observation.project(), |progress| observation.verdict().visit(progress))
     }
 
     fn task_purposed(self, purpose: TaskPurpose) -> Self::Output {
-        self.state.task_mut(purpose.task()).map(|_| ())
+        self.state.task_mut(purpose.task())?;
+        self.state.projects.attach(purpose.task(), purpose.purpose())
     }
 }
