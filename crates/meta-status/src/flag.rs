@@ -1,7 +1,7 @@
 use std::fmt;
 
 use meta_pull_query::WorkflowName;
-use meta_schema::{DueTime, Id, PullRequest, Task};
+use meta_schema::{Blocker, DueTime, Id, PullRequest, Task};
 use serde::{Deserialize, Serialize};
 
 use crate::github_failure::GithubFailure;
@@ -13,6 +13,7 @@ pub enum Flag {
     TruncatedOpen,
     Stalled(Id<Task>, DueTime),
     PastDue(Id<Task>, DueTime),
+    Unanswered(Id<Task>, Blocker, DueTime),
     HeldDone(Id<Task>),
     TrunkRed(WorkflowName),
     RedUnheld(Id<Task>, PullRequest),
@@ -29,6 +30,7 @@ impl Flag {
             Self::Unreached(_)
             | Self::TruncatedOpen
             | Self::PastDue(..)
+            | Self::Unanswered(..)
             | Self::HeldDone(_)
             | Self::TrunkRed(_)
             | Self::RedUnheld(..)
@@ -46,6 +48,7 @@ impl fmt::Display for Flag {
             Self::TruncatedOpen => formatter.write_str("truncated: more than 100 open pull requests"),
             Self::Stalled(task, due) => write!(formatter, "stalled {task}: past due {due}, no holder"),
             Self::PastDue(task, due) => write!(formatter, "past due {task}: due {due}"),
+            Self::Unanswered(task, on, due) => write!(formatter, "unanswered {task} on {on}: reply due {due}"),
             Self::HeldDone(task) => write!(formatter, "done {task}: held, every linked pr merged or closed"),
             Self::TrunkRed(workflow) => write!(formatter, "trunk red {workflow}: latest completed run failed"),
             Self::RedUnheld(task, pull_request) => write!(formatter, "red {pull_request} {task}: no holder"),
@@ -66,6 +69,7 @@ impl Flag {
             | Self::TruncatedOpen
             | Self::Stalled(..)
             | Self::PastDue(..)
+            | Self::Unanswered(..)
             | Self::HeldDone(_)
             | Self::TrunkRed(_)
             | Self::RedUnheld(..)

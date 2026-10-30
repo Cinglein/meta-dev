@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*", "self/spec", "tooling/affected", "tooling/build_time", "tooling/corpus_check", "tooling/elegance", "tooling/git_trace", "tooling/lints/*", "tooling/mutant_costs", "tooling/mutation", "tooling/settings", "tooling/stacked", "tooling/syn_rules", "tooling/task", "tooling/test_time", "tooling/waterfall", "xtask"]
+members = ["crates/*", "self/spec", "tooling/affected", "tooling/build_time", "tooling/corpus_check", "tooling/elegance", "tooling/git_trace", "tooling/lints/*", "tooling/mutant_costs", "tooling/mutation", "tooling/rusage", "tooling/settings", "tooling/stacked", "tooling/syn_rules", "tooling/task", "tooling/test_time", "tooling/waterfall", "xtask"]
 
 [workspace.package]
 version = "0.1.0"
@@ -14,7 +14,6 @@ meta-log = { path = "crates/meta-log" }
 meta-run = { path = "crates/meta-run" }
 meta-golden = { path = "crates/meta-golden" }
 meta-git = { path = "crates/meta-git" }
-meta-git-view = { path = "crates/meta-git-view" }
 meta-state = { path = "crates/meta-state" }
 meta-gh = { path = "crates/meta-gh" }
 meta-listing = { path = "crates/meta-listing" }
@@ -22,6 +21,7 @@ meta-status = { path = "crates/meta-status" }
 meta-severity = { path = "crates/meta-severity" }
 meta-pulls = { path = "crates/meta-pulls" }
 meta-pull-query = { path = "crates/meta-pull-query" }
+meta-process-table = { path = "crates/meta-process-table" }
 meta-trace = { path = "crates/meta-trace" }
 tracing = { version = "0.1.44", default-features = false, features = ["std"] }
 chrono = { version = "0.4.44", default-features = false, features = ["std", "clock", "serde"] }

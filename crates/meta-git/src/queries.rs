@@ -1,11 +1,6 @@
-mod files_at;
-mod first_parents;
-mod heads;
-mod ref_target;
-mod remote_url;
+pub mod config;
+mod head;
+pub mod history;
+pub mod refs;
 
-pub use files_at::FilesAt;
-pub use first_parents::FirstParents;
-pub use heads::Heads;
-pub use ref_target::RefTarget;
-pub use remote_url::RemoteUrl;
+pub use head::Head;

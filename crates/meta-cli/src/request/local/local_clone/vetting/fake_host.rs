@@ -17,13 +17,13 @@ use super::kept::Kept;
 use super::occupancy::Occupancy;
 use super::shared_node::SharedNode;
 use super::thaw::{Thaw, Thawed};
-use super::uninspected::Uninspected;
 use crate::request::local::byte_count::ByteCount;
 use crate::request::local::local_clone::quarantine::Stamp;
 use crate::request::local::recorded_worktree::RecordedWorktree;
 use crate::request::local::worktree_id::WorktreeId;
 use fake_batch::FakeBatch;
 use fake_roots::FakeRoots;
+use meta_process_table::Uninspected;
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
 
@@ -88,6 +88,7 @@ const STAMP: &str = "1x0";
 const FROZEN: &str = "frozen";
 const NO_MODE: u32 = 0o0;
 const THAWED: &str = "thawed";
+const CLEARED: &str = "cleared";
 
 #[derive(Debug)]
 pub struct FakeHost {
@@ -320,6 +321,11 @@ impl Inspection for FakeHost {
     fn thawed(&self, thaw: &Thaw) {
         let thawed = thaw.files().iter().map(|thawed| thawed.path().as_os_str().to_os_string());
         self.calls.lock().unwrap().push([OsString::from(THAWED)].into_iter().chain(thawed).collect());
+    }
+
+    fn cleared(&self, remains: &Path) -> Result<(), Kept> {
+        self.calls.lock().unwrap().push(vec![OsString::from(CLEARED), remains.as_os_str().to_os_string()]);
+        Ok(())
     }
 
     fn stamp(&self) -> Stamp {

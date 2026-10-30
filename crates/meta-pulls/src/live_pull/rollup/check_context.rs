@@ -18,6 +18,10 @@ impl CheckContext {
         self.result.map_or(Verdict::Pending, CheckResult::verdict)
     }
 
+    pub fn failing_name(&self) -> Option<CheckName> {
+        self.verdict().failing().map(|_| self.name.clone())
+    }
+
     pub fn named(&self, name: &CheckName) -> Option<&Self> {
         (self.name == *name).then_some(self)
     }

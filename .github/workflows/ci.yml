@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
     env: &tests-on-tmpfs
       TMPDIR: /dev/shm
     steps:
@@ -29,14 +30,23 @@ jobs:
             examples/consumer -> target.noindex
       - uses: taiki-e/install-action@v2
         with:
-          tool: cargo-deny@0.20.2,cargo-semver-checks@0.51.0
+          tool: cargo-deny@0.20.2,cargo-semver-checks@0.51.0,cargo-mutants@27.1.0
       - run: cargo xtask ci ${{ github.event_name == 'pull_request' && '--affected' || '' }}
         env:
+          GH_TOKEN: ${{ secrets.DEPENDABOT_TOKEN }}
           PULL_REQUEST: ${{ github.event.pull_request.number }}
       - run: cargo xtask ci
         working-directory: examples/consumer
         env:
+          GH_TOKEN: ${{ secrets.DEPENDABOT_TOKEN }}
           PULL_REQUEST: ${{ github.event.pull_request.number }}
+      - run: cargo xtask stacked
+        working-directory: examples/consumer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+      - run: cargo xtask mutants
+        working-directory: examples/consumer
 
   git-count:
     runs-on: ubuntu-latest
@@ -54,6 +64,42 @@ jobs:
         env:
           META_GIT_COUNT: "1"
           PULL_REQUEST: ${{ github.event.pull_request.number }}
+
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: . -> target.noindex
+      - run: cargo test -p meta-process-table -p meta-cli --all-features
+        timeout-minutes: 5
+
+  macos-mutants:
+    runs-on: macos-latest
+    timeout-minutes: 6
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0/4, 1/4, 2/4, 3/4]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: . -> target.noindex
+          shared-key: macos-mutants
+      - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        with:
+          tool: cargo-mutants@27.1.0
+      - run: cargo mutants --config .cargo/mutants-macos.toml --shard ${{ matrix.shard }} --package meta-process-table --in-place --test-package meta-process-table --cargo-test-arg=--all-features --file 'crates/meta-process-table/src/darwin.rs' --file 'crates/meta-process-table/src/darwin/*.rs'
+        timeout-minutes: 5
 
   goldens:
     runs-on: ubuntu-latest
@@ -94,7 +140,6 @@ jobs:
           retention-days: 30
 
   stacked:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -109,7 +154,6 @@ jobs:
           PULL_REQUEST: ${{ github.event.pull_request.number }}
 
   mutants-plan:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 6
     outputs:
@@ -185,10 +229,18 @@ jobs:
         shell: bash
 
   ci-gate:
-    needs: [ci, git-count, goldens, build-time, stacked, mutants-plan, mutants, mutant-costs]
+    needs: [ci, macos, macos-mutants, git-count, goldens, build-time, stacked, mutants-plan, mutants, mutant-costs]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          echo '${{ toJSON(needs) }}' | grep -qE '"result": "(failure|cancelled)"' && exit 1
-          echo "every job passed or was not needed"
+      - name: every job passed; only mutants jobs may skip, and only when the plan has no shards
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          SHARDS: ${{ needs.mutants-plan.outputs.shards }}
+        shell: bash
+        run: |
+          planned='[]'
+          if [ "$SHARDS" = '[]' ]; then planned='["mutants","mutant-costs"]'; fi
+          bad=$(jq -r --argjson planned "$planned" 'to_entries[] | select(.value.result != "success") | select(.value.result == "skipped" and (.key as $job | $planned | index($job)) | not) | "\(.key): \(.value.result)"' <<< "$NEEDS")
+          if [ -n "$bad" ]; then echo "$bad"; exit 1; fi
+          echo "every job passed; skipped only: $planned"
