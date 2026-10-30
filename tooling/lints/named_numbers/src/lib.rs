@@ -1,12 +1,11 @@
 use std::path::PathBuf;
 
-use syn::punctuated::Punctuated;
 use syn::visit::Visit;
 use syn::{
-    Expr, ExprConst, ImplItemConst, ItemConst, ItemImpl, ItemMod, LitFloat, LitInt, Macro, Token,
-    TraitItemConst,
+    ExprConst, ImplItemConst, ItemConst, ItemImpl, ItemMod, LitFloat, LitInt, Macro, TraitItemConst,
 };
 
+use syn_rules::MacroExpressions;
 use task::LineNumber;
 use task::Policy;
 use task::Report;
@@ -82,11 +81,7 @@ impl<'ast> Visit<'ast> for Numbers {
     fn visit_expr_const(&mut self, _: &'ast ExprConst) {}
 
     fn visit_macro(&mut self, invocation: &'ast Macro) {
-        invocation
-            .parse_body_with(Punctuated::<Expr, Token![,]>::parse_terminated)
-            .into_iter()
-            .flatten()
-            .for_each(|argument| self.visit_expr(&argument));
+        MacroExpressions::visit_parsed(invocation, self);
     }
 
     fn visit_lit_int(&mut self, literal: &'ast LitInt) {
