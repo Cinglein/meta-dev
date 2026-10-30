@@ -1742,3 +1742,4 @@
 {"at":"2026-10-30T10:14:15.457445Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-110d4906f474aa1e","text":"Elegance ground truth: label more inventory entries (small aggregates) and map each to the measure that can see it before tuning noise."}
 {"at":"2026-10-30T10:14:17.053270Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-618030b8b5b44082","text":"meta queue run lands stacked PRs via the stack merge, pinning the tested head first (GitHub refuses squash of stack members; #234)."}
 {"at":"2026-10-30T10:14:18.945452Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-8065b583f070e54b","text":"Dispatch through meta: the Agent tool needs a live lease from meta claim --agent (PR #226)."}
+{"at":"2026-10-30T10:14:20.532148Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-71d90f14fa962eb4","text":"Orphan flag: an assigned task with an open PR, no live holder and no queue membership blocks the lead's turn end."}
