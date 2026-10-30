@@ -21,7 +21,7 @@ impl StatusView {
         self,
         log: &impl LogStore,
         scales: &Scales,
-        ci_run_within: Option<Duration>,
+        ci_run_within: Duration,
         github: impl FnOnce(&LiveQuery) -> Github,
     ) -> Result<Output, CliFailure> {
         match self {
@@ -29,7 +29,7 @@ impl StatusView {
                 let snapshot = log.read()?;
                 let state = State::fold(snapshot.records());
                 let github = github(&Status::query(&state));
-                let status = Self::watched(Status::new(&state, &github, Utc::now().into()), ci_run_within);
+                let status = Status::new(&state, &github, Utc::now().into(), ci_run_within);
                 let tally = SeverityTally::new(&state, scales);
                 Ok(Output::Listed(Listed::new(status).then(tally).then(snapshot)))
             }
@@ -41,18 +41,14 @@ impl StatusView {
         flags.raised().map_or_else(|| Output::Listed(Listed::new("")), |raised| Output::Flagged(Listed::new(raised)))
     }
 
-    fn watched(status: Status<'_>, ci_run_within: Option<Duration>) -> Status<'_> {
-        ci_run_within.map_or(status, |within| status.ci_run_within(within))
-    }
-
     pub fn current_flags(
         log: &impl LogStore,
-        ci_run_within: Option<Duration>,
+        ci_run_within: Duration,
         github: impl FnOnce(&LiveQuery) -> Github,
     ) -> Result<Flags, CliFailure> {
         let snapshot = log.read()?;
         let state = State::fold(snapshot.records());
         let github = github(&Status::query(&state));
-        Ok(Self::watched(Status::new(&state, &github, Utc::now().into()), ci_run_within).flags())
+        Ok(Status::new(&state, &github, Utc::now().into(), ci_run_within).flags())
     }
 }

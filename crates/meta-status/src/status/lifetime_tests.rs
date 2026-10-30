@@ -3,7 +3,7 @@ use meta_schema::{Actor, Event, Id, NewTask, Record, Task, TaskLink};
 use meta_state::State;
 
 use super::Status;
-use super::tests::{NOW, PAST};
+use super::tests::{NOW, PAST, WITHIN};
 use crate::github::Github;
 use crate::github_failure::GithubFailure;
 
@@ -55,7 +55,7 @@ impl Board {
     }
 
     fn shown(&self, github: &Github) -> Vec<String> {
-        let status = Status::new(&self.state, github, NOW.parse().unwrap());
+        let status = Status::new(&self.state, github, NOW.parse().unwrap(), WITHIN);
         self.tasks.iter().map(|task| status.lifetime(*task).to_string()).collect()
     }
 }

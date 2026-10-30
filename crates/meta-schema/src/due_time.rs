@@ -1,7 +1,9 @@
 use std::fmt;
 use std::str::FromStr;
 
-use chrono::{DateTime, Utc};
+use std::time::Duration;
+
+use chrono::{DateTime, TimeDelta, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::unrecognised::Unrecognised;
@@ -16,9 +18,16 @@ impl From<DateTime<Utc>> for DueTime {
     }
 }
 
-impl From<DueTime> for DateTime<Utc> {
-    fn from(time: DueTime) -> Self {
-        time.0
+impl DueTime {
+    #[must_use]
+    pub fn elapsed_since(self, earlier: Self) -> Option<Duration> {
+        (self.0 - earlier.0).to_std().ok()
+    }
+
+    #[must_use]
+    pub fn after(self, wait: Duration) -> Option<Self> {
+        let wait = TimeDelta::from_std(wait).ok()?;
+        self.0.checked_add_signed(wait).map(Self)
     }
 }
 

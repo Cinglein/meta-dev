@@ -61,6 +61,8 @@ fn a_wait_without_its_own_due_time_is_due_one_reply_window_from_now() {
 fn the_ci_run_limit_is_read_from_policy_and_is_five_minutes_in_the_embedded_policy() {
     let policy: ScalePolicy = toml::from_str("[liveness]\nci_run_within = 60000\n").unwrap();
     let embedded = ScalePolicy::embedded().unwrap().liveness();
-    assert_eq!(policy.liveness().ci_run_within(), Some(Duration::from_secs(60)));
-    assert_eq!(embedded.ci_run_within(), Some(Duration::from_secs(300)));
+    let unset = ScalePolicy::default().liveness().ci_run_within().unwrap_err().to_string();
+    assert_eq!(policy.liveness().ci_run_within().unwrap(), Duration::from_secs(60));
+    assert_eq!(embedded.ci_run_within().unwrap(), Duration::from_secs(300));
+    assert!(unset.contains("[liveness] ci_run_within is missing"));
 }

@@ -190,7 +190,7 @@ impl Request {
                 let answered = view.answer(
                     &project.log(project.ci_settings().budget(CiSettings::ROUTINE))?,
                     policy.scales(),
-                    policy.liveness().ci_run_within(),
+                    policy.liveness().ci_run_within()?,
                     |query| LiveGithub::for_project(project).read(query),
                 )?;
                 Ok(answered.raised_with(local))

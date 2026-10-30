@@ -15,10 +15,6 @@ pub struct Rollup {
 }
 
 impl Rollup {
-    pub fn silent(&self) -> bool {
-        self.contexts.nodes().next().is_none()
-    }
-
     pub fn failing(&self) -> FailingChecks {
         self.contexts.nodes().filter_map(CheckContext::failing_name).collect()
     }

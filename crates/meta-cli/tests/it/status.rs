@@ -40,7 +40,7 @@ impl Project {
         Fixture::working(clone.path(), origin.path(), TASK);
         std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
         std::fs::create_dir_all(clone.path().join("tooling")).unwrap();
-        std::fs::write(clone.path().join("tooling/policy.toml"), "").unwrap();
+        std::fs::write(clone.path().join("tooling/policy.toml"), "[liveness]\nci_run_within = 300000\n").unwrap();
         let bin = clone.path().join("bin");
         std::fs::create_dir(&bin).unwrap();
         std::fs::write(bin.join("gh"), FAKE_GH).unwrap();

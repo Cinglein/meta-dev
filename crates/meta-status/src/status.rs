@@ -23,18 +23,13 @@ pub struct Status<'view> {
     state: &'view State,
     github: &'view Github,
     now: DueTime,
-    ci_run_within: Option<Duration>,
+    ci_run_within: Duration,
 }
 
 impl<'view> Status<'view> {
     #[must_use]
-    pub fn new(state: &'view State, github: &'view Github, now: DueTime) -> Self {
-        Self { state, github, now, ci_run_within: None }
-    }
-
-    #[must_use]
-    pub fn ci_run_within(self, within: Duration) -> Self {
-        Self { ci_run_within: Some(within), ..self }
+    pub fn new(state: &'view State, github: &'view Github, now: DueTime, ci_run_within: Duration) -> Self {
+        Self { state, github, now, ci_run_within }
     }
 
     #[must_use]
@@ -106,10 +101,9 @@ impl<'view> Status<'view> {
         let shown = self.pulls(task);
         let pulls = shown.iter().copied();
         let flagged = pulls.filter_map(|pull_request| self.github.sight(pull_request).flag(id, pull_request, unheld));
-        let watch = waiting.zip(self.ci_run_within);
-        let unrun = watch
-            .into_iter()
-            .flat_map(|(block, within)| Unrunning::new(self.github, self.now.into(), within).flags(id, block, &shown));
+        let watch = waiting.zip(task.progress().waiting_since());
+        let unrunning = Unrunning::new(self.github, self.now, self.ci_run_within);
+        let unrun = watch.into_iter().flat_map(|(block, since)| unrunning.flags(id, block, since, &shown));
         let all = stalled.into_iter().chain(past_due).chain(unanswered).chain(done).chain(spent).chain(flagged);
         all.chain(unrun).collect()
     }

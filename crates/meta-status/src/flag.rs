@@ -1,12 +1,11 @@
 use std::fmt;
 
 use meta_pull_query::WorkflowName;
-use meta_schema::{Blocker, DueTime, Id, PullRequest, Task};
+use meta_schema::{Blocker, CommitId, DueTime, Id, PullRequest, Task};
 use serde::{Deserialize, Serialize};
 
 use crate::github_failure::GithubFailure;
 use crate::judgement::Judgement;
-use crate::no_run::NoRun;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Flag {
@@ -20,7 +19,7 @@ pub enum Flag {
     RedUnheld(Id<Task>, PullRequest),
     Missing(Id<Task>, PullRequest),
     TruncatedChecks(Id<Task>, PullRequest),
-    Unrun(Id<Task>, PullRequest, NoRun),
+    Unrun(Id<Task>, PullRequest, CommitId, DueTime),
     Orphan(PullRequest),
 }
 
@@ -59,7 +58,9 @@ impl fmt::Display for Flag {
             Self::TruncatedChecks(task, pull_request) => {
                 write!(formatter, "truncated {pull_request} {task}: more than 100 checks")
             }
-            Self::Unrun(task, pull_request, reason) => write!(formatter, "waiting {pull_request} {task}: {reason}"),
+            Self::Unrun(task, pull_request, commit, due) => {
+                write!(formatter, "waiting {pull_request} {task}: no CI run for {commit}, due {due}")
+            }
             Self::Orphan(pull_request) => write!(formatter, "orphan {pull_request}: open, no task"),
         }
     }

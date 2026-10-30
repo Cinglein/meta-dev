@@ -1,9 +1,7 @@
 use std::fmt;
-use std::time::Duration;
 
-use chrono::{DateTime, Utc};
-use meta_pulls::{PullState, RuledPull, Unrun};
-use meta_schema::{Id, PullRequest, Task};
+use meta_pulls::{PullState, RuledPull};
+use meta_schema::{CommitId, Id, PullRequest, Task};
 
 use crate::ending::Ending;
 use crate::flag::Flag;
@@ -55,9 +53,9 @@ impl Sight<'_> {
     }
 
     #[must_use]
-    pub fn unrun(self, now: DateTime<Utc>, within: Duration) -> Option<Unrun> {
+    pub fn unrun(self) -> Option<CommitId> {
         match self {
-            Self::Seen(pull) => pull.unrun(now, within),
+            Self::Seen(pull) => pull.unrun(),
             Self::Missing | Self::Unreached => None,
         }
     }

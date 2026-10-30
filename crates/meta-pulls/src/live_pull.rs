@@ -9,7 +9,6 @@ mod pull_state;
 mod rollup;
 mod rule_source;
 mod ruled_pull;
-mod unrun;
 
 use meta_schema::{Id, PullRequest, Task};
 use serde::Deserialize;
@@ -24,7 +23,6 @@ pub use pull_state::PullState;
 use rollup::Rollup;
 pub use rule_source::RuleSource;
 pub use ruled_pull::RuledPull;
-pub use unrun::Unrun;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct LivePull {

@@ -55,12 +55,12 @@ impl Tick {
 
     pub fn live(project: &Project, clone: &LocalClone) -> Result<Output, CliFailure> {
         let github = |query: &LiveQuery| LiveGithub::for_project(project).read(query);
-        let within = ScalePolicy::read(project.root())?.liveness().ci_run_within();
+        let within = ScalePolicy::read(project.root())?.liveness().ci_run_within()?;
         Self::answer(
             clone.git_dir().as_ref(),
             &project.log(project.ci_settings().budget(CiSettings::ROUTINE))?,
             github,
-            Pulse::new(Utc::now(), GcHook::Pending).expecting_ci_run_within(within),
+            Pulse::new(Utc::now(), GcHook::Pending, within),
         )
     }
 

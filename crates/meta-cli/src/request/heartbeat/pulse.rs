@@ -8,19 +8,15 @@ use super::gc_hook::GcHook;
 pub struct Pulse {
     now: DateTime<Utc>,
     gc: GcHook,
-    ci_run_within: Option<Duration>,
+    ci_run_within: Duration,
 }
 
 impl Pulse {
-    pub fn new(now: DateTime<Utc>, gc: GcHook) -> Self {
-        Self { now, gc, ci_run_within: None }
+    pub fn new(now: DateTime<Utc>, gc: GcHook, ci_run_within: Duration) -> Self {
+        Self { now, gc, ci_run_within }
     }
 
-    pub fn expecting_ci_run_within(self, within: Option<Duration>) -> Self {
-        Self { ci_run_within: within, ..self }
-    }
-
-    pub fn ci_run_within(&self) -> Option<Duration> {
+    pub fn ci_run_within(&self) -> Duration {
         self.ci_run_within
     }
 

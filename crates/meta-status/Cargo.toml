@@ -7,7 +7,6 @@ publish.workspace = true
 license.workspace = true
 
 [dependencies]
-chrono.workspace = true
 meta-schema.workspace = true
 meta-state.workspace = true
 meta-severity.workspace = true

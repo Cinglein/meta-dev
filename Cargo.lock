@@ -696,7 +696,6 @@ dependencies = [
 name = "meta-pulls"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "meta-golden",
  "meta-run",
  "meta-schema",
@@ -768,7 +767,6 @@ dependencies = [
 name = "meta-status"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "meta-pull-query",
  "meta-pulls",
  "meta-schema",

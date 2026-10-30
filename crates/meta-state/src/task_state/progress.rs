@@ -1,6 +1,6 @@
 mod activity;
 
-use meta_schema::{Actor, Block, Blocker};
+use meta_schema::{Actor, Block, Blocker, DueTime};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
@@ -84,7 +84,14 @@ impl Progress {
         }
     }
 
-    pub fn blocked(&self, block: &Block, by: &Actor) -> Result<Self, Refusal> {
+    pub fn waiting_since(&self) -> Option<DueTime> {
+        match self {
+            Self::Active(activity) => activity.waiting_since(),
+            Self::Done(..) => None,
+        }
+    }
+
+    pub fn blocked(&self, block: &Block, by: &Stamp) -> Result<Self, Refusal> {
         match self {
             Self::Active(activity) => activity.blocked(block, by).map(Self::Active),
             Self::Done(..) => Err(Refusal::AlreadyDone),

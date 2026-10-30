@@ -1,6 +1,6 @@
 mod waiting;
 
-use meta_schema::{Actor, Block, Blocker};
+use meta_schema::{Actor, Block, Blocker, DueTime};
 
 use crate::refusal::Refusal;
 use crate::stamp::Stamp;
@@ -12,12 +12,17 @@ use waiting::Waiting;
 pub struct Activity {
     assignments: Vec<Stamp>,
     waiting: Option<Block>,
+    blocked: Option<Stamp>,
     ended: Option<Blocker>,
 }
 
 impl Activity {
     pub fn unassigned() -> Self {
-        Self { assignments: Vec::new(), waiting: None, ended: None }
+        Self { assignments: Vec::new(), waiting: None, blocked: None, ended: None }
+    }
+
+    pub fn waiting_since(&self) -> Option<DueTime> {
+        self.blocked.as_ref().map(Stamp::written)
     }
 
     pub fn assigned(assignments: Vec<Stamp>) -> Self {
@@ -64,21 +69,26 @@ impl Activity {
         self.without(actor).map(|_| ())
     }
 
-    pub fn blocked(&self, block: &Block, by: &Actor) -> Result<Self, Refusal> {
-        self.holder(by)?;
+    pub fn blocked(&self, block: &Block, by: &Stamp) -> Result<Self, Refusal> {
+        self.holder(by.actor())?;
         self.waiting.as_ref().map_or_else(
-            || Ok(Self { waiting: Some(block.clone()), ended: None, ..self.clone() }),
+            || Ok(Self { waiting: Some(block.clone()), blocked: Some(by.clone()), ended: None, ..self.clone() }),
             |_| Err(Refusal::AlreadyWaiting),
         )
     }
 
     pub fn unblocked(&self, by: &Actor) -> Result<Self, Refusal> {
         let waiting = self.permitting(by)?.waiting.as_ref();
-        waiting.map(|_| Self { waiting: None, ..self.clone() }).ok_or(Refusal::NotBlocked)
+        waiting.map(|_| Self { waiting: None, blocked: None, ..self.clone() }).ok_or(Refusal::NotBlocked)
     }
 
     pub fn dissolved(&self) -> Self {
-        Self { waiting: None, ended: self.waiting.as_ref().map(Block::blocker).or(self.ended), ..self.clone() }
+        Self {
+            waiting: None,
+            blocked: None,
+            ended: self.waiting.as_ref().map(Block::blocker).or(self.ended),
+            ..self.clone()
+        }
     }
 
     fn permitting(&self, actor: &Actor) -> Result<&Self, Refusal> {

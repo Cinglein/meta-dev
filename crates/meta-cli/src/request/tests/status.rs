@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::time::Duration;
 
 use meta_golden::Golden;
 use meta_log::LogStore as _;
@@ -11,6 +12,7 @@ use crate::request::Request;
 use crate::request::output::Output;
 use crate::request::status_view::StatusView;
 
+const WITHIN: Duration = Duration::from_secs(300);
 const OFFLINE: &str = "offline";
 const TASK: &str = "$TASK";
 const ASKED: &str = "pr12:";
@@ -24,7 +26,7 @@ impl Asked {
             self.0.replace(query.field());
             Github::Unreached(GithubFailure::new(OFFLINE))
         };
-        view.answer(&meta.0, &Scales::default(), None, offline).unwrap()
+        view.answer(&meta.0, &Scales::default(), WITHIN, offline).unwrap()
     }
 }
 
