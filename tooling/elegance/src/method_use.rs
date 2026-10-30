@@ -25,6 +25,11 @@ impl MethodUse {
     }
 
     #[must_use]
+    pub fn mutates(&self) -> bool {
+        self.receiver == ReceiverKind::Exclusive || !self.usage.writes().is_empty()
+    }
+
+    #[must_use]
     pub fn owner(&self) -> &TypeKey {
         &self.owner
     }

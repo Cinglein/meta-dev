@@ -21,6 +21,7 @@ mod impl_fact;
 mod impl_kind;
 mod implementations;
 mod intent_cap;
+mod interior;
 mod layout;
 mod leverage;
 mod leverage_report;

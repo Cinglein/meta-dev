@@ -12,17 +12,28 @@ pub struct Components(Vec<Listed<MethodKey>>);
 
 impl Components {
     #[must_use]
-    pub fn joined(neighbourhoods: impl IntoIterator<Item = BTreeSet<UsageNode>>) -> Components {
+    pub fn joined(
+        neighbourhoods: impl IntoIterator<Item = BTreeSet<UsageNode>>,
+        inert: &BTreeSet<MethodKey>,
+    ) -> Components {
         let merged = neighbourhoods.into_iter().fold(Vec::<BTreeSet<UsageNode>>::new(), |components, next| {
             let (touching, apart): (Vec<BTreeSet<UsageNode>>, Vec<BTreeSet<UsageNode>>) =
                 components.into_iter().partition(|component| !component.is_disjoint(&next));
             let joined = touching.into_iter().flatten().chain(next).collect();
             apart.into_iter().chain(std::iter::once(joined)).collect()
         });
-        let mut methods: Vec<Listed<MethodKey>> =
-            merged.into_iter().map(|component| Listed::new(component.into_iter().filter_map(UsageNode::own))).collect();
+        let mut methods: Vec<Listed<MethodKey>> = merged
+            .into_iter()
+            .filter(|component| Self::is_active(component, inert))
+            .map(|component| Listed::new(component.into_iter().filter_map(UsageNode::own)))
+            .collect();
         methods.sort();
         Components(methods)
+    }
+
+    #[must_use]
+    pub fn is_active(component: &BTreeSet<UsageNode>, inert: &BTreeSet<MethodKey>) -> bool {
+        component.iter().any(|node| matches!(node, UsageNode::Own(key) if !inert.contains(key)))
     }
 
     #[must_use]
