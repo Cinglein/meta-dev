@@ -66,7 +66,16 @@ Cause   = Pull(PullRequest) | Item(Target) | Task(Id<Task>)
 - `SchemaVersion::requires_purpose()` is true from version 8. After the marker, the fold refuses a `TaskOpened` with no purpose. This uses the same pattern as `keeps_holders_on_reopen`.
 - Open tasks from before version 8 get a purpose through `TaskPurposed`.
 
-**Name clash.** Design §2 has a selector named `Project` that means the whole repo set. Rename it to `repo` (owner, 2026-10-30). `Selector::Project(Id<Project>)` then means this item kind. Design §2 also has a `Repo` selector for one repo. That selector needs a different name before the rename lands.
+**Selector names** (owner, 2026-10-30). Design §2's selector list becomes:
+
+```
+Selector = Landing(pr) | Stage(task, StageKind) | Task(task) | Footprint(crates)
+         | Division(d) | Repo | AllRepos | Project(Id<Project>) | Nothing{ revisit: Trigger }
+```
+
+- `repo` (`Repo`): one repo.
+- `all-repos` (`AllRepos`): the whole repo set. Design §2 called it `Project`.
+- `Project(Id<Project>)`: one project of this item kind.
 
 ## 3. Measures and enforcement points
 
@@ -176,7 +185,7 @@ Each PR is small and comes off main. Each first commit is red first.
 8. **Derived causes.** Triage writes `caused_by` from batch attribution, reverts and regressions. Waits on the batch queue (design §9).
 9. **Seed.** No code. The lead writes `ProjectProposed` for §8 and attaches the open tasks with `TaskPurposed`. The owner accepts.
 
-Order: 1, 2, 3, then 4, 5 and 7 in parallel, then 6, then 8. The lead retires task-6d498ba4 into this task after PR 1.
+Order: 1, 2, 3, then 4, 5 and 7 in parallel, then 6, then 8. The owner accepted this design on 2026-10-30. PR 1 starts after the hook PRs land. The lead retires task-6d498ba4 into this task after PR 1.
 
 ## 8. First projects for the owner to accept
 
