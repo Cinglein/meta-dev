@@ -148,6 +148,30 @@ mod tests {
         assert!(ALLOWED.iter().all(|command| refusal(command).is_none()));
     }
 
+    const VERDICTS: [(&str, bool); 13] = [
+        ("rm -rf x", true),
+        ("cd a && mv b c", true),
+        ("sed -i s/a/b/ f", true),
+        ("git diff | sed -n 1p", true),
+        ("awk '{print}' f", true),
+        ("python3 -c 1", true),
+        ("nice -n 19 perl -e 1", true),
+        ("FOO=1 /usr/bin/sed p", true),
+        ("cat <<EOF\nx\nEOF", true),
+        ("cat > f", true),
+        ("echo x >> f", true),
+        ("ls 2>/dev/null", true),
+        ("ls &>f", true),
+    ];
+
+    #[test]
+    fn a_shell_command_running_a_forbidden_program_heredoc_or_file_redirect_is_refused_and_nothing_else()
+    {
+        let config: Config = toml::from_str(CONFIG).unwrap();
+        let refused = |command: &str| command.parse::<ShellCommand>().unwrap().refusal(&config).is_some();
+        assert!(VERDICTS.iter().all(|(command, verdict)| refused(command) == *verdict));
+    }
+
     #[test]
     fn a_log_push_names_meta_and_a_force_push_names_no_lease() {
         let config: Config = toml::from_str(LOG_CONFIG).unwrap();
