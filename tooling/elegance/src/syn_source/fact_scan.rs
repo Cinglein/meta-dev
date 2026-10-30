@@ -1,9 +1,12 @@
+mod layout_scan;
+mod usage_scan;
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use syn::visit::Visit;
 use syn::{
-    GenericArgument, Ident, ImplItem, ItemFn, ItemImpl, ItemMod, ItemTrait, PathArguments, PathSegment,
-    TraitBoundModifier, TraitItem, Type, TypeParamBound, TypePath, WherePredicate,
+    GenericArgument, Ident, ImplItem, ItemEnum, ItemFn, ItemImpl, ItemMod, ItemStruct, ItemTrait, PathArguments,
+    PathSegment, TraitBoundModifier, TraitItem, Type, TypeParamBound, TypePath, WherePredicate,
 };
 use task::{CrateName, SourceFile, Walk};
 
@@ -12,9 +15,13 @@ use crate::facts::Facts;
 use crate::impl_fact::ImplFact;
 use crate::impl_kind::ImplKind;
 use crate::signature::Signature;
+use crate::source_path::SourcePath;
+use crate::structure::Structure;
 use crate::trait_key::TraitKey;
 use crate::trait_shape::TraitShape;
 use crate::type_key::TypeKey;
+use layout_scan::LayoutScan;
+use usage_scan::UsageScan;
 
 #[derive(Debug)]
 pub struct FactScan<'declared> {
@@ -22,18 +29,28 @@ pub struct FactScan<'declared> {
     owner: Option<CrateName>,
     traits: BTreeMap<TraitKey, TraitShape>,
     impls: Vec<ImplFact>,
+    structure: Structure,
+    place: Option<SourcePath>,
 }
 
 impl<'declared> FactScan<'declared> {
     #[must_use]
     pub fn scanned(declarations: &'declared Declarations, files: &[&SourceFile]) -> Facts {
-        let empty = FactScan { declarations, owner: None, traits: BTreeMap::new(), impls: Vec::new() };
+        let empty = FactScan {
+            declarations,
+            owner: None,
+            traits: BTreeMap::new(),
+            impls: Vec::new(),
+            structure: Structure::default(),
+            place: None,
+        };
         let scan = files.iter().fold(empty, |scan, file| scan.within(file));
-        Facts::new(declarations.local_types(), scan.traits, scan.impls)
+        Facts::new(declarations.local_types(), scan.traits, scan.impls, scan.structure)
     }
 
     fn within(mut self, file: &SourceFile) -> FactScan<'declared> {
         self.owner = file.crate_name().cloned();
+        self.place = Some(SourcePath::new(file.path()));
         self.visit_file(file.syntax());
         self
     }
@@ -190,11 +207,28 @@ impl<'ast> Visit<'ast> for FactScan<'_> {
     fn visit_item_trait(&mut self, item: &'ast ItemTrait) {
         let shaped =
             self.owner.as_ref().map(|owner| (self.declarations.trait_key(owner, &item.ident), self.shape(owner, item)));
+        let key = shaped.as_ref().map(|(key, _)| key.clone());
+        self.structure.places_mut().trait_at(key, self.place.clone());
         self.traits.extend(shaped);
+    }
+
+    fn visit_item_struct(&mut self, item: &'ast ItemStruct) {
+        let layout = LayoutScan::new(self.declarations).scanned(&item.fields);
+        let owner = self.owner.as_ref().map(|owner| self.declarations.type_key(owner, &item.ident));
+        self.structure.places_mut().type_at(owner.clone(), self.place.clone());
+        self.structure.laid_out(owner, layout);
+    }
+
+    fn visit_item_enum(&mut self, item: &'ast ItemEnum) {
+        let owner = self.owner.as_ref().map(|owner| self.declarations.type_key(owner, &item.ident));
+        self.structure.places_mut().type_at(owner, self.place.clone());
     }
 
     fn visit_item_impl(&mut self, item: &'ast ItemImpl) {
         let fact = self.owner.as_ref().and_then(|owner| self.fact(owner, item));
+        let target = fact.as_ref().and_then(|fact| fact.kind().target());
+        let implemented = fact.as_ref().and_then(|fact| fact.kind().implemented());
+        self.structure.used(target.into_iter().flat_map(|target| UsageScan::methods(target, implemented, item)));
         self.impls.extend(fact);
     }
 }

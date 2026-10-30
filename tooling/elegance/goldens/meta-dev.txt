@@ -1,104 +1,212 @@
-types 874, traits declared 16, impls 1346
-missing abstractions: maximal (types, signatures) concepts with at least 2 of each
-  concepts 103: named by one trait 31, by a composition only 20, unnamed 52
-  missing, one trait must name it: 72
-  missing, a composition may name it: 52
+types 1182, traits declared 29, impls 1877
+catalog: 24 measures, report-only
+  B1 unnamed concepts [trait graph, to zero]: 66
+  B2 reducible traits [trait graph, to zero]: 3
+  B3 signatures declared in more than one trait [trait graph, to zero]: 1
+  B4 leverage: usable methods / written bodies [trait graph, higher]: median 1.00
+  B5 order not realised: derivable hand impls [trait graph, to zero]: not implemented
+  B6 label reuse: transitions per label [transition graph, higher]: not implemented
+  B7 bisimilar type pairs [transition graph, to zero]: not implemented
+  B8 domain transitions touching primitives [transition graph, to zero]: measured by lint primitive_boundary (partial)
+  B9 hidden state fields [transition graph, to zero]: 8
+  B10 typestate share of transitions [transition graph, higher]: not implemented
+  B11 transition graph simplicity [transition graph, lower]: not implemented
+  B12 unnamed field concepts [types, to zero]: 30
+  B13 types with LCOM4 above 1 [types, to zero]: 9
+  B14 behavioural inherent methods [types, lower]: not implemented
+  B15 bodies identical up to types [code, to zero]: not implemented
+  B16 same-job paths per external effect [effects, lower]: measured by lint git_starters (partial)
+  B17 parsers of the same external command [effects, lower]: not implemented
+  B18 derivable hand impls [code, to zero]: not implemented
+  B19 repeated method shapes across types [code, lower]: measured by lint repeated_methods
+  B20 effect share and dispersion per crate [effects, lower]: measured by lint crate_graph
+  B21 test duplication [tests, lower]: not implemented
+  B22 redundant tests [tests, to zero]: not implemented
+  B23 repeated meta starts per command and scene [tests, lower]: not implemented
+  B24 test lines per caught mutant [tests, lower]: not implemented
+B1 missing abstractions: maximal (types, signatures) concepts with at least 2 of each
+  concepts 140: named by one trait 38, by a composition only 36, unnamed 66
+  missing, one trait must name it: 102
+  missing, a composition may name it: 66
   largest, unnamed:
-  1. 18 = 2 types x 9 signatures
+  1. 18 = 2 types x 9 attributes
     types: meta-state::Activity, meta-state::Progress
-    share: assignments(&self) -> &[Stamp]; blocked(&self, &Block, &Actor) -> Result<Self, Refusal>; claimed(&self, Stamp, Option<&Actor>) -> Result<Self, Refusal>; dissolved(&self) -> Self; ended(&self) -> Option<Blocker>; released(&self, &Stamp) -> Result<Self, Refusal>; status(&self) -> TaskStatus; unblocked(&self, &Actor) -> Result<Self, Refusal>; waited_at(&self) -> Option<&CommitId>
-  2. 12 = 6 types x 2 signatures
-    types: meta-cli::RecordedWorktree, meta-schema::Block, meta-schema::Claim, meta-schema::NewTask, meta-schema::TaskLink, meta-schema::TaskRef
+    share: assignments(&self) -> &[Stamp]; blocked(&self, &Block, &Actor) -> Result<Self, Refusal>; claimed(&self, Stamp, Option<&Actor>) -> Result<Self, Refusal>; dissolved(&self) -> Self; ended(&self) -> Option<Blocker>; released(&self, &Stamp) -> Result<Self, Refusal>; status(&self) -> TaskStatus; unblocked(&self, &Actor) -> Result<Self, Refusal>; waiting(&self) -> Option<&Block>
+  2. 14 = 7 types x 2 attributes
+    types: meta-cli::Cause, meta-cli::Listed, meta-cli::Message, meta-cli::Word, meta-process-table::TableFailure, meta-pulls::GhRefusal, meta-status::GithubFailure
+    share: fmt(&self, &mut Formatter) -> Result; new(impl Display) -> Self
+  3. 14 = 7 types x 2 attributes
+    types: meta-cli::RecordedWorktree, meta-schema::Block, meta-schema::Claim, meta-schema::NewTask, meta-schema::TaskLink, meta-schema::TaskPurpose, meta-schema::TaskRef
     share: fmt(&self, &mut Formatter) -> Result; task(&self) -> Id<Task>
-  3. 12 = 2 types x 6 signatures
+  4. 14 = 2 types x 7 attributes
+    types: elegance::Declarations, elegance::FactScan
+    share: visit_item_enum(&mut self, &ItemEnum); visit_item_fn(&mut self, &ItemFn); visit_item_impl(&mut self, &ItemImpl); visit_item_mod(&mut self, &ItemMod); visit_item_struct(&mut self, &ItemStruct); visit_item_trait(&mut self, &ItemTrait); within(mut self, &SourceFile) -> Self
+  5. 12 = 2 types x 6 attributes
     types: meta-schema::NewConcern, meta-schema::NewIssue
     share: corrected(&self, Text) -> Self; fmt(&self, &mut Formatter) -> Result; placed(self, Division) -> Self; placement(&self) -> &Placement; rated(self, LevelName) -> Self; rating(&self) -> Rating
-  4. 12 = 2 types x 6 signatures
+  6. 12 = 2 types x 6 attributes
     types: meta-state::ConcernState, meta-state::IssueState
     share: correct(&mut self, Text); fmt(&self, &mut Formatter) -> Result; rated(&self) -> RatedItem; relocate(&mut self, Division, Option<LevelName>); rerate(&mut self, LevelName); target(&self) -> Target
-  5. 10 = 5 types x 2 signatures
-    types: meta-cli::Cause, meta-cli::Listed, meta-cli::Message, meta-cli::Word, meta-status::GithubFailure
-    share: fmt(&self, &mut Formatter) -> Result; new(impl Display) -> Self
-  6. 10 = 5 types x 2 signatures
+  7. 10 = 5 types x 2 attributes
+    types: corpus_check::Mismatch, elegance::Listed, meta-xtask::Changed, meta-xtask::Gaps, task::FailureSet
+    share: fmt(&self, &mut Formatter) -> Result; is_empty(&self) -> bool
+  8. 10 = 5 types x 2 attributes
     types: meta-cli::Culprit, meta-schema::Relocation, meta-schema::Rerating, meta-state::ConcernState, meta-state::IssueState
     share: fmt(&self, &mut Formatter) -> Result; target(&self) -> Target
-  7. 10 = 2 types x 5 signatures
-    types: elegance::Declarations, elegance::FactScan
-    share: visit_item_fn(&mut self, &ItemFn); visit_item_impl(&mut self, &ItemImpl); visit_item_mod(&mut self, &ItemMod); visit_item_trait(&mut self, &ItemTrait); within(mut self, &SourceFile) -> Self
-  8. 9 = 3 types x 3 signatures
+  9. 9 = 3 types x 3 attributes
     types: meta-schema::NewConcern, meta-schema::NewIssue, meta-schema::NewTask
     share: corrected(&self, Text) -> Self; fmt(&self, &mut Formatter) -> Result; placement(&self) -> &Placement
-  9. 6 = 3 types x 2 signatures
-    types: const_shape::ConstContexts, manual_iteration::Iterations, type_shape::TypeShapes
-    share: violation(&self, Span, &str) -> Violation; visit_item_mod(&mut self, &ItemMod)
-  10. 6 = 3 types x 2 signatures
-    types: expression_flow::ExpressionFlow, manual_iteration::ManualIteration, type_shape::TypeShape
-    share: report(&[SourceFile]) -> Report; violations(&SourceFile) -> Vec<Violation>
+  10. 8 = 4 types x 2 attributes
+    types: meta-cli::AgentRoot, meta-cli::RecordedWorktree, meta-xtask::RecordedTimes, task::TouchedFile
+    share: fmt(&self, &mut Formatter) -> Result; path(&self) -> &Path
   largest, named only by a composition of shared traits:
-  1. 70 = 35 types x 2 signatures
-    types: meta-cli::AuthorName, meta-cli::BranchName, meta-cli::Commit, meta-cli::CoreShare, meta-cli::ExpectedRun, meta-cli::GroupId, meta-cli::HookEvent, meta-cli::Line, meta-cli::LoadAverage, meta-cli::LogLine, meta-cli::NoreplyEmail, meta-cli::OptionName, meta-cli::Pid, meta-cli::ProcessRow, meta-cli::SessionId, meta-cli::StartMoment, meta-cli::WatchState, meta-golden::Argv, meta-golden::Status, meta-log::RemoteName, meta-log::Sha, meta-pull-query::WorkflowName, meta-schema::Actor, meta-schema::Blocker, meta-schema::CommitId, meta-schema::DueTime, meta-schema::Entry, meta-schema::Id, meta-schema::PullRequest, meta-schema::RawId, meta-schema::Tag, meta-schema::Target, meta-schema::Text, meta-schema::Tokens, meta-xtask::LogSource
+  1. 74 = 37 types x 2 attributes
+    types: meta-cli::AuthorName, meta-cli::BranchName, meta-cli::Commit, meta-cli::CoreShare, meta-cli::ExpectedRun, meta-cli::GroupId, meta-cli::HookEvent, meta-cli::Identity, meta-cli::LoadAverage, meta-cli::LogLine, meta-cli::NoreplyEmail, meta-cli::OptionName, meta-cli::Pid, meta-cli::ProcessRow, meta-cli::Rules, meta-cli::SessionId, meta-cli::StartMoment, meta-cli::WatchState, meta-golden::Argv, meta-golden::Status, meta-log::Sha, meta-pull-query::WorkflowName, meta-pulls::BaseBranch, meta-schema::Actor, meta-schema::Blocker, meta-schema::CommitId, meta-schema::DueTime, meta-schema::Entry, meta-schema::Id, meta-schema::PullRequest, meta-schema::RawId, meta-schema::Tag, meta-schema::Target, meta-schema::Tokens, meta-text::Text, meta-trace::TraceId, meta-xtask::LogSource
     share: fmt(&self, &mut Formatter) -> Result; from_str(&str) -> Result<Self, Err>
-  2. 20 = 5 types x 4 signatures
-    types: meta-schema::Actor, meta-schema::CommitId, meta-schema::Id, meta-schema::Tag, meta-schema::Text
+  2. 21 = 7 types x 3 attributes
+    types: meta-budget::BudgetId, meta-budget::MeasureName, meta-schema::Actor, meta-schema::CommitId, meta-schema::Id, meta-schema::Tag, meta-text::Text
+    share: deserialize(In) -> Result<Self, Error>; fmt(&self, &mut Formatter) -> Result; serialize(&self, Out) -> Result<Ok, Error>
+  3. 20 = 10 types x 2 attributes
+    types: meta-acceptance::AcceptanceRows, meta-acceptance::Gating, meta-acceptance::Vec1, meta-budget::BudgetId, meta-budget::MeasureName, meta-schema::Actor, meta-schema::CommitId, meta-schema::Id, meta-schema::Tag, meta-text::Text
+    share: deserialize(In) -> Result<Self, Error>; serialize(&self, Out) -> Result<Ok, Error>
+  4. 20 = 5 types x 4 attributes
+    types: meta-schema::Actor, meta-schema::CommitId, meta-schema::Id, meta-schema::Tag, meta-text::Text
     share: deserialize(In) -> Result<Self, Error>; fmt(&self, &mut Formatter) -> Result; from_str(&str) -> Result<Self, Err>; serialize(&self, Out) -> Result<Ok, Error>
-  3. 18 = 6 types x 3 signatures
-    types: meta-cli::NoreplyEmail, meta-schema::Actor, meta-schema::CommitId, meta-schema::Id, meta-schema::Tag, meta-schema::Text
+  5. 18 = 6 types x 3 attributes
+    types: meta-cli::NoreplyEmail, meta-schema::Actor, meta-schema::CommitId, meta-schema::Id, meta-schema::Tag, meta-text::Text
     share: deserialize(In) -> Result<Self, Error>; fmt(&self, &mut Formatter) -> Result; from_str(&str) -> Result<Self, Err>
-  4. 16 = 8 types x 2 signatures
+  6. 16 = 8 types x 2 attributes
+    types: meta-budget::BudgetId, meta-budget::MeasureName, meta-cli::NoreplyEmail, meta-schema::Actor, meta-schema::CommitId, meta-schema::Id, meta-schema::Tag, meta-text::Text
+    share: deserialize(In) -> Result<Self, Error>; fmt(&self, &mut Formatter) -> Result
+  7. 16 = 8 types x 2 attributes
     types: meta-xtask::Commit, meta-xtask::MetaRev, meta-xtask::Toolchain, task::Shard, task::Slice, test_time::ListedTest, test_time::TestRun, test_time::TestRuns
     share: fmt(&self, &mut Formatter) -> Result; from_str(&str) -> Result<Self, Failure>
-  5. 8 = 4 types x 2 signatures
-    types: meta-cli::BranchName, meta-log::RemoteName, meta-xtask::Commit, task::BranchName
-    share: as_ref(&self) -> &OsStr; fmt(&self, &mut Formatter) -> Result
-  6. 8 = 4 types x 2 signatures
-    types: meta-spec::Unconverted, meta-xtask::HeadBranch, meta-xtask::ProseWords, task::BranchName
+  8. 14 = 7 types x 2 attributes
+    types: meta-git::RefName, meta-git::RemoteName, meta-spec::Unconverted, meta-xtask::HeadBranch, meta-xtask::ProseWords, meta-xtask::WorkingDirectory, task::BranchName
     share: fmt(&self, &mut Formatter) -> Result; from_str(&str) -> Result<Self, Infallible>
-  7. 6 = 3 types x 2 signatures
-    types: corpus_check::AnnotatedLine, corpus_check::AnnotatedSource, corpus_check::Annotation
-    share: fmt(&self, &mut Formatter) -> Result; from_str(&str) -> Result<Self, CorpusError>
-  8. 6 = 3 types x 2 signatures
-    types: crate_graph::ItemCount, elegance::Tally, meta-xtask::ViolationCount
+  9. 12 = 6 types x 2 attributes
+    types: crate_graph::ItemCount, elegance::Tally, meta-trace::Dropped, meta-trace::Micros, meta-xtask::ViolationCount, waterfall::Seconds
     share: add(self, Self) -> Self; fmt(&self, &mut Formatter) -> Result
-  9. 6 = 3 types x 2 signatures
-    types: crate_graph::ItemCount, meta-cli::ByteCount, meta-xtask::ViolationCount
-    share: fmt(&self, &mut Formatter) -> Result; sum(Counts) -> Self
-  10. 6 = 3 types x 2 signatures
-    types: meta-cli::BranchName, meta-cli::Stamp, meta-log::RemoteName
-    share: as_ref(&self) -> &OsStr; from_str(&str) -> Result<Self, Err>
-leverage: distinct method names usable on a type / method bodies written for it
+  10. 12 = 6 types x 2 attributes
+    types: elegance::Concept, elegance::Finding, elegance::HiddenField, elegance::Listed, elegance::TraitKey, elegance::TypeKey
+    share: fmt(&self, &mut Formatter) -> Result; places(&self, &Places) -> BTreeSet<SourcePath>
+B2 reducible traits: same implementors as another trait, or exactly the meet of two or more
+  local traits only; a trait with a blanket impl is derived, not reducible
+  found 3
+    meta-git::Sends: same implementors as meta-git::Asks
+    meta-git::Writes: same implementors as meta-git::Reads
+    meta-schema::VerdictVisitor: same implementors as meta-schema::PurposeVisitor
+B3 signatures declared in more than one local trait
+  found 1
+    words(&self, &RemoteName) -> Vec<OsString>: meta-git::RemoteChange, meta-git::RemoteQuery
+B4 leverage: distinct method names usable on a type / method bodies written for it
   usable = inherent names + the methods of each trait the type has; a local trait contributes its declared methods, a foreign trait the names seen in impls
-  n 794: min 0.66, q1 1.00, median 1.00, q3 1.00, max 50.00
-  types with no bodies: 80
+  n 1080: min 0.66, q1 1.00, median 1.00, q3 1.00, max 56.00
+  types with no bodies: 102
   lowest:
     meta-cli::Cause 0.66 (2 usable / 3 written)
     meta-cli::Unmarked 0.66 (2 usable / 3 written)
+    meta-git::History 0.66 (2 usable / 3 written)
+    task::CrateName 0.66 (2 usable / 3 written)
     task::Name 0.70 (7 usable / 10 written)
-    meta-run::Environment 0.75 (6 usable / 8 written)
     meta-run::CommandLine 0.75 (3 usable / 4 written)
-    meta-cli::Git 0.76 (16 usable / 21 written)
+    meta-run::Environment 0.77 (7 usable / 9 written)
     meta-cli::Stamp 0.80 (4 usable / 5 written)
     meta-cli::TickLimit 0.80 (4 usable / 5 written)
-    meta-cli::Repo 0.82 (14 usable / 17 written)
-    meta-cli::Commit 0.85 (6 usable / 7 written)
+    meta-trace::Dropped 0.80 (4 usable / 5 written)
+B9 hidden state
+  rule: a bool or local-enum field assigned (= or op=), or an Option field assigned or filled (insert, replace, take, get_or_insert, get_or_insert_with), inside a &mut self method of the same type
+  limits: syntactic: misses writes through aliases (let f = &mut self.f), mem::replace or swap, helper fns, other types' methods, type aliases of bool or Option, and enums from other crates
+  found 8
+    enum_predicates::EnumPredicates.current: Option<CrateName> (Option): enter
+    meta-state::ProjectState.progress: ProjectProgress (local enum): advance
+    meta-state::State.schema: Option<SchemaVersion> (Option): note_schema
+    meta-state::TaskState.progress: Progress (local enum): advance, dissolve
+    task::Ledger.mode: Mode (local enum): enforce_from, report_only
+    task::Ledger.prior: Option<PriorStanding> (Option): enforce_from
+    task::Ledger.standing: Option<Standing> (Option): count
+    test_budget::TestModule.scope: Scope (local enum): Visit::visit_item_fn
+B12 field concepts: maximal (types, named fields) concepts with at least 2 of each
+  a field is its name and its written type; a type that nests the set names it, so its fields are not shared
+  concepts 30
+  largest, unnamed:
+  1. 34 = 2 types x 17 attributes
+    types: task::Policy, task::PolicyFile
+    share: bit_boundary: BitBoundary; branches: EnumMap<Branch, BranchName>; domains: Domains; gate: Option<GateStatus>; gate_env: Vec<GateEnvName>; gate_wait: Option<Millis>; liveness: Option<Liveness>; mutant_millis: MutantMillis; mutation: MutationCadence; queue: QueueSettings; scales: Scales; spec: Option<SpecSettings>; supply_chain: SupplyChain; surfaces: Vec<Surface>; tools: Option<ModalTools>; vague: Vec<String>; wire_types: Vec<String>
+  2. 14 = 7 types x 2 attributes
+    types: const_shape::ConstContexts, expression_flow::Flows, fn_shape::Shapes, manual_iteration::Iterations, state_graph::FieldVisibility, state_graph::VariantMatches, type_shape::TypeShapes
+    share: path: &Path; violations: Vec<Violation>
+  3. 8 = 4 types x 2 attributes
+    types: const_shape::ConstContexts, fn_shape::Shapes, test_budget::TestModule, test_budget::TestScan
+    share: path: &Path; policy: &Policy
+  4. 6 = 3 types x 2 attributes
+    types: meta-cli::Project, meta-cli::Repo, meta-cli::Scene
+    share: clone: TempDir; origin: TempDir
+  5. 6 = 3 types x 2 attributes
+    types: meta-cli::Relocate, meta-schema::Relocation, meta-severity::Stranded
+    share: division: Division; item: Target
+  6. 6 = 3 types x 2 attributes
+    types: meta-schema::NewConcern, meta-schema::NewIssue, meta-schema::NewTask
+    share: division: Placement; text: Text
+  7. 6 = 3 types x 2 attributes
+    types: no_parameter_bags::Candidate, public_surface::Export, settings_shape::DeserializedStruct
+    share: line: LineNumber; name: Name
+  8. 6 = 2 types x 3 attributes
+    types: const_shape::ConstContexts, fn_shape::Shapes
+    share: path: &Path; policy: &Policy; violations: Vec<Violation>
+  9. 6 = 2 types x 3 attributes
+    types: elegance::FactScan, elegance::Facts
+    share: impls: Vec<ImplFact>; structure: Structure; traits: BTreeMap<TraitKey, TraitShape>
+  10. 6 = 2 types x 3 attributes
+    types: meta-cli::Parsed, meta-schema::NewConcern
+    share: severity: Option<LevelName>; source: Option<Text>; tags: Vec<Tag>
+B13 types whose method-field graph splits
+  rule: LCOM4 per type with fields, over its self methods keyed by trait and name; nodes are those methods and the fields; edges join a method to each field it reads or writes, to each self method it calls, and to the field of each accessor it calls; an accessor (body is self.f, &self.f or self.f = value) is not a node; a bare use of self joins every field; a method that touches nothing is left out; a self call that names no method or accessor of the type links nothing; on a type none of whose methods takes &mut self or writes a field and none of whose field types names Mutex, RwLock, RefCell, Cell, OnceCell, OnceLock, LazyLock, LazyCell or a std atomic at any depth (a value or settings type), a method that reaches exactly one field is a projection: it keeps its edges, and a component made only of projections is dropped
+  limits: syntactic: fields reached through helpers or locals and trait default bodies are not seen; a call is resolved by name to every method of the type with that name and, when several accessors share the name, to the field of each; on a type that also has a &mut self method, one-field reads stay nodes and can split it; a &self facade over separate resources is not seen
+  found 9
+    elegance::Places: 2 components [of_trait, trait_at] [of_type, type_at]
+    elegance::Structure: 2 components [laid_out, layout] [methods_of, used]
+    elegance::Usage: 2 components [touch] [write]
+    meta-cli::CiSettings: 2 components [budget] [gh_limit, remaining]
+    meta-cli::Host: 2 components [lenders, noted, meta-cli::Inspection::cleared, meta-cli::Inspection::entry, meta-cli::Inspection::frozen, meta-cli::Inspection::neighbours, meta-cli::Inspection::occupancy, meta-cli::Inspection::text, meta-cli::Inspection::thawed, meta-cli::Inspection::uninspected, meta-cli::Inspection::walked] [meta-cli::Inspection::git]
+    meta-cli::Project: 2 components [born_after, checkout, created_after, git, head, independent_tips, log, push_failure, read, reflog, remote_heads, repository, unprotected_branch, unpushed] [meta, path, unkept, Display::fmt]
+    meta-git::Repository: 2 components [git_dir, locked, meta-git::Reads::read, meta-git::Writes::write] [Debug::fmt]
+    meta-pulls::LivePull: 2 components [open_base] [task]
+    waterfall::TimedUnit: 2 components [end, ended, section, Display::fmt] [unblocked]
 trait-graph shape
   graph edges: supertrait 3, blanket 0; depth 1
-  blanket share: 0 of 625 trait impls = 0.00
-  single-implementor traits: 6
+  blanket share: 0 of 894 trait impls = 0.00
+  single-implementor traits: 14
     elegance::FactSource -> elegance::SynSource
     meta-cli::ClaimHands -> meta-cli::ClaimRun
     meta-cli::Inspection -> meta-cli::Host
+    meta-git::Asks -> meta-git::Remote
+    meta-git::Reads -> meta-git::Repository
+    meta-git::RemoteQuery -> meta-git::Heads
+    meta-git::Sends -> meta-git::Remote
+    meta-git::Writes -> meta-git::Repository
+    meta-pulls::TransitionVisitor -> meta-cli::Turn
     meta-schema::EventVisitor -> meta-state::Applying
+    meta-schema::PurposeVisitor -> meta-state::ProjectProgress
+    meta-schema::VerdictVisitor -> meta-state::ProjectProgress
     task::Stream -> task::Stdout
     task::Tool -> task::CargoTool
-  traits implemented directly, per implementing type: n 470: min 1, q1 1, median 1, q3 1, max 5
-  types with at least N = 2 traits (q3, at least 2) and no edge among them: 95
+  traits implemented directly, per implementing type: n 641: min 1, q1 1, median 1, q3 2, max 5
+  types with at least N = 2 traits (q3, at least 2) and no edge among them: 161
     corpus_check::AnnotatedLine: Display, FromStr
     corpus_check::AnnotatedSource: Display, FromStr
     corpus_check::Annotation: Display, FromStr
     crate_graph::ItemCount: Add, Display, Sum
-    elegance::Tally: Add, Display, Mul, Sum
-    meta-cli::AuthorName: Display, FromStr
-    meta-cli::Blocking: Display, From
-    meta-cli::BranchName: AsRef, Display, From, FromStr, TryFrom
-    meta-cli::ByteCount: Display, Sum
-    meta-cli::CommandSummary: Display, From
+    elegance::Components: Display, elegance::Located
+    elegance::Concept: Display, elegance::Located
+    elegance::Finding: Display, elegance::Located
+    elegance::HiddenField: Display, elegance::Located
+    elegance::Listed: Display, elegance::Located
+    elegance::MethodKey: Display, elegance::Located
+smell inventory scoring, informational: a finding flags an entry when a type or trait it names is declared in a file the entry lists
+  B1 unnamed concepts [trait graph, to zero]: recall 6 of 9 tagged naming-completeness [about-task-accessors, activity-progress-delegation, lint-report-family, local-journals, repeats-three-times, stored-file-family]; other entries flagged 16 [clock-dispersion, concern-issue-state, deadline-limit-types, dup-primitive-newtypes, id-generators-random, listed-reads-log, monitor-state-reset, new-concern-issue-task, option-unit-as-bool, record-new-clock, recorded-worktree-late-id, signature-renderers, test-module-skip-per-lint, text-newtypes, type-name-reuse, use-tree-walkers]; noise 39 of 66 findings
+  B2 reducible traits [trait graph, to zero]: recall 0 of 0 tagged reducible-traits []; other entries flagged 1 [meta-git-four-call-traits]; noise 1 of 3 findings
+  B3 signatures declared in more than one trait [trait graph, to zero]: recall 0 of 2 tagged orthogonality []; other entries flagged 0 []; noise 1 of 1 findings
+  B9 hidden state fields [transition graph, to zero]: recall 1 of 4 tagged hidden-state [ledger-mode]; other entries flagged 0 []; noise 5 of 8 findings
+  B12 unnamed field concepts [types, to zero]: recall 1 of 1 tagged field-concepts [new-concern-issue-task]; other entries flagged 9 [about-task-accessors, lint-report-family, option-unit-as-bool, record-new-clock, recorded-worktree-late-id, repeats-three-times, test-module-skip-per-lint, two-policy-toml-readers, use-tree-walkers]; noise 17 of 30 findings
+  B13 types with LCOM4 above 1 [types, to zero]: recall 1 of 4 tagged lcom4 [inspection-reads-and-writes]; other entries flagged 4 [git-start-paths, kill-and-lsof-twice, oncelock-caches-with-args, two-undo-mechanisms]; noise 7 of 9 findings

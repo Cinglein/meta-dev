@@ -6,7 +6,7 @@ use crate::method_name::MethodName;
 use normalizer::Normalizer;
 use quote::ToTokens;
 use syn::visit_mut::VisitMut;
-use syn::{FnArg, Ident, ReturnType};
+use syn::{FnArg, Ident, ReturnType, Type};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Signature {
@@ -40,6 +40,13 @@ impl Signature {
             FnArg::Receiver(receiver) => Self::spaced(receiver),
             FnArg::Typed(typed) => Self::spaced(&typed.ty),
         }
+    }
+
+    #[must_use]
+    pub fn rendered(ty: &Type) -> String {
+        let mut normalized = ty.clone();
+        Normalizer::new(None).visit_type_mut(&mut normalized);
+        Self::spaced(&normalized)
     }
 
     fn spaced(tokens: &impl ToTokens) -> String {

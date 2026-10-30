@@ -1,0 +1,23 @@
+[[smell]]
+id = "split-duo"
+category = "low-cohesion"
+locations = ["fixture/src/lib.rs:470"]
+why = "Duo formats one field for Display and the other for Debug."
+confidence = "clear"
+measure = "lcom4"
+
+[[smell]]
+id = "elsewhere"
+category = "low-cohesion"
+locations = ["nowhere/src/lib.rs:1"]
+why = "No scanned file holds it."
+confidence = "likely"
+measure = "lcom4"
+
+[[smell]]
+id = "remote-signal"
+category = "missing-trait"
+locations = ["remote/src/lib.rs:9"]
+why = "Signal and Phase share go and stop with no trait."
+confidence = "clear"
+measure = "naming-completeness"

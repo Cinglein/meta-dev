@@ -257,6 +257,7 @@ crate_graph = 3000
 expression_flow = 2200
 fn_shape = 2200
 meta-cli = 3600
+meta-git = 10600
 meta-log = 6300
 meta-pull-query = 3600
 meta-pulls = 3700
