@@ -15,7 +15,8 @@ pub struct Fixture {
 impl Fixture {
     const WORKING: &str =
         "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = false\n[maintenance]\n\tauto = false\n";
-    const BARE: &str = "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = true\n[maintenance]\n\tauto = false\n[receive]\n\tautogc = false\n";
+    const BARE: &str =
+        "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = true\n[maintenance]\n\tauto = false\n";
     const NAME: &str = "fixture";
     const EMAIL: &str = "fixture@invalid";
     const MESSAGE: &str = "fixture\n";

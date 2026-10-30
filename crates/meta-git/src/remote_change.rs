@@ -11,6 +11,10 @@ pub trait RemoteChange {
 
     fn moved(&self, here: &git2::Repository, there: &git2::Repository) -> Result<(), git2::Error>;
 
+    fn in_process(&self, there: git2::Repository) -> Option<git2::Repository> {
+        Some(there)
+    }
+
     fn sent(&self, ran: Ran) -> Result<(), Stderr> {
         if ran.success() { Ok(()) } else { Err(ran.stderr().clone()) }
     }

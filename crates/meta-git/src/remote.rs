@@ -101,7 +101,8 @@ impl Asks for Remote {
 impl Sends for Remote {
     fn send<Sent: RemoteChange>(&self, change: &Sent) -> Result<Result<(), Stderr>, GitFailure> {
         self.forget_heads();
-        match self.transport().opened().filter(|_| self.configured_helper(Sent::HELPER).is_none()) {
+        let local = self.transport().opened().filter(|_| self.configured_helper(Sent::HELPER).is_none());
+        match local.and_then(|there| change.in_process(there)) {
             Some(there) => {
                 let [here, there] = [self.directory.as_path(), there.path()].map(Self::packable);
                 let moved = here.and_then(|here| change.moved(&here, &there?));

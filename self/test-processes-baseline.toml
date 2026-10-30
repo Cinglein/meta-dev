@@ -19,7 +19,7 @@
 "meta-golden goldens a_golden_passes_its_own_text_and_fails_on_any_other_and_meta_runs_from_the_bin_dir" = 1
 "meta-golden goldens a_scenario_records_what_real_git_reports_as_checked_in_and_a_failed_setup_fails_the_refresh" = 23
 "meta-golden goldens the_replayer_answers_each_call_with_the_next_recording_and_refuses_once_they_run_out" = 1
-"meta-log meta_log git_log::tests::refusals_write_nothing_and_rejected_or_offline_writes_fail" = 4
+"meta-log meta_log git_log::tests::refusals_write_nothing_and_rejected_or_offline_writes_fail" = 10
 "meta-run meta_run run::placement::tests::terminal_runs_lead_their_group_without_a_terminal_let_git_prompt_and_runs_and_helpers_leave_nothing_behind" = 9
 "meta-run meta_run run::tests::a_meta_child_is_told_its_trace_and_parent_span_even_with_no_inherited_variables" = 1
 "meta-run run a_run_ends_at_its_deadline_and_kills_its_whole_group_holders_deaf_respawning_stalled_and_nested_alike" = 5
