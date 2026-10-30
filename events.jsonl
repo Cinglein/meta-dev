@@ -1678,3 +1678,4 @@
 {"at":"2026-10-30T04:49:05.710227Z","actor":"claude-paydown","kind":"TaskClaimed","task":"task-5ceee69704fbf750"}
 {"at":"2026-10-30T04:49:07.570526Z","actor":"claude-paydown","kind":"TaskClaimed","task":"task-24294f547ce72c66"}
 {"at":"2026-10-30T04:53:58.244656Z","actor":"claude-macos","kind":"TaskDone","task":"task-cc7b5ef79b0bb628"}
+{"at":"2026-10-30T04:55:18.949125Z","actor":"owner","kind":"TaskLinked","task":"task-914f9a9748b07f03","pr":229}
