@@ -44,7 +44,7 @@ registries = ["https://github.com/rust-lang/crates.io-index"]
 git = []
 ignored_advisories = []
 duplicates = "warn"
-semver = []
+semver = ["greeting"]
 
 [limits]
 parameters = 4
@@ -90,9 +90,17 @@ test_timeout = 30000
 full_job = 480000
 diff_job = 360000
 job_setup = 90000
+queue_pace = 60000
 
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]
+
+[budgets.test-cpu-time]
+division = "performance-and-cost"
+measure = "test_cpu_time"
+allowance = { duration = 4000 }
+window = "per_change"
+source = "ci"
 
 [budgets.test-time]
 division = "performance-and-cost"

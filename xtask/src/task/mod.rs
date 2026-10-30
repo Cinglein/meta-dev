@@ -1,3 +1,4 @@
+mod adoption;
 mod build_directory;
 mod ci;
 mod clippy;
@@ -21,6 +22,7 @@ use std::path::PathBuf;
 use strum::{EnumString, IntoStaticStr, VariantNames};
 use task::{Branch, Ledger, Policy, Program, Selection, Workspace};
 
+use crate::task::adoption::Adoption;
 use crate::task::build_directory::{BuildDirectory, Misplaced, TrackedBuildFiles};
 use crate::task::clippy::Clippy;
 use crate::task::coverage::Coverage;
@@ -49,6 +51,7 @@ use waterfall::Waterfall;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "kebab-case")]
 pub enum Task {
+    Adoption,
     Affected,
     Baseline,
     Ci,
@@ -138,7 +141,8 @@ impl Task {
             );
         });
         match self {
-            Task::Affected => Ok(Affected::selection(workspace, Changes::SinceMain, policy.branch(Branch::Base))
+            Task::Adoption => Adoption::checked(workspace, &policy),
+            Task::Affected => Ok(Affected::selection(workspace, &Changes::SinceMain, policy.branch(Branch::Base))
                 .map(|reached| println!("{reached}"))?),
             Task::Baseline => Lint::shrink(workspace.root(), &workspace.source_files()?, &policy)
                 .map(|kept| println!("baseline: {} violations", kept.total())),

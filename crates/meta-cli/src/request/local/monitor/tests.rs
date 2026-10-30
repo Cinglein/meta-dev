@@ -8,8 +8,12 @@ use meta_golden::Golden;
 
 use super::Monitor;
 use super::culprit::Culprit;
+use super::fault::Fault;
+use super::monitor_report::MonitorReport;
+use super::monitor_state::MonitorState;
 use super::patrol::Patrol;
 use super::process_row::{GroupId, Pid, ProcessRow};
+use super::silence::Silence;
 use super::standing::Standing;
 use super::starts::Starts;
 use super::target::Target;
@@ -18,7 +22,7 @@ use crate::request::local::local_settings::Cause;
 use crate::request::local::local_settings::MonitorSettings;
 use crate::request::local::{LocalClone, LocalFile};
 use crate::request::output::{Listed, Output};
-use crate::request::project::{CiSettings, Config, HeartbeatSettings};
+use crate::request::project::{CiSettings, Config};
 use fake_machine::FakeMachine;
 
 const NOW: &str = "2026-10-27T12:00:00Z";
@@ -52,6 +56,9 @@ p100\nn/p-worktrees/t\np101\nn/p-worktrees/t\np105\nn/p-worktrees/t\np106\nn/oth
 p130\nn/p\np140\nn/p\np200\nn/p\np201\nn/p\np300\nn/other\np102\nn/other\np60\nn/p\n";
 const UPTIME: &str = "12:00  up 26 days, 19:01, 1 user, load averages: 1.00 2.00 3.01\n";
 const STOPPING: &str = "stop = [\"orphaned\", \"cpu-time\", \"wall-time\"]\nspared = []";
+const SILENT: &str = r#"{"task":"task-00000000000000c0","worktree":"/p-worktrees/t",
+"hush":{"Quiet":{"quiet":{"secs":4000,"nanos":0},"limit":{"secs":1800,"nanos":0}}}}"#;
+const UNHEARD: &str = "liveness unread: tooling/policy.toml: unreadable";
 const PROMOTING: &str = "watch_ticks = 2\nkept_entries = 6";
 const LOOP: [&str; 2] = ["  100     1   100", "  201     1   201"];
 const JOINED: [&str; 2] =
@@ -61,6 +68,21 @@ const LATER: [TimeDelta; 5] =
     [TimeDelta::zero(), TimeDelta::minutes(5), TimeDelta::minutes(10), TimeDelta::minutes(61), TimeDelta::minutes(62)];
 const BROKEN: &str = "settings unreadable";
 const GIT: &str = ".git";
+
+#[test]
+fn a_corrupt_monitor_state_is_kept_aside_with_one_notice_naming_both_files_and_the_patrol_goes_on() {
+    let git_dir = tempfile::tempdir().unwrap();
+    let now = NOW.parse::<DateTime<Utc>>().unwrap();
+    assert!(MonitorState::read(git_dir.path(), now).unwrap().notice().is_none());
+    LocalFile::new(git_dir.path().join(STATE)).replaced("{").unwrap();
+    let host = FakeMachine::new(&[SCENE], CWDS, UPTIME);
+    let report = Watch::patrolled(&host, git_dir.path(), "", TimeDelta::zero()).to_string();
+    let aside = std::fs::read_dir(git_dir.path().join("meta-local")).unwrap().map(|entry| entry.unwrap().file_name());
+    let aside: Vec<String> = aside.map(|name| name.to_string_lossy().into_owned()).collect();
+    let kept = aside.iter().find(|name| name.ends_with(".corrupt")).unwrap();
+    assert!(report.contains(STATE) && report.contains(kept) && report.contains("obvious:"));
+    assert_eq!(std::fs::read_to_string(git_dir.path().join("meta-local").join(kept)).unwrap(), "{");
+}
 
 const CHANGED: &str = "Tue Oct 27 07:00:00 2026";
 type Arranged = fn(FakeMachine<'static>) -> FakeMachine<'static>;
@@ -108,7 +130,9 @@ impl Watch {
             MonitorSettings::merged(toml::from_str(overrides).unwrap(), checkout[0], &[checkout[1]], checkout[2]);
         let state = LocalFile::new(git_dir.join(STATE));
         state.text().unwrap().is_empty().then(|| state.replaced(MARKED).unwrap());
-        Monitor::patrolled(git_dir, &Patrol::new(&settings.unwrap(), host), now).unwrap()
+        let silences = [serde_json::from_str::<Silence>(SILENT).unwrap()];
+        let unheard = Fault::shown(UNHEARD);
+        Monitor::patrolled(git_dir, &Patrol::new(&settings.unwrap(), host, &silences, Some(&unheard)), now).unwrap()
     }
 
     fn shown(host: &FakeMachine, after: &str) -> String {
@@ -153,8 +177,7 @@ fn watch_items_persist_into_obvious_and_the_trail_keeps_no_repeats_failures_or_b
     Monitor::noted(&clone, &failure, last);
     Monitor::noted(&clone, &failure, last);
     let recent = Monitor::recent(&clone, last).unwrap();
-    let heartbeat = HeartbeatSettings::try_from(&Config::default()).unwrap();
-    let report = Monitor::Report.answer(&clone, &heartbeat).unwrap().to_string();
+    let report = MonitorReport::latest(git_dir).unwrap();
     assert!(ticks.iter().all(|tick| matches!(tick, Output::Flagged(_))) && report == ticks[4].to_string());
     let trail = Output::Listed(Listed::new("")).raised_with(recent).to_string();
     Golden::for_test(module_path!(), "trail").checked(&trail).unwrap();

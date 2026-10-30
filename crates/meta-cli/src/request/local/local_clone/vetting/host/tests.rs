@@ -1,12 +1,12 @@
 use std::path::{Path, PathBuf};
 
 use super::Host;
-use super::process_table::{Held, Scan};
 use crate::request::local::byte_count::ByteCount;
 use crate::request::local::local_clone::vetting::alternates::Alternates;
 use crate::request::local::local_clone::vetting::entry_kind::EntryKind;
 use crate::request::local::local_clone::vetting::found::Found;
 use crate::request::local::local_clone::vetting::inspection::Inspection;
+use meta_process_table::{Held, Scan};
 
 const FILE: &str = "file";
 const DIR: &str = "dir";

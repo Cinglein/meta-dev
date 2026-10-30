@@ -1,4 +1,3 @@
-mod process_table;
 mod walker;
 
 #[cfg(test)]
@@ -7,11 +6,14 @@ mod freeze_tests;
 mod tests;
 
 use std::collections::HashMap;
+use std::fs::Permissions;
 use std::io::ErrorKind;
+use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 
 use meta_run::Environment;
+use meta_trace::SpanKind;
 
 use super::alternates::Alternates;
 use super::cause::Cause;
@@ -21,12 +23,11 @@ use super::git_call::GitCall;
 use super::inspection::Inspection;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
-use super::thaw::{Thaw, Thawed};
-use super::uninspected::Uninspected;
+use super::thaw::{Mode, Thaw, Thawed};
 use crate::request::local::LocalFile;
 use crate::request::local::local_clone::quarantine::Stamp;
 use crate::request::project::CiSettings;
-use process_table::{Held, ProcessTable};
+use meta_process_table::{Held, ProcessTable, Uninspected};
 use walker::Walker;
 
 #[derive(Debug)]
@@ -45,7 +46,7 @@ impl Host {
 
     fn noted(&self, held: Held, paths: &[PathBuf]) -> Occupancy {
         self.uninspected.lock().unwrap_or_else(PoisonError::into_inner).raise(held.uninspected());
-        held.occupancy(paths)
+        Occupancy::Listed(held.under(paths))
     }
 
     fn lenders(&self, root: &Path) -> Vec<Alternates> {
@@ -92,6 +93,7 @@ impl Inspection for Host {
     }
 
     fn walked(&self, path: &Path) -> Vec<Found> {
+        let _walk = SpanKind::Fs.entered();
         Walker::new(path).descended(Path::new(""))
     }
 
@@ -103,7 +105,8 @@ impl Inspection for Host {
     fn occupancy(&self, paths: &[PathBuf]) -> Occupancy {
         match paths.iter().find(|path| self.entry(path) != EntryKind::Dir) {
             Some(absent) => Occupancy::Unlisted(Cause::new(format_args!("{} {}", Self::NOT_A_DIR, absent.display()))),
-            None => ProcessTable::held().map_or_else(Occupancy::Unlisted, |held| self.noted(held, paths)),
+            None => ProcessTable::held()
+                .map_or_else(|failure| Occupancy::Unlisted(Cause::new(failure)), |held| self.noted(held, paths)),
         }
     }
 
@@ -137,6 +140,17 @@ impl Inspection for Host {
     fn thawed(&self, thaw: &Thaw) {
         thaw.files().iter().for_each(|thawed| drop(std::fs::set_permissions(thawed.path(), thawed.permissions())));
         drop(std::fs::remove_file(thaw.ledger()));
+    }
+
+    fn cleared(&self, remains: &Path) -> Result<(), Kept> {
+        let found = self.walked(remains).into_iter().filter(|found| found.kind() == EntryKind::Dir);
+        let dirs = [remains.to_path_buf()].into_iter().chain(found.map(|found| remains.join(found.path())));
+        let opened = dirs.map(|dir| {
+            let writable = Mode::new(dir.symlink_metadata()?.permissions().mode()).owner_writable();
+            std::fs::set_permissions(&dir, Permissions::from_mode(writable.bits()))
+        });
+        let cleared = opened.collect::<std::io::Result<()>>().and_then(|()| std::fs::remove_dir_all(remains));
+        cleared.map_err(|failure| Kept::Unremoved(Cause::new(failure)))
     }
 
     fn stamp(&self) -> Stamp {
