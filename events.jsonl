@@ -1720,3 +1720,4 @@
 {"at":"2026-10-30T06:43:18.802900Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-3db264e00bed22db","text":"Architecture question: does process supervision (table, monitor, liveness, kill, orphans) want one port with a pure core? 17 process-handling tests."}
 {"at":"2026-10-30T06:43:20.291170Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-7e42071427c5bd2e","text":"One reader for tooling/policy.toml: meta-cli and tooling/task parse it with separate drifting types (#219). Share or generate."}
 {"at":"2026-10-30T06:43:21.797450Z","actor":"claude-lead","kind":"EntryCorrected","entry":"task-16743fa955ebb397","text":"Deferred: formal multi-pass review with enforced escalation (Sonnet flags → Opus); review is about 3% of tokens."}
+{"at":"2026-10-30T06:44:07.083829Z","actor":"owner","kind":"TaskLinked","task":"task-b345cd6a3924ee90","pr":237}
