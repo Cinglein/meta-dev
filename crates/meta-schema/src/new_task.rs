@@ -7,6 +7,7 @@ use crate::due_time::DueTime;
 use crate::entity::Task;
 use crate::id::Id;
 use crate::placement::Placement;
+use crate::purpose::Purpose;
 use crate::target::Target;
 use crate::text::Text;
 use crate::tokens::Tokens;
@@ -23,12 +24,15 @@ pub struct NewTask {
     effort: Option<Tokens>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     due: Option<DueTime>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    purpose: Option<Purpose>,
 }
 
 impl NewTask {
     #[must_use]
     pub fn new(division: Division, text: Text, addresses: Vec<Target>) -> Self {
-        Self { task: Id::generate(), text, division: Placement::new(division), addresses, effort: None, due: None }
+        let division = Placement::new(division);
+        Self { task: Id::generate(), text, division, addresses, effort: None, due: None, purpose: None }
     }
 
     #[must_use]
@@ -82,6 +86,7 @@ impl fmt::Display for NewTask {
         write!(formatter, "{} {}{}", self.task, self.text, self.division)?;
         self.addresses.iter().try_for_each(|target| write!(formatter, " >{target}"))?;
         self.effort.map_or(Ok(()), |effort| write!(formatter, " effort {effort}"))?;
-        self.due.map_or(Ok(()), |due| write!(formatter, " due {due}"))
+        self.due.map_or(Ok(()), |due| write!(formatter, " due {due}"))?;
+        self.purpose.map_or(Ok(()), |purpose| write!(formatter, " {purpose}"))
     }
 }

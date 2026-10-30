@@ -1,6 +1,5 @@
 mod budget;
 mod budget_drafts;
-mod budget_id;
 mod ledger;
 mod legacy_key;
 mod standing;
@@ -9,17 +8,17 @@ mod tree_failure;
 use std::collections::{BTreeMap, BTreeSet};
 use std::iter;
 
+use meta_amount::Percent;
+use meta_schema::BudgetId;
 use meta_severity::Scales;
 use serde::{Deserialize, Serialize};
 
 use super::domains::Domains;
-use super::percent::Percent;
 use super::policy::Most;
 use budget::Budget;
 use budget::BuildStart;
 pub use budget::{Amount, Measure};
 pub use budget_drafts::BudgetDrafts;
-use budget_id::BudgetId;
 pub use ledger::Ledger;
 pub use legacy_key::LegacyKey;
 pub use standing::{ChangeLink, Standing};

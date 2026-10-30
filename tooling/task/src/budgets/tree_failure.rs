@@ -1,7 +1,6 @@
-use meta_schema::LevelName;
+use meta_schema::{BudgetId, LevelName};
 use thiserror::Error;
 
-use super::budget_id::BudgetId;
 use crate::domains::ScopeKind;
 
 #[derive(Debug, Error, PartialEq, Eq)]

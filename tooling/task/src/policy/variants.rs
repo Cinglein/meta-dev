@@ -2,9 +2,9 @@ use settings::EmbeddedDefaults;
 use strum::IntoEnumIterator;
 
 use super::{Limit, Policy, Share};
+use crate::Percent;
 use crate::budget::{Interval, Millis};
 use crate::budgets::{Amount, Ledger, LegacyKey};
-use crate::percent::Percent;
 
 const OLD: &str = include_str!("old_policy.toml");
 const END: &str = "";

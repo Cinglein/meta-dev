@@ -13,7 +13,6 @@ mod mutant_count;
 mod name;
 mod nesting_depth;
 mod package_graph;
-mod percent;
 mod policy;
 mod reexport_count;
 mod report;
@@ -39,12 +38,12 @@ pub use failure::{FailedRuns, Failure, KilledProcess, KilledProcesses};
 pub use gate_env_name::GateEnvName;
 pub use gate_status::GateStatus;
 pub use line_number::LineNumber;
+pub use meta_amount::Percent;
 pub use meta_schema::TopDivision;
 pub use mutant_count::MutantCount;
 pub use name::{Casing, LoweredInfix, Name, Prefix, Whole};
 pub use nesting_depth::NestingDepth;
 pub use package_graph::PackageGraph;
-pub use percent::Percent;
 pub use policy::{
     BaselineFile, Floor, Limit, Most, Policy, Share, SpecSettings, Surface, WireType,
 };

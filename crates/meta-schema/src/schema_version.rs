@@ -25,6 +25,7 @@ impl SchemaVersion {
                 .saturating_add(1)
                 .saturating_add(1)
                 .saturating_add(1)
+                .saturating_add(1)
                 .saturating_add(1),
         }
     }

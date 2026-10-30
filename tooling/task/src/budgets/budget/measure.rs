@@ -3,7 +3,6 @@ mod enforcer;
 mod item_filter;
 mod item_kind;
 mod mutation_job;
-mod unit;
 
 use serde::{Deserialize, Serialize};
 use strum::Display;
@@ -14,8 +13,8 @@ pub use build_start::BuildStart;
 pub use enforcer::Enforcer;
 pub use item_filter::ItemFilter;
 pub use item_kind::ItemKind;
+pub use meta_amount::Unit;
 pub use mutation_job::MutationJob;
-pub use unit::Unit;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Display, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

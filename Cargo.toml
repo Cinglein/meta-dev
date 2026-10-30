@@ -9,6 +9,7 @@ publish = false
 license = "UNLICENSED"
 
 [workspace.dependencies]
+meta-amount = { path = "crates/meta-amount" }
 meta-schema = { path = "crates/meta-schema" }
 meta-log = { path = "crates/meta-log" }
 meta-run = { path = "crates/meta-run" }

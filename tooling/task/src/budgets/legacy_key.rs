@@ -1,7 +1,7 @@
+use meta_schema::BudgetId;
 use strum::{Display, EnumIter};
 
 use super::budget::{Measure, MutationJob};
-use super::budget_id::BudgetId;
 use crate::budget::Interval;
 use crate::policy::{Floor, Limit, Share};
 
@@ -116,8 +116,8 @@ impl LegacyKey {
 mod tests {
     use settings::EmbeddedDefaults;
 
+    use crate::Percent;
     use crate::budget::{Interval, Millis};
-    use crate::percent::Percent;
     use crate::policy::{Floor, Policy};
 
     const MILLIS: &str = "[millis]\n";

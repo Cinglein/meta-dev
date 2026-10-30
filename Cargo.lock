@@ -579,6 +579,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "meta-amount"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "meta-cli"
 version = "0.1.0"
 dependencies = [
@@ -709,6 +716,8 @@ name = "meta-schema"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "meta-amount",
+ "meta-trace",
  "serde",
  "serde_json",
  "strum",
@@ -1362,6 +1371,7 @@ version = "0.1.0"
 dependencies = [
  "derive_more",
  "enum-map",
+ "meta-amount",
  "meta-schema",
  "meta-severity",
  "meta-state",

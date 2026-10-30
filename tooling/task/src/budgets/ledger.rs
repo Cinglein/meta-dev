@@ -5,8 +5,9 @@ mod statement;
 
 use std::collections::BTreeMap;
 
+use meta_schema::BudgetId;
+
 use super::budget::{Amount, Budget, Measure};
-use super::budget_id::BudgetId;
 use super::standing::{Exposure, Standing};
 use crate::failure::Failure;
 use crate::policy::Policy;
@@ -152,9 +153,9 @@ mod tests {
     use meta_state::State;
 
     use super::{Ledger, Mode};
+    use crate::Percent;
     use crate::budget::{Interval, Millis};
     use crate::budgets::{Amount, Budgets, ChangeLink, Measure, Standing};
-    use crate::percent::Percent;
     use crate::policy::{Most, Policy};
     use crate::selection::Selection;
 

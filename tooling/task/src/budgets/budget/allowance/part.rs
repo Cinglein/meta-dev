@@ -1,7 +1,6 @@
+use meta_amount::Percent;
+use meta_schema::BudgetId;
 use serde::{Deserialize, Serialize};
-
-use crate::budgets::budget_id::BudgetId;
-use crate::percent::Percent;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

@@ -1,15 +1,31 @@
+use std::fmt;
 use std::num::NonZeroUsize;
 
-use derive_more::{Display, From, Into};
 use serde::{Deserialize, Serialize};
 
-use crate::budget::Millis;
+use crate::millis::Millis;
 
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Display, From, Into, Serialize, Deserialize,
-)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Percent(usize);
+
+impl From<usize> for Percent {
+    fn from(percent: usize) -> Percent {
+        Percent(percent)
+    }
+}
+
+impl From<Percent> for usize {
+    fn from(percent: Percent) -> usize {
+        percent.0
+    }
+}
+
+impl fmt::Display for Percent {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
 
 impl Percent {
     const WHOLE: usize = 100;
@@ -22,9 +38,7 @@ impl Percent {
     }
 
     pub fn total(parts: impl IntoIterator<Item = Percent>) -> Option<Percent> {
-        parts.into_iter().try_fold(Percent(0), |sum, part| {
-            sum.0.checked_add(part.0).map(Percent)
-        })
+        parts.into_iter().try_fold(Percent(0), |sum, part| sum.0.checked_add(part.0).map(Percent))
     }
 
     #[must_use]
@@ -42,10 +56,7 @@ impl Percent {
     }
 
     pub fn scaled<Whole: Into<usize>, Part: From<usize>>(self, whole: Whole) -> Option<Part> {
-        whole
-            .into()
-            .checked_mul(self.0)
-            .map(|scaled| Part::from(scaled / Self::WHOLE))
+        whole.into().checked_mul(self.0).map(|scaled| Part::from(scaled / Self::WHOLE))
     }
 
     #[must_use]

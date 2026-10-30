@@ -1,13 +1,17 @@
+use crate::acceptance::Acceptance;
 use crate::block::Block;
 use crate::claim::Claim;
 use crate::entry_note::EntryNote;
 use crate::new_concern::NewConcern;
 use crate::new_issue::NewIssue;
+use crate::new_project::NewProject;
 use crate::new_task::NewTask;
+use crate::observation::Observation;
 use crate::relocation::Relocation;
 use crate::rerating::Rerating;
 use crate::schema_version::SchemaVersion;
 use crate::task_link::TaskLink;
+use crate::task_purpose::TaskPurpose;
 use crate::task_ref::TaskRef;
 
 pub trait EventVisitor {
@@ -28,4 +32,8 @@ pub trait EventVisitor {
     fn schema_versioned(self, version: SchemaVersion) -> Self::Output;
     fn item_rated(self, rerating: &Rerating) -> Self::Output;
     fn item_moved(self, relocation: &Relocation) -> Self::Output;
+    fn project_proposed(self, project: &NewProject) -> Self::Output;
+    fn project_accepted(self, acceptance: &Acceptance) -> Self::Output;
+    fn project_observed(self, observation: &Observation) -> Self::Output;
+    fn task_purposed(self, purpose: TaskPurpose) -> Self::Output;
 }
