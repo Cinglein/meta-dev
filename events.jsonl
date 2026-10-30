@@ -1711,3 +1711,4 @@
 {"at":"2026-10-30T06:26:06.514015Z","actor":"claude-testarch","kind":"TaskDone","task":"task-914f9a9748b07f03"}
 {"at":"2026-10-30T06:27:09.724660Z","actor":"claude-projects1","kind":"TaskClaimed","task":"task-b220f507cc5a058f"}
 {"at":"2026-10-30T06:31:41.650299Z","actor":"claude-b13","kind":"TaskClaimed","task":"task-b345cd6a3924ee90"}
+{"at":"2026-10-30T06:32:52.806609Z","actor":"owner","kind":"TaskLinked","task":"task-b220f507cc5a058f","pr":236}
