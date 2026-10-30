@@ -29,3 +29,24 @@ impl FromStr for Ignored {
         u64::from_str_radix(mask.trim(), Self::RADIX).map(Self)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use signal_hook::consts::{SIGHUP, SIGINT, SIGTERM};
+
+    use super::Ignored;
+
+    const NOHUP: &str = "\t0000000000000001";
+    const SHELL_BACKGROUND: &str = "\t0000000000000006";
+    const SIGNALS: [i32; 3] = [SIGHUP, SIGINT, SIGTERM];
+    const SPARED: [[bool; 3]; 2] = [[false, true, true], [true, false, true]];
+
+    #[test]
+    fn a_status_mask_spares_exactly_the_signals_whose_bits_are_clear() {
+        let spared = |mask: &str| {
+            let ignored: Ignored = mask.parse().unwrap();
+            SIGNALS.map(|signal| ignored.spares(signal).is_some())
+        };
+        assert_eq!([spared(NOHUP), spared(SHELL_BACKGROUND)], SPARED);
+    }
+}
