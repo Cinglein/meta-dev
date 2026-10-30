@@ -83,7 +83,9 @@ impl HookEvent {
     pub fn respond(self) -> Result<Output, CliFailure> {
         let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
         let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
-        let unstamped = self.phase().and_then(|call| input.stamp(call, Utc::now())).and_then(Result::err);
+        let agent = AgentCall::verdict(self, &stdin);
+        let phase = agent.as_ref().map_or(self.phase(), |_| None);
+        let unstamped = phase.and_then(|call| input.stamp(call, Utc::now())).and_then(Result::err);
         let reply = match Project::found(input.cwd().as_path()) {
             Ok(Some(project)) => {
                 let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
@@ -93,7 +95,11 @@ impl HookEvent {
             Ok(None) => self.outside_projects(&input),
             Err(failure) => Some(self.refused(Listed::new(failure))),
         };
-        let reply = AgentCall::reply(self, &stdin).or(reply);
+        let reply = match (agent, reply) {
+            (Some(verdict), Some(reply)) => Some(reply.judged(verdict)),
+            (Some(verdict), None) => Some(Reply::new(self, verdict, None)),
+            (None, reply) => reply,
+        };
         let opened = self.opens_session().and_then(|()| input.open_session().err());
         let reply = reply.map(|reply| reply.with_news(opened));
         let reply = reply.or_else(|| unstamped.as_ref().map(|_| Reply::new(self, Verdict::Allow, None)));

@@ -1,3 +1,4 @@
+mod dispatch_issuers;
 mod entries;
 mod liveness;
 mod queue_landers;
@@ -21,6 +22,7 @@ use crate::domains::Domains;
 use crate::gate_env_name::GateEnvName;
 use crate::gate_status::GateStatus;
 use crate::percent::Percent;
+pub use dispatch_issuers::DispatchIssuers;
 use entries::Entries;
 pub use liveness::Liveness;
 pub use queue_landers::QueueLanders;
@@ -60,6 +62,8 @@ pub struct PolicyFile {
     liveness: Option<Liveness>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     queue: Option<QueueLanders>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    dispatch: Option<DispatchIssuers>,
     supply_chain: SupplyChain,
 }
 
@@ -91,6 +95,7 @@ impl PolicyFile {
             spec: policy.spec.clone(),
             liveness: policy.liveness,
             queue: policy.queue.clone(),
+            dispatch: policy.dispatch.clone(),
             supply_chain: policy.supply_chain.clone(),
         }
     }
@@ -227,6 +232,7 @@ impl PolicyFile {
             spec: self.spec,
             liveness: self.liveness,
             queue: self.queue,
+            dispatch: self.dispatch,
             supply_chain: self.supply_chain,
         })
     }

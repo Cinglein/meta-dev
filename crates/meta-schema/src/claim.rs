@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::actor::Actor;
 use crate::entity::{Lease, Task};
 use crate::id::Id;
+use crate::lease_grant::LeaseGrant;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Claim {
@@ -12,7 +13,7 @@ pub struct Claim {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     from: Option<Actor>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    lease: Option<Id<Lease>>,
+    lease: Option<LeaseGrant>,
 }
 
 impl Claim {
@@ -22,8 +23,8 @@ impl Claim {
     }
 
     #[must_use]
-    pub fn leased(self) -> Self {
-        Self { lease: Some(Id::generate()), ..self }
+    pub fn leased(self, grant: LeaseGrant) -> Self {
+        Self { lease: Some(grant), ..self }
     }
 
     #[must_use]
@@ -38,7 +39,7 @@ impl Claim {
 
     #[must_use]
     pub fn lease(&self) -> Option<Id<Lease>> {
-        self.lease
+        self.lease.as_ref().map(LeaseGrant::lease)
     }
 }
 
@@ -46,6 +47,6 @@ impl fmt::Display for Claim {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{}", self.task)?;
         self.from.as_ref().map_or(Ok(()), |from| write!(formatter, " from {from}"))?;
-        self.lease.map_or(Ok(()), |lease| write!(formatter, " {lease}"))
+        self.lease.as_ref().map_or(Ok(()), |grant| write!(formatter, " {grant}"))
     }
 }

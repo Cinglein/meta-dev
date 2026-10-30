@@ -9,10 +9,12 @@ use serde::de::IgnoredAny;
 
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::LocalFile;
+pub use dispatch_policy::DispatchPolicy;
 pub use liveness::Liveness;
 pub use policy_millis::PolicyMillis;
 pub use queue_policy::QueuePolicy;
 
+mod dispatch_policy;
 mod liveness;
 mod policy_millis;
 mod queue_policy;
@@ -29,6 +31,8 @@ pub struct ScalePolicy {
     liveness: Liveness,
     #[serde(default)]
     queue: QueuePolicy,
+    #[serde(default)]
+    dispatch: DispatchPolicy,
 }
 
 impl ScalePolicy {
@@ -51,6 +55,10 @@ impl ScalePolicy {
 
     pub fn queue(&self) -> &QueuePolicy {
         &self.queue
+    }
+
+    pub fn dispatch(&self) -> &DispatchPolicy {
+        &self.dispatch
     }
 
     pub fn scales(&self) -> &Scales {

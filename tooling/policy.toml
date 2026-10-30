@@ -104,6 +104,9 @@ reply_within = 3600000
 [queue]
 landers = ["owner", "claude-lead"]
 
+[dispatch]
+issuers = ["owner", "claude-lead"]
+
 [domains.features-and-maintenance]
 crates = ["*"]
 paths = ["*"]

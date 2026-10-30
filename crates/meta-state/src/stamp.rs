@@ -40,6 +40,6 @@ impl Stamp {
 impl fmt::Display for Stamp {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{} {}", self.by, self.at.format("%Y-%m-%d %H:%MZ"))?;
-        self.lease.map_or(Ok(()), |lease| write!(formatter, " {lease}"))
+        self.lease.map_or(Ok(()), |_| formatter.write_str(" leased"))
     }
 }

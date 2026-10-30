@@ -27,6 +27,6 @@ impl LiveLease {
 
 impl fmt::Display for LiveLease {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{} {}", self.holder, self.lease)
+        write!(formatter, "{} leased", self.holder)
     }
 }

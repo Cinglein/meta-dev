@@ -196,9 +196,11 @@ impl Request {
                 &project::HeartbeatSettings::try_from(project.config())?,
             ),
             Self::ClaimWorktree(claim) => LocalClone::try_from(project)?.claimed(project, claim, Self::actor()?),
-            Self::Dispatch(dispatch) => {
-                dispatch.rooted(project.root()).answer(&project.log(project.ci_settings().budget(CiSettings::ROUTINE))?)
-            }
+            Self::Dispatch(dispatch) => Self::Dispatch(dispatch.rooted(project.root())).answer_from(
+                &project.log(project.ci_settings().budget(CiSettings::ROUTINE))?,
+                &ScalePolicy::read(project.root())?,
+                Self::actor,
+            ),
             Self::Worktrees => LocalClone::try_from(project)?.worktrees(project),
             Self::Gc(sweep) => LocalClone::try_from(project)?.collected(project, sweep),
             Self::GcRestore(quarantine) => LocalClone::try_from(project)?.unstranded(&quarantine),
@@ -231,7 +233,7 @@ impl Request {
             Self::Move(relocate) => relocate.answer(log, policy, actor()?),
             Self::List(kind, scope) => Listed::from_log(log, kind, scope).map(Output::Listed),
             Self::Wait(block) => Self::Write(Event::TaskBlocked(block)).answer_from(log, policy, actor),
-            Self::Dispatch(dispatch) => dispatch.answer(log),
+            Self::Dispatch(dispatch) => dispatch.answer(log, policy, actor()?),
             Self::Hook(_)
             | Self::Heartbeat(_)
             | Self::Monitor(_)

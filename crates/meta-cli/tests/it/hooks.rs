@@ -64,6 +64,9 @@ const DISPATCH: [&str; 2] = ["--agent", "worker"];
 const UNLEASED: &str = "work on it";
 const HOW_TO_START: &str = "meta claim <task> --agent <name>";
 const ID_INDEX: usize = 4;
+const POLICY: &str = "tooling/policy.toml";
+const ISSUERS: &str = "[dispatch]\nissuers = [\"writer\"]\n";
+const NOT_TEXT: &str = "[\"not text\"]";
 const INTERRUPTED: &str = "SIGINT";
 const HELPERS: &str = r#"[remote "origin"]
 	receivepack = "sh -c 'trap \"\" TERM; touch ROOT/hold && echo $$ >> ROOT/pids && sleep 5' x"
@@ -210,9 +213,10 @@ impl Lead<'_> {
     }
 
     fn agent(&self, prompt: &str) -> String {
-        let input = serde_json::json!({ "cwd": self.0, "tool_name": "Agent", "tool_input": { "prompt": prompt } });
+        let cwd = serde_json::to_string(self.0).unwrap();
+        let input = format!(r#"{{"cwd":{cwd},"tool_name":"Agent","tool_input":{{"prompt":{prompt}}}}}"#);
         let mut child = MetaCommand::tagged(&[HOOK, PRE]).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
-        child.stdin.take().unwrap().write_all(input.to_string().as_bytes()).unwrap();
+        child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
         String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
     }
 }
@@ -221,12 +225,15 @@ impl Lead<'_> {
 fn pre_tool_use_starts_an_agent_only_with_the_lease_meta_claim_gave_it() {
     let repo = Repo::new();
     let lead = Lead(repo.clone.path());
+    std::fs::write(repo.clone.path().join(POLICY), ISSUERS).unwrap();
     let opened = lead.meta(&OPEN);
     let task = opened.split_whitespace().nth(ID_INDEX).unwrap();
     let brief = lead.meta(&[&["claim", task][..], &DISPATCH].concat());
-    let refused = lead.agent(UNLEASED);
-    assert_eq!(lead.agent(&brief), "", "{brief}");
-    assert!(refused.contains(DENY) && refused.contains(HOW_TO_START), "{refused}");
+    let elsewhere = format!("project: {}\n{brief}", repo.origin.path().display());
+    let quoted = |text: &str| serde_json::to_string(text).unwrap();
+    let refused = [quoted(UNLEASED), quoted(&elsewhere), NOT_TEXT.to_owned()].map(|prompt| lead.agent(&prompt));
+    assert_eq!(lead.agent(&quoted(&brief)), "", "{brief}");
+    assert!(refused.iter().all(|shown| shown.contains(DENY) && shown.contains(HOW_TO_START)), "{refused:?}");
 }
 
 impl fmt::Display for Repo {

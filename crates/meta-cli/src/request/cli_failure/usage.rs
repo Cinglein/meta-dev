@@ -13,7 +13,7 @@ impl fmt::Display for Usage {
              \x20 move <concern-id|issue-id> --division <path> [--severity <level> [--scenario <text>]]   (division: a top division or one in tooling/policy.toml; levels compare where they roll up: the level is kept only if it rolls up the same, else give --severity; a lower roll-up is free, a higher one needs --scenario)\n\
              \x20 open <text> --division <path> [--addresses <concern-id|issue-id>]... [--effort <tokens>] [--due <rfc3339>]\n\
              \x20 claim <task-id> [--from <actor>] [--worktree]   (assigns you; several may hold a task; --worktree: new worktree on branch <task-id>, prints its path)\n\
-             \x20 claim <task-id> --agent <name>   (assigns <name> with a new lease and prints its brief; start the agent with the brief as its prompt; the lease ends on release, done or retire)\n\
+             \x20 claim <task-id> --agent <name>   (only actors in tooling/policy.toml [dispatch] issuers; assigns <name> with a new lease and prints its brief; start the agent with the brief as its prompt; the lease ends on release, done or retire)\n\
              \x20 worktrees   (this clone's worktrees: task status, missing, unrecorded)\n\
              \x20 gc [--dry-run]   (frees recorded worktrees whose pr is merged or closed or whose task stalled, once all work is on the remote and nothing has them open)\n\
              \x20 gc restore <quarantine>   (puts a stranded quarantine's file modes back, unlocks it and moves it home)\n\

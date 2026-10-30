@@ -1,23 +1,22 @@
 mod agent_input;
-mod tool_name;
+mod tool_call;
 mod unleased;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
 use super::HookEvent;
-use super::reply::{Reply, Verdict};
+use super::reply::{Denial, Verdict};
+use crate::request::dispatch::Prompt;
 use crate::request::output::Listed;
 use crate::request::project::Project;
 use agent_input::AgentInput;
-use tool_name::ToolName;
+use tool_call::ToolCall;
 use unleased::Unleased;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct AgentCall {
-    #[serde(default)]
-    tool_name: Option<ToolName>,
     #[serde(default)]
     cwd: Option<PathBuf>,
     #[serde(default)]
@@ -25,19 +24,39 @@ pub struct AgentCall {
 }
 
 impl AgentCall {
-    pub fn reply(event: HookEvent, stdin: &str) -> Option<Reply> {
-        let call = serde_json::from_str::<Self>(stdin).unwrap_or_default();
-        (event == HookEvent::PreToolUse && call.tool_name == Some(ToolName::Agent)).then_some(())?;
-        let refused = |why: Unleased| event.refused(Listed::new(why));
-        Some(call.admitted(event).map_or_else(refused, |()| Reply::new(event, Verdict::Allow, None)))
+    pub fn verdict(event: HookEvent, stdin: &str) -> Option<Verdict> {
+        (event == HookEvent::PreToolUse).then_some(())?;
+        ToolCall::agent(stdin)?;
+        let call = serde_json::from_str::<Self>(stdin).map_err(|failure| Unleased::Unreadable(Listed::new(failure)));
+        let admitted = call.and_then(|call| call.admitted(event));
+        Some(admitted.map_or_else(|why| Verdict::Deny(Denial::from(Listed::new(why))), |()| Verdict::Allow))
     }
 
     fn admitted(&self, event: HookEvent) -> Result<(), Unleased> {
         let prompt = self.tool_input.as_ref().and_then(AgentInput::prompt).ok_or(Unleased::NoPrompt)?;
-        let directory = prompt.project().or_else(|| self.cwd.clone()).unwrap_or_default();
-        let found = Project::found(&directory).map_err(|failure| Unleased::Refused(Listed::new(failure)))?;
-        let project = found.ok_or(Unleased::NoProject(directory))?;
+        let project = self.authority(prompt)?;
         let log = project.log(event.budget(project.ci_settings()));
         prompt.admitted(&log.map_err(|failure| Unleased::Refused(Listed::new(failure)))?).map_err(Unleased::Refused)
+    }
+
+    fn authority(&self, prompt: &Prompt) -> Result<Project, Unleased> {
+        let here = self.cwd.clone().or_else(|| std::env::current_dir().ok()).unwrap_or_default();
+        let found =
+            |directory: &Path| Project::found(directory).map_err(|failure| Unleased::Refused(Listed::new(failure)));
+        match (found(&here)?, prompt.project()) {
+            (Some(project), None) => Ok(project),
+            (Some(project), Some(named)) => {
+                let roots = named.canonicalize().ok().zip(project.root().canonicalize().ok());
+                roots.filter(|(named, root)| named == root).map(|_| project).ok_or(Unleased::Elsewhere(named))
+            }
+            (None, Some(named)) => {
+                if named.is_absolute() {
+                    found(&named)?.ok_or(Unleased::NoProject(named))
+                } else {
+                    Err(Unleased::Relative(named))
+                }
+            }
+            (None, None) => Err(Unleased::NoProject(here)),
+        }
     }
 }

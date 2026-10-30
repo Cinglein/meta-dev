@@ -17,7 +17,7 @@ impl Reopening {
     pub fn activity(self, held: &[Stamp]) -> Activity {
         match self {
             Self::Clearing => Activity::unassigned(),
-            Self::Keeping => Activity::assigned(held.to_vec()),
+            Self::Keeping => Activity::assigned(held.iter().map(|stamp| stamp.clone().leased(None)).collect()),
         }
     }
 }
