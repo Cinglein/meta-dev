@@ -13,6 +13,7 @@ use super::CallPhase;
 use crate::request::ci::{SessionDir, SessionId, SessionStart};
 use crate::request::output::Listed;
 use crate::request::project::Project;
+use crate::request::scale_policy::ScalePolicy;
 
 use identity::Identity;
 use pushed_commits::PushedCommits;
@@ -49,6 +50,19 @@ impl HookInput {
         let writing = self.session().zip(command.writes());
         let unrecorded = writing.and_then(|(session, ())| SessionStart::for_session(session).record().err());
         unrecorded.or(foreign)
+    }
+
+    pub fn shell_breach(&self, project: &Project) -> Option<Listed> {
+        let command = self.command()?;
+        let rules = match ScalePolicy::shell_in(project.root()) {
+            Ok(rules) => rules,
+            Err(failure) => return Some(Listed::new(format!("cannot read the shell rules: {failure}"))),
+        };
+        let exempt = std::env::var("META_ACTOR")
+            .ok()
+            .and_then(|name| name.parse::<Actor>().ok())
+            .is_some_and(|actor| rules.exempts(&actor));
+        command.breach(&rules).filter(|_| !exempt)
     }
 
     pub fn unpushable(&self, project: &Project, subcommand: &str) -> Option<Listed> {

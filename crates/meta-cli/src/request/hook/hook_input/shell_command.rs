@@ -1,4 +1,5 @@
 mod git_call;
+mod operators;
 mod working_directory;
 
 use std::path::{Path, PathBuf};
@@ -6,11 +7,13 @@ use std::str::FromStr;
 
 use crate::request::output::Listed;
 use crate::request::project::Config;
+use crate::request::scale_policy::ShellRules;
 use git_call::GitCall;
+use operators::Operators;
 use working_directory::WorkingDirectory;
 
 #[derive(Debug)]
-pub struct ShellCommand(Vec<Vec<String>>);
+pub struct ShellCommand(Operators, Vec<Vec<String>>);
 
 impl ShellCommand {
     const SEPARATORS: &'static [char] = &[';', '&', '|', '\n'];
@@ -57,7 +60,17 @@ impl ShellCommand {
     }
 
     fn segments(&self) -> impl Iterator<Item = &[String]> {
-        self.0.iter().map(Vec::as_slice)
+        self.1.iter().map(Vec::as_slice)
+    }
+
+    pub fn breach(&self, rules: &ShellRules) -> Option<Listed> {
+        let program = || {
+            let word = self.segments().find_map(|segment| rules.forbidden_in(segment))?;
+            Some(format!(
+                "shell rule: `{word}` is not allowed; use the Edit and Write tools, `git restore`, or `git rm` inside a code change"
+            ))
+        };
+        self.0.breach().map(str::to_owned).or_else(program).map(Listed::new)
     }
 }
 
@@ -66,6 +79,7 @@ impl FromStr for ShellCommand {
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         Ok(Self(
+            Operators::scan(text),
             text.replace('(', ";(;")
                 .replace(')', ";);")
                 .split(Self::SEPARATORS)
@@ -87,6 +101,7 @@ mod tests {
 
     use super::ShellCommand;
     use crate::request::project::Config;
+    use crate::request::scale_policy::ScalePolicy;
 
     const WRITERS: [&str; 4] = ["git revert HEAD", "git pull", "git am x.patch", "git commit-tree t"];
     const NOT_WRITERS: [&str; 3] = ["git merge --abort", "git rebase --abort", "git merge-base a b"];
@@ -148,7 +163,8 @@ mod tests {
         assert!(ALLOWED.iter().all(|command| refusal(command).is_none()));
     }
 
-    const VERDICTS: [(&str, bool); 13] = [
+    const POLICY: &str = include_str!("../../../../../../tooling/policy.toml");
+    const VERDICTS: [(&str, bool); 21] = [
         ("rm -rf x", true),
         ("cd a && mv b c", true),
         ("sed -i s/a/b/ f", true),
@@ -162,13 +178,20 @@ mod tests {
         ("echo x >> f", true),
         ("ls 2>/dev/null", true),
         ("ls &>f", true),
+        ("git commit -m 'remove sed > rm'", false),
+        ("git commit -m \"rm and sed\" && git rm x", false),
+        ("ls crates/rm/src/sed.rs | grep rm", false),
+        ("cargo build 2>&1 | tail -3", false),
+        ("cat f < in; grep x <<< y", false),
+        ("echo a\\>b; FOO=rm env ls", false),
+        ("git diff | wc -l", false),
+        ("true; xargs ls", false),
     ];
 
     #[test]
-    fn a_shell_command_running_a_forbidden_program_heredoc_or_file_redirect_is_refused_and_nothing_else()
-    {
-        let config: Config = toml::from_str(CONFIG).unwrap();
-        let refused = |command: &str| command.parse::<ShellCommand>().unwrap().refusal(&config).is_some();
+    fn a_shell_command_running_a_forbidden_program_heredoc_or_file_redirect_is_refused_and_nothing_else() {
+        let policy: ScalePolicy = toml::from_str(POLICY).unwrap();
+        let refused = |command: &str| command.parse::<ShellCommand>().unwrap().breach(policy.shell()).is_some();
         assert!(VERDICTS.iter().all(|(command, verdict)| refused(command) == *verdict));
     }
 

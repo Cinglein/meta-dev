@@ -10,8 +10,10 @@ use serde::de::IgnoredAny;
 use crate::request::cli_failure::{CliFailure, Setup};
 use crate::request::local::LocalFile;
 pub use liveness::Liveness;
+pub use shell_rules::ShellRules;
 
 mod liveness;
+mod shell_rules;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct ScalePolicy {
@@ -21,6 +23,8 @@ pub struct ScalePolicy {
     domains: BTreeMap<Division, Option<IgnoredAny>>,
     #[serde(default)]
     liveness: Liveness,
+    #[serde(default)]
+    shell: ShellRules,
 }
 
 impl ScalePolicy {
@@ -37,12 +41,24 @@ impl ScalePolicy {
         toml::from_str(&text).map_err(CliFailure::raised::<Setup>)
     }
 
+    pub fn shell_in(root: &Path) -> Result<ShellRules, CliFailure> {
+        let present = root.join(Self::FILE).exists();
+        present
+            .then(|| Self::read(root))
+            .transpose()
+            .map(|policy| policy.map(|policy| policy.shell).unwrap_or_default())
+    }
+
     pub fn scales(&self) -> &Scales {
         &self.scales
     }
 
     pub fn liveness(&self) -> Liveness {
         self.liveness
+    }
+
+    pub fn shell(&self) -> &ShellRules {
+        &self.shell
     }
 
     pub fn known(&self, division: &Division) -> Result<(), RatingFailure> {
@@ -54,7 +70,7 @@ impl ScalePolicy {
 
 impl From<Scales> for ScalePolicy {
     fn from(scales: Scales) -> ScalePolicy {
-        ScalePolicy { scales, domains: BTreeMap::new(), liveness: Liveness::default() }
+        ScalePolicy { scales, domains: BTreeMap::new(), liveness: Liveness::default(), shell: ShellRules::default() }
     }
 }
 

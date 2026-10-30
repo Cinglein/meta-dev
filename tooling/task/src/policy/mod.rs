@@ -84,6 +84,7 @@ pub struct Policy {
     deprecated: Vec<LegacyKey>,
     spec: Option<SpecSettings>,
     liveness: Option<policy_file::Liveness>,
+    shell: Option<policy_file::ShellRules>,
     supply_chain: SupplyChain,
 }
 

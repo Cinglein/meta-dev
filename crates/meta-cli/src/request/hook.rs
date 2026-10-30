@@ -135,6 +135,7 @@ impl HookEvent {
                 input
                     .command()
                     .and_then(|command| command.refusal(project.config()))
+                    .or_else(|| input.shell_breach(project))
                     .or_else(|| input.refusal())
                     .or_else(|| input.unpushable(project, Self::PUSH))
                     .map(Denial::from)
