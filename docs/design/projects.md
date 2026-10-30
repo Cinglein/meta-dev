@@ -66,7 +66,7 @@ Cause   = Pull(PullRequest) | Item(Target) | Task(Id<Task>)
 - `SchemaVersion::requires_purpose()` is true from version 8. After the marker, the fold refuses a `TaskOpened` with no purpose. This uses the same pattern as `keeps_holders_on_reopen`.
 - Open tasks from before version 8 get a purpose through `TaskPurposed`.
 
-**Name clash.** Design §2 has a selector named `Project` that means the whole repo set. Rename it to `Everything`. `Selector::Project(Id<Project>)` then means this item kind.
+**Name clash.** Design §2 has a selector named `Project` that means the whole repo set. Rename it to `repo` (owner, 2026-10-30). `Selector::Project(Id<Project>)` then means this item kind. Design §2 also has a `Repo` selector for one repo. That selector needs a different name before the rename lands.
 
 ## 3. Measures and enforcement points
 
@@ -190,3 +190,7 @@ The targets below are proposals. Each number is the owner's decision.
 | **Dependency-aware waterfalls** | New `trace-unlinked-waits` (waits on the CI trace critical path with no `follows_from` edge, count; proposed 0). New `trace-untraced-share` (untraced share of the critical path; the owner sets the line). | `Budget(trace-unlinked-waits)` and `Budget(trace-untraced-share)` blocking per change on the uploaded CI trace. | task-9da916d3, task-433270d3, task-b6a65742. |
 
 Each new budget row is one owner decision. It lands in its project's first serving PR, with `overspend = report` until the owner accepts the numbers. A row with `report` is not gating, so the project cannot reach Delivered until the owner switches it to `block`.
+
+## 9. Open questions
+
+- Naming: formal rules for names are a separate, deferred task (owner, 2026-10-30).
