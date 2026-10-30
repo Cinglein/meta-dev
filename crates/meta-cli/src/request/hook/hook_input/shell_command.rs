@@ -1,5 +1,5 @@
 mod git_call;
-mod operators;
+mod tokens;
 mod working_directory;
 
 use std::path::{Path, PathBuf};
@@ -9,15 +9,16 @@ use crate::request::output::Listed;
 use crate::request::project::Config;
 use crate::request::scale_policy::ShellRules;
 use git_call::GitCall;
-use operators::Operators;
+use tokens::Tokens;
 use working_directory::WorkingDirectory;
 
 #[derive(Debug)]
-pub struct ShellCommand(Operators, Vec<Vec<String>>);
+pub struct ShellCommand(Tokens);
 
 impl ShellCommand {
-    const SEPARATORS: &'static [char] = &[';', '&', '|', '\n'];
-    const QUOTES: &'static [char] = &['\'', '"'];
+    const SHELL_RULE: &'static str = "shell rule:";
+    const USE: &'static str =
+        "is not allowed; use the Edit and Write tools, `git restore`, or `git rm` inside a code change";
     const PR_MERGE: &'static [&'static str] = &["gh", "pr", "merge"];
     const PR_CREATE: &'static [&'static str] = &["gh", "pr", "create"];
     const PUBLISHING: &'static [&'static str] = &["push", "commit"];
@@ -60,17 +61,19 @@ impl ShellCommand {
     }
 
     fn segments(&self) -> impl Iterator<Item = &[String]> {
-        self.1.iter().map(Vec::as_slice)
+        self.0.segments()
     }
 
     pub fn breach(&self, rules: &ShellRules) -> Option<Listed> {
-        let program = || {
-            let word = self.segments().find_map(|segment| rules.forbidden_in(segment))?;
-            Some(format!(
-                "shell rule: `{word}` is not allowed; use the Edit and Write tools, `git restore`, or `git rm` inside a code change"
-            ))
+        self.reason(rules).map(Listed::new)
+    }
+
+    fn reason(&self, rules: &ShellRules) -> Option<String> {
+        let program = |segment: &[String]| {
+            let named = rules.forbidden_in(segment).map(|word| format!("{} `{word}` {}", Self::SHELL_RULE, Self::USE));
+            named.or_else(|| rules.nested(segment).and_then(|text| Self(Tokens::scan(&text)).reason(rules)))
         };
-        self.0.breach().map(str::to_owned).or_else(program).map(Listed::new)
+        self.0.breach().map(str::to_owned).or_else(|| self.segments().find_map(program))
     }
 }
 
@@ -78,20 +81,7 @@ impl FromStr for ShellCommand {
     type Err = std::convert::Infallible;
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        Ok(Self(
-            Operators::scan(text),
-            text.replace('(', ";(;")
-                .replace(')', ";);")
-                .split(Self::SEPARATORS)
-                .map(|segment| {
-                    segment
-                        .split_whitespace()
-                        .map(|word| word.trim_matches(Self::QUOTES).to_owned())
-                        .filter(|word| !word.is_empty())
-                        .collect()
-                })
-                .collect(),
-        ))
+        Ok(Self(Tokens::scan(text)))
     }
 }
 
@@ -163,8 +153,7 @@ mod tests {
         assert!(ALLOWED.iter().all(|command| refusal(command).is_none()));
     }
 
-    const POLICY: &str = include_str!("../../../../../../tooling/policy.toml");
-    const VERDICTS: [(&str, bool); 25] = [
+    const VERDICTS: [(&str, bool); 43] = [
         ("rm -rf x", true),
         ("cd a && mv b c", true),
         ("sed -i s/a/b/ f", true),
@@ -190,12 +179,30 @@ mod tests {
         ("cat <<-'EOF'\nx\nEOF", true),
         ("echo $((1 << 2))", false),
         ("true; xargs ls", false),
+        ("git commit -m \"fix; rm stuff\"", false),
+        ("echo \"a | sed\" && git commit -m 'fix (sed) bug'", false),
+        ("git commit -m \"title\n\nrm the thing\nsed it\npython x\"", false),
+        ("command -v sed; echo a # > b", false),
+        ("diff <(ls) <(ls -a); tee >(cat)", false),
+        ("bash -c 'sed -i p f'", true),
+        ("sh -c \"cd a && rm x\"", true),
+        ("eval rm x", true),
+        ("xargs -n 1 sh -lc 'mv a b'", true),
+        ("echo $(sed p f)", true),
+        ("echo `rm x`", true),
+        ("echo \"$(rm x)\"", true),
+        ("echo \"$(echo a > f)\"", true),
+        ("env -u X sed p", true),
+        ("sudo -u X rm x", true),
+        ("timeout -s KILL 5 sed p", true),
+        ("timeout --signal KILL -k 1 5 sed p", true),
+        ("cd a; (sed p f)", true),
     ];
 
     #[test]
     fn a_shell_command_running_a_forbidden_program_heredoc_or_file_redirect_is_refused_and_nothing_else() {
-        let policy: ScalePolicy = toml::from_str(POLICY).unwrap();
-        let refused = |command: &str| command.parse::<ShellCommand>().unwrap().breach(policy.shell()).is_some();
+        let rules = ScalePolicy::shell_in(None).unwrap();
+        let refused = |command: &str| command.parse::<ShellCommand>().unwrap().breach(&rules).is_some();
         assert!(VERDICTS.iter().all(|(command, verdict)| refused(command) == *verdict));
     }
 

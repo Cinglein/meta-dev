@@ -142,7 +142,7 @@ impl HookEvent {
                 input
                     .command()
                     .and_then(|command| command.refusal(project.config()))
-                    .or_else(|| input.shell_breach(project))
+                    .or_else(|| input.shell_breach(Some(project.root())))
                     .or_else(|| input.refusal())
                     .or_else(|| input.unpushable(project, Self::PUSH))
                     .map(Denial::from)
@@ -167,8 +167,12 @@ impl HookEvent {
         let linked = budget.as_ref().ok().filter(|_| self == Self::PostToolUse);
         let linked = linked.and_then(|budget| Linking::after(input, *budget));
         let linking = linked.map(|linked| Reply::new(self, Verdict::Allow, Some(linked)));
-        let refusal = (self == Self::PreToolUse)
-            .then(|| budget.map_or_else(|failure| Some(Listed::new(failure)), |_| input.refusal()));
+        let refusal = (self == Self::PreToolUse).then(|| {
+            budget.map_or_else(
+                |failure| Some(Listed::new(failure)),
+                |_| input.shell_breach(None).or_else(|| input.refusal()),
+            )
+        });
         let refusal = refusal.flatten();
         refusal.map(|refusal| Reply::new(self, Verdict::Deny(Denial::from(refusal)), None)).or(linking)
     }

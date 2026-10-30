@@ -24,11 +24,12 @@ pub struct ScalePolicy {
     #[serde(default)]
     liveness: Liveness,
     #[serde(default)]
-    shell: ShellRules,
+    shell: Option<ShellRules>,
 }
 
 impl ScalePolicy {
     const FILE: &'static str = "tooling/policy.toml";
+    const EMBEDDED: &'static str = include_str!("../../../../tooling/policy.toml");
     const MISSING: &'static str =
         "missing; scales are not defaulted; copy meta-dev's tooling/policy.toml to it (meta init will do this later)";
 
@@ -41,12 +42,11 @@ impl ScalePolicy {
         toml::from_str(&text).map_err(CliFailure::raised::<Setup>)
     }
 
-    pub fn shell_in(root: &Path) -> Result<ShellRules, CliFailure> {
-        let present = root.join(Self::FILE).exists();
-        present
-            .then(|| Self::read(root))
-            .transpose()
-            .map(|policy| policy.map(|policy| policy.shell).unwrap_or_default())
+    pub fn shell_in(root: Option<&Path>) -> Result<ShellRules, CliFailure> {
+        let own = root.filter(|root| root.join(Self::FILE).exists()).map(Self::read).transpose()?;
+        let embedded = || toml::from_str::<ScalePolicy>(Self::EMBEDDED).map_err(CliFailure::raised::<Setup>);
+        own.and_then(|policy| policy.shell)
+            .map_or_else(|| embedded().map(|policy| policy.shell.unwrap_or_default()), Ok)
     }
 
     pub fn scales(&self) -> &Scales {
@@ -55,10 +55,6 @@ impl ScalePolicy {
 
     pub fn liveness(&self) -> Liveness {
         self.liveness
-    }
-
-    pub fn shell(&self) -> &ShellRules {
-        &self.shell
     }
 
     pub fn known(&self, division: &Division) -> Result<(), RatingFailure> {
@@ -70,7 +66,7 @@ impl ScalePolicy {
 
 impl From<Scales> for ScalePolicy {
     fn from(scales: Scales) -> ScalePolicy {
-        ScalePolicy { scales, domains: BTreeMap::new(), liveness: Liveness::default(), shell: ShellRules::default() }
+        ScalePolicy { scales, domains: BTreeMap::new(), liveness: Liveness::default(), shell: None }
     }
 }
 

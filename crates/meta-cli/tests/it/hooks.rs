@@ -197,6 +197,24 @@ fn session_start_shows_state_and_names_the_session_actor() {
     assert!(home.join(SESSION_STARTED).exists() && started.elapsed() < PATIENT && shown.contains(UNREADABLE));
 }
 
+const REAL_POLICY: &str = include_str!("../../../../tooling/policy.toml");
+
+#[test]
+fn a_subagent_running_a_forbidden_command_is_denied_through_the_real_policy_and_the_main_session_is_not() {
+    let repo = Repo::new();
+    std::fs::write(repo.clone.path().join("tooling/policy.toml"), REAL_POLICY).unwrap();
+    let ran = |agent: &str| {
+        let input = format!(
+            "{{{agent}\"cwd\":{},\"tool_input\":{{\"command\":\"sed -i p f\"}}}}",
+            serde_json::to_string(repo.clone.path()).unwrap()
+        );
+        let mut child = MetaCommand::tagged(&[HOOK, PRE]).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
+        child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
+        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
+    };
+    assert!(ran("\"agent_id\":\"a1\",").contains(DENY) && ran("").is_empty());
+}
+
 #[test]
 fn pre_tool_use_denies_input_it_cannot_parse() {
     let mut child = MetaCommand::tagged(&[HOOK, PRE]).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();

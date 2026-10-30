@@ -103,6 +103,8 @@ reply_within = 3600000
 [shell]
 forbidden = ["rm", "mv", "python", "python3", "sed", "awk", "perl"]
 wrappers = ["nice", "env", "xargs", "sudo", "command", "time", "exec", "nohup", "timeout", "then", "do", "else", "!", "{"]
+valued = ["-u", "--user", "-g", "--group", "-s", "--signal", "-k", "--kill-after", "-n", "--adjustment", "-C", "-S", "-I", "-P", "-L", "-E", "-d"]
+interpreters = ["bash", "sh", "zsh", "dash", "ksh", "eval"]
 
 [domains.features-and-maintenance]
 crates = ["*"]

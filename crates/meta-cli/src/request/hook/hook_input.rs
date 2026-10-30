@@ -3,7 +3,7 @@ mod pushed_commits;
 mod shell_command;
 mod tool_input;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 use meta_schema::Actor;
@@ -13,7 +13,7 @@ use super::CallPhase;
 use crate::request::ci::{SessionDir, SessionId, SessionStart};
 use crate::request::output::Listed;
 use crate::request::project::Project;
-use crate::request::scale_policy::{ScalePolicy, ShellRules};
+use crate::request::scale_policy::ScalePolicy;
 use serde::de::IgnoredAny;
 
 use identity::Identity;
@@ -31,8 +31,6 @@ pub struct HookInput {
     tool_input: Option<ToolInput>,
     #[serde(default)]
     agent_id: Option<IgnoredAny>,
-    #[serde(default)]
-    agent_type: Option<IgnoredAny>,
 }
 
 impl HookInput {
@@ -57,21 +55,13 @@ impl HookInput {
         unrecorded.or(foreign)
     }
 
-    pub fn shell_breach(&self, project: &Project) -> Option<Listed> {
-        self.agent()?;
-        match ScalePolicy::shell_in(project.root()) {
-            Ok(rules) => self.breach_with(&rules),
+    pub fn shell_breach(&self, root: Option<&Path>) -> Option<Listed> {
+        let command = self.command()?;
+        self.agent_id.as_ref()?;
+        match ScalePolicy::shell_in(root) {
+            Ok(rules) => command.breach(&rules),
             Err(failure) => Some(Listed::new(format!("cannot read the shell rules: {failure}"))),
         }
-    }
-
-    fn breach_with(&self, rules: &ShellRules) -> Option<Listed> {
-        self.agent()?;
-        self.command()?.breach(rules)
-    }
-
-    fn agent(&self) -> Option<()> {
-        self.agent_id.as_ref().map(|_| ()).or(self.agent_type.as_ref().map(|_| ()))
     }
 
     pub fn unpushable(&self, project: &Project, subcommand: &str) -> Option<Listed> {
@@ -145,16 +135,14 @@ mod tests {
         assert_eq!(EVENTS.map(HookEvent::phase), PHASES);
     }
 
-    const POLICY: &str = include_str!("../../../../../tooling/policy.toml");
     const WHO: [(&str, bool); 4] =
-        [("\"agent_id\":\"a1\",", true), ("\"agent_type\":\"t\",", true), ("\"agent_id\":null,", false), ("", false)];
+        [("\"agent_id\":\"a1\",", true), ("\"agent_type\":\"t\",", false), ("\"agent_id\":null,", false), ("", false)];
 
     #[test]
-    fn only_a_call_carrying_an_agent_id_or_type_is_held_to_the_shell_rules() {
-        let policy: crate::request::scale_policy::ScalePolicy = toml::from_str(POLICY).unwrap();
+    fn only_a_call_carrying_an_agent_id_is_held_to_the_shell_rules_even_outside_a_project() {
         let held = |who: &str| {
             let input = format!("{{{who}\"cwd\":\"/w\",\"tool_input\":{{\"command\":\"sed -i p f\"}}}}");
-            serde_json::from_str::<HookInput>(&input).unwrap().breach_with(policy.shell()).is_some()
+            serde_json::from_str::<HookInput>(&input).unwrap().shell_breach(None).is_some()
         };
         assert!(WHO.iter().all(|(who, verdict)| held(who) == *verdict));
     }
