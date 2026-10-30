@@ -6,6 +6,7 @@ mod reply;
 mod tests;
 
 use std::fmt;
+use std::io::Read as _;
 use std::panic::resume_unwind;
 use std::str::FromStr;
 use std::time::{Duration, Instant};
@@ -79,8 +80,10 @@ impl HookEvent {
     }
 
     pub fn respond(self) -> Result<Output, CliFailure> {
-        let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
-        let input: HookInput = match serde_json::from_str(&stdin) {
+        let mut stdin = Vec::new();
+        let read = std::io::stdin().read_to_end(&mut stdin).map_err(|failure| failure.to_string());
+        let parsed = read.and_then(|_| serde_json::from_slice(&stdin).map_err(|failure| failure.to_string()));
+        let input: HookInput = match parsed {
             Ok(input) => input,
             Err(failure) if self == Self::PreToolUse => {
                 let reason = Listed::new(format!("cannot parse the hook input, so no command is allowed: {failure}"));
