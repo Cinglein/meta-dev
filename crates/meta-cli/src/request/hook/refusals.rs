@@ -1,6 +1,7 @@
 use super::HookInput;
+use super::hook_input::{ShellCommand, Target};
 use crate::request::output::Listed;
-use crate::request::project::Project;
+use crate::request::project::{Config, Project};
 use crate::request::scale_policy::ScalePolicy;
 
 pub struct Refusals<'call> {
@@ -16,10 +17,26 @@ impl<'call> Refusals<'call> {
     }
 
     pub fn first(&self) -> Option<Listed> {
-        Self::modal(self.input)
-            .or_else(|| self.project.and_then(|project| self.command(project)))
-            .or_else(|| self.input.refusal())
-            .or_else(|| self.project.and_then(|project| self.input.unpushable(project, Self::PUSH)))
+        Self::local(self.input, self.project)
+            .or_else(|| self.input.command().and_then(|command| self.targeted(&command)))
+    }
+
+    fn local(input: &HookInput, project: Option<&Project>) -> Option<Listed> {
+        Self::modal(input)
+            .or_else(|| project.and_then(|project| Self::guarded(input, project.config(), Some(project))))
+            .or_else(|| input.shell_breach(project.map(Project::root)))
+            .or_else(|| input.refusal())
+            .or_else(|| project.and_then(|project| input.unpushable(project, Self::PUSH)))
+    }
+
+    fn targeted(&self, command: &ShellCommand) -> Option<Listed> {
+        let target = Target::resolved_from(command, &self.input.cwd(), self.project);
+        let named = target.projects().iter().find_map(|named| Self::local(self.input, Some(named)));
+        let strict = target.strictest().and_then(|config| match config {
+            Ok(config) => Self::guarded(self.input, &config, self.project),
+            Err(failure) => Some(Listed::new(failure)),
+        });
+        named.or(strict)
     }
 
     fn modal(input: &HookInput) -> Option<Listed> {
@@ -27,9 +44,9 @@ impl<'call> Refusals<'call> {
             .map_or_else(|why| Some(Listed::new(why)), |tools| input.modal(tools))
     }
 
-    fn command(&self, project: &Project) -> Option<Listed> {
-        let policy = ScalePolicy::read(project.root()).ok().unwrap_or_default();
-        let lander = policy.queue().lander(self.input.announced_actor());
-        self.input.command()?.refusal(project.config(), lander.as_ref())
+    fn guarded(input: &HookInput, config: &Config, project: Option<&Project>) -> Option<Listed> {
+        let policy = project.and_then(|project| ScalePolicy::read(project.root()).ok()).unwrap_or_default();
+        let lander = policy.queue().lander(input.announced_actor());
+        input.command()?.refusal(config, lander.as_ref())
     }
 }

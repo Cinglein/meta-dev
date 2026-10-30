@@ -28,6 +28,12 @@ pub struct Config {
 }
 
 impl Config {
+    const EMBEDDED: &'static str = include_str!("../../../../../meta.toml");
+
+    pub fn strictest() -> Result<Self, CliFailure> {
+        toml::from_str(Self::EMBEDDED).map_err(CliFailure::raised::<Setup>)
+    }
+
     pub fn remote(&self) -> Result<&RemoteName, CliFailure> {
         self.remote.as_ref().ok_or_else(|| CliFailure::raised::<Setup>("meta.toml: `remote` is required"))
     }
