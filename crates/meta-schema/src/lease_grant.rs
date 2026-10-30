@@ -34,3 +34,14 @@ impl fmt::Display for LeaseGrant {
         write!(formatter, "leased by {}", self.issuer)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::LeaseGrant;
+    use crate::id::Id;
+
+    #[test]
+    fn a_grant_displays_its_issuer() {
+        assert_eq!(LeaseGrant::new(Id::generate(), "owner".parse().unwrap()).to_string(), "leased by owner");
+    }
+}

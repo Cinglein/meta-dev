@@ -1,7 +1,9 @@
+use std::path::Path;
+
 use meta_log::MemoryLog;
 use meta_schema::{Claim, Event, Id, LeaseGrant};
 
-use super::{LeaseLine, Prompt};
+use super::{Brief, Dispatch, LeaseLine, Prompt};
 use crate::request::cli_failure::{CliFailure, Invalid};
 use crate::request::writing::Writing;
 use crate::request::{Request, ScalePolicy};
@@ -9,6 +11,7 @@ use crate::request::{Request, ScalePolicy};
 const OPEN: [&str; 5] = ["meta", "open", "--division", "features-and-maintenance", "x"];
 const OWNER: &str = "owner";
 const AGENT: &str = "worker";
+const ROOT: &str = "/some/project";
 const CLAIM: &str = "claim";
 const RETIRE: &str = "retire";
 const ID_INDEX: usize = 4;
@@ -65,6 +68,15 @@ fn only_a_lease_line_naming_the_live_lease_of_its_open_task_admits_an_agent() {
     let admitted: Vec<bool> = prompts.iter().map(|prompt| meta.admitted(prompt)).collect();
     let refused = [UNLEASED, UNPARSABLE].map(|prompt| meta.admitted(prompt));
     assert_eq!([admitted, refused.to_vec()].concat(), ADMITTED, "{live}\n{stale}\n{renewed}");
+}
+
+#[test]
+fn a_rooted_dispatch_briefs_the_project_root() {
+    let meta = Meta::default();
+    let task = meta.run(OWNER, &OPEN).split_whitespace().nth(ID_INDEX).unwrap_or_default().to_owned();
+    let dispatch = Dispatch::new(Claim::new(task.parse().unwrap(), None), AGENT.parse().unwrap());
+    let brief = dispatch.rooted(Path::new(ROOT)).answer(&meta.0, OWNER.parse().unwrap()).unwrap().to_string();
+    assert!(brief.contains(&format!("{}{ROOT}", Brief::PROJECT)), "{brief}");
 }
 
 #[test]

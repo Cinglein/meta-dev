@@ -43,6 +43,11 @@ mod tests {
     const ROOTS: &str = "roots";
 
     #[test]
+    fn the_registry_file_is_named_under_a_config_directory() {
+        assert!(KnownProjects::file().ends_with(KnownProjects::FILE));
+    }
+
+    #[test]
     fn only_a_listed_root_is_a_known_project_and_an_unreadable_file_admits_none() {
         let dir = tempfile::tempdir().unwrap();
         let [listed, unlisted] = [LISTED, UNLISTED].map(|name| dir.path().join(name));
