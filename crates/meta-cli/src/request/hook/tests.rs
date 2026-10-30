@@ -52,3 +52,26 @@ fn a_command_outside_every_project_is_judged_by_the_project_it_names_and_by_the_
     };
     assert!(FROM_OUTSIDE.iter().all(|(command, expected)| refused(command) == *expected));
 }
+
+#[test]
+fn a_named_project_applies_its_own_protected_branches_and_its_repository_resolves_a_repo_flag() {
+    let project = tempfile::tempdir().unwrap();
+    std::fs::write(project.path().join("meta.toml"), "remote = \"origin\"\nprotected = [\"release\"]\n").unwrap();
+    let git = |args: &[&str]| std::process::Command::new("git").arg("-C").arg(project.path()).args(args).output();
+    git(&["init", "-q"]).unwrap();
+    git(&["remote", "add", "origin", "https://github.com/o/r"]).unwrap();
+    let directory = project.path().display();
+    let refused = |command: String| {
+        let input = serde_json::json!({ "cwd": "/tmp", "tool_input": { "command": command } }).to_string();
+        let input: HookInput = serde_json::from_str(&input).unwrap();
+        HookEvent::PreToolUse.outside_projects(&input).is_some_and(|reply| reply.to_string().contains(DENIED))
+    };
+    let named = [
+        (format!("git -C {directory} push origin release"), true),
+        (format!("git -C {directory} status"), false),
+        (format!("cd {directory} && git push origin release"), true),
+        (format!("cd {directory} && gh pr merge 1 -R o/r"), true),
+        (format!("cd {directory} && gh pr view 1 -R o/r"), false),
+    ];
+    assert!(named.into_iter().all(|(command, expected)| refused(command) == expected));
+}

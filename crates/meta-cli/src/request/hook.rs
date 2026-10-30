@@ -21,7 +21,7 @@ use crate::request::output::{Listed, Output};
 use crate::request::project::{CiSettings, Config, Project};
 use crate::request::scale_policy::ScalePolicy;
 pub use call_phase::CallPhase;
-use hook_input::HookInput;
+use hook_input::{HookInput, Target};
 use linking::Linking;
 use reply::{Blocking, Denial, Reply, Verdict};
 
@@ -159,6 +159,10 @@ impl HookEvent {
     }
 
     fn outside_projects(self, input: &HookInput) -> Option<Reply> {
+        let named = input
+            .command()
+            .filter(|_| self == Self::PreToolUse)
+            .and_then(|command| Target::resolved_from(&command, &input.cwd()).denial(self, &command, input));
         let budget = CiSettings::try_from(&Config::default()).map(|settings| self.budget(&settings));
         let linked = budget.as_ref().ok().filter(|_| self == Self::PostToolUse);
         let linked = linked.and_then(|budget| Linking::after(input, *budget));
@@ -166,7 +170,8 @@ impl HookEvent {
         let refusal = (self == Self::PreToolUse)
             .then(|| budget.map_or_else(|failure| Some(Listed::new(failure)), |_| input.refusal()));
         let refusal = refusal.flatten();
-        refusal.map(|refusal| Reply::new(self, Verdict::Deny(Denial::from(refusal)), None)).or(linking)
+        named
+            .or_else(|| refusal.map(|refusal| Reply::new(self, Verdict::Deny(Denial::from(refusal)), None)).or(linking))
     }
 
     fn after_tool_use(project: &Project, input: &HookInput, budget: Budget) -> Reply {

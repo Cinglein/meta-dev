@@ -53,6 +53,11 @@ impl ShellCommand {
         self.segments().filter_map(|words| shell.follow(words, writes)).collect()
     }
 
+    pub fn named_directories(&self, cwd: &Path) -> impl Iterator<Item = PathBuf> + '_ {
+        let mut shell = WorkingDirectory::new(cwd);
+        self.segments().filter_map(move |words| shell.follow(words, |words| (!words.is_empty()).then_some(())))
+    }
+
     pub fn publishing_directory(&self, cwd: &Path) -> Option<PathBuf> {
         let mut shell = WorkingDirectory::new(cwd);
         self.segments().find_map(|words| shell.follow(words, Self::publishes))
@@ -72,7 +77,7 @@ impl ShellCommand {
         Self::WRITING.iter().find_map(|subcommand| self.runs(subcommand))
     }
 
-    fn segments(&self) -> impl Iterator<Item = &[String]> {
+    pub fn segments(&self) -> impl Iterator<Item = &[String]> {
         self.0.iter().map(Vec::as_slice)
     }
 }

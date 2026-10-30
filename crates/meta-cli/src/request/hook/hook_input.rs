@@ -1,6 +1,7 @@
 mod identity;
 mod pushed_commits;
 mod shell_command;
+mod target;
 mod tool_input;
 
 use std::path::PathBuf;
@@ -17,6 +18,7 @@ use crate::request::project::Project;
 use identity::Identity;
 use pushed_commits::PushedCommits;
 use shell_command::ShellCommand;
+pub use target::Target;
 use tool_input::ToolInput;
 
 #[derive(Debug, Default, Deserialize)]
