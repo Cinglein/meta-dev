@@ -5,7 +5,7 @@ use super::{ALICE, CLAIM, DONE, Meta, OPEN_DASHED, OWNER};
 use crate::request::cli_failure::CliFailure;
 
 const GHOST_TASK: &str = "task-00000000000000ff";
-const NEWER_MARK: &str = r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"SchemaVersion","version":9}"#;
+const NEWER_MARK: &str = r#"{"at":"2026-10-25T00:00:00Z","actor":"a","kind":"SchemaVersion","version":10}"#;
 
 const HELD: &str = "held by owner, alice";
 

@@ -9,12 +9,11 @@ mod window;
 
 use std::collections::BTreeMap;
 
+use meta_budget::{BudgetId, Percent};
 use serde::{Deserialize, Serialize};
 
-use super::budget_id::BudgetId;
 use super::tree_failure::TreeFailure;
 use crate::domains::{Domains, Extent, ScopeKind};
-use crate::percent::Percent;
 use allowance::Allowance;
 pub use allowance::Amount;
 pub use lines::Lines;

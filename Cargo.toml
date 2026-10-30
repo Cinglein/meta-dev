@@ -9,7 +9,10 @@ publish = false
 license = "UNLICENSED"
 
 [workspace.dependencies]
+meta-acceptance = { path = "crates/meta-acceptance" }
+meta-budget = { path = "crates/meta-budget" }
 meta-schema = { path = "crates/meta-schema" }
+meta-text = { path = "crates/meta-text" }
 meta-log = { path = "crates/meta-log" }
 meta-run = { path = "crates/meta-run" }
 meta-golden = { path = "crates/meta-golden" }

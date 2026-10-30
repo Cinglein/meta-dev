@@ -1,6 +1,6 @@
 use meta_schema::{
-    Block, Claim, EntryNote, EventVisitor, NewConcern, NewIssue, NewTask, Relocation, Rerating, SchemaVersion,
-    TaskLink, TaskRef,
+    Acceptance, Block, Claim, EntryNote, EventVisitor, NewConcern, NewIssue, NewProject, NewTask, Observation,
+    Relocation, Rerating, SchemaVersion, TaskLink, TaskPurpose, TaskRef,
 };
 
 use crate::refusal::Refusal;
@@ -87,5 +87,21 @@ impl EventVisitor for Applying<'_> {
     fn task_reopened(self, task: TaskRef) -> Self::Output {
         let reopening = Reopening::under(self.state.schema());
         self.state.task_mut(task.task())?.advance(|progress| progress.reopened(reopening).map(Progress::Active))
+    }
+
+    fn project_proposed(self, _: &NewProject) -> Self::Output {
+        Ok(())
+    }
+
+    fn project_accepted(self, _: &Acceptance) -> Self::Output {
+        Ok(())
+    }
+
+    fn project_observed(self, _: &Observation) -> Self::Output {
+        Ok(())
+    }
+
+    fn task_purposed(self, purpose: TaskPurpose) -> Self::Output {
+        self.state.task_mut(purpose.task()).map(|_| ())
     }
 }

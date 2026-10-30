@@ -10,6 +10,12 @@ pub struct SchemaVersion {
 
 impl SchemaVersion {
     const FIRST_KEEPING_HOLDERS: Self = Self { version: NonZeroU32::MIN.saturating_add(6) };
+    const PROJECTS: Self = Self::FIRST_KEEPING_HOLDERS.next();
+    const LEASES: Self = Self::PROJECTS.next();
+
+    const fn next(self) -> Self {
+        Self { version: self.version.saturating_add(NonZeroU32::MIN.get()) }
+    }
 
     #[must_use]
     pub fn keeps_holders_on_reopen(self) -> bool {
@@ -18,16 +24,7 @@ impl SchemaVersion {
 
     #[must_use]
     pub fn current() -> Self {
-        Self {
-            version: NonZeroU32::MIN
-                .saturating_add(1)
-                .saturating_add(1)
-                .saturating_add(1)
-                .saturating_add(1)
-                .saturating_add(1)
-                .saturating_add(1)
-                .saturating_add(1),
-        }
+        Self::LEASES
     }
 }
 
