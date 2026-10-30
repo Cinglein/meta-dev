@@ -79,6 +79,7 @@ mod tests {
     use task::{CommandLine, Program, Stdout};
 
     use super::TestTraces;
+    use super::access::Access;
     use crate::test_name::TestName;
 
     const SHELL: &str = "sh";
@@ -101,9 +102,12 @@ mod tests {
         assert!(shown.ok() == Some(both) && traces.traced(shell, &name).is_err());
         let start = || SpawnTrace::new(&own).noted(OsStr::new(SHELL)).is_ok();
         assert!(start() && traces.sealed(&name).is_ok() && !start());
-        let late_git = fs::write(own.join(Spawns::GIT_TRACES).join(SHELL), SHELL);
-        let outside = fs::create_dir(root.path().join(Spawns::GIT_TRACES));
-        let reported = late_git.and(outside).is_ok() && Spawns::traced(root.path()).is_err();
-        assert!(reported && TestTraces::opened(root.path()).is_ok());
+        let outside = root.path().join(Spawns::GIT_TRACES);
+        let written = |directory: &Path| fs::write(directory.join(SHELL), SHELL).is_ok();
+        let late_git = written(&own.join(Spawns::GIT_TRACES)) && fs::create_dir(&outside).is_ok();
+        let reported = late_git && Spawns::traced(root.path()).is_err();
+        let kept =
+            Access::Sealed.applied(&outside).is_ok() && TestTraces::opened(root.path()).is_ok();
+        assert!(reported && kept && written(&own) && !written(&outside));
     }
 }
