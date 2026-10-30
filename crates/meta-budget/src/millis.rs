@@ -34,16 +34,12 @@ impl Millis {
 
     #[must_use]
     pub fn times(self, count: usize) -> Millis {
-        Millis(
-            self.0
-                .saturating_mul(u64::try_from(count).unwrap_or(u64::MAX)),
-        )
+        Millis(self.0.saturating_mul(u64::try_from(count).unwrap_or(u64::MAX)))
     }
 
     #[must_use]
     pub fn scaled(self, percent: Percent) -> Option<Millis> {
-        let [percent, whole] =
-            [percent, Percent::ALL].map(|share| u64::try_from(usize::from(share)).ok());
+        let [percent, whole] = [percent, Percent::ALL].map(|share| u64::try_from(usize::from(share)).ok());
         Some(Millis(self.0.checked_mul(percent?)? / whole?))
     }
 

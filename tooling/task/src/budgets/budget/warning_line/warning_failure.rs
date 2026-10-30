@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::percent::Percent;
+use crate::Percent;
 
 #[derive(Debug, Error)]
 pub enum WarningFailure {

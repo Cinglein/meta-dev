@@ -64,7 +64,7 @@ New events:
 | Event | Payload |
 |---|---|
 | `ProjectProposed` | `NewProject { project, text, division }` |
-| `ProjectAccepted` | `Acceptance { project, root: Root, rows: Vec1<AcceptanceRow>, spans: Vec1<SpanKind>, enforcement: Vec1<Enforcement> }` |
+| `ProjectAccepted` | `Acceptance { project, root: Root, rows: Vec1<AcceptanceRow>, spans: Vec1<SpanName>, enforcement: Gating }` (`Gating` is a `Vec1<Enforcement>` with at least one `Budget` or `Step` point) |
 | `ProjectObserved` | `Observation { project, main: CommitId, run: RunId, verdict: Verdict }` |
 | `TaskPurposed` | `TaskPurpose { task, purpose: Purpose }` (attach an existing task) |
 
@@ -79,22 +79,25 @@ Root         = Process | State
 AcceptanceRow = { budget: BudgetId, measure: MeasureName, target: Amount }
 Verdict      = Instrumented | Uninstrumented(Gap) | OnTarget
              | OffTarget(BudgetId) | NotGating(Enforcement)
-Gap          = Unmeasured(BudgetId) | NoSpan(SpanKind)
+Gap          = Unmeasured(BudgetId) | NoSpan(SpanName)
 ```
 
 - **Instrumentation is a purpose.** `Instruments(p)` is typed. It is not a word in a task title. Its tasks add the measure, the spans and the budget rows.
 - **Root** is set at Accepted, not at Proposed. A Proposed project has no root, so its type has no `root` field.
-- **Rows.** `MeasureName` is the policy spelling of a `Measure`. `meta project observe` parses it against `Measure`. `Amount` moves into `meta-schema`, as `ItemKind` did in #217.
-- **Spans.** `spans` names the trace spans that the project's output emits. `SpanKind` is the existing `meta-trace` type (`Command(Verb) | Spawn(Program) | Network(Program) | Fs`). An instrumentation task may add a variant. A missing trace on main fails closed.
+- **Rows.** `MeasureName` is the policy spelling of a `Measure`. `meta project observe` parses it against `Measure`. `Amount`, `BudgetId` and `MeasureName` move into the crate `meta-budget`, so `tooling/task` and the log use one budget vocabulary. `MeasureName` names only simple measures (one snake-case word, for example `test_line_share`). If a project needs a measure that takes parameters, `MeasureName` widens before PR 6.
+- **Acceptance types.** `AcceptanceRow`, the enforcement points, the span names and `Verdict` are in the crate `meta-acceptance`, below `meta-schema`. Two rows for the same budget are refused.
+- **Spans.** `spans` names the trace spans that the project's output emits. In the log a span is a `SpanName` (one trimmed line, for example `command claim`), not the `meta-trace` enum, so trace spellings never become part of the log format. `meta project observe` maps a `SpanName` to a `SpanKind` on the `meta-trace` side. An instrumentation task may add a `SpanKind` variant. A missing trace on main fails closed.
 - **One purpose per task.** `Purpose` is one enum, so a task cannot both serve and be an own goal. The `project` in `CausedBy` only places the task under a project in status. Its spend stays an own goal.
+- **A purpose is set once.** A task gets its purpose at `TaskOpened` or by one `TaskPurposed`. The fold (PR 2) refuses a second `TaskPurposed`, and a `TaskPurposed` for a task that opened with a purpose.
 
-**Version.** `SchemaVersion::current()` goes from 7 to 8. An older build reads the version 8 marker and stops writing, as it does today.
+**Version.** Each schema version is a named constant made from the version before it (`FIRST_KEEPING_HOLDERS`, then `PROJECTS`), and `SchemaVersion::current()` returns the latest. Two PRs that each add a version then conflict in the text, so they cannot merge into one number by accident. PR 1 adds `PROJECTS`. An older build reads the new marker and stops writing, as it does today.
 
 **Old logs.**
 - Old events are unchanged and still read.
 - An old `TaskOpened` has no purpose. It reads as `Unlinked`. Its spend counts as an own goal (fail closed).
-- `SchemaVersion::requires_purpose()` is true from version 8. After the marker, the fold refuses a `TaskOpened` with no purpose. This uses the same pattern as `keeps_holders_on_reopen`.
-- Open tasks from before version 8 get a purpose through `TaskPurposed`.
+- `PROJECTS` does not require a purpose. Until the CLI can supply one (PR 3), every `meta open` writes a `TaskOpened` with no purpose.
+- `SchemaVersion::requires_purpose()` starts at its own later version, `PURPOSES`, which lands with or after the CLI that supplies a purpose. After that marker, the fold refuses a `TaskOpened` with no purpose. This uses the same pattern as `keeps_holders_on_reopen`.
+- Open tasks from before `PURPOSES` get a purpose through `TaskPurposed`.
 
 **Selector names** (owner, 2026-10-30). Design §2's selector list becomes:
 
@@ -124,8 +127,8 @@ The push run also uploads its trace (task-433270d3). Caps (design §7) read the 
 
 ```
 Enforcement = Budget(BudgetId)   -- gating: the row has overspend = block and window = per_change
-            | Step(CiStep)       -- gating: the step ran in the push run, and ci-gate needs its job
-            | Hook(HookName)     -- gating: plugin/hooks.json on main registers it
+            | Step(PointName)    -- gating: the step ran in the push run, and ci-gate needs its job
+            | Hook(PointName)    -- gating: plugin/hooks.json on main registers it
 ```
 
 - At least one point must be `Budget` or `Step`. Hooks guard against honest mistakes only (threat model). A required CI check is the backstop.
@@ -200,7 +203,7 @@ goal: 84.7M / 1 delivered (7d)
 | Accepted: owner only | Fold: `ProjectAccepted` from an actor other than `owner` is refused. CI owner-event check (design §2) covers the budget rows that instrumentation adds. |
 | Accepted: only instrumentation is claimed | `meta claim` refuses a `serves` task while its project is Accepted. The refusal names the gaps and the open `instruments` tasks. CI `TrackedWork` adds `Untracked::Uninstrumented(project)` for a PR of such a task. |
 | Instrumented: measured on main | `meta project observe` writes `Instrumented` only when every row is measured and every span is in the trace. A gap before delivery writes `Uninstrumented` and claims of `serves` tasks stop again. |
-| Every task has a purpose | Fold (version 8). `meta claim` refuses an `Unlinked` task and names `meta serve`, `meta instrument` or `meta cause`. CI `TrackedWork` adds `Untracked::Unpurposed(task)`. |
+| Every task has a purpose | Fold (from `PURPOSES`). `meta claim` refuses an `Unlinked` task and names `meta serve`, `meta instrument` or `meta cause`. CI `TrackedWork` adds `Untracked::Unpurposed(task)`. |
 | Regressed: fixes are own goals | Fold: `instruments` and `serves` to a Regressed project are refused. The task needs `CausedBy { project: Some(p) }`. |
 | Delivered: on target and gating | `meta project observe` reads the artifact and the trace and writes `ProjectObserved` only on a passing guard. The `Observation` type requires the commit and run as evidence. A CI audit on push to main replays each `ProjectObserved` against its named run artifact and fails closed on a mismatch. |
 | Landing | `meta queue run` refuses a PR whose task is `Unlinked`. After each landing, it runs `meta project observe` for the projects that the landed tasks instrument or serve. |
@@ -211,9 +214,9 @@ goal: 84.7M / 1 delivered (7d)
 
 Each PR is small and comes off main. Each first commit is red first.
 
-1. **Schema.** `Project` entity, `Purpose` (with `Instruments`), `Cause`, `Root`, `AcceptanceRow`, `Verdict`, four events, `TaskOpened.purpose`, `Amount` into `meta-schema`, version 8. Red: round-trip and old-log rows fail.
-2. **Fold.** `ProjectState` typestate with `Instrumented`, the attach table in §1, the refusals in §6, `requires_purpose`. Red: a test that lists every refused transition and attach.
-3. **CLI.** `meta project propose|accept|list`, `meta open --instruments|--serves|--caused-by`, `meta instrument`, `meta serve`, `meta cause`. `meta claim` refuses `Unlinked`, and refuses `serves` before Instrumented. Goldens re-recorded.
+1. **Schema.** `Project` entity, `Purpose` (with `Instruments`), `Cause`, `Root`, `AcceptanceRow`, `Verdict`, four events, `TaskOpened.purpose`, `meta-budget` and `meta-acceptance`, version `PROJECTS`. Red: round-trip and old-log rows fail.
+2. **Fold.** `ProjectState` typestate with `Instrumented`, the attach table in §1, the refusals in §6, and the refusal of a second purpose. Red: a test that lists every refused transition and attach.
+3. **CLI.** `meta project propose|accept|list`, `meta open --instruments|--serves|--caused-by`, `meta instrument`, `meta serve`, `meta cause`. `meta claim` refuses `Unlinked`, and refuses `serves` before Instrumented. Goldens re-recorded. Version `PURPOSES` and `requires_purpose` land here or later, not before the CLI can supply a purpose.
 4. **CI.** `TrackedWork` refuses `Unpurposed` and `Uninstrumented`. `meta queue run` refuses `Unlinked`.
 5. **Ledger artifact.** `xtask ci` writes `ledger.json` with `rows` and `gates` on push to main; the workflow uploads it. Shared with caps (design §7).
 6. **Observe.** `meta project observe` reads the artifact and the push run's trace (task-433270d3 uploads it) through meta-gh and writes `ProjectObserved`: `Instrumented`, `Uninstrumented`, delivery and regression. Heartbeat and queue call it. The push-to-main audit replays observations.
