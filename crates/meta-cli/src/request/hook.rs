@@ -81,21 +81,30 @@ impl HookEvent {
     pub fn respond(self) -> Result<Output, CliFailure> {
         let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
         let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
+        Ok(self.answer(&input))
+    }
+
+    pub fn answer(self, input: &HookInput) -> Output {
         let unstamped = self.phase().and_then(|call| input.stamp(call, Utc::now())).and_then(Result::err);
         let reply = match Project::found(input.cwd().as_path()) {
             Ok(Some(project)) => {
                 let session = input.session().and_then(|session| SessionDir::for_session(&project, session));
                 let budget = self.budget(project.ci_settings());
-                Some(self.reply(&project, &input, budget).with_news(session.and_then(|dir| dir.news())))
+                Some(self.reply(&project, input, budget).with_news(session.and_then(|dir| dir.news())))
             }
-            Ok(None) => self.outside_projects(&input),
+            Ok(None) => self.outside_projects(input),
             Err(failure) => Some(self.refused(Listed::new(failure))),
         };
+        let named = input
+            .command()
+            .filter(|_| self == Self::PreToolUse)
+            .and_then(|command| Target::resolved_from(&command, &input.cwd()).denial(self, &command, input));
+        let reply = named.filter(|_| !reply.as_ref().is_some_and(Reply::denied)).or(reply);
         let opened = self.opens_session().and_then(|()| input.open_session().err());
         let reply = reply.map(|reply| reply.with_news(opened));
         let reply = reply.or_else(|| unstamped.as_ref().map(|_| Reply::new(self, Verdict::Allow, None)));
         let reply = reply.map(|reply| reply.with_news(unstamped));
-        Ok(Output::Listed(Listed::new(reply.map(|reply| reply.to_string()).unwrap_or_default())))
+        Output::Listed(Listed::new(reply.map(|reply| reply.to_string()).unwrap_or_default()))
     }
 
     pub const fn phase(self) -> Option<CallPhase> {
@@ -159,10 +168,6 @@ impl HookEvent {
     }
 
     fn outside_projects(self, input: &HookInput) -> Option<Reply> {
-        let named = input
-            .command()
-            .filter(|_| self == Self::PreToolUse)
-            .and_then(|command| Target::resolved_from(&command, &input.cwd()).denial(self, &command, input));
         let budget = CiSettings::try_from(&Config::default()).map(|settings| self.budget(&settings));
         let linked = budget.as_ref().ok().filter(|_| self == Self::PostToolUse);
         let linked = linked.and_then(|budget| Linking::after(input, *budget));
@@ -170,8 +175,7 @@ impl HookEvent {
         let refusal = (self == Self::PreToolUse)
             .then(|| budget.map_or_else(|failure| Some(Listed::new(failure)), |_| input.refusal()));
         let refusal = refusal.flatten();
-        named
-            .or_else(|| refusal.map(|refusal| Reply::new(self, Verdict::Deny(Denial::from(refusal)), None)).or(linking))
+        refusal.map(|refusal| Reply::new(self, Verdict::Deny(Denial::from(refusal)), None)).or(linking)
     }
 
     fn after_tool_use(project: &Project, input: &HookInput, budget: Budget) -> Reply {

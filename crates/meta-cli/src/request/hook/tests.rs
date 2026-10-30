@@ -9,6 +9,7 @@ const EVENTS: [HookEvent; 4] =
     [HookEvent::SessionStart, HookEvent::PreToolUse, HookEvent::PostToolUse, HookEvent::Stop];
 const OUTSIDE: &str = r#"{"cwd":"/nonexistent-meta-dir","tool_input":{"command":"git commit -m x"}}"#;
 const UNRESOLVED: &str = "cannot resolve the commit directory";
+const ORIGIN: &str = "[remote \"origin\"]\n\turl = https://github.com/o/r\n";
 const DENIED: &str = "permissionDecision";
 const FROM_OUTSIDE: [(&str, bool); 8] = [
     ("cd ~/meta-development-lead && gh pr merge 1", true),
@@ -48,24 +49,36 @@ fn a_command_outside_every_project_is_judged_by_the_project_it_names_and_by_the_
     let refused = |command: &str| {
         let input = serde_json::json!({ "cwd": "/tmp", "tool_input": { "command": command } }).to_string();
         let input: HookInput = serde_json::from_str(&input).unwrap();
-        HookEvent::PreToolUse.outside_projects(&input).is_some_and(|reply| reply.to_string().contains(DENIED))
+        HookEvent::PreToolUse.answer(&input).to_string().contains(DENIED)
     };
     assert!(FROM_OUTSIDE.iter().all(|(command, expected)| refused(command) == *expected));
 }
 
 #[test]
 fn a_named_project_applies_its_own_protected_branches_and_its_repository_resolves_a_repo_flag() {
-    let project = tempfile::tempdir().unwrap();
-    std::fs::write(project.path().join("meta.toml"), "remote = \"origin\"\nprotected = [\"release\"]\n").unwrap();
-    let git = |args: &[&str]| std::process::Command::new("git").arg("-C").arg(project.path()).args(args).output();
-    git(&["init", "-q"]).unwrap();
-    git(&["remote", "add", "origin", "https://github.com/o/r"]).unwrap();
-    let directory = project.path().display();
-    let refused = |command: String| {
-        let input = serde_json::json!({ "cwd": "/tmp", "tool_input": { "command": command } }).to_string();
-        let input: HookInput = serde_json::from_str(&input).unwrap();
-        HookEvent::PreToolUse.outside_projects(&input).is_some_and(|reply| reply.to_string().contains(DENIED))
+    let [project, home] = [tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()];
+    let founded = |dir: &tempfile::TempDir, branch: &str| {
+        let config = format!("remote = \"origin\"\nprotected = [\"{branch}\"]\n");
+        std::fs::write(dir.path().join("meta.toml"), config).unwrap();
+        meta_git::Repository::created(dir.path(), meta_git::Layout::Working).unwrap();
+        std::fs::write(dir.path().join(".git/config"), ORIGIN).unwrap();
     };
+    founded(&project, "release");
+    founded(&home, "feature");
+    let directory = project.path().display();
+    let refused_from = |cwd: &std::path::Path, command: String| {
+        let input = serde_json::json!({ "cwd": cwd, "tool_input": { "command": command } }).to_string();
+        let input: HookInput = serde_json::from_str(&input).unwrap();
+        HookEvent::PreToolUse.answer(&input).to_string().contains(DENIED)
+    };
+    let inside = [
+        (format!("git -C {directory} push origin release"), true),
+        (format!("git -C {directory} push --force origin x"), true),
+        (format!("git -C {directory} status"), false),
+        ("git status".to_owned(), false),
+    ];
+    assert!(inside.into_iter().all(|(command, expected)| refused_from(home.path(), command) == expected));
+    let refused = |command: String| refused_from(std::path::Path::new("/tmp"), command);
     let named = [
         (format!("git -C {directory} push origin release"), true),
         (format!("git -C {directory} status"), false),
