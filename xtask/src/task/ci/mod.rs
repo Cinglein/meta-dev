@@ -16,7 +16,8 @@ pub use local_gate::{Busy, LocalGate, OutsideConfig, Posting, Unready};
 pub use log_source::LogSource;
 pub use untracked::Untracked;
 
-use std::env;
+use std::collections::BTreeMap;
+use std::ffi::OsString;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -57,8 +58,12 @@ impl Ci {
     pub const CLOSE: &str = "--close";
 
     pub fn close() -> Result<(), Failure> {
-        let steps = env::var(StepOutcomes::AMBIENT).map_err(|_| task::Failure::Unset(StepOutcomes::AMBIENT))?;
-        Attribution::from_ambient(&CommandLine::ambient()).closed(&steps.parse()?)
+        Self::closing(&CommandLine::ambient())
+    }
+
+    fn closing(ambient: &BTreeMap<String, OsString>) -> Result<(), Failure> {
+        let steps = ambient.get(StepOutcomes::AMBIENT).ok_or(task::Failure::Unset(StepOutcomes::AMBIENT))?;
+        Attribution::from_ambient(ambient).closed(&steps.to_string_lossy().parse()?)
     }
 
     pub fn run(&self, workspace: &Workspace, selection: &Selection, policy: &Policy) -> Result<(), Failure> {
@@ -98,5 +103,43 @@ impl Ci {
             },
             |gate| gate.run(policy, self.summary.as_deref()),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use std::ffi::OsString;
+    use std::{env, fs, process};
+
+    use task::{FailureKind, FailureSet};
+
+    use super::{Attribution, Ci, StepOutcomes};
+
+    const SCRATCH: &str = "close-";
+    const PASSED: &str = "ci=success,consumer=success";
+    const FAILED: &str = "ci=success,consumer=failure";
+    const CONSUMER: &str = "consumer";
+
+    #[test]
+    fn closing_writes_a_pass_when_every_step_succeeded_and_infra_for_a_step_that_did_not() {
+        let file = env::temp_dir().join(format!("{SCRATCH}{}", process::id()));
+        let closed = |steps: &str| {
+            let ambient = BTreeMap::from([
+                (Attribution::FAILURES.to_owned(), OsString::from(&file)),
+                (StepOutcomes::AMBIENT.to_owned(), OsString::from(steps)),
+            ]);
+            Ci::closing(&ambient).unwrap();
+            FailureSet::read(&file).unwrap()
+        };
+        let sets = [PASSED, FAILED].map(closed);
+        fs::remove_file(&file).unwrap();
+        assert_eq!(sets[0], FailureSet::default());
+        assert_eq!(sets[1].kinds(), [FailureKind::Infra { job: CONSUMER.into() }]);
+    }
+
+    #[test]
+    fn closing_without_the_step_outcomes_fails() {
+        assert!(Ci::closing(&BTreeMap::new()).is_err() && Ci::close().is_err());
     }
 }

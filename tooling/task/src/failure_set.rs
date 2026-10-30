@@ -127,6 +127,7 @@ mod tests {
     const JOB: &str = "job";
     const SCRATCH: &str = "failure-set-";
     const MISSING: &str = "no failures file";
+    const SHAPE: &str = "not the shape expected";
     const GONE: &str = "/nonexistent/failures.json";
     const MALFORMED: [&str; 4] = ["", "[]", "{}", r#"{"failures":[{"kind":"flaky"}]}"#];
 
@@ -157,11 +158,13 @@ mod tests {
     fn a_begun_file_is_unattributed_until_a_set_replaces_it() {
         let file = env::temp_dir().join(format!("{SCRATCH}{}", process::id()));
         FailureSet::begin(&file).unwrap();
-        let begun = FailureSet::read(&file).is_err();
+        let begun = FailureSet::read(&file)
+            .err()
+            .map(|failure| failure.to_string().contains(SHAPE));
         FailureSet::linted().write(&file).unwrap();
         let back = FailureSet::read(&file).ok();
         fs::remove_file(&file).unwrap();
-        assert!(begun);
+        assert_eq!(begun, Some(true));
         assert_eq!(back, Some(FailureSet::linted()));
     }
 

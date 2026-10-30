@@ -72,6 +72,7 @@ mod tests {
     use crate::task::failure::Failure;
 
     const SCRATCH: &str = "attribution-";
+    const SHAPE: &str = "not the shape expected";
     const CI: &str = "ci";
     const CONSUMER: &str = "consumer";
     const STACKED: &str = "stacked";
@@ -99,11 +100,12 @@ mod tests {
         let read = || FailureSet::read(&file).ok().map(|set| set.kinds().to_vec());
         let infra = |jobs: &[&str]| Some(jobs.iter().map(|job| FailureKind::Infra { job: (*job).into() }).collect());
         attribution.begin().unwrap();
-        let begun = [closed(FIRST).is_err(), read().is_none()];
+        let unfinished = || FailureSet::read(&file).err().is_some_and(|failure| failure.to_string().contains(SHAPE));
+        let begun = [closed(FIRST).is_err(), unfinished()];
         attribution.attributed(&Failure::NoLog).unwrap();
         let steps = [FIRST, LATER, CANCELLED, UNKNOWN, PASSED].map(|steps| closed(steps).map(|()| read()).unwrap());
         fs::remove_file(&file).unwrap();
-        assert_eq!(begun, [true, true]);
+        assert!(begun.into_iter().all(|done| done));
         assert_eq!(
             steps,
             [infra(&[CI, CONSUMER]), infra(&[CONSUMER, STACKED]), infra(&[CONSUMER]), infra(&[CONSUMER]), infra(&[])]
