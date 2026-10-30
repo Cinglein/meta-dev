@@ -81,7 +81,9 @@ impl Project {
         let budget = Budget::new(deadline.saturating_duration_since(Instant::now())).within(deadline);
         let listed = meta_git::Remote::new(self.root.clone(), remote.clone(), budget).heads();
         let unreachable = |failure: &dyn std::fmt::Display| {
-            Listed::new(format!("remote unreachable: git ls-remote {remote}: {failure}; retry, or ask the owner"))
+            Listed::new(format!(
+                "remote unreachable: listing the heads of {remote}: {failure}; retry, or ask the owner"
+            ))
         };
         let listed = listed.map_err(|failure| unreachable(&failure))?.map_err(|stderr| unreachable(&stderr))?;
         let Ok(heads) = listed.to_string().parse();

@@ -5,7 +5,7 @@
 "meta-cli it ci::waits::an_unreadable_remote_settles_the_hook_spawned_watch_unchecked_and_a_fixed_remote_passes_and_learns_the_run" = 8
 "meta-cli it cli::a_claim_failing_after_its_worktree_leaves_no_claim_branch_or_path_so_a_retry_claims_a_listed_noreply_worktree" = 24
 "meta-cli it cli::a_target_seed_that_cannot_copy_warns_on_one_line_and_leaves_no_target_but_the_claim_succeeds" = 20
-"meta-cli it cli::writes_go_to_the_remote_as_meta_actor_else_owner_listing_it_once_and_offline_writes_are_refused" = 6
+"meta-cli it cli::writes_go_to_the_remote_as_meta_actor_else_owner_listing_it_once_and_offline_writes_are_refused" = 8
 "meta-cli it gc::gc_frees_ended_pushed_worktrees_with_their_target_dirs_and_keeps_the_rest_with_reasons" = 94
 "meta-cli it hooks::post_tool_use_pushes_unprotected_branches_and_reports_git_errors" = 15
 "meta-cli it hooks::session_start_shows_state_and_names_the_session_actor" = 1
@@ -24,7 +24,7 @@
 "meta-log meta_log git_log::tests::fast_forward::a_push_that_does_not_fast_forward_the_remote_log_is_refused" = 14
 "meta-log meta_log git_log::tests::fast_forward::a_read_lists_the_remote_again_and_sees_what_another_clone_wrote" = 11
 "meta-log meta_log git_log::tests::malformed::a_meta_log_without_exactly_events_jsonl_is_refused" = 15
-"meta-log meta_log git_log::tests::refusals_write_nothing_and_rejected_or_offline_writes_fail" = 8
+"meta-log meta_log git_log::tests::refusals_write_nothing_and_rejected_or_offline_writes_fail" = 10
 "meta-log meta_log git_log::tests::staged::a_staged_ref_moved_while_the_writer_decided_races_and_the_writer_decides_again" = 12
 "meta-log meta_log git_log::tests::writers_on_any_clone_race_and_each_lands_right_after_what_it_validated_without_touching_checkouts" = 17
 "meta-run meta_run run::placement::tests::terminal_runs_lead_their_group_without_a_terminal_let_git_prompt_and_runs_and_helpers_leave_nothing_behind" = 9
@@ -40,7 +40,7 @@
 "meta-xtask meta_xtask task::ci::local_gate::gate_child::tests::the_child_gets_an_empty_home_of_its_own_no_config_home_and_only_allowed_names_with_the_callers_values" = 5
 "meta-xtask meta_xtask task::ci::local_gate::tests::a_changed_checkout_posts_nothing" = 8
 "meta-xtask meta_xtask task::ci::local_gate::tests::the_checked_commit_gets_the_childs_state_a_scoped_context_the_version_timings_and_surfaces" = 17
-"meta-xtask meta_xtask task::ci::standing_log::tests::the_isolated_run_reads_exactly_the_fetched_tip_and_an_unreachable_or_unfetched_log_fails_closed" = 22
+"meta-xtask meta_xtask task::ci::standing_log::tests::the_isolated_run_reads_exactly_the_fetched_tip_and_an_unreachable_or_unfetched_log_fails_closed" = 26
 "mutation mutation scope::test_packages::tests::a_runs_baseline_is_its_own_tests_once_with_the_shards_build_and_limits_and_a_failing_one_ends_all_it_started" = 9
 "mutation mutation scope::tests::the_diff_of_a_workspace_below_the_git_top_level_names_paths_from_its_root" = 5
 "mutation mutation shard_plan::tests::a_full_plan_lists_mutants_only_when_due_and_prints_its_shards_as_a_json_array_for_the_matrix" = 1

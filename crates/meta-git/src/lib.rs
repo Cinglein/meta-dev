@@ -47,7 +47,7 @@ pub use queries::{Head, LooseObject, Workdir, WorktreeFiles};
 pub use query::Query;
 pub use reads::Reads;
 pub use ref_name::RefName;
-pub use remote::Remote;
+pub use remote::{Remote, Transport};
 pub use remote_change::RemoteChange;
 pub use remote_listing::RemoteListing;
 pub use remote_name::RemoteName;

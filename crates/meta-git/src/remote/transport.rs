@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Transport {
+pub enum Transport {
     Local(PathBuf),
     Command,
 }
@@ -12,12 +12,27 @@ impl Transport {
     const SCHEME: &'static str = "://";
     const HOST: char = ':';
     const DIRECTORY: char = '/';
+    const SUFFIXES: [&'static str; 4] = ["/.git", "", ".git/.git", ".git"];
 
-    pub(crate) fn local_path(&self, directory: &Path) -> Option<PathBuf> {
+    #[must_use]
+    pub fn below(self, directory: &Path) -> Transport {
         match self {
-            Transport::Local(path) => Some(directory.join(path)),
+            Transport::Local(path) => Transport::Local(directory.join(path)),
+            Transport::Command => Transport::Command,
+        }
+    }
+
+    pub(crate) fn opened(&self) -> Option<git2::Repository> {
+        match self {
+            Transport::Local(path) => Self::SUFFIXES.iter().find_map(|suffix| Self::suffixed(path, suffix)),
             Transport::Command => None,
         }
+    }
+
+    fn suffixed(path: &Path, suffix: &str) -> Option<git2::Repository> {
+        let mut candidate = path.as_os_str().to_owned();
+        candidate.push(suffix);
+        git2::Repository::open_ext(candidate, git2::RepositoryOpenFlags::NO_SEARCH, std::iter::empty::<&Path>()).ok()
     }
 }
 

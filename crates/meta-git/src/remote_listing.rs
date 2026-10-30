@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::fmt;
-use std::path::Path;
 use std::str::FromStr;
 
 use meta_run::Stderr;
@@ -22,10 +21,9 @@ impl RemoteListing {
         self.0.get(name).copied()
     }
 
-    pub(crate) fn heads_at(path: &Path) -> Result<RemoteListing, Stderr> {
-        let listed = git2::Repository::open(path).and_then(|repository| {
-            repository.references_glob(Self::HEADS)?.try_fold(RemoteListing::default(), RemoteListing::entered)
-        });
+    pub(crate) fn heads_in(repository: &git2::Repository) -> Result<RemoteListing, Stderr> {
+        let listed = repository.references_glob(Self::HEADS);
+        let listed = listed.and_then(|mut heads| heads.try_fold(RemoteListing::default(), RemoteListing::entered));
         listed.map_err(|error| Stderr::said(error.message().to_owned()))
     }
 

@@ -147,7 +147,8 @@ fn refusals_write_nothing_and_rejected_or_offline_writes_fail() {
     std::os::unix::fs::symlink(false_program, fixture.origin.path().join(hook)).unwrap();
     assert!(failure().starts_with(REJECTED_PREFIX));
     Port::linked(fixture.clones[FIRST].path(), NOWHERE);
-    assert!(failure().starts_with(OFFLINE_PREFIX));
+    let offline = failure();
+    assert!(offline.starts_with(OFFLINE_PREFIX) && offline.contains(NOWHERE), "{offline}");
 }
 
 #[test]

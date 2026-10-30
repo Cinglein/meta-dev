@@ -97,6 +97,8 @@ pub enum Failure {
     Repository(#[from] meta_git::GitFailure),
     #[error("{} is not inside a git repository", .0.display())]
     NoRepository(PathBuf),
+    #[error("{} is not inside the work tree of its git repository; nothing read", .0.display())]
+    OutsideWorkdir(PathBuf),
     #[error("{0}")]
     BuildDirectory(#[from] Misplaced),
     #[error("{0}")]

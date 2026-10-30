@@ -28,7 +28,7 @@ impl GitReads {
         let root = self.0.canonicalize().ok();
         let below =
             workdir.zip(root).and_then(|(workdir, root)| root.strip_prefix(workdir).ok().map(Path::to_path_buf));
-        Ok(below.unwrap_or_default())
+        below.ok_or_else(|| Failure::OutsideWorkdir(self.0.clone()))
     }
 
     fn opened(&self) -> Result<Repository, Failure> {

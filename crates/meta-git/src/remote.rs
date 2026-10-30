@@ -12,7 +12,7 @@ use crate::remote_listing::RemoteListing;
 use crate::remote_name::RemoteName;
 use crate::remote_query::RemoteQuery;
 use crate::sends::Sends;
-use transport::Transport;
+pub use transport::Transport;
 
 mod transport;
 
@@ -48,8 +48,8 @@ impl Remote {
         let known = self.heads.borrow().clone();
         known.map_or_else(
             || {
-                let listed =
-                    self.local().map_or_else(|| self.ask(&Heads), |path| Ok(RemoteListing::heads_at(&path)))?;
+                let there = self.transport().opened();
+                let listed = there.map_or_else(|| self.ask(&Heads), |there| Ok(RemoteListing::heads_in(&there)))?;
                 self.heads.replace(listed.as_ref().ok().cloned());
                 Ok(listed)
             },
@@ -61,11 +61,12 @@ impl Remote {
         self.heads.take();
     }
 
-    fn local(&self) -> Option<PathBuf> {
-        let here = git2::Repository::open(&self.directory).ok()?;
-        let remote = here.find_remote(self.name.text()).ok()?;
-        let Ok(transport) = remote.url().unwrap_or_default().parse::<Transport>();
-        transport.local_path(&self.directory)
+    #[must_use]
+    pub fn transport(&self) -> Transport {
+        let here = git2::Repository::open(&self.directory).ok();
+        let url = here.and_then(|here| here.find_remote(self.name.text()).ok()?.url().ok().map(str::to_owned));
+        let Ok(transport) = url.unwrap_or_default().parse::<Transport>();
+        transport.below(&self.directory)
     }
 
     fn ran(&self, words: Vec<OsString>) -> Result<Ran, GitFailure> {
