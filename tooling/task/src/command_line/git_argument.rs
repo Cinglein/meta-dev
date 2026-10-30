@@ -11,4 +11,6 @@ pub enum GitArgument {
     Relative,
     #[strum(serialize = "--merge-base")]
     MergeBase,
+    #[strum(serialize = "--no-renames")]
+    NoRenames,
 }
