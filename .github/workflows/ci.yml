@@ -75,7 +75,25 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
         with:
           workspaces: . -> target.noindex
-      - run: cargo test -p meta-cli
+      - run: cargo test -p meta-cli --all-features
+
+  macos-mutants:
+    runs-on: macos-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
+        with:
+          workspaces: . -> target.noindex
+          shared-key: macos-mutants
+      - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32
+        with:
+          tool: cargo-mutants@27.1.0
+      - run: cargo mutants --package meta-cli --in-place --baseline skip --test-package meta-cli --cargo-test-arg=--all-features --file 'crates/meta-cli/src/request/local/local_clone/vetting/host/process_table/darwin.rs' --file 'crates/meta-cli/src/request/local/local_clone/vetting/host/process_table/darwin/*.rs'
+        timeout-minutes: 5
 
   goldens:
     runs-on: ubuntu-latest
@@ -205,7 +223,7 @@ jobs:
         shell: bash
 
   ci-gate:
-    needs: [ci, git-count, goldens, build-time, stacked, mutants-plan, mutants, mutant-costs]
+    needs: [ci, macos, macos-mutants, git-count, goldens, build-time, stacked, mutants-plan, mutants, mutant-costs]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
