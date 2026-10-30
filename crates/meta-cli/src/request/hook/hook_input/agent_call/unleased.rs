@@ -5,7 +5,6 @@ use crate::request::output::Listed;
 
 #[derive(Debug)]
 pub enum Unleased {
-    Unreadable(Listed),
     NoPrompt,
     NoProject(PathBuf),
     Relative(PathBuf),
@@ -22,7 +21,6 @@ impl fmt::Display for Unleased {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{}; ", Self::HOW)?;
         match self {
-            Self::Unreadable(reason) => write!(formatter, "unreadable Agent input: {reason}"),
             Self::NoPrompt => formatter.write_str("no prompt"),
             Self::NoProject(directory) => write!(formatter, "no meta project at {}", directory.display()),
             Self::Relative(named) => write!(formatter, "project: {} is not an absolute path", named.display()),

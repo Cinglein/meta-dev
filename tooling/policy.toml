@@ -17,6 +17,7 @@ wire_types = [
 bit_boundary = ["crates/meta-process-table/src"]
 gate = "local-gate"
 gate_wait = 600000
+promote_after = 3
 surfaces = [
     "xtask",
     ".cargo",
@@ -96,16 +97,27 @@ queue_pace = 60000
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]
 
+[act]
+features-and-maintenance = "major"
+performance-and-cost = "major"
+architecture-and-planning = "major"
+
 [liveness]
 silent_after = 1800000
 long_call_after = 3600000
 reply_within = 3600000
 
 [queue]
+hot = ["goldens/snapshots"]
+members = 4
 landers = ["owner", "claude-lead"]
 
 [dispatch]
 issuers = ["owner", "claude-lead"]
+
+[tools]
+modal = ["AskUserQuestion"]
+leased = ["Agent"]
 
 [domains.features-and-maintenance]
 crates = ["*"]

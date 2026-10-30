@@ -24,11 +24,6 @@ impl Reply {
         Self { event, verdict, context: context.into_iter().collect() }
     }
 
-    #[must_use]
-    pub fn judged(self, verdict: Verdict) -> Self {
-        Self { verdict, ..self }
-    }
-
     pub fn with_news(mut self, news: Option<Listed>) -> Self {
         self.context.extend(news);
         self

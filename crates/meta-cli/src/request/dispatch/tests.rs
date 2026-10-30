@@ -4,7 +4,6 @@ use super::{LeaseLine, Prompt};
 use crate::request::cli_failure::{CliFailure, Invalid};
 use crate::request::{Request, ScalePolicy};
 
-const POLICY: &str = "[dispatch]\nissuers = [\"owner\"]\n";
 const OPEN: [&str; 5] = ["meta", "open", "--division", "features-and-maintenance", "x"];
 const OWNER: &str = "owner";
 const AGENT: &str = "worker";
@@ -19,6 +18,7 @@ const UNISSUED: &str = "[dispatch] issuers";
 const AFTER: [&[&str]; 6] = [&[], &[CLAIM], &["done"], &["release"], &[RETIRE], &["done", "reopen"]];
 const ADMITTED: [bool; 10] = [true, false, true, false, false, false, false, false, false, false];
 
+#[derive(Default)]
 struct Meta(MemoryLog, ScalePolicy);
 
 impl Meta {
@@ -51,7 +51,7 @@ impl Meta {
 
 #[test]
 fn only_a_lease_line_naming_the_live_lease_of_its_open_task_admits_an_agent() {
-    let meta = Meta(MemoryLog::default(), toml::from_str(POLICY).unwrap());
+    let meta = Meta::default();
     let [[live, _], [stale, renewed], [done, _], [released, _], [retired, _], [reopened, _]] =
         AFTER.map(|after| meta.briefed(after));
     let word = |brief: &str, at: usize| {
@@ -67,7 +67,7 @@ fn only_a_lease_line_naming_the_live_lease_of_its_open_task_admits_an_agent() {
 
 #[test]
 fn only_a_dispatch_issuer_may_lease_a_task_to_an_agent() {
-    let meta = Meta(MemoryLog::default(), toml::from_str(POLICY).unwrap());
+    let meta = Meta::default();
     let task = meta.run(OWNER, &OPEN).split_whitespace().nth(ID_INDEX).unwrap_or_default().to_owned();
     assert!(meta.run(AGENT, &["meta", CLAIM, &task, "--agent", AGENT]).contains(UNISSUED));
 }

@@ -23,6 +23,16 @@
         ]
       },
       {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${META_BIN:-meta}\" hook pre-tool-use",
+            "timeout": 10
+          }
+        ]
+      },
+      {
         "matcher": "Agent",
         "hooks": [
           {

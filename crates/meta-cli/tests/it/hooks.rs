@@ -1,7 +1,9 @@
 #![allow(clippy::unwrap_used)]
 
+use std::ffi::{OsStr, OsString};
 use std::fmt;
 use std::io::Write as _;
+use std::os::unix::ffi::{OsStrExt as _, OsStringExt as _};
 use std::os::unix::process::CommandExt as _;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
@@ -64,8 +66,7 @@ const DISPATCH: [&str; 2] = ["--agent", "worker"];
 const UNLEASED: &str = "work on it";
 const HOW_TO_START: &str = "meta claim <task> --agent <name>";
 const ID_INDEX: usize = 4;
-const POLICY: &str = "tooling/policy.toml";
-const ISSUERS: &str = "[dispatch]\nissuers = [\"writer\"]\n";
+const LEAD: &str = "claude-lead";
 const NOT_TEXT: &str = "[\"not text\"]";
 const INTERRUPTED: &str = "SIGINT";
 const HELPERS: &str = r#"[remote "origin"]
@@ -81,6 +82,28 @@ struct Config;
 impl Config {
     fn configure(file: &Path, section: &str) {
         std::fs::OpenOptions::new().append(true).open(file).unwrap().write_all(section.as_bytes()).unwrap();
+    }
+}
+
+struct Stray(u8);
+
+const STRAY: Stray = Stray(0xff);
+const STRAYS: usize = 2;
+
+struct Call<'path>(&'path Path);
+
+impl Call<'_> {
+    fn json(&self, fields: &str) -> String {
+        let cwd = serde_json::to_string(self.0).unwrap();
+        self.bytes(OsStr::new(&format!(r#"{{"cwd":{cwd},{fields}}}"#)))
+    }
+
+    fn bytes(&self, input: &OsStr) -> String {
+        let mut meta = MetaCommand::tagged(&[HOOK, PRE]);
+        let piped = meta.env_remove("META_ACTOR").env("TMPDIR", self.0);
+        let mut child = piped.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
+        child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
+        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
     }
 }
 
@@ -140,6 +163,25 @@ impl Repo {
         let status = meta.wait().map(|status| status.to_string()).unwrap_or_default();
         status.contains(INTERRUPTED) && started.is_some() && polls().any(|()| !listed().split_whitespace().any(alive))
     }
+}
+
+const UNPARSABLE: &str = "{not json";
+const UNPARSABLE_REASON: &str = "cannot parse the hook input";
+const MODAL_CALLS: [&str; 2] = [
+    r#""tool_name":"AskUserQuestion","tool_input":{"questions":[]}"#,
+    r#""agent_id":"a1","tool_name":"AskUserQuestion","tool_input":{"questions":[]}"#,
+];
+const BASH_CALL: &str = r#""tool_name":"Bash","tool_input":{"command":"ls"}"#;
+const MODAL_REASON: &str = "Modal questions are refused: write the decision as discussion in your reply";
+
+#[test]
+fn pre_tool_use_refuses_modal_question_tools_in_every_session_and_leaves_other_tools_alone() {
+    let repo = Repo::new();
+    let call = Call(repo.clone.path());
+    assert!(MODAL_CALLS.iter().all(|fields| call.json(fields).contains(&format!("{DENY}{MODAL_REASON}"))));
+    assert_eq!(call.json(BASH_CALL), "");
+    let denied = |shown: String| shown.contains(&format!("{DENY}{UNPARSABLE_REASON}"));
+    assert!(denied(call.json(UNPARSABLE)) && denied(call.bytes(&OsString::from_vec(vec![STRAY.0; STRAYS]))));
 }
 
 #[test]
@@ -208,7 +250,7 @@ struct Lead<'repo>(&'repo Path);
 
 impl Lead<'_> {
     fn meta(&self, words: &[&str]) -> String {
-        let run = MetaCommand::tagged(words).current_dir(self.0).env("META_ACTOR", "writer").output();
+        let run = MetaCommand::tagged(words).current_dir(self.0).env("META_ACTOR", LEAD).output();
         String::from_utf8_lossy(&run.unwrap().stdout).into_owned()
     }
 
@@ -225,13 +267,13 @@ impl Lead<'_> {
 fn pre_tool_use_starts_an_agent_only_with_the_lease_meta_claim_gave_it() {
     let repo = Repo::new();
     let lead = Lead(repo.clone.path());
-    std::fs::write(repo.clone.path().join(POLICY), ISSUERS).unwrap();
     let opened = lead.meta(&OPEN);
     let task = opened.split_whitespace().nth(ID_INDEX).unwrap();
     let brief = lead.meta(&[&["claim", task][..], &DISPATCH].concat());
     let elsewhere = format!("project: {}\n{brief}", repo.origin.path().display());
     let quoted = |text: &str| serde_json::to_string(text).unwrap();
-    let refused = [quoted(UNLEASED), quoted(&elsewhere), NOT_TEXT.to_owned()].map(|prompt| lead.agent(&prompt));
+    let refused = [quoted(UNLEASED), quoted(&elsewhere)].map(|prompt| lead.agent(&prompt));
+    assert!(lead.agent(NOT_TEXT).contains(DENY));
     assert_eq!(lead.agent(&quoted(&brief)), "", "{brief}");
     assert!(refused.iter().all(|shown| shown.contains(DENY) && shown.contains(HOW_TO_START)), "{refused:?}");
 }

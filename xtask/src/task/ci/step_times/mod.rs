@@ -4,25 +4,38 @@ use std::fmt;
 use std::time::Duration;
 
 use crate::task::ci::ci_step::CiStep;
-use crate::task::failure::Failure;
+use crate::task::failure::{Failure, StepFailure, StepFailures};
 use step_time::StepTime;
 
 #[derive(Debug, Default)]
 pub struct StepTimes {
     passed: Vec<StepTime>,
-    failed: Option<CiStep>,
+    failed: Vec<CiStep>,
 }
 
 impl StepTimes {
-    pub fn record(&mut self, step: CiStep, outcome: Result<Duration, Failure>) -> Result<(), Failure> {
+    pub fn stepped(
+        &mut self,
+        steps: impl IntoIterator<Item = CiStep>,
+        mut run: impl FnMut(CiStep) -> Result<Duration, Failure>,
+    ) -> Result<(), Failure> {
+        let failures = steps.into_iter().filter_map(|step| self.record(step, run(step))).collect();
+        Self::reported(failures)
+    }
+
+    fn reported(failures: Vec<StepFailure>) -> Result<(), Failure> {
+        StepFailures::new(failures).map_or(Ok(()), |failures| Err(Failure::Steps(Box::new(failures))))
+    }
+
+    fn record(&mut self, step: CiStep, outcome: Result<Duration, Failure>) -> Option<StepFailure> {
         match outcome {
             Ok(elapsed) => {
                 self.passed.push(StepTime::new(step, elapsed));
-                Ok(())
+                None
             }
             Err(failure) => {
-                self.failed = Some(step);
-                Err(failure)
+                self.failed.push(step);
+                Some(StepFailure::new(step, failure))
             }
         }
     }
@@ -38,31 +51,57 @@ impl fmt::Display for StepTimes {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
     use std::fs;
     use std::time::Duration;
 
+    use task::FailureKind;
+
     use super::StepTimes;
+    use crate::task::ci::attribution::Attribution;
     use crate::task::ci::ci_step::CiStep;
-    use crate::task::ci::{Ci, LogSource};
     use crate::task::failure::Failure;
     use crate::task::fixture::Fixture;
 
     const SECOND: Duration = Duration::from_secs(1);
-    const SHOWN: &str = "fmt 1.0s, clippy failed";
+    const STEPS: [CiStep; 4] = [CiStep::Fmt, CiStep::Clippy, CiStep::Test, CiStep::Lint];
+    const SHOWN: &str = "fmt 1.0s, lint 1.0s, clippy failed, test failed";
+    const LISTED: &str = "ci: clippy failed: clippy\nci: test failed: test";
     const TIMES: &str = "times";
+    const JOB: &str = "ci";
 
     impl StepTimes {
-        fn failing(&mut self, step: CiStep) -> Result<(), Failure> {
-            self.record(step, Err(Failure::from(task::Failure::NoWorkspace)))
+        fn outcome(step: CiStep) -> Result<Duration, Failure> {
+            match step {
+                CiStep::Clippy | CiStep::Test => Err(Failure::from(task::Failure::Usage(step.to_string()))),
+                _ => Ok(SECOND),
+            }
         }
     }
 
     #[test]
-    fn passed_steps_show_their_time_a_failed_step_fails_the_gate_and_a_gate_child_records_them() {
+    fn the_loop_runs_past_failing_steps_and_fails_listing_every_one_with_its_step() {
+        let (ran, mut times) = (Cell::new(0), StepTimes::default());
+        let stepped = times.stepped(STEPS, |step| {
+            ran.set(ran.get() + 1);
+            StepTimes::outcome(step)
+        });
+        assert_eq!((ran.get(), stepped.err().map(|failure| failure.to_string())), (4, Some(LISTED.to_owned())));
+    }
+
+    #[test]
+    fn every_failed_step_is_attributed_by_name() {
+        let stepped = StepTimes::default().stepped(STEPS, StepTimes::outcome).err();
+        let jobs = stepped.map(|failure| failure.found(&JOB.into()).kinds().to_vec());
+        let infra = |job: &str| FailureKind::Infra { job: job.into() };
+        assert_eq!(jobs, Some(vec![infra("clippy"), infra("test")]));
+    }
+
+    #[test]
+    fn no_failing_step_passes_and_a_gate_child_records_every_step_time() {
         let (fixture, mut times) = (Fixture::new(), StepTimes::default());
-        assert!(times.record(CiStep::Fmt, Ok(SECOND)).is_ok());
-        assert!(times.failing(CiStep::Clippy).is_err());
-        Ci::new(None, None, Some(fixture.path(TIMES)), LogSource::Origin).recorded(&times).unwrap();
+        assert!(times.stepped([], StepTimes::outcome).is_ok() && times.stepped(STEPS, StepTimes::outcome).is_err());
+        Attribution::new(Some(fixture.path(TIMES)), None).recorded(&times).unwrap();
         assert_eq!(fs::read_to_string(fixture.path(TIMES)).ok().as_deref(), Some(SHOWN));
     }
 }

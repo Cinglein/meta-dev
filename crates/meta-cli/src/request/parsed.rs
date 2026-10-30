@@ -9,6 +9,7 @@ use meta_schema::{
     Text, Tokens,
 };
 
+use crate::request::brief::BriefRequest;
 use crate::request::ci::{Commit, SessionId};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
 use crate::request::dispatch::Dispatch;
@@ -35,6 +36,8 @@ pub struct Parsed {
     view: StatusView,
     severity: Option<LevelName>,
     scenario: Option<Scenario>,
+    actor: Option<Actor>,
+    scratch: Option<Text>,
     agent: Option<Actor>,
 }
 
@@ -91,6 +94,12 @@ impl Parsed {
             }
             (OptionName::Severity, [value, rest @ ..]) => {
                 Self { severity: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
+            }
+            (OptionName::Actor, [value, rest @ ..]) => {
+                Self { actor: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
+            }
+            (OptionName::Scratch, [value, rest @ ..]) => {
+                Self { scratch: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
             }
             (OptionName::Scenario, [value, rest @ ..]) => {
                 let scenario = value.parse::<Text>().map_err(CliFailure::raised::<Invalid>)?;
@@ -233,6 +242,10 @@ impl Parsed {
         }
     }
 
+    pub fn brief(&self) -> Result<BriefRequest, CliFailure> {
+        Ok(BriefRequest::new(self.task()?, self.actor.clone(), self.scratch.clone()))
+    }
+
     pub fn queue(&self) -> Result<MergeQueue, CliFailure> {
         match self.words.as_slice() {
             [verb, pulls @ ..] if verb.to_string() == Self::RUN => MergeQueue::new(
@@ -284,6 +297,8 @@ impl TryFrom<&[String]> for Parsed {
             view: StatusView::Tree,
             severity: None,
             scenario: None,
+            actor: None,
+            scratch: None,
             agent: None,
         };
         empty.take(args)

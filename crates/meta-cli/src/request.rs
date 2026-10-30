@@ -1,3 +1,4 @@
+mod brief;
 mod checkout;
 mod ci;
 mod cli_failure;
@@ -27,6 +28,7 @@ use meta_listing::{Kind, Scope};
 use meta_log::LogStore;
 use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, TaskRef};
 
+use brief::BriefRequest;
 use ci::{Commit, FailureLog, SessionId, Watcher};
 use cli_failure::{CliFailure, Invalid, Misuse, Setup};
 use dispatch::Dispatch;
@@ -66,6 +68,7 @@ pub enum Request {
     WaitCi(SessionId),
     CiLog(SessionId),
     Trace(TraceView),
+    Brief(BriefRequest),
     Queue(MergeQueue),
 }
 
@@ -129,6 +132,10 @@ impl TryFrom<Vec<String>> for Request {
                     (None, Err(claim)) => Ok(Self::Write(Event::TaskClaimed(claim))),
                 }
             }
+            "brief" => {
+                let parsed = parsed.allowing(&[OptionName::Actor, OptionName::Scratch])?;
+                parsed.brief().map(Self::Brief)
+            }
             "worktrees" => parsed.allowing(&[]).map(|_| Self::Worktrees),
             "gc" => {
                 let parsed = parsed.allowing(&[OptionName::DryRun])?;
@@ -176,6 +183,7 @@ impl Request {
             Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
             Self::WaitCi(session) => Watcher::wait(project, &session),
             Self::CiLog(session) => FailureLog::excerpt(project, &session),
+            Self::Brief(request) => request.answer(project, Self::actor),
             Self::Trace(view) => TraceRecord::shown(&LocalClone::try_from(project)?, view),
             Self::Queue(queue) => queue.run(project),
             Self::Status(view) => {
@@ -196,11 +204,9 @@ impl Request {
                 &project::HeartbeatSettings::try_from(project.config())?,
             ),
             Self::ClaimWorktree(claim) => LocalClone::try_from(project)?.claimed(project, claim, Self::actor()?),
-            Self::Dispatch(dispatch) => Self::Dispatch(dispatch.rooted(project.root())).answer_from(
-                &project.log(project.ci_settings().budget(CiSettings::ROUTINE))?,
-                &ScalePolicy::read(project.root())?,
-                Self::actor,
-            ),
+            Self::Dispatch(dispatch) => dispatch
+                .rooted(project.root())
+                .answer(&project.log(project.ci_settings().budget(CiSettings::ROUTINE))?, Self::actor()?),
             Self::Worktrees => LocalClone::try_from(project)?.worktrees(project),
             Self::Gc(sweep) => LocalClone::try_from(project)?.collected(project, sweep),
             Self::GcRestore(quarantine) => LocalClone::try_from(project)?.unstranded(&quarantine),
@@ -233,7 +239,7 @@ impl Request {
             Self::Move(relocate) => relocate.answer(log, policy, actor()?),
             Self::List(kind, scope) => Listed::from_log(log, kind, scope).map(Output::Listed),
             Self::Wait(block) => Self::Write(Event::TaskBlocked(block)).answer_from(log, policy, actor),
-            Self::Dispatch(dispatch) => dispatch.answer(log, policy, actor()?),
+            Self::Dispatch(dispatch) => dispatch.answer(log, actor()?),
             Self::Hook(_)
             | Self::Heartbeat(_)
             | Self::Monitor(_)
@@ -241,6 +247,7 @@ impl Request {
             | Self::WaitCi(_)
             | Self::CiLog(_)
             | Self::Trace(_)
+            | Self::Brief(_)
             | Self::Queue(_)
             | Self::Status(_)
             | Self::ClaimWorktree(_)
