@@ -1732,3 +1732,4 @@
 {"at":"2026-10-30T07:53:03.072634Z","actor":"claude-lead","kind":"TaskOpened","task":"task-f66ea1986e3634b0","text":"Per-test CPU budget beside slowest-test (wall): a test whose raw CPU exceeds the line fails its own PR's CI. #231's stress test passed review on wall time (<0.2 s) while costing 650-750 ms CPU and turned main red","division":"performance-and-cost"}
 {"at":"2026-10-30T07:53:53.593018Z","actor":"claude-mainfix2","kind":"TaskClaimed","task":"task-8781c26f4a0d191c"}
 {"at":"2026-10-30T07:57:09.912135Z","actor":"owner","kind":"TaskLinked","task":"task-8781c26f4a0d191c","pr":241}
+{"at":"2026-10-30T08:16:10.614783Z","actor":"claude-mainfix2","kind":"TaskDone","task":"task-8781c26f4a0d191c"}
