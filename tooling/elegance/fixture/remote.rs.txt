@@ -5,3 +5,16 @@ impl Gadget {
         Width
     }
 }
+
+pub enum Signal {
+    Green,
+}
+
+impl Signal {
+    pub fn go(&self) -> Go {
+        Go
+    }
+    pub fn stop(&self) -> Stop {
+        Stop
+    }
+}

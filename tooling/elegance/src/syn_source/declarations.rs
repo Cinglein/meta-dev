@@ -4,9 +4,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use declared::Declared;
 use syn::visit::Visit;
-use syn::{Ident, ItemEnum, ItemFn, ItemImpl, ItemMod, ItemStruct, ItemTrait, ItemUnion};
+use syn::{Ident, ItemEnum, ItemFn, ItemImpl, ItemMod, ItemStruct, ItemTrait, ItemUnion, Type};
 use task::{CrateName, SourceFile, Walk};
 
+use super::fact_scan::FactScan;
+use crate::field_kind::FieldKind;
 use crate::trait_key::TraitKey;
 use crate::type_key::TypeKey;
 
@@ -15,9 +17,13 @@ pub struct Declarations {
     owner: Option<CrateName>,
     types: BTreeMap<Ident, BTreeSet<CrateName>>,
     traits: BTreeMap<Ident, BTreeSet<CrateName>>,
+    enums: BTreeSet<Ident>,
 }
 
 impl Declarations {
+    const FLAG: &'static str = "bool";
+    const SLOT: &'static str = "Option";
+
     #[must_use]
     pub fn scanned(files: &[&SourceFile]) -> Declarations {
         files.iter().fold(Declarations::default(), |declarations, file| declarations.within(file))
@@ -63,12 +69,23 @@ impl Declarations {
         Some(owners).filter(|owners| owners.len() == 1).and_then(BTreeSet::first)
     }
 
+    #[must_use]
+    pub fn field_kind(&self, ty: &Type) -> FieldKind {
+        match FactScan::named(ty) {
+            Some(ident) if ident == Self::FLAG => FieldKind::Flag,
+            Some(ident) if ident == Self::SLOT => FieldKind::Slot,
+            Some(ident) if self.enums.contains(ident) => FieldKind::Mode,
+            _ => FieldKind::Plain,
+        }
+    }
+
     fn declare(&mut self, ident: &Ident, kind: Declared) {
         let table = match kind {
-            Declared::Type => &mut self.types,
+            Declared::Type | Declared::Enum => &mut self.types,
             Declared::Trait => &mut self.traits,
         };
         table.entry(ident.clone()).or_default().extend(self.owner.clone());
+        self.enums.extend(matches!(kind, Declared::Enum).then(|| ident.clone()));
     }
 }
 
@@ -89,7 +106,7 @@ impl<'ast> Visit<'ast> for Declarations {
     }
 
     fn visit_item_enum(&mut self, item: &'ast ItemEnum) {
-        self.declare(&item.ident, Declared::Type);
+        self.declare(&item.ident, Declared::Enum);
     }
 
     fn visit_item_union(&mut self, item: &'ast ItemUnion) {

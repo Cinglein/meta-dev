@@ -9,13 +9,19 @@ pub enum WorktreeFiles {
     ChangedSince(ObjectId),
     Untracked,
     Unclean,
+    Touched,
     Tracked,
 }
 
 impl WorktreeFiles {
     fn statused(repository: &git2::Repository, flags: git2::Status) -> Result<Vec<PathBuf>, git2::Error> {
         let mut options = git2::StatusOptions::new();
-        options.include_untracked(true).recurse_untracked_dirs(true).include_ignored(false);
+        let ignored = flags.intersects(git2::Status::IGNORED);
+        options
+            .include_untracked(true)
+            .recurse_untracked_dirs(true)
+            .include_ignored(ignored)
+            .recurse_ignored_dirs(ignored);
         let statuses = repository.statuses(Some(&mut options))?;
         let wanted = statuses.iter().filter(|entry| entry.status().intersects(flags));
         Ok(wanted.map(|entry| PathBuf::from(String::from_utf8_lossy(entry.path_bytes()).into_owned())).collect())
@@ -41,7 +47,10 @@ impl Query for WorktreeFiles {
         Ok(match self {
             WorktreeFiles::ChangedSince(commit) => Self::changed(repository, *commit)?,
             WorktreeFiles::Untracked => Self::statused(repository, git2::Status::WT_NEW)?,
-            WorktreeFiles::Unclean => Self::statused(repository, git2::Status::all())?,
+            WorktreeFiles::Unclean => {
+                Self::statused(repository, git2::Status::all().difference(git2::Status::IGNORED))?
+            }
+            WorktreeFiles::Touched => Self::statused(repository, git2::Status::all())?,
             WorktreeFiles::Tracked => Self::indexed(repository)?,
         })
     }

@@ -3,28 +3,27 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use crate::implementations::Implementations;
+use crate::located::Located;
 use crate::method_name::MethodName;
 use crate::naming::Naming;
+use crate::places::Places;
 use crate::signature::Signature;
+use crate::source_path::SourcePath;
 use crate::tally::Tally;
 use crate::trait_catalog::TraitCatalog;
 use crate::type_key::TypeKey;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Concept {
-    extent: BTreeSet<TypeKey>,
-    intent: BTreeSet<Signature>,
+pub struct Concept<Object, Attribute> {
+    extent: BTreeSet<Object>,
+    intent: BTreeSet<Attribute>,
     naming: Naming,
 }
 
-impl Concept {
+impl Concept<TypeKey, Signature> {
     #[must_use]
-    pub fn named(
-        extent: BTreeSet<TypeKey>,
-        intent: BTreeSet<Signature>,
-        catalog: &TraitCatalog,
-        implementations: &Implementations,
-    ) -> Concept {
+    pub fn named(self, catalog: &TraitCatalog, implementations: &Implementations) -> Concept<TypeKey, Signature> {
+        let Concept { extent, intent, .. } = self;
         let covered =
             |methods: BTreeSet<&MethodName>| intent.iter().all(|signature| methods.contains(signature.name()));
         let shared = implementations.shared_by(&extent);
@@ -32,6 +31,13 @@ impl Concept {
         let composed: BTreeSet<&MethodName> = shared.iter().flat_map(|key| catalog.methods(key)).collect();
         let naming = single.unwrap_or(if covered(composed) { Naming::Composed } else { Naming::Missing });
         Concept { extent, intent, naming }
+    }
+}
+
+impl<Object: Ord, Attribute: Ord> Concept<Object, Attribute> {
+    #[must_use]
+    pub fn found(extent: BTreeSet<Object>, intent: BTreeSet<Attribute>) -> Concept<Object, Attribute> {
+        Concept { extent, intent, naming: Naming::Missing }
     }
 
     #[must_use]
@@ -45,7 +51,7 @@ impl Concept {
     }
 
     #[must_use]
-    pub fn larger_first(&self, other: &Concept) -> Ordering {
+    pub fn larger_first(&self, other: &Concept<Object, Attribute>) -> Ordering {
         other
             .area()
             .cmp(&self.area())
@@ -55,18 +61,24 @@ impl Concept {
     }
 }
 
-impl fmt::Display for Concept {
+impl<Object: Located, Attribute> Located for Concept<Object, Attribute> {
+    fn places(&self, places: &Places) -> BTreeSet<SourcePath> {
+        self.extent.iter().flat_map(|object| object.places(places)).collect()
+    }
+}
+
+impl<Object: Ord + fmt::Display, Attribute: Ord + fmt::Display> fmt::Display for Concept<Object, Attribute> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let types: Vec<String> = self.extent.iter().map(ToString::to_string).collect();
-        let signatures: Vec<String> = self.intent.iter().map(ToString::to_string).collect();
+        let objects: Vec<String> = self.extent.iter().map(ToString::to_string).collect();
+        let attributes: Vec<String> = self.intent.iter().map(ToString::to_string).collect();
         write!(
             formatter,
-            "{} = {} types x {} signatures\n    types: {}\n    share: {}",
+            "{} = {} types x {} attributes\n    types: {}\n    share: {}",
             self.area(),
             self.extent.len(),
             self.intent.len(),
-            types.join(", "),
-            signatures.join("; ")
+            objects.join(", "),
+            attributes.join("; ")
         )
     }
 }
@@ -94,7 +106,7 @@ mod tests {
             EXTENT.iter().map(|name| TypeKey::foreign(&syn::parse_str(name).unwrap())).collect();
         let signature = |text: &&str| Signature::abstracted(&syn::parse_str::<syn::Signature>(text).unwrap(), None);
         let [first, second] = INTENTS.map(|texts| {
-            Concept::named(extent.clone(), texts.iter().map(signature).collect(), &catalog, &implementations)
+            Concept::found(extent.clone(), texts.iter().map(signature).collect()).named(&catalog, &implementations)
         });
         assert_eq!(first.larger_first(&second), Ordering::Less);
         assert_eq!(second.larger_first(&first), Ordering::Greater);

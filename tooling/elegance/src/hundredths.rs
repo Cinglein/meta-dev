@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Hundredths(usize);
 
 impl Hundredths {

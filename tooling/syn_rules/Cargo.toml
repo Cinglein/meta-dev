@@ -1,0 +1,15 @@
+[package]
+name = "syn_rules"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+syn = { version = "2", features = ["extra-traits", "full", "parsing", "visit"] }
+
+[dev-dependencies]
+quote = "1"
+
+[lints]
+workspace = true

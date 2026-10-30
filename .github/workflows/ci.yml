@@ -125,6 +125,9 @@ jobs:
     env: *tests-on-tmpfs
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - run: git remote set-head origin --auto
       - run: rustup toolchain install
       - &cache
         uses: Swatinem/rust-cache@v2

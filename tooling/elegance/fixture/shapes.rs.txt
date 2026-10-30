@@ -368,6 +368,214 @@ pub mod gauges {
     }
 }
 
+pub struct Gate {
+    shut: bool,
+    phase: Phase,
+    key: Option<Key>,
+    name: Name,
+    size: Size,
+}
+
+pub struct Hatch {
+    name: Name,
+    size: Size,
+    hinge: Hinge,
+}
+
+pub struct Vault {
+    name: Name,
+    size: Size,
+    hinge: Hinge,
+    key: Option<Key>,
+}
+
+pub trait Swing {
+    fn open(&self) -> Door;
+}
+
+pub trait Lock {
+    fn open(&self) -> Door;
+}
+
+pub trait Bolt {}
+pub trait Seal {}
+pub trait Shut {}
+
+impl Swing for Gate {
+    fn open(&self) -> Door {
+        Door
+    }
+}
+
+impl Swing for Hatch {
+    fn open(&self) -> Door {
+        Door
+    }
+}
+
+impl Lock for Gate {
+    fn open(&self) -> Door {
+        Door
+    }
+}
+
+impl Bolt for Gate {}
+impl Bolt for Vault {}
+impl Seal for Hatch {}
+impl Seal for Vault {}
+impl Shut for Hatch {}
+impl Shut for Vault {}
+
+impl Gate {
+    pub fn new(name: Name, size: Size) -> Gate {
+        Gate { shut: false, phase: Phase::Solid, key: None, name, size }
+    }
+    pub fn toggle(&mut self) {
+        self.shut = !self.shut;
+    }
+    pub fn melt(&mut self) {
+        self.phase = Phase::Solid;
+    }
+    pub fn fit(&mut self, key: Key) {
+        self.key.replace(key);
+    }
+    pub fn ready(&self) -> bool {
+        !self.shut && self.key.is_some()
+    }
+    pub fn sealed(&self) -> bool {
+        self.ready() && matches!(self.phase, Phase::Solid)
+    }
+    pub fn label(&self) -> Text {
+        Text::from(format!("{} {}", self.name, self.size))
+    }
+}
+
+impl Vault {
+    pub fn rename(&mut self, name: Name) {
+        self.name = name;
+    }
+    pub fn keyed(mut self, key: Key) -> Vault {
+        self.key = Some(key);
+        self
+    }
+}
+
+pub struct Latch {
+    armed: bool,
+    spare: Option<Pin>,
+    count: Count,
+}
+
+impl Latch {
+    pub fn arm(&mut self) {
+        (self.armed) = true;
+    }
+    pub fn stash(&mut self, pin: Pin) {
+        self.spare.0 = pin;
+    }
+    pub fn bump(&mut self, other: &mut Latch) {
+        other.armed = false;
+    }
+    pub fn peek(&mut self) -> bool {
+        self.spare.is_some()
+    }
+    pub fn ready(&self) -> bool {
+        self.armed && self.spare.is_some()
+    }
+    pub fn twin(&self) -> Latch {
+        Latch::copied(self)
+    }
+    pub fn show(&self) -> Text {
+        Text::from(format!("{}{}", self.count, self.armed))
+    }
+}
+
+pub struct Dial {
+    level: Level,
+    dirty: bool,
+}
+
+impl Dial {
+    pub fn level(&self) -> Level {
+        self.level
+    }
+    pub fn set_level(&mut self, level: Level) {
+        self.level = level;
+    }
+    pub fn raise(&mut self) -> Level {
+        self.level()
+    }
+    pub fn report(&self) -> Text {
+        Text::from(self.level)
+    }
+    pub fn mark(self: &mut Self) {
+        self.dirty = !self.dirty;
+    }
+    pub fn peeked(&self) {
+        self.dirty = false;
+    }
+    pub fn nudge(&self) -> Level {
+        self.helper()
+    }
+    pub fn spin(&self) {
+        self.spin()
+    }
+}
+
+pub struct Hinge2 {
+    pin: Pin,
+    leaf: Leaf,
+}
+
+impl Hinge2 {
+    pub fn pinned(&self) -> Pin {
+        Pin::from(self.pin)
+    }
+    pub fn leafed(&self) -> Leaf {
+        Leaf::from(self.leaf)
+    }
+    pub fn copied(&self) -> Hinge2 {
+        Hinge2::cloned(self)
+    }
+}
+
+pub struct Beacon;
+
+impl Beacon {
+    pub fn on(&self) -> On {
+        self.flash()
+    }
+    pub fn off(&self) -> Off {
+        self.dim()
+    }
+}
+
+impl Phase {
+    pub fn go(&self) -> Go {
+        Go
+    }
+    pub fn stop(&self) -> Stop {
+        Stop
+    }
+}
+
+pub struct Duo {
+    first: First,
+    second: Second,
+}
+
+impl Display for Duo {
+    fn fmt(&self, formatter: &mut Formatter) -> Result {
+        write!(formatter, "{}", self.first)
+    }
+}
+
+impl Debug for Duo {
+    fn fmt(&self, formatter: &mut Formatter) -> Result {
+        write!(formatter, "{}", self.second)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     pub struct Probe;

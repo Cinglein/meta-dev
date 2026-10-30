@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use meta_git::{Query, Reads as _, Repository, Workdir, WorktreeFiles};
+use meta_git::{Change, Query, Reads as _, Repository, Workdir, WorktreeFiles, Writes as _};
 
 use super::GitPaths;
 use crate::task::failure::Failure;
@@ -15,6 +15,10 @@ impl GitReads {
 
     pub fn read<Asked: Query>(&self, query: &Asked) -> Result<Asked::View, Failure> {
         Ok(self.opened()?.read(query)?)
+    }
+
+    pub fn write<Made: Change>(&self, change: &Made) -> Result<Made::Applied, Failure> {
+        Ok(self.opened()?.write(change)?)
     }
 
     pub fn files(&self, listed: WorktreeFiles) -> Result<GitPaths, Failure> {
