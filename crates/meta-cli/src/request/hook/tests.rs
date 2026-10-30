@@ -31,12 +31,17 @@ fn a_tool_listed_as_modal_in_policy_is_refused_with_or_without_an_agent_and_othe
     assert!(HookEvent::PreToolUse.outside_projects(&outside).is_some_and(|reply| reply.to_string().contains("deny")));
 }
 
-const AGENT_ROWS: [(&str, bool); 9] = [
+const AGENT_ROWS: [(&str, bool); 11] = [
+    (r#"{"agent_type":"t","cwd":"/nonexistent-meta-dir","tool_input":{"command":"sed -i p f"}}"#, false),
+    (r#"{"agent_id":null,"cwd":"/nonexistent-meta-dir","tool_input":{"command":"sed -i p f"}}"#, false),
     (r#"{"agent_id":"a1","cwd":"/nonexistent-meta-dir","tool_input":{"command":"sed -i p f"}}"#, true),
     (r#"{"cwd":"/nonexistent-meta-dir","tool_input":{"command":"sed -i p f"}}"#, false),
     (r#"{"agent_id":"a1","cwd":"/nonexistent-meta-dir","tool_input":{"command":"git stash"}}"#, true),
     (r#"{"agent_id":"a1","cwd":"/nonexistent-meta-dir","tool_input":{"command":"git push --force origin f"}}"#, true),
-    (r#"{"agent_id":"a1","cwd":"/nonexistent-meta-dir","tool_input":{"command":"git push --force-with-lease o f"}}"#, true),
+    (
+        r#"{"agent_id":"a1","cwd":"/nonexistent-meta-dir","tool_input":{"command":"git push --force-with-lease o f"}}"#,
+        true,
+    ),
     (r#"{"agent_id":"a1","cwd":"/nonexistent-meta-dir","tool_input":{"command":"ls 2>/dev/null"}}"#, true),
     (r#"{"agent_id":"a1","cwd":"/nonexistent-meta-dir","tool_input":{"command":"git rm x && git mv a b"}}"#, false),
     (r#"{"agent_id":"a1","cwd":"/nonexistent-meta-dir","tool_input":{"command":"git push -u origin f"}}"#, false),

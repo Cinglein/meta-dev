@@ -75,7 +75,7 @@ impl HookInput {
         self.agent_id.as_ref()?;
         match ScalePolicy::shell_in(root) {
             Ok(rules) => command.breach(&rules),
-            Err(failure) => Some(Listed::new(format!("cannot read the shell rules: {failure}"))),
+            Err(failure) => Some(Listed::new(failure)),
         }
     }
 
@@ -148,18 +148,6 @@ mod tests {
     #[test]
     fn only_tool_use_hooks_stamp_a_call_phase() {
         assert_eq!(EVENTS.map(HookEvent::phase), PHASES);
-    }
-
-    const WHO: [(&str, bool); 4] =
-        [("\"agent_id\":\"a1\",", true), ("\"agent_type\":\"t\",", false), ("\"agent_id\":null,", false), ("", false)];
-
-    #[test]
-    fn only_a_call_carrying_an_agent_id_is_held_to_the_shell_rules_even_outside_a_project() {
-        let held = |who: &str| {
-            let input = format!("{{{who}\"cwd\":\"/w\",\"tool_input\":{{\"command\":\"sed -i p f\"}}}}");
-            serde_json::from_str::<HookInput>(&input).unwrap().shell_breach(None).is_some()
-        };
-        assert!(WHO.iter().all(|(who, verdict)| held(who) == *verdict));
     }
 
     const PUBLISHING: [(&str, &str); 4] = [

@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::request::output::Listed;
 use crate::request::project::{BranchName, Config};
-use crate::request::scale_policy::ShellRules;
+use crate::request::scale_policy::{GitBreach, ShellRules};
 
 #[derive(Debug)]
 pub struct GitCall {
@@ -39,9 +39,9 @@ impl GitCall {
             .then_some(())
     }
 
-    pub fn breach(&self, rules: &ShellRules) -> Option<String> {
+    pub fn breach(&self, rules: &ShellRules) -> Option<GitBreach> {
         let (subcommand, args) = self.words.split_first()?;
-        rules.git_breach(subcommand, args)
+        rules.git().breach(subcommand, args)
     }
 
     pub fn directory_words(&self) -> &[String] {

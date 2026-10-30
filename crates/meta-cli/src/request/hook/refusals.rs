@@ -17,7 +17,8 @@ impl<'call> Refusals<'call> {
 
     pub fn first(&self) -> Option<Listed> {
         Self::modal(self.input)
-            .or_else(|| self.command())
+            .or_else(|| self.project.and_then(|project| self.guarded(project)))
+            .or_else(|| self.input.shell_breach(self.project.map(Project::root)))
             .or_else(|| self.input.refusal())
             .or_else(|| self.project.and_then(|project| self.input.unpushable(project, Self::PUSH)))
     }
@@ -25,11 +26,6 @@ impl<'call> Refusals<'call> {
     fn modal(input: &HookInput) -> Option<Listed> {
         ScalePolicy::embedded_section(ScalePolicy::tools)
             .map_or_else(|why| Some(Listed::new(why)), |tools| input.modal(tools))
-    }
-
-    fn command(&self) -> Option<Listed> {
-        let guarded = self.project.and_then(|project| self.guarded(project));
-        guarded.or_else(|| self.input.shell_breach(self.project.map(Project::root)))
     }
 
     fn guarded(&self, project: &Project) -> Option<Listed> {

@@ -14,7 +14,7 @@ pub use embedded_failure::EmbeddedFailure;
 pub use liveness::Liveness;
 pub use policy_millis::PolicyMillis;
 pub use queue_policy::QueuePolicy;
-pub use shell_rules::ShellRules;
+pub use shell_rules::{GitBreach, ShellRules, Union};
 pub use tool_policy::ToolPolicy;
 
 mod embedded_failure;

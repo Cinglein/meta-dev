@@ -5,8 +5,22 @@ use serde::Deserialize;
 pub struct Program(String);
 
 impl Program {
+    const QUERIES: &'static [&'static str] = &["-v", "-V"];
+
+    pub fn queries(next: Option<&String>) -> bool {
+        next.is_some_and(|word| Self::QUERIES.contains(&word.as_str()))
+    }
+
+    pub fn option(word: &str) -> bool {
+        word.starts_with('-') || word.starts_with(|c: char| c.is_ascii_digit())
+    }
+
+    pub fn base(word: &str) -> &str {
+        word.rsplit('/').next().unwrap_or(word)
+    }
+
     pub fn names(&self, word: &str) -> bool {
-        let base = word.rsplit('/').next().unwrap_or(word);
+        let base = Self::base(word);
         base == self.0 || base.trim_end_matches(|c: char| c.is_ascii_digit() || c == '.') == self.0
     }
 }

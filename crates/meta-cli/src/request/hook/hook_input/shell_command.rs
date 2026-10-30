@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod breaches;
 mod git_call;
 mod tokens;
 mod working_directory;
@@ -37,7 +39,7 @@ impl ShellCommand {
         self.invokes(Self::PR_MERGE)
             .map(|()| Listed::new("gh pr merge is the owner's job"))
             .or_else(|| lander.map_or_else(|| self.landing(), |_| None))
-            .or_else(|| self.segments().filter_map(GitCall::parse).find_map(|call| call.push_refusal(config)))
+            .or_else(|| self.0.segments().filter_map(GitCall::parse).find_map(|call| call.push_refusal(config)))
     }
 
     fn landing(&self) -> Option<Listed> {
@@ -46,22 +48,22 @@ impl ShellCommand {
             window.split_first().is_some_and(|(program, rest)| meta(program) && rest == Self::QUEUE_RUN)
         };
         let lands = |segment: &&[String]| segment.windows(Self::QUEUE_RUN.len() + 1).any(queue_run);
-        self.segments().find(lands).map(|_| Listed::new(Self::LANDING))
+        self.0.segments().find(lands).map(|_| Listed::new(Self::LANDING))
     }
 
     pub fn invokes(&self, words: &[&str]) -> Option<()> {
-        self.segments().find(|segment| segment.windows(words.len()).any(|window| window == words)).map(|_| ())
+        self.0.segments().find(|segment| segment.windows(words.len()).any(|window| window == words)).map(|_| ())
     }
 
     pub fn commit_directories(&self, cwd: &Path) -> Vec<PathBuf> {
         let mut shell = WorkingDirectory::new(cwd);
         let writes = |words: &[String]| GitCall::parse(words)?.writes_commits();
-        self.segments().filter_map(|words| shell.follow(words, writes)).collect()
+        self.0.segments().filter_map(|words| shell.follow(words, writes)).collect()
     }
 
     pub fn publishing_directory(&self, cwd: &Path) -> Option<PathBuf> {
         let mut shell = WorkingDirectory::new(cwd);
-        self.segments().find_map(|words| shell.follow(words, Self::publishes))
+        self.0.segments().find_map(|words| shell.follow(words, Self::publishes))
     }
 
     fn publishes(words: &[String]) -> Option<()> {
@@ -71,15 +73,11 @@ impl ShellCommand {
     }
 
     pub fn runs(&self, subcommand: &str) -> Option<()> {
-        self.segments().filter_map(GitCall::parse).find_map(|call| call.runs(subcommand))
+        self.0.segments().filter_map(GitCall::parse).find_map(|call| call.runs(subcommand))
     }
 
     pub fn writes(&self) -> Option<()> {
         Self::WRITING.iter().find_map(|subcommand| self.runs(subcommand))
-    }
-
-    fn segments(&self) -> impl Iterator<Item = &[String]> {
-        self.0.segments()
     }
 
     pub fn breach(&self, rules: &ShellRules) -> Option<Listed> {
@@ -87,20 +85,19 @@ impl ShellCommand {
     }
 
     fn reason(&self, rules: &ShellRules) -> Option<String> {
-        let program = |segment: &[String]| {
-            let said = |word: &str, why: &str| format!("{} `{word}` {why}", Self::SHELL_RULE);
-            let named = rules.forbidden_in(segment).map(|word| said(word, Self::USE));
-            let piped = || rules.stdin_shell(segment).map(|word| said(word, Self::STDIN));
-            let gitted = || {
-                let call = rules.git_in(segment).and_then(GitCall::parse)?;
-                call.breach(rules).map(|what| format!("{} `git {what}` {}", Self::SHELL_RULE, Self::GIT_USE))
-            };
-            named
-                .or_else(gitted)
-                .or_else(piped)
-                .or_else(|| rules.nested(segment).and_then(|text| Self(Tokens::scan(&text)).reason(rules)))
-        };
-        self.0.breach().map(str::to_owned).or_else(|| self.segments().find_map(program))
+        let breach = self.0.breach().map(str::to_owned);
+        breach.or_else(|| self.0.segments().find_map(|segment| Self::segment_reason(rules, segment)))
+    }
+
+    fn segment_reason(rules: &ShellRules, segment: &[String]) -> Option<String> {
+        let said = |word: &str, why: &str| format!("{} `{word}` {why}", Self::SHELL_RULE);
+        let named = rules.forbidden_in(segment).map(|word| said(word, Self::USE));
+        let call = rules.git_in(segment).and_then(GitCall::parse);
+        let gitted = || call.and_then(|call| call.breach(rules)).map(|what| said(&what.to_string(), Self::GIT_USE));
+        let piped = || rules.stdin_shell(segment).map(|word| said(word, Self::STDIN));
+        let nested =
+            || rules.nested(segment).and_then(|text| text.parse::<Self>().ok()).and_then(|inner| inner.reason(rules));
+        named.or_else(gitted).or_else(piped).or_else(nested)
     }
 }
 
@@ -108,7 +105,7 @@ impl FromStr for ShellCommand {
     type Err = std::convert::Infallible;
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        Ok(Self(Tokens::scan(text)))
+        Ok(Self(text.parse()?))
     }
 }
 
@@ -118,7 +115,6 @@ mod tests {
 
     use super::ShellCommand;
     use crate::request::project::Config;
-    use crate::request::scale_policy::ScalePolicy;
 
     const WRITERS: [&str; 4] = ["git revert HEAD", "git pull", "git am x.patch", "git commit-tree t"];
     const NOT_WRITERS: [&str; 3] = ["git merge --abort", "git rebase --abort", "git merge-base a b"];
@@ -186,84 +182,6 @@ mod tests {
         assert!(MERGES.iter().all(|command| refusal(command).is_some()));
         assert!(PUSHES.iter().all(|command| refusal(command).is_some_and(|why| why.starts_with(PUSH_REASON))));
         assert!(ALLOWED.iter().all(|command| refusal(command).is_none()));
-    }
-
-    const VERDICTS: [(&str, bool); 68] = [
-        ("git stash", true),
-        ("git stash pop", true),
-        ("git -C x stash", true),
-        ("cd a && git stash drop", true),
-        ("git push --force origin f", true),
-        ("git push -f origin f", true),
-        ("git push -uf origin f", true),
-        ("git push --force-with-lease origin f", true),
-        ("git push origin f --force-with-lease=f", true),
-        ("git rm x && git mv a b", false),
-        ("git push -u origin f", false),
-        ("git commit -m 'git stash'", false),
-        ("rm -rf x", true),
-        ("cd a && mv b c", true),
-        ("sed -i s/a/b/ f", true),
-        ("git diff | sed -n 1p", true),
-        ("awk '{print}' f", true),
-        ("python3 -c 1", true),
-        ("nice -n 19 perl -e 1", true),
-        ("FOO=1 /usr/bin/sed p", true),
-        ("cat <<EOF\nx\nEOF", true),
-        ("cat > f", true),
-        ("echo x >> f", true),
-        ("ls 2>/dev/null", true),
-        ("ls &>f", true),
-        ("git commit -m 'remove sed > rm'", false),
-        ("git commit -m \"rm and sed\" && git rm x", false),
-        ("ls crates/rm/src/sed.rs | grep rm", false),
-        ("cargo build 2>&1 | tail -3", false),
-        ("cat f < in; grep x <<< y", false),
-        ("echo a\\>b; FOO=rm env ls", false),
-        ("git diff | wc -l", false),
-        ("timeout 5s sed p f", true),
-        ("timeout -k 1 5 nice -n 2 awk 1", true),
-        ("cat <<-'EOF'\nx\nEOF", true),
-        ("echo $((1 << 2))", false),
-        ("true; xargs ls", false),
-        ("git commit -m \"fix; rm stuff\"", false),
-        ("echo \"a | sed\" && git commit -m 'fix (sed) bug'", false),
-        ("git commit -m \"title\n\nrm the thing\nsed it\npython x\"", false),
-        ("command -v sed; echo a # > b", false),
-        ("diff <(ls) <(ls -a); tee >(cat)", false),
-        ("bash -c 'sed -i p f'", true),
-        ("sh -c \"cd a && rm x\"", true),
-        ("eval rm x", true),
-        ("xargs -n 1 sh -lc 'mv a b'", true),
-        ("echo $(sed p f)", true),
-        ("echo `rm x`", true),
-        ("echo \"$(rm x)\"", true),
-        ("echo \"$(echo a > f)\"", true),
-        ("env -u X sed p", true),
-        ("sudo -u X rm x", true),
-        ("timeout -s KILL 5 sed p", true),
-        ("timeout --signal KILL -k 1 5 sed p", true),
-        ("cd a; (sed p f)", true),
-        ("sudo -n rm x", true),
-        ("sudo -E rm x", true),
-        ("sudo -S rm x", true),
-        ("sudo -k rm x", true),
-        ("if rm x; then :; fi", true),
-        ("while sed p f; do :; done", true),
-        ("echo rm x | bash", true),
-        ("bash <<< 'rm x'", true),
-        ("bash script.sh; source f", false),
-        ("gh pr create --body \"Fix (a; b) > c\n\n- rm x; sed\"", false),
-        ("cargo test -- --nocapture 2>&1 | tail", false),
-        ("jq '.[] | select(.a > 1)' f", false),
-        ("RUSTFLAGS=\"-D warnings\" nice -n 19 cargo clippy", false),
-    ];
-
-    #[test]
-    fn a_shell_command_running_a_forbidden_program_heredoc_or_file_redirect_is_refused_and_nothing_else() {
-        let rules = ScalePolicy::shell_in(None).unwrap();
-        let refused = |command: &str| command.parse::<ShellCommand>().unwrap().breach(&rules).is_some();
-        assert!(VERDICTS.iter().all(|(command, verdict)| refused(command) == *verdict));
     }
 
     #[test]

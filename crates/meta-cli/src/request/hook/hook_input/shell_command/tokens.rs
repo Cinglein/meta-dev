@@ -1,27 +1,44 @@
-mod scanner;
+mod breach;
+mod lexer;
 
-use scanner::Scanner;
+use std::convert::Infallible;
+use std::str::FromStr;
+
+use breach::Breach;
+use lexer::Lexer;
 
 #[derive(Debug, Default)]
 pub struct Tokens {
     segments: Vec<Vec<String>>,
-    redirects: bool,
-    heredoc: bool,
+    breach: Option<Breach>,
 }
 
 impl Tokens {
-    const HEREDOC: &'static str = "shell rule: no heredocs; write the file with the Write tool";
-    const REDIRECT: &'static str = "shell rule: no output redirection to a file, /dev/null included; write with the Write or Edit tool; pipes and reading are fine";
-
-    pub fn scan(text: &str) -> Self {
-        Scanner::tokens(text)
-    }
-
     pub fn segments(&self) -> impl Iterator<Item = &[String]> {
         self.segments.iter().map(Vec::as_slice)
     }
 
     pub fn breach(&self) -> Option<&'static str> {
-        self.heredoc.then_some(Self::HEREDOC).or(self.redirects.then_some(Self::REDIRECT))
+        self.breach.map(Breach::reason)
+    }
+
+    fn extended(mut self, segment: Vec<String>) -> Self {
+        self.segments.extend(Some(segment).filter(|words| !words.is_empty()));
+        self
+    }
+
+    fn flagged(self, breach: Option<Breach>) -> Self {
+        Self { breach: self.breach.or(breach), ..self }
+    }
+}
+
+impl FromStr for Tokens {
+    type Err = Infallible;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let chars: Vec<char> = text.chars().collect();
+        let lexer = (0..chars.len())
+            .fold(Lexer::default(), |lexer, index| lexer.stepped(chars.get(index..).unwrap_or_default()));
+        Ok(lexer.finished())
     }
 }
