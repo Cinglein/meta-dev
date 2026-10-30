@@ -1,6 +1,5 @@
 use std::ffi::OsStr;
 use std::path::Path;
-use std::process::Command;
 
 use strum::{Display, EnumString, VariantArray};
 
@@ -28,17 +27,17 @@ impl Program {
     }
 
     #[must_use]
-    pub fn spawned(self, command: &Command) -> SpanKind {
+    pub fn spawned(self, args: &[&OsStr]) -> SpanKind {
         match self {
             Self::Gh => SpanKind::Network(self),
-            Self::Git => Self::network_subcommand(command).map_or(SpanKind::Spawn(self), |_| SpanKind::Network(self)),
+            Self::Git => Self::network_subcommand(args).map_or(SpanKind::Spawn(self), |_| SpanKind::Network(self)),
             Self::Meta | Self::Lsof | Self::Other => SpanKind::Spawn(self),
         }
     }
 
-    fn network_subcommand(command: &Command) -> Option<&str> {
-        let directed = command.get_args().next().filter(|first| *first == Self::GIT_DIRECTORY);
-        let word = command.get_args().nth(directed.map_or(0, |_| Self::DIRECTORY_LEN)).and_then(OsStr::to_str);
+    fn network_subcommand<'args>(args: &[&'args OsStr]) -> Option<&'args str> {
+        let directed = args.first().filter(|first| **first == Self::GIT_DIRECTORY);
+        let word = args.get(directed.map_or(0, |_| Self::DIRECTORY_LEN)).and_then(|word| word.to_str());
         word.filter(|word| Self::NETWORK_GIT.contains(word))
     }
 }

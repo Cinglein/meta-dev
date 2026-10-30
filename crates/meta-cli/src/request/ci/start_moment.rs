@@ -21,9 +21,8 @@ impl StartMoment {
         time.duration_since(SystemTime::UNIX_EPOCH).is_ok_and(|since| self.0.lt(&since))
     }
 
-    pub fn born_after(&self, git_path: &str, modified: impl FnOnce(&Path) -> Option<SystemTime>) -> bool {
-        let path = git_path.lines().next().map(Path::new);
-        path.and_then(modified).is_some_and(|modified| self.precedes(modified))
+    pub fn born_after(&self, object: &Path, modified: impl FnOnce(&Path) -> Option<SystemTime>) -> bool {
+        modified(object).is_some_and(|modified| self.precedes(modified))
     }
 }
 

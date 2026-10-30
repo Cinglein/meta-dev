@@ -91,6 +91,7 @@ mod tests {
 
     use super::TestRun::{Failed, Passed};
     use super::{TestRun, TestRuns, TestTiming};
+    use crate::test_name::TestName;
 
     const FAILING: &str = include_str!("../fixtures/failing-test.tsv");
     const FAILING_GOLDEN: &str = include_str!("../fixtures/failing-test.golden.json");
@@ -117,8 +118,9 @@ mod tests {
 
     #[test]
     fn recorded_runs_read_back_and_a_failing_test_or_an_unlisted_binary_fails_the_one_run() {
-        let [passed, failed] =
-            NAMES.map(|name| TestTiming::new(Path::new(BINARY), name, TICK, TICK));
+        let [passed, failed] = NAMES.map(|name| {
+            TestTiming::new(TestName::new(BINARY, Path::new(BINARY), &name), TICK, TICK)
+        });
         let read = |runs: Vec<TestRun>| {
             let lines: Vec<String> = runs.iter().map(ToString::to_string).collect();
             lines.join(LINE_BREAK).parse().and_then(TestRuns::passed)

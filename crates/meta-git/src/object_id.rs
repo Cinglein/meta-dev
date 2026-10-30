@@ -1,4 +1,5 @@
 use std::fmt;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use crate::git_failure::GitFailure;
@@ -8,9 +9,16 @@ pub struct ObjectId(git2::Oid);
 
 impl ObjectId {
     const HEX_LENGTH: usize = 40;
+    const FAN_OUT_LEN: usize = 2;
 
     pub(crate) fn oid(self) -> git2::Oid {
         self.0
+    }
+
+    pub(crate) fn fanned(self) -> PathBuf {
+        let text = self.0.to_string();
+        let (fan, rest) = text.split_at(Self::FAN_OUT_LEN);
+        Path::new(fan).join(rest)
     }
 }
 

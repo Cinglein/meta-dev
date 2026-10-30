@@ -23,9 +23,14 @@ impl Environment {
         self
     }
 
-    pub(crate) fn only(mut self, names: &[&str]) -> Self {
-        self.0.retain(|name, _| names.iter().any(|kept| name == *kept));
+    pub(crate) fn only(mut self, names: &[&str], traced: &[&str]) -> Self {
+        self.0.retain(|name, _| names.iter().chain(traced).any(|kept| name == *kept));
         self
+    }
+
+    #[must_use]
+    pub fn variable(&self, name: &str) -> Option<&OsStr> {
+        self.0.get(OsStr::new(name)).and_then(Option::as_deref)
     }
 
     pub(crate) fn dropped(self, kept: &Self, command: &mut Command) {

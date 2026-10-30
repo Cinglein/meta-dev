@@ -1,3 +1,4 @@
+use std::fmt;
 use std::path::Path;
 
 use crate::git_failure::GitFailure;
@@ -28,5 +29,18 @@ impl Identity {
 
     pub(crate) fn signed_now(&self) -> Result<git2::Signature<'static>, GitFailure> {
         Ok(git2::Signature::now(&self.name, &self.email)?)
+    }
+}
+
+impl From<&git2::Signature<'_>> for Identity {
+    fn from(signature: &git2::Signature<'_>) -> Identity {
+        let text = |part: &[u8]| String::from_utf8_lossy(part).into_owned();
+        Identity { name: text(signature.name_bytes()), email: text(signature.email_bytes()) }
+    }
+}
+
+impl fmt::Display for Identity {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{} <{}>", self.name, self.email)
     }
 }
