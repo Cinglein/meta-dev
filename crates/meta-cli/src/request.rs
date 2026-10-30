@@ -1,3 +1,4 @@
+mod brief;
 mod checkout;
 mod ci;
 mod cli_failure;
@@ -26,6 +27,7 @@ use meta_listing::{Kind, Scope};
 use meta_log::LogStore;
 use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, TaskRef};
 
+use brief::BriefRequest;
 use ci::{Commit, FailureLog, SessionId, Watcher};
 use cli_failure::{CliFailure, Invalid, Misuse, Setup};
 use heartbeat::Heartbeat;
@@ -63,6 +65,7 @@ pub enum Request {
     WaitCi(SessionId),
     CiLog(SessionId),
     Trace(TraceView),
+    Brief(BriefRequest),
     Queue(MergeQueue),
 }
 
@@ -124,6 +127,10 @@ impl TryFrom<Vec<String>> for Request {
                     None => Self::Write(Event::TaskClaimed(claim)),
                 })
             }
+            "brief" => {
+                let parsed = parsed.allowing(&[OptionName::Actor, OptionName::Scratch])?;
+                parsed.brief().map(Self::Brief)
+            }
             "worktrees" => parsed.allowing(&[]).map(|_| Self::Worktrees),
             "gc" => {
                 let parsed = parsed.allowing(&[OptionName::DryRun])?;
@@ -171,6 +178,7 @@ impl Request {
             Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
             Self::WaitCi(session) => Watcher::wait(project, &session),
             Self::CiLog(session) => FailureLog::excerpt(project, &session),
+            Self::Brief(request) => request.answer(project, Self::actor),
             Self::Trace(view) => TraceRecord::shown(&LocalClone::try_from(project)?, view),
             Self::Queue(queue) => queue.run(project),
             Self::Status(view) => {
@@ -230,6 +238,7 @@ impl Request {
             | Self::WaitCi(_)
             | Self::CiLog(_)
             | Self::Trace(_)
+            | Self::Brief(_)
             | Self::Queue(_)
             | Self::Status(_)
             | Self::ClaimWorktree(_)

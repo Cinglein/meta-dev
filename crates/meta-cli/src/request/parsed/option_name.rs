@@ -19,6 +19,8 @@ pub enum OptionName {
     DryRun,
     Severity,
     Scenario,
+    Actor,
+    Scratch,
 }
 
 impl FromStr for OptionName {
@@ -40,6 +42,8 @@ impl FromStr for OptionName {
             "--dry-run" => Ok(Self::DryRun),
             "--severity" => Ok(Self::Severity),
             "--scenario" => Ok(Self::Scenario),
+            "--actor" => Ok(Self::Actor),
+            "--scratch" => Ok(Self::Scratch),
             other => Err(CliFailure::raised::<Misuse>(format!(
                 "unknown option {other}; put text starting with -- after a bare --"
             ))),
@@ -64,6 +68,8 @@ impl fmt::Display for OptionName {
             Self::DryRun => "--dry-run",
             Self::Severity => "--severity",
             Self::Scenario => "--scenario",
+            Self::Actor => "--actor",
+            Self::Scratch => "--scratch",
         };
         formatter.write_str(name)
     }
