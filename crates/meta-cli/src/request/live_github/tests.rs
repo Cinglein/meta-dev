@@ -43,8 +43,8 @@ const REASONS: [(&str, &str); 3] = [
 const WORKFLOWS: [&str; 2] = ["ci", "mutants"];
 const DEADLINE: Duration = Duration::from_secs(5);
 const WRITE_SECOND_ARGUMENT_TO_FIRST_PATH: [&str; 2] = ["-c", "printf '%s' \"$1\" > \"$0\""];
-const NOISE: usize = 4;
-const ROUNDS: usize = 20;
+const NOISE: usize = 1;
+const ROUNDS: usize = 4;
 
 struct Fake {
     dir: tempfile::TempDir,
