@@ -49,4 +49,11 @@ mod tests {
         let report = AmbientReads::report(&[file(LIBRARY), file(ENTRY), file(ELSEWHERE)]);
         assert!(report.lists_exactly(&FLAGGED));
     }
+
+    #[test]
+    fn near_misses_of_the_environment_paths_are_not_findings() {
+        let source = "fn f() { my::env::other(); env::set_var(A, B); io::stdout(); env::stdin(); io::var(); other::stdin(); other::var(); var(); stdin(); }\n";
+        let file = SourceFile::parse(LIBRARY, source.to_owned()).unwrap();
+        assert!(AmbientReads::report(&[file]).lists_exactly(&[]));
+    }
 }
