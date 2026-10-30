@@ -1,6 +1,7 @@
 mod entries;
 mod fallback_keys;
 mod liveness;
+mod queue_landers;
 
 use std::collections::BTreeMap;
 
@@ -25,6 +26,7 @@ use crate::percent::Percent;
 use entries::Entries;
 use fallback_keys::FallbackKeys;
 pub use liveness::Liveness;
+pub use queue_landers::QueueLanders;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -63,6 +65,8 @@ pub struct PolicyFile {
     spec: Option<SpecSettings>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     liveness: Option<Liveness>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    queue: Option<QueueLanders>,
     supply_chain: SupplyChain,
 }
 
@@ -95,6 +99,7 @@ impl PolicyFile {
             budgets: BudgetDrafts::from(policy.budgets.clone()),
             spec: policy.spec.clone(),
             liveness: policy.liveness,
+            queue: policy.queue.clone(),
             supply_chain: policy.supply_chain.clone(),
         }
     }
@@ -247,6 +252,7 @@ impl PolicyFile {
             deprecated,
             spec: self.spec,
             liveness: self.liveness,
+            queue: self.queue,
             supply_chain: self.supply_chain,
         })
     }

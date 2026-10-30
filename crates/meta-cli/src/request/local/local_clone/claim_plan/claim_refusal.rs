@@ -10,6 +10,7 @@ pub enum ClaimRefusal {
     Unheld(BranchName),
     HeadUnset(RemoteName),
     Taken(PathBuf),
+    NoBase(BranchName),
 }
 
 impl fmt::Display for ClaimRefusal {
@@ -20,6 +21,7 @@ impl fmt::Display for ClaimRefusal {
                 write!(formatter, "{remote}/HEAD is unset; run git remote set-head {remote} --auto")
             }
             Self::Taken(path) => write!(formatter, "{} exists; move it away first", path.display()),
+            Self::NoBase(base) => write!(formatter, "{base}: no such commit"),
         }
     }
 }

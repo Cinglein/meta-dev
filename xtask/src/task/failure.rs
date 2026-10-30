@@ -1,3 +1,5 @@
+mod step_failures;
+
 use std::io;
 use std::path::PathBuf;
 
@@ -12,11 +14,14 @@ use crate::task::ci::{Busy, OutsideConfig, Unready, Untracked};
 use crate::task::ratchet::{Raised, Ratchet};
 use crate::task::revision::ForeignEmails;
 use crate::task::{Misplaced, TrackedBuildFiles};
+pub use step_failures::{StepFailure, StepFailures};
 
 #[derive(Debug, Error)]
 pub enum Failure {
     #[error("{0}")]
     Task(#[from] task::Failure),
+    #[error("{0}")]
+    Steps(Box<StepFailures>),
     #[error("{0}")]
     Ratchet(Ratchet),
     #[error("{0}")]

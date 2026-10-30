@@ -18,6 +18,7 @@ impl LiveQuery {
     const OPEN: &'static str =
         "pullRequests(states:OPEN,first:100,after:$after){pageInfo{hasNextPage endCursor} nodes{";
     const TRUNK: &'static str = "trunk:repository(owner:$owner,name:$name){defaultBranchRef{target{...on Commit{history(first:20){pageInfo{hasNextPage} nodes{checkSuites(first:50){pageInfo{hasNextPage} nodes{conclusion workflowRun{workflow{name}}}}}}}}}}";
+    const MERGING: &'static str = " mergeStateStatus headRefOid";
     const LINKED: &'static str = "linked:";
     const CLOSING: &'static str = "}";
 
@@ -51,7 +52,8 @@ impl fmt::Display for LiveQuery {
         self.pull_requests.first().map_or(Ok(()), |_| write!(formatter, "{}{}", Self::LINKED, Self::REPOSITORY))?;
         self.pull_requests.iter().try_for_each(|pull_request| {
             let number = pull_request.number();
-            write!(formatter, "{}:pullRequest(number:{number}){{{}}}", PullAlias::new(*pull_request), Self::PULL)
+            let alias = PullAlias::new(*pull_request);
+            write!(formatter, "{alias}:pullRequest(number:{number}){{{}{}}}", Self::PULL, Self::MERGING)
         })?;
         self.pull_requests.first().map_or(Ok(()), |_| formatter.write_str(Self::CLOSING))?;
         formatter.write_str(Self::CLOSING)
