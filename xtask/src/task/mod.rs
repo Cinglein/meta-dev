@@ -142,7 +142,7 @@ impl Task {
         });
         match self {
             Task::Adoption => Adoption::checked(workspace, &policy),
-            Task::Affected => Ok(Affected::selection(workspace, Changes::SinceMain, policy.branch(Branch::Base))
+            Task::Affected => Ok(Affected::selection(workspace, &Changes::SinceMain, policy.branch(Branch::Base))
                 .map(|reached| println!("{reached}"))?),
             Task::Baseline => Lint::shrink(workspace.root(), &workspace.source_files()?, &policy)
                 .map(|kept| println!("baseline: {} violations", kept.total())),

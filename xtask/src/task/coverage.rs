@@ -32,7 +32,7 @@ impl Coverage {
                 _ => Err(task::Failure::UnknownFlag { flag, known: Self::KNOWN }),
             })
             .and_then(|coverage| match coverage {
-                Coverage { changes: Changes::SinceMain, posting: Posting::Requested, .. } => {
+                Coverage { posting: Posting::Requested, .. } if coverage.changes == Changes::SinceMain => {
                     Err(task::Failure::Refused(Self::PARTIAL.to_owned()))
                 }
                 Coverage { posting: Posting::Requested, ref log, .. } if *log != LogSource::Origin => {
@@ -42,8 +42,8 @@ impl Coverage {
             })
     }
 
-    pub fn changes(&self) -> Changes {
-        self.changes
+    pub fn changes(&self) -> &Changes {
+        &self.changes
     }
 
     pub fn log(&self) -> &LogSource {
@@ -83,7 +83,7 @@ mod tests {
     #[test]
     fn no_flag_covers_everything_the_affected_flag_the_changes_and_others_are_refused() {
         assert_eq!(Coverage::parsed(Task::Ci, &[]).ok(), Some(Coverage::EVERYTHING));
-        let affected = Coverage::parsed(Task::Test, &[AFFECTED]).map(|coverage| coverage.changes());
+        let affected = Coverage::parsed(Task::Test, &[AFFECTED]).map(|coverage| coverage.changes().clone());
         assert_eq!(affected.ok(), Some(Changes::SinceMain));
         assert!(matches!(Coverage::parsed(Task::Ci, &[UNKNOWN]), Err(Failure::UnknownFlag { .. })));
     }

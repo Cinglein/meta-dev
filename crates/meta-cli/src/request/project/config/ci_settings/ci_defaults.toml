@@ -11,5 +11,8 @@ git_millis = 30000
 claim_millis = 600000
 gh_millis = 10000
 stop_millis = 6000
+# meta queue run: one poll a minute at most, then a head waits up to an hour for its checks
+queue_poll_millis = 60000
+queue_checks_millis = 3600000
 log_lines = 120
 log_context = 8

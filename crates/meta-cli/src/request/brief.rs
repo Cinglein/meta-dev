@@ -1,3 +1,4 @@
+mod brief_failure;
 mod brief_request;
 mod options;
 mod rules;
@@ -6,6 +7,7 @@ use std::fmt;
 
 use meta_schema::NewTask;
 
+pub use brief_failure::BriefFailure;
 pub use brief_request::BriefRequest;
 pub use options::BriefOptions;
 pub use rules::Rules;
@@ -28,8 +30,10 @@ impl Brief {
 
 impl fmt::Display for Brief {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (id, actor) = (self.task.task(), self.options.actor());
-        let (repository, scratch) = (self.options.repository(), self.options.scratch());
+        let id = self.task.task();
+        let actor = self.options.acting_as();
+        let repository = self.options.repository();
+        let scratch = self.options.scratch();
         writeln!(formatter, "brief for {id} as {actor}")?;
         writeln!(formatter, "task: {}{}", self.task.text(), self.task.placement())?;
         let addresses: Vec<String> = self.task.addresses().iter().map(ToString::to_string).collect();

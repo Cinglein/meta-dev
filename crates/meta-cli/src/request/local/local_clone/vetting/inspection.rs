@@ -7,8 +7,8 @@ use super::git_call::GitCall;
 use super::kept::Kept;
 use super::occupancy::Occupancy;
 use super::thaw::Thaw;
-use super::uninspected::Uninspected;
 use crate::request::local::local_clone::quarantine::Stamp;
+use meta_process_table::Uninspected;
 
 pub trait Inspection {
     fn entry(&self, path: &Path) -> EntryKind;

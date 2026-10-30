@@ -17,7 +17,7 @@ impl BriefOptions {
         Self { actor, scratch, repository }
     }
 
-    pub fn actor(&self) -> &Actor {
+    pub fn acting_as(&self) -> &Actor {
         &self.actor
     }
 

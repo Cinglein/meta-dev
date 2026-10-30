@@ -1,5 +1,6 @@
 use std::fmt;
 
+use meta_schema::Block;
 use meta_state::TaskState;
 
 use crate::status::Status;
@@ -25,6 +26,8 @@ impl fmt::Display for TaskLine<'_> {
         let planned = self.task.new_task();
         let id = planned.task();
         write!(formatter, "{id} {}", self.status.state.status_of(self.task))?;
+        let reply_due = self.task.progress().waiting().and_then(Block::reply_due);
+        reply_due.map_or(Ok(()), |due| write!(formatter, "{}reply due {due}", Self::SEPARATOR))?;
         self.status.pulls(self.task).iter().try_for_each(|pull_request| {
             write!(formatter, "{}{pull_request} {}", Self::SEPARATOR, self.status.github.sight(*pull_request))
         })?;

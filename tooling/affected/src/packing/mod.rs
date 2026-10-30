@@ -72,7 +72,6 @@ mod tests {
     ];
     const SHARDS: [&str; 4] = ["a/0/2", "a/1/2", "b", "c+d"];
     const OVERHEAD_PRICED: usize = 27;
-
     #[test]
     fn crates_costlier_than_a_shard_are_sliced_and_the_rest_are_packed_largest_first() {
         let policy = Policy::defaults();

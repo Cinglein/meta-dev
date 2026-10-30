@@ -30,5 +30,5 @@ record = "toplevel"
 git = { call = "show-toplevel" }
 
 [[step]]
-record = "no-branch"
-git = { call = "verify-ref", operands = ["refs/heads/none"] }
+record = "no-object"
+git = { call = "cat-blob", operands = ["none"] }

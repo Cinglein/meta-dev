@@ -1,6 +1,8 @@
 use std::fmt;
 use std::str::FromStr;
 
+use super::BriefFailure;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Rules(String);
 
@@ -10,15 +12,15 @@ impl Rules {
 }
 
 impl FromStr for Rules {
-    type Err = &'static str;
+    type Err = BriefFailure;
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        let numbered = text
-            .lines()
+        text.lines()
             .next()
             .and_then(|line| line.strip_prefix(Self::VERSION_PREFIX))
-            .is_some_and(|version| version.parse::<u32>().is_ok());
-        numbered.then(|| Self(text.to_owned())).ok_or("first line must be `version: <number>`")
+            .and_then(|version| version.parse::<u32>().ok())
+            .map(|_| Self(text.to_owned()))
+            .ok_or(BriefFailure::Unversioned)
     }
 }
 

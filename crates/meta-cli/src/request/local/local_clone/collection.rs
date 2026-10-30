@@ -13,10 +13,10 @@ use std::path::{Path, PathBuf};
 use chrono::{DateTime, Utc};
 
 use crate::request::local::local_clone::vetting::Inspection;
-use crate::request::local::local_clone::vetting::uninspected::Uninspected;
 use crate::request::local::trail_entry::TrailEntry;
 use assessed::Assessed;
 pub use census::Census;
+use meta_process_table::Uninspected;
 pub use sweeper::Sweeper;
 pub use tracked::Tracked;
 use verdict::Verdict;

@@ -4,6 +4,7 @@ use serde::Deserialize;
 
 use super::checks::Checks;
 use crate::check_name::CheckName;
+use crate::failing_checks::FailingChecks;
 use crate::page::Page;
 use crate::required_checks::RequiredChecks;
 use check_context::CheckContext;
@@ -14,6 +15,10 @@ pub struct Rollup {
 }
 
 impl Rollup {
+    pub fn failing(&self) -> FailingChecks {
+        self.contexts.nodes().filter_map(CheckContext::failing_name).collect()
+    }
+
     pub fn checks(&self, required: &RequiredChecks) -> Checks {
         let named = |name: &CheckName| {
             self.contexts.nodes().filter_map(|context| context.named(name)).map(CheckContext::verdict).max()
