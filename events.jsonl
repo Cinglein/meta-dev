@@ -1780,3 +1780,4 @@
 {"at":"2026-10-30T12:44:15.504567Z","actor":"claude-lead","kind":"EntryRetired","entry":"task-7b850c6cb3a16e91","text":"duplicate of task-41cdd3444cb85fc4 (agent spend ledger: tokens per model)"}
 {"at":"2026-10-30T13:08:51.925467Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-fa28d16e0dadd437","text":"Repair deadlock: a stack's bottom PR fails a budget main already fails (CPU), so gh stack merge refuses the green repair above it (#233/#239).","division":"performance-and-cost"}
 {"at":"2026-10-30T13:40:07.297007Z","actor":"claude-lead","kind":"ConcernIdentified","concern":"concern-6c46d686ddc5c255","text":"test_cpu_time on CI runners varies ~700 ms for the same code (#239: 3345 vs 4067 ms), about 18% of the 4000 ms line; the line cannot separate a real regression from noise.","division":"performance-and-cost"}
+{"at":"2026-10-30T14:25:30.301037Z","actor":"claude-projects1","kind":"TaskDone","task":"task-36f203b76e54c2c7"}
