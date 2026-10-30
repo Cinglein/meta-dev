@@ -25,6 +25,7 @@ impl Change for WorktreeAdd {
     type Applied = ();
 
     fn applied(&self, repository: &git2::Repository) -> Result<(), GitFailure> {
+        self.path.parent().map_or(Ok(()), std::fs::create_dir_all)?;
         let branch = repository.find_branch(&self.branch, git2::BranchType::Local)?.into_reference();
         let mut options = git2::WorktreeAddOptions::new();
         options.reference(Some(&branch));
