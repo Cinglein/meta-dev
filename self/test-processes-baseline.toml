@@ -14,8 +14,7 @@
 "meta-cli meta_cli request::live_github::tests::an_unreachable_or_unreadable_github_reads_as_unknown_with_its_reason" = 13
 "meta-cli meta_cli request::live_github::tests::one_graphql_call_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_its_own_pull_requests" = 8
 "meta-cli meta_cli request::local::monitor::live_machine::tests::the_live_machine_lists_a_child_with_its_cwd_and_kills_its_group" = 5
-"meta-cli meta_cli request::project::tests::a_project_serves_its_meta_toml_and_reads_head_and_object_births_through_git_and_no_meta_toml_is_no_project" = 5
-"meta-cli meta_cli request::tests::heartbeat::gc::gc_runs_in_its_own_child_under_its_own_deadline_and_a_timeout_never_reads_as_freed" = 4
+"meta-cli meta_cli request::project::tests::a_project_serves_its_meta_toml_and_reads_head_and_object_births_"meta-cli meta_cli request::tests::heartbeat::gc::gc_runs_in_its_own_child_under_its_own_deadline_and_a_timeout_never_reads_as_freed" = 4
 "meta-cli meta_cli request::tests::heartbeat::supervised::a_supervised_tick_passes_on_the_output_and_the_verdict_of_the_inner_run" = 2
 "meta-cli meta_cli request::tests::heartbeat::supervised::an_inner_failure_and_a_run_past_the_limit_are_both_refused" = 2
 "meta-golden goldens a_golden_passes_its_own_text_and_fails_on_any_other_and_meta_runs_from_the_bin_dir" = 1
