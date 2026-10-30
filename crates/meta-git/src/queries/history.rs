@@ -1,10 +1,13 @@
+pub(crate) mod commit_emails;
 mod files_at;
 mod first_addition;
 mod first_parents;
 mod head_reflog;
 mod independent_tips;
+pub(crate) mod merge_base;
 mod reflog_line;
 mod signers;
+pub(crate) mod tree_text;
 mod unpushed;
 
 pub use files_at::FilesAt;

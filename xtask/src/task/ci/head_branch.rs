@@ -3,6 +3,7 @@ use std::convert::Infallible;
 use std::fmt;
 use std::str::FromStr;
 
+use meta_git::RefName;
 use meta_schema::{Id, Task};
 use task::BranchName;
 
@@ -17,12 +18,19 @@ pub struct HeadBranch {
 
 impl HeadBranch {
     const REMOTE_HEAD: &str = "HEAD";
+    const REMOTE_PARTS_LEN: usize = 4;
 
     pub fn only(listed: &str) -> Result<HeadBranch, Unready> {
         let names: BTreeSet<&str> = listed.lines().filter(|name| *name != Self::REMOTE_HEAD).collect();
         let only = names.first().filter(|_| names.len() == 1).ok_or(Unready::Unnamed)?;
         let Ok(head) = only.parse();
         Ok(head)
+    }
+
+    pub fn listed(tips: &[RefName]) -> String {
+        let short =
+            |tip: &RefName| tip.to_string().splitn(Self::REMOTE_PARTS_LEN, '/').last().unwrap_or_default().to_owned();
+        tips.iter().map(short).collect::<Vec<_>>().join("\n")
     }
 
     pub fn task(&self) -> Result<Id<Task>, Untracked> {

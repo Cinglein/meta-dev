@@ -94,6 +94,10 @@ pub enum Failure {
     #[error("git: {0}")]
     Git(Unread),
     #[error("{0}")]
+    Repository(#[from] meta_git::GitFailure),
+    #[error("{} is not inside a git repository", .0.display())]
+    NoRepository(PathBuf),
+    #[error("{0}")]
     BuildDirectory(#[from] Misplaced),
     #[error("{0}")]
     TrackedBuildOutput(TrackedBuildFiles),

@@ -7,7 +7,7 @@ use std::time::Instant;
 
 use meta_git::{Head, HeadReflog, IndependentTips, LooseObject, Query, Reads as _, Unpushed};
 use meta_log::{GitLog, RemoteHeads};
-use meta_run::{Budget, GitArgv, Port, Run};
+use meta_run::{Budget, Run};
 
 use crate::request::checkout::Checkout;
 use crate::request::ci::{Commit, ReflogEntry, StartMoment};
@@ -78,11 +78,13 @@ impl Project {
 
     pub fn remote_heads(&self, deadline: Instant) -> Result<RemoteHeads, Listed> {
         let remote = self.config.remote().map_err(|failure| Listed::new(failure.to_string()))?;
-        let listed = Port::new(&self.root).reported(GitArgv::RemoteHeads, [remote.to_string()], deadline);
-        let listed = listed.map_err(|failure| {
+        let budget = Budget::new(deadline.saturating_duration_since(Instant::now())).within(deadline);
+        let listed = meta_git::Remote::new(self.root.clone(), remote.clone(), budget).heads();
+        let unreachable = |failure: &dyn std::fmt::Display| {
             Listed::new(format!("remote unreachable: git ls-remote {remote}: {failure}; retry, or ask the owner"))
-        })?;
-        let Ok(heads) = listed.text().parse();
+        };
+        let listed = listed.map_err(|failure| unreachable(&failure))?.map_err(|stderr| unreachable(&stderr))?;
+        let Ok(heads) = listed.to_string().parse();
         Ok(heads)
     }
 

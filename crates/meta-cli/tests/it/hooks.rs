@@ -52,6 +52,8 @@ const NO_TASKS: &str = "Tasks: 0 unfinished";
 const SESSION_ACTOR: &str = "claude-abcdef1234";
 const SESSION_STARTED: &str = "meta-sessions/ABCDEF1234/started";
 const ENV_LINE: &str = "export META_ACTOR=claude-abcdef1234\nexport META_SESSION=ABCDEF12-34\n";
+const REMOTE_URL: &str = "remote.origin.url";
+const FILE_SCHEME: &str = "file://";
 const HANGING_UPLOAD: &str = "[remote \"origin\"]\n\tuploadpack = sh -c 'sleep 5' x\n";
 const META_TOML: &str = "meta.toml";
 const QUICK_GIT: &str = "[ci]\ngit_millis = 20\n";
@@ -233,6 +235,7 @@ fn session_start_shows_state_and_names_the_session_actor() {
     let shown = repo.hook(SESSION_START, COMMIT, home);
     assert!(shown.contains(NO_TASKS) && shown.contains(SESSION_ACTOR));
     assert_eq!(std::fs::read_to_string(home.join(ENV_FILE)).unwrap(), ENV_LINE);
+    Fixture::opened(home).configured(REMOTE_URL, &[FILE_SCHEME, &repo.origin.path().display().to_string()].concat());
     Config::configure(&home.join(GIT_CONFIG), HANGING_UPLOAD);
     Config::configure(&home.join(META_TOML), QUICK_GIT);
     let started = Instant::now();

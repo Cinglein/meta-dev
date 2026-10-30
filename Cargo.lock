@@ -805,6 +805,7 @@ dependencies = [
  "elegance",
  "git2",
  "git_trace",
+ "meta-git",
  "meta-golden",
  "meta-log",
  "meta-run",

@@ -10,6 +10,10 @@ use serde::Deserialize;
 pub struct RemoteName(String);
 
 impl RemoteName {
+    pub(crate) fn text(&self) -> &str {
+        &self.0
+    }
+
     pub(crate) fn tracking_glob(&self) -> String {
         format!("refs/remotes/{}/*", self.0)
     }
