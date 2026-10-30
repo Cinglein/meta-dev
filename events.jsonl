@@ -1635,3 +1635,4 @@
 {"at":"2026-10-30T00:22:08.633576Z","actor":"claude-hookrules","kind":"TaskLinked","task":"task-bb4ce616a62d5555","pr":224}
 {"at":"2026-10-30T00:22:11.219086Z","actor":"claude-macos","kind":"TaskLinked","task":"task-cc7b5ef79b0bb628","pr":222}
 {"at":"2026-10-30T00:25:56.438148Z","actor":"claude-mainfix","kind":"TaskDone","task":"task-8e950deca18bd017"}
+{"at":"2026-10-30T00:26:31.877694Z","actor":"claude-lead","kind":"TaskOpened","task":"task-18efd69d1317862e","text":"Mutants diff plan skips test-only diffs, so a PR that shrinks a test is never mutation-checked (#223). Plan the crate's prod files whenever its tests change","division":"features-and-maintenance"}
