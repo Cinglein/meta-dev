@@ -1631,3 +1631,4 @@
 {"at":"2026-10-30T00:15:46.139082Z","actor":"claude-lead","kind":"TaskOpened","task":"task-8e950deca18bd017","text":"Main red: test CPU 4686 ms over 4000 since #218. Its trusted proptest costs 906 ms CPU; cut it below 100 ms without losing coverage (mutants guard)","division":"performance-and-cost"}
 {"at":"2026-10-30T00:16:28.657469Z","actor":"claude-lead","kind":"TaskOpened","task":"task-614bad4cdc0d3b09","text":"Aggregate budgets under affected selection: a subset run computes test CPU and wall time as the trusted run's per-test raw rows with the selected rows replaced; fail closed to the whole suite without them. #218 measured 1306 ms on its PR, then 4686 ms on main (red)","division":"performance-and-cost"}
 {"at":"2026-10-30T00:17:03.307573Z","actor":"claude-mainfix","kind":"TaskClaimed","task":"task-8e950deca18bd017"}
+{"at":"2026-10-30T00:20:52.585210Z","actor":"claude-mainfix","kind":"TaskLinked","task":"task-8e950deca18bd017","pr":223}
