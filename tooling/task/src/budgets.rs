@@ -38,10 +38,16 @@ impl Budgets {
 
     #[must_use]
     pub fn whole(&self, measure: &Measure) -> Option<&Budget> {
+        self.id_of(measure).and_then(|id| self.0.get(id))
+    }
+
+    #[must_use]
+    pub fn id_of(&self, measure: &Measure) -> Option<&BudgetId> {
         self.0
-            .values()
-            .filter(|budget| budget.standing_in().is_none())
-            .find(|budget| budget.top_measure().as_ref() == Some(measure))
+            .iter()
+            .filter(|(_, budget)| budget.standing_in().is_none())
+            .find(|(_, budget)| budget.top_measure().as_ref() == Some(measure))
+            .map(|(id, _)| id)
     }
 
     #[must_use]

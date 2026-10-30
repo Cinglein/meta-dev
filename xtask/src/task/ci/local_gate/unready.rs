@@ -19,7 +19,7 @@ pub enum Unready {
 }
 
 impl Unready {
-    pub fn judged(changes: &str, pushed: &str) -> Result<(), Unready> {
+    pub fn judged<Change, Pushed>(changes: &[Change], pushed: &[Pushed]) -> Result<(), Unready> {
         match (changes.is_empty(), pushed.is_empty()) {
             (false, _) => Err(Unready::Dirty),
             (true, true) => Err(Unready::Unpushed),
@@ -32,9 +32,9 @@ impl Unready {
 mod tests {
     use super::Unready;
 
-    const CHANGED: &str = " M consumer/src/lib.rs\n";
-    const PUSHED: &str = "  origin/main\n";
-    const NOTHING: &str = "";
+    const CHANGED: &[&str] = &["consumer/src/lib.rs"];
+    const PUSHED: &[&str] = &["refs/remotes/origin/main"];
+    const NOTHING: &[&str] = &[];
 
     #[test]
     fn only_a_clean_tree_at_a_pushed_head_is_ready() {

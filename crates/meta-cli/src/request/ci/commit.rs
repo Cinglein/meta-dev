@@ -1,6 +1,5 @@
 use std::ffi::OsString;
 use std::fmt;
-use std::path::PathBuf;
 use std::str::FromStr;
 
 use meta_git::ObjectId;
@@ -10,9 +9,6 @@ use meta_schema::CommitId;
 pub struct Commit(String);
 
 impl Commit {
-    const OBJECTS: &'static str = "objects";
-    const FAN_OUT_LEN: usize = 2;
-
     pub fn commit_id(&self) -> Option<CommitId> {
         self.0.parse().ok()
     }
@@ -21,9 +17,8 @@ impl Commit {
         OsString::from(&self.0)
     }
 
-    pub fn loose_object(&self) -> PathBuf {
-        let (fan, rest) = self.0.split_at_checked(Self::FAN_OUT_LEN).unwrap_or_default();
-        PathBuf::from(Self::OBJECTS).join(fan).join(rest)
+    pub fn object_id(&self) -> Option<ObjectId> {
+        self.0.parse().ok()
     }
 }
 

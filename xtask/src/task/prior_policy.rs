@@ -7,7 +7,7 @@ use std::path::Path;
 use meta_schema::Division;
 use meta_severity::{Scale, Scales};
 use serde::Deserialize;
-use task::{BaselineFile, BranchName, Surface};
+use task::{BaselineFile, BranchName, BudgetId, Surface};
 
 use crate::task::failure::Failure;
 use crate::task::revision::{Revision, TrackedPath};
@@ -20,7 +20,7 @@ pub struct PriorPolicy {
     surfaces: Vec<Surface>,
     baseline: Option<BaselineFile>,
     #[serde(default)]
-    budgets: BTreeMap<String, PriorBudget>,
+    budgets: BTreeMap<BudgetId, PriorBudget>,
     #[serde(default)]
     scales: BTreeMap<Division, Scale>,
 }
@@ -64,6 +64,10 @@ impl PriorPolicy {
 
     pub fn baseline(&self) -> Option<&BaselineFile> {
         self.baseline.as_ref().or_else(|| self.budgets.values().find_map(PriorBudget::baseline))
+    }
+
+    pub fn budget_baseline(&self, budget: &BudgetId) -> Option<&BaselineFile> {
+        self.budgets.get(budget).and_then(PriorBudget::baseline)
     }
 }
 

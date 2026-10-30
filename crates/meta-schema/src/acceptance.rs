@@ -16,6 +16,13 @@ pub struct Acceptance {
     enforcement: Gating,
 }
 
+impl Acceptance {
+    #[must_use]
+    pub fn project(&self) -> Id<Project> {
+        self.project
+    }
+}
+
 impl fmt::Display for Acceptance {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{} {} {}", self.project, self.root, self.observability)?;

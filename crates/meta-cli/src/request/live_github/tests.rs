@@ -1,11 +1,9 @@
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::Path;
-use std::process::Command;
-use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
-use std::thread::Scope;
 use std::time::{Duration, Instant};
 
 use meta_pull_query::LiveQuery;
+use meta_run::{EnvPolicy, Run};
 
 use super::LiveGithub;
 use crate::request::project::{CiSettings, Config};
@@ -43,6 +41,8 @@ const REASONS: [(&str, &str); 3] = [
 const WORKFLOWS: [&str; 2] = ["ci", "mutants"];
 const DEADLINE: Duration = Duration::from_secs(5);
 const WRITE_SECOND_ARGUMENT_TO_FIRST_PATH: [&str; 2] = ["-c", "printf '%s' \"$1\" > \"$0\""];
+const SHELL: &str = "sh";
+const NOISY: &str = "true";
 const NOISE: usize = 1;
 const ROUNDS: usize = 4;
 
@@ -55,11 +55,11 @@ impl Fake {
     fn new(scenario: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let script = dir.path().join(scenario);
-        let written = Command::new("sh")
+        let written = Run::new(SHELL, EnvPolicy::Inherit)
             .args(WRITE_SECOND_ARGUMENT_TO_FIRST_PATH)
             .arg(&script)
             .arg(FAKE_GH.replace("$FAKE", scenario))
-            .status();
+            .ran(Instant::now() + DEADLINE);
         assert!(written.unwrap().success());
         std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
         let config: Config = toml::from_str(&format!("[ci]\nprogram = {:?}", script.display().to_string())).unwrap();
@@ -80,27 +80,19 @@ impl Fake {
     }
 }
 
-struct Spawners(AtomicBool);
+struct Spawners;
 
 impl Spawners {
-    fn running(&self) {
-        std::iter::repeat_with(|| Command::new("true").status().ok())
-            .take_while(|_| !self.0.load(Relaxed))
-            .for_each(drop);
-    }
-
-    fn started<'scope>(&'scope self, scope: &'scope Scope<'scope, '_>) {
-        (0..NOISE).for_each(|_| drop(scope.spawn(|| self.running())));
+    fn round() -> String {
+        std::thread::scope(|scope| {
+            let noise = || drop(Run::new(NOISY, EnvPolicy::Inherit).ran(Instant::now() + DEADLINE));
+            (0..NOISE).for_each(|_| drop(scope.spawn(noise)));
+            Fake::reason(REASONS[0].0)
+        })
     }
 
     fn wrong_reason() -> Option<String> {
-        let spawners = Self(AtomicBool::new(false));
-        std::thread::scope(|scope| {
-            spawners.started(scope);
-            let wrong = (0..ROUNDS).map(|_| Fake::reason(REASONS[0].0)).find(|reason| reason != REASONS[0].1);
-            spawners.0.store(true, Relaxed);
-            wrong
-        })
+        (0..ROUNDS).map(|_| Self::round()).find(|reason| reason != REASONS[0].1)
     }
 }
 

@@ -46,6 +46,7 @@ pub use footprint::Footprint;
 pub use gate_env_name::GateEnvName;
 pub use gate_status::GateStatus;
 pub use line_number::LineNumber;
+pub use meta_budget::BudgetId;
 pub use meta_budget::Percent;
 pub use meta_schema::TopDivision;
 pub use mutant_count::MutantCount;
