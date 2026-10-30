@@ -79,7 +79,14 @@ impl HookEvent {
 
     pub fn respond(self) -> Result<Output, CliFailure> {
         let stdin = std::io::read_to_string(std::io::stdin()).map_err(CliFailure::raised::<Invalid>)?;
-        let input: HookInput = serde_json::from_str(&stdin).map_err(CliFailure::raised::<Invalid>)?;
+        let input: HookInput = match serde_json::from_str(&stdin) {
+            Ok(input) => input,
+            Err(failure) if self == Self::PreToolUse => {
+                let reason = Listed::new(format!("cannot parse the hook input, so no command is allowed: {failure}"));
+                return Ok(Output::Listed(Listed::new(self.refused(reason).to_string())));
+            }
+            Err(failure) => return Err(CliFailure::raised::<Invalid>(failure)),
+        };
         let unstamped = self.phase().and_then(|call| input.stamp(call, Utc::now())).and_then(Result::err);
         let reply = match Project::found(input.cwd().as_path()) {
             Ok(Some(project)) => {

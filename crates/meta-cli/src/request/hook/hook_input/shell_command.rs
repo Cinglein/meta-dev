@@ -164,7 +164,7 @@ mod tests {
     }
 
     const POLICY: &str = include_str!("../../../../../../tooling/policy.toml");
-    const VERDICTS: [(&str, bool); 21] = [
+    const VERDICTS: [(&str, bool); 25] = [
         ("rm -rf x", true),
         ("cd a && mv b c", true),
         ("sed -i s/a/b/ f", true),
@@ -185,6 +185,10 @@ mod tests {
         ("cat f < in; grep x <<< y", false),
         ("echo a\\>b; FOO=rm env ls", false),
         ("git diff | wc -l", false),
+        ("timeout 5s sed p f", true),
+        ("timeout -k 1 5 nice -n 2 awk 1", true),
+        ("cat <<-'EOF'\nx\nEOF", true),
+        ("echo $((1 << 2))", false),
         ("true; xargs ls", false),
     ];
 

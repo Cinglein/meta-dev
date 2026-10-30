@@ -197,6 +197,13 @@ fn session_start_shows_state_and_names_the_session_actor() {
     assert!(home.join(SESSION_STARTED).exists() && started.elapsed() < PATIENT && shown.contains(UNREADABLE));
 }
 
+#[test]
+fn pre_tool_use_denies_input_it_cannot_parse() {
+    let mut child = MetaCommand::tagged(&[HOOK, PRE]).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
+    child.stdin.take().unwrap().write_all(b"{not json").unwrap();
+    assert!(String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).contains(DENY));
+}
+
 impl fmt::Display for Repo {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{}", self.clone.path().display())

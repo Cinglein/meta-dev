@@ -5,5 +5,4 @@ use serde::{Deserialize, Serialize};
 pub struct ShellRules {
     forbidden: Vec<String>,
     wrappers: Vec<String>,
-    exempt: Vec<String>,
 }

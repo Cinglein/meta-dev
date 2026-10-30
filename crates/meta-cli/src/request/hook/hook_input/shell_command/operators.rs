@@ -49,11 +49,16 @@ impl Operators {
     fn here(&mut self, rest: &[char]) -> usize {
         match rest {
             ['<', '<', ..] => 2,
-            ['<', ..] => {
-                self.heredoc = true;
+            ['<', tail @ ..] => {
+                self.heredoc |= Self::delimited(tail);
                 1
             }
             _ => 0,
         }
+    }
+
+    fn delimited(tail: &[char]) -> bool {
+        let first = tail.iter().skip_while(|c| **c == '-').find(|c| !c.is_whitespace());
+        first.is_some_and(|c| c.is_alphabetic() || matches!(c, '_' | '\'' | '"' | '\\'))
     }
 }

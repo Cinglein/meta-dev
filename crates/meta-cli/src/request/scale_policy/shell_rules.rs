@@ -1,6 +1,5 @@
 mod program;
 
-use meta_schema::Actor;
 use program::Program;
 use serde::Deserialize;
 
@@ -11,15 +10,9 @@ pub struct ShellRules {
     forbidden: Vec<Program>,
     #[serde(default)]
     wrappers: Vec<Program>,
-    #[serde(default)]
-    exempt: Vec<Actor>,
 }
 
 impl ShellRules {
-    pub fn exempts(&self, actor: &Actor) -> bool {
-        self.exempt.contains(actor)
-    }
-
     pub fn forbidden_in<'a>(&self, segment: &'a [String]) -> Option<&'a str> {
         let mut wrapped = false;
         for word in segment.iter().map(String::as_str) {

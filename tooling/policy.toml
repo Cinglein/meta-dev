@@ -103,7 +103,6 @@ reply_within = 3600000
 [shell]
 forbidden = ["rm", "mv", "python", "python3", "sed", "awk", "perl"]
 wrappers = ["nice", "env", "xargs", "sudo", "command", "time", "exec", "nohup", "timeout", "then", "do", "else", "!", "{"]
-exempt = ["owner", "lead"]
 
 [domains.features-and-maintenance]
 crates = ["*"]
