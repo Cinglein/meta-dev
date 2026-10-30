@@ -65,6 +65,42 @@ jobs:
           META_GIT_COUNT: "1"
           PULL_REQUEST: ${{ github.event.pull_request.number }}
 
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: . -> target.noindex
+      - run: cargo test -p meta-process-table -p meta-cli --all-features
+        timeout-minutes: 5
+
+  macos-mutants:
+    runs-on: macos-latest
+    timeout-minutes: 6
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0/4, 1/4, 2/4, 3/4]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: . -> target.noindex
+          shared-key: macos-mutants
+      - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        with:
+          tool: cargo-mutants@27.1.0
+      - run: cargo mutants --config .cargo/mutants-macos.toml --shard ${{ matrix.shard }} --package meta-process-table --in-place --test-package meta-process-table --cargo-test-arg=--all-features --file 'crates/meta-process-table/src/darwin.rs' --file 'crates/meta-process-table/src/darwin/*.rs'
+        timeout-minutes: 5
+
   goldens:
     runs-on: ubuntu-latest
     permissions:
@@ -193,7 +229,7 @@ jobs:
         shell: bash
 
   ci-gate:
-    needs: [ci, git-count, goldens, build-time, stacked, mutants-plan, mutants, mutant-costs]
+    needs: [ci, macos, macos-mutants, git-count, goldens, build-time, stacked, mutants-plan, mutants, mutant-costs]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:

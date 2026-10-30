@@ -41,10 +41,7 @@ impl Darwin {
     }
 
     fn scanned(&self, owned: &[i32]) -> Result<Scan, TableFailure> {
-        self.opened().map(Scan::Opened).or_else(|failure| match failure.unexplained() {
-            Some(cause) if owned.contains(&self.pid) && self.alive()? => Err(cause),
-            Some(_) | None => Ok(Scan::Skipped),
-        })
+        self.opened().map(Scan::Opened).or_else(|failure| failure.excused(owned.contains(&self.pid), || self.alive()))
     }
 
     fn opened(&self) -> Result<Vec<PathBuf>, ProbeFailure> {
@@ -55,8 +52,8 @@ impl Darwin {
         let vnodes = fds.iter().filter(|fd| matches!(ProcFDType::from(fd.proc_fdtype), ProcFDType::VNode));
         let files = vnodes.map(|fd| FdVnode::read(self.pid, fd.proc_fd, table_len));
         let files = files.collect::<Result<Vec<_>, ProbeFailure>>()?.into_iter().flatten();
-        let program = PathBuf::from(pidpath(self.pid)?);
-        Ok(dirs.paths().chain(files).chain([program]).collect())
+        let program = ProbeFailure::program(pidpath(self.pid).map_err(ProbeFailure::from))?;
+        Ok(dirs.paths().chain(files).chain(program).collect())
     }
 
     fn alive(&self) -> Result<bool, TableFailure> {
