@@ -55,9 +55,7 @@ impl Darwin {
         let vnodes = fds.iter().filter(|fd| matches!(ProcFDType::from(fd.proc_fdtype), ProcFDType::VNode));
         let files = vnodes.map(|fd| FdVnode::read(self.pid, fd.proc_fd, table_len));
         let files = files.collect::<Result<Vec<_>, ProbeFailure>>()?.into_iter().flatten();
-        let program = pidpath(self.pid)
-            .map(|path| Some(PathBuf::from(path)))
-            .or_else(|reported| ProbeFailure::from(reported).without_program())?;
+        let program = ProbeFailure::program(pidpath(self.pid).map_err(ProbeFailure::from))?;
         Ok(dirs.paths().chain(files).chain(program).collect())
     }
 

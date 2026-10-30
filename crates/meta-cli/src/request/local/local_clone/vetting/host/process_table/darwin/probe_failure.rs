@@ -9,27 +9,25 @@ pub enum ProbeFailure {
     Refused,
     #[error("no such process")]
     Gone,
-    #[error("executable file no longer exists")]
-    Unlinked,
     #[error("{0}")]
     Failed(Cause),
 }
 
 impl ProbeFailure {
     const REFUSED: &'static str = "errno = 1,";
-    const UNLINKED: &'static str = "errno = 2,";
+    const NO_PROGRAM_FILE: &'static str = "errno = 2,";
     const GONE: &'static str = "errno = 3,";
 
-    pub fn without_program(self) -> Result<Option<PathBuf>, Self> {
-        match self {
-            Self::Unlinked => Ok(None),
+    pub fn program(found: Result<String, Self>) -> Result<Option<PathBuf>, Self> {
+        found.map(|path| Some(PathBuf::from(path))).or_else(|failure| match failure {
+            Self::Failed(cause) if cause.to_string().contains(Self::NO_PROGRAM_FILE) => Ok(None),
             other => Err(other),
-        }
+        })
     }
 
     pub fn unexplained(self) -> Option<Cause> {
         match self {
-            Self::Refused | Self::Gone | Self::Unlinked => None,
+            Self::Refused | Self::Gone => None,
             Self::Failed(cause) => Some(cause),
         }
     }
@@ -41,7 +39,6 @@ impl FromStr for ProbeFailure {
     fn from_str(reported: &str) -> Result<Self, Self::Err> {
         Ok(match reported {
             refused if refused.contains(Self::REFUSED) => Self::Refused,
-            unlinked if unlinked.contains(Self::UNLINKED) => Self::Unlinked,
             gone if gone.contains(Self::GONE) => Self::Gone,
             failed => Self::Failed(Cause::new(failed)),
         })

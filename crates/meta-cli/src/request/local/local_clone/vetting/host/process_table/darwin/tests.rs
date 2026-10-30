@@ -5,6 +5,7 @@ use libproc::bsd_info::BSDInfo;
 use libproc::proc_pid::pidinfo;
 
 use super::Darwin;
+use super::probe_failure::ProbeFailure;
 
 const EXIT: &str = "true";
 const PATIENCE: Duration = Duration::from_secs(5);
@@ -28,6 +29,25 @@ impl Drop for Zombie {
     fn drop(&mut self) {
         drop(self.0.wait());
     }
+}
+
+const FOUND: &str = "/bin/sleep";
+const ENOENT: &str = "return code = 0, errno = 2, message = 'No such file or directory'";
+const EPERM: &str = "return code = 0, errno = 1, message = 'Operation not permitted'";
+
+#[test]
+fn a_missing_program_file_leaves_no_program_path_and_the_scan_continues() {
+    let rows = [Ok(FOUND.into()), Err(ENOENT.to_owned()), Err(EPERM.to_owned())]
+        .map(|found| ProbeFailure::program(found.map_err(ProbeFailure::from)));
+    assert!(
+        matches!(&rows, [Ok(Some(path)), Ok(None), Err(ProbeFailure::Refused)] if path.to_str() == Some(FOUND)),
+        "{rows:?}"
+    );
+}
+
+#[test]
+fn a_missing_file_from_any_other_probe_stays_unexplained_so_an_owned_live_process_fails_the_scan() {
+    assert!(ProbeFailure::from(ENOENT.to_owned()).unexplained().is_some());
 }
 
 #[test]
