@@ -3,6 +3,7 @@ mod build_directory;
 mod ci;
 mod clippy;
 mod coverage;
+mod elegance_report;
 mod failure;
 #[cfg(test)]
 mod fixture;
@@ -26,6 +27,7 @@ use crate::task::adoption::Adoption;
 use crate::task::build_directory::{BuildDirectory, Misplaced, TrackedBuildFiles};
 use crate::task::clippy::Clippy;
 use crate::task::coverage::Coverage;
+use crate::task::elegance_report::EleganceReport;
 use crate::task::golden_refresh::GoldenRefresh;
 use crate::task::lint::Lint;
 use crate::task::supply::Supply;
@@ -38,12 +40,10 @@ use ci::Ci;
 pub use ci::CiStep;
 use corpus_check::LintName;
 use crate_graph::CrateGraph;
-use elegance::{EleganceSettings, Measures, Scoring, SmellInventory, SynSource};
 use failure::Failure;
 use meta_golden::Reach;
 use mutant_costs::MutantCosts;
 use mutation::{Mutants, Scope, ShardPlan, TriggerEvent};
-use settings::EmbeddedDefaults;
 use stacked::Stacked;
 use test_time::{GitCount, TestRunner, TestTime};
 use waterfall::Waterfall;
@@ -158,10 +158,7 @@ impl Task {
             Task::Goldens => GoldenRefresh::run(workspace, Reach::Offline),
             Task::GoldensOnline => GoldenRefresh::run(workspace, Reach::Online),
             Task::Graph => Ok(workspace.source_files().map(|files| print!("{}", CrateGraph::graphs(&files)))?),
-            Task::Elegance => Ok(workspace.source_files().map(|files| {
-                let measures = Measures::measured(&SynSource::new(&files), &EleganceSettings::defaults());
-                print!("{measures}{}", Scoring::new(&measures, &SmellInventory::defaults()));
-            })?),
+            Task::Elegance => Ok(print!("{}", EleganceReport::text(workspace)?)),
             Task::Lint => Lint::run(workspace.root(), &workspace.source_files()?, &policy, &mut ledger)
                 .and_then(|()| Ok(ledger.checked(&policy, &selection)?)),
             Task::MutantCosts => Ok(MutantCosts::measure(
