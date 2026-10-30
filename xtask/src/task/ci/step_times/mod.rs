@@ -48,7 +48,7 @@ mod tests {
     use crate::task::fixture::Fixture;
 
     const SECOND: Duration = Duration::from_secs(1);
-    const SHOWN: &str = "fmt 1.0s, clippy failed";
+    const SHOWN: &str = "fmt 1.0s, clippy failed, test failed";
     const TIMES: &str = "times";
 
     impl StepTimes {
@@ -61,7 +61,7 @@ mod tests {
     fn passed_steps_show_their_time_a_failed_step_fails_the_gate_and_a_gate_child_records_them() {
         let (fixture, mut times) = (Fixture::new(), StepTimes::default());
         assert!(times.record(CiStep::Fmt, Ok(SECOND)).is_ok());
-        assert!(times.failing(CiStep::Clippy).is_err());
+        assert!(times.failing(CiStep::Clippy).is_err() && times.failing(CiStep::Test).is_err());
         Ci::new(None, None, Some(fixture.path(TIMES)), LogSource::Origin).recorded(&times).unwrap();
         assert_eq!(fs::read_to_string(fixture.path(TIMES)).ok().as_deref(), Some(SHOWN));
     }
