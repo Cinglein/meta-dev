@@ -86,6 +86,7 @@ impl<Write: Fn() -> Result<String, CliFailure>> ClaimHands for ClaimRun<'_, Writ
     fn added(&self) -> Result<(), CliFailure> {
         let identity = self.identity.name().signing(self.identity.email());
         let path = self.worktree.path().to_path_buf();
+        std::fs::create_dir_all(path.parent().unwrap_or(&path)).map_err(CliFailure::raised::<Setup>)?;
         let added = WorktreeAdd::new(self.name(), path, Self::branch(self.worktree.branch()), identity);
         self.checkout.write(&added).map_err(CliFailure::raised::<Setup>)
     }
