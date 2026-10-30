@@ -1632,3 +1632,4 @@
 {"at":"2026-10-30T00:16:28.657469Z","actor":"claude-lead","kind":"TaskOpened","task":"task-614bad4cdc0d3b09","text":"Aggregate budgets under affected selection: a subset run computes test CPU and wall time as the trusted run's per-test raw rows with the selected rows replaced; fail closed to the whole suite without them. #218 measured 1306 ms on its PR, then 4686 ms on main (red)","division":"performance-and-cost"}
 {"at":"2026-10-30T00:17:03.307573Z","actor":"claude-mainfix","kind":"TaskClaimed","task":"task-8e950deca18bd017"}
 {"at":"2026-10-30T00:20:52.585210Z","actor":"claude-mainfix","kind":"TaskLinked","task":"task-8e950deca18bd017","pr":223}
+{"at":"2026-10-30T00:22:08.633576Z","actor":"claude-hookrules","kind":"TaskLinked","task":"task-bb4ce616a62d5555","pr":224}
