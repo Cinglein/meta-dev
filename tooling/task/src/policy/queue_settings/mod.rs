@@ -8,12 +8,21 @@ use serde::{Deserialize, Serialize};
 use crate::policy::Surface;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, default)]
 pub struct QueueSettings {
     hot: Vec<Surface>,
     members: NonZeroUsize,
-    #[serde(default)]
     landers: Vec<Actor>,
+}
+
+impl Default for QueueSettings {
+    fn default() -> QueueSettings {
+        QueueSettings {
+            hot: Vec::new(),
+            members: NonZeroUsize::MIN,
+            landers: Vec::new(),
+        }
+    }
 }
 
 impl QueueSettings {
@@ -29,5 +38,17 @@ impl QueueSettings {
     #[must_use]
     pub fn admits<T>(&self, members: &[T]) -> bool {
         members.len() < self.members.get()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::QueueSettings;
+
+    #[test]
+    fn an_empty_queue_table_is_the_default_that_batches_nothing_together() {
+        let read: QueueSettings = toml::from_str("").unwrap();
+        assert_eq!(read, QueueSettings::default());
+        assert!(!read.admits(&[()]));
     }
 }

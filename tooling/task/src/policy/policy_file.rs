@@ -47,6 +47,7 @@ pub struct PolicyFile {
     millis: Entries<Interval, Millis>,
     mutant_millis: MutantMillis,
     mutation: MutationCadence,
+    #[serde(default)]
     queue: QueueSettings,
     #[serde(default)]
     domains: Domains,
