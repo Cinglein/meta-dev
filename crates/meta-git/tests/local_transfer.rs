@@ -62,17 +62,19 @@ fn a_fast_forward_lands_and_a_non_fast_forward_or_a_held_git_lock_is_refused_lea
 
 #[test]
 fn a_hook_a_receive_setting_or_the_checked_out_branch_of_a_working_remote_keeps_a_push_on_the_git_cli() {
-    let [hooked, sampled, configured] = [true, true, true].map(Ends::made);
+    let [hooked, sampled, configured, headed] = [true, true, true, true].map(Ends::made);
+    let placed = |ends: &Ends, file: &str| {
+        std::fs::create_dir_all(ends.there.path().join(file).parent().unwrap()).unwrap();
+        std::fs::write(ends.there.path().join(file), "").unwrap();
+    };
     let [hook, sample] = GUARDS;
-    std::fs::create_dir_all(hooked.there.path().join(hook).parent().unwrap()).unwrap();
-    std::fs::write(hooked.there.path().join(hook), "").unwrap();
-    std::fs::create_dir_all(sampled.there.path().join(sample).parent().unwrap()).unwrap();
-    std::fs::write(sampled.there.path().join(sample), "").unwrap();
+    placed(&hooked, hook);
+    placed(&sampled, sample);
     configured.there.config().unwrap().set_bool(RECEIVE, true).unwrap();
     let working = Ends::made(false);
-    working.there.set_head(BRANCH).unwrap();
-    let served = [&hooked, &sampled, &configured, &working].map(|ends| Ends::served(ends.there.path()));
-    assert_eq!(served, [None, Some(()), None, None]);
+    [&headed, &working].into_iter().try_for_each(|ends| ends.there.set_head(BRANCH)).unwrap();
+    let served = [&hooked, &sampled, &configured, &headed, &working].map(|ends| Ends::served(ends.there.path()));
+    assert_eq!(served, [None, Some(()), None, Some(()), None]);
 }
 
 #[test]

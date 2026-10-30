@@ -78,6 +78,12 @@ impl Remote {
     }
 
     #[must_use]
+    pub fn local_end<Sent: RemoteChange>(&self, change: &Sent) -> Option<git2::Repository> {
+        let local = self.transport().opened().filter(|_| self.configured_helper(Sent::HELPER).is_none());
+        local.and_then(|there| change.in_process(there))
+    }
+
+    #[must_use]
     pub fn transport(&self) -> Transport {
         let here = git2::Repository::open(&self.directory).ok();
         let url = here.and_then(|here| here.find_remote(self.name.text()).ok()?.url().ok().map(str::to_owned));
@@ -101,8 +107,7 @@ impl Asks for Remote {
 impl Sends for Remote {
     fn send<Sent: RemoteChange>(&self, change: &Sent) -> Result<Result<(), Stderr>, GitFailure> {
         self.forget_heads();
-        let local = self.transport().opened().filter(|_| self.configured_helper(Sent::HELPER).is_none());
-        match local.and_then(|there| change.in_process(there)) {
+        match self.local_end(change) {
             Some(there) => {
                 let [here, there] = [self.directory.as_path(), there.path()].map(Self::packable);
                 let moved = here.and_then(|here| change.moved(&here, &there?));

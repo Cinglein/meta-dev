@@ -1,4 +1,3 @@
-use std::fmt;
 use std::path::{Path, PathBuf};
 
 use crate::git_failure::GitFailure;
@@ -16,6 +15,8 @@ impl RelativeDiff {
     const OLD_SIDE: [&'static str; 3] = ["--- a/", "rename from ", "copy from "];
     const NEW_SIDE: [&'static str; 3] = ["+++ b/", "rename to ", "copy to "];
     const LINE_END: &'static str = "\n";
+    const SIDES: [&'static str; 2] = ["a/", " b/"];
+    const CHAR_LEN: usize = 4;
     const OUTSIDE: &'static str = "the diff root is not inside the work tree";
 
     #[must_use]
@@ -34,7 +35,10 @@ impl RelativeDiff {
     fn line(below: &Path, delta: &git2::DiffDelta<'_>, line: &git2::DiffLine<'_>) -> String {
         let content = String::from_utf8_lossy(line.content());
         match line.origin() {
-            origin @ ('+' | '-' | ' ') => [String::from(origin), content.into_owned()].concat(),
+            origin @ ('+' | '-' | ' ') => {
+                let mut sign = [0; Self::CHAR_LEN];
+                [&*origin.encode_utf8(&mut sign), content.as_ref()].concat()
+            }
             'F' => Self::header(below, delta, &content),
             _ => content.into_owned(),
         }
@@ -43,26 +47,21 @@ impl RelativeDiff {
     fn header(below: &Path, delta: &git2::DiffDelta<'_>, text: &str) -> String {
         let relative = |file: git2::DiffFile<'_>| {
             let path = file.path().unwrap_or(Path::new(""));
-            path.strip_prefix(below).unwrap_or(path).display().to_string()
+            path.strip_prefix(below).unwrap_or(path).to_string_lossy().into_owned()
         };
         let [old, new] = [relative(delta.old_file()), relative(delta.new_file())];
         text.lines().map(|line| Self::rebuilt(line, &old, &new) + Self::LINE_END).collect()
     }
 
     fn rebuilt(line: &str, old: &str, new: &str) -> String {
-        let git = line.starts_with(Self::DIFF_GIT).then(|| format!("{}a/{old} b/{new}", Self::DIFF_GIT));
+        let [old_side, new_side] = Self::SIDES;
+        let git = line.starts_with(Self::DIFF_GIT).then(|| [Self::DIFF_GIT, old_side, old, new_side, new].concat());
         let side = |prefixes: &[&str], path: &str| {
             prefixes.iter().find(|prefix| line.starts_with(**prefix)).map(|prefix| [prefix, path].concat())
         };
         git.or_else(|| side(&Self::OLD_SIDE, old))
             .or_else(|| side(&Self::NEW_SIDE, new))
             .unwrap_or_else(|| line.to_owned())
-    }
-}
-
-impl fmt::Display for RelativeDiff {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "git diff --relative --merge-base {} in {}", self.base, self.root.display())
     }
 }
 
@@ -77,11 +76,11 @@ impl Query for RelativeDiff {
         Some(&below).filter(|below| !below.as_os_str().is_empty()).map(|below| options.pathspec(below));
         let tree = repository.find_commit(base)?.tree()?;
         let diff = repository.diff_tree_to_workdir_with_index(Some(&tree), Some(&mut options))?;
-        let mut text = String::new();
+        let mut lines = Vec::new();
         diff.print(git2::DiffFormat::Patch, |delta, _, line| {
-            text.push_str(&Self::line(&below, &delta, &line));
+            lines.push(Self::line(&below, &delta, &line));
             true
         })?;
-        Ok(text)
+        Ok(lines.concat())
     }
 }
