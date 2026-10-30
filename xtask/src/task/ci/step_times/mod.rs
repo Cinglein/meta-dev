@@ -10,10 +10,17 @@ use step_time::StepTime;
 #[derive(Debug, Default)]
 pub struct StepTimes {
     passed: Vec<StepTime>,
-    failed: Option<CiStep>,
+    failed: Vec<CiStep>,
 }
 
 impl StepTimes {
+    pub fn reported(failures: Vec<(CiStep, Failure)>) -> Result<(), Failure> {
+        let mut failures = failures.into_iter();
+        let last = failures.next_back();
+        failures.for_each(|(step, failure)| eprintln!("ci: {step} failed: {failure}"));
+        last.map_or(Ok(()), |(_, failure)| Err(failure))
+    }
+
     pub fn record(&mut self, step: CiStep, outcome: Result<Duration, Failure>) -> Result<(), Failure> {
         match outcome {
             Ok(elapsed) => {
@@ -21,7 +28,7 @@ impl StepTimes {
                 Ok(())
             }
             Err(failure) => {
-                self.failed = Some(step);
+                self.failed.push(step);
                 Err(failure)
             }
         }
@@ -62,6 +69,9 @@ mod tests {
         let (fixture, mut times) = (Fixture::new(), StepTimes::default());
         assert!(times.record(CiStep::Fmt, Ok(SECOND)).is_ok());
         assert!(times.failing(CiStep::Clippy).is_err() && times.failing(CiStep::Test).is_err());
+        let failed = |step: CiStep| (step, Failure::from(task::Failure::Usage(step.to_string())));
+        let reported = StepTimes::reported(vec![failed(CiStep::Clippy), failed(CiStep::Test)]);
+        assert!(StepTimes::reported(vec![]).is_ok() && reported.is_err_and(|failure| failure.to_string() == "test"));
         Ci::new(None, None, Some(fixture.path(TIMES)), LogSource::Origin).recorded(&times).unwrap();
         assert_eq!(fs::read_to_string(fixture.path(TIMES)).ok().as_deref(), Some(SHOWN));
     }
