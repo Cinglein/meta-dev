@@ -54,6 +54,8 @@ impl Ci {
         Ci { summary, gate, attribution: Attribution::from_ambient(&CommandLine::ambient()), log }
     }
 
+    pub const CLOSE: &str = "--close";
+
     pub fn close() -> Result<(), Failure> {
         let steps = env::var(StepOutcomes::AMBIENT).map_err(|_| task::Failure::Unset(StepOutcomes::AMBIENT))?;
         Attribution::from_ambient(&CommandLine::ambient()).closed(&steps.parse()?)

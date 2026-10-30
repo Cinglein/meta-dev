@@ -7,4 +7,6 @@ pub(super) enum Conclusion {
     Failure,
     Cancelled,
     Skipped,
+    #[strum(disabled)]
+    Unknown,
 }

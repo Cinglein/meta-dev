@@ -64,7 +64,6 @@ pub enum Task {
     Elegance,
     EnumPredicates,
     ExpressionFlow,
-    FailuresClose,
     FnShape,
     Goldens,
     GoldensOnline,
@@ -112,14 +111,15 @@ impl Task {
     }
 
     pub fn run(self, flags: impl Iterator<Item = String>) -> Result<(), Failure> {
+        let flags: Vec<String> = flags.collect();
         match self {
-            Task::TestRunner => Ok(TestRunner::run(flags)?),
-            Task::FailuresClose => Ci::close(),
+            Task::TestRunner => Ok(TestRunner::run(flags.into_iter())?),
+            Task::Ci if flags == [Ci::CLOSE] => Ci::close(),
             Task::Init => Ok(BuildDirectory::read(Workspace::locate()?.root())?.initialized()?),
-            Task::Waterfall => {
-                Waterfall::shown(flags.map(PathBuf::from))?.map(|shown| print!("{shown}")).ok_or_else(Self::usage)
-            }
-            task => task.run_in_workspace(&Workspace::locate()?, flags),
+            Task::Waterfall => Waterfall::shown(flags.into_iter().map(PathBuf::from))?
+                .map(|shown| print!("{shown}"))
+                .ok_or_else(Self::usage),
+            task => task.run_in_workspace(&Workspace::locate()?, flags.into_iter()),
         }
     }
 

@@ -26,7 +26,7 @@ impl Message {
     const SUMMARIES: [&'static str; 2] = ["aborting due to", "could not compile"];
 
     pub(super) fn standing(&self) -> Option<Standing> {
-        (self.level != Level::Other).then(|| match (self.is_placed(), self.is_summary()) {
+        (self.level != Level::Other).then(|| match (self.is_placed(), self.summary().is_some()) {
             (true, _) => Standing::Placed,
             (false, true) => Standing::Summary,
             (false, false) => Standing::Unplaced,
@@ -37,8 +37,8 @@ impl Message {
         self.spans.iter().any(Span::is_primary)
     }
 
-    fn is_summary(&self) -> bool {
-        Self::SUMMARIES.iter().any(|summary| self.text.starts_with(summary))
+    fn summary(&self) -> Option<&'static str> {
+        Self::SUMMARIES.into_iter().find(|summary| self.text.starts_with(summary))
     }
 
     pub(super) fn failure(&self) -> FailureKind {

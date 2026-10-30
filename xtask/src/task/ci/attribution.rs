@@ -51,7 +51,7 @@ impl Attribution {
     pub fn closed(&self, steps: &StepOutcomes) -> Result<(), Failure> {
         let path = self.failures.as_ref().ok_or(task::Failure::Unset(Self::FAILURES))?;
         let first = if steps.first_passed() { FailureSet::default() } else { FailureSet::read(path)? };
-        let later = steps.later_failures().map(|job| FailureKind::Infra { job });
+        let later = steps.later_unsound().map(|job| FailureKind::Infra { job });
         later.fold(first, FailureSet::recording).write(path).map_err(Failure::Failures)
     }
 }
@@ -74,6 +74,10 @@ mod tests {
     const SCRATCH: &str = "attribution-";
     const CI: &str = "ci";
     const CONSUMER: &str = "consumer";
+    const STACKED: &str = "stacked";
+    const CANCELLED: &str = "ci=success,consumer=cancelled";
+    const UNKNOWN: &str = "ci=success,consumer=";
+    const REORDERED: &str = "consumer=success,ci=success";
     const PASSED: &str = "ci=success,consumer=success";
     const LATER: &str = "ci=success,consumer=failure,stacked=skipped";
     const FIRST: &str = "ci=failure,consumer=skipped";
@@ -93,13 +97,17 @@ mod tests {
         let attribution = Attribution::new(None, Some(file.clone()));
         let closed = |steps: &str| attribution.closed(&steps.parse::<StepOutcomes>().unwrap());
         let read = || FailureSet::read(&file).ok().map(|set| set.kinds().to_vec());
-        let infra = |job: &str| Some(vec![FailureKind::Infra { job: job.into() }]);
+        let infra = |jobs: &[&str]| Some(jobs.iter().map(|job| FailureKind::Infra { job: (*job).into() }).collect());
         attribution.begin().unwrap();
         let begun = [closed(FIRST).is_err(), read().is_none()];
         attribution.attributed(&Failure::NoLog, &StepTimes::default()).unwrap();
-        let steps = [FIRST, LATER, PASSED].map(|steps| closed(steps).map(|()| read()).unwrap());
+        let steps = [FIRST, LATER, CANCELLED, UNKNOWN, PASSED].map(|steps| closed(steps).map(|()| read()).unwrap());
         fs::remove_file(&file).unwrap();
         assert_eq!(begun, [true, true]);
-        assert_eq!(steps, [infra(CI), infra(CONSUMER), Some(vec![])]);
+        assert_eq!(
+            steps,
+            [infra(&[CI, CONSUMER]), infra(&[CONSUMER, STACKED]), infra(&[CONSUMER]), infra(&[CONSUMER]), infra(&[])]
+        );
+        assert!(REORDERED.parse::<StepOutcomes>().is_err());
     }
 }
