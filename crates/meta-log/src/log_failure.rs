@@ -1,7 +1,8 @@
+use std::path::PathBuf;
+use std::time::{Duration, Instant};
+
 use meta_git::{GitFailure, RemoteName};
 use meta_run::Stderr;
-use std::path::PathBuf;
-use std::time::Duration;
 use thiserror::Error;
 
 use crate::git_log::{NotCommitId, Sha};
@@ -23,10 +24,35 @@ pub enum LogFailure {
     Rejected(Stderr),
     #[error("meta/log kept moving; gave up")]
     Contended,
+    #[error("meta/log fetch ran past its git_millis deadline; gave up")]
+    Expired,
     #[error("meta/log kept moving; gave up; {} is {}s old; delete it if no meta process is running", .lock.display(), .age.as_secs())]
     StaleLock { lock: PathBuf, age: Duration },
     #[error("{0}")]
     NotCommit(#[from] NotCommitId),
     #[error("{0}")]
     Encode(#[from] serde_json::Error),
+}
+
+impl LogFailure {
+    #[must_use]
+    pub fn gave_up(deadline: Instant) -> LogFailure {
+        deadline.checked_duration_since(Instant::now()).map_or(LogFailure::Expired, |_| LogFailure::Contended)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LogFailure;
+    use std::time::{Duration, Instant};
+    const AHEAD: Duration = Duration::from_secs(60);
+    const BEHIND: Duration = Duration::from_millis(1);
+
+    #[test]
+    fn giving_up_before_the_deadline_is_contention_and_after_it_is_expiry() {
+        let now = Instant::now();
+        let given = [now + AHEAD, now.checked_sub(BEHIND).unwrap()]
+            .map(|deadline| matches!(LogFailure::gave_up(deadline), LogFailure::Expired));
+        assert_eq!(given, [false, true]);
+    }
 }

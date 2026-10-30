@@ -1,7 +1,7 @@
 use std::cell::Cell;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use meta_git::{FirstParents, Layout, ObjectId, Reads, RefMove, RefName, RefTarget, Repository, Writes};
 use meta_schema::{Event, NewTask, Record};
@@ -31,6 +31,7 @@ const SECOND: usize = 1;
 const PAIR: usize = 2;
 const SINGLE: usize = 1;
 const PATIENT: Duration = Duration::from_secs(30);
+const SETTLED: Duration = Duration::from_secs(5);
 const ORIGIN_CONFIG_FILE: &str = "config";
 const ORIGIN_CONFIG: &str = "[core]\n\trepositoryformatversion = 0\n\tbare = true\n[maintenance]\n\tauto = false\n[receive]\n\tautogc = false\n";
 
@@ -87,7 +88,7 @@ impl Fixture {
     }
 
     fn log(&self, clone: usize) -> GitLog {
-        let budget = Budget::new(PATIENT);
+        let budget = Budget::new(PATIENT).within(Instant::now() + SETTLED);
         GitLog {
             pacing: Pacing::Immediate,
             ..GitLog::new(self.clones[clone].path().to_owned(), ORIGIN.parse().unwrap(), budget).unwrap()

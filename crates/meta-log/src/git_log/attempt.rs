@@ -1,5 +1,5 @@
 use std::hash::BuildHasher;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use meta_run::Budget;
 
@@ -26,7 +26,17 @@ impl Attempt {
 }
 
 impl Attempt {
-    pub fn settled<Found, Failure>(
+    pub fn within<Found, Failure>(
+        deadline: Instant,
+        budget: &Budget,
+        mut found: impl FnMut() -> Result<Option<Found>, Failure>,
+    ) -> Option<Result<Found, Failure>> {
+        let bounded = budget.within(deadline);
+        let attempts = Self::sequence().take_while(|_| deadline.checked_duration_since(Instant::now()).is_some());
+        attempts.into_iter().find_map(|attempt| attempt.settled(found(), &bounded))
+    }
+
+    fn settled<Found, Failure>(
         self,
         found: Result<Option<Found>, Failure>,
         budget: &Budget,
@@ -40,6 +50,21 @@ impl Attempt {
 #[cfg(test)]
 mod tests {
     use super::Attempt;
+    use crate::log_failure::LogFailure;
+    use meta_run::Budget;
+    use std::time::{Duration, Instant};
+    const PATIENCE: Duration = Duration::from_millis(64);
+    const SLACK: Duration = Duration::from_secs(2);
+
+    #[test]
+    fn a_retry_that_never_settles_gives_up_expired_by_a_deadline_each_call_takes_afresh() {
+        let (budget, started) = (Budget::new(PATIENCE), Instant::now());
+        let deadline = budget.deadline();
+        let gave_up = Attempt::within(deadline, &budget, || Ok::<Option<()>, ()>(None));
+        let expired = matches!(LogFailure::gave_up(deadline), LogFailure::Expired);
+        assert!(gave_up.is_none() && expired && started.elapsed() < PATIENCE + SLACK);
+        assert!(budget.deadline() > deadline);
+    }
 
     #[test]
     fn pauses_are_jittered_within_the_window() {

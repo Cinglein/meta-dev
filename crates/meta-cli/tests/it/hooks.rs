@@ -54,6 +54,7 @@ const HANGING_UPLOAD: &str = "[remote \"origin\"]\n\tuploadpack = sh -c 'sleep 5
 const META_TOML: &str = "meta.toml";
 const QUICK_GIT: &str = "[ci]\ngit_millis = 20\n";
 const SHORT_GIT: &str = "[ci]\ngit_millis = 250\n";
+const ROUTINE_GIT: &str = "[ci]\ngit_millis = 3000\n";
 const SLOW_RECEIVE: &str = "[remote \"origin\"]\n\treceivepack = sh -c 'sleep 0.3 && exec git receive-pack $1' x\n";
 const UNREADABLE: &str = "meta/log unreadable";
 const OPEN: [&str; 4] = ["open", "--division", "features-and-maintenance", "text"];
@@ -88,7 +89,7 @@ impl Repo {
         let clone = tempfile::tempdir().unwrap();
         Fixture::bare(origin.path(), "main");
         let cloned = Fixture::working(clone.path(), origin.path(), "main");
-        std::fs::write(clone.path().join("meta.toml"), CONFIG).unwrap();
+        std::fs::write(clone.path().join("meta.toml"), [CONFIG, ROUTINE_GIT].concat()).unwrap();
         std::fs::create_dir_all(clone.path().join("tooling")).unwrap();
         std::fs::write(clone.path().join("tooling/policy.toml"), "").unwrap();
         cloned.committed("start");
@@ -178,7 +179,7 @@ fn post_tool_use_pushes_unprotected_branches_and_reports_git_errors() {
     let slow_home = slow.clone.path();
     Fixture::opened(slow_home).stepped(&NEW_FEATURE);
     Config::configure(&slow_home.join(GIT_CONFIG), SLOW_RECEIVE);
-    Config::configure(&slow_home.join(META_TOML), SHORT_GIT);
+    std::fs::write(slow_home.join(META_TOML), [CONFIG, SHORT_GIT].concat()).unwrap();
     slow.hook(POST, COMMIT, slow_home);
     assert_eq!(Fixture::opened(slow.origin.path()).tip(FEATURE_BRANCH), Fixture::opened(slow_home).tip(HEAD));
 }
@@ -191,7 +192,7 @@ fn session_start_shows_state_and_names_the_session_actor() {
     assert!(shown.contains(NO_TASKS) && shown.contains(SESSION_ACTOR));
     assert_eq!(std::fs::read_to_string(home.join(ENV_FILE)).unwrap(), ENV_LINE);
     Config::configure(&home.join(GIT_CONFIG), HANGING_UPLOAD);
-    Config::configure(&home.join(META_TOML), QUICK_GIT);
+    std::fs::write(home.join(META_TOML), [CONFIG, QUICK_GIT].concat()).unwrap();
     let started = Instant::now();
     let shown = repo.hook(SESSION_START, COMMIT, home);
     assert!(home.join(SESSION_STARTED).exists() && started.elapsed() < PATIENT && shown.contains(UNREADABLE));

@@ -147,7 +147,7 @@ impl Project {
         let clone = tempfile::tempdir().unwrap();
         Fixture::bare(origin.path(), "main");
         Fixture::working(clone.path(), origin.path(), "main");
-        std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n").unwrap();
+        std::fs::write(clone.path().join("meta.toml"), "remote = \"origin\"\n[ci]\ngit_millis = 3000\n").unwrap();
         std::fs::create_dir_all(clone.path().join("tooling")).unwrap();
         std::fs::write(clone.path().join("tooling/policy.toml"), "").unwrap();
         Self { origin, clone }
