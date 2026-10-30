@@ -2,12 +2,13 @@ use std::fs::{self, File};
 use std::io;
 use std::path::{Path, PathBuf};
 
+use meta_git::{Head, ShortHead, WorktreeDetach, WorktreeFiles, WorktreePaths, WorktreePrune, WorktreeRemove};
 use task::{CommandLine, Program, Site, Stdout};
 use tempfile::TempDir;
 
 use crate::task::ci::local_gate::{MetaRev, RecordedTimes, Toolchain, Unready, Worktrees};
 use crate::task::failure::Failure;
-use crate::task::revision::Commit;
+use crate::task::revision::{Commit, GitReads};
 
 #[derive(Debug)]
 pub struct Checkout {
@@ -19,19 +20,9 @@ pub struct Checkout {
 }
 
 impl Checkout {
-    const REMOVE: [&str; 3] = ["worktree", "remove", "--force"];
-    const ADD: [&str; 3] = ["worktree", "add", "--detach"];
-    const PRUNE: [&str; 2] = ["worktree", "prune"];
-    const LIST: [&str; 3] = ["worktree", "list", "--porcelain"];
-    const CHANGES: [&str; 6] = ["status", "--porcelain", "--ignored", "--untracked-files=all", "--", ":/"];
-    const UNTRACKED_LOCK: &str = ":(exclude)Cargo.lock";
-    const TRACKED: [&str; 4] = ["ls-files", "--error-unmatch", "--", "Cargo.lock"];
-    const NO_HOOKS: [&str; 2] = ["-c", "core.hooksPath=/dev/null"];
     const RUSTUP: &str = "rustup";
     const ACTIVE_TOOLCHAIN: [&str; 2] = ["show", "active-toolchain"];
     const RUSTUP_ENVIRONMENT: [&str; 4] = ["PATH", "HOME", "RUSTUP_HOME", "CARGO_HOME"];
-    const HEAD: [&str; 2] = ["rev-parse", "HEAD"];
-    const SHORT_HEAD: [&str; 3] = ["rev-parse", "--short", "HEAD"];
     const GIT: &str = ".git";
     const CARGO_LOCK: &str = "Cargo.lock";
     const HELD: &str = "lock";
@@ -42,12 +33,8 @@ impl Checkout {
         let io = |error| Failure::from(task::Failure::Io { site: Site::File(parent.into()), error });
         let place = TempDir::new_in(parent).map_err(io)?.keep();
         let lock = Self::claimed(&place).map_err(io)?;
-        Self::git(repository)
-            .arguments(Self::ADD)
-            .argument(place.display())
-            .argument(&commit)
-            .captured::<Stdout>()
-            .inspect_err(|_| Self::discarded(&place))?;
+        let detach = commit.object_id().map(|id| WorktreeDetach::new(place.clone(), id));
+        detach.and_then(|detach| GitReads::new(repository).write(&detach)).inspect_err(|_| Self::discarded(&place))?;
         let scope = Self::scope_of(repository);
         Ok(Checkout { repository: repository.to_path_buf(), place, scope, commit, lock })
     }
@@ -61,13 +48,14 @@ impl Checkout {
         let io = |error| task::Failure::Io { site: Site::File(parent.into()), error };
         fs::create_dir_all(parent).map_err(io)?;
         let parent = parent.canonicalize().map_err(io)?;
-        let listed: Worktrees = Self::git(repository).arguments(Self::LIST).captured::<Stdout>()?.parse()?;
-        listed.below(&parent).iter().filter(|place| Self::claimed(place).is_ok()).try_for_each(|place| {
-            Self::git(repository).arguments(Self::REMOVE).argument(place.display()).run().inspect(|()| {
-                Self::discarded(place);
-            })
-        })?;
-        Self::git(repository).arguments(Self::PRUNE).run()?;
+        let git = GitReads::new(repository);
+        let listed = Worktrees::from(git.read(&WorktreePaths)?);
+        listed
+            .below(&parent)
+            .iter()
+            .filter(|place| Self::claimed(place).is_ok())
+            .try_for_each(|place| git.write(&WorktreeRemove::At(place.clone())).inspect(|()| Self::discarded(place)))?;
+        git.write(&WorktreePrune)?;
         Self::orphans(&parent).iter().filter(|place| Self::claimed(place).is_ok()).for_each(|place| {
             Self::discarded(place);
         });
@@ -99,15 +87,15 @@ impl Checkout {
     }
 
     pub fn intact(&self) -> Result<(), Failure> {
-        let head: Commit = Self::git(&self.place).arguments(Self::HEAD).captured::<Stdout>()?.parse()?;
-        let untracked_lock = Self::git(&self.root())
-            .arguments(Self::TRACKED)
-            .captured::<Stdout>()
-            .is_err()
-            .then_some(Self::UNTRACKED_LOCK);
-        let changes =
-            Self::git(&self.root()).arguments(Self::CHANGES).arguments(untracked_lock).captured::<Stdout>()?;
-        (head == self.commit && changes.is_empty()).then_some(()).ok_or(Unready::Tampered.into())
+        let git = GitReads::new(&self.place);
+        let head = git.read(&Head)?.commit().map(Commit::from);
+        let lock = self.scope.join(Self::CARGO_LOCK);
+        let tracked = git.read(&WorktreeFiles::Tracked)?;
+        let untracked_lock = Some(lock).filter(|lock| !tracked.contains(lock));
+        let touched = git.read(&WorktreeFiles::Touched)?;
+        (head.as_ref() == Some(&self.commit) && touched.iter().all(|path| Some(path) == untracked_lock.as_ref()))
+            .then_some(())
+            .ok_or(Unready::Tampered.into())
     }
 
     pub fn toolchain(&self) -> Result<Toolchain, Failure> {
@@ -123,7 +111,7 @@ impl Checkout {
         fs::read_to_string(self.root().join(Self::CARGO_LOCK)).ok().and_then(|lock| lock.parse().ok()).map_or_else(
             || {
                 if self.place.join(Self::META_SOURCE).exists() {
-                    Self::git(&self.place).arguments(Self::SHORT_HEAD).captured::<Stdout>()?.parse()
+                    GitReads::new(&self.place).read(&ShortHead)?.parse()
                 } else {
                     Ok(MetaRev::local())
                 }
@@ -144,10 +132,6 @@ impl Checkout {
         Ok(lock)
     }
 
-    fn git(directory: &Path) -> CommandLine {
-        CommandLine::new(Program::Git).in_directory(directory.to_path_buf()).arguments(Self::NO_HOOKS)
-    }
-
     fn orphans(parent: &Path) -> Vec<PathBuf> {
         fs::read_dir(parent)
             .map(|entries| {
@@ -165,10 +149,8 @@ impl Checkout {
 
 impl Drop for Checkout {
     fn drop(&mut self) {
-        Self::git(&self.repository)
-            .arguments(Self::REMOVE)
-            .argument(self.place.display())
-            .run()
+        GitReads::new(&self.repository)
+            .write(&WorktreeRemove::At(self.place.clone()))
             .unwrap_or_else(|failure| eprintln!("{failure}"));
         self.lock.unlock().ok();
         Self::discarded(&self.place);
