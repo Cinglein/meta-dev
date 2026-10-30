@@ -1707,3 +1707,4 @@
 {"at":"2026-10-30T06:11:56.783666Z","actor":"claude-paydown","kind":"TaskDone","task":"task-5ceee69704fbf750"}
 {"at":"2026-10-30T06:13:23.778041Z","actor":"claude-teststack1","kind":"TaskLinked","task":"task-d53f262aff86547a","pr":234}
 {"at":"2026-10-30T06:22:06.355598Z","actor":"claude-lead","kind":"TaskOpened","task":"task-7e42071427c5bd2e","text":"One reader for tooling/policy.toml: meta-cli ScalePolicy and tooling/task PolicyFile parse the same file with separate types and drift (#219 broke meta-cli's reader). Share the types, or generate one from the other","division":"architecture-and-planning"}
+{"at":"2026-10-30T06:25:33.808760Z","actor":"claude-lead","kind":"TaskOpened","task":"task-b220f507cc5a058f","text":"Projects PR 1: Project item schema (Proposed/Accepted/Instrumented/Active/Delivered/Regressed, Root, Acceptance rows and spans, Purpose serves/instruments/caused_by) per docs/design/projects.md (#232)","division":"architecture-and-planning"}
