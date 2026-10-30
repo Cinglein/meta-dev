@@ -42,6 +42,16 @@ impl Changes {
         }
     }
 
+    pub fn since_main_paths(
+        workspace: &Workspace,
+        base: &BranchName,
+    ) -> Result<Vec<PathBuf>, Failure> {
+        Self::since_main(workspace, base)
+            .captured::<Stdout>()
+            .map(|output| Self::listed(&output))
+            .map_err(|_| Failure::NoMergeBase)
+    }
+
     fn since_main(workspace: &Workspace, base: &BranchName) -> CommandLine {
         Self::diff(workspace)
             .argument(GitArgument::MergeBase)
@@ -57,6 +67,7 @@ impl Changes {
             .line(Program::Git)
             .argument(GitArgument::Diff)
             .argument(GitArgument::NameOnly)
+            .argument(GitArgument::NoRenames)
             .argument(GitArgument::Relative)
     }
 
