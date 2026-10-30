@@ -1,7 +1,7 @@
 use std::fmt;
 
+use process_tree::Host;
 use serde::{Deserialize, Serialize};
-use sysinfo::System;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -17,9 +17,7 @@ impl AvailableGib {
 
     #[must_use]
     pub fn measured() -> AvailableGib {
-        let mut system = System::new();
-        system.refresh_memory();
-        Self::from_bytes(system.available_memory())
+        Self::from_bytes(Host::available().count())
     }
 
     #[must_use]

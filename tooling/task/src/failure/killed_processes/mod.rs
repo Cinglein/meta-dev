@@ -24,17 +24,14 @@ impl fmt::Display for KilledProcesses {
 mod tests {
     use super::{KilledProcess, KilledProcesses};
     use crate::budget::AvailableGib;
-    use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System};
+    use process_tree::Victim;
     const TREE: AvailableGib = AvailableGib::from_bytes(1 << 30);
     const TAIL: &str = "GiB of 1 GiB used";
     const SEPARATOR: &str = ", ";
     #[test]
     fn each_killed_process_is_named_with_its_pid_and_memory_and_the_list_is_comma_separated() {
-        let pid = sysinfo::get_current_pid().unwrap();
-        let mut system = System::new();
-        let memory = ProcessRefreshKind::nothing().with_memory();
-        system.refresh_processes_specifics(ProcessesToUpdate::Some(&[pid]), true, memory);
-        let killed = |()| KilledProcess::new(system.process(pid).unwrap(), TREE);
+        let pid = std::process::id();
+        let killed = |()| KilledProcess::new(Victim::current().unwrap(), TREE);
         let shown = KilledProcesses::from(vec![killed(()), killed(())]).to_string();
         let one = shown.split(SEPARATOR).next().unwrap();
         assert!(one.contains(&format!(" (pid {pid}) at ")) && one.ends_with(TAIL));
