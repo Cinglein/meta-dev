@@ -1,6 +1,7 @@
 mod checkout;
 mod ci;
 mod cli_failure;
+mod dispatch;
 mod git_link;
 mod heartbeat;
 mod hook;
@@ -28,6 +29,7 @@ use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, N
 
 use ci::{Commit, FailureLog, SessionId, Watcher};
 use cli_failure::{CliFailure, Invalid, Misuse, Setup};
+use dispatch::Dispatch;
 use heartbeat::Heartbeat;
 use hook::HookEvent;
 use live_github::LiveGithub;
@@ -51,6 +53,7 @@ pub enum Request {
     Rate(Rate),
     Move(Relocate),
     ClaimWorktree(Claim),
+    Dispatch(Dispatch),
     Worktrees,
     Gc(Sweep),
     GcRestore(PathBuf),
@@ -117,12 +120,14 @@ impl TryFrom<Vec<String>> for Request {
             "resume" => Ok(Self::Write(Event::TaskUnblocked(task()?))),
             "link" => Ok(Self::Write(Event::TaskLinked(parsed.allowing(&[])?.task_link()?))),
             "claim" => {
-                let parsed = parsed.allowing(&[OptionName::From, OptionName::Worktree])?;
+                let parsed = parsed.allowing(&[OptionName::From, OptionName::Worktree, OptionName::Agent])?;
                 let claim = Claim::new(parsed.task()?, parsed.previous_claimant());
-                Ok(match parsed.flagged(OptionName::Worktree) {
-                    Some(()) => Self::ClaimWorktree(claim),
-                    None => Self::Write(Event::TaskClaimed(claim)),
-                })
+                match (parsed.flagged(OptionName::Worktree), parsed.dispatch(claim)) {
+                    (Some(()), Ok(_)) => Err(CliFailure::raised::<Misuse>("--agent and --worktree do not combine")),
+                    (Some(()), Err(claim)) => Ok(Self::ClaimWorktree(claim)),
+                    (None, Ok(dispatch)) => Ok(Self::Dispatch(dispatch)),
+                    (None, Err(claim)) => Ok(Self::Write(Event::TaskClaimed(claim))),
+                }
             }
             "worktrees" => parsed.allowing(&[]).map(|_| Self::Worktrees),
             "gc" => {
@@ -191,6 +196,9 @@ impl Request {
                 &project::HeartbeatSettings::try_from(project.config())?,
             ),
             Self::ClaimWorktree(claim) => LocalClone::try_from(project)?.claimed(project, claim, Self::actor()?),
+            Self::Dispatch(dispatch) => {
+                dispatch.rooted(project.root()).answer(&project.log(project.ci_settings().budget(CiSettings::ROUTINE))?)
+            }
             Self::Worktrees => LocalClone::try_from(project)?.worktrees(project),
             Self::Gc(sweep) => LocalClone::try_from(project)?.collected(project, sweep),
             Self::GcRestore(quarantine) => LocalClone::try_from(project)?.unstranded(&quarantine),
@@ -223,6 +231,7 @@ impl Request {
             Self::Move(relocate) => relocate.answer(log, policy, actor()?),
             Self::List(kind, scope) => Listed::from_log(log, kind, scope).map(Output::Listed),
             Self::Wait(block) => Self::Write(Event::TaskBlocked(block)).answer_from(log, policy, actor),
+            Self::Dispatch(dispatch) => dispatch.answer(log),
             Self::Hook(_)
             | Self::Heartbeat(_)
             | Self::Monitor(_)

@@ -1,3 +1,4 @@
+mod agent_call;
 mod call_phase;
 mod hook_input;
 mod linking;
@@ -20,6 +21,7 @@ use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
 use crate::request::output::{Listed, Output};
 use crate::request::project::{CiSettings, Config, Project};
 use crate::request::scale_policy::ScalePolicy;
+use agent_call::AgentCall;
 pub use call_phase::CallPhase;
 use hook_input::HookInput;
 use linking::Linking;
@@ -91,6 +93,7 @@ impl HookEvent {
             Ok(None) => self.outside_projects(&input),
             Err(failure) => Some(self.refused(Listed::new(failure))),
         };
+        let reply = AgentCall::reply(self, &stdin).or(reply);
         let opened = self.opens_session().and_then(|()| input.open_session().err());
         let reply = reply.map(|reply| reply.with_news(opened));
         let reply = reply.or_else(|| unstamped.as_ref().map(|_| Reply::new(self, Verdict::Allow, None)));

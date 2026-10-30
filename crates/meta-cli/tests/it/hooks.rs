@@ -118,19 +118,6 @@ impl Repo {
         child
     }
 
-    fn meta(&self, words: &[&str]) -> String {
-        let run = MetaCommand::tagged(words).current_dir(self.clone.path()).env("META_ACTOR", "writer").output();
-        String::from_utf8_lossy(&run.unwrap().stdout).into_owned()
-    }
-
-    fn agent(&self, prompt: &str) -> String {
-        let input =
-            serde_json::json!({ "cwd": self.clone.path(), "tool_name": "Agent", "tool_input": { "prompt": prompt } });
-        let mut child = MetaCommand::tagged(&[HOOK, PRE]).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
-        child.stdin.take().unwrap().write_all(input.to_string().as_bytes()).unwrap();
-        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
-    }
-
     fn interrupted(&self) -> bool {
         let root = self.clone.path().display().to_string();
         Config::configure(&self.clone.path().join(GIT_CONFIG), &HELPERS.replace(ROOT, &root));
@@ -214,14 +201,31 @@ fn session_start_shows_state_and_names_the_session_actor() {
     assert!(home.join(SESSION_STARTED).exists() && started.elapsed() < PATIENT && shown.contains(UNREADABLE));
 }
 
+struct Lead<'repo>(&'repo Path);
+
+impl Lead<'_> {
+    fn meta(&self, words: &[&str]) -> String {
+        let run = MetaCommand::tagged(words).current_dir(self.0).env("META_ACTOR", "writer").output();
+        String::from_utf8_lossy(&run.unwrap().stdout).into_owned()
+    }
+
+    fn agent(&self, prompt: &str) -> String {
+        let input = serde_json::json!({ "cwd": self.0, "tool_name": "Agent", "tool_input": { "prompt": prompt } });
+        let mut child = MetaCommand::tagged(&[HOOK, PRE]).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
+        child.stdin.take().unwrap().write_all(input.to_string().as_bytes()).unwrap();
+        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
+    }
+}
+
 #[test]
 fn pre_tool_use_starts_an_agent_only_with_the_lease_meta_claim_gave_it() {
     let repo = Repo::new();
-    let opened = repo.meta(&OPEN);
+    let lead = Lead(repo.clone.path());
+    let opened = lead.meta(&OPEN);
     let task = opened.split_whitespace().nth(ID_INDEX).unwrap();
-    let brief = repo.meta(&[&["claim", task][..], &DISPATCH].concat());
-    let refused = repo.agent(UNLEASED);
-    assert_eq!(repo.agent(&brief), "", "{brief}");
+    let brief = lead.meta(&[&["claim", task][..], &DISPATCH].concat());
+    let refused = lead.agent(UNLEASED);
+    assert_eq!(lead.agent(&brief), "", "{brief}");
     assert!(refused.contains(DENY) && refused.contains(HOW_TO_START), "{refused}");
 }
 

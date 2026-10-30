@@ -1,6 +1,6 @@
 use std::fmt;
 
-use meta_schema::Block;
+use meta_schema::{Actor, Block};
 use meta_state::TaskState;
 
 use crate::status::Status;
@@ -31,7 +31,11 @@ impl fmt::Display for TaskLine<'_> {
         self.status.pulls(self.task).iter().try_for_each(|pull_request| {
             write!(formatter, "{}{pull_request} {}", Self::SEPARATOR, self.status.github.sight(*pull_request))
         })?;
-        let holders: Vec<String> = self.status.state.holders(id).iter().map(ToString::to_string).collect();
+        let live = self.status.state.leases(id);
+        let shown = |actor: &Actor| {
+            live.iter().find(|leased| leased.holder() == actor).map_or_else(|| actor.to_string(), ToString::to_string)
+        };
+        let holders: Vec<String> = self.status.state.holders(id).iter().map(shown).collect();
         let held =
             holders.first().map_or_else(|| "no holder".to_owned(), |_| format!("held by {}", holders.join(", ")));
         write!(formatter, "{}{held}", Self::SEPARATOR)?;

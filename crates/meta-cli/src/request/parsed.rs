@@ -5,12 +5,13 @@ mod word;
 
 use meta_listing::{Kind, Scope};
 use meta_schema::{
-    Actor, Blocker, Division, DueTime, Entry, Id, LevelName, PullRequest, Scenario, Tag, Target, Task, TaskLink, Text,
-    Tokens,
+    Actor, Blocker, Claim, Division, DueTime, Entry, Id, LevelName, PullRequest, Scenario, Tag, Target, Task, TaskLink,
+    Text, Tokens,
 };
 
 use crate::request::ci::{Commit, SessionId};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
+use crate::request::dispatch::Dispatch;
 use crate::request::merge_queue::MergeQueue;
 use crate::request::rate::Rate;
 use crate::request::relocate::Relocate;
@@ -34,6 +35,7 @@ pub struct Parsed {
     view: StatusView,
     severity: Option<LevelName>,
     scenario: Option<Scenario>,
+    agent: Option<Actor>,
 }
 
 impl Parsed {
@@ -71,6 +73,9 @@ impl Parsed {
             }
             (OptionName::From, [value, rest @ ..]) => {
                 Self { from: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
+            }
+            (OptionName::Agent, [value, rest @ ..]) => {
+                Self { agent: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
             }
             (OptionName::Division, [value, rest @ ..]) => {
                 Self { division: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
@@ -244,6 +249,10 @@ impl Parsed {
         self.from.clone()
     }
 
+    pub fn dispatch(&self, claim: Claim) -> Result<Dispatch, Claim> {
+        self.agent.clone().map(|agent| Dispatch::new(claim.clone(), agent)).ok_or(claim)
+    }
+
     pub fn scope(&self) -> Scope {
         self.scope
     }
@@ -275,6 +284,7 @@ impl TryFrom<&[String]> for Parsed {
             view: StatusView::Tree,
             severity: None,
             scenario: None,
+            agent: None,
         };
         empty.take(args)
     }

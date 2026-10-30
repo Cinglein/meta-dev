@@ -56,7 +56,7 @@ pub use commit_id::CommitId;
 pub use division::Division;
 pub use due_time::DueTime;
 pub use email::Email;
-pub use entity::{Issue, Task};
+pub use entity::{Issue, Lease, Task};
 pub use entry::Entry;
 pub use entry_note::EntryNote;
 pub use event::Event;
