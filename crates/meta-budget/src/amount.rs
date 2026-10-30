@@ -3,10 +3,11 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::budget::Millis;
-use crate::budgets::budget::measure::Unit;
+use crate::baseline_file::BaselineFile;
+use crate::millis::Millis;
+use crate::most::Most;
 use crate::percent::Percent;
-use crate::policy::{BaselineFile, Most};
+use crate::unit::Unit;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
@@ -98,8 +99,7 @@ mod tests {
     use std::cmp::Ordering;
 
     use super::Amount;
-    use crate::percent::Percent;
-    use crate::policy::{BaselineFile, Most};
+    use crate::{BaselineFile, Most, Percent};
 
     const FEW: usize = 3;
     const MANY: usize = 5;
@@ -110,12 +110,8 @@ mod tests {
     fn amounts_order_within_a_unit_and_only_an_equal_baseline_compares_across() {
         let [few, many] = [FEW, MANY].map(|count| Amount::Count(Most::from(count)));
         let [small, large] = [FEW, MANY].map(|share| Amount::Share(Percent::from(share)));
-        let [file, other] =
-            [FILE, OTHER_FILE].map(|path| Amount::Baseline(BaselineFile::from(path)));
+        let [file, other] = [FILE, OTHER_FILE].map(|path| Amount::Baseline(BaselineFile::from(path)));
         assert!(many > few && large > small && few.partial_cmp(&small).is_none());
-        assert_eq!(
-            [file.partial_cmp(&file.clone()), file.partial_cmp(&other)],
-            [Some(Ordering::Equal), None]
-        );
+        assert_eq!([file.partial_cmp(&file.clone()), file.partial_cmp(&other)], [Some(Ordering::Equal), None]);
     }
 }

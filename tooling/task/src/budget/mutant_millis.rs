@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 mod unpriced_note;
 
-use super::millis::Millis;
 use crate::crate_name::CrateName;
+use meta_budget::Millis;
 use meta_schema::TopDivision;
 use unpriced_note::UnpricedNote;
 

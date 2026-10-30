@@ -1,7 +1,8 @@
 use std::fmt;
 
+use meta_budget::BudgetId;
+
 use super::super::budget::{Amount, Budget, Lines, State};
-use super::super::budget_id::BudgetId;
 use super::super::standing::Exposure;
 use crate::failure_kind::FailureKind;
 use crate::selection::Selection;
