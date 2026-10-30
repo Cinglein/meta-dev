@@ -1,5 +1,7 @@
 use std::fmt;
 
+use task::{CheckName, FailureSet};
+
 use crate::task::ci::CiStep;
 use crate::task::failure::Failure;
 
@@ -12,6 +14,11 @@ pub struct StepFailure {
 impl StepFailure {
     pub fn new(step: CiStep, failure: Failure) -> StepFailure {
         StepFailure { step, failure }
+    }
+
+    pub fn found(&self) -> FailureSet {
+        let job = CheckName::from(self.step);
+        self.failure.found(&job).or_infra(job)
     }
 }
 

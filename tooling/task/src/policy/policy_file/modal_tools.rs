@@ -1,8 +1,8 @@
-use meta_schema::Actor;
+use meta_schema::ToolName;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct QueueLanders {
-    landers: Vec<Actor>,
+pub struct ModalTools {
+    modal: Vec<ToolName>,
 }

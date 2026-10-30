@@ -20,7 +20,7 @@ Principles, ladder and design: `context/SPEC.md`. Build stages: `context/BOOTSTR
 - `goldens/`: real recorded git, gh and meta output (`<scenario>.toml` steps, `<scenario>/` recordings).
   `cargo xtask goldens` re-records git and meta ones (CI job `goldens` fails on any diff); gh ones refresh
   only in the scheduled `goldens-online` workflow. Recorded with git 2.54-2.55. Tests feed views, not fakes.
-- `context/` and this file: agent context (prose category 1). `README.md` and `docs/`: STE100
+- `context/`, `self/agent-rules.md` and this file: agent context (prose category 1). `README.md` and `docs/`: STE100
   documentation only (category 2).
 
 ## Upgrading
@@ -38,7 +38,7 @@ Principles, ladder and design: `context/SPEC.md`. Build stages: `context/BOOTSTR
 
 ## Process
 
-- Work from the log: `meta list`, `meta claim <task>`, `meta done <task>` once GitHub CI passes.
+- Work from the log: `meta list`, `meta claim <task>` before work. The lead runs `meta done <task>` after the PR merges.
   Report surprises with `meta issue`; vague worries with `meta concern`. Every new concern, issue
   and task takes `--division <path>` (a path under a top division, see `meta` usage).
 - One task, one small PR off `main`. Stack only a truly atomic sequence, and then only with

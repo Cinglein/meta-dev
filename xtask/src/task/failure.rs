@@ -7,6 +7,7 @@ use meta_golden::GoldenFailure;
 use meta_log::LogFailure;
 use meta_run::Unread;
 use meta_severity::{Demotions, ScaleFailure, Strands};
+use task::{CheckName, FailureSet, Unattributed};
 use thiserror::Error;
 
 use crate::task::adoption::Gaps;
@@ -15,6 +16,17 @@ use crate::task::ratchet::{Raised, Ratchet};
 use crate::task::revision::ForeignEmails;
 use crate::task::{Misplaced, TrackedBuildFiles};
 pub use step_failures::{StepFailure, StepFailures};
+
+impl Failure {
+    pub fn found(&self, job: &CheckName) -> FailureSet {
+        match self {
+            Failure::Task(failure) => failure.found(job),
+            Failure::Steps(steps) => steps.found(),
+            Failure::Unreached { failure, .. } => failure.found(job),
+            _ => FailureSet::default(),
+        }
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum Failure {
@@ -32,6 +44,10 @@ pub enum Failure {
     Written(#[from] toml::ser::Error),
     #[error("step summary: {0}")]
     Summary(io::Error),
+    #[error("{0}")]
+    Unattributed(#[from] Unattributed),
+    #[error("failures file: {0}")]
+    Failures(io::Error),
     #[error("gate not posted: {0}")]
     Unready(#[from] Unready),
     #[error("{0}")]
@@ -84,4 +100,22 @@ pub enum Failure {
     Adoption(Gaps),
     #[error("{skipped}: fails closed in CI: {failure}")]
     Unreached { skipped: String, failure: Box<Failure> },
+}
+
+#[cfg(test)]
+mod tests {
+    use task::{FailureKind, FailureSet, Printed};
+
+    use super::Failure;
+
+    const JOB: &str = "job";
+
+    #[test]
+    fn a_found_set_survives_wrapping_and_other_failures_name_nothing() {
+        let found = FailureSet::default().recording(FailureKind::Infra { job: JOB.into() });
+        let task = || task::Failure::Found { printed: Printed::Text(JOB.into()), found: found.clone() };
+        let wrapped = Failure::Unreached { skipped: JOB.into(), failure: Box::new(Failure::from(task())) };
+        assert!([Failure::from(task()), wrapped].iter().all(|failure| failure.found(&JOB.into()) == found));
+        assert!(Failure::NoLog.found(&JOB.into()).is_empty());
+    }
 }
