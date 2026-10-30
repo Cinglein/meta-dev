@@ -2,7 +2,6 @@ use std::fmt;
 use std::time::Duration;
 
 use super::clock::Clock;
-use task::FailureKind;
 
 use super::test_name::TestName;
 
@@ -23,10 +22,6 @@ impl TestTiming {
             Clock::Wall => self.elapsed,
             Clock::Cpu => self.cpu,
         }
-    }
-
-    pub(super) fn failure(&self) -> FailureKind {
-        self.name.failure()
     }
 
     pub(super) fn name(&self) -> &TestName {

@@ -10,7 +10,7 @@
 "meta-cli it hooks::post_tool_use_pushes_unprotected_branches_and_reports_git_errors" = 17
 "meta-cli it hooks::session_start_shows_state_and_names_the_session_actor" = 3
 "meta-cli it status::opening_a_pull_request_from_a_claimed_tasks_branch_links_it_and_status_flags_the_rest" = 27
-"meta-cli meta_cli request::live_github::tests::a_fake_gh_is_never_busy_for_writing_while_other_threads_spawn_processes" = 120
+"meta-cli meta_cli request::live_github::tests::a_fake_gh_is_never_busy_for_writing_while_other_threads_spawn_processes" = 12
 "meta-cli meta_cli request::live_github::tests::an_unreachable_or_unreadable_github_reads_as_unknown_with_its_reason" = 13
 "meta-cli meta_cli request::live_github::tests::one_graphql_call_then_the_base_rules_read_a_partial_reply_and_a_branch_lists_its_own_pull_requests" = 8
 "meta-cli meta_cli request::local::monitor::live_machine::tests::the_live_machine_lists_a_child_with_its_cwd_and_kills_its_group" = 5

@@ -1,2 +1,2 @@
-passed	1000000	1000000	passes	target/debug/deps/bin-1a2b3c
-failed	1000000	1000000	fails	target/debug/deps/bin-1a2b3c
+passed	1000000	1000000	bin	passes	target/debug/deps/bin-1a2b3c
+failed	1000000	1000000	bin	fails	target/debug/deps/bin-1a2b3c

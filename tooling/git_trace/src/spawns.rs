@@ -34,11 +34,13 @@ impl Spawns {
         let differing: Vec<&String> = traced.symmetric_difference(&timed).collect();
         match differing.first() {
             None => Ok(self),
-            Some(_) => Err(Failure::Found {
-                printed: Printed::Text(format!("traced and timed tests differ: {differing:?}")),
-                found: FailureSet::default().recording(FailureKind::Infra { job: Self::UNTRACED.into() }),
-            }),
+            Some(_) => Err(Self::untraced(format!("traced and timed tests differ: {differing:?}"))),
         }
+    }
+
+    fn untraced(text: String) -> Failure {
+        let found = FailureSet::default().recording(FailureKind::Infra { job: Self::UNTRACED.into() });
+        Failure::Found { printed: Printed::Text(text), found }
     }
 
     fn entries(directory: &Path) -> Result<Vec<PathBuf>, Failure> {
@@ -49,7 +51,7 @@ impl Spawns {
 
     fn read(mut self, test: &Path) -> Result<Spawns, Failure> {
         let late = Self::entries(&test.join(Self::GIT_TRACES))?;
-        let ended = |_| Err(Failure::Tests(format!("{} started git after it ended", test.display())));
+        let ended = |_| Err(Self::untraced(format!("{} started git after it ended", test.display())));
         late.first().map_or(Ok(()), ended)?;
         let git = GitProcesses::traced(&test.join(Self::SEALED_GIT_TRACES))?;
         let failed = |error| Failure::Io { site: Site::File(test.to_path_buf()), error };
