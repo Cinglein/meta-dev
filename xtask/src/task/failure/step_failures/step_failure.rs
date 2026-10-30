@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::task::ci::ci_step::CiStep;
+use crate::task::ci::CiStep;
 use crate::task::failure::Failure;
 
 #[derive(Debug)]
@@ -12,10 +12,6 @@ pub struct StepFailure {
 impl StepFailure {
     pub fn new(step: CiStep, failure: Failure) -> StepFailure {
         StepFailure { step, failure }
-    }
-
-    pub fn into_failure(self) -> Failure {
-        self.failure
     }
 }
 

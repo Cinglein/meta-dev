@@ -1,12 +1,10 @@
-mod step_failure;
 mod step_time;
 
 use std::fmt;
 use std::time::Duration;
 
 use crate::task::ci::ci_step::CiStep;
-use crate::task::failure::Failure;
-use step_failure::StepFailure;
+use crate::task::failure::{Failure, StepFailure, StepFailures};
 use step_time::StepTime;
 
 #[derive(Debug, Default)]
@@ -16,13 +14,20 @@ pub struct StepTimes {
 }
 
 impl StepTimes {
-    pub fn reported(mut failures: Vec<StepFailure>) -> Result<(), Failure> {
-        let last = failures.pop();
-        eprint!("{}", failures.iter().fold(String::new(), |shown, failure| shown + &failure.to_string() + "\n"));
-        last.map_or(Ok(()), |failure| Err(failure.into_failure()))
+    pub fn stepped(
+        &mut self,
+        steps: impl IntoIterator<Item = CiStep>,
+        mut run: impl FnMut(CiStep) -> Result<Duration, Failure>,
+    ) -> Result<(), Failure> {
+        let failures = steps.into_iter().filter_map(|step| self.record(step, run(step))).collect();
+        Self::reported(failures)
     }
 
-    pub fn record(&mut self, step: CiStep, outcome: Result<Duration, Failure>) -> Option<StepFailure> {
+    fn reported(failures: Vec<StepFailure>) -> Result<(), Failure> {
+        StepFailures::new(failures).map_or(Ok(()), |failures| Err(Failure::Steps(Box::new(failures))))
+    }
+
+    fn record(&mut self, step: CiStep, outcome: Result<Duration, Failure>) -> Option<StepFailure> {
         match outcome {
             Ok(elapsed) => {
                 self.passed.push(StepTime::new(step, elapsed));
@@ -46,31 +51,45 @@ impl fmt::Display for StepTimes {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
     use std::fs;
     use std::time::Duration;
 
-    use super::{StepFailure, StepTimes};
+    use super::StepTimes;
     use crate::task::ci::ci_step::CiStep;
     use crate::task::ci::{Ci, LogSource};
     use crate::task::failure::Failure;
     use crate::task::fixture::Fixture;
 
     const SECOND: Duration = Duration::from_secs(1);
-    const SHOWN: &str = "fmt 1.0s, clippy failed, test failed";
+    const STEPS: [CiStep; 4] = [CiStep::Fmt, CiStep::Clippy, CiStep::Test, CiStep::Lint];
+    const SHOWN: &str = "fmt 1.0s, lint 1.0s, clippy failed, test failed";
+    const LISTED: &str = "ci: clippy failed: clippy\nci: test failed: test";
     const TIMES: &str = "times";
 
     impl StepTimes {
-        fn failing(&mut self, step: CiStep) -> Option<StepFailure> {
-            self.record(step, Err(Failure::from(task::Failure::NoWorkspace)))
+        fn outcome(step: CiStep) -> Result<Duration, Failure> {
+            match step {
+                CiStep::Clippy | CiStep::Test => Err(Failure::from(task::Failure::Usage(step.to_string()))),
+                _ => Ok(SECOND),
+            }
         }
     }
 
     #[test]
-    fn passed_steps_show_their_time_a_failed_step_fails_the_gate_and_a_gate_child_records_them() {
+    fn the_loop_runs_past_failing_steps_and_fails_listing_every_one_with_its_step() {
+        let (ran, mut times) = (Cell::new(0), StepTimes::default());
+        let stepped = times.stepped(STEPS, |step| {
+            ran.set(ran.get() + 1);
+            StepTimes::outcome(step)
+        });
+        assert_eq!((ran.get(), stepped.err().map(|failure| failure.to_string())), (4, Some(LISTED.to_owned())));
+    }
+
+    #[test]
+    fn no_failing_step_passes_and_a_gate_child_records_every_step_time() {
         let (fixture, mut times) = (Fixture::new(), StepTimes::default());
-        assert!(times.record(CiStep::Fmt, Ok(SECOND)).is_none());
-        let failures = [CiStep::Clippy, CiStep::Test].map(|step| times.failing(step)).into_iter().flatten().collect();
-        assert!(StepTimes::reported(failures).is_err());
+        assert!(times.stepped([], StepTimes::outcome).is_ok() && times.stepped(STEPS, StepTimes::outcome).is_err());
         Ci::new(None, None, Some(fixture.path(TIMES)), LogSource::Origin).recorded(&times).unwrap();
         assert_eq!(fs::read_to_string(fixture.path(TIMES)).ok().as_deref(), Some(SHOWN));
     }

@@ -69,18 +69,9 @@ impl Ci {
                     .map_err(Failure::from)
                     .and_then(|()| TrackedBuildOutput::refuse(workspace.root()))
                     .and_then(|()| TrackedWork::refuse_untracked(&run, read));
-                let stepped = StepTimes::reported(
-                    tracked
-                        .is_ok()
-                        .then(CiStep::iter)
-                        .into_iter()
-                        .flatten()
-                        .filter_map(|step| {
-                            let outcome = step.timed(workspace, selection, policy, &mut ledger);
-                            times.record(step, outcome)
-                        })
-                        .collect(),
-                );
+                let stepped = times.stepped(tracked.is_ok().then(CiStep::iter).into_iter().flatten(), |step| {
+                    step.timed(workspace, selection, policy, &mut ledger)
+                });
                 let outcome = tracked
                     .and(stepped)
                     .and_then(|()| StandingLog::enforcing(&run, &mut ledger, prior))
