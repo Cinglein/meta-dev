@@ -1,4 +1,5 @@
 mod test_binary;
+mod test_traces;
 
 use std::env;
 use std::fs::OpenOptions;
@@ -6,8 +7,10 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use super::test_runs::TestRuns;
+use meta_run::SpawnTrace;
 use task::{Failure, Site};
 use test_binary::TestBinary;
+use test_traces::TestTraces;
 
 #[derive(Debug)]
 pub struct TestRunner;
@@ -25,7 +28,9 @@ impl TestRunner {
         let runs = env::var_os(Self::RUNS)
             .map(PathBuf::from)
             .ok_or(Failure::Unset(Self::RUNS))?;
-        TestRunner::recorded(&TestBinary::new(binary, arguments), &runs)
+        let traces =
+            env::var_os(SpawnTrace::VARIABLE).map(|root| TestTraces::new(PathBuf::from(root)));
+        TestRunner::recorded(&TestBinary::new(binary, arguments, traces), &runs)
     }
 
     fn recorded(binary: &TestBinary, runs: &Path) -> Result<(), Failure> {
@@ -62,7 +67,10 @@ mod tests {
     fn a_binary_that_cannot_list_fails_and_one_that_lists_nothing_runs_once_as_one_test() {
         let runs = tempfile::NamedTempFile::new().unwrap();
         let recorded = |binary: &str| {
-            TestRunner::recorded(&TestBinary::new(PathBuf::from(binary), []), runs.path())
+            TestRunner::recorded(
+                &TestBinary::new(PathBuf::from(binary), [], None),
+                runs.path(),
+            )
         };
         assert!(recorded(CANNOT_LIST).is_err() && recorded(LISTS_NOTHING).is_ok());
         let read = fs::read_to_string(runs.path()).unwrap();

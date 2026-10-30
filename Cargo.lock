@@ -813,6 +813,7 @@ dependencies = [
  "elegance",
  "git2",
  "git_starters",
+ "git_trace",
  "meta-golden",
  "meta-log",
  "meta-run",
@@ -1393,6 +1394,7 @@ dependencies = [
  "derive_more",
  "enum-map",
  "meta-budget",
+ "meta-run",
  "meta-schema",
  "meta-severity",
  "meta-state",
@@ -1436,6 +1438,7 @@ name = "test_time"
 version = "0.1.0"
 dependencies = [
  "git_trace",
+ "meta-run",
  "rusage",
  "settings",
  "strum",

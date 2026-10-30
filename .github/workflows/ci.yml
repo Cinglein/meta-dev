@@ -65,7 +65,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
-  git-count:
+  process-count:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -246,7 +246,7 @@ jobs:
         shell: bash
 
   ci-gate:
-    needs: [ci, macos, macos-mutants, git-count, goldens, build-time, stacked, mutants-plan, mutants, mutant-costs]
+    needs: [ci, macos, macos-mutants, process-count, goldens, build-time, stacked, mutants-plan, mutants, mutant-costs]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:

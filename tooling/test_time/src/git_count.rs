@@ -1,3 +1,4 @@
+use git_trace::Spawns;
 use task::{Failure, Ledger, Measure, Policy, Selection, Workspace};
 
 use super::TestTime;
@@ -14,11 +15,11 @@ impl GitCount {
         selection: &Selection,
         policy: &Policy,
         ledger: &mut Ledger,
-    ) -> Result<(), Failure> {
+    ) -> Result<Spawns, Failure> {
         selection.reaching().map_or_else(
             || {
-                println!("git count: no crate affected");
-                Ok(())
+                println!("process count: no crate affected");
+                Ok(Spawns::default())
             },
             |selection| {
                 let execution = Execution::counting()?;
@@ -26,8 +27,8 @@ impl GitCount {
                 TestTime::timings(workspace, selection, policy, &execution)?;
                 let counted = execution.processes()?;
                 println!("{counted}");
-                ledger.spend(Measure::GitProcesses, counted.amount());
-                Ok(())
+                ledger.spend(Measure::GitProcesses, counted.git().amount());
+                Ok(counted)
             },
         )
     }

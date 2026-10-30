@@ -65,6 +65,10 @@ impl PriorPolicy {
     pub fn baseline(&self) -> Option<&BaselineFile> {
         self.baseline.as_ref().or_else(|| self.budgets.values().find_map(PriorBudget::baseline))
     }
+
+    pub fn holds(&self, file: &BaselineFile) -> bool {
+        self.budgets.values().any(|budget| budget.baseline() == Some(file))
+    }
 }
 
 #[cfg(test)]

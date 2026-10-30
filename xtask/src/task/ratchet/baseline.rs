@@ -4,7 +4,7 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use task::{BaselineFile, BranchName, Site};
+use task::{BaselineFile, Branch, BranchName, Policy, Site};
 
 use crate::task::failure::Failure;
 use crate::task::prior_policy::PriorPolicy;
@@ -31,6 +31,16 @@ impl Baseline {
         let revision = Revision::merge_base(root, base)?;
         let prior_policy = PriorPolicy::read_at(&revision)?;
         allowed.kept(revision.present(prior_policy.baseline().unwrap_or(file).path())?.as_deref())
+    }
+
+    pub fn budgeted(root: &Path, file: &BaselineFile, policy: &Policy) -> Result<Baseline, Failure> {
+        let allowed = Self::read(&file.within(root))?;
+        let revision = Revision::merge_base(root, policy.branch(Branch::Base))?;
+        if PriorPolicy::read_at(&revision)?.holds(file) {
+            allowed.kept(revision.present(file.path())?.as_deref())
+        } else {
+            Ok(allowed)
+        }
     }
 
     fn kept(self, prior: Option<&str>) -> Result<Baseline, Failure> {
@@ -96,7 +106,8 @@ mod tests {
         let budgeted = Policy::DEFAULTS.replace(SELF_BASELINE, MOVED);
         let moved = [MOVED_POLICY, &budgeted, &format!("{UNREADABLE}{budgeted}")].map(|policy| {
             let prior: PriorPolicy = toml::from_str(policy).unwrap();
-            prior.baseline().unwrap_or(&BaselineFile::from(BASELINE)) == &BaselineFile::from(MOVED)
+            let held = prior.holds(&BaselineFile::from(MOVED)) == (policy != MOVED_POLICY);
+            held && prior.baseline().unwrap_or(&BaselineFile::from(BASELINE)) == &BaselineFile::from(MOVED)
         });
         assert!(moved.iter().all(|moved| *moved));
     }

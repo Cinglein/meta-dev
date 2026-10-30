@@ -11,6 +11,7 @@ use listing::Listing;
 use test_argument::TestArgument;
 
 use crate::test_run::TestRun;
+use crate::test_runner::test_traces::TestTraces;
 use crate::test_timing::TestTiming;
 use rusage::ChildrenCpu;
 use task::Failure;
@@ -20,15 +21,21 @@ use task::{CommandLine, Program, Site, Stdout};
 pub(super) struct TestBinary {
     path: PathBuf,
     arguments: Vec<String>,
+    traces: Option<TestTraces>,
 }
 
 impl TestBinary {
     const WHOLE: &str = "main";
 
-    pub(super) fn new(path: PathBuf, arguments: impl IntoIterator<Item = String>) -> TestBinary {
+    pub(super) fn new(
+        path: PathBuf,
+        arguments: impl IntoIterator<Item = String>,
+        traces: Option<TestTraces>,
+    ) -> TestBinary {
         TestBinary {
             path,
             arguments: arguments.into_iter().collect(),
+            traces,
         }
     }
 
@@ -69,9 +76,13 @@ impl TestBinary {
                 error,
             })
         };
+        let traced = self.traces.as_ref().map_or_else(
+            || Ok(line.clone()),
+            |traces| traces.traced(line.clone(), &self.path, &test),
+        );
         let before = cpu();
         let started = Instant::now();
-        let ran = line.captured::<Stdout>();
+        let ran = traced.and_then(|line| line.captured::<Stdout>());
         let elapsed = started.elapsed();
         let spent = before.and_then(|before| cpu().map(|after| after.since(before)));
         let timing = |cpu| TestTiming::new(&self.path, &test, elapsed, cpu);

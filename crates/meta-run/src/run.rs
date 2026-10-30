@@ -21,6 +21,7 @@ use crate::env_policy::EnvPolicy;
 use crate::environment::Environment;
 use crate::ran::Ran;
 use crate::run_failure::RunFailure;
+use crate::spawn_trace::SpawnTrace;
 use crate::stderr::Stderr;
 use crate::stdout::Stdout;
 use crate::unread::Unread;
@@ -150,7 +151,9 @@ impl Run {
         deadline.checked_duration_since(Instant::now()).ok_or_else(|| RunFailure::Expired(line.clone()))?;
         let stdin = self.input.as_ref().map_or_else(Stdio::null, |_| Stdio::piped());
         let piped = self.command.stdin(stdin).stdout(Stdio::piped()).stderr(Stdio::piped());
-        let mut child = piped.spawn().map_err(|source| RunFailure::Unspawned { line: line.clone(), source })?;
+        let unspawned = |source| RunFailure::Unspawned { line: line.clone(), source };
+        SpawnTrace::started(piped).map_err(unspawned)?;
+        let mut child = piped.spawn().map_err(unspawned)?;
         let _member = joined(&mut child).ok_or_else(|| RunFailure::Interrupted(line.clone()))?;
         let fed = child.stdin.take().zip(self.input);
         fed.map(|(mut pipe, input)| std::thread::spawn(move || pipe.write_all(input.as_bytes())));
@@ -180,7 +183,9 @@ impl Run {
         let _watched = Interrupts::watched();
         Group::accepting().ok_or_else(|| RunFailure::Interrupted(line.clone()))?;
         let quiet = self.command.process_group(i32::default()).stdin(Stdio::null()).stdout(Stdio::null());
-        quiet.stderr(Stdio::null()).spawn().map(drop).map_err(|source| RunFailure::Unspawned { line, source })
+        let unspawned = |source| RunFailure::Unspawned { line: line.clone(), source };
+        SpawnTrace::started(quiet).map_err(unspawned)?;
+        quiet.stderr(Stdio::null()).spawn().map(drop).map_err(unspawned)
     }
 
     fn drained<Pipe: Read + Send + 'static, Text: Send + 'static>(

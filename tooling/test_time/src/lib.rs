@@ -6,6 +6,7 @@ mod git_count;
 mod no_tests;
 mod reference_cpu;
 mod runner_config;
+mod test_name;
 mod test_run;
 mod test_runner;
 mod test_runs;

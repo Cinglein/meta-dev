@@ -24,6 +24,8 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::process::{Child, Command, Output, Stdio};
 
+use meta_run::SpawnTrace;
+
 use crate::failure::Failure;
 
 #[derive(Clone, Debug)]
@@ -106,11 +108,11 @@ impl CommandLine {
     }
 
     pub fn run(&self) -> Result<(), Failure> {
-        self.finished(self.command())
+        self.finished(self.command()?)
     }
 
     pub fn run_holding(&self, held: File) -> Result<(), Failure> {
-        let mut command = self.command();
+        let mut command = self.command()?;
         command.stdin(held);
         self.finished(command)
     }
@@ -125,7 +127,7 @@ impl CommandLine {
     }
 
     pub fn spawn(&self) -> Result<Child, Failure> {
-        self.command()
+        self.command()?
             .spawn()
             .map_err(|_| Failure::Command(self.to_string()))
     }
@@ -153,7 +155,7 @@ impl CommandLine {
 
     fn output(&self) -> Result<Output, Failure> {
         let output = self
-            .command()
+            .command()?
             .output()
             .map_err(|_| Failure::Command(self.to_string()))?;
         if output.status.success() {
@@ -171,7 +173,7 @@ impl CommandLine {
         }
     }
 
-    fn command(&self) -> Command {
+    fn command(&self) -> Result<Command, Failure> {
         let mut command = Command::new(self.program.to_string());
         command.args(&self.arguments);
         self.directory.iter().for_each(|directory| {
@@ -181,7 +183,9 @@ impl CommandLine {
             command.env_clear().envs(inherited);
         });
         command.envs(&self.variables);
-        command
+        SpawnTrace::started(&command)
+            .map(|()| command)
+            .map_err(|_| Failure::Command(self.to_string()))
     }
 }
 
