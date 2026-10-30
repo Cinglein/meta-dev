@@ -1,13 +1,15 @@
 [package]
-name = "meta-amount"
-description = "Budget amounts: counts, durations, shares and baselines."
+name = "meta-acceptance"
+description = "Project acceptance: budget rows, spans, enforcement points and verdicts."
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
 license.workspace = true
 
 [dependencies]
+meta-budget.workspace = true
 serde.workspace = true
+thiserror.workspace = true
 
 [lints]
 workspace = true

@@ -1,4 +1,5 @@
-use meta_schema::{BudgetId, LevelName};
+use meta_budget::BudgetId;
+use meta_schema::LevelName;
 use thiserror::Error;
 
 use crate::domains::ScopeKind;

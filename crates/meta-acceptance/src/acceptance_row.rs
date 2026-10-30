@@ -1,16 +1,20 @@
 use std::fmt;
 
-use meta_amount::Amount;
+use meta_budget::{Amount, BudgetId, MeasureName};
 use serde::{Deserialize, Serialize};
-
-use crate::budget_id::BudgetId;
-use crate::measure_name::MeasureName;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AcceptanceRow {
     budget: BudgetId,
     measure: MeasureName,
     target: Amount,
+}
+
+impl AcceptanceRow {
+    #[must_use]
+    pub fn budget(&self) -> &BudgetId {
+        &self.budget
+    }
 }
 
 impl fmt::Display for AcceptanceRow {

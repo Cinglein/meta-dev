@@ -5,7 +5,7 @@ mod statement;
 
 use std::collections::BTreeMap;
 
-use meta_schema::BudgetId;
+use meta_budget::BudgetId;
 
 use super::budget::{Amount, Budget, Measure};
 use super::standing::{Exposure, Standing};

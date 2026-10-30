@@ -9,8 +9,7 @@ mod window;
 
 use std::collections::BTreeMap;
 
-use meta_amount::Percent;
-use meta_schema::BudgetId;
+use meta_budget::{BudgetId, Percent};
 use serde::{Deserialize, Serialize};
 
 use super::tree_failure::TreeFailure;

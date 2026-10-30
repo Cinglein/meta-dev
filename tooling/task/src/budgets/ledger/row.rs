@@ -1,6 +1,6 @@
 use std::fmt;
 
-use meta_schema::BudgetId;
+use meta_budget::BudgetId;
 
 use super::super::budget::{Amount, Budget, Lines, State};
 use super::super::standing::Exposure;

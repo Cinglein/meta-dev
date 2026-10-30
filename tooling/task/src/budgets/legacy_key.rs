@@ -1,4 +1,4 @@
-use meta_schema::BudgetId;
+use meta_budget::BudgetId;
 use strum::{Display, EnumIter};
 
 use super::budget::{Measure, MutationJob};
@@ -52,7 +52,7 @@ impl LegacyKey {
             LegacyKey::SccItems => "tangle-items",
             LegacyKey::Baseline => "lint-findings",
         };
-        BudgetId::from(name.to_owned())
+        BudgetId::from(name)
     }
 
     #[must_use]

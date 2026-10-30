@@ -3,13 +3,14 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::acceptance_failure::AcceptanceFailure;
 use crate::enforcement::Enforcement;
+use crate::vec1::Vec1;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Gating(Vec<Enforcement>);
+pub struct Gating(Vec1<Enforcement>);
 
 impl Gating {
     #[must_use]
-    pub fn as_slice(&self) -> &[Enforcement] {
+    pub fn points(&self) -> &Vec1<Enforcement> {
         &self.0
     }
 }
@@ -22,8 +23,9 @@ impl Serialize for Gating {
 
 impl<'de> Deserialize<'de> for Gating {
     fn deserialize<In: Deserializer<'de>>(deserializer: In) -> Result<Self, In::Error> {
-        let points = Vec::<Enforcement>::deserialize(deserializer)?;
+        let points = Vec1::<Enforcement>::deserialize(deserializer)?;
         points
+            .as_slice()
             .iter()
             .any(|point| !matches!(point, Enforcement::Hook(_)))
             .then_some(Self(points))

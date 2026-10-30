@@ -19,7 +19,7 @@ use crate::gate_env_name::GateEnvName;
 use crate::gate_status::GateStatus;
 pub use floor::Floor;
 pub use limit::Limit;
-pub use meta_amount::{BaselineFile, Most};
+pub use meta_budget::{BaselineFile, Most};
 
 pub use share::Share;
 pub use spec_settings::SpecSettings;

@@ -8,8 +8,7 @@ mod tree_failure;
 use std::collections::{BTreeMap, BTreeSet};
 use std::iter;
 
-use meta_amount::Percent;
-use meta_schema::BudgetId;
+use meta_budget::{BudgetId, Percent};
 use meta_severity::Scales;
 use serde::{Deserialize, Serialize};
 

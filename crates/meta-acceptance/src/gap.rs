@@ -1,15 +1,15 @@
 use std::fmt;
 
-use meta_trace::SpanKind;
+use meta_budget::BudgetId;
 use serde::{Deserialize, Serialize};
 
-use crate::budget_id::BudgetId;
+use crate::span_name::SpanName;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Gap {
     Unmeasured(BudgetId),
-    NoSpan(SpanKind),
+    NoSpan(SpanName),
 }
 
 impl fmt::Display for Gap {

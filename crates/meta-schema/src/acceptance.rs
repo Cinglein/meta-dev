@@ -1,11 +1,10 @@
 use std::fmt;
 
+use meta_acceptance::{Gating, Observability};
 use serde::{Deserialize, Serialize};
 
 use crate::entity::Project;
-use crate::gating::Gating;
 use crate::id::Id;
-use crate::observability::Observability;
 use crate::root::Root;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -20,6 +19,6 @@ pub struct Acceptance {
 impl fmt::Display for Acceptance {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{} {} {}", self.project, self.root, self.observability)?;
-        self.enforcement.as_slice().iter().try_for_each(|point| write!(formatter, " gate {point}"))
+        self.enforcement.points().as_slice().iter().try_for_each(|point| write!(formatter, " gate {point}"))
     }
 }

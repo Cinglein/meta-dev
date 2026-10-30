@@ -1,8 +1,8 @@
 use std::fmt;
 
+use meta_budget::BudgetId;
 use serde::{Deserialize, Serialize};
 
-use crate::budget_id::BudgetId;
 use crate::enforcement::Enforcement;
 use crate::gap::Gap;
 

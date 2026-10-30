@@ -38,7 +38,7 @@ pub use failure::{FailedRuns, Failure, KilledProcess, KilledProcesses};
 pub use gate_env_name::GateEnvName;
 pub use gate_status::GateStatus;
 pub use line_number::LineNumber;
-pub use meta_amount::Percent;
+pub use meta_budget::Percent;
 pub use meta_schema::TopDivision;
 pub use mutant_count::MutantCount;
 pub use name::{Casing, LoweredInfix, Name, Prefix, Whole};

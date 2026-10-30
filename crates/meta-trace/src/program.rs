@@ -2,15 +2,11 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::process::Command;
 
-use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString, VariantArray};
 
 use crate::span_kind::SpanKind;
 
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Display, EnumString, VariantArray, Serialize, Deserialize,
-)]
-#[serde(rename_all = "lowercase")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Display, EnumString, VariantArray)]
 #[strum(serialize_all = "lowercase")]
 pub enum Program {
     Git,

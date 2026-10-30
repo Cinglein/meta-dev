@@ -1,10 +1,6 @@
-use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString, VariantArray};
 
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Display, EnumString, VariantArray, Serialize, Deserialize,
-)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Display, EnumString, VariantArray)]
 #[strum(serialize_all = "kebab-case")]
 pub enum Verb {
     Concern,

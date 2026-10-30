@@ -1,7 +1,6 @@
 use std::fmt;
 use std::process::Command;
 
-use serde::{Deserialize, Serialize};
 use tracing::span::EnteredSpan;
 
 use crate::kind_code::KindCode;
@@ -10,8 +9,7 @@ use crate::program::Program;
 use crate::stitch::Stitch;
 use crate::verb::Verb;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SpanKind {
     Command(Verb),
     Spawn(Program),

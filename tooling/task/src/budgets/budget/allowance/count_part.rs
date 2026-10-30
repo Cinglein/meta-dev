@@ -1,5 +1,4 @@
-use meta_amount::Most;
-use meta_schema::BudgetId;
+use meta_budget::{BudgetId, Most};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
