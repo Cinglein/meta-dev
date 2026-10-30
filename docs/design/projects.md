@@ -11,7 +11,13 @@ Task: task-7b6e5d9baadb95f8. This document is a design only. It absorbs the feat
 - Signal (K5): readings from main, the no-progress flag and the regression flag (§3, §5).
 - Edge (K3): `serves`, `caused_by` and the decision `blocks` edge (§4).
 
-There is one new value type, `Purpose`. There are no new scales, no new ledgers and no new journals.
+The new value types are `Purpose` and `Root`. There are no new scales, no new ledgers and no new journals.
+
+**Root** (owner, 2026-10-30). Each project addresses one of two root concerns:
+- `process`: enforcement. We bind ourselves to a better subset of actions than naive instinct.
+- `state`: architecture. This is everything we built, both features and own goals.
+
+Performance, cost and measurement are symptoms of these two roots. They are not a root. The Delivered guard is the pairing of the two roots: the measure on target is the state change, and the gating enforcement is the process that keeps it.
 
 ## 1. Typestate
 
@@ -20,7 +26,7 @@ There is one new value type, `Purpose`. There are no new scales, no new ledgers 
 | From | To | Event | Guard | Who |
 |---|---|---|---|---|
 | — | Proposed | `ProjectProposed` | The goal text is not empty. The division is known. | Any actor. |
-| Proposed | Accepted | `ProjectAccepted` | The CLI checks that each acceptance budget id is in `tooling/policy.toml` on main. The type requires at least one CI-side enforcement point (§3). | Owner only. |
+| Proposed | Accepted | `ProjectAccepted` | The CLI checks that each acceptance budget id is in `tooling/policy.toml` on main. The type requires a root and at least one CI-side enforcement point (§3). | Owner only. |
 | Accepted | Active | none (derived) | A task that serves the project has a holder. | — |
 | Active | Accepted | none (derived) | No task that serves the project has a holder. | — |
 | Accepted or Active | Delivered | `ProjectObserved` | Every acceptance row is on target on main. Every enforcement point is gating on main. The evidence names the main commit and its push run. | meta only (`meta project observe`). |
@@ -44,7 +50,7 @@ New events:
 | Event | Payload |
 |---|---|
 | `ProjectProposed` | `NewProject { project, text, division }` |
-| `ProjectAccepted` | `Acceptance { project, target: Vec1<BudgetId>, enforcement: Vec1<Enforcement> }` |
+| `ProjectAccepted` | `Acceptance { project, root: Root, target: Vec1<BudgetId>, enforcement: Vec1<Enforcement> }` |
 | `ProjectObserved` | `Observation { project, main: CommitId, run: RunId, verdict: OnTarget \| OffTarget(BudgetId) \| NotGating(Enforcement) }` |
 | `TaskPurposed` | `TaskPurpose { task, purpose: Purpose }` (attach an existing task) |
 
@@ -54,7 +60,10 @@ Changed event: `TaskOpened` gains `purpose: Option<Purpose>`, with `#[serde(defa
 Purpose = Serves(Id<Project>)
         | CausedBy { cause: Cause, project: Option<Id<Project>> }
 Cause   = Pull(PullRequest) | Item(Target) | Task(Id<Task>)
+Root    = Process | State
 ```
+
+`root` is set at Accepted, not at Proposed. The owner decides it with the measure. A Proposed project has no root, so its type has no `root` field. A new root needs a new `ProjectAccepted` before delivery, as for the measure.
 
 `Purpose` is one enum, so a task cannot both serve and be an own goal. The `project` in `CausedBy` only places the task under a project in status. Its spend stays an own goal.
 
@@ -136,14 +145,15 @@ The last two rows make the measure fail closed. Unlinked spend is visible, so th
 
 ```
 projects:
-  project-1a2b tests below warn       Active     test-time 5.9s>4.8s  test-spawns 31>0   gate budget:test-time ok, step:test ok    spend 41.2M  [no progress 9.0M]
-  project-3c4d dogfooding gate        Accepted   unlinked-spawns 4>0  direct-merges 2>0   gate hook:agent-lease ok, budget:direct-merges MISSING  spend 3.1M
-  project-5e6f elegance lint gating   Proposed   —
-  project-7a8b waterfalls             Delivered  untraced-share 6%<=10%                   gate budget:untraced-share ok              spend 18.0M
+  project-1a2b tests below warn       Active    state    test-time 5.9s>4.8s  test-spawns 31>0   gate budget:test-time ok, step:test ok    spend 41.2M  [no progress 9.0M]
+  project-3c4d dogfooding gate        Accepted  process  unlinked-spawns 4>0  direct-merges 2>0   gate hook:agent-lease ok, budget:direct-merges MISSING  spend 3.1M
+  project-5e6f elegance lint gating   Proposed  —
+  project-7a8b waterfalls             Delivered process  untraced-share 6%<=10%                   gate budget:untraced-share ok              spend 18.0M
 own goals: 22.4M of 84.7M (26%): caused_by 15.0M, unlinked 7.4M
 goal: 84.7M / 1 delivered (7d)
 ```
 
+- Each project shows its root (`process` or `state`) after its stage, once it is Accepted.
 - Each acceptance row shows `now` against its warning line, from main's latest artifact.
 - Each enforcement point shows `ok` (gating) or `MISSING`.
 - Spend shows `spend unmeasured` until the spend ledger lands (the existing `EffortSpend::Unmeasured`).
@@ -175,7 +185,7 @@ goal: 84.7M / 1 delivered (7d)
 
 Each PR is small and comes off main. Each first commit is red first.
 
-1. **Schema.** `Project` entity, `Purpose`, `Cause`, four events, `TaskOpened.purpose`, version 8. Red: round-trip and old-log rows fail.
+1. **Schema.** `Project` entity, `Purpose`, `Cause`, `Root`, four events, `TaskOpened.purpose`, version 8. Red: round-trip and old-log rows fail.
 2. **Fold.** `ProjectState` typestate, the refusals in §1 and §6, `requires_purpose`. Red: a test that lists every refused transition.
 3. **CLI.** `meta project propose|accept|list`, `meta open --serves|--caused-by`, `meta serve`, `meta cause`. `meta claim` refuses `Unlinked`. Goldens re-recorded.
 4. **CI.** `TrackedWork` refuses `Unpurposed`. `meta queue run` refuses `Unlinked`.
@@ -191,15 +201,25 @@ Order: 1, 2, 3, then 4, 5 and 7 in parallel, then 6, then 8. The owner accepted 
 
 The targets below are proposals. Each number is the owner's decision.
 
-| Project | Acceptance budgets (on target = at or below warning) | Enforcement points | Serving tasks |
-|---|---|---|---|
-| **Tests below warn, no stray spawns** | Existing `test-time`, `test-cpu-time`, `slowest-test`, `git-processes`. New `test-spawns` (measure `test_spawns_outside_allowance`, count; proposed allowance 0, so the warning line is 0). | `Budget(test-spawns)` blocking per change; `Step(Test)`. | task-914f9a97 (test architecture) and its stack. |
-| **Dogfooding gate** | New `unleased-agent-starts` (agent starts with no live lease from `meta claim --agent`, count over the window; proposed 0). New `direct-merges` (main commits with no queue landing record, count; proposed 0). | `Hook(pre-tool-use agent)` (task-8065b583, PR #226); `Budget(direct-merges)` blocking, audited on push to main. | task-8065b583, task-a940d57c, task-71d90f14, task-cccccfaa, task-a3df18c7 (retire the stopgap at delivery). |
-| **Elegance lint gating** | New per-change budgets on the existing measures `effect_share`, `effect_dispersion`, `repeated_shapes`, and a parallel-vocabulary count (B26). Allowances: the owner sets them from today's readings. | `Budget(effect-share)`, `Budget(effect-dispersion)`, `Budget(repeated-shapes)` with overspend = block; `Step(Lint)`. | task-3b34f81b, task-4b4e69c3, task-e7d5c91c, task-e2574ad0. |
-| **Dependency-aware waterfalls** | New `trace-unlinked-waits` (waits on the CI trace critical path with no `follows_from` edge, count; proposed 0). New `trace-untraced-share` (untraced share of the critical path; the owner sets the line). | `Budget(trace-unlinked-waits)` and `Budget(trace-untraced-share)` blocking per change on the uploaded CI trace. | task-9da916d3, task-433270d3, task-b6a65742. |
+| Project | Root | Acceptance budgets (on target = at or below warning) | Enforcement points | Serving tasks |
+|---|---|---|---|---|
+| **Tests below warn, no stray spawns** | `state` (test architecture) | Existing `test-time`, `test-cpu-time`, `slowest-test`, `git-processes`. New `test-spawns` (measure `test_spawns_outside_allowance`, count; proposed allowance 0, so the warning line is 0). | `Budget(test-spawns)` blocking per change; `Step(Test)`. | task-914f9a97 (test architecture) and its stack. |
+| **Dogfooding gate** | `process` | New `unleased-agent-starts` (agent starts with no live lease from `meta claim --agent`, count over the window; proposed 0). New `direct-merges` (main commits with no queue landing record, count; proposed 0). | `Hook(pre-tool-use agent)` (task-8065b583, PR #226); `Budget(direct-merges)` blocking, audited on push to main. | task-8065b583, task-a940d57c, task-71d90f14, task-cccccfaa, task-a3df18c7 (retire the stopgap at delivery). |
+| **Elegance lint gating** | `process` (a process that guards state) | New per-change budgets on the existing measures `effect_share`, `effect_dispersion`, `repeated_shapes`, and a parallel-vocabulary count (B26). Allowances: the owner sets them from today's readings. | `Budget(effect-share)`, `Budget(effect-dispersion)`, `Budget(repeated-shapes)` with overspend = block; `Step(Lint)`. | task-3b34f81b, task-4b4e69c3, task-e7d5c91c, task-e2574ad0. |
+| **Dependency-aware waterfalls** | Owner sets at acceptance. This is measurement, which serves both roots, and `Root` has only `process` and `state`. | New `trace-unlinked-waits` (waits on the CI trace critical path with no `follows_from` edge, count; proposed 0). New `trace-untraced-share` (untraced share of the critical path; the owner sets the line). | `Budget(trace-unlinked-waits)` and `Budget(trace-untraced-share)` blocking per change on the uploaded CI trace. | task-9da916d3, task-433270d3, task-b6a65742. |
 
 Each new budget row is one owner decision. It lands in its project's first serving PR, with `overspend = report` until the owner accepts the numbers. A row with `report` is not gating, so the project cannot reach Delivered until the owner switches it to `block`.
 
 ## 9. Open questions
 
 - Naming: formal rules for names are a separate, deferred task (owner, 2026-10-30).
+
+## 10. Later: roots as the primary structure
+
+**Deferred.** Do not start this work until the current fires are out: the hook stack, the test stack, and projects PRs 1-9.
+
+- **Divisions.** The divisions change into two root divisions, `process` and `state`.
+- **Measurement.** Measurement becomes a layer that every project and every division reads. It is not a division.
+- **Diagnosis before close.** A signal cannot close until it is diagnosed down to a root. This applies to every signal: a rated issue, an own goal or an incident. The diagnosis names a process gap or a state flaw. `caused_by` chains are the evidence.
+- **Absorbs** the deferred architectural-concern typestate, task-f105a220.
+- **Status.** This connects to the `meta status` dogfooding enforcement: status shows each signal that has no root yet.
