@@ -13,6 +13,7 @@ impl fmt::Display for Usage {
              \x20 move <concern-id|issue-id> --division <path> [--severity <level> [--scenario <text>]]   (division: a top division or one in tooling/policy.toml; levels compare where they roll up: the level is kept only if it rolls up the same, else give --severity; a lower roll-up is free, a higher one needs --scenario)\n\
              \x20 open <text> --division <path> [--addresses <concern-id|issue-id>]... [--effort <tokens>] [--due <rfc3339>]\n\
              \x20 claim <task-id> [--from <actor>] [--worktree]   (assigns you; several may hold a task; --worktree: new worktree on branch <task-id>, prints its path)\n\
+             \x20 brief <task-id> [--actor <name>] [--scratch <dir>]   (agent brief: task, setup steps and self/agent-rules.md verbatim)\n\
              \x20 worktrees   (this clone's worktrees: task status, missing, unrecorded)\n\
              \x20 gc [--dry-run]   (frees recorded worktrees whose pr is merged or closed or whose task stalled, once all work is on the remote and nothing has them open)\n\
              \x20 gc restore <quarantine>   (puts a stranded quarantine's file modes back, unlocks it and moves it home)\n\
@@ -28,6 +29,7 @@ impl fmt::Display for Usage {
              \x20 monitor tick|report   (tick: reports this project's processes, obvious and watch tiers, into the local record, exit 1 if anything is obvious; stops nothing unless meta.local.toml [monitor] stop lists a class; also runs on heartbeat tick | report: the latest report)\n\
              \x20 trace last|chrome [<command>]   (latest recorded run, or the latest of <command>: last: critical path by span kind and untraced time | chrome: Chrome trace JSON; every run records to .git/meta-local/traces, META_TRACE=off skips it, meta.local.toml [trace] traces and bytes cap what stays, newest written first)\n\
              \x20 hook session-start|pre-tool-use|post-tool-use|stop   (Claude Code hook JSON on stdin)\n\
+             \x20 queue run <pr-number>...   (lands each PR in order: updates it onto main, waits for checks, squash-merges it when green and clean, marks its task done as the holder once every linked PR merged; skips a conflicting PR and goes on; stops with a reason: off the default branch, base not strict, red, checks timeout, not mergeable, gh failure; exit 1 on a stop or a skip; up to about an hour per PR, so run it in the background; the hook allows it only when META_ACTOR names an actor in tooling/policy.toml [queue] landers)\n\
              \x20 ci-wait | ci-log   (this session's CI: wait for failure or completion | failed step output)\n\
              actor: $META_ACTOR, else owner",
         )

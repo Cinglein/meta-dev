@@ -14,6 +14,7 @@ mod revision;
 mod supply;
 mod surfaces;
 mod test;
+mod test_processes;
 mod usage;
 
 use std::env;
@@ -31,11 +32,12 @@ use crate::task::lint::Lint;
 use crate::task::supply::Supply;
 use crate::task::surfaces::Surfaces;
 use crate::task::test::Test;
+use crate::task::test_processes::TestProcesses;
 use crate::task::usage::Usage;
 use affected::{Affected, Changes};
 use build_time::BuildTime;
+use ci::Ci;
 pub use ci::CiStep;
-use ci::{Ci, LocalGate};
 use corpus_check::LintName;
 use crate_graph::CrateGraph;
 use elegance::{EleganceSettings, Measures, SynSource};
@@ -45,7 +47,7 @@ use mutant_costs::MutantCosts;
 use mutation::{Mutants, Scope, ShardPlan, TriggerEvent};
 use settings::EmbeddedDefaults;
 use stacked::Stacked;
-use test_time::{GitCount, TestRunner, TestTime};
+use test_time::{ProcessCount, TestRunner, TestTime};
 use waterfall::Waterfall;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, IntoStaticStr, VariantNames)]
@@ -111,13 +113,15 @@ impl Task {
     }
 
     pub fn run(self, flags: impl Iterator<Item = String>) -> Result<(), Failure> {
+        let flags: Vec<String> = flags.collect();
         match self {
-            Task::TestRunner => Ok(TestRunner::run(flags)?),
+            Task::TestRunner => Ok(TestRunner::run(flags.into_iter())?),
+            Task::Ci if flags == [Ci::CLOSE] => Ci::close(),
             Task::Init => Ok(BuildDirectory::read(Workspace::locate()?.root())?.initialized()?),
-            Task::Waterfall => {
-                Waterfall::shown(flags.map(PathBuf::from))?.map(|shown| print!("{shown}")).ok_or_else(Self::usage)
-            }
-            task => task.run_in_workspace(&Workspace::locate()?, flags),
+            Task::Waterfall => Waterfall::shown(flags.into_iter().map(PathBuf::from))?
+                .map(|shown| print!("{shown}"))
+                .ok_or_else(Self::usage),
+            task => task.run_in_workspace(&Workspace::locate()?, flags.into_iter()),
         }
     }
 
@@ -146,13 +150,8 @@ impl Task {
                 .map(|reached| println!("{reached}"))?),
             Task::Baseline => Lint::shrink(workspace.root(), &workspace.source_files()?, &policy)
                 .map(|kept| println!("baseline: {} violations", kept.total())),
-            Task::Ci => Ci::new(
-                summary,
-                coverage.gate(workspace.root(), &policy)?,
-                env::var_os(LocalGate::TIMES).map(PathBuf::from),
-                coverage.log().clone(),
-            )
-            .run(workspace, &selection, &policy),
+            Task::Ci => Ci::new(summary, coverage.gate(workspace.root(), &policy)?, coverage.log().clone())
+                .run(workspace, &selection, &policy),
             Task::BuildTime => Ok(BuildTime::run(workspace, &policy, &mut ledger)
                 .and_then(|()| ledger.checked(&policy, &Selection::Workspace))?),
             Task::Clippy => Ok(Clippy::run(workspace, &selection, &policy)?),
@@ -190,11 +189,11 @@ impl Task {
             Task::Stacked => Ok(Stacked::run(&policy)?),
             Task::Surfaces => Surfaces::announce(workspace.root(), &policy, summary.as_deref()),
             Task::Test => Ok(Test::run(workspace, &selection, &policy)?),
-            Task::TestTime => Ok(match env::var_os(GitCount::SWITCH) {
-                Some(_) => GitCount::run(workspace, &selection, &policy, &mut ledger),
-                None => TestTime::run(workspace, &selection, &policy, &mut ledger),
+            Task::TestTime => match env::var_os(ProcessCount::SWITCH) {
+                Some(_) => TestProcesses::run(workspace, &selection, &policy, &mut ledger),
+                None => Ok(TestTime::run(workspace, &selection, &policy, &mut ledger)?),
             }
-            .and_then(|()| ledger.checked(&policy, &selection))?),
+            .and_then(|()| Ok(ledger.checked(&policy, &selection)?)),
             lint => Ok(<&'static str>::from(lint).parse::<LintName>().map_or(Ok(()), |lint| {
                 let files = workspace.source_files()?;
                 lint.report(&files, &CrateGraph::graphs(&files), &policy).verdict()

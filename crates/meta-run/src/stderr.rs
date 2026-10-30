@@ -11,7 +11,8 @@ impl Stderr {
         Self::said(String::from_utf8_lossy(&bytes).trim().to_owned())
     }
 
-    pub(crate) fn said(text: String) -> Self {
+    #[must_use]
+    pub fn said(text: String) -> Self {
         Self(text)
     }
 

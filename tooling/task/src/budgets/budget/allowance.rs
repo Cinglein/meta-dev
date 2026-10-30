@@ -1,13 +1,11 @@
-mod amount;
 mod count_part;
 mod part;
 
+pub use meta_budget::Amount;
+use meta_budget::{BudgetId, Percent};
 use serde::{Deserialize, Serialize};
 
-use crate::budgets::budget_id::BudgetId;
-use crate::percent::Percent;
 use crate::policy::Most;
-pub use amount::Amount;
 use count_part::CountPart;
 use part::Part;
 

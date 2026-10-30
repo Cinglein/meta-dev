@@ -92,9 +92,14 @@ test_timeout = 30000
 full_job = 700000
 diff_job = 200000
 job_setup = 90000
+queue_pace = 60000
 
 [mutation]
 full_run = ["every_main_push", "weekly", "on_demand"]
+
+[queue]
+hot = []
+members = 4
 
 [mutant_millis]
 default = 2100

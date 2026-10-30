@@ -19,7 +19,7 @@ const ORIGIN: &str = "origin";
 const WRITER: &str = "writer";
 const DIVISION: &str = "features-and-maintenance";
 const NOWHERE: &str = "/nonexistent/origin.git";
-const OFFLINE_PREFIX: &str = "offline: cannot fetch meta/log from origin: \"fatal: ";
+const OFFLINE_PREFIX: &str = "offline: cannot fetch meta/log from origin: \"";
 const SHOWN: &str = "meta/log on origin";
 const REJECTED_PREFIX: &str = "meta/log push rejected";
 const REFUSE_PUSHES: [&str; 2] = ["/usr/bin/false", "hooks/pre-receive"];
@@ -147,7 +147,8 @@ fn refusals_write_nothing_and_rejected_or_offline_writes_fail() {
     std::os::unix::fs::symlink(false_program, fixture.origin.path().join(hook)).unwrap();
     assert!(failure().starts_with(REJECTED_PREFIX));
     Port::linked(fixture.clones[FIRST].path(), NOWHERE);
-    assert!(failure().starts_with(OFFLINE_PREFIX));
+    let offline = failure();
+    assert!(offline.starts_with(OFFLINE_PREFIX) && offline.contains(NOWHERE), "{offline}");
 }
 
 #[test]

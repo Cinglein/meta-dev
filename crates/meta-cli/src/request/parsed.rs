@@ -9,8 +9,10 @@ use meta_schema::{
     Tokens,
 };
 
+use crate::request::brief::BriefRequest;
 use crate::request::ci::{Commit, SessionId};
 use crate::request::cli_failure::{CliFailure, Invalid, Misuse};
+use crate::request::merge_queue::MergeQueue;
 use crate::request::rate::Rate;
 use crate::request::relocate::Relocate;
 use crate::request::status_view::StatusView;
@@ -33,10 +35,13 @@ pub struct Parsed {
     view: StatusView,
     severity: Option<LevelName>,
     scenario: Option<Scenario>,
+    actor: Option<Actor>,
+    scratch: Option<Text>,
 }
 
 impl Parsed {
     const RESTORE: &'static str = "restore";
+    const RUN: &'static str = "run";
 
     fn take(self, args: &[String]) -> Result<Self, CliFailure> {
         match args {
@@ -84,6 +89,12 @@ impl Parsed {
             }
             (OptionName::Severity, [value, rest @ ..]) => {
                 Self { severity: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
+            }
+            (OptionName::Actor, [value, rest @ ..]) => {
+                Self { actor: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
+            }
+            (OptionName::Scratch, [value, rest @ ..]) => {
+                Self { scratch: Some(value.parse().map_err(CliFailure::raised::<Invalid>)?), ..self }.take(rest)
             }
             (OptionName::Scenario, [value, rest @ ..]) => {
                 let scenario = value.parse::<Text>().map_err(CliFailure::raised::<Invalid>)?;
@@ -226,6 +237,22 @@ impl Parsed {
         }
     }
 
+    pub fn brief(&self) -> Result<BriefRequest, CliFailure> {
+        Ok(BriefRequest::new(self.task()?, self.actor.clone(), self.scratch.clone()))
+    }
+
+    pub fn queue(&self) -> Result<MergeQueue, CliFailure> {
+        match self.words.as_slice() {
+            [verb, pulls @ ..] if verb.to_string() == Self::RUN => MergeQueue::new(
+                pulls
+                    .iter()
+                    .map(|pull| pull.to_string().parse().map_err(CliFailure::raised::<Invalid>))
+                    .collect::<Result<_, _>>()?,
+            ),
+            _ => Err(CliFailure::raised::<Misuse>("expected `queue run <pr-number>...`")),
+        }
+    }
+
     pub fn previous_claimant(&self) -> Option<Actor> {
         self.from.clone()
     }
@@ -261,6 +288,8 @@ impl TryFrom<&[String]> for Parsed {
             view: StatusView::Tree,
             severity: None,
             scenario: None,
+            actor: None,
+            scratch: None,
         };
         empty.take(args)
     }

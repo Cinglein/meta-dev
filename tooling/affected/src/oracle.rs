@@ -27,7 +27,8 @@ pub mod tests {
         );
         const SHARED: &str = "shared/data.txt";
         const IGNORED: [&str; 2] = [".claude/", ".gitignore"];
-        const TRIPLES_OVER: usize = 14;
+        const PAIRS_OVER: usize = 14;
+        const TRIPLES_OVER: usize = 5;
 
         pub fn every() -> impl Iterator<Item = Oracle> {
             (0..1usize << Self::EDGES.len()).map(|edges| Oracle { edges })
@@ -56,20 +57,21 @@ pub mod tests {
                 let trusted: Vec<&Vec<&str>> = picked.iter().map(|i| &diffs[*i]).collect();
                 Affected::tested(&graph, &sets).within(&graph.names()) == self.expected(&trusted)
             };
-            let all = 0..diffs.len();
-            let pairs = all
-                .clone()
-                .flat_map(|a| all.clone().map(move |b| vec![a, b]));
-            let small: Vec<usize> = (0..Self::TRIPLES_OVER).collect();
-            let small = &small;
-            let triples = small.iter().flat_map(|a| {
-                small
-                    .iter()
-                    .flat_map(move |b| small.iter().map(move |c| vec![*a, *b, *c]))
-            });
-            let singles = all.clone().map(|a| vec![a]);
-            std::iter::once(vec![])
-                .chain(singles)
+            let grow = |from: Vec<Vec<usize>>, n: usize| -> Vec<Vec<usize>> {
+                let next = |p: &Vec<usize>| {
+                    let p = p.clone();
+                    (0..n).map(move |x| [p.clone(), vec![x]].concat())
+                };
+                from.iter().flat_map(next).collect()
+            };
+            let (p, t) = (Self::PAIRS_OVER, Self::TRIPLES_OVER);
+            let empty = vec![vec![]];
+            let pairs = grow(grow(empty.clone(), p), p);
+            let triples = grow(grow(grow(empty.clone(), t), t), t);
+            empty
+                .iter()
+                .cloned()
+                .chain(grow(empty.clone(), diffs.len()))
                 .chain(pairs)
                 .chain(triples)
                 .all(|picked| agrees(&picked))

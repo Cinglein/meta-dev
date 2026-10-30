@@ -9,7 +9,10 @@ publish = false
 license = "UNLICENSED"
 
 [workspace.dependencies]
+meta-acceptance = { path = "crates/meta-acceptance" }
+meta-budget = { path = "crates/meta-budget" }
 meta-schema = { path = "crates/meta-schema" }
+meta-text = { path = "crates/meta-text" }
 meta-log = { path = "crates/meta-log" }
 meta-run = { path = "crates/meta-run" }
 meta-golden = { path = "crates/meta-golden" }
@@ -21,6 +24,7 @@ meta-status = { path = "crates/meta-status" }
 meta-severity = { path = "crates/meta-severity" }
 meta-pulls = { path = "crates/meta-pulls" }
 meta-pull-query = { path = "crates/meta-pull-query" }
+meta-process-table = { path = "crates/meta-process-table" }
 meta-trace = { path = "crates/meta-trace" }
 tracing = { version = "0.1.44", default-features = false, features = ["std"] }
 chrono = { version = "0.4.44", default-features = false, features = ["std", "clock", "serde"] }

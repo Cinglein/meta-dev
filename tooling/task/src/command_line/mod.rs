@@ -21,10 +21,14 @@ use std::env;
 use std::ffi::OsString;
 use std::fmt;
 use std::fs::File;
+use std::io;
 use std::path::PathBuf;
-use std::process::{Child, Command, Output};
+use std::process::{Child, Command, Output, Stdio};
+
+use meta_run::{Environment, SpawnTrace};
 
 use crate::failure::Failure;
+use crate::site::Site;
 
 #[derive(Clone, Debug)]
 pub struct CommandLine {
@@ -65,14 +69,15 @@ impl CommandLine {
         ambient: &BTreeMap<String, OsString>,
         names: impl IntoIterator<Item = impl AsRef<str>>,
     ) -> CommandLine {
+        let traced = SpawnTrace::TRACED.map(str::to_owned);
+        let kept = names.into_iter().map(|name| name.as_ref().to_owned());
         CommandLine {
             inherited: Some(
-                names
-                    .into_iter()
+                kept.chain(traced)
                     .filter_map(|name| {
                         ambient
-                            .get(name.as_ref())
-                            .map(|value| (name.as_ref().to_owned(), value.clone()))
+                            .get(&name)
+                            .map(|value| (name.clone(), value.clone()))
                     })
                     .collect(),
             ),
@@ -116,18 +121,60 @@ impl CommandLine {
     }
 
     fn finished(&self, mut command: Command) -> Result<(), Failure> {
-        command
-            .status()
-            .ok()
-            .filter(std::process::ExitStatus::success)
-            .map(|_| ())
+        let status = command.status();
+        self.started(&command, status)?
+            .success()
+            .then_some(())
             .ok_or_else(|| Failure::Command(self.to_string()))
     }
 
     pub fn spawn(&self) -> Result<Child, Failure> {
-        self.command()
-            .spawn()
-            .map_err(|_| Failure::Command(self.to_string()))
+        let mut command = self.command();
+        let mut child = command.spawn().map_err(|error| Failure::Printed {
+            command: self.to_string(),
+            printed: error.to_string(),
+        })?;
+        self.started(&command, Ok(()))
+            .inspect_err(|_| {
+                drop(child.kill());
+                drop(child.wait());
+            })
+            .map(|()| child)
+    }
+
+    fn started<Started>(
+        &self,
+        command: &Command,
+        started: io::Result<Started>,
+    ) -> Result<Started, Failure> {
+        let started = started.map_err(|error| Failure::Printed {
+            command: self.to_string(),
+            printed: error.to_string(),
+        })?;
+        SpawnTrace::within(&Environment::current())
+            .noted(command.get_program())
+            .map_err(|error| Failure::Io {
+                site: Site::Workspace,
+                error,
+            })?;
+        Ok(started)
+    }
+
+    pub fn streamed(&self) -> Result<String, Failure> {
+        let output = self
+            .command()
+            .stderr(Stdio::inherit())
+            .output()
+            .map_err(|_| Failure::Command(self.to_string()))?;
+        let printed = String::from_utf8_lossy(&output.stdout).into_owned();
+        if output.status.success() {
+            Ok(printed)
+        } else {
+            Err(Failure::Printed {
+                command: self.to_string(),
+                printed,
+            })
+        }
     }
 
     pub fn captured<S: Stream>(&self) -> Result<String, Failure> {
@@ -135,10 +182,9 @@ impl CommandLine {
     }
 
     fn output(&self) -> Result<Output, Failure> {
-        let output = self
-            .command()
-            .output()
-            .map_err(|_| Failure::Command(self.to_string()))?;
+        let mut command = self.command();
+        let output = command.output();
+        let output = self.started(&command, output)?;
         if output.status.success() {
             Ok(output)
         } else {
@@ -177,6 +223,7 @@ impl fmt::Display for CommandLine {
 #[cfg(test)]
 mod tests {
     use super::{CargoArgument, CommandLine, Program, Stderr, Stdout};
+    use crate::failure::Failure;
     use std::fs::File;
     use std::path::{Path, PathBuf};
     const SHOWN: &str = "sh fmt --all";
@@ -193,6 +240,9 @@ mod tests {
     const READS_PACKAGE: [&str; 2] = ["-c", "read line && [ \"$line\" = \"[package]\" ]"];
     const PRINTS_AND_FAILS: [&str; 2] =
         ["-c", "echo out | tr o O; echo err | tr e E >&2; exit 101"];
+    const PRINTS: &str = "echo streamed";
+    const PRINTS_THEN_FAILS: &str = "echo streamed; exit 1";
+    const STREAMED: &str = "streamed\n";
     const OUT: &str = "Out";
     const ERR: &str = "Err";
 
@@ -237,5 +287,15 @@ mod tests {
         let reads = shell().arguments(READS_PACKAGE);
         let empty = File::open(EMPTY).unwrap();
         assert!(reads.run_holding(manifest()).is_ok() && reads.run_holding(empty).is_err());
+    }
+
+    #[test]
+    fn a_streamed_command_returns_its_stdout_whether_it_succeeds_or_fails() {
+        let shell = |script: &str| {
+            CommandLine::new(Program::Executable(SHELL.into())).arguments(["-c", script])
+        };
+        let failed = shell(PRINTS_THEN_FAILS).streamed();
+        assert_eq!(shell(PRINTS).streamed().ok().as_deref(), Some(STREAMED));
+        assert!(matches!(failed, Err(Failure::Printed { printed, .. }) if printed == STREAMED));
     }
 }

@@ -7,6 +7,9 @@ license.workspace = true
 
 [dependencies]
 chrono.workspace = true
+meta-acceptance.workspace = true
+meta-budget.workspace = true
+meta-text.workspace = true
 serde.workspace = true
 strum.workspace = true
 thiserror.workspace = true

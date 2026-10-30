@@ -386,18 +386,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "git_starters"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "syn 2.0.119",
- "task",
-]
-
-[[package]]
 name = "git_trace"
 version = "0.1.0"
 dependencies = [
+ "meta-run",
  "serde",
  "serde_json",
  "task",
@@ -579,18 +571,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "meta-acceptance"
+version = "0.1.0"
+dependencies = [
+ "meta-budget",
+ "meta-text",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "meta-budget"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "meta-cli"
 version = "0.1.0"
 dependencies = [
  "chrono",
  "git2",
- "libc",
- "libproc",
  "meta-gh",
  "meta-git",
  "meta-golden",
  "meta-listing",
  "meta-log",
+ "meta-process-table",
  "meta-pull-query",
  "meta-pulls",
  "meta-run",
@@ -663,6 +672,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "meta-process-table"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "libproc",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "meta-pull-query"
 version = "0.1.0"
 dependencies = [
@@ -677,8 +696,11 @@ dependencies = [
 name = "meta-pulls"
 version = "0.1.0"
 dependencies = [
+ "meta-golden",
+ "meta-run",
  "meta-schema",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -686,6 +708,7 @@ name = "meta-run"
 version = "0.1.0"
 dependencies = [
  "meta-trace",
+ "nix",
  "signal-hook",
  "strum",
  "tempfile",
@@ -697,6 +720,9 @@ name = "meta-schema"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "meta-acceptance",
+ "meta-budget",
+ "meta-text",
  "serde",
  "serde_json",
  "strum",
@@ -733,6 +759,7 @@ dependencies = [
  "chrono",
  "meta-schema",
  "serde_json",
+ "strum",
  "thiserror",
 ]
 
@@ -747,6 +774,15 @@ dependencies = [
  "meta-state",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "meta-text"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -770,7 +806,8 @@ dependencies = [
  "crate_graph",
  "elegance",
  "git2",
- "git_starters",
+ "git_trace",
+ "meta-git",
  "meta-golden",
  "meta-log",
  "meta-run",
@@ -779,6 +816,7 @@ dependencies = [
  "meta-state",
  "mutant_costs",
  "mutation",
+ "process_starters",
  "serde",
  "serde_json",
  "settings",
@@ -1029,6 +1067,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "process_starters"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "syn 2.0.119",
+ "task",
 ]
 
 [[package]]
@@ -1350,6 +1397,8 @@ version = "0.1.0"
 dependencies = [
  "derive_more",
  "enum-map",
+ "meta-budget",
+ "meta-run",
  "meta-schema",
  "meta-severity",
  "meta-state",
@@ -1393,6 +1442,7 @@ name = "test_time"
 version = "0.1.0"
 dependencies = [
  "git_trace",
+ "meta-run",
  "rusage",
  "settings",
  "strum",

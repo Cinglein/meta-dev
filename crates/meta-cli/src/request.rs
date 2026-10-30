@@ -1,3 +1,4 @@
+mod brief;
 mod checkout;
 mod ci;
 mod cli_failure;
@@ -6,6 +7,7 @@ mod heartbeat;
 mod hook;
 mod live_github;
 mod local;
+mod merge_queue;
 mod output;
 mod parsed;
 mod project;
@@ -25,6 +27,7 @@ use meta_listing::{Kind, Scope};
 use meta_log::LogStore;
 use meta_schema::{Actor, Block, Claim, EntryNote, Event, NewConcern, NewIssue, NewTask, TaskRef};
 
+use brief::BriefRequest;
 use ci::{Commit, FailureLog, SessionId, Watcher};
 use cli_failure::{CliFailure, Invalid, Misuse, Setup};
 use heartbeat::Heartbeat;
@@ -32,6 +35,7 @@ use hook::HookEvent;
 use live_github::LiveGithub;
 pub use local::TraceRecord;
 use local::{LocalClone, Monitor, Sweep};
+use merge_queue::MergeQueue;
 use output::{Listed, Output};
 use parsed::{OptionName, Parsed};
 use project::{CiSettings, Project};
@@ -61,6 +65,8 @@ pub enum Request {
     WaitCi(SessionId),
     CiLog(SessionId),
     Trace(TraceView),
+    Brief(BriefRequest),
+    Queue(MergeQueue),
 }
 
 impl TryFrom<Vec<String>> for Request {
@@ -121,6 +127,10 @@ impl TryFrom<Vec<String>> for Request {
                     None => Self::Write(Event::TaskClaimed(claim)),
                 })
             }
+            "brief" => {
+                let parsed = parsed.allowing(&[OptionName::Actor, OptionName::Scratch])?;
+                parsed.brief().map(Self::Brief)
+            }
             "worktrees" => parsed.allowing(&[]).map(|_| Self::Worktrees),
             "gc" => {
                 let parsed = parsed.allowing(&[OptionName::DryRun])?;
@@ -145,6 +155,7 @@ impl TryFrom<Vec<String>> for Request {
             "ci-wait" => Self::session().map(Self::WaitCi),
             "ci-log" => Self::session().map(Self::CiLog),
             "trace" => Ok(Self::Trace(parsed.allowing(&[])?.text()?.to_string().parse()?)),
+            "queue" => parsed.allowing(&[])?.queue().map(Self::Queue),
             other => Err(CliFailure::raised::<Misuse>(format!("unknown command `{other}`"))),
         }
     }
@@ -167,7 +178,9 @@ impl Request {
             Self::WatchCi(session, commit) => Watcher::watch(project, &session, commit),
             Self::WaitCi(session) => Watcher::wait(project, &session),
             Self::CiLog(session) => FailureLog::excerpt(project, &session),
+            Self::Brief(request) => request.answer(project, Self::actor),
             Self::Trace(view) => TraceRecord::shown(&LocalClone::try_from(project)?, view),
+            Self::Queue(queue) => queue.run(project),
             Self::Status(view) => {
                 let local = match view {
                     StatusView::Flags => Monitor::recent(&LocalClone::try_from(project)?, Utc::now())?,
@@ -225,6 +238,8 @@ impl Request {
             | Self::WaitCi(_)
             | Self::CiLog(_)
             | Self::Trace(_)
+            | Self::Brief(_)
+            | Self::Queue(_)
             | Self::Status(_)
             | Self::ClaimWorktree(_)
             | Self::Worktrees

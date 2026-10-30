@@ -7,6 +7,12 @@ use serde::Deserialize;
 #[serde(transparent)]
 pub struct AuthorName(String);
 
+impl AuthorName {
+    pub fn signing(&self, email: &impl fmt::Display) -> meta_git::Identity {
+        meta_git::Identity::new(self.0.clone(), email.to_string())
+    }
+}
+
 impl FromStr for AuthorName {
     type Err = &'static str;
 

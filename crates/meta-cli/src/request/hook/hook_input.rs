@@ -2,24 +2,27 @@ mod identity;
 mod pushed_commits;
 mod shell_command;
 mod tool_input;
+mod unreadable;
 
+use std::io::Read as _;
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
-use meta_schema::Actor;
+use meta_schema::{Actor, ToolName};
 use serde::Deserialize;
 
 use super::CallPhase;
 use crate::request::ci::{SessionDir, SessionId, SessionStart};
 use crate::request::output::Listed;
 use crate::request::project::Project;
-use crate::request::scale_policy::ScalePolicy;
+use crate::request::scale_policy::{ScalePolicy, ToolPolicy};
 use serde::de::IgnoredAny;
 
 use identity::Identity;
 use pushed_commits::PushedCommits;
 use shell_command::ShellCommand;
 use tool_input::ToolInput;
+pub use unreadable::Unreadable;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct HookInput {
@@ -30,10 +33,18 @@ pub struct HookInput {
     #[serde(default)]
     tool_input: Option<ToolInput>,
     #[serde(default)]
+    tool_name: Option<ToolName>,
+    #[serde(default)]
     agent_id: Option<IgnoredAny>,
 }
 
 impl HookInput {
+    pub fn from_stdin() -> Result<HookInput, Unreadable> {
+        let mut bytes = Vec::new();
+        std::io::stdin().read_to_end(&mut bytes)?;
+        Ok(serde_json::from_slice(&bytes)?)
+    }
+
     pub fn cwd(&self) -> PathBuf {
         self.cwd.clone().or_else(|| std::env::current_dir().ok()).unwrap_or_default()
     }
@@ -44,6 +55,10 @@ impl HookInput {
 
     pub fn open_session(&self) -> Result<(), Listed> {
         self.session().map_or(Ok(()), |session| SessionStart::for_session(session).open().map_err(Listed::new))
+    }
+
+    pub fn modal(&self, policy: &ToolPolicy) -> Option<Listed> {
+        policy.refusal(self.tool_name.as_ref())
     }
 
     pub fn refusal(&self) -> Option<Listed> {

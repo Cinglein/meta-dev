@@ -1,18 +1,23 @@
 mod invocation;
+mod spawns;
+mod started;
 mod starter;
 mod trace_line;
+
+pub use spawns::Spawns;
 
 use std::collections::BTreeMap;
 use std::fmt;
 use std::fs;
 use std::path::Path;
 
+use started::Started;
 use starter::Starter;
 use task::{Amount, Failure, Most, Site};
 use trace_line::TraceLine;
 
 #[derive(Debug, Default, PartialEq, Eq)]
-pub struct GitProcesses(BTreeMap<Starter, Most>);
+pub struct GitProcesses(Started<Starter>);
 
 impl GitProcesses {
     pub const TARGET: &'static str = "GIT_TRACE2_EVENT";
@@ -24,35 +29,30 @@ impl GitProcesses {
         fs::read_dir(directory)
             .map_err(failed)?
             .map(|entry| entry.and_then(|entry| fs::read_to_string(entry.path())).map_err(failed))
-            .try_fold(GitProcesses::default(), |counted, trace| Ok(counted.started(TraceLine::starter(&trace?))))
-    }
-
-    fn started(mut self, starter: Starter) -> GitProcesses {
-        let count = self.0.entry(starter).or_insert(Most::from(0));
-        *count = count.plus(Most::from(1)).unwrap_or(*count);
-        self
+            .try_fold(
+                Started::default(),
+                |counted, trace| Ok(counted.added(TraceLine::starter(&trace?), Most::from(1))),
+            )
+            .map(GitProcesses)
     }
 
     #[must_use]
     pub fn amount(&self) -> Amount {
-        Amount::Count(self.total())
-    }
-
-    fn total(&self) -> Most {
-        self.0.values().fold(Most::from(0), |total, count| total.plus(*count).unwrap_or(total))
+        Amount::Count(self.0.total())
     }
 }
 
 impl fmt::Display for GitProcesses {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut most: BTreeMap<&str, Most> = BTreeMap::new();
-        self.0.iter().filter_map(|(starter, count)| starter.command().map(|command| (command, *count))).for_each(
+        let counts = self.0.counts();
+        counts.iter().filter_map(|(starter, count)| starter.command().map(|command| (command, *count))).for_each(
             |(command, count)| {
                 most.entry(command).and_modify(|seen| *seen = count.max(*seen)).or_insert(count);
             },
         );
-        let tests = self.0.get(&Starter::Tests).copied().unwrap_or(Most::from(0));
-        write!(formatter, "git processes: {} ({tests} not under meta); most per meta run:", self.total())?;
+        let tests = counts.get(&Starter::Tests).copied().unwrap_or(Most::from(0));
+        write!(formatter, "git processes: {} ({tests} not under meta); most per meta run:", self.0.total())?;
         most.iter().try_for_each(|(command, count)| write!(formatter, " {command} {count}"))
     }
 }

@@ -5,6 +5,8 @@ mod working_directory;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use meta_schema::Actor;
+
 use crate::request::output::Listed;
 use crate::request::project::Config;
 use crate::request::scale_policy::ShellRules;
@@ -19,17 +21,32 @@ impl ShellCommand {
     const SHELL_RULE: &'static str = "shell rule:";
     const USE: &'static str =
         "is not allowed; use the Write or Edit tool, `git restore`, or `git rm` inside a code change";
+    const GIT_USE: &'static str = "is not allowed for agents; commit on your branch, push normally, `git restore`";
     const STDIN: &'static str = "reads its commands from stdin; pass them with -c so they can be checked";
     const PR_MERGE: &'static [&'static str] = &["gh", "pr", "merge"];
     const PR_CREATE: &'static [&'static str] = &["gh", "pr", "create"];
+    const META: &'static str = "meta";
+    const QUEUE_RUN: [&'static str; 2] = ["queue", "run"];
+    const LANDING: &'static str =
+        "meta queue run lands PRs: set META_ACTOR to an actor in tooling/policy.toml [queue] landers";
     const PUBLISHING: &'static [&'static str] = &["push", "commit"];
     const WRITING: &'static [&'static str] =
         &["commit", "merge", "rebase", "cherry-pick", "revert", "pull", "am", "push"];
 
-    pub fn refusal(&self, config: &Config) -> Option<Listed> {
+    pub fn refusal(&self, config: &Config, lander: Option<&Actor>) -> Option<Listed> {
         self.invokes(Self::PR_MERGE)
             .map(|()| Listed::new("gh pr merge is the owner's job"))
+            .or_else(|| lander.map_or_else(|| self.landing(), |_| None))
             .or_else(|| self.segments().filter_map(GitCall::parse).find_map(|call| call.push_refusal(config)))
+    }
+
+    fn landing(&self) -> Option<Listed> {
+        let meta = |word: &String| Path::new(word).file_name().is_some_and(|name| name == Self::META);
+        let queue_run = |window: &[String]| {
+            window.split_first().is_some_and(|(program, rest)| meta(program) && rest == Self::QUEUE_RUN)
+        };
+        let lands = |segment: &&[String]| segment.windows(Self::QUEUE_RUN.len() + 1).any(queue_run);
+        self.segments().find(lands).map(|_| Listed::new(Self::LANDING))
     }
 
     pub fn invokes(&self, words: &[&str]) -> Option<()> {
@@ -74,7 +91,12 @@ impl ShellCommand {
             let said = |word: &str, why: &str| format!("{} `{word}` {why}", Self::SHELL_RULE);
             let named = rules.forbidden_in(segment).map(|word| said(word, Self::USE));
             let piped = || rules.stdin_shell(segment).map(|word| said(word, Self::STDIN));
+            let gitted = || {
+                let call = rules.git_in(segment).and_then(GitCall::parse)?;
+                call.breach(rules).map(|what| format!("{} `git {what}` {}", Self::SHELL_RULE, Self::GIT_USE))
+            };
             named
+                .or_else(gitted)
                 .or_else(piped)
                 .or_else(|| rules.nested(segment).and_then(|text| Self(Tokens::scan(&text)).reason(rules)))
         };
@@ -124,7 +146,12 @@ mod tests {
     }
 
     const CONFIG: &str = "protected = [\"main\"]\n";
-    const MERGES: [&str; 2] = ["gh pr merge 1", "cd x && gh pr merge 1 --squash"];
+    const MERGES: [&str; 4] = [
+        "gh pr merge 1",
+        "cd x && gh pr merge 1 --squash",
+        "meta queue run 1",
+        "cd x && target/release/meta queue run 1 2",
+    ];
     const PUSHES: [&str; 6] = [
         "git push --force origin feature",
         "git push -uf origin feature",
@@ -133,11 +160,12 @@ mod tests {
         "git push --force-with-lease origin main",
         "git --no-pager push origin main",
     ];
-    const ALLOWED: [&str; 4] = [
+    const ALLOWED: [&str; 5] = [
         "git push -u origin feature",
         "git push --force-with-lease origin feature",
         "git commit -m 'git push origin main'",
         "gh pr view 1",
+        "meta status --flags",
     ];
     const PUSH_REASON: &str = "git push";
     const LOG_CONFIG: &str = "protected = [\"main\", \"meta/log\", \"meta/logs\"]\nlog_branches = [\"meta/log\"]\n";
@@ -147,18 +175,32 @@ mod tests {
     const LEASE: &str = "lease";
     const NEAR_LOG: &str = "git push origin meta/logs";
     const OPEN_PR: &str = "open a PR";
+    const LEAD: &str = "claude-lead";
+    const LANDS: &str = "meta queue run 1";
 
     #[test]
     fn merges_force_pushes_and_protected_pushes_are_refused_and_nothing_else() {
         let config: Config = toml::from_str(CONFIG).unwrap();
         let refusal =
-            |command: &str| command.parse::<ShellCommand>().unwrap().refusal(&config).map(|why| why.to_string());
+            |command: &str| command.parse::<ShellCommand>().unwrap().refusal(&config, None).map(|why| why.to_string());
         assert!(MERGES.iter().all(|command| refusal(command).is_some()));
         assert!(PUSHES.iter().all(|command| refusal(command).is_some_and(|why| why.starts_with(PUSH_REASON))));
         assert!(ALLOWED.iter().all(|command| refusal(command).is_none()));
     }
 
-    const VERDICTS: [(&str, bool); 56] = [
+    const VERDICTS: [(&str, bool); 68] = [
+        ("git stash", true),
+        ("git stash pop", true),
+        ("git -C x stash", true),
+        ("cd a && git stash drop", true),
+        ("git push --force origin f", true),
+        ("git push -f origin f", true),
+        ("git push -uf origin f", true),
+        ("git push --force-with-lease origin f", true),
+        ("git push origin f --force-with-lease=f", true),
+        ("git rm x && git mv a b", false),
+        ("git push -u origin f", false),
+        ("git commit -m 'git stash'", false),
         ("rm -rf x", true),
         ("cd a && mv b c", true),
         ("sed -i s/a/b/ f", true),
@@ -227,8 +269,10 @@ mod tests {
     #[test]
     fn a_log_push_names_meta_and_a_force_push_names_no_lease() {
         let config: Config = toml::from_str(LOG_CONFIG).unwrap();
-        let refusal = |command: &str| command.parse::<ShellCommand>().unwrap().refusal(&config).unwrap().to_string();
+        let lead = LEAD.parse().unwrap();
+        let refused = |command: &str| command.parse::<ShellCommand>().unwrap().refusal(&config, Some(&lead));
+        let refusal = |command: &str| refused(command).unwrap().to_string();
         assert!(refusal(LOG_PUSH).ends_with(ONLY_META) && refusal(NEAR_LOG).ends_with(OPEN_PR));
-        assert!(!refusal(FORCED).contains(LEASE));
+        assert!(!refusal(FORCED).contains(LEASE) && refused(LANDS).is_none());
     }
 }

@@ -4,7 +4,7 @@ mod memory_log;
 mod skipped_line;
 mod snapshot;
 
-pub use git_log::{GitLog, NotCommitId, RemoteHeads, Sha};
+pub use git_log::{GitLog, NotCommitId, Remote, RemoteHeads, Sha};
 pub use log_failure::LogFailure;
 pub use memory_log::MemoryLog;
 pub use meta_git::RemoteName;

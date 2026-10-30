@@ -1,7 +1,9 @@
 #![allow(clippy::unwrap_used)]
 
+use std::ffi::{OsStr, OsString};
 use std::fmt;
 use std::io::Write as _;
+use std::os::unix::ffi::{OsStrExt as _, OsStringExt as _};
 use std::os::unix::process::CommandExt as _;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
@@ -50,6 +52,8 @@ const NO_TASKS: &str = "Tasks: 0 unfinished";
 const SESSION_ACTOR: &str = "claude-abcdef1234";
 const SESSION_STARTED: &str = "meta-sessions/ABCDEF1234/started";
 const ENV_LINE: &str = "export META_ACTOR=claude-abcdef1234\nexport META_SESSION=ABCDEF12-34\n";
+const REMOTE_URL: &str = "remote.origin.url";
+const FILE_SCHEME: &str = "file://";
 const HANGING_UPLOAD: &str = "[remote \"origin\"]\n\tuploadpack = sh -c 'sleep 5' x\n";
 const META_TOML: &str = "meta.toml";
 const QUICK_GIT: &str = "[ci]\ngit_millis = 20\n";
@@ -74,6 +78,28 @@ struct Config;
 impl Config {
     fn configure(file: &Path, section: &str) {
         std::fs::OpenOptions::new().append(true).open(file).unwrap().write_all(section.as_bytes()).unwrap();
+    }
+}
+
+struct Stray(u8);
+
+const STRAY: Stray = Stray(0xff);
+const STRAYS: usize = 2;
+
+struct Call<'path>(&'path Path);
+
+impl Call<'_> {
+    fn json(&self, fields: &str) -> String {
+        let cwd = serde_json::to_string(self.0).unwrap();
+        self.bytes(OsStr::new(&format!(r#"{{"cwd":{cwd},{fields}}}"#)))
+    }
+
+    fn bytes(&self, input: &OsStr) -> String {
+        let mut meta = MetaCommand::tagged(&[HOOK, PRE]);
+        let piped = meta.env_remove("META_ACTOR").env("TMPDIR", self.0);
+        let mut child = piped.stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
+        child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
+        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
     }
 }
 
@@ -135,6 +161,25 @@ impl Repo {
     }
 }
 
+const UNPARSABLE: &str = "{not json";
+const UNPARSABLE_REASON: &str = "cannot parse the hook input";
+const MODAL_CALLS: [&str; 2] = [
+    r#""tool_name":"AskUserQuestion","tool_input":{"questions":[]}"#,
+    r#""agent_id":"a1","tool_name":"AskUserQuestion","tool_input":{"questions":[]}"#,
+];
+const BASH_CALL: &str = r#""tool_name":"Bash","tool_input":{"command":"ls"}"#;
+const MODAL_REASON: &str = "Modal questions are refused: write the decision as discussion in your reply";
+
+#[test]
+fn pre_tool_use_refuses_modal_question_tools_in_every_session_and_leaves_other_tools_alone() {
+    let repo = Repo::new();
+    let call = Call(repo.clone.path());
+    assert!(MODAL_CALLS.iter().all(|fields| call.json(fields).contains(&format!("{DENY}{MODAL_REASON}"))));
+    assert_eq!(call.json(BASH_CALL), "");
+    let denied = |shown: String| shown.contains(&format!("{DENY}{UNPARSABLE_REASON}"));
+    assert!(denied(call.json(UNPARSABLE)) && denied(call.bytes(&OsString::from_vec(vec![STRAY.0; STRAYS]))));
+}
+
 #[test]
 fn pre_tool_use_denies_merges_force_pushes_and_commits_by_foreign_emails_wherever_they_run() {
     let repo = Repo::new();
@@ -190,36 +235,12 @@ fn session_start_shows_state_and_names_the_session_actor() {
     let shown = repo.hook(SESSION_START, COMMIT, home);
     assert!(shown.contains(NO_TASKS) && shown.contains(SESSION_ACTOR));
     assert_eq!(std::fs::read_to_string(home.join(ENV_FILE)).unwrap(), ENV_LINE);
+    Fixture::opened(home).configured(REMOTE_URL, &[FILE_SCHEME, &repo.origin.path().display().to_string()].concat());
     Config::configure(&home.join(GIT_CONFIG), HANGING_UPLOAD);
     Config::configure(&home.join(META_TOML), QUICK_GIT);
     let started = Instant::now();
     let shown = repo.hook(SESSION_START, COMMIT, home);
     assert!(home.join(SESSION_STARTED).exists() && started.elapsed() < PATIENT && shown.contains(UNREADABLE));
-}
-
-const REAL_POLICY: &str = include_str!("../../../../tooling/policy.toml");
-
-#[test]
-fn a_subagent_running_a_forbidden_command_is_denied_through_the_real_policy_and_the_main_session_is_not() {
-    let repo = Repo::new();
-    std::fs::write(repo.clone.path().join("tooling/policy.toml"), REAL_POLICY).unwrap();
-    let ran = |agent: &str| {
-        let input = format!(
-            "{{{agent}\"cwd\":{},\"tool_input\":{{\"command\":\"sed -i p f\"}}}}",
-            serde_json::to_string(repo.clone.path()).unwrap()
-        );
-        let mut child = MetaCommand::tagged(&[HOOK, PRE]).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
-        child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
-        String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).into_owned()
-    };
-    assert!(ran("\"agent_id\":\"a1\",").contains(DENY) && ran("").is_empty());
-}
-
-#[test]
-fn pre_tool_use_denies_input_it_cannot_parse() {
-    let mut child = MetaCommand::tagged(&[HOOK, PRE]).stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
-    child.stdin.take().unwrap().write_all(b"{not json").unwrap();
-    assert!(String::from_utf8_lossy(&child.wait_with_output().unwrap().stdout).contains(DENY));
 }
 
 impl fmt::Display for Repo {

@@ -20,7 +20,7 @@ Principles, ladder and design: `context/SPEC.md`. Build stages: `context/BOOTSTR
 - `goldens/`: real recorded git, gh and meta output (`<scenario>.toml` steps, `<scenario>/` recordings).
   `cargo xtask goldens` re-records git and meta ones (CI job `goldens` fails on any diff); gh ones refresh
   only in the scheduled `goldens-online` workflow. Recorded with git 2.54-2.55. Tests feed views, not fakes.
-- `context/` and this file: agent context (prose category 1). `README.md` and `docs/`: STE100
+- `context/`, `self/agent-rules.md` and this file: agent context (prose category 1). `README.md` and `docs/`: STE100
   documentation only (category 2).
 
 ## Upgrading
@@ -38,14 +38,14 @@ Principles, ladder and design: `context/SPEC.md`. Build stages: `context/BOOTSTR
 
 ## Process
 
-- Work from the log: `meta list`, `meta claim <task>`, `meta done <task>` once GitHub CI passes.
+- Work from the log: `meta list`, `meta claim <task>` before work. The lead runs `meta done <task>` after the PR merges.
   Report surprises with `meta issue`; vague worries with `meta concern`. Every new concern, issue
   and task takes `--division <path>` (a path under a top division, see `meta` usage).
 - One task, one small PR off `main`. Stack only a truly atomic sequence, and then only with
   `gh stack`, never `--base <branch>`. A small good PR never waits on a large one.
 - Stacked branches are added with `gh stack add task-<id>-N`, so CI finds the task.
 - Push your own branch right after every commit so CI runs.
-- Never merge, approve, or push to `main`; the owner merges. Hooks deny merges, force pushes,
+- Never merge, approve, or push to `main`. The owner or the lead lands PRs with `meta queue run`. Hooks deny merges, `meta queue run` unless `META_ACTOR` names an actor in `tooling/policy.toml` `[queue] landers` (`owner`, `claude-lead`), force pushes,
   and pushes to protected branches. Only `meta` writes `meta/log`.
 - Merge conflicts are expected; merge `main` in and fix them. No hand rebase or force push;
   `gh stack` may restack.

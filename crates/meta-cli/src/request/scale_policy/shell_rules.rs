@@ -16,12 +16,17 @@ pub struct ShellRules {
     interpreters: Vec<Program>,
     #[serde(default)]
     valued: BTreeMap<String, Vec<Program>>,
+    #[serde(default)]
+    forbidden_git: Vec<String>,
+    #[serde(default)]
+    git_flags: BTreeMap<String, Vec<String>>,
 }
 
 impl ShellRules {
     const QUERIED: &'static str = "command";
     const QUERIES: &'static [&'static str] = &["-v", "-V"];
     const EVAL: &'static str = "eval";
+    const GIT: &'static str = "git";
     const HERE_STRING: &'static str = "<<<";
     const COMMAND_FLAG: char = 'c';
 
@@ -29,10 +34,33 @@ impl ShellRules {
         self.forbidden.extend(other.forbidden);
         self.wrappers.extend(other.wrappers);
         self.interpreters.extend(other.interpreters);
+        self.forbidden_git.extend(other.forbidden_git);
         for (wrapper, flags) in other.valued {
             self.valued.entry(wrapper).or_default().extend(flags);
         }
+        for (subcommand, flags) in other.git_flags {
+            self.git_flags.entry(subcommand).or_default().extend(flags);
+        }
         self
+    }
+
+    pub fn git_in<'a>(&self, segment: &'a [String]) -> Option<&'a [String]> {
+        let rest = segment.get(self.command_at(segment)?..)?;
+        rest.first().filter(|word| word.rsplit('/').next() == Some(Self::GIT)).map(|_| rest)
+    }
+
+    pub fn git_breach(&self, subcommand: &str, args: &[String]) -> Option<String> {
+        let flags = self.git_flags.get(subcommand);
+        let flagged = flags.and_then(|flags| args.iter().find(|arg| flags.iter().any(|flag| Self::flagged(arg, flag))));
+        let named = self.forbidden_git.iter().any(|word| word == subcommand).then(|| subcommand.to_owned());
+        named.or_else(|| flagged.map(|arg| format!("{subcommand} {arg}")))
+    }
+
+    fn flagged(arg: &str, flag: &str) -> bool {
+        match flag.strip_prefix("--") {
+            Some(_) => arg == flag || arg.strip_prefix(flag).is_some_and(|rest| rest.starts_with('=')),
+            None => arg.starts_with('-') && !arg.starts_with("--") && flag.chars().skip(1).all(|c| arg.contains(c)),
+        }
     }
 
     pub fn forbidden_in<'a>(&self, segment: &'a [String]) -> Option<&'a str> {

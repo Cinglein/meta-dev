@@ -4,6 +4,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use super::clock::Clock;
+use super::test_name::TestName;
 use super::test_runs::TestRuns;
 use super::test_timing::TestTiming;
 use task::Failure;
@@ -24,7 +25,7 @@ impl TestRun {
     pub(super) fn filed(self, runs: TestRuns) -> TestRuns {
         match self {
             TestRun::Passed(timing) => runs.passing(timing),
-            TestRun::Failed(timing) => runs.failing(timing.test()),
+            TestRun::Failed(timing) => runs.failing(timing.name().failure()),
             TestRun::Unlisted(binary) => runs.unlisting(binary),
         }
     }
@@ -32,9 +33,9 @@ impl TestRun {
     fn timed(fields: &[&str]) -> Option<TestTiming> {
         let spent = |nanos: &str| nanos.parse().ok().map(Duration::from_nanos);
         match *fields {
-            [wall, cpu, test, binary] => spent(wall)
-                .zip(spent(cpu))
-                .map(|(wall, cpu)| TestTiming::new(Path::new(binary), test, wall, cpu)),
+            [wall, cpu, package, test, binary] => spent(wall).zip(spent(cpu)).map(|(wall, cpu)| {
+                TestTiming::new(TestName::new(package, Path::new(binary), &test), wall, cpu)
+            }),
             _ => None,
         }
     }
@@ -47,11 +48,10 @@ impl TestRun {
         let separator = Self::SEPARATOR;
         write!(
             formatter,
-            "{outcome}{separator}{}{separator}{}{separator}{}{separator}{}",
+            "{outcome}{separator}{}{separator}{}{separator}{}",
             timing.spent(Clock::Wall).as_nanos(),
             timing.spent(Clock::Cpu).as_nanos(),
-            timing.test(),
-            timing.binary().display()
+            timing.name().fields(separator)
         )
     }
 }

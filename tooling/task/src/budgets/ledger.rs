@@ -5,10 +5,11 @@ mod statement;
 
 use std::collections::BTreeMap;
 
+use meta_budget::BudgetId;
+
 use super::budget::{Amount, Budget, Measure};
-use super::budget_id::BudgetId;
 use super::standing::{Exposure, Standing};
-use crate::failure::Failure;
+use crate::failure::{Failure, Printed};
 use crate::policy::Policy;
 use crate::selection::Selection;
 use mode::Mode;
@@ -107,7 +108,15 @@ impl Ledger {
     pub fn checked(&self, policy: &Policy, selection: &Selection) -> Result<(), Failure> {
         let statement = self.statement(policy);
         print!("{statement}");
-        statement.verdict(selection).verdict()
+        let report = statement.verdict(selection);
+        if report.is_clean() {
+            Ok(())
+        } else {
+            Err(Failure::Found {
+                printed: Printed::Report(report),
+                found: statement.failures(selection),
+            })
+        }
     }
 
     #[must_use]
@@ -152,12 +161,14 @@ mod tests {
     use meta_state::State;
 
     use super::{Ledger, Mode};
+    use crate::Percent;
     use crate::budget::{Interval, Millis};
     use crate::budgets::{Amount, Budgets, ChangeLink, Measure, Standing};
-    use crate::percent::Percent;
     use crate::policy::{Most, Policy};
     use crate::selection::Selection;
 
+    const CHECK: &str = "ledger";
+    const OVERRUN: &str = include_str!("../../fixtures/budget-overrun.golden.json");
     const LOG: &str = include_str!("ledger/standing.jsonl");
     const STANDING: &str = include_str!("ledger/standing.toml");
     const BASE: &str = include_str!("ledger/base.toml");
@@ -289,6 +300,10 @@ mod tests {
             shown,
             include_str!("../../../../goldens/snapshots/task/budgets/ledger/tests/overspent.snap")
         );
-        assert!(ledger.checked(&policy, &Selection::Workspace).is_err());
+        let found = ledger
+            .checked(&policy, &Selection::Workspace)
+            .err()
+            .map(|failure| failure.found(&CHECK.into()).to_string());
+        assert_eq!(found.as_deref(), Some(OVERRUN));
     }
 }

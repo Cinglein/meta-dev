@@ -1,9 +1,7 @@
 mod build_start;
 mod enforcer;
 mod item_filter;
-mod item_kind;
 mod mutation_job;
-mod unit;
 
 use serde::{Deserialize, Serialize};
 use strum::Display;
@@ -13,9 +11,8 @@ use crate::domains::ScopeKind;
 pub use build_start::BuildStart;
 pub use enforcer::Enforcer;
 pub use item_filter::ItemFilter;
-pub use item_kind::ItemKind;
+pub use meta_budget::Unit;
 pub use mutation_job::MutationJob;
-pub use unit::Unit;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Display, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -25,6 +22,7 @@ pub enum Measure {
     TestCpuTime,
     SlowestTest,
     GitProcesses,
+    TestProcesses,
     #[strum(to_string = "workflow_wall_time {0}")]
     WorkflowWallTime(MutationJob),
     #[strum(to_string = "build_wall_time {0}")]
@@ -34,6 +32,7 @@ pub enum Measure {
     TestLineShare,
     TangleItems,
     GitStarters,
+    ProcessStarters,
     #[strum(to_string = "open_items {0}")]
     OpenItems(ItemFilter),
     EffectShare,
@@ -56,8 +55,9 @@ impl Measure {
             | Measure::EffectDispersion
             | Measure::RepeatedShapes
             | Measure::GitProcesses
-            | Measure::GitStarters => Unit::Count,
-            Measure::LintFindings => Unit::Baseline,
+            | Measure::GitStarters
+            | Measure::ProcessStarters => Unit::Count,
+            Measure::LintFindings | Measure::TestProcesses => Unit::Baseline,
         }
     }
 
@@ -67,7 +67,8 @@ impl Measure {
             Measure::TestWallTime
             | Measure::TestCpuTime
             | Measure::SlowestTest
-            | Measure::GitProcesses => Some(ScopeKind::Tests),
+            | Measure::GitProcesses
+            | Measure::TestProcesses => Some(ScopeKind::Tests),
             Measure::WorkflowWallTime(_) | Measure::BuildWallTime(_) | Measure::MutantPrice => {
                 Some(ScopeKind::Workflows)
             }
@@ -77,7 +78,7 @@ impl Measure {
             Measure::LintFindings | Measure::TestLineShare | Measure::RepeatedShapes => {
                 Some(ScopeKind::Paths)
             }
-            Measure::OpenItems(_) | Measure::GitStarters => None,
+            Measure::OpenItems(_) | Measure::GitStarters | Measure::ProcessStarters => None,
         }
     }
 
@@ -88,7 +89,9 @@ impl Measure {
             | Measure::TestCpuTime
             | Measure::SlowestTest
             | Measure::GitProcesses
+            | Measure::TestProcesses
             | Measure::GitStarters
+            | Measure::ProcessStarters
             | Measure::BuildWallTime(_)
             | Measure::OpenItems(_) => Enforcer::Checker,
             Measure::WorkflowWallTime(_) | Measure::MutantPrice => Enforcer::MutationJobs,
@@ -109,6 +112,7 @@ impl Measure {
             | Measure::TestCpuTime
             | Measure::SlowestTest
             | Measure::GitProcesses
+            | Measure::TestProcesses
             | Measure::WorkflowWallTime(_)
             | Measure::BuildWallTime(_)
             | Measure::MutantPrice
@@ -118,7 +122,8 @@ impl Measure {
             | Measure::EffectShare
             | Measure::EffectDispersion
             | Measure::RepeatedShapes
-            | Measure::GitStarters => None,
+            | Measure::GitStarters
+            | Measure::ProcessStarters => None,
         }
     }
 
@@ -130,12 +135,14 @@ impl Measure {
             | Measure::TestCpuTime
             | Measure::SlowestTest
             | Measure::GitProcesses
+            | Measure::TestProcesses
             | Measure::WorkflowWallTime(_)
             | Measure::MutantPrice
             | Measure::LintFindings
             | Measure::TestLineShare
             | Measure::TangleItems
             | Measure::GitStarters
+            | Measure::ProcessStarters
             | Measure::OpenItems(_)
             | Measure::EffectShare
             | Measure::EffectDispersion
@@ -153,7 +160,9 @@ impl Measure {
             | Measure::EffectDispersion
             | Measure::RepeatedShapes
             | Measure::GitProcesses
-            | Measure::GitStarters => None,
+            | Measure::TestProcesses
+            | Measure::GitStarters
+            | Measure::ProcessStarters => None,
             Measure::TestWallTime
             | Measure::TestCpuTime
             | Measure::SlowestTest

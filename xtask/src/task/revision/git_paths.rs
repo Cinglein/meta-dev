@@ -8,13 +8,15 @@ pub struct GitPaths(Vec<PathBuf>);
 impl GitPaths {
     const SEPARATOR: char = '\0';
 
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
     pub fn and(mut self, more: GitPaths) -> GitPaths {
         self.0.extend(more.0);
         self
+    }
+}
+
+impl FromIterator<PathBuf> for GitPaths {
+    fn from_iter<Paths: IntoIterator<Item = PathBuf>>(paths: Paths) -> GitPaths {
+        GitPaths(paths.into_iter().collect())
     }
 }
 
